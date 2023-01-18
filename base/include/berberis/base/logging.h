@@ -18,14 +18,23 @@
 #define BERBERIS_BASE_LOGGING_H_
 
 #if defined(ANDROID)
-#include "berberis/base/logging_android.h"
-#else
-#include "berberis/base/logging_portable.h"
-#endif
 
-#if defined(LOG_TAG)
+#include <cutils/log.h>
+
+#include "berberis/base/scoped_errno.h"
+
+// We must save errno and restore it when we are doing logging (b/27992399).
+#undef LOG_PRI
+#define LOG_PRI(priority, tag, ...) \
+  (::berberis::ScopedErrno(), android_printLog(priority, tag, __VA_ARGS__))
+
 #undef LOG_TAG
 #define LOG_TAG "berberis"
+
+#else // defined(ANDROID)
+
+#error "Only ANDROID builds are supported"
+
 #endif
 
 #endif  // BERBERIS_BASE_LOGGING_H_
