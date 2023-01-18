@@ -20,6 +20,7 @@
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <type_traits>
 
 namespace berberis {
@@ -55,7 +56,9 @@ class Decoder {
       return 2;
     }
 
-    code_ = *reinterpret_cast<const uint32_t*>(code);
+    // Warning: do not cast and dereference the pointer
+    // since the address may not be 4-bytes aligned.
+    memcpy(&code_, code, sizeof(code_));
 
     BaseOpcode opcode_bits = BaseOpcode{GetBits<uint8_t, 2, 5>()};
 
