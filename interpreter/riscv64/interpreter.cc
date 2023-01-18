@@ -23,6 +23,7 @@
 #include "berberis/base/logging.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
+#include "berberis/guest_state/guest_state_riscv64.h"
 
 namespace berberis {
 

@@ -14,31 +14,25 @@
  * limitations under the License.
  */
 
-#include "gtest/gtest.h"
+#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
+#define BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
 
-#include "berberis/base/bit_util.h"
-#include "berberis/guest_state/guest_state_riscv64.h"
-#include "berberis/interpreter/riscv64/interpreter.h"
+#include "cstdint"
 
 namespace berberis {
 
-namespace {
+using GuestAddr = uint64_t;
 
-TEST(Riscv64Interpreter, Add) {
-  static const uint32_t code[] = {
-    0x003100b3, // add x1, x2, x3
-  };
+struct CPUState {
+  // x1 to x31.
+  uint64_t x[31];
+  GuestAddr insn_addr;
+};
 
-  ThreadState state;
-  state.cpu.insn_addr = bit_cast<GuestAddr>(&code[0]);
-  state.cpu.x[1] = 19;
-  state.cpu.x[2] = 23;
-
-  InterpretInsn(&state);
-
-  EXPECT_EQ(state.cpu.x[0], 42u);
-}
-
-}  // namespace
+struct ThreadState {
+  CPUState cpu;
+};
 
 }  // namespace berberis
+
+#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_

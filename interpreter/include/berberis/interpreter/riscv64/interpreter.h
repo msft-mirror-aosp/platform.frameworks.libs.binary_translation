@@ -19,21 +19,9 @@
 
 #include "cstdint"
 
+#include "berberis/guest_state/guest_state_riscv64.h"
+
 namespace berberis {
-
-// TODO(b/265372622): Move guest state definitions to the dedicated module.
-
-typedef uint64_t GuestAddr;
-
-struct CPUState {
-  // x1 to x31.
-  uint64_t x[31];
-  GuestAddr insn_addr;
-};
-
-struct ThreadState {
-  CPUState cpu;
-};
 
 void InterpretInsn(ThreadState* state);
 
