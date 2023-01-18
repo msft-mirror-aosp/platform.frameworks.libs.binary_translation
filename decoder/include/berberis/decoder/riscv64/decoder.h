@@ -34,7 +34,38 @@ class Decoder {
   explicit Decoder(InsnConsumer* insn_consumer) : insn_consumer_(insn_consumer) {}
 
   enum class BaseOpcode {
+    kLoad = 0b00'000,
+    kLoadFp = 0b00'001,
+    kCustom0 = 0b00'010,
+    kMiscMem = 0b00'011,
+    kOpImm = 0b00'100,
+    kAuipc = 0b00'101,
+    kOpImm32 = 0b00'110,
+    // Reserved 0b00'111,
+    kStore = 0b01'000,
+    kStoreFp = 0b01'001,
+    kCustom1 = 0b01'010,
+    kAmo = 0b01'011,
     kOp = 0b01'100,
+    kLui = 0b01'101,
+    kOp32 = 0b01'110,
+    // Reserved 0b01'111,
+    kMAdd = 0b10'000,
+    kMSub = 0b10'001,
+    kNmSub = 0b10'010,
+    kNmAdd = 0b10'011,
+    kOpFp = 0b10'100,
+    // Reserved 0b10'101,
+    kCustom2 = 0b10'110,
+    // Reserved 0b10'111,
+    kBranch = 0b11'000,
+    kJalr = 0b11'001,
+    // Reserved 0b11'010,
+    kJal = 0b11'011,
+    kSystem = 0b11'100,
+    // Reserved 0b11'101,
+    kCustom3 = 0b11'110,
+    // Reserved 0b11'111,
   };
 
   enum class OpOpcode {
