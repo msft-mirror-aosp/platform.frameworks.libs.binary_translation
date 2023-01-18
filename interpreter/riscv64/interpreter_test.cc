@@ -31,12 +31,12 @@ TEST(Riscv64Interpreter, Add) {
 
   ThreadState state;
   state.cpu.insn_addr = bit_cast<GuestAddr>(&code[0]);
-  state.cpu.x[1] = 19;
-  state.cpu.x[2] = 23;
+  SetXReg<2>(state.cpu, 19);
+  SetXReg<3>(state.cpu, 23);
 
   InterpretInsn(&state);
 
-  EXPECT_EQ(state.cpu.x[0], 42u);
+  EXPECT_EQ(GetXReg<1>(state.cpu), 42u);
 }
 
 }  // namespace

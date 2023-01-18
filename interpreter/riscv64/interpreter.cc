@@ -21,6 +21,7 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/logging.h"
+#include "berberis/base/macros.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
