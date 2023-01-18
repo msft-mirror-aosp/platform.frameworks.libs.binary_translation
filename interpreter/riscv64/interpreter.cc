@@ -46,6 +46,24 @@ class Interpreter {
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
         return arg1 + arg2;
+      case Decoder::OpOpcode::kSub:
+        return arg1 - arg2;
+      case Decoder::OpOpcode::kAnd:
+        return arg1 & arg2;
+      case Decoder::OpOpcode::kOr:
+        return arg1 | arg2;
+      case Decoder::OpOpcode::kXor:
+        return arg1 ^ arg2;
+      case Decoder::OpOpcode::kSll:
+        return arg1 << arg2;
+      case Decoder::OpOpcode::kSlr:
+        return arg1 >> arg2;
+      case Decoder::OpOpcode::kSra:
+        return bit_cast<int64_t>(arg1) >> arg2;
+      case Decoder::OpOpcode::kSlt:
+        return bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2) ? 1 : 0;
+      case Decoder::OpOpcode::kSltu:
+        return arg1 < arg2 ? 1 : 0;
       default:
         Unimplemented();
         break;
