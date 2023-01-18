@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include "berberis/base/bit_util.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 namespace berberis {
@@ -28,8 +29,7 @@ TEST(Riscv64Interpreter, Add) {
   };
 
   ProcessState state;
-  // TODO(b/265372622): Replace with bit_cast.
-  state.cpu.insn_addr = reinterpret_cast<GuestAddr>(&code[0]);
+  state.cpu.insn_addr = bit_cast<GuestAddr>(&code[0]);
   state.cpu.x[1] = 19;
   state.cpu.x[2] = 23;
 
