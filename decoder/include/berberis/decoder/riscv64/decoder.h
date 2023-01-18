@@ -42,6 +42,9 @@ class Decoder {
 
   struct OpArgs {
     OpOpcode opcode;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
   };
 
   uint8_t Decode(const uint16_t* code) {
@@ -82,6 +85,9 @@ class Decoder {
     OpOpcode opcode = OpOpcode{low_opcode | (high_opcode << 3)};
     const OpArgs args = {
         .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Op(args);
   }

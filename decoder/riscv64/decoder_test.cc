@@ -47,6 +47,9 @@ TEST(Riscv64Decoder, Add) {
 
   EXPECT_EQ(size, 4);
   EXPECT_EQ(insn_consumer.op_args.opcode, Decoder::OpOpcode::kAdd);
+  EXPECT_EQ(insn_consumer.op_args.dst, 1u);
+  EXPECT_EQ(insn_consumer.op_args.src1, 2u);
+  EXPECT_EQ(insn_consumer.op_args.src2, 3u);
   EXPECT_FALSE(insn_consumer.is_unimplemented);
 }
 
