@@ -33,7 +33,7 @@ class Interpreter {
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
 
-  explicit Interpreter(ProcessState* state)
+  explicit Interpreter(ThreadState* state)
       : state_(state) {}
 
   //
@@ -84,12 +84,12 @@ class Interpreter {
     CHECK_LE(reg, arraysize(state_->cpu.x));
   }
 
-  ProcessState* state_;
+  ThreadState* state_;
 };
 
 }  // namespace
 
-void InterpretInsn(ProcessState* state) {
+void InterpretInsn(ThreadState* state) {
   GuestAddr pc = state->cpu.insn_addr;
 
   Interpreter interpreter(state);

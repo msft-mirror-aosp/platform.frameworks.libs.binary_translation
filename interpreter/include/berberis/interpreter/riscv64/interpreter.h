@@ -31,11 +31,11 @@ struct CPUState {
   GuestAddr insn_addr;
 };
 
-struct ProcessState {
+struct ThreadState {
   CPUState cpu;
 };
 
-void InterpretInsn(ProcessState* state);
+void InterpretInsn(ThreadState* state);
 
 }  // namespace berberis
 

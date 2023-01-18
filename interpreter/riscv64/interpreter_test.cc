@@ -28,7 +28,7 @@ TEST(Riscv64Interpreter, Add) {
     0x003100b3, // add x1, x2, x3
   };
 
-  ProcessState state;
+  ThreadState state;
   state.cpu.insn_addr = bit_cast<GuestAddr>(&code[0]);
   state.cpu.x[1] = 19;
   state.cpu.x[2] = 23;
