@@ -29,4 +29,8 @@ cc_test_host {
     name: "berberis_interpreter_riscv64_host_test",
     static_libs: [ "libberberis_interpreter_riscv64" ],
     srcs: [ "riscv64/interpreter_test.cc" ],
+    test_suites: ["device-tests"],
+    test_options: {
+        unit_test: true,
+    },
 }

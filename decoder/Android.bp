@@ -27,4 +27,8 @@ cc_test_host {
     name: "berberis_decoder_riscv64_host_test",
     header_libs: [ "libberberis_decoder_riscv64_headers" ],
     srcs: [ "riscv64/decoder_test.cc" ],
+    test_suites: ["device-tests"],
+    test_options: {
+        unit_test: true,
+    },
 }
