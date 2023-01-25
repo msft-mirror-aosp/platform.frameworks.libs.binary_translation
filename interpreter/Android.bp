@@ -19,16 +19,27 @@ package {
 
 cc_library_static {
     name: "libberberis_interpreter_riscv64",
+    defaults: ["berberis_defaults_64"],
     host_supported: true,
     export_include_dirs: ["include"],
-    header_libs: [ "libberberis_decoder_riscv64_headers" ],
+    header_libs: [
+        "libberberis_base_headers",
+        "libberberis_decoder_riscv64_headers",
+    ],
     srcs: [ "riscv64/interpreter.cc" ],
 }
 
 cc_test_host {
     name: "berberis_interpreter_riscv64_host_test",
+    defaults: ["berberis_defaults_64"],
     static_libs: [ "libberberis_interpreter_riscv64" ],
     srcs: [ "riscv64/interpreter_test.cc" ],
+    shared_libs: [
+        "liblog",
+    ],
+    header_libs: [
+        "libberberis_base_headers",
+    ],
     test_suites: ["device-tests"],
     test_options: {
         unit_test: true,
