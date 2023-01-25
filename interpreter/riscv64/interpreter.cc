@@ -17,8 +17,10 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 #include <cstdint>
-#include <cstdlib>
 
+#include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
+#include "berberis/base/logging.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 
@@ -49,8 +51,7 @@ class Interpreter {
   }
 
   void Unimplemented() {
-    // TODO(b/265372622): Replace with fatal from logging.h.
-    abort();
+    LOG_ALWAYS_FATAL("Unimplemented riscv64 instruction");
   }
 
   //
@@ -79,10 +80,8 @@ class Interpreter {
 
  private:
   void CheckRegIsValid(uint8_t reg) const {
-    // TODO(b/265372622): Replace with checks from logging.h.
-    if (reg == 0 || (reg > sizeof(state_->cpu.x) / sizeof(state_->cpu.x[0]))) {
-      abort();
-    }
+    CHECK_GT(reg, 0u);
+    CHECK_LE(reg, arraysize(state_->cpu.x));
   }
 
   ProcessState* state_;
@@ -96,8 +95,7 @@ void InterpretInsn(ProcessState* state) {
   Interpreter interpreter(state);
   SemanticsPlayer sem_player(&interpreter);
   Decoder decoder(&sem_player);
-  // TODO(b/265372622): Replace with bit_cast.
-  uint8_t insn_len = decoder.Decode(reinterpret_cast<const uint16_t*>(pc));
+  uint8_t insn_len = decoder.Decode(bit_cast<const uint16_t*>(pc));
   interpreter.FinalizeInsn(insn_len);
 }
 
