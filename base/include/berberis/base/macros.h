@@ -17,6 +17,6 @@
 #ifndef BERBERIS_BASE_MACROS_H_
 #define BERBERIS_BASE_MACROS_H_
 
-#include <android-base/macros.h>
+#include <android-base/macros.h>  // IWYU pragma: export.
 
 #endif  // BERBERIS_BASE_MACROS_H_
