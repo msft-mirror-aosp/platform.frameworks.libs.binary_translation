@@ -17,6 +17,7 @@
 #include "gtest/gtest.h"
 
 #include "berberis/base/bit_util.h"
+#include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 namespace berberis {
@@ -28,14 +29,14 @@ TEST(Riscv64Interpreter, Add) {
     0x003100b3, // add x1, x2, x3
   };
 
-  ProcessState state;
+  ThreadState state;
   state.cpu.insn_addr = bit_cast<GuestAddr>(&code[0]);
-  state.cpu.x[1] = 19;
-  state.cpu.x[2] = 23;
+  SetXReg<2>(state.cpu, 19);
+  SetXReg<3>(state.cpu, 23);
 
   InterpretInsn(&state);
 
-  EXPECT_EQ(state.cpu.x[0], 42u);
+  EXPECT_EQ(GetXReg<1>(state.cpu), 42u);
 }
 
 }  // namespace
