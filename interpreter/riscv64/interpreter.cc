@@ -17,6 +17,7 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 #include <cstdint>
+#include <cstring>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
@@ -139,14 +140,15 @@ class Interpreter {
  private:
   template <typename DataType>
   uint64_t Load(const void * ptr) const {
+    DataType data;
+    memcpy(&data, ptr, sizeof(data));
     // Signed types automatically sign-extend to int64_t.
-    return *static_cast<const DataType*>(ptr);
+    return static_cast<uint64_t>(data);
   }
 
   template <typename DataType>
   void Store(void* ptr, uint64_t data) const {
-    auto* typed_ptr = static_cast<DataType*>(ptr);
-    *typed_ptr = DataType(data);
+    memcpy(ptr, &data, sizeof(DataType));
   }
 
   void CheckRegIsValid(uint8_t reg) const {
