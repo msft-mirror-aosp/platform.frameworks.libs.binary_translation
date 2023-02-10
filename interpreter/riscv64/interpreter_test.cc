@@ -66,7 +66,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
   void InterpretBranch(uint32_t insn_bytes,
                    // The tuple is [arg1, arg2, expected_offset].
                    std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
-    GuestAddr code_start = bit_cast<GuestAddr>(&insn_bytes);
+    auto code_start = bit_cast<GuestAddr>(&insn_bytes);
     for (auto arg : args) {
       state_.cpu.insn_addr = code_start;
       SetXReg<1>(state_.cpu, std::get<0>(arg));
@@ -78,11 +78,21 @@ class Riscv64InterpreterTest : public ::testing::Test {
 
   void InterpretJumpAndLink(uint32_t insn_bytes,
                             int8_t expected_offset) {
-    GuestAddr code_start = bit_cast<GuestAddr>(&insn_bytes);
+    auto code_start = bit_cast<GuestAddr>(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     InterpretInsn(&state_);
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
     EXPECT_EQ(GetXReg<1>(state_.cpu), code_start + 4);
+  }
+
+  void InterpretJumpAndLinkRegister(uint32_t insn_bytes,
+                                    uint64_t base_disp,
+                                    int64_t expected_offset) {
+    auto code_start = bit_cast<GuestAddr>(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<2>(state_.cpu, code_start + base_disp);
+    InterpretInsn(&state_);
+    EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
 
  protected:
@@ -209,6 +219,15 @@ TEST_F(Riscv64InterpreterTest, JumpAndLinkInstructions) {
   InterpretJumpAndLink(0x008000ef, 8);
   // Jal with negative offset.
   InterpretJumpAndLink(0xffdff0ef, -4);
+}
+
+TEST_F(Riscv64InterpreterTest, JumpAndLinkRegisterInstructions) {
+  // Jalr offset=4.
+  InterpretJumpAndLinkRegister(0x004100e7, 38, 42);
+  // Jalr offset=-4.
+  InterpretJumpAndLinkRegister(0xffc100e7, 42, 38);
+  // Jalr offset=5 - must properly align the target to even.
+  InterpretJumpAndLinkRegister(0x005100e7, 38, 42);
 }
 
 }  // namespace

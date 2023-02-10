@@ -146,6 +146,14 @@ class Interpreter {
     return pc + insn_len;
   }
 
+  Register JumpAndLinkRegister(Register base, int16_t offset, uint8_t insn_len) {
+    uint64_t pc = state_->cpu.insn_addr;
+    // The lowest bit is always zeroed out.
+    state_->cpu.insn_addr = (base + offset) & ~uint64_t{1};
+    branch_taken_ = true;
+    return pc + insn_len;
+  }
+
   void Unimplemented() {
     FATAL("Unimplemented riscv64 instruction");
   }
