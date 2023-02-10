@@ -24,6 +24,8 @@ namespace berberis {
 // TODO(b/265372622): Make it configurable for specific guest arch.
 using GuestAddr = uint64_t;
 
+constexpr GuestAddr kNullGuestAddr{0};
+
 }  // namespace berberis
 
 #endif  // BERBERIS_GUEST_STATE_GUEST_ADDR_H_
