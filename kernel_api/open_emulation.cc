@@ -24,9 +24,9 @@
 #include <sys/types.h>
 
 #include "berberis/base/logging.h"
+#include "berberis/kernel_api/main_executable_real_path_emulation.h"
 
 #include "guest_types.h"
-#include "main_executable_real_path_emulation.h"
 
 namespace berberis {
 
