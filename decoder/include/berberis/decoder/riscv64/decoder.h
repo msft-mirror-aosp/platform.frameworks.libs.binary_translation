@@ -98,6 +98,16 @@ class Decoder {
     kSd = 0b011,
   };
 
+  enum class BranchOpcode {
+    kBeq = 0b000,
+    kBne= 0b001,
+    kBlt = 0b100,
+    kBge = 0b101,
+    kBltu = 0b110,
+    kBgeu = 0b111,
+  };
+
+
   struct OpArgs {
     OpOpcode opcode;
     uint8_t dst;
@@ -119,6 +129,13 @@ class Decoder {
     uint8_t data;
   };
 
+  struct BranchArgs {
+    BranchOpcode opcode;
+    uint8_t src1;
+    uint8_t src2;
+    int16_t offset;
+  };
+
   uint8_t Decode(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
     if ((*code & kInsnLenMask) != kInsnLenMask)  {
@@ -131,7 +148,7 @@ class Decoder {
     // since the address may not be 4-bytes aligned.
     memcpy(&code_, code, sizeof(code_));
 
-    BaseOpcode opcode_bits = BaseOpcode{GetBits<uint8_t, 2, 5>()};
+    BaseOpcode opcode_bits{GetBits<uint8_t, 2, 5>()};
 
     switch (opcode_bits) {
       case BaseOpcode::kOp:
@@ -142,6 +159,9 @@ class Decoder {
         break;
       case BaseOpcode::kStore:
         DecodeStore();
+        break;
+      case BaseOpcode::kBranch:
+        DecodeBranch();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -196,6 +216,27 @@ class Decoder {
         .data = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Store(args);
+  }
+
+  void DecodeBranch() {
+    BranchOpcode opcode{GetBits<uint8_t, 12, 3>()};
+
+    // Decode the offset.
+    auto low_imm = GetBits<uint16_t, 8, 4>();
+    auto mid_imm = GetBits<uint16_t, 25, 6>();
+    auto bit11_imm = GetBits<uint16_t, 7, 1>();
+    auto bit12_imm = GetBits<uint16_t, 31, 1>();
+    auto offset =
+        static_cast<uint16_t>(low_imm | (mid_imm << 4) | (bit11_imm << 10) | (bit12_imm << 11));
+
+    const BranchArgs args = {
+        .opcode = opcode,
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+        // Sign-extend and multiply by 2, since the offset is encoded in 2-byte units.
+        .offset = static_cast<int16_t>(static_cast<int16_t>(offset << 4) >> 3),
+    };
+    insn_consumer_->Branch(args);
   }
 
   InsnConsumer* insn_consumer_;
