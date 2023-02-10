@@ -29,7 +29,7 @@
 #include "berberis/kernel_api/tracing.h"
 
 #include "epoll_emulation.h"
-#include "guest_types_arch.h"
+#include "guest_types.h"
 #include "runtime_bridge.h"
 
 namespace berberis {

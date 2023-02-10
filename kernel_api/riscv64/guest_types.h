@@ -18,11 +18,29 @@
 #define BERBERIS_KERNEL_API_RISCV64_GUEST_TYPES_ARCH_H_
 
 #include <dirent.h>
+#include <sys/epoll.h>
 #include <sys/file.h>
 
 #include "berberis/base/struct_check.h"
 
 namespace berberis {
+
+static_assert(EPOLL_CTL_ADD == 1);
+static_assert(EPOLL_CTL_DEL == 2);
+static_assert(EPOLL_CTL_MOD == 3);
+static_assert(EPOLL_CLOEXEC == 02000000);
+
+struct Guest_epoll_event {
+  uint32_t events;
+  alignas(64 / CHAR_BIT) uint64_t data;
+};
+
+// Verify precise layouts so ConvertHostEPollEventArrayToGuestInPlace is safe.
+CHECK_STRUCT_LAYOUT(Guest_epoll_event, 128, 64);
+CHECK_FIELD_LAYOUT(Guest_epoll_event, events, 0, 32);
+CHECK_FIELD_LAYOUT(Guest_epoll_event, data, 64, 64);
+static_assert(sizeof(epoll_event) <= sizeof(Guest_epoll_event));
+static_assert(alignof(epoll_event) <= alignof(Guest_epoll_event));
 
 CHECK_STRUCT_LAYOUT(dirent64, 2240, 64);
 CHECK_FIELD_LAYOUT(dirent64, d_ino, 0, 64);
