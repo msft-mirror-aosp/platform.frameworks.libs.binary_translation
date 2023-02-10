@@ -69,9 +69,7 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
-  void Unimplemented() {
-    listener_->Unimplemented();
-  };
+  void Unimplemented() { listener_->Unimplemented(); };
 
  private:
   Register GetRegOrZero(uint8_t reg) {

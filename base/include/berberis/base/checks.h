@@ -42,9 +42,7 @@ class FmtSpec {
 
   template <size_t prefix_len, size_t op_len, size_t spec1_len, size_t spec2_len>
   constexpr static std::array<char, prefix_len + op_len + spec1_len + spec2_len - 3> Fmt(
-      const char (&prefix)[prefix_len],
-      const char (&op)[op_len],
-      const char (&spec1)[spec1_len],
+      const char (&prefix)[prefix_len], const char (&op)[op_len], const char (&spec1)[spec1_len],
       const char (&spec2)[spec2_len]) {
     std::array<char, prefix_len + op_len + spec1_len + spec2_len - 3> fmt{};
     auto pos = begin(fmt);
@@ -82,19 +80,16 @@ class FmtSpec {
 
 // TODO(b/232598137): fix multiple evaluation of v1 and v2!
 // TODO(b/232598137): change message from '1 == 0' to 'x == y (1 == 0)'!
-#define BERBERIS_CHECK_OP(op, v1, v2)                                        \
-  LOG_ALWAYS_FATAL_IF(                                                       \
-      !((v1)op(v2)), /* // NOLINT */                                         \
-      []() {                                                                 \
-        constexpr static auto __fmt =                                        \
-            berberis::FmtSpec::Fmt(BERBERIS_CHECK_PREFIX,                    \
-                                   " " #op " ",                              \
-                                   berberis::FmtSpec::kValue<decltype(v1)>,  \
-                                   berberis::FmtSpec::kValue<decltype(v2)>); \
-        return __fmt.data();                                                 \
-      }(),                                                                   \
-      v1,                                                                    \
-      v2)
+#define BERBERIS_CHECK_OP(op, v1, v2)                                                    \
+  LOG_ALWAYS_FATAL_IF(                                                                   \
+      !((v1)op(v2)), /* // NOLINT */                                                     \
+      []() {                                                                             \
+        constexpr static auto __fmt = berberis::FmtSpec::Fmt(                            \
+            BERBERIS_CHECK_PREFIX, " " #op " ", berberis::FmtSpec::kValue<decltype(v1)>, \
+            berberis::FmtSpec::kValue<decltype(v2)>);                                    \
+        return __fmt.data();                                                             \
+      }(),                                                                               \
+      v1, v2)
 
 #ifdef CHECK_EQ
 #undef CHECK_EQ

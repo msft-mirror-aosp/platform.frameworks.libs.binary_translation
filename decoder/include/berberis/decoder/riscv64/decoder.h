@@ -100,13 +100,12 @@ class Decoder {
 
   enum class BranchOpcode {
     kBeq = 0b000,
-    kBne= 0b001,
+    kBne = 0b001,
     kBlt = 0b100,
     kBge = 0b101,
     kBltu = 0b110,
     kBgeu = 0b111,
   };
-
 
   struct OpArgs {
     OpOpcode opcode;
@@ -151,7 +150,7 @@ class Decoder {
 
   uint8_t Decode(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
-    if ((*code & kInsnLenMask) != kInsnLenMask)  {
+    if ((*code & kInsnLenMask) != kInsnLenMask) {
       // TODO(b/265372622): Support 16-bit instructions.
       insn_consumer_->Unimplemented();
       return 2;
