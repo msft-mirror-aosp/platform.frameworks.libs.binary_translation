@@ -71,17 +71,30 @@ class Interpreter {
   }
 
   Register Load(Decoder::LoadOpcode opcode, Register arg, uint16_t offset) {
+    void* ptr = bit_cast<void*>(arg + offset);
     switch (opcode) {
+      case Decoder::LoadOpcode::kLbu:
+        return Load<uint8_t>(ptr);
+      case Decoder::LoadOpcode::kLhu:
+        return Load<uint16_t>(ptr);
+      case Decoder::LoadOpcode::kLwu:
+        return Load<uint32_t>(ptr);
       case Decoder::LoadOpcode::kLd:
-        return *bit_cast<uint64_t*>(arg + offset);
+        return Load<uint64_t>(ptr);
+      case Decoder::LoadOpcode::kLb:
+        return Load<int8_t>(ptr);
+      case Decoder::LoadOpcode::kLh:
+        return Load<int16_t>(ptr);
+      case Decoder::LoadOpcode::kLw:
+        return Load<int32_t>(ptr);
       default:
         Unimplemented();
-        break;
+        return {};
     }
   }
 
   void Unimplemented() {
-    LOG_ALWAYS_FATAL("Unimplemented riscv64 instruction");
+    FATAL("Unimplemented riscv64 instruction");
   }
 
   //
@@ -109,6 +122,12 @@ class Interpreter {
   }
 
  private:
+  template <typename DataType>
+  uint64_t Load(const void * ptr) const {
+    // Signed types automatically sign-extend to int64_t.
+    return *static_cast<const DataType*>(ptr);
+  }
+
   void CheckRegIsValid(uint8_t reg) const {
     CHECK_GT(reg, 0u);
     CHECK_LE(reg, arraysize(state_->cpu.x));
