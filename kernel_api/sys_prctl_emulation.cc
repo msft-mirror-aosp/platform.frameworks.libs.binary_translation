@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "sys_prctl_emulation.h"
+#include "berberis/kernel_api/sys_prctl_emulation.h"
 
 #include <linux/filter.h>
 #include <linux/seccomp.h>
@@ -22,10 +22,9 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
-#include "berberis/guest_state/guest_addr.h"
-
-#include "syscall_numbers.h"
+#include "berberis/kernel_api/syscall_numbers.h"
 
 namespace berberis {
 
@@ -35,7 +34,7 @@ int PrctlForGuest(int option,
                   unsigned long arg4,
                   unsigned long arg5) {
   if (option == PR_SET_SECCOMP) {
-    auto prog = ToHostAddr<struct sock_fprog>(arg3);
+    auto prog = bit_cast<struct sock_fprog*>(arg3);
     for (int i = 0; i < prog->len; i++) {
       struct sock_filter& filter = prog->filter[i];
       if (BPF_CLASS(filter.code) != BPF_JMP) {
