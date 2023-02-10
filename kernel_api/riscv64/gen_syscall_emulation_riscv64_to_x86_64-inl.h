@@ -99,12 +99,12 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(285, arg_1, arg_2, arg_3, arg_4);
     case 262:  // __NR_fanotify_init
       // missing prototype
-      TRACE("unsupported syscall __NR_fanotify_init");
+      KAPI_TRACE("unsupported syscall __NR_fanotify_init");
       errno = ENOSYS;
       return -1;
     case 263:  // __NR_fanotify_mark
       // missing prototype
-      TRACE("unsupported syscall __NR_fanotify_mark");
+      KAPI_TRACE("unsupported syscall __NR_fanotify_mark");
       errno = ENOSYS;
       return -1;
     case 50:  // __NR_fchdir
@@ -157,7 +157,7 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(449, arg_1, arg_2, arg_3, arg_4, arg_5);
     case 236:  // __NR_get_mempolicy
       // missing prototype
-      TRACE("unsupported syscall __NR_get_mempolicy");
+      KAPI_TRACE("unsupported syscall __NR_get_mempolicy");
       errno = ENOSYS;
       return -1;
     case 100:  // __NR_get_robust_list
@@ -249,12 +249,12 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(312, arg_1, arg_2, arg_3, arg_4, arg_5);
     case 294:  // __NR_kexec_file_load
       // missing prototype
-      TRACE("unsupported syscall __NR_kexec_file_load");
+      KAPI_TRACE("unsupported syscall __NR_kexec_file_load");
       errno = ENOSYS;
       return -1;
     case 104:  // __NR_kexec_load
       // missing prototype
-      TRACE("unsupported syscall __NR_kexec_load");
+      KAPI_TRACE("unsupported syscall __NR_kexec_load");
       errno = ENOSYS;
       return -1;
     case 219:  // __NR_keyctl
@@ -263,17 +263,17 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(62, arg_1, arg_2);
     case 445:  // __NR_landlock_add_rule
       // missing prototype
-      TRACE("unsupported syscall __NR_landlock_add_rule");
+      KAPI_TRACE("unsupported syscall __NR_landlock_add_rule");
       errno = ENOSYS;
       return -1;
     case 444:  // __NR_landlock_create_ruleset
       // missing prototype
-      TRACE("unsupported syscall __NR_landlock_create_ruleset");
+      KAPI_TRACE("unsupported syscall __NR_landlock_create_ruleset");
       errno = ENOSYS;
       return -1;
     case 446:  // __NR_landlock_restrict_self
       // missing prototype
-      TRACE("unsupported syscall __NR_landlock_restrict_self");
+      KAPI_TRACE("unsupported syscall __NR_landlock_restrict_self");
       errno = ENOSYS;
       return -1;
     case 9:  // __NR_lgetxattr
@@ -298,7 +298,7 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(28, arg_1, arg_2, arg_3);
     case 235:  // __NR_mbind
       // missing prototype
-      TRACE("unsupported syscall __NR_mbind");
+      KAPI_TRACE("unsupported syscall __NR_mbind");
       errno = ENOSYS;
       return -1;
     case 283:  // __NR_membarrier
@@ -309,7 +309,7 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(447, arg_1);
     case 238:  // __NR_migrate_pages
       // missing prototype
-      TRACE("unsupported syscall __NR_migrate_pages");
+      KAPI_TRACE("unsupported syscall __NR_migrate_pages");
       errno = ENOSYS;
       return -1;
     case 232:  // __NR_mincore
@@ -335,7 +335,7 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(429, arg_1, arg_2, arg_3, arg_4, arg_5);
     case 239:  // __NR_move_pages
       // missing prototype
-      TRACE("unsupported syscall __NR_move_pages");
+      KAPI_TRACE("unsupported syscall __NR_move_pages");
       errno = ENOSYS;
       return -1;
     case 226:  // __NR_mprotect
@@ -343,32 +343,32 @@ long RunGuestSyscallImpl(long guest_nr,
       return RunGuestSyscall___NR_mprotect(arg_1, arg_2, arg_3);
     case 185:  // __NR_mq_getsetattr
       // missing prototype
-      TRACE("unsupported syscall __NR_mq_getsetattr");
+      KAPI_TRACE("unsupported syscall __NR_mq_getsetattr");
       errno = ENOSYS;
       return -1;
     case 184:  // __NR_mq_notify
       // missing prototype
-      TRACE("unsupported syscall __NR_mq_notify");
+      KAPI_TRACE("unsupported syscall __NR_mq_notify");
       errno = ENOSYS;
       return -1;
     case 180:  // __NR_mq_open
       // missing prototype
-      TRACE("unsupported syscall __NR_mq_open");
+      KAPI_TRACE("unsupported syscall __NR_mq_open");
       errno = ENOSYS;
       return -1;
     case 183:  // __NR_mq_timedreceive
       // missing prototype
-      TRACE("unsupported syscall __NR_mq_timedreceive");
+      KAPI_TRACE("unsupported syscall __NR_mq_timedreceive");
       errno = ENOSYS;
       return -1;
     case 182:  // __NR_mq_timedsend
       // missing prototype
-      TRACE("unsupported syscall __NR_mq_timedsend");
+      KAPI_TRACE("unsupported syscall __NR_mq_timedsend");
       errno = ENOSYS;
       return -1;
     case 181:  // __NR_mq_unlink
       // missing prototype
-      TRACE("unsupported syscall __NR_mq_unlink");
+      KAPI_TRACE("unsupported syscall __NR_mq_unlink");
       errno = ENOSYS;
       return -1;
     case 216:  // __NR_mremap
@@ -376,22 +376,22 @@ long RunGuestSyscallImpl(long guest_nr,
       return RunGuestSyscall___NR_mremap(arg_1, arg_2, arg_3, arg_4, arg_5);
     case 187:  // __NR_msgctl
       // missing prototype
-      TRACE("unsupported syscall __NR_msgctl");
+      KAPI_TRACE("unsupported syscall __NR_msgctl");
       errno = ENOSYS;
       return -1;
     case 186:  // __NR_msgget
       // missing prototype
-      TRACE("unsupported syscall __NR_msgget");
+      KAPI_TRACE("unsupported syscall __NR_msgget");
       errno = ENOSYS;
       return -1;
     case 188:  // __NR_msgrcv
       // missing prototype
-      TRACE("unsupported syscall __NR_msgrcv");
+      KAPI_TRACE("unsupported syscall __NR_msgrcv");
       errno = ENOSYS;
       return -1;
     case 189:  // __NR_msgsnd
       // missing prototype
-      TRACE("unsupported syscall __NR_msgsnd");
+      KAPI_TRACE("unsupported syscall __NR_msgsnd");
       errno = ENOSYS;
       return -1;
     case 227:  // __NR_msync
@@ -405,7 +405,7 @@ long RunGuestSyscallImpl(long guest_nr,
       return RunGuestSyscall___NR_munmap(arg_1, arg_2);
     case 264:  // __NR_name_to_handle_at
       // missing prototype
-      TRACE("unsupported syscall __NR_name_to_handle_at");
+      KAPI_TRACE("unsupported syscall __NR_name_to_handle_at");
       errno = ENOSYS;
       return -1;
     case 101:  // __NR_nanosleep
@@ -417,7 +417,7 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(180);
     case 265:  // __NR_open_by_handle_at
       // missing prototype
-      TRACE("unsupported syscall __NR_open_by_handle_at");
+      KAPI_TRACE("unsupported syscall __NR_open_by_handle_at");
       errno = ENOSYS;
       return -1;
     case 428:  // __NR_open_tree
@@ -443,17 +443,17 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(155, arg_1, arg_2);
     case 289:  // __NR_pkey_alloc
       // missing prototype
-      TRACE("unsupported syscall __NR_pkey_alloc");
+      KAPI_TRACE("unsupported syscall __NR_pkey_alloc");
       errno = ENOSYS;
       return -1;
     case 290:  // __NR_pkey_free
       // missing prototype
-      TRACE("unsupported syscall __NR_pkey_free");
+      KAPI_TRACE("unsupported syscall __NR_pkey_free");
       errno = ENOSYS;
       return -1;
     case 288:  // __NR_pkey_mprotect
       // missing prototype
-      TRACE("unsupported syscall __NR_pkey_mprotect");
+      KAPI_TRACE("unsupported syscall __NR_pkey_mprotect");
       errno = ENOSYS;
       return -1;
     case 73:  // __NR_ppoll
@@ -523,7 +523,7 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(219);
     case 293:  // __NR_rseq
       // missing prototype
-      TRACE("unsupported syscall __NR_rseq");
+      KAPI_TRACE("unsupported syscall __NR_rseq");
       errno = ENOSYS;
       return -1;
     case 134:  // __NR_rt_sigaction
@@ -572,22 +572,22 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(317, arg_1, arg_2, arg_3);
     case 191:  // __NR_semctl
       // missing prototype
-      TRACE("unsupported syscall __NR_semctl");
+      KAPI_TRACE("unsupported syscall __NR_semctl");
       errno = ENOSYS;
       return -1;
     case 190:  // __NR_semget
       // missing prototype
-      TRACE("unsupported syscall __NR_semget");
+      KAPI_TRACE("unsupported syscall __NR_semget");
       errno = ENOSYS;
       return -1;
     case 193:  // __NR_semop
       // missing prototype
-      TRACE("unsupported syscall __NR_semop");
+      KAPI_TRACE("unsupported syscall __NR_semop");
       errno = ENOSYS;
       return -1;
     case 192:  // __NR_semtimedop
       // missing prototype
-      TRACE("unsupported syscall __NR_semtimedop");
+      KAPI_TRACE("unsupported syscall __NR_semtimedop");
       errno = ENOSYS;
       return -1;
     case 71:  // __NR_sendfile
@@ -600,12 +600,12 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(44, arg_1, arg_2, arg_3, arg_4, arg_5, arg_6);
     case 237:  // __NR_set_mempolicy
       // missing prototype
-      TRACE("unsupported syscall __NR_set_mempolicy");
+      KAPI_TRACE("unsupported syscall __NR_set_mempolicy");
       errno = ENOSYS;
       return -1;
     case 450:  // __NR_set_mempolicy_home_node
       // missing prototype
-      TRACE("unsupported syscall __NR_set_mempolicy_home_node");
+      KAPI_TRACE("unsupported syscall __NR_set_mempolicy_home_node");
       errno = ENOSYS;
       return -1;
     case 99:  // __NR_set_robust_list
@@ -654,22 +654,22 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(188, arg_1, arg_2, arg_3, arg_4, arg_5);
     case 196:  // __NR_shmat
       // missing prototype
-      TRACE("unsupported syscall __NR_shmat");
+      KAPI_TRACE("unsupported syscall __NR_shmat");
       errno = ENOSYS;
       return -1;
     case 195:  // __NR_shmctl
       // missing prototype
-      TRACE("unsupported syscall __NR_shmctl");
+      KAPI_TRACE("unsupported syscall __NR_shmctl");
       errno = ENOSYS;
       return -1;
     case 197:  // __NR_shmdt
       // missing prototype
-      TRACE("unsupported syscall __NR_shmdt");
+      KAPI_TRACE("unsupported syscall __NR_shmdt");
       errno = ENOSYS;
       return -1;
     case 194:  // __NR_shmget
       // missing prototype
-      TRACE("unsupported syscall __NR_shmget");
+      KAPI_TRACE("unsupported syscall __NR_shmget");
       errno = ENOSYS;
       return -1;
     case 210:  // __NR_shutdown
