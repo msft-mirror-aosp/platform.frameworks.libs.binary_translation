@@ -17,11 +17,14 @@
 #ifndef BERBERIS_KERNEL_API_SYSCALL_EMULATION_COMMON_H_
 #define BERBERIS_KERNEL_API_SYSCALL_EMULATION_COMMON_H_
 
+#include <sys/syscall.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <cerrno>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/macros.h"
 #include "berberis/kernel_api/exec_emulation.h"
 #include "berberis/kernel_api/fcntl_emulation.h"
 #include "berberis/kernel_api/open_emulation.h"
@@ -29,8 +32,6 @@
 #include "berberis/kernel_api/sys_ptrace_emulation.h"
 #include "berberis/kernel_api/tracing.h"
 #include "berberis/kernel_api/unistd_emulation.h"
-
-#include "epoll_emulation.h"
 
 namespace berberis {
 
