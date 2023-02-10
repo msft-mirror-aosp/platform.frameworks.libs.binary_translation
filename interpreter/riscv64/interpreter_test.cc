@@ -76,6 +76,15 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void InterpretJumpAndLink(uint32_t insn_bytes,
+                            int8_t expected_offset) {
+    GuestAddr code_start = bit_cast<GuestAddr>(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    InterpretInsn(&state_);
+    EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), code_start + 4);
+  }
+
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
@@ -193,6 +202,13 @@ TEST_F(Riscv64InterpreterTest, BranchInstructions) {
   InterpretBranch(0xfe208ee3, {
     {42, 42, -4},
   });
+}
+
+TEST_F(Riscv64InterpreterTest, JumpAndLinkInstructions) {
+  // Jal
+  InterpretJumpAndLink(0x008000ef, 8);
+  // Jal with negative offset.
+  InterpretJumpAndLink(0xffdff0ef, -4);
 }
 
 }  // namespace
