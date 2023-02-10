@@ -40,7 +40,18 @@ class Riscv64InterpreterTest : public ::testing::Test {
       EXPECT_EQ(GetXReg<1>(state_.cpu), std::get<2>(arg));
     }
   }
+
+  void InterpretLoad(uint32_t insn_bytes,
+                     uint64_t expected_result) {
+    state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes);
+    // Offset is always 8.
+    SetXReg<2>(state_.cpu, bit_cast<uint64_t>(bit_cast<uint8_t*>(&kDataToLoad) - 8));
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+  }
+
  protected:
+  static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   ThreadState state_;
 };
 
@@ -73,6 +84,12 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
     {23, 19, 0},
     {~0ULL, 0, 0},
   });
+}
+
+TEST_F(Riscv64InterpreterTest, LoadInstructions) {
+  // Offset is always 8.
+  // Ld
+  InterpretLoad(0x00813083, kDataToLoad);
 }
 
 }  // namespace
