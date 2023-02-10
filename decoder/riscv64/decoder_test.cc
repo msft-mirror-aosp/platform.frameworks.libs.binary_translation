@@ -31,6 +31,7 @@ struct TestInsnConsumer {
   void Op(const Decoder::OpArgs& args) { op_args = args; };
   void Unimplemented() { is_unimplemented = true; };
   void Load(const typename Decoder::LoadArgs&) {};
+  void Store(const typename Decoder::StoreArgs&) {};
 
   Decoder::OpArgs op_args;
   bool is_unimplemented = false;
