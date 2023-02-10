@@ -69,7 +69,16 @@ class Decoder {
   };
 
   enum class OpOpcode {
-    kAdd = 0b0000000'000,
+    kAdd = 0b0000'000'000,
+    kSub = 0b0100'000'000,
+    kSll = 0b0000'000'001,
+    kSlt = 0b0000'000'010,
+    kSltu = 0b0000'000'011,
+    kXor = 0b0000'000'100,
+    kSlr = 0b0000'000'101,
+    kSra = 0b0100'000'101,
+    kOr = 0b0000'000'110,
+    kAnd = 0b0000'000'111,
   };
 
   struct OpArgs {
