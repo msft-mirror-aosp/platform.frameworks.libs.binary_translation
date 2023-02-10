@@ -31,6 +31,7 @@ cc_library_static {
     ],
     host_supported: true,
     srcs: [
+        "exec_emulation.cc",
         "fcntl_emulation.cc",
         "main_executable_real_path_emulation.cc",
         "open_emulation.cc",
@@ -50,7 +51,6 @@ cc_defaults {
     host_supported: true,
     srcs: [
         "epoll_emulation.cc",
-        "exec_emulation.cc",
     ],
     header_libs: [
         "libberberis_base_headers",
