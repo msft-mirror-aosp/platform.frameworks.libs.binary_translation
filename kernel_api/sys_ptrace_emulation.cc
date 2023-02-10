@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "sys_ptrace_emulation.h"
+#include "berberis/kernel_api/sys_ptrace_emulation.h"
 
 #include <sys/ptrace.h>
 #include <sys/syscall.h>

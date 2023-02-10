@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
-#define BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
-
 #include "berberis/base/checks.h"
 
 namespace berberis {
 
-inline int ToHostSyscallNumber(int) {
+int ToHostSyscallNumber(int) {
   FATAL("Not implemented ToHostSyscallNumber");
 }
 
 }  // namespace berberis
-
-#endif  // BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
