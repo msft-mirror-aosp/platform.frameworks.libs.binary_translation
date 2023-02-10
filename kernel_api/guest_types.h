@@ -47,38 +47,6 @@ CHECK_FIELD_LAYOUT(Guest_epoll_event, data, 64, 64);
 static_assert(sizeof(epoll_event) <= sizeof(Guest_epoll_event));
 static_assert(alignof(epoll_event) <= alignof(Guest_epoll_event));
 
-static_assert(F_DUPFD == 0);
-static_assert(F_GETFD == 1);
-static_assert(F_SETFD == 2);
-static_assert(F_GETFL == 3);
-static_assert(F_SETFL == 4);
-static_assert(F_SETOWN == 8);
-static_assert(F_GETOWN == 9);
-static_assert(F_SETSIG == 10);
-static_assert(F_GETSIG == 11);
-static_assert(F_SETOWN_EX == 15);
-static_assert(F_GETOWN_EX == 16);
-static_assert(F_OWNER_TID == 0);
-static_assert(F_OWNER_PID == 1);
-static_assert(F_OWNER_PGRP == 2);
-static_assert(F_RDLCK == 0);
-static_assert(F_WRLCK == 1);
-static_assert(F_UNLCK == 2);
-#ifdef F_EXLCK
-static_assert(F_EXLCK == 4);
-#endif
-#ifdef F_SHLCK
-static_assert(F_SHLCK == 8);
-#endif
-static_assert(F_SETLEASE == 1024);
-static_assert(F_GETLEASE == 1025);
-static_assert(F_NOTIFY == 1026);
-
-#define GUEST_O_DIRECTORY 00040000
-#define GUEST_O_NOFOLLOW 00100000
-#define GUEST_O_DIRECT 00200000
-#define GUEST_O_LARGEFILE 00400000
-
 }  // namespace berberis
 
 #endif  // BERBERIS_KERNEL_API_GUEST_TYPES_H_
