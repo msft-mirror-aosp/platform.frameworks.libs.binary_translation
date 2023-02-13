@@ -82,7 +82,13 @@ class Decoder {
   };
 
   enum class LoadOpcode {
+    kLb = 0b000,
+    kLh = 0b001,
+    kLw = 0b010,
     kLd = 0b011,
+    kLbu = 0b100,
+    kLhu = 0b101,
+    kLwu = 0b110,
   };
 
   struct OpArgs {

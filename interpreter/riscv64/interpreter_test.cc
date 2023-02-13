@@ -18,6 +18,7 @@
 
 #include <initializer_list>
 #include <tuple>
+#include <type_traits>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
@@ -88,8 +89,20 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
 
 TEST_F(Riscv64InterpreterTest, LoadInstructions) {
   // Offset is always 8.
-  // Ld
+  // Lbu
+  InterpretLoad(0x00814083, kDataToLoad & 0xffULL);
+  // Lhu
+  InterpretLoad(0x00815083, kDataToLoad & 0xffffULL);
+  // Lwu
+  InterpretLoad(0x00816083, kDataToLoad & 0xffff'ffffULL);
+  // Ldu
   InterpretLoad(0x00813083, kDataToLoad);
+  // Lb
+  InterpretLoad(0x00810083, int64_t{int8_t(kDataToLoad)});
+  // Lh
+  InterpretLoad(0x00811083, int64_t{int16_t(kDataToLoad)});
+  // Lw
+  InterpretLoad(0x00812083, int64_t{int32_t(kDataToLoad)});
 }
 
 }  // namespace
