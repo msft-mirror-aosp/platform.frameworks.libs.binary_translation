@@ -87,9 +87,24 @@ class Interpreter {
         return Load<int16_t>(ptr);
       case Decoder::LoadOpcode::kLw:
         return Load<int32_t>(ptr);
-      default:
-        Unimplemented();
-        return {};
+    }
+  }
+
+  void Store(Decoder::StoreOpcode opcode, Register arg, uint16_t offset, Register data) {
+    void* ptr = bit_cast<void*>(arg + offset);
+    switch (opcode) {
+      case Decoder::StoreOpcode::kSb:
+        Store<uint8_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSh:
+        Store<uint16_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSw:
+        Store<uint32_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSd:
+        Store<uint64_t>(ptr, data);
+        break;
     }
   }
 
@@ -126,6 +141,12 @@ class Interpreter {
   uint64_t Load(const void * ptr) const {
     // Signed types automatically sign-extend to int64_t.
     return *static_cast<const DataType*>(ptr);
+  }
+
+  template <typename DataType>
+  void Store(void* ptr, uint64_t data) const {
+    auto* typed_ptr = static_cast<DataType*>(ptr);
+    *typed_ptr = DataType(data);
   }
 
   void CheckRegIsValid(uint8_t reg) const {
