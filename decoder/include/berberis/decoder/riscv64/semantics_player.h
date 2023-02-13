@@ -46,6 +46,12 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void Store(const typename Decoder::StoreArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register data = GetRegOrZero(args.data);
+    listener_->Store(args.opcode, arg, args.offset, data);
+  };
+
   void Unimplemented() {
     listener_->Unimplemented();
   };
