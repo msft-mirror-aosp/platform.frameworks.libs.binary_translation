@@ -30,6 +30,7 @@ using Decoder = Decoder<TestInsnConsumer>;
 struct TestInsnConsumer {
   void Op(const Decoder::OpArgs& args) { op_args = args; };
   void Unimplemented() { is_unimplemented = true; };
+  void Load(const typename Decoder::LoadArgs&) {};
 
   Decoder::OpArgs op_args;
   bool is_unimplemented = false;
