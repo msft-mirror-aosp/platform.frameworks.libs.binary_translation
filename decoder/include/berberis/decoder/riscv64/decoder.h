@@ -81,11 +81,22 @@ class Decoder {
     kAnd = 0b0000'000'111,
   };
 
+  enum class LoadOpcode {
+    kLd = 0b011,
+  };
+
   struct OpArgs {
     OpOpcode opcode;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
+  };
+
+  struct LoadArgs {
+    LoadOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    uint16_t offset;
   };
 
   uint8_t Decode(const uint16_t* code) {
@@ -105,6 +116,9 @@ class Decoder {
     switch (opcode_bits) {
       case BaseOpcode::kOp:
         DecodeOp();
+        break;
+      case BaseOpcode::kLoad:
+        DecodeLoad();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -133,6 +147,17 @@ class Decoder {
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Op(args);
+  }
+
+  void DecodeLoad() {
+    LoadOpcode opcode{GetBits<uint8_t, 12, 3>()};
+    const LoadArgs args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src = GetBits<uint8_t, 15, 5>(),
+        .offset = GetBits<uint16_t, 20, 12>(),
+    };
+    insn_consumer_->Load(args);
   }
 
   InsnConsumer* insn_consumer_;
