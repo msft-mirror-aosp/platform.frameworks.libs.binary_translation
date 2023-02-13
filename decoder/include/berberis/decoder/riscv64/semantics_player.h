@@ -32,10 +32,17 @@ class SemanticsPlayer {
   explicit SemanticsPlayer(SemanticsListener* listener) : listener_(listener) {}
 
   // Decoder's InsnConsumer implementation.
+
   void Op(const typename Decoder::OpArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
     Register result = listener_->Op(args.opcode, arg1, arg2);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void Load(const typename Decoder::LoadArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->Load(args.opcode, arg, args.offset);
     SetRegOrIgnore(args.dst, result);
   };
 

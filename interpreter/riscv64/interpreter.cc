@@ -70,6 +70,16 @@ class Interpreter {
     }
   }
 
+  Register Load(Decoder::LoadOpcode opcode, Register arg, uint16_t offset) {
+    switch (opcode) {
+      case Decoder::LoadOpcode::kLd:
+        return *bit_cast<uint64_t*>(arg + offset);
+      default:
+        Unimplemented();
+        break;
+    }
+  }
+
   void Unimplemented() {
     LOG_ALWAYS_FATAL("Unimplemented riscv64 instruction");
   }
