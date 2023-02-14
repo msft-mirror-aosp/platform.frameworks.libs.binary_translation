@@ -37,7 +37,8 @@ class Interpreter {
   using Register = uint64_t;
 
   explicit Interpreter(ThreadState* state)
-      : state_(state) {}
+      : state_(state),
+        branch_taken_(false) {}
 
   //
   // Instruction implementations.
@@ -109,6 +110,35 @@ class Interpreter {
     }
   }
 
+  void Branch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset) {
+    bool cond_value;
+    switch (opcode) {
+      case Decoder::BranchOpcode::kBeq:
+        cond_value = arg1 == arg2;
+        break;
+      case Decoder::BranchOpcode::kBne:
+        cond_value = arg1 != arg2;
+        break;
+      case Decoder::BranchOpcode::kBltu:
+        cond_value = arg1 < arg2;
+        break;
+      case Decoder::BranchOpcode::kBgeu:
+        cond_value = arg1 >= arg2;
+        break;
+      case Decoder::BranchOpcode::kBlt:
+        cond_value = bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2);
+        break;
+      case Decoder::BranchOpcode::kBge:
+        cond_value = bit_cast<int64_t>(arg1) >= bit_cast<int64_t>(arg2);
+        break;
+    }
+
+    if (cond_value) {
+      state_->cpu.insn_addr += offset;
+      branch_taken_ = true;
+    }
+  }
+
   void Unimplemented() {
     FATAL("Unimplemented riscv64 instruction");
   }
@@ -134,7 +164,9 @@ class Interpreter {
   uint64_t GetImm(uint64_t imm) const { return imm; }
 
   void FinalizeInsn(uint8_t insn_len) {
+    if (!branch_taken_) {
       state_->cpu.insn_addr += insn_len;
+    }
   }
 
  private:
@@ -157,6 +189,7 @@ class Interpreter {
   }
 
   ThreadState* state_;
+  bool branch_taken_;
 };
 
 }  // namespace
