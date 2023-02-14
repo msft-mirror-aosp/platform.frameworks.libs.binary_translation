@@ -136,6 +136,12 @@ class Decoder {
     int16_t offset;
   };
 
+  struct JumpAndLinkArgs {
+    uint8_t dst;
+    int32_t offset;
+    uint8_t insn_len;
+  };
+
   uint8_t Decode(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
     if ((*code & kInsnLenMask) != kInsnLenMask)  {
@@ -162,6 +168,9 @@ class Decoder {
         break;
       case BaseOpcode::kBranch:
         DecodeBranch();
+        break;
+      case BaseOpcode::kJal:
+        DecodeJumpAndLink();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -237,6 +246,24 @@ class Decoder {
         .offset = static_cast<int16_t>(static_cast<int16_t>(offset << 4) >> 3),
     };
     insn_consumer_->Branch(args);
+  }
+
+  void DecodeJumpAndLink() {
+    // Decode the offset.
+    auto low_imm = GetBits<uint32_t, 21, 10>();
+    auto mid_imm = GetBits<uint32_t, 12, 8>();
+    auto bit11_imm = GetBits<uint32_t, 20, 1>();
+    auto bit20_imm = GetBits<uint32_t, 31, 1>();
+    auto offset =
+        static_cast<uint32_t>(low_imm | (bit11_imm << 10) | (mid_imm << 11) | (bit20_imm << 19));
+
+    const JumpAndLinkArgs args = {
+        .dst = GetBits<uint8_t, 7, 5>(),
+        // Sign-extend and multiply by 2, since the offset is encoded in 2-byte units.
+        .offset = static_cast<int32_t>(static_cast<int32_t>(offset << 12) >> 11),
+        .insn_len = 4,
+    };
+    insn_consumer_->JumpAndLink(args);
   }
 
   InsnConsumer* insn_consumer_;
