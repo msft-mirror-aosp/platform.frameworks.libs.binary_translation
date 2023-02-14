@@ -63,6 +63,12 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
+    Register base = GetRegOrZero(args.base);
+    Register result = listener_->JumpAndLinkRegister(base, args.offset, args.insn_len);
+    SetRegOrIgnore(args.dst, result);
+  };
+
   void Unimplemented() {
     listener_->Unimplemented();
   };
