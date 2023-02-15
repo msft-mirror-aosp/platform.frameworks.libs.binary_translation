@@ -19,7 +19,7 @@
 
 #if defined(ANDROID)
 
-#include <cutils/log.h>
+#include <cutils/log.h>  // IWYU pragma: export.
 
 #include "berberis/base/scoped_errno.h"
 

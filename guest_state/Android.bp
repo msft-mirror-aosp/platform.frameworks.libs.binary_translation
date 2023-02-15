@@ -18,10 +18,8 @@ package {
 }
 
 cc_library_headers {
-    name: "libberberis_base_headers",
+    name: "libberberis_guest_state_headers",
     defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
-    header_libs: [ "libbase_headers" ],
-    export_header_lib_headers: [ "libbase_headers" ],
 }

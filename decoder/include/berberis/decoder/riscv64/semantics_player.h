@@ -32,10 +32,40 @@ class SemanticsPlayer {
   explicit SemanticsPlayer(SemanticsListener* listener) : listener_(listener) {}
 
   // Decoder's InsnConsumer implementation.
+
   void Op(const typename Decoder::OpArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
     Register result = listener_->Op(args.opcode, arg1, arg2);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void Load(const typename Decoder::LoadArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->Load(args.opcode, arg, args.offset);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void Store(const typename Decoder::StoreArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register data = GetRegOrZero(args.data);
+    listener_->Store(args.opcode, arg, args.offset, data);
+  };
+
+  void Branch(const typename Decoder::BranchArgs& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    listener_->Branch(args.opcode, arg1, arg2, args.offset);
+  };
+
+  void JumpAndLink(const typename Decoder::JumpAndLinkArgs& args) {
+    Register result = listener_->JumpAndLink(args.offset, args.insn_len);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
+    Register base = GetRegOrZero(args.base);
+    Register result = listener_->JumpAndLinkRegister(base, args.offset, args.insn_len);
     SetRegOrIgnore(args.dst, result);
   };
 

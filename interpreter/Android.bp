@@ -25,6 +25,7 @@ cc_library_static {
     header_libs: [
         "libberberis_base_headers",
         "libberberis_decoder_riscv64_headers",
+        "libberberis_guest_state_headers",
     ],
     srcs: [ "riscv64/interpreter.cc" ],
 }
@@ -39,6 +40,7 @@ cc_test_host {
     ],
     header_libs: [
         "libberberis_base_headers",
+        "libberberis_guest_state_headers",
     ],
     test_suites: ["device-tests"],
     test_options: {
