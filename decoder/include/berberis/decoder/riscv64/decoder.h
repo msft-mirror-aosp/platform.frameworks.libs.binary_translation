@@ -81,11 +81,42 @@ class Decoder {
     kAnd = 0b0000'000'111,
   };
 
+  enum class LoadOpcode {
+    kLb = 0b000,
+    kLh = 0b001,
+    kLw = 0b010,
+    kLd = 0b011,
+    kLbu = 0b100,
+    kLhu = 0b101,
+    kLwu = 0b110,
+  };
+
+  enum class StoreOpcode {
+    kSb = 0b000,
+    kSh = 0b001,
+    kSw = 0b010,
+    kSd = 0b011,
+  };
+
   struct OpArgs {
     OpOpcode opcode;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
+  };
+
+  struct LoadArgs {
+    LoadOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    uint16_t offset;
+  };
+
+  struct StoreArgs {
+    StoreOpcode opcode;
+    uint8_t src;
+    uint16_t offset;
+    uint8_t data;
   };
 
   uint8_t Decode(const uint16_t* code) {
@@ -105,6 +136,12 @@ class Decoder {
     switch (opcode_bits) {
       case BaseOpcode::kOp:
         DecodeOp();
+        break;
+      case BaseOpcode::kLoad:
+        DecodeLoad();
+        break;
+      case BaseOpcode::kStore:
+        DecodeStore();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -133,6 +170,32 @@ class Decoder {
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Op(args);
+  }
+
+  void DecodeLoad() {
+    LoadOpcode opcode{GetBits<uint8_t, 12, 3>()};
+    const LoadArgs args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src = GetBits<uint8_t, 15, 5>(),
+        .offset = GetBits<uint16_t, 20, 12>(),
+    };
+    insn_consumer_->Load(args);
+  }
+
+  void DecodeStore() {
+    StoreOpcode opcode{GetBits<uint8_t, 12, 3>()};
+
+    uint16_t low_imm = GetBits<uint16_t, 7, 5>();
+    uint16_t high_imm = GetBits<uint16_t, 25, 7>();
+
+    const StoreArgs args = {
+        .opcode = opcode,
+        .src = GetBits<uint8_t, 15, 5>(),
+        .offset = static_cast<uint16_t>(low_imm | (high_imm << 5)),
+        .data = GetBits<uint8_t, 20, 5>(),
+    };
+    insn_consumer_->Store(args);
   }
 
   InsnConsumer* insn_consumer_;
