@@ -17,6 +17,7 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 #include <cstdint>
+#include <cstring>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
@@ -70,8 +71,46 @@ class Interpreter {
     }
   }
 
+  Register Load(Decoder::LoadOpcode opcode, Register arg, uint16_t offset) {
+    void* ptr = bit_cast<void*>(arg + offset);
+    switch (opcode) {
+      case Decoder::LoadOpcode::kLbu:
+        return Load<uint8_t>(ptr);
+      case Decoder::LoadOpcode::kLhu:
+        return Load<uint16_t>(ptr);
+      case Decoder::LoadOpcode::kLwu:
+        return Load<uint32_t>(ptr);
+      case Decoder::LoadOpcode::kLd:
+        return Load<uint64_t>(ptr);
+      case Decoder::LoadOpcode::kLb:
+        return Load<int8_t>(ptr);
+      case Decoder::LoadOpcode::kLh:
+        return Load<int16_t>(ptr);
+      case Decoder::LoadOpcode::kLw:
+        return Load<int32_t>(ptr);
+    }
+  }
+
+  void Store(Decoder::StoreOpcode opcode, Register arg, uint16_t offset, Register data) {
+    void* ptr = bit_cast<void*>(arg + offset);
+    switch (opcode) {
+      case Decoder::StoreOpcode::kSb:
+        Store<uint8_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSh:
+        Store<uint16_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSw:
+        Store<uint32_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSd:
+        Store<uint64_t>(ptr, data);
+        break;
+    }
+  }
+
   void Unimplemented() {
-    LOG_ALWAYS_FATAL("Unimplemented riscv64 instruction");
+    FATAL("Unimplemented riscv64 instruction");
   }
 
   //
@@ -99,6 +138,19 @@ class Interpreter {
   }
 
  private:
+  template <typename DataType>
+  uint64_t Load(const void * ptr) const {
+    DataType data;
+    memcpy(&data, ptr, sizeof(data));
+    // Signed types automatically sign-extend to int64_t.
+    return static_cast<uint64_t>(data);
+  }
+
+  template <typename DataType>
+  void Store(void* ptr, uint64_t data) const {
+    memcpy(ptr, &data, sizeof(DataType));
+  }
+
   void CheckRegIsValid(uint8_t reg) const {
     CHECK_GT(reg, 0u);
     CHECK_LE(reg, arraysize(state_->cpu.x));
