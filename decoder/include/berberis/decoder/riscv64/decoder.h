@@ -142,6 +142,13 @@ class Decoder {
     uint8_t insn_len;
   };
 
+  struct JumpAndLinkRegisterArgs {
+    uint8_t dst;
+    uint8_t base;
+    int16_t offset;
+    uint8_t insn_len;
+  };
+
   uint8_t Decode(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
     if ((*code & kInsnLenMask) != kInsnLenMask)  {
@@ -172,6 +179,9 @@ class Decoder {
       case BaseOpcode::kJal:
         DecodeJumpAndLink();
         break;
+      case BaseOpcode::kJalr:
+        DecodeJumpAndLinkRegister();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
@@ -186,6 +196,11 @@ class Decoder {
     static_assert((start + size) <= 32 && size > 0, "Invalid start or size value");
     uint32_t shifted_val = code_ << (32 - start - size);
     return static_cast<ResultType>(shifted_val >> (32 - size));
+  }
+
+  void Undefined() {
+    // TODO(b/265372622): Handle undefined differently from unimplemented.
+    insn_consumer_->Unimplemented();
   }
 
   void DecodeOp() {
@@ -264,6 +279,24 @@ class Decoder {
         .insn_len = 4,
     };
     insn_consumer_->JumpAndLink(args);
+  }
+
+  void DecodeJumpAndLinkRegister() {
+    if (GetBits<uint8_t, 12, 3>() != 0b000) {
+      Undefined();
+      return;
+    }
+    // Decode sign-extend offset.
+    int16_t offset = GetBits<uint16_t, 20, 12>();
+    offset = static_cast<int16_t>(offset << 4) >> 4;
+
+    const JumpAndLinkRegisterArgs args = {
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .base = GetBits<uint8_t, 15, 5>(),
+        .offset = offset,
+        .insn_len = 4,
+    };
+    insn_consumer_->JumpAndLinkRegister(args);
   }
 
   InsnConsumer* insn_consumer_;
