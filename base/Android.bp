@@ -32,6 +32,7 @@ cc_library_static {
     host_supported: true,
     srcs: [
         "mapped_file_fragment.cc",
+        "prctl_helpers.cc",
     ],
     header_libs: ["libberberis_base_headers"],
     export_header_lib_headers: ["libberberis_base_headers"],
