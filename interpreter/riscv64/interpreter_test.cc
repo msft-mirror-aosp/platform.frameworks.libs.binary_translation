@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include <cstdint>
 #include <initializer_list>
 #include <tuple>
 #include <type_traits>
@@ -61,6 +62,20 @@ class Riscv64InterpreterTest : public ::testing::Test {
     InterpretInsn(&state_);
     EXPECT_EQ(store_area_, expected_result);
   }
+
+  void InterpretBranch(uint32_t insn_bytes,
+                   // The tuple is [arg1, arg2, expected_offset].
+                   std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
+    GuestAddr code_start = bit_cast<GuestAddr>(&insn_bytes);
+    for (auto arg : args) {
+      state_.cpu.insn_addr = code_start;
+      SetXReg<1>(state_.cpu, std::get<0>(arg));
+      SetXReg<2>(state_.cpu, std::get<1>(arg));
+      InterpretInsn(&state_);
+      EXPECT_EQ(state_.cpu.insn_addr, code_start + std::get<2>(arg));
+    }
+  }
+
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
@@ -127,6 +142,57 @@ TEST_F(Riscv64InterpreterTest, StoreInstructions) {
   InterpretStore(0x0020a423, kDataToStore & 0xffff'ffffULL);
   // Sd
   InterpretStore(0x0020b423, kDataToStore);
+}
+
+TEST_F(Riscv64InterpreterTest, BranchInstructions) {
+  // Beq
+  InterpretBranch(0x00208463, {
+    {42, 42, 8},
+    {41, 42, 4},
+    {42, 41, 4},
+  });
+  // Bne
+  InterpretBranch(0x00209463, {
+    {42, 42, 4},
+    {41, 42, 8},
+    {42, 41, 8},
+  });
+  // Blt
+  InterpretBranch(0x0020c463, {
+    {41, 42, 8},
+    {42, 42, 4},
+    {42, 41, 4},
+    {0xf000'0000'0000'0000ULL, 42, 8},
+    {42, 0xf000'0000'0000'0000ULL, 4},
+  });
+  // Bltu
+  InterpretBranch(0x0020e463, {
+    {41, 42, 8},
+    {42, 42, 4},
+    {42, 41, 4},
+    {0xf000'0000'0000'0000ULL, 42, 4},
+    {42, 0xf000'0000'0000'0000ULL, 8},
+  });
+  // Bge
+  InterpretBranch(0x0020d463, {
+    {42, 41, 8},
+    {42, 42, 8},
+    {41, 42, 4},
+    {0xf000'0000'0000'0000ULL, 42, 4},
+    {42, 0xf000'0000'0000'0000ULL, 8},
+  });
+  // Bgeu
+  InterpretBranch(0x0020f463, {
+    {42, 41, 8},
+    {42, 42, 8},
+    {41, 42, 4},
+    {0xf000'0000'0000'0000ULL, 42, 8},
+    {42, 0xf000'0000'0000'0000ULL, 4},
+  });
+  // Beq with negative offset.
+  InterpretBranch(0xfe208ee3, {
+    {42, 42, -4},
+  });
 }
 
 }  // namespace

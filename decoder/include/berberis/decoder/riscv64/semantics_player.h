@@ -52,6 +52,12 @@ class SemanticsPlayer {
     listener_->Store(args.opcode, arg, args.offset, data);
   };
 
+  void Branch(const typename Decoder::BranchArgs& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    listener_->Branch(args.opcode, arg1, arg2, args.offset);
+  };
+
   void Unimplemented() {
     listener_->Unimplemented();
   };
