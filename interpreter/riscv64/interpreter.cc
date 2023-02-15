@@ -139,6 +139,13 @@ class Interpreter {
     }
   }
 
+  Register JumpAndLink(int32_t offset, uint8_t insn_len) {
+    uint64_t pc = state_->cpu.insn_addr;
+    state_->cpu.insn_addr += offset;
+    branch_taken_ = true;
+    return pc + insn_len;
+  }
+
   void Unimplemented() {
     FATAL("Unimplemented riscv64 instruction");
   }

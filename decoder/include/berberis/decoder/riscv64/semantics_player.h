@@ -58,6 +58,11 @@ class SemanticsPlayer {
     listener_->Branch(args.opcode, arg1, arg2, args.offset);
   };
 
+  void JumpAndLink(const typename Decoder::JumpAndLinkArgs& args) {
+    Register result = listener_->JumpAndLink(args.offset, args.insn_len);
+    SetRegOrIgnore(args.dst, result);
+  };
+
   void Unimplemented() {
     listener_->Unimplemented();
   };

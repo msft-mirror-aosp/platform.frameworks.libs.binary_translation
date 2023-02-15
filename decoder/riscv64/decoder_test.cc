@@ -33,6 +33,7 @@ struct TestInsnConsumer {
   void Load(const typename Decoder::LoadArgs&) {};
   void Store(const typename Decoder::StoreArgs&) {};
   void Branch(const typename Decoder::BranchArgs&) {};
+  void JumpAndLink(const typename Decoder::JumpAndLinkArgs&) {};
 
   Decoder::OpArgs op_args;
   bool is_unimplemented = false;
