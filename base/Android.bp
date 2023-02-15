@@ -22,6 +22,17 @@ cc_library_headers {
     defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
-    header_libs: [ "libbase_headers" ],
-    export_header_lib_headers: [ "libbase_headers" ],
+    header_libs: ["libbase_headers"],
+    export_header_lib_headers: ["libbase_headers"],
+}
+
+cc_library_static {
+    name: "libberberis_base",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    srcs: [
+        "mapped_file_fragment.cc",
+    ],
+    header_libs: ["libberberis_base_headers"],
+    export_header_lib_headers: ["libberberis_base_headers"],
 }
