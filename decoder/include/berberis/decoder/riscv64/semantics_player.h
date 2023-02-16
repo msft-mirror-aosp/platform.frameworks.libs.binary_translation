@@ -52,9 +52,24 @@ class SemanticsPlayer {
     listener_->Store(args.opcode, arg, args.offset, data);
   };
 
-  void Unimplemented() {
-    listener_->Unimplemented();
+  void Branch(const typename Decoder::BranchArgs& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    listener_->Branch(args.opcode, arg1, arg2, args.offset);
   };
+
+  void JumpAndLink(const typename Decoder::JumpAndLinkArgs& args) {
+    Register result = listener_->JumpAndLink(args.offset, args.insn_len);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
+    Register base = GetRegOrZero(args.base);
+    Register result = listener_->JumpAndLinkRegister(base, args.offset, args.insn_len);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void Unimplemented() { listener_->Unimplemented(); };
 
  private:
   Register GetRegOrZero(uint8_t reg) {
