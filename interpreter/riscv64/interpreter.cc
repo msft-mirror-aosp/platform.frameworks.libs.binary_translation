@@ -36,8 +36,7 @@ class Interpreter {
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
 
-  explicit Interpreter(ThreadState* state)
-      : state_(state) {}
+  explicit Interpreter(ThreadState* state) : state_(state), branch_taken_(false) {}
 
   //
   // Instruction implementations.
@@ -109,9 +108,51 @@ class Interpreter {
     }
   }
 
-  void Unimplemented() {
-    FATAL("Unimplemented riscv64 instruction");
+  void Branch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset) {
+    bool cond_value;
+    switch (opcode) {
+      case Decoder::BranchOpcode::kBeq:
+        cond_value = arg1 == arg2;
+        break;
+      case Decoder::BranchOpcode::kBne:
+        cond_value = arg1 != arg2;
+        break;
+      case Decoder::BranchOpcode::kBltu:
+        cond_value = arg1 < arg2;
+        break;
+      case Decoder::BranchOpcode::kBgeu:
+        cond_value = arg1 >= arg2;
+        break;
+      case Decoder::BranchOpcode::kBlt:
+        cond_value = bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2);
+        break;
+      case Decoder::BranchOpcode::kBge:
+        cond_value = bit_cast<int64_t>(arg1) >= bit_cast<int64_t>(arg2);
+        break;
+    }
+
+    if (cond_value) {
+      state_->cpu.insn_addr += offset;
+      branch_taken_ = true;
+    }
   }
+
+  Register JumpAndLink(int32_t offset, uint8_t insn_len) {
+    uint64_t pc = state_->cpu.insn_addr;
+    state_->cpu.insn_addr += offset;
+    branch_taken_ = true;
+    return pc + insn_len;
+  }
+
+  Register JumpAndLinkRegister(Register base, int16_t offset, uint8_t insn_len) {
+    uint64_t pc = state_->cpu.insn_addr;
+    // The lowest bit is always zeroed out.
+    state_->cpu.insn_addr = (base + offset) & ~uint64_t{1};
+    branch_taken_ = true;
+    return pc + insn_len;
+  }
+
+  void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
 
   //
   // Guest state getters/setters.
@@ -134,12 +175,14 @@ class Interpreter {
   uint64_t GetImm(uint64_t imm) const { return imm; }
 
   void FinalizeInsn(uint8_t insn_len) {
+    if (!branch_taken_) {
       state_->cpu.insn_addr += insn_len;
+    }
   }
 
  private:
   template <typename DataType>
-  uint64_t Load(const void * ptr) const {
+  uint64_t Load(const void* ptr) const {
     DataType data;
     memcpy(&data, ptr, sizeof(data));
     // Signed types automatically sign-extend to int64_t.
@@ -157,6 +200,7 @@ class Interpreter {
   }
 
   ThreadState* state_;
+  bool branch_taken_;
 };
 
 }  // namespace
