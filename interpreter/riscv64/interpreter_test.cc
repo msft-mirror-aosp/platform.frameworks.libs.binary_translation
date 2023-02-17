@@ -22,6 +22,7 @@
 #include <type_traits>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
 
