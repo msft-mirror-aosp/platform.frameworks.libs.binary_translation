@@ -64,25 +64,3 @@ cc_defaults {
     defaults: ["berberis_defaults"],
     compile_multilib: "64",
 }
-
-cc_test_host {
-    name: "berberis_host_tests",
-    defaults: ["berberis_defaults_64"],
-    static_libs: [
-        "libberberis_base",
-        "libberberis_interpreter_riscv64",
-    ],
-    shared_libs: [
-        "libbase",
-        "liblog",
-    ],
-    whole_static_libs: [
-        "libberberis_base_host_tests",
-        "libberberis_decoder_riscv64_host_tests",
-        "libberberis_interpreter_riscv64_host_tests",
-    ],
-    test_suites: ["device-tests"],
-    test_options: {
-        unit_test: true,
-    },
-}
