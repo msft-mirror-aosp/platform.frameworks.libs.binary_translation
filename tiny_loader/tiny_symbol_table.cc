@@ -178,7 +178,7 @@ void TinySymbolTable::ForEachGnuSymbol(std::function<void(const ElfSym*)> symbol
 
     do {
       symbol_handler(symtab_ + n);
-    } while ((gnu_chain_[n++] & 1) != 0);
+    } while ((gnu_chain_[n++] & 1) == 0);
   }
 }
 
