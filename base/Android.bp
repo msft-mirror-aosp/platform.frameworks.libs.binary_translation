@@ -38,19 +38,11 @@ cc_library_static {
     export_header_lib_headers: ["libberberis_base_headers"],
 }
 
-cc_test_host {
-    name: "berberis_base_host_test",
-    defaults: ["berberis_defaults"],
+cc_test_library {
+    name: "libberberis_base_host_tests",
+    defaults: ["berberis_test_library_defaults"],
     srcs: [
         "bit_util_test.cc",
     ],
-    static_libs: ["libberberis_base"],
-    shared_libs: [
-        "libbase",
-        "liblog",
-    ],
-    test_suites: ["device-tests"],
-    test_options: {
-        unit_test: true,
-    },
+    header_libs: ["libberberis_base_headers"],
 }
