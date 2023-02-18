@@ -20,10 +20,9 @@
 #include <cstdint>
 
 #include "berberis/base/macros.h"
+#include "berberis/guest_state/guest_addr.h"
 
 namespace berberis {
-
-using GuestAddr = uint64_t;
 
 struct CPUState {
   // x1 to x31.
