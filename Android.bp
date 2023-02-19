@@ -87,6 +87,7 @@ cc_test_host {
         "libberberis_base",
         "libberberis_interpreter_riscv64",
         "libberberis_runtime",
+        "libberberis_tinyloader",
     ],
     shared_libs: [
         "libbase",
@@ -97,6 +98,11 @@ cc_test_host {
         "libberberis_decoder_riscv64_host_tests",
         "libberberis_interpreter_riscv64_host_tests",
         "libberberis_runtime_host_tests",
+        "libberberis_tinyloader_unit_tests",
+    ],
+    data: [
+        "tiny_loader/tests/files/32/*",
+        "tiny_loader/tests/files/64/*",
     ],
     test_suites: ["device-tests"],
     test_options: {
