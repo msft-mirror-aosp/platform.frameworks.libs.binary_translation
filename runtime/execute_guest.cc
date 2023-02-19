@@ -14,10 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_H_
-#define BERBERIS_GUEST_STATE_GUEST_STATE_H_
+#include "berberis/runtime/execute_guest.h"
 
-// TODO(b/265372622): Make it configurable for specific guest arch.
-#include "berberis/guest_state/guest_state_riscv64.h"  // IWYU pragma: export.
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state.h"
+#include "berberis/interpreter/riscv64/interpreter.h"
 
-#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_H_
+namespace berberis {
+
+void ExecuteGuest(ThreadState* state, GuestAddr stop_pc) {
+  while (state->cpu.insn_addr != stop_pc) {
+    InterpretInsn(state);
+  }
+}
+
+}  // namespace berberis

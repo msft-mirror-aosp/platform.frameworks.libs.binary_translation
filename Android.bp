@@ -86,6 +86,7 @@ cc_test_host {
     static_libs: [
         "libberberis_base",
         "libberberis_interpreter_riscv64",
+        "libberberis_runtime",
     ],
     shared_libs: [
         "libbase",
@@ -95,6 +96,7 @@ cc_test_host {
         "libberberis_base_host_tests",
         "libberberis_decoder_riscv64_host_tests",
         "libberberis_interpreter_riscv64_host_tests",
+        "libberberis_runtime_host_tests",
     ],
     test_suites: ["device-tests"],
     test_options: {
