@@ -34,11 +34,47 @@ cc_library_static {
         "tiny_loader.cc",
         "tiny_symbol_table.cc",
     ],
-    header_libs: ["libberberis_tinyloader_headers"],
-    export_header_lib_headers: ["libberberis_tinyloader_headers"],
-    static_libs: [
-        "libberberis_base",
-        "libbase",
-        "liblog",
+    header_libs: [
+        "libberberis_tinyloader_headers",
+        "libberberis_base_headers",
+        "libbase_headers",
+        "liblog_headers",
     ],
+    export_header_lib_headers: ["libberberis_tinyloader_headers"],
+}
+
+cc_test_library {
+    name: "libberberis_tinyloader_unit_tests",
+    defaults: ["berberis_test_library_defaults"],
+    host_supported: true,
+    srcs: [
+        "tests/tiny_loader_tests.cc",
+    ],
+    header_libs: [
+        "libberberis_tinyloader_headers",
+        "libbase_headers",
+        "liblog_headers",
+    ],
+}
+
+// The following targets are not used directly since the test
+// is checking some values against hard-coded constants.
+// In case they need to be updated, please copy them to
+// `tests/files/32` and `tests/files/64` and update the
+// test accordingly.
+cc_library {
+    name: "libtinytest",
+    srcs: ["tests/tiny_test_lib.cc"],
+}
+
+cc_library {
+    name: "libtinytest_sysv",
+    srcs: ["tests/tiny_test_lib.cc"],
+    ldflags: ["-Wl,--hash-style=sysv"],
+}
+
+cc_binary {
+    name: "tiny_static_executable",
+    srcs: ["tests/tiny_static_executable.cc"],
+    static_executable: true,
 }
