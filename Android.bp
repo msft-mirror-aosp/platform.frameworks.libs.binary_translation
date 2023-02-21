@@ -64,3 +64,48 @@ cc_defaults {
     defaults: ["berberis_defaults"],
     compile_multilib: "64",
 }
+
+cc_defaults {
+    name: "berberis_test_library_defaults",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    shared: {
+        enabled: false,
+    },
+}
+
+cc_defaults {
+    name: "berberis_test_library_defaults_64",
+    defaults: ["berberis_test_library_defaults"],
+    compile_multilib: "64",
+}
+
+cc_test_host {
+    name: "berberis_host_tests",
+    defaults: ["berberis_defaults_64"],
+    static_libs: [
+        "libberberis_base",
+        "libberberis_interpreter_riscv64",
+        "libberberis_runtime",
+        "libberberis_tinyloader",
+    ],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
+    whole_static_libs: [
+        "libberberis_base_host_tests",
+        "libberberis_decoder_riscv64_host_tests",
+        "libberberis_interpreter_riscv64_host_tests",
+        "libberberis_runtime_host_tests",
+        "libberberis_tinyloader_unit_tests",
+    ],
+    data: [
+        "tiny_loader/tests/files/32/*",
+        "tiny_loader/tests/files/64/*",
+    ],
+    test_suites: ["device-tests"],
+    test_options: {
+        unit_test: true,
+    },
+}

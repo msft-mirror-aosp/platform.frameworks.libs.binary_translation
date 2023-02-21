@@ -22,6 +22,7 @@
 #include <type_traits>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
 
@@ -43,8 +44,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
-  void InterpretLoad(uint32_t insn_bytes,
-                     uint64_t expected_result) {
+  void InterpretLoad(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes);
     // Offset is always 8.
     SetXReg<2>(state_.cpu, bit_cast<uint64_t>(bit_cast<uint8_t*>(&kDataToLoad) - 8));
@@ -52,8 +52,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
-  void InterpretStore(uint32_t insn_bytes,
-                      uint64_t expected_result) {
+  void InterpretStore(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes);
     // Offset is always 8.
     SetXReg<1>(state_.cpu, bit_cast<uint64_t>(bit_cast<uint8_t*>(&store_area_) - 8));
@@ -64,8 +63,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   void InterpretBranch(uint32_t insn_bytes,
-                   // The tuple is [arg1, arg2, expected_offset].
-                   std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
+                       // The tuple is [arg1, arg2, expected_offset].
+                       std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
     auto code_start = bit_cast<GuestAddr>(&insn_bytes);
     for (auto arg : args) {
       state_.cpu.insn_addr = code_start;
@@ -76,8 +75,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
-  void InterpretJumpAndLink(uint32_t insn_bytes,
-                            int8_t expected_offset) {
+  void InterpretJumpAndLink(uint32_t insn_bytes, int8_t expected_offset) {
     auto code_start = bit_cast<GuestAddr>(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     InterpretInsn(&state_);
@@ -85,8 +83,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), code_start + 4);
   }
 
-  void InterpretJumpAndLinkRegister(uint32_t insn_bytes,
-                                    uint64_t base_disp,
+  void InterpretJumpAndLinkRegister(uint32_t insn_bytes, uint64_t base_disp,
                                     int64_t expected_offset) {
     auto code_start = bit_cast<GuestAddr>(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -121,16 +118,16 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
   InterpretOp(0x403150b3, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
   // Slt
   InterpretOp(0x003120b3, {
-    {19, 23, 1},
-    {23, 19, 0},
-    {~0ULL, 0, 1},
-  });
+                              {19, 23, 1},
+                              {23, 19, 0},
+                              {~0ULL, 0, 1},
+                          });
   // Sltu
   InterpretOp(0x003130b3, {
-    {19, 23, 1},
-    {23, 19, 0},
-    {~0ULL, 0, 0},
-  });
+                              {19, 23, 1},
+                              {23, 19, 0},
+                              {~0ULL, 0, 0},
+                          });
 }
 
 TEST_F(Riscv64InterpreterTest, LoadInstructions) {
@@ -166,52 +163,52 @@ TEST_F(Riscv64InterpreterTest, StoreInstructions) {
 TEST_F(Riscv64InterpreterTest, BranchInstructions) {
   // Beq
   InterpretBranch(0x00208463, {
-    {42, 42, 8},
-    {41, 42, 4},
-    {42, 41, 4},
-  });
+                                  {42, 42, 8},
+                                  {41, 42, 4},
+                                  {42, 41, 4},
+                              });
   // Bne
   InterpretBranch(0x00209463, {
-    {42, 42, 4},
-    {41, 42, 8},
-    {42, 41, 8},
-  });
+                                  {42, 42, 4},
+                                  {41, 42, 8},
+                                  {42, 41, 8},
+                              });
   // Blt
   InterpretBranch(0x0020c463, {
-    {41, 42, 8},
-    {42, 42, 4},
-    {42, 41, 4},
-    {0xf000'0000'0000'0000ULL, 42, 8},
-    {42, 0xf000'0000'0000'0000ULL, 4},
-  });
+                                  {41, 42, 8},
+                                  {42, 42, 4},
+                                  {42, 41, 4},
+                                  {0xf000'0000'0000'0000ULL, 42, 8},
+                                  {42, 0xf000'0000'0000'0000ULL, 4},
+                              });
   // Bltu
   InterpretBranch(0x0020e463, {
-    {41, 42, 8},
-    {42, 42, 4},
-    {42, 41, 4},
-    {0xf000'0000'0000'0000ULL, 42, 4},
-    {42, 0xf000'0000'0000'0000ULL, 8},
-  });
+                                  {41, 42, 8},
+                                  {42, 42, 4},
+                                  {42, 41, 4},
+                                  {0xf000'0000'0000'0000ULL, 42, 4},
+                                  {42, 0xf000'0000'0000'0000ULL, 8},
+                              });
   // Bge
   InterpretBranch(0x0020d463, {
-    {42, 41, 8},
-    {42, 42, 8},
-    {41, 42, 4},
-    {0xf000'0000'0000'0000ULL, 42, 4},
-    {42, 0xf000'0000'0000'0000ULL, 8},
-  });
+                                  {42, 41, 8},
+                                  {42, 42, 8},
+                                  {41, 42, 4},
+                                  {0xf000'0000'0000'0000ULL, 42, 4},
+                                  {42, 0xf000'0000'0000'0000ULL, 8},
+                              });
   // Bgeu
   InterpretBranch(0x0020f463, {
-    {42, 41, 8},
-    {42, 42, 8},
-    {41, 42, 4},
-    {0xf000'0000'0000'0000ULL, 42, 8},
-    {42, 0xf000'0000'0000'0000ULL, 4},
-  });
+                                  {42, 41, 8},
+                                  {42, 42, 8},
+                                  {41, 42, 4},
+                                  {0xf000'0000'0000'0000ULL, 42, 8},
+                                  {42, 0xf000'0000'0000'0000ULL, 4},
+                              });
   // Beq with negative offset.
   InterpretBranch(0xfe208ee3, {
-    {42, 42, -4},
-  });
+                                  {42, 42, -4},
+                              });
 }
 
 TEST_F(Riscv64InterpreterTest, JumpAndLinkInstructions) {

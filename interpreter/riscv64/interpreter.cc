@@ -25,6 +25,7 @@
 #include "berberis/base/macros.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 
 namespace berberis {
@@ -36,9 +37,7 @@ class Interpreter {
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
 
-  explicit Interpreter(ThreadState* state)
-      : state_(state),
-        branch_taken_(false) {}
+  explicit Interpreter(ThreadState* state) : state_(state), branch_taken_(false) {}
 
   //
   // Instruction implementations.
@@ -154,9 +153,7 @@ class Interpreter {
     return pc + insn_len;
   }
 
-  void Unimplemented() {
-    FATAL("Unimplemented riscv64 instruction");
-  }
+  void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
 
   //
   // Guest state getters/setters.
@@ -186,7 +183,7 @@ class Interpreter {
 
  private:
   template <typename DataType>
-  uint64_t Load(const void * ptr) const {
+  uint64_t Load(const void* ptr) const {
     DataType data;
     memcpy(&data, ptr, sizeof(data));
     // Signed types automatically sign-extend to int64_t.

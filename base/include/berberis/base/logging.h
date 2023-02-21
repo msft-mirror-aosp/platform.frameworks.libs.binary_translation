@@ -31,7 +31,7 @@
 #undef LOG_TAG
 #define LOG_TAG "berberis"
 
-#else // defined(ANDROID)
+#else  // defined(ANDROID)
 
 #error "Only ANDROID builds are supported"
 
