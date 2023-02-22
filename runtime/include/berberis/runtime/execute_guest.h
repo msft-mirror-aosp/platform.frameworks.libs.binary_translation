@@ -14,40 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
-#define BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
+#ifndef BERBERIS_RUNTIME_EXECUTE_GUEST_H_
+#define BERBERIS_RUNTIME_EXECUTE_GUEST_H_
 
-#include <cstdint>
-
-#include "berberis/base/macros.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state.h"
 
 namespace berberis {
 
-struct CPUState {
-  // x1 to x31.
-  uint64_t x[31];
-  GuestAddr insn_addr;
-};
-
-template <uint8_t kIndex>
-inline uint64_t GetXReg(const CPUState& state) {
-  static_assert(kIndex > 0);
-  static_assert((kIndex - 1) < arraysize(state.x));
-  return state.x[kIndex - 1];
-}
-
-template <uint8_t kIndex>
-inline void SetXReg(CPUState& state, uint64_t val) {
-  static_assert(kIndex > 0);
-  static_assert((kIndex - 1) < arraysize(state.x));
-  state.x[kIndex - 1] = val;
-}
-
-struct ThreadState {
-  CPUState cpu;
-};
+void ExecuteGuest(ThreadState* state, GuestAddr stop_pc);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
+#endif  // BERBERIS_RUNTIME_EXECUTE_GUEST_H_

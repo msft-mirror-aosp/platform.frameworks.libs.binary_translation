@@ -22,6 +22,27 @@ cc_library_headers {
     defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
-    header_libs: [ "libbase_headers" ],
-    export_header_lib_headers: [ "libbase_headers" ],
+    header_libs: ["libbase_headers"],
+    export_header_lib_headers: ["libbase_headers"],
+}
+
+cc_library_static {
+    name: "libberberis_base",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    srcs: [
+        "mapped_file_fragment.cc",
+        "prctl_helpers.cc",
+    ],
+    header_libs: ["libberberis_base_headers"],
+    export_header_lib_headers: ["libberberis_base_headers"],
+}
+
+cc_test_library {
+    name: "libberberis_base_host_tests",
+    defaults: ["berberis_test_library_defaults"],
+    srcs: [
+        "bit_util_test.cc",
+    ],
+    header_libs: ["libberberis_base_headers"],
 }

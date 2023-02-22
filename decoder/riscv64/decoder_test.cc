@@ -30,6 +30,11 @@ using Decoder = Decoder<TestInsnConsumer>;
 struct TestInsnConsumer {
   void Op(const Decoder::OpArgs& args) { op_args = args; };
   void Unimplemented() { is_unimplemented = true; };
+  void Load(const typename Decoder::LoadArgs&){};
+  void Store(const typename Decoder::StoreArgs&){};
+  void Branch(const typename Decoder::BranchArgs&){};
+  void JumpAndLink(const typename Decoder::JumpAndLinkArgs&){};
+  void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs&){};
 
   Decoder::OpArgs op_args;
   bool is_unimplemented = false;
@@ -37,7 +42,7 @@ struct TestInsnConsumer {
 
 TEST(Riscv64Decoder, Add) {
   static const uint32_t code[] = {
-    0x003100b3, // add x1, x2, x3
+      0x003100b3,  // add x1, x2, x3
   };
 
   TestInsnConsumer insn_consumer;
@@ -55,7 +60,7 @@ TEST(Riscv64Decoder, Add) {
 
 TEST(Riscv64Decoder, Unimplemented) {
   static const uint16_t code[] = {
-    0x0, // undefined insn
+      0x0,  // undefined insn
   };
 
   TestInsnConsumer insn_consumer;

@@ -14,40 +14,34 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
-#define BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
+#include "gtest/gtest.h"
+
+#include "berberis/runtime/execute_guest.h"
 
 #include <cstdint>
 
-#include "berberis/base/macros.h"
+#include "berberis/base/bit_util.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state_riscv64.h"
 
 namespace berberis {
 
-struct CPUState {
-  // x1 to x31.
-  uint64_t x[31];
-  GuestAddr insn_addr;
-};
+namespace {
 
-template <uint8_t kIndex>
-inline uint64_t GetXReg(const CPUState& state) {
-  static_assert(kIndex > 0);
-  static_assert((kIndex - 1) < arraysize(state.x));
-  return state.x[kIndex - 1];
+TEST(ExecuteGuestRiscv64, Basic) {
+  const uint32_t code[] = {
+      0x003100b3,  // add x1, x2, x3
+      0x004090b3,  // sll x1, x1, x4
+  };
+  ThreadState state{};
+  state.cpu.insn_addr = bit_cast<GuestAddr>(&code[0]);
+  SetXReg<2>(state.cpu, 10);
+  SetXReg<3>(state.cpu, 11);
+  SetXReg<4>(state.cpu, 1);
+  ExecuteGuest(&state, bit_cast<GuestAddr>(&code[0]) + 8);
+  EXPECT_EQ(GetXReg<1>(state.cpu), 42u);
 }
 
-template <uint8_t kIndex>
-inline void SetXReg(CPUState& state, uint64_t val) {
-  static_assert(kIndex > 0);
-  static_assert((kIndex - 1) < arraysize(state.x));
-  state.x[kIndex - 1] = val;
-}
-
-struct ThreadState {
-  CPUState cpu;
-};
+}  // namespace
 
 }  // namespace berberis
-
-#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
