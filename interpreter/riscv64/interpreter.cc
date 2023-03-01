@@ -91,6 +91,40 @@ class Interpreter {
     }
   }
 
+  Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
+    switch (opcode) {
+      case Decoder::OpImmOpcode::kAddi:
+        return arg + int64_t{imm};
+      case Decoder::OpImmOpcode::kSlti:
+        return bit_cast<int64_t>(arg) < int64_t{imm} ? 1 : 0;
+      case Decoder::OpImmOpcode::kSltiu:
+        return arg < bit_cast<uint64_t>(int64_t{imm}) ? 1 : 0;
+      case Decoder::OpImmOpcode::kXori:
+        return arg ^ int64_t { imm };
+      case Decoder::OpImmOpcode::kOri:
+        return arg | int64_t{imm};
+      case Decoder::OpImmOpcode::kAndi:
+        return arg & int64_t{imm};
+      default:
+        Unimplemented();
+        break;
+    }
+  }
+
+  Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
+    switch (opcode) {
+      case Decoder::ShiftImmOpcode::kSlli:
+        return arg << imm;
+      case Decoder::ShiftImmOpcode::kSrli:
+        return arg >> imm;
+      case Decoder::ShiftImmOpcode::kSrai:
+        return bit_cast<int64_t>(arg) >> imm;
+      default:
+        Unimplemented();
+        break;
+    }
+  }
+
   void Store(Decoder::StoreOpcode opcode, Register arg, uint16_t offset, Register data) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
