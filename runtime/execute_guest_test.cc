@@ -20,7 +20,6 @@
 
 #include <cstdint>
 
-#include "berberis/base/bit_util.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 
@@ -34,11 +33,11 @@ TEST(ExecuteGuestRiscv64, Basic) {
       0x004090b3,  // sll x1, x1, x4
   };
   ThreadState state{};
-  state.cpu.insn_addr = bit_cast<GuestAddr>(&code[0]);
+  state.cpu.insn_addr = ToGuestAddr(&code[0]);
   SetXReg<2>(state.cpu, 10);
   SetXReg<3>(state.cpu, 11);
   SetXReg<4>(state.cpu, 1);
-  ExecuteGuest(&state, bit_cast<GuestAddr>(&code[0]) + 8);
+  ExecuteGuest(&state, ToGuestAddr(&code[0]) + 8);
   EXPECT_EQ(GetXReg<1>(state.cpu), 42u);
 }
 
