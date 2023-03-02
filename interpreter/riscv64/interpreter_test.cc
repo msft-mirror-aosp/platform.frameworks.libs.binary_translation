@@ -36,7 +36,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
                    // The tuple is [arg1, arg2, expected_result].
                    std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto arg : args) {
-      state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes);
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<2>(state_.cpu, std::get<0>(arg));
       SetXReg<3>(state_.cpu, std::get<1>(arg));
       InterpretInsn(&state_);
@@ -45,17 +45,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   void InterpretLoad(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes);
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
-    SetXReg<2>(state_.cpu, bit_cast<uint64_t>(bit_cast<uint8_t*>(&kDataToLoad) - 8));
+    SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - 8));
     InterpretInsn(&state_);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
   void InterpretStore(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes);
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
-    SetXReg<1>(state_.cpu, bit_cast<uint64_t>(bit_cast<uint8_t*>(&store_area_) - 8));
+    SetXReg<1>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - 8));
     SetXReg<2>(state_.cpu, kDataToStore);
     store_area_ = 0;
     InterpretInsn(&state_);
@@ -65,7 +65,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
   void InterpretBranch(uint32_t insn_bytes,
                        // The tuple is [arg1, arg2, expected_offset].
                        std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
-    auto code_start = bit_cast<GuestAddr>(&insn_bytes);
+    auto code_start = ToGuestAddr(&insn_bytes);
     for (auto arg : args) {
       state_.cpu.insn_addr = code_start;
       SetXReg<1>(state_.cpu, std::get<0>(arg));
@@ -76,7 +76,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   void InterpretJumpAndLink(uint32_t insn_bytes, int8_t expected_offset) {
-    auto code_start = bit_cast<GuestAddr>(&insn_bytes);
+    auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     InterpretInsn(&state_);
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
@@ -85,7 +85,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
 
   void InterpretJumpAndLinkRegister(uint32_t insn_bytes, uint64_t base_disp,
                                     int64_t expected_offset) {
-    auto code_start = bit_cast<GuestAddr>(&insn_bytes);
+    auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, code_start + base_disp);
     InterpretInsn(&state_);
