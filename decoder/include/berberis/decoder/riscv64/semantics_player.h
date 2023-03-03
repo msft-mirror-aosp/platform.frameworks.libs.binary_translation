@@ -46,6 +46,18 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void OpImm(const typename Decoder::OpImmArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->OpImm(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void ShiftImm(const typename Decoder::ShiftImmArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->ShiftImm(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
   void Store(const typename Decoder::StoreArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register data = GetRegOrZero(args.data);
