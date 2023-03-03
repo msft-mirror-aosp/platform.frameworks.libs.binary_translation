@@ -72,7 +72,7 @@ class Interpreter {
   }
 
   Register Load(Decoder::LoadOpcode opcode, Register arg, uint16_t offset) {
-    void* ptr = bit_cast<void*>(arg + offset);
+    void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
       case Decoder::LoadOpcode::kLbu:
         return Load<uint8_t>(ptr);
@@ -92,7 +92,7 @@ class Interpreter {
   }
 
   void Store(Decoder::StoreOpcode opcode, Register arg, uint16_t offset, Register data) {
-    void* ptr = bit_cast<void*>(arg + offset);
+    void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
       case Decoder::StoreOpcode::kSb:
         Store<uint8_t>(ptr, data);
@@ -212,7 +212,7 @@ void InterpretInsn(ThreadState* state) {
   Interpreter interpreter(state);
   SemanticsPlayer sem_player(&interpreter);
   Decoder decoder(&sem_player);
-  uint8_t insn_len = decoder.Decode(bit_cast<const uint16_t*>(pc));
+  uint8_t insn_len = decoder.Decode(ToHostAddr<const uint16_t>(pc));
   interpreter.FinalizeInsn(insn_len);
 }
 
