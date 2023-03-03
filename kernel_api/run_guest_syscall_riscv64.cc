@@ -42,18 +42,17 @@ long RunGuestSyscallImpl(long guest_nr, long arg_1, long arg_2, long arg_3, long
 
 }  // namespace
 
-void RunGuestSyscall(ThreadState* state) {
+long RunGuestSyscall(long syscall_nr, long arg0, long arg1, long arg2, long arg3, long arg4,
+                     long arg5) {
   ScopedErrno scoped_errno;
 
   // RISCV Linux takes arguments in a0-a5 and syscall number in a7.
-  long result =
-      RunGuestSyscallImpl(state->cpu.x[17], state->cpu.x[10], state->cpu.x[11], state->cpu.x[12],
-                          state->cpu.x[13], state->cpu.x[14], state->cpu.x[15]);
+  long result = RunGuestSyscallImpl(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   // The result is returned in a0.
   if (result == -1) {
-    state->cpu.x[10] = -errno;
+    return -errno;
   } else {
-    state->cpu.x[10] = result;
+    return result;
   }
 }
 

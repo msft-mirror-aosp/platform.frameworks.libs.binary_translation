@@ -21,7 +21,8 @@
 
 namespace berberis {
 
-void RunGuestSyscall(ThreadState* state);
+long RunGuestSyscall(long syscall_nr, long arg0, long arg1, long arg2, long arg3, long arg4,
+                     long arg5);
 
 }  // namespace berberis
 
