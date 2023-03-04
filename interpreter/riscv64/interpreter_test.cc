@@ -16,6 +16,8 @@
 
 #include "gtest/gtest.h"
 
+#include <unistd.h>
+
 #include <cstdint>
 #include <initializer_list>
 #include <tuple>
@@ -264,6 +266,34 @@ TEST_F(Riscv64InterpreterTest, JumpAndLinkRegisterInstructions) {
   InterpretJumpAndLinkRegister(0xffc100e7, 42, 38);
   // Jalr offset=5 - must properly align the target to even.
   InterpretJumpAndLinkRegister(0x005100e7, 38, 42);
+}
+
+TEST_F(Riscv64InterpreterTest, SyscallWrite) {
+  const char message[] = "Hello";
+  // Prepare a pipe to write to.
+  int pipefd[2];
+  ASSERT_EQ(0, pipe(pipefd));
+
+  // SYS_write
+  state_.cpu.x[17] = 0x40;
+  // File descriptor
+  state_.cpu.x[10] = pipefd[1];
+  // String
+  state_.cpu.x[11] = bit_cast<uint64_t>(&message[0]);
+  // Size
+  state_.cpu.x[12] = sizeof(message);
+
+  // TODO(b/265372622): Decode the syscall from guest code instead.
+  RunSyscall(&state_);
+
+  // Check number of bytes written.
+  EXPECT_EQ(state_.cpu.x[10], sizeof(message));
+  // Check the message was written to the pipe.
+  char buf[sizeof(message)] = {};
+  read(pipefd[0], &buf, sizeof(buf));
+  EXPECT_EQ(0, strcmp(message, buf));
+  close(pipefd[0]);
+  close(pipefd[1]);
 }
 
 }  // namespace
