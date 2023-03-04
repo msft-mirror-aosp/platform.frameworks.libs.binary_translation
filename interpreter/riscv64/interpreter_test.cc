@@ -33,14 +33,25 @@ namespace {
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
   void InterpretOp(uint32_t insn_bytes,
-                   // The tuple is [arg1, arg2, expected_result].
                    std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
-    for (auto arg : args) {
+    for (auto [arg1, arg2, expected_result] : args) {
       state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-      SetXReg<2>(state_.cpu, std::get<0>(arg));
-      SetXReg<3>(state_.cpu, std::get<1>(arg));
+      SetXReg<2>(state_.cpu, arg1);
+      SetXReg<3>(state_.cpu, arg2);
       InterpretInsn(&state_);
-      EXPECT_EQ(GetXReg<1>(state_.cpu), std::get<2>(arg));
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  void InterpretOpImm(uint32_t insn_bytes,
+                      std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
+    for (auto [arg1, imm, expected_result] : args) {
+      CHECK_LE(imm, 63);
+      uint32_t insn_bytes_with_immediate = insn_bytes | imm << 20;
+      state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes_with_immediate);
+      SetXReg<2>(state_.cpu, arg1);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
 
@@ -63,15 +74,14 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   void InterpretBranch(uint32_t insn_bytes,
-                       // The tuple is [arg1, arg2, expected_offset].
                        std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
     auto code_start = ToGuestAddr(&insn_bytes);
-    for (auto arg : args) {
+    for (auto [arg1, arg2, expected_offset] : args) {
       state_.cpu.insn_addr = code_start;
-      SetXReg<1>(state_.cpu, std::get<0>(arg));
-      SetXReg<2>(state_.cpu, std::get<1>(arg));
+      SetXReg<1>(state_.cpu, arg1);
+      SetXReg<2>(state_.cpu, arg2);
       InterpretInsn(&state_);
-      EXPECT_EQ(state_.cpu.insn_addr, code_start + std::get<2>(arg));
+      EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
     }
   }
 
@@ -128,6 +138,35 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
                               {23, 19, 0},
                               {~0ULL, 0, 0},
                           });
+}
+
+TEST_F(Riscv64InterpreterTest, OpImmInstructions) {
+  // Addi
+  InterpretOpImm(0x00010093, {{19, 23, 42}});
+  // Slli
+  InterpretOpImm(0x00011093, {{0b1010, 3, 0b1010'000}});
+  // Slti
+  InterpretOpImm(0x00012093, {
+                                 {19, 23, 1},
+                                 {23, 19, 0},
+                                 {~0ULL, 0, 1},
+                             });
+  // Sltiu
+  InterpretOpImm(0x00013093, {
+                                 {19, 23, 1},
+                                 {23, 19, 0},
+                                 {~0ULL, 0, 0},
+                             });
+  // Xori
+  InterpretOpImm(0x00014093, {{0b0101, 0b0011, 0b0110}});
+  // Slri
+  InterpretOpImm(0x00015093, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
+  // Slai
+  InterpretOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
+  // Ori
+  InterpretOpImm(0x00016093, {{0b0101, 0b0011, 0b0111}});
+  // Andi
+  InterpretOpImm(0x00017093, {{0b0101, 0b0011, 0b0001}});
 }
 
 TEST_F(Riscv64InterpreterTest, LoadInstructions) {
