@@ -27,6 +27,7 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/kernel_api/run_guest_syscall.h"
 
 namespace berberis {
 
@@ -248,6 +249,11 @@ void InterpretInsn(ThreadState* state) {
   Decoder decoder(&sem_player);
   uint8_t insn_len = decoder.Decode(ToHostAddr<const uint16_t>(pc));
   interpreter.FinalizeInsn(insn_len);
+}
+
+// TODO(b/265372622): Make it a method of Interpreter instead.
+void RunSyscall(ThreadState* state) {
+  RunGuestSyscall(state);
 }
 
 }  // namespace berberis
