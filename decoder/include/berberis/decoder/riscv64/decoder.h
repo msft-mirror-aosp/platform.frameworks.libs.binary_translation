@@ -91,6 +91,21 @@ class Decoder {
     kLwu = 0b110,
   };
 
+  enum class OpImmOpcode {
+    kAddi = 0b000,
+    kSlti = 0b010,
+    kSltiu = 0b011,
+    kXori = 0b100,
+    kOri = 0b110,
+    kAndi = 0b111,
+  };
+
+  enum class ShiftImmOpcode {
+    kSlli = 0b000000'001,
+    kSrli = 0b000000'101,
+    kSrai = 0b010000'101,
+  };
+
   enum class StoreOpcode {
     kSb = 0b000,
     kSh = 0b001,
@@ -119,6 +134,20 @@ class Decoder {
     uint8_t dst;
     uint8_t src;
     uint16_t offset;
+  };
+
+  struct OpImmArgs {
+    OpImmOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    int16_t imm;
+  };
+
+  struct ShiftImmArgs {
+    ShiftImmOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t imm;
   };
 
   struct StoreArgs {
@@ -168,6 +197,9 @@ class Decoder {
         break;
       case BaseOpcode::kLoad:
         DecodeLoad();
+        break;
+      case BaseOpcode::kOpImm:
+        DecodeOpImm();
         break;
       case BaseOpcode::kStore:
         DecodeStore();
@@ -224,6 +256,35 @@ class Decoder {
         .offset = GetBits<uint16_t, 20, 12>(),
     };
     insn_consumer_->Load(args);
+  }
+
+  void DecodeOpImm() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    if (low_opcode != 0b001 && low_opcode != 0b101) {
+      OpImmOpcode opcode = OpImmOpcode{low_opcode};
+
+      uint16_t imm = GetBits<uint16_t, 20, 12>();
+
+      const OpImmArgs args = {
+          .opcode = opcode,
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .src = GetBits<uint8_t, 15, 5>(),
+          // Sign-extend immediate.
+          .imm = static_cast<int16_t>(static_cast<int16_t>(imm << 4) >> 4),
+      };
+      insn_consumer_->OpImm(args);
+    } else {
+      uint16_t high_opcode = GetBits<uint16_t, 26, 6>();
+      ShiftImmOpcode opcode = ShiftImmOpcode{low_opcode | (high_opcode << 3)};
+
+      const ShiftImmArgs args = {
+          .opcode = opcode,
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .src = GetBits<uint8_t, 15, 5>(),
+          .imm = GetBits<uint8_t, 20, 6>(),
+      };
+      insn_consumer_->ShiftImm(args);
+    }
   }
 
   void DecodeStore() {
