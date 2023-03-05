@@ -27,6 +27,7 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/kernel_api/run_guest_syscall.h"
 
 namespace berberis {
 
@@ -88,6 +89,40 @@ class Interpreter {
         return Load<int16_t>(ptr);
       case Decoder::LoadOpcode::kLw:
         return Load<int32_t>(ptr);
+    }
+  }
+
+  Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
+    switch (opcode) {
+      case Decoder::OpImmOpcode::kAddi:
+        return arg + int64_t{imm};
+      case Decoder::OpImmOpcode::kSlti:
+        return bit_cast<int64_t>(arg) < int64_t{imm} ? 1 : 0;
+      case Decoder::OpImmOpcode::kSltiu:
+        return arg < bit_cast<uint64_t>(int64_t{imm}) ? 1 : 0;
+      case Decoder::OpImmOpcode::kXori:
+        return arg ^ int64_t { imm };
+      case Decoder::OpImmOpcode::kOri:
+        return arg | int64_t{imm};
+      case Decoder::OpImmOpcode::kAndi:
+        return arg & int64_t{imm};
+      default:
+        Unimplemented();
+        break;
+    }
+  }
+
+  Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
+    switch (opcode) {
+      case Decoder::ShiftImmOpcode::kSlli:
+        return arg << imm;
+      case Decoder::ShiftImmOpcode::kSrli:
+        return arg >> imm;
+      case Decoder::ShiftImmOpcode::kSrai:
+        return bit_cast<int64_t>(arg) >> imm;
+      default:
+        Unimplemented();
+        break;
     }
   }
 
@@ -214,6 +249,11 @@ void InterpretInsn(ThreadState* state) {
   Decoder decoder(&sem_player);
   uint8_t insn_len = decoder.Decode(ToHostAddr<const uint16_t>(pc));
   interpreter.FinalizeInsn(insn_len);
+}
+
+// TODO(b/265372622): Make it a method of Interpreter instead.
+void RunSyscall(ThreadState* state) {
+  RunGuestSyscall(state);
 }
 
 }  // namespace berberis
