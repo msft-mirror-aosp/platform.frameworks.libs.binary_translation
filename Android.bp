@@ -86,6 +86,7 @@ cc_test_host {
     static_libs: [
         "libberberis_base",
         "libberberis_interpreter_riscv64",
+        "libberberis_kernel_api",
         "libberberis_runtime",
         "libberberis_tinyloader",
     ],

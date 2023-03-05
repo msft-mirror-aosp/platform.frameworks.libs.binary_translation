@@ -17,23 +17,22 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-cc_binary {
-    name: "berberis_program_runner_riscv64",
+cc_library_headers {
+    name: "libberberis_kernel_api_headers",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    export_include_dirs: ["include"],
+}
+
+cc_library_static {
+    name: "libberberis_kernel_api",
     defaults: ["berberis_defaults_64"],
     host_supported: true,
-    srcs: ["main.cc"],
     header_libs: [
+        "libberberis_base_headers",
         "libberberis_guest_state_headers",
+        "libberberis_kernel_api_headers",
     ],
-    static_libs: [
-        "libberberis_base",
-        "libberberis_interpreter_riscv64",
-        "libberberis_kernel_api",
-        "libberberis_runtime",
-        "libberberis_tinyloader",
-    ],
-    shared_libs: [
-        "libbase",
-        "liblog",
-    ],
+    export_header_lib_headers: ["libberberis_kernel_api_headers"],
+    srcs: ["run_guest_syscall_riscv64.cc"],
 }
