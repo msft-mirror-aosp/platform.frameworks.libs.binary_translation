@@ -33,6 +33,17 @@ class Decoder {
  public:
   explicit Decoder(InsnConsumer* insn_consumer) : insn_consumer_(insn_consumer) {}
 
+  // https://eel.is/c++draft/enum#dcl.enum-8
+  // For an enumeration whose underlying type is fixed, the values of the enumeration are the values
+  // of the underlying type. Otherwise, the values of the enumeration are the values representable
+  // by a hypothetical integer type with minimal width M such that all enumerators can be
+  // represented. The width of the smallest bit-field large enough to hold all the values of the
+  // enumeration type is M. It is possible to define an enumeration that has values not defined by
+  // any of its enumerators. If the enumerator-list is empty, the values of the enumeration are as
+  // if the enumeration had a single enumerator with value 0.
+
+  // To ensure that we wouldn't trigger UB by accident each opcode includes kMaxXXX value (kOpOcode,
+  // kSystemOpcode and so on) which have all possible bit values set.
   enum class BaseOpcode {
     kLoad = 0b00'000,
     kLoadFp = 0b00'001,
@@ -66,6 +77,7 @@ class Decoder {
     // Reserved 0b11'101,
     kCustom3 = 0b11'110,
     // Reserved 0b11'111,
+    kMaxBaseOpcode = 0b11'111,
   };
 
   enum class OpOpcode {
@@ -79,6 +91,7 @@ class Decoder {
     kSra = 0b0100'000'101,
     kOr = 0b0000'000'110,
     kAnd = 0b0000'000'111,
+    kMaxOpOpcode = 0b1111'111'111,
   };
 
   enum class LoadOpcode {
@@ -89,6 +102,7 @@ class Decoder {
     kLbu = 0b100,
     kLhu = 0b101,
     kLwu = 0b110,
+    kMaxLoadOpcode = 0b1111,
   };
 
   enum class OpImmOpcode {
@@ -98,12 +112,14 @@ class Decoder {
     kXori = 0b100,
     kOri = 0b110,
     kAndi = 0b111,
+    kMaxBOpImmOpcode = 0b111,
   };
 
   enum class ShiftImmOpcode {
     kSlli = 0b000000'001,
     kSrli = 0b000000'101,
     kSrai = 0b010000'101,
+    kMaxShiftImmOpcode = 0b11111'111,
   };
 
   enum class StoreOpcode {
@@ -111,6 +127,13 @@ class Decoder {
     kSh = 0b001,
     kSw = 0b010,
     kSd = 0b011,
+    kMaxStoreOpcode = 0b111,
+  };
+
+  enum class SystemOpcode {
+    kEcall = 0b000000000000'00000'000'00000,
+    kEbreak = 0b000000000001'00000'000'00000,
+    kMaxSystemOpcode = 0b111111111111'11111'111'11111,
   };
 
   enum class BranchOpcode {
@@ -120,6 +143,7 @@ class Decoder {
     kBge = 0b101,
     kBltu = 0b110,
     kBgeu = 0b111,
+    kMaxBranchOpcode = 0b111,
   };
 
   struct OpArgs {
@@ -141,6 +165,10 @@ class Decoder {
     uint8_t dst;
     uint8_t src;
     int16_t imm;
+  };
+
+  struct SystemArgs {
+    SystemOpcode opcode;
   };
 
   struct ShiftImmArgs {
@@ -212,6 +240,9 @@ class Decoder {
         break;
       case BaseOpcode::kJalr:
         DecodeJumpAndLinkRegister();
+        break;
+      case BaseOpcode::kSystem:
+        DecodeSystem();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -339,6 +370,14 @@ class Decoder {
         .insn_len = 4,
     };
     insn_consumer_->JumpAndLink(args);
+  }
+
+  void DecodeSystem() {
+    int32_t opcode = GetBits<uint32_t, 7, 25>();
+    const SystemArgs args = {
+        .opcode = SystemOpcode(opcode),
+    };
+    insn_consumer_->System(args);
   }
 
   void DecodeJumpAndLinkRegister() {

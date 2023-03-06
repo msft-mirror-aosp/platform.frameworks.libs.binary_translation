@@ -275,19 +275,21 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   ASSERT_EQ(0, pipe(pipefd));
 
   // SYS_write
-  state_.cpu.x[17] = 0x40;
+  SetXReg<17>(state_.cpu, 0x40);
   // File descriptor
-  state_.cpu.x[10] = pipefd[1];
+  SetXReg<10>(state_.cpu, pipefd[1]);
   // String
-  state_.cpu.x[11] = bit_cast<uint64_t>(&message[0]);
+  SetXReg<11>(state_.cpu, bit_cast<uint64_t>(&message[0]));
   // Size
-  state_.cpu.x[12] = sizeof(message);
+  SetXReg<12>(state_.cpu, sizeof(message));
 
-  // TODO(b/265372622): Decode the syscall from guest code instead.
-  RunSyscall(&state_);
+  uint32_t insn_bytes = 0x00000073;
+  state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+  InterpretInsn(&state_);
 
   // Check number of bytes written.
-  EXPECT_EQ(state_.cpu.x[10], sizeof(message));
+  EXPECT_EQ(GetXReg<10>(state_.cpu), sizeof(message));
+
   // Check the message was written to the pipe.
   char buf[sizeof(message)] = {};
   read(pipefd[0], &buf, sizeof(buf));
