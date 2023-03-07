@@ -68,7 +68,7 @@ class Interpreter {
         return arg1 < arg2 ? 1 : 0;
       default:
         Unimplemented();
-        break;
+        return {};
     }
   }
 
@@ -89,6 +89,9 @@ class Interpreter {
         return Load<int16_t>(ptr);
       case Decoder::LoadOpcode::kLw:
         return Load<int32_t>(ptr);
+      default:
+        Unimplemented();
+        return {};
     }
   }
 
@@ -108,8 +111,13 @@ class Interpreter {
         return arg & int64_t{imm};
       default:
         Unimplemented();
-        break;
+        return {};
     }
+  }
+
+  Register Ecall(Register syscall_nr, Register arg0, Register arg1, Register arg2, Register arg3,
+                 Register arg4, Register arg5) {
+    return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   }
 
   Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
@@ -122,7 +130,7 @@ class Interpreter {
         return bit_cast<int64_t>(arg) >> imm;
       default:
         Unimplemented();
-        break;
+        return {};
     }
   }
 
@@ -141,6 +149,8 @@ class Interpreter {
       case Decoder::StoreOpcode::kSd:
         Store<uint64_t>(ptr, data);
         break;
+      default:
+        return Unimplemented();
     }
   }
 
@@ -165,6 +175,8 @@ class Interpreter {
       case Decoder::BranchOpcode::kBge:
         cond_value = bit_cast<int64_t>(arg1) >= bit_cast<int64_t>(arg2);
         break;
+      default:
+        return Unimplemented();
     }
 
     if (cond_value) {
@@ -249,11 +261,6 @@ void InterpretInsn(ThreadState* state) {
   Decoder decoder(&sem_player);
   uint8_t insn_len = decoder.Decode(ToHostAddr<const uint16_t>(pc));
   interpreter.FinalizeInsn(insn_len);
-}
-
-// TODO(b/265372622): Make it a method of Interpreter instead.
-void RunSyscall(ThreadState* state) {
-  RunGuestSyscall(state);
 }
 
 }  // namespace berberis
