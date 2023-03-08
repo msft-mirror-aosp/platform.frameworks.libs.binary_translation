@@ -31,10 +31,13 @@ struct TestInsnConsumer {
   void Op(const Decoder::OpArgs& args) { op_args = args; };
   void Unimplemented() { is_unimplemented = true; };
   void Load(const typename Decoder::LoadArgs&){};
+  void OpImm(const Decoder::OpImmArgs&){};
+  void ShiftImm(const Decoder::ShiftImmArgs&){};
   void Store(const typename Decoder::StoreArgs&){};
   void Branch(const typename Decoder::BranchArgs&){};
   void JumpAndLink(const typename Decoder::JumpAndLinkArgs&){};
   void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs&){};
+  void System(const typename Decoder::SystemArgs&){};
 
   Decoder::OpArgs op_args;
   bool is_unimplemented = false;

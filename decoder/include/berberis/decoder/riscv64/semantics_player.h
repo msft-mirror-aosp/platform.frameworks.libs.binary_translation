@@ -46,6 +46,18 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void OpImm(const typename Decoder::OpImmArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->OpImm(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void ShiftImm(const typename Decoder::ShiftImmArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->ShiftImm(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
   void Store(const typename Decoder::StoreArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register data = GetRegOrZero(args.data);
@@ -68,6 +80,24 @@ class SemanticsPlayer {
     Register result = listener_->JumpAndLinkRegister(base, args.offset, args.insn_len);
     SetRegOrIgnore(args.dst, result);
   };
+
+  // We may have executed a signal handler just after the syscall. If that handler changed x10, then
+  // overwriting x10 here would be incorrect. On the other hand asynchronous signals are unlikely to
+  // change CPU state, so we don't support this at the moment for simplicity."
+  void System(const typename Decoder::SystemArgs& args) {
+    if (args.opcode != Decoder::SystemOpcode::kEcall) {
+      return Unimplemented();
+    }
+    Register syscall_nr = GetRegOrZero(17);
+    Register arg0 = GetRegOrZero(10);
+    Register arg1 = GetRegOrZero(11);
+    Register arg2 = GetRegOrZero(12);
+    Register arg3 = GetRegOrZero(13);
+    Register arg4 = GetRegOrZero(14);
+    Register arg5 = GetRegOrZero(15);
+    Register result = listener_->Ecall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
+    SetRegOrIgnore(10, result);
+  }
 
   void Unimplemented() { listener_->Unimplemented(); };
 

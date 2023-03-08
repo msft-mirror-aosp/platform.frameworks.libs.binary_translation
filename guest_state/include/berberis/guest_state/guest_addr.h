@@ -22,10 +22,19 @@
 namespace berberis {
 
 // TODO(b/265372622): Make it configurable for specific guest arch.
-using GuestAddr = uint64_t;
+using GuestAddr = uintptr_t;
 
 constexpr GuestAddr kNullGuestAddr{0};
 
+template <typename T>
+inline GuestAddr ToGuestAddr(T* addr) {
+  return reinterpret_cast<GuestAddr>(addr);
+}
+
+template <typename T>
+inline T* ToHostAddr(GuestAddr addr) {
+  return reinterpret_cast<T*>(addr);
+}
 }  // namespace berberis
 
 #endif  // BERBERIS_GUEST_STATE_GUEST_ADDR_H_
