@@ -18,15 +18,35 @@ package {
 }
 
 cc_library_headers {
-    name: "libberberis_decoder_riscv64_headers",
-    defaults: ["berberis_defaults_64"],
+    name: "libberberis_runtime_headers",
+    defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
 }
 
+cc_library_static {
+    name: "libberberis_runtime",
+    defaults: ["berberis_defaults_64"],
+    host_supported: true,
+    header_libs: [
+        "libberberis_base_headers",
+        "libberberis_guest_state_headers",
+        "libberberis_interpreter_riscv64_headers",
+        "libberberis_runtime_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_runtime_headers",
+    ],
+    srcs: ["execute_guest.cc"],
+}
+
 cc_test_library {
-    name: "libberberis_decoder_riscv64_host_tests",
+    name: "libberberis_runtime_host_tests",
     defaults: ["berberis_test_library_defaults_64"],
-    header_libs: ["libberberis_decoder_riscv64_headers"],
-    srcs: ["riscv64/decoder_test.cc"],
+    srcs: ["execute_guest_test.cc"],
+    header_libs: [
+        "libberberis_base_headers",
+        "libberberis_guest_state_headers",
+        "libberberis_runtime_headers",
+    ],
 }

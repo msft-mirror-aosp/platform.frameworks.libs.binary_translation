@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
-#define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#ifndef BERBERIS_BASE_PRCTL_HELPERS_H_
+#define BERBERIS_BASE_PRCTL_HELPERS_H_
 
-#include "cstdint"
-
-#include "berberis/guest_state/guest_state_riscv64.h"
+#include <cstddef>
 
 namespace berberis {
 
-void InterpretInsn(ThreadState* state);
-void RunSyscall(ThreadState* state);
+int SetVmaAnonName(void* addr, size_t size, const char* name);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#endif  // BERBERIS_BASE_PRCTL_HELPERS_H_

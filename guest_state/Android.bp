@@ -18,15 +18,8 @@ package {
 }
 
 cc_library_headers {
-    name: "libberberis_decoder_riscv64_headers",
-    defaults: ["berberis_defaults_64"],
+    name: "libberberis_guest_state_headers",
+    defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
-}
-
-cc_test_library {
-    name: "libberberis_decoder_riscv64_host_tests",
-    defaults: ["berberis_test_library_defaults_64"],
-    header_libs: ["libberberis_decoder_riscv64_headers"],
-    srcs: ["riscv64/decoder_test.cc"],
 }

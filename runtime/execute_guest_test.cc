@@ -14,18 +14,33 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
-#define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#include "gtest/gtest.h"
 
-#include "cstdint"
+#include "berberis/runtime/execute_guest.h"
 
+#include <cstdint>
+
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 
 namespace berberis {
 
-void InterpretInsn(ThreadState* state);
-void RunSyscall(ThreadState* state);
+namespace {
+
+TEST(ExecuteGuestRiscv64, Basic) {
+  const uint32_t code[] = {
+      0x003100b3,  // add x1, x2, x3
+      0x004090b3,  // sll x1, x1, x4
+  };
+  ThreadState state{};
+  state.cpu.insn_addr = ToGuestAddr(&code[0]);
+  SetXReg<2>(state.cpu, 10);
+  SetXReg<3>(state.cpu, 11);
+  SetXReg<4>(state.cpu, 1);
+  ExecuteGuest(&state, ToGuestAddr(&code[0]) + 8);
+  EXPECT_EQ(GetXReg<1>(state.cpu), 42u);
+}
+
+}  // namespace
 
 }  // namespace berberis
-
-#endif  // BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_

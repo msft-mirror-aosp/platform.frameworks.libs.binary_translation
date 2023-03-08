@@ -17,31 +17,36 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+cc_library_headers {
+    name: "libberberis_interpreter_riscv64_headers",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    export_include_dirs: ["include"],
+}
+
 cc_library_static {
     name: "libberberis_interpreter_riscv64",
     defaults: ["berberis_defaults_64"],
     host_supported: true,
-    export_include_dirs: ["include"],
     header_libs: [
         "libberberis_base_headers",
         "libberberis_decoder_riscv64_headers",
+        "libberberis_guest_state_headers",
+        "libberberis_interpreter_riscv64_headers",
+        "libberberis_kernel_api_headers",
     ],
-    srcs: [ "riscv64/interpreter.cc" ],
+    export_header_lib_headers: ["libberberis_interpreter_riscv64_headers"],
+    srcs: ["riscv64/interpreter.cc"],
 }
 
-cc_test_host {
-    name: "berberis_interpreter_riscv64_host_test",
-    defaults: ["berberis_defaults_64"],
-    static_libs: [ "libberberis_interpreter_riscv64" ],
-    srcs: [ "riscv64/interpreter_test.cc" ],
-    shared_libs: [
-        "liblog",
-    ],
+cc_test_library {
+    name: "libberberis_interpreter_riscv64_host_tests",
+    defaults: ["berberis_test_library_defaults_64"],
+    srcs: ["riscv64/interpreter_test.cc"],
     header_libs: [
         "libberberis_base_headers",
+        "libberberis_guest_state_headers",
+        "libberberis_interpreter_riscv64_headers",
+        "libberberis_kernel_api_headers",
     ],
-    test_suites: ["device-tests"],
-    test_options: {
-        unit_test: true,
-    },
 }

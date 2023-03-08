@@ -17,12 +17,17 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 #include <cstdint>
+#include <cstring>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/logging.h"
+#include "berberis/base/macros.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/kernel_api/run_guest_syscall.h"
 
 namespace berberis {
 
@@ -33,8 +38,7 @@ class Interpreter {
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
 
-  explicit Interpreter(ProcessState* state)
-      : state_(state) {}
+  explicit Interpreter(ThreadState* state) : state_(state), branch_taken_(false) {}
 
   //
   // Instruction implementations.
@@ -44,15 +48,159 @@ class Interpreter {
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
         return arg1 + arg2;
+      case Decoder::OpOpcode::kSub:
+        return arg1 - arg2;
+      case Decoder::OpOpcode::kAnd:
+        return arg1 & arg2;
+      case Decoder::OpOpcode::kOr:
+        return arg1 | arg2;
+      case Decoder::OpOpcode::kXor:
+        return arg1 ^ arg2;
+      case Decoder::OpOpcode::kSll:
+        return arg1 << arg2;
+      case Decoder::OpOpcode::kSlr:
+        return arg1 >> arg2;
+      case Decoder::OpOpcode::kSra:
+        return bit_cast<int64_t>(arg1) >> arg2;
+      case Decoder::OpOpcode::kSlt:
+        return bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2) ? 1 : 0;
+      case Decoder::OpOpcode::kSltu:
+        return arg1 < arg2 ? 1 : 0;
       default:
         Unimplemented();
-        break;
+        return {};
     }
   }
 
-  void Unimplemented() {
-    LOG_ALWAYS_FATAL("Unimplemented riscv64 instruction");
+  Register Load(Decoder::LoadOpcode opcode, Register arg, uint16_t offset) {
+    void* ptr = ToHostAddr<void>(arg + offset);
+    switch (opcode) {
+      case Decoder::LoadOpcode::kLbu:
+        return Load<uint8_t>(ptr);
+      case Decoder::LoadOpcode::kLhu:
+        return Load<uint16_t>(ptr);
+      case Decoder::LoadOpcode::kLwu:
+        return Load<uint32_t>(ptr);
+      case Decoder::LoadOpcode::kLd:
+        return Load<uint64_t>(ptr);
+      case Decoder::LoadOpcode::kLb:
+        return Load<int8_t>(ptr);
+      case Decoder::LoadOpcode::kLh:
+        return Load<int16_t>(ptr);
+      case Decoder::LoadOpcode::kLw:
+        return Load<int32_t>(ptr);
+      default:
+        Unimplemented();
+        return {};
+    }
   }
+
+  Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
+    switch (opcode) {
+      case Decoder::OpImmOpcode::kAddi:
+        return arg + int64_t{imm};
+      case Decoder::OpImmOpcode::kSlti:
+        return bit_cast<int64_t>(arg) < int64_t{imm} ? 1 : 0;
+      case Decoder::OpImmOpcode::kSltiu:
+        return arg < bit_cast<uint64_t>(int64_t{imm}) ? 1 : 0;
+      case Decoder::OpImmOpcode::kXori:
+        return arg ^ int64_t { imm };
+      case Decoder::OpImmOpcode::kOri:
+        return arg | int64_t{imm};
+      case Decoder::OpImmOpcode::kAndi:
+        return arg & int64_t{imm};
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register Ecall(Register syscall_nr, Register arg0, Register arg1, Register arg2, Register arg3,
+                 Register arg4, Register arg5) {
+    return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
+  }
+
+  Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
+    switch (opcode) {
+      case Decoder::ShiftImmOpcode::kSlli:
+        return arg << imm;
+      case Decoder::ShiftImmOpcode::kSrli:
+        return arg >> imm;
+      case Decoder::ShiftImmOpcode::kSrai:
+        return bit_cast<int64_t>(arg) >> imm;
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  void Store(Decoder::StoreOpcode opcode, Register arg, uint16_t offset, Register data) {
+    void* ptr = ToHostAddr<void>(arg + offset);
+    switch (opcode) {
+      case Decoder::StoreOpcode::kSb:
+        Store<uint8_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSh:
+        Store<uint16_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSw:
+        Store<uint32_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSd:
+        Store<uint64_t>(ptr, data);
+        break;
+      default:
+        return Unimplemented();
+    }
+  }
+
+  void Branch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset) {
+    bool cond_value;
+    switch (opcode) {
+      case Decoder::BranchOpcode::kBeq:
+        cond_value = arg1 == arg2;
+        break;
+      case Decoder::BranchOpcode::kBne:
+        cond_value = arg1 != arg2;
+        break;
+      case Decoder::BranchOpcode::kBltu:
+        cond_value = arg1 < arg2;
+        break;
+      case Decoder::BranchOpcode::kBgeu:
+        cond_value = arg1 >= arg2;
+        break;
+      case Decoder::BranchOpcode::kBlt:
+        cond_value = bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2);
+        break;
+      case Decoder::BranchOpcode::kBge:
+        cond_value = bit_cast<int64_t>(arg1) >= bit_cast<int64_t>(arg2);
+        break;
+      default:
+        return Unimplemented();
+    }
+
+    if (cond_value) {
+      state_->cpu.insn_addr += offset;
+      branch_taken_ = true;
+    }
+  }
+
+  Register JumpAndLink(int32_t offset, uint8_t insn_len) {
+    uint64_t pc = state_->cpu.insn_addr;
+    state_->cpu.insn_addr += offset;
+    branch_taken_ = true;
+    return pc + insn_len;
+  }
+
+  Register JumpAndLinkRegister(Register base, int16_t offset, uint8_t insn_len) {
+    uint64_t pc = state_->cpu.insn_addr;
+    // The lowest bit is always zeroed out.
+    state_->cpu.insn_addr = (base + offset) & ~uint64_t{1};
+    branch_taken_ = true;
+    return pc + insn_len;
+  }
+
+  void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
 
   //
   // Guest state getters/setters.
@@ -75,27 +223,43 @@ class Interpreter {
   uint64_t GetImm(uint64_t imm) const { return imm; }
 
   void FinalizeInsn(uint8_t insn_len) {
+    if (!branch_taken_) {
       state_->cpu.insn_addr += insn_len;
+    }
   }
 
  private:
+  template <typename DataType>
+  uint64_t Load(const void* ptr) const {
+    DataType data;
+    memcpy(&data, ptr, sizeof(data));
+    // Signed types automatically sign-extend to int64_t.
+    return static_cast<uint64_t>(data);
+  }
+
+  template <typename DataType>
+  void Store(void* ptr, uint64_t data) const {
+    memcpy(ptr, &data, sizeof(DataType));
+  }
+
   void CheckRegIsValid(uint8_t reg) const {
     CHECK_GT(reg, 0u);
     CHECK_LE(reg, arraysize(state_->cpu.x));
   }
 
-  ProcessState* state_;
+  ThreadState* state_;
+  bool branch_taken_;
 };
 
 }  // namespace
 
-void InterpretInsn(ProcessState* state) {
+void InterpretInsn(ThreadState* state) {
   GuestAddr pc = state->cpu.insn_addr;
 
   Interpreter interpreter(state);
   SemanticsPlayer sem_player(&interpreter);
   Decoder decoder(&sem_player);
-  uint8_t insn_len = decoder.Decode(bit_cast<const uint16_t*>(pc));
+  uint8_t insn_len = decoder.Decode(ToHostAddr<const uint16_t>(pc));
   interpreter.FinalizeInsn(insn_len);
 }
 

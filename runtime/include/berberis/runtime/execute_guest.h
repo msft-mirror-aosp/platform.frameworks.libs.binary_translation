@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
-#define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#ifndef BERBERIS_RUNTIME_EXECUTE_GUEST_H_
+#define BERBERIS_RUNTIME_EXECUTE_GUEST_H_
 
-#include "cstdint"
-
-#include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state.h"
 
 namespace berberis {
 
-void InterpretInsn(ThreadState* state);
-void RunSyscall(ThreadState* state);
+void ExecuteGuest(ThreadState* state, GuestAddr stop_pc);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#endif  // BERBERIS_RUNTIME_EXECUTE_GUEST_H_

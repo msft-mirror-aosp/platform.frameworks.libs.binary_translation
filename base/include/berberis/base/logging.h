@@ -19,7 +19,7 @@
 
 #if defined(ANDROID)
 
-#include <cutils/log.h>
+#include <cutils/log.h>  // IWYU pragma: export.
 
 #include "berberis/base/scoped_errno.h"
 
@@ -31,7 +31,7 @@
 #undef LOG_TAG
 #define LOG_TAG "berberis"
 
-#else // defined(ANDROID)
+#else  // defined(ANDROID)
 
 #error "Only ANDROID builds are supported"
 

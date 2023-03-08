@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
-#define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
-
-#include "cstdint"
-
-#include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/base/bit_util.h"
 
 namespace berberis {
 
-void InterpretInsn(ThreadState* state);
-void RunSyscall(ThreadState* state);
+namespace {
+
+static_assert(IsPowerOf2(sizeof(void*)));
+static_assert(!IsPowerOf2(sizeof(void*) + 1));
+
+static_assert(BitUtilLog2(1) == 0);
+static_assert(BitUtilLog2(16) == 4);
+static_assert(BitUtilLog2(sizeof(void*)) > 0);
+
+}  // namespace
 
 }  // namespace berberis
-
-#endif  // BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_

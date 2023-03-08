@@ -17,16 +17,23 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-cc_library_headers {
-    name: "libberberis_decoder_riscv64_headers",
+cc_binary {
+    name: "berberis_program_runner_riscv64",
     defaults: ["berberis_defaults_64"],
     host_supported: true,
-    export_include_dirs: ["include"],
-}
-
-cc_test_library {
-    name: "libberberis_decoder_riscv64_host_tests",
-    defaults: ["berberis_test_library_defaults_64"],
-    header_libs: ["libberberis_decoder_riscv64_headers"],
-    srcs: ["riscv64/decoder_test.cc"],
+    srcs: ["main.cc"],
+    header_libs: [
+        "libberberis_guest_state_headers",
+    ],
+    static_libs: [
+        "libberberis_base",
+        "libberberis_interpreter_riscv64",
+        "libberberis_kernel_api",
+        "libberberis_runtime",
+        "libberberis_tinyloader",
+    ],
+    shared_libs: [
+        "libbase",
+        "liblog",
+    ],
 }

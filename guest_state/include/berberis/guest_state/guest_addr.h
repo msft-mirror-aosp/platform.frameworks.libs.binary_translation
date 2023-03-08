@@ -14,18 +14,27 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
-#define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#ifndef BERBERIS_GUEST_STATE_GUEST_ADDR_H_
+#define BERBERIS_GUEST_STATE_GUEST_ADDR_H_
 
-#include "cstdint"
-
-#include "berberis/guest_state/guest_state_riscv64.h"
+#include <cstdint>
 
 namespace berberis {
 
-void InterpretInsn(ThreadState* state);
-void RunSyscall(ThreadState* state);
+// TODO(b/265372622): Make it configurable for specific guest arch.
+using GuestAddr = uintptr_t;
 
+constexpr GuestAddr kNullGuestAddr{0};
+
+template <typename T>
+inline GuestAddr ToGuestAddr(T* addr) {
+  return reinterpret_cast<GuestAddr>(addr);
+}
+
+template <typename T>
+inline T* ToHostAddr(GuestAddr addr) {
+  return reinterpret_cast<T*>(addr);
+}
 }  // namespace berberis
 
-#endif  // BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#endif  // BERBERIS_GUEST_STATE_GUEST_ADDR_H_
