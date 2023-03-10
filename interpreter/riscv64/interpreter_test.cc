@@ -174,14 +174,25 @@ TEST_F(Riscv64InterpreterTest, OpImmInstructions) {
                              });
   // Xori
   InterpretOpImm(0x00014093, {{0b0101, 0b0011, 0b0110}});
-  // Slri
+  // Srli
   InterpretOpImm(0x00015093, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
-  // Slai
+  // Srai
   InterpretOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
   // Ori
   InterpretOpImm(0x00016093, {{0b0101, 0b0011, 0b0111}});
   // Andi
   InterpretOpImm(0x00017093, {{0b0101, 0b0011, 0b0001}});
+}
+
+TEST_F(Riscv64InterpreterTest, OpImm32Instructions) {
+  // Addiw
+  InterpretOpImm(0x0001009b, {{19, 23, 42}});
+  // Slliw
+  InterpretOpImm(0x0001109b, {{0b1010, 3, 0b1010'000}});
+  // Srliw
+  InterpretOpImm(0x0001509b, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
+  // Sraiw
+  InterpretOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
 }
 
 TEST_F(Riscv64InterpreterTest, LoadInstructions) {
