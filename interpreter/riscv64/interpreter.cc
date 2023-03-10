@@ -58,7 +58,7 @@ class Interpreter {
         return arg1 ^ arg2;
       case Decoder::OpOpcode::kSll:
         return arg1 << arg2;
-      case Decoder::OpOpcode::kSlr:
+      case Decoder::OpOpcode::kSrl:
         return arg1 >> arg2;
       case Decoder::OpOpcode::kSra:
         return bit_cast<int64_t>(arg1) >> arg2;
@@ -66,6 +66,24 @@ class Interpreter {
         return bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2) ? 1 : 0;
       case Decoder::OpOpcode::kSltu:
         return arg1 < arg2 ? 1 : 0;
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
+    switch (opcode) {
+      case Decoder::Op32Opcode::kAddw:
+        return int32_t(arg1) + int32_t(arg2);
+      case Decoder::Op32Opcode::kSubw:
+        return int32_t(arg1) - int32_t(arg2);
+      case Decoder::Op32Opcode::kSllw:
+        return int32_t(arg1) << int32_t(arg2);
+      case Decoder::Op32Opcode::kSrlw:
+        return bit_cast<int32_t>(uint32_t(arg1) >> uint32_t(arg2));
+      case Decoder::Op32Opcode::kSraw:
+        return int32_t(arg1) >> int32_t(arg2);
       default:
         Unimplemented();
         return {};
