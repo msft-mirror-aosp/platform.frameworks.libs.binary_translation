@@ -40,6 +40,13 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void Op32(const typename Decoder::Op32Args& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    Register result = listener_->Op32(args.opcode, arg1, arg2);
+    SetRegOrIgnore(args.dst, result);
+  };
+
   void Load(const typename Decoder::LoadArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register result = listener_->Load(args.opcode, arg, args.offset);
