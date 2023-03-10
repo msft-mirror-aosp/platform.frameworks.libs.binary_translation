@@ -87,11 +87,20 @@ class Decoder {
     kSlt = 0b0000'000'010,
     kSltu = 0b0000'000'011,
     kXor = 0b0000'000'100,
-    kSlr = 0b0000'000'101,
+    kSrl = 0b0000'000'101,
     kSra = 0b0100'000'101,
     kOr = 0b0000'000'110,
     kAnd = 0b0000'000'111,
     kMaxOpOpcode = 0b1111'111'111,
+  };
+
+  enum class Op32Opcode {
+    kAddw = 0b0000'000'000,
+    kSubw = 0b0100'000'000,
+    kSllw = 0b0000'000'001,
+    kSrlw = 0b0000'000'101,
+    kSraw = 0b0100'000'101,
+    kMaxOp32Opcode = 0b1111'111'111,
   };
 
   enum class LoadOpcode {
@@ -148,6 +157,13 @@ class Decoder {
 
   struct OpArgs {
     OpOpcode opcode;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
+  struct Op32Args {
+    Op32Opcode opcode;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
@@ -223,6 +239,9 @@ class Decoder {
       case BaseOpcode::kOp:
         DecodeOp();
         break;
+      case BaseOpcode::kOp32:
+        DecodeOp32();
+        break;
       case BaseOpcode::kLoad:
         DecodeLoad();
         break;
@@ -276,6 +295,19 @@ class Decoder {
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Op(args);
+  }
+
+  void DecodeOp32() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
+    Op32Opcode opcode = Op32Opcode{low_opcode | (high_opcode << 3)};
+    const Op32Args args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+    };
+    insn_consumer_->Op32(args);
   }
 
   void DecodeLoad() {
