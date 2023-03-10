@@ -33,7 +33,9 @@ struct TestInsnConsumer {
   void Unimplemented() { is_unimplemented = true; };
   void Load(const typename Decoder::LoadArgs&){};
   void OpImm(const Decoder::OpImmArgs&){};
+  void OpImm32(const Decoder::OpImm32Args&){};
   void ShiftImm(const Decoder::ShiftImmArgs&){};
+  void ShiftImm32(const Decoder::ShiftImm32Args&){};
   void Store(const typename Decoder::StoreArgs&){};
   void Branch(const typename Decoder::BranchArgs&){};
   void JumpAndLink(const typename Decoder::JumpAndLinkArgs&){};
