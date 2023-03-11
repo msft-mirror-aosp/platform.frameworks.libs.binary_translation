@@ -1,9 +1,6 @@
 BasedOnStyle: Google
-AllowAllParametersOfDeclarationOnNextLine: false
+Standard: Cpp11
 AllowShortFunctionsOnASingleLine: Inline
-AllowShortBlocksOnASingleLine: false
-BinPackArguments: false
-BinPackParameters: false
 ColumnLimit: 100
 CommentPragmas: NOLINT:.*
 DerivePointerAlignment: false
