@@ -40,6 +40,13 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void Op32(const typename Decoder::Op32Args& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    Register result = listener_->Op32(args.opcode, arg1, arg2);
+    SetRegOrIgnore(args.dst, result);
+  };
+
   void Load(const typename Decoder::LoadArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register result = listener_->Load(args.opcode, arg, args.offset);
@@ -52,9 +59,21 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void OpImm32(const typename Decoder::OpImm32Args& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->OpImm32(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
   void ShiftImm(const typename Decoder::ShiftImmArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register result = listener_->ShiftImm(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void ShiftImm32(const typename Decoder::ShiftImm32Args& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->ShiftImm32(args.opcode, arg, args.imm);
     SetRegOrIgnore(args.dst, result);
   };
 
