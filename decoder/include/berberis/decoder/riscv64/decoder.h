@@ -108,6 +108,11 @@ class Decoder {
     kSllw = 0b0000'000'001,
     kSrlw = 0b0000'000'101,
     kSraw = 0b0100'000'101,
+    kMulw = 0b0000'001'000,
+    kDivw = 0b0000'001'100,
+    kDivuw = 0b0000'001'101,
+    kRemw = 0b0000'001'110,
+    kRemuw = 0b0000'001'111,
     kMaxOp32Opcode = 0b1111'111'111,
   };
 
