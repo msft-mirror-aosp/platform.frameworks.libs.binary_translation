@@ -67,7 +67,6 @@ class Interpreter {
         return bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2) ? 1 : 0;
       case Decoder::OpOpcode::kSltu:
         return arg1 < arg2 ? 1 : 0;
-
       case Decoder::OpOpcode::kMul:
         return arg1 * arg2;
       case Decoder::OpOpcode::kMulh:
@@ -102,6 +101,16 @@ class Interpreter {
         return bit_cast<int32_t>(uint32_t(arg1) >> uint32_t(arg2));
       case Decoder::Op32Opcode::kSraw:
         return int32_t(arg1) >> int32_t(arg2);
+      case Decoder::Op32Opcode::kMulw:
+        return int32_t(arg1) * int32_t(arg2);
+      case Decoder::Op32Opcode::kDivw:
+        return int32_t(arg1) / int32_t(arg2);
+      case Decoder::Op32Opcode::kDivuw:
+        return uint32_t(arg1) / uint32_t(arg2);
+      case Decoder::Op32Opcode::kRemw:
+        return int32_t(arg1) % int32_t(arg2);
+      case Decoder::Op32Opcode::kRemuw:
+        return uint32_t(arg1) % uint32_t(arg2);
       default:
         Unimplemented();
         return {};
