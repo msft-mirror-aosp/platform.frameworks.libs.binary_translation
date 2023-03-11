@@ -45,6 +45,7 @@ class Interpreter {
   //
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
+    using uint128_t = unsigned __int128;
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
         return arg1 + arg2;
@@ -66,6 +67,23 @@ class Interpreter {
         return bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2) ? 1 : 0;
       case Decoder::OpOpcode::kSltu:
         return arg1 < arg2 ? 1 : 0;
+
+      case Decoder::OpOpcode::kMul:
+        return arg1 * arg2;
+      case Decoder::OpOpcode::kMulh:
+        return (__int128{bit_cast<int64_t>(arg1)} * __int128{bit_cast<int64_t>(arg2)}) >> 64;
+      case Decoder::OpOpcode::kMulhsu:
+        return (__int128{bit_cast<int64_t>(arg1)} * uint128_t{arg2}) >> 64;
+      case Decoder::OpOpcode::kMulhu:
+        return (uint128_t{arg1} * uint128_t{arg2}) >> 64;
+      case Decoder::OpOpcode::kDiv:
+        return bit_cast<int64_t>(arg1) / bit_cast<int64_t>(arg2);
+      case Decoder::OpOpcode::kDivu:
+        return arg1 / arg2;
+      case Decoder::OpOpcode::kRem:
+        return bit_cast<int64_t>(arg1) % bit_cast<int64_t>(arg2);
+      case Decoder::OpOpcode::kRemu:
+        return arg1 % arg2;
       default:
         Unimplemented();
         return {};
