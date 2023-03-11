@@ -133,6 +133,16 @@ class Interpreter {
     }
   }
 
+  Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
+    switch (opcode) {
+      case Decoder::OpImm32Opcode::kAddiw:
+        return int32_t(arg) + int32_t{imm};
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
   Register Ecall(Register syscall_nr, Register arg0, Register arg1, Register arg2, Register arg3,
                  Register arg4, Register arg5) {
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
@@ -146,6 +156,20 @@ class Interpreter {
         return arg >> imm;
       case Decoder::ShiftImmOpcode::kSrai:
         return bit_cast<int64_t>(arg) >> imm;
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
+    switch (opcode) {
+      case Decoder::ShiftImm32Opcode::kSlliw:
+        return int32_t(arg) << int32_t{imm};
+      case Decoder::ShiftImm32Opcode::kSrliw:
+        return bit_cast<int32_t>(uint32_t(arg) >> uint32_t{imm});
+      case Decoder::ShiftImm32Opcode::kSraiw:
+        return int32_t(arg) >> int32_t{imm};
       default:
         Unimplemented();
         return {};

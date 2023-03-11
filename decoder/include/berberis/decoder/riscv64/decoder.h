@@ -121,7 +121,12 @@ class Decoder {
     kXori = 0b100,
     kOri = 0b110,
     kAndi = 0b111,
-    kMaxBOpImmOpcode = 0b111,
+    kMaxOpImmOpcode = 0b111,
+  };
+
+  enum class OpImm32Opcode {
+    kAddiw = 0b000,
+    kMaxOpImm32Opcode = 0b111,
   };
 
   enum class ShiftImmOpcode {
@@ -129,6 +134,13 @@ class Decoder {
     kSrli = 0b000000'101,
     kSrai = 0b010000'101,
     kMaxShiftImmOpcode = 0b11111'111,
+  };
+
+  enum class ShiftImm32Opcode {
+    kSlliw = 0b0000000'001,
+    kSrliw = 0b0000000'101,
+    kSraiw = 0b0100000'101,
+    kMaxShiftImm32Opcode = 0b111111'111,
   };
 
   enum class StoreOpcode {
@@ -183,12 +195,26 @@ class Decoder {
     int16_t imm;
   };
 
+  struct OpImm32Args {
+    OpImm32Opcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    int16_t imm;
+  };
+
   struct SystemArgs {
     SystemOpcode opcode;
   };
 
   struct ShiftImmArgs {
     ShiftImmOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t imm;
+  };
+
+  struct ShiftImm32Args {
+    ShiftImm32Opcode opcode;
     uint8_t dst;
     uint8_t src;
     uint8_t imm;
@@ -247,6 +273,9 @@ class Decoder {
         break;
       case BaseOpcode::kOpImm:
         DecodeOpImm();
+        break;
+      case BaseOpcode::kOpImm32:
+        DecodeOpImm32();
         break;
       case BaseOpcode::kStore:
         DecodeStore();
@@ -347,6 +376,35 @@ class Decoder {
           .imm = GetBits<uint8_t, 20, 6>(),
       };
       insn_consumer_->ShiftImm(args);
+    }
+  }
+
+  void DecodeOpImm32() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    if (low_opcode != 0b001 && low_opcode != 0b101) {
+      OpImm32Opcode opcode = OpImm32Opcode{low_opcode};
+
+      uint16_t imm = GetBits<uint16_t, 20, 12>();
+
+      const OpImm32Args args = {
+          .opcode = opcode,
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .src = GetBits<uint8_t, 15, 5>(),
+          // Sign-extend immediate.
+          .imm = static_cast<int16_t>(static_cast<int16_t>(imm << 4) >> 4),
+      };
+      insn_consumer_->OpImm32(args);
+    } else {
+      uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
+      ShiftImm32Opcode opcode = ShiftImm32Opcode{low_opcode | (high_opcode << 3)};
+
+      const ShiftImm32Args args = {
+          .opcode = opcode,
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .src = GetBits<uint8_t, 15, 5>(),
+          .imm = GetBits<uint8_t, 20, 6>(),
+      };
+      insn_consumer_->ShiftImm32(args);
     }
   }
 
