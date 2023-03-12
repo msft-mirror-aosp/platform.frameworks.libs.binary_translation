@@ -45,6 +45,20 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void InterpretLui(uint32_t insn_bytes, uint64_t expected_result) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+  }
+
+  void InterpretAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + code_start);
+  }
+
   void InterpretOpImm(uint32_t insn_bytes,
                       std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
     for (auto [arg1, imm, expected_result] : args) {
@@ -180,6 +194,13 @@ TEST_F(Riscv64InterpreterTest, Op32Instructions) {
   InterpretOp(0x23160bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
   // Remuw
   InterpretOp(0x23170bb, {{0x9999'9999'9999'9999, 0x3333, 0}});
+}
+
+TEST_F(Riscv64InterpreterTest, UpperImmArgs) {
+  // Lui
+  InterpretLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
+  // Auipc
+  InterpretAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
 }
 
 TEST_F(Riscv64InterpreterTest, OpImmInstructions) {
