@@ -170,6 +170,16 @@ TEST_F(Riscv64InterpreterTest, Op32Instructions) {
   InterpretOp(0x003150bb, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
   // Sraw
   InterpretOp(0x403150bb, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
+  // Mulw
+  InterpretOp(0x023100bb, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0xffff'ffff'd70a'3d71}});
+  // Divw
+  InterpretOp(0x23140bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'fffd'fffe}});
+  // Divuw
+  InterpretOp(0x23150bb, {{0x9999'9999'9999'9999, 0x3333, 0x0000'0000'0003'0003}});
+  // Remw
+  InterpretOp(0x23160bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
+  // Remuw
+  InterpretOp(0x23170bb, {{0x9999'9999'9999'9999, 0x3333, 0}});
 }
 
 TEST_F(Riscv64InterpreterTest, OpImmInstructions) {

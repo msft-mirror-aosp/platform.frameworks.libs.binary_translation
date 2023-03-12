@@ -108,6 +108,11 @@ class Decoder {
     kSllw = 0b0000'000'001,
     kSrlw = 0b0000'000'101,
     kSraw = 0b0100'000'101,
+    kMulw = 0b0000'001'000,
+    kDivw = 0b0000'001'100,
+    kDivuw = 0b0000'001'101,
+    kRemw = 0b0000'001'110,
+    kRemuw = 0b0000'001'111,
     kMaxOp32Opcode = 0b1111'111'111,
   };
 
@@ -316,6 +321,21 @@ class Decoder {
     return static_cast<ResultType>(shifted_val >> (32 - size));
   }
 
+  // Signextend bits from size to the corresponding signed type of sizeof(Type) size.
+  // If the result of this function is assigned to a wider signed type it'll automatically
+  // sign-extend.
+  template <unsigned size, typename Type>
+  static auto SignExtend(const Type val) {
+    static_assert(std::is_integral_v<Type>, "Only integral types are supported");
+    static_assert(size > 0 && size < (sizeof(Type) * CHAR_BIT), "Invalid size value");
+    typedef std::make_signed_t<Type> SignedType;
+    struct {
+      SignedType val : size;
+    } holder = {.val = static_cast<SignedType>(val)};
+    // Compiler takes care of sign-extension of the field with the specified bit-length.
+    return static_cast<SignedType>(holder.val);
+  }
+
   void Undefined() {
     // TODO(b/265372622): Handle undefined differently from unimplemented.
     insn_consumer_->Unimplemented();
@@ -369,8 +389,7 @@ class Decoder {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .src = GetBits<uint8_t, 15, 5>(),
-          // Sign-extend immediate.
-          .imm = static_cast<int16_t>(static_cast<int16_t>(imm << 4) >> 4),
+          .imm = SignExtend<12>(imm),
       };
       insn_consumer_->OpImm(args);
     } else {
@@ -398,8 +417,7 @@ class Decoder {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .src = GetBits<uint8_t, 15, 5>(),
-          // Sign-extend immediate.
-          .imm = static_cast<int16_t>(static_cast<int16_t>(imm << 4) >> 4),
+          .imm = SignExtend<12>(imm),
       };
       insn_consumer_->OpImm32(args);
     } else {
@@ -440,14 +458,14 @@ class Decoder {
     auto bit11_imm = GetBits<uint16_t, 7, 1>();
     auto bit12_imm = GetBits<uint16_t, 31, 1>();
     auto offset =
-        static_cast<uint16_t>(low_imm | (mid_imm << 4) | (bit11_imm << 10) | (bit12_imm << 11));
+        static_cast<int16_t>(low_imm | (mid_imm << 4) | (bit11_imm << 10) | (bit12_imm << 11));
 
     const BranchArgs args = {
         .opcode = opcode,
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
-        // Sign-extend and multiply by 2, since the offset is encoded in 2-byte units.
-        .offset = static_cast<int16_t>(static_cast<int16_t>(offset << 4) >> 3),
+        // The offset is encoded as 2-byte units, we need to multiply by 2.
+        .offset = SignExtend<13>(int16_t(offset * 2)),
     };
     insn_consumer_->Branch(args);
   }
@@ -459,12 +477,12 @@ class Decoder {
     auto bit11_imm = GetBits<uint32_t, 20, 1>();
     auto bit20_imm = GetBits<uint32_t, 31, 1>();
     auto offset =
-        static_cast<uint32_t>(low_imm | (bit11_imm << 10) | (mid_imm << 11) | (bit20_imm << 19));
+        static_cast<int32_t>(low_imm | (bit11_imm << 10) | (mid_imm << 11) | (bit20_imm << 19));
 
     const JumpAndLinkArgs args = {
         .dst = GetBits<uint8_t, 7, 5>(),
-        // Sign-extend and multiply by 2, since the offset is encoded in 2-byte units.
-        .offset = static_cast<int32_t>(static_cast<int32_t>(offset << 12) >> 11),
+        // The offset is encoded as 2-byte units, we need to multiply by 2.
+        .offset = SignExtend<21>(offset * 2),
         .insn_len = 4,
     };
     insn_consumer_->JumpAndLink(args);
