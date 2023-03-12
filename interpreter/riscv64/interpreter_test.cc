@@ -140,6 +140,23 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
                               {23, 19, 0},
                               {~0ULL, 0, 0},
                           });
+
+  // Mul
+  InterpretOp(0x023100b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0x0a3d'70a3'd70a'3d71}});
+  // Mulh
+  InterpretOp(0x23110b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0x28f5'c28f'5c28'f5c3}});
+  // Mulhsu
+  InterpretOp(0x23120b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0xc28f'5c28'f5c2'8f5c}});
+  // Mulhu
+  InterpretOp(0x23130b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0x5c28'f5c2'8f5c'28f5}});
+  // Div
+  InterpretOp(0x23140b3, {{0x9999'9999'9999'9999, 0x3333, 0xfffd'fffd'fffd'fffe}});
+  // Div
+  InterpretOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
+  // Rem
+  InterpretOp(0x23160b3, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
+  // Remu
+  InterpretOp(0x23170b3, {{0x9999'9999'9999'9999, 0x3333, 0}});
 }
 
 TEST_F(Riscv64InterpreterTest, Op32Instructions) {
