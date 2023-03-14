@@ -160,6 +160,13 @@ class Interpreter {
     }
   }
 
+  Register Lui(int32_t imm) { return int64_t{imm}; }
+
+  Register Auipc(int32_t imm) {
+    uint64_t pc = state_->cpu.insn_addr;
+    return pc + int64_t{imm};
+  }
+
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
     switch (opcode) {
       case Decoder::OpImm32Opcode::kAddiw:
