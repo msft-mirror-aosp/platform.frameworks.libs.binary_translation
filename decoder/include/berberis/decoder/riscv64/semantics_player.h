@@ -47,6 +47,16 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void Lui(const typename Decoder::UpperImmArgs& args) {
+    Register result = listener_->Lui(args.imm);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void Auipc(const typename Decoder::UpperImmArgs& args) {
+    Register result = listener_->Auipc(args.imm);
+    SetRegOrIgnore(args.dst, result);
+  }
+
   void Load(const typename Decoder::LoadArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register result = listener_->Load(args.opcode, arg, args.offset);
