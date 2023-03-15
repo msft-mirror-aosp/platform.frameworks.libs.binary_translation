@@ -247,6 +247,11 @@ class Decoder {
     int16_t offset;
   };
 
+  struct UpperImmArgs {
+    uint8_t dst;
+    int32_t imm;
+  };
+
   struct JumpAndLinkArgs {
     uint8_t dst;
     int32_t offset;
@@ -305,6 +310,12 @@ class Decoder {
       case BaseOpcode::kSystem:
         DecodeSystem();
         break;
+      case BaseOpcode::kLui:
+        DecodeLui();
+        break;
+      case BaseOpcode::kAuipc:
+        DecodeAuipc();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
@@ -352,6 +363,24 @@ class Decoder {
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Op(args);
+  }
+
+  void DecodeLui() {
+    int32_t imm = GetBits<uint32_t, 12, 20>();
+    const UpperImmArgs args = {
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .imm = imm << 12,
+    };
+    insn_consumer_->Lui(args);
+  }
+
+  void DecodeAuipc() {
+    int32_t imm = GetBits<uint32_t, 12, 20>();
+    const UpperImmArgs args = {
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .imm = imm << 12,
+    };
+    insn_consumer_->Auipc(args);
   }
 
   void DecodeOp32() {
