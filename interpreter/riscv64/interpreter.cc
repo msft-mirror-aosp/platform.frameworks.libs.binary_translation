@@ -45,6 +45,7 @@ class Interpreter {
   //
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
+    using uint128_t = unsigned __int128;
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
         return arg1 + arg2;
@@ -58,7 +59,7 @@ class Interpreter {
         return arg1 ^ arg2;
       case Decoder::OpOpcode::kSll:
         return arg1 << arg2;
-      case Decoder::OpOpcode::kSlr:
+      case Decoder::OpOpcode::kSrl:
         return arg1 >> arg2;
       case Decoder::OpOpcode::kSra:
         return bit_cast<int64_t>(arg1) >> arg2;
@@ -66,6 +67,50 @@ class Interpreter {
         return bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2) ? 1 : 0;
       case Decoder::OpOpcode::kSltu:
         return arg1 < arg2 ? 1 : 0;
+      case Decoder::OpOpcode::kMul:
+        return arg1 * arg2;
+      case Decoder::OpOpcode::kMulh:
+        return (__int128{bit_cast<int64_t>(arg1)} * __int128{bit_cast<int64_t>(arg2)}) >> 64;
+      case Decoder::OpOpcode::kMulhsu:
+        return (__int128{bit_cast<int64_t>(arg1)} * uint128_t{arg2}) >> 64;
+      case Decoder::OpOpcode::kMulhu:
+        return (uint128_t{arg1} * uint128_t{arg2}) >> 64;
+      case Decoder::OpOpcode::kDiv:
+        return bit_cast<int64_t>(arg1) / bit_cast<int64_t>(arg2);
+      case Decoder::OpOpcode::kDivu:
+        return arg1 / arg2;
+      case Decoder::OpOpcode::kRem:
+        return bit_cast<int64_t>(arg1) % bit_cast<int64_t>(arg2);
+      case Decoder::OpOpcode::kRemu:
+        return arg1 % arg2;
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
+    switch (opcode) {
+      case Decoder::Op32Opcode::kAddw:
+        return int32_t(arg1) + int32_t(arg2);
+      case Decoder::Op32Opcode::kSubw:
+        return int32_t(arg1) - int32_t(arg2);
+      case Decoder::Op32Opcode::kSllw:
+        return int32_t(arg1) << int32_t(arg2);
+      case Decoder::Op32Opcode::kSrlw:
+        return bit_cast<int32_t>(uint32_t(arg1) >> uint32_t(arg2));
+      case Decoder::Op32Opcode::kSraw:
+        return int32_t(arg1) >> int32_t(arg2);
+      case Decoder::Op32Opcode::kMulw:
+        return int32_t(arg1) * int32_t(arg2);
+      case Decoder::Op32Opcode::kDivw:
+        return int32_t(arg1) / int32_t(arg2);
+      case Decoder::Op32Opcode::kDivuw:
+        return uint32_t(arg1) / uint32_t(arg2);
+      case Decoder::Op32Opcode::kRemw:
+        return int32_t(arg1) % int32_t(arg2);
+      case Decoder::Op32Opcode::kRemuw:
+        return uint32_t(arg1) % uint32_t(arg2);
       default:
         Unimplemented();
         return {};
@@ -115,6 +160,23 @@ class Interpreter {
     }
   }
 
+  Register Lui(int32_t imm) { return int64_t{imm}; }
+
+  Register Auipc(int32_t imm) {
+    uint64_t pc = state_->cpu.insn_addr;
+    return pc + int64_t{imm};
+  }
+
+  Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
+    switch (opcode) {
+      case Decoder::OpImm32Opcode::kAddiw:
+        return int32_t(arg) + int32_t{imm};
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
   Register Ecall(Register syscall_nr, Register arg0, Register arg1, Register arg2, Register arg3,
                  Register arg4, Register arg5) {
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
@@ -128,6 +190,20 @@ class Interpreter {
         return arg >> imm;
       case Decoder::ShiftImmOpcode::kSrai:
         return bit_cast<int64_t>(arg) >> imm;
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
+    switch (opcode) {
+      case Decoder::ShiftImm32Opcode::kSlliw:
+        return int32_t(arg) << int32_t{imm};
+      case Decoder::ShiftImm32Opcode::kSrliw:
+        return bit_cast<int32_t>(uint32_t(arg) >> uint32_t{imm});
+      case Decoder::ShiftImm32Opcode::kSraiw:
+        return int32_t(arg) >> int32_t{imm};
       default:
         Unimplemented();
         return {};

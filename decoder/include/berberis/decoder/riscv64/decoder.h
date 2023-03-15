@@ -87,11 +87,33 @@ class Decoder {
     kSlt = 0b0000'000'010,
     kSltu = 0b0000'000'011,
     kXor = 0b0000'000'100,
-    kSlr = 0b0000'000'101,
+    kSrl = 0b0000'000'101,
     kSra = 0b0100'000'101,
     kOr = 0b0000'000'110,
     kAnd = 0b0000'000'111,
+    kMul = 0b0000'001'000,
+    kMulh = 0b0000'001'001,
+    kMulhsu = 0b0000'001'010,
+    kMulhu = 0b0000'001'011,
+    kDiv = 0b0000'001'100,
+    kDivu = 0b0000'001'101,
+    kRem = 0b0000'001'110,
+    kRemu = 0b0000'001'111,
     kMaxOpOpcode = 0b1111'111'111,
+  };
+
+  enum class Op32Opcode {
+    kAddw = 0b0000'000'000,
+    kSubw = 0b0100'000'000,
+    kSllw = 0b0000'000'001,
+    kSrlw = 0b0000'000'101,
+    kSraw = 0b0100'000'101,
+    kMulw = 0b0000'001'000,
+    kDivw = 0b0000'001'100,
+    kDivuw = 0b0000'001'101,
+    kRemw = 0b0000'001'110,
+    kRemuw = 0b0000'001'111,
+    kMaxOp32Opcode = 0b1111'111'111,
   };
 
   enum class LoadOpcode {
@@ -112,7 +134,12 @@ class Decoder {
     kXori = 0b100,
     kOri = 0b110,
     kAndi = 0b111,
-    kMaxBOpImmOpcode = 0b111,
+    kMaxOpImmOpcode = 0b111,
+  };
+
+  enum class OpImm32Opcode {
+    kAddiw = 0b000,
+    kMaxOpImm32Opcode = 0b111,
   };
 
   enum class ShiftImmOpcode {
@@ -120,6 +147,13 @@ class Decoder {
     kSrli = 0b000000'101,
     kSrai = 0b010000'101,
     kMaxShiftImmOpcode = 0b11111'111,
+  };
+
+  enum class ShiftImm32Opcode {
+    kSlliw = 0b0000000'001,
+    kSrliw = 0b0000000'101,
+    kSraiw = 0b0100000'101,
+    kMaxShiftImm32Opcode = 0b111111'111,
   };
 
   enum class StoreOpcode {
@@ -153,6 +187,13 @@ class Decoder {
     uint8_t src2;
   };
 
+  struct Op32Args {
+    Op32Opcode opcode;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
   struct LoadArgs {
     LoadOpcode opcode;
     uint8_t dst;
@@ -167,12 +208,26 @@ class Decoder {
     int16_t imm;
   };
 
+  struct OpImm32Args {
+    OpImm32Opcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    int16_t imm;
+  };
+
   struct SystemArgs {
     SystemOpcode opcode;
   };
 
   struct ShiftImmArgs {
     ShiftImmOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t imm;
+  };
+
+  struct ShiftImm32Args {
+    ShiftImm32Opcode opcode;
     uint8_t dst;
     uint8_t src;
     uint8_t imm;
@@ -190,6 +245,11 @@ class Decoder {
     uint8_t src1;
     uint8_t src2;
     int16_t offset;
+  };
+
+  struct UpperImmArgs {
+    uint8_t dst;
+    int32_t imm;
   };
 
   struct JumpAndLinkArgs {
@@ -223,11 +283,17 @@ class Decoder {
       case BaseOpcode::kOp:
         DecodeOp();
         break;
+      case BaseOpcode::kOp32:
+        DecodeOp32();
+        break;
       case BaseOpcode::kLoad:
         DecodeLoad();
         break;
       case BaseOpcode::kOpImm:
         DecodeOpImm();
+        break;
+      case BaseOpcode::kOpImm32:
+        DecodeOpImm32();
         break;
       case BaseOpcode::kStore:
         DecodeStore();
@@ -244,6 +310,12 @@ class Decoder {
       case BaseOpcode::kSystem:
         DecodeSystem();
         break;
+      case BaseOpcode::kLui:
+        DecodeLui();
+        break;
+      case BaseOpcode::kAuipc:
+        DecodeAuipc();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
@@ -258,6 +330,21 @@ class Decoder {
     static_assert((start + size) <= 32 && size > 0, "Invalid start or size value");
     uint32_t shifted_val = code_ << (32 - start - size);
     return static_cast<ResultType>(shifted_val >> (32 - size));
+  }
+
+  // Signextend bits from size to the corresponding signed type of sizeof(Type) size.
+  // If the result of this function is assigned to a wider signed type it'll automatically
+  // sign-extend.
+  template <unsigned size, typename Type>
+  static auto SignExtend(const Type val) {
+    static_assert(std::is_integral_v<Type>, "Only integral types are supported");
+    static_assert(size > 0 && size < (sizeof(Type) * CHAR_BIT), "Invalid size value");
+    typedef std::make_signed_t<Type> SignedType;
+    struct {
+      SignedType val : size;
+    } holder = {.val = static_cast<SignedType>(val)};
+    // Compiler takes care of sign-extension of the field with the specified bit-length.
+    return static_cast<SignedType>(holder.val);
   }
 
   void Undefined() {
@@ -276,6 +363,37 @@ class Decoder {
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Op(args);
+  }
+
+  void DecodeLui() {
+    int32_t imm = GetBits<uint32_t, 12, 20>();
+    const UpperImmArgs args = {
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .imm = imm << 12,
+    };
+    insn_consumer_->Lui(args);
+  }
+
+  void DecodeAuipc() {
+    int32_t imm = GetBits<uint32_t, 12, 20>();
+    const UpperImmArgs args = {
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .imm = imm << 12,
+    };
+    insn_consumer_->Auipc(args);
+  }
+
+  void DecodeOp32() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
+    Op32Opcode opcode = Op32Opcode{low_opcode | (high_opcode << 3)};
+    const Op32Args args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+    };
+    insn_consumer_->Op32(args);
   }
 
   void DecodeLoad() {
@@ -300,8 +418,7 @@ class Decoder {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .src = GetBits<uint8_t, 15, 5>(),
-          // Sign-extend immediate.
-          .imm = static_cast<int16_t>(static_cast<int16_t>(imm << 4) >> 4),
+          .imm = SignExtend<12>(imm),
       };
       insn_consumer_->OpImm(args);
     } else {
@@ -315,6 +432,34 @@ class Decoder {
           .imm = GetBits<uint8_t, 20, 6>(),
       };
       insn_consumer_->ShiftImm(args);
+    }
+  }
+
+  void DecodeOpImm32() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    if (low_opcode != 0b001 && low_opcode != 0b101) {
+      OpImm32Opcode opcode = OpImm32Opcode{low_opcode};
+
+      uint16_t imm = GetBits<uint16_t, 20, 12>();
+
+      const OpImm32Args args = {
+          .opcode = opcode,
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .src = GetBits<uint8_t, 15, 5>(),
+          .imm = SignExtend<12>(imm),
+      };
+      insn_consumer_->OpImm32(args);
+    } else {
+      uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
+      ShiftImm32Opcode opcode = ShiftImm32Opcode{low_opcode | (high_opcode << 3)};
+
+      const ShiftImm32Args args = {
+          .opcode = opcode,
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .src = GetBits<uint8_t, 15, 5>(),
+          .imm = GetBits<uint8_t, 20, 6>(),
+      };
+      insn_consumer_->ShiftImm32(args);
     }
   }
 
@@ -342,14 +487,14 @@ class Decoder {
     auto bit11_imm = GetBits<uint16_t, 7, 1>();
     auto bit12_imm = GetBits<uint16_t, 31, 1>();
     auto offset =
-        static_cast<uint16_t>(low_imm | (mid_imm << 4) | (bit11_imm << 10) | (bit12_imm << 11));
+        static_cast<int16_t>(low_imm | (mid_imm << 4) | (bit11_imm << 10) | (bit12_imm << 11));
 
     const BranchArgs args = {
         .opcode = opcode,
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
-        // Sign-extend and multiply by 2, since the offset is encoded in 2-byte units.
-        .offset = static_cast<int16_t>(static_cast<int16_t>(offset << 4) >> 3),
+        // The offset is encoded as 2-byte units, we need to multiply by 2.
+        .offset = SignExtend<13>(int16_t(offset * 2)),
     };
     insn_consumer_->Branch(args);
   }
@@ -361,12 +506,12 @@ class Decoder {
     auto bit11_imm = GetBits<uint32_t, 20, 1>();
     auto bit20_imm = GetBits<uint32_t, 31, 1>();
     auto offset =
-        static_cast<uint32_t>(low_imm | (bit11_imm << 10) | (mid_imm << 11) | (bit20_imm << 19));
+        static_cast<int32_t>(low_imm | (bit11_imm << 10) | (mid_imm << 11) | (bit20_imm << 19));
 
     const JumpAndLinkArgs args = {
         .dst = GetBits<uint8_t, 7, 5>(),
-        // Sign-extend and multiply by 2, since the offset is encoded in 2-byte units.
-        .offset = static_cast<int32_t>(static_cast<int32_t>(offset << 12) >> 11),
+        // The offset is encoded as 2-byte units, we need to multiply by 2.
+        .offset = SignExtend<21>(offset * 2),
         .insn_len = 4,
     };
     insn_consumer_->JumpAndLink(args);

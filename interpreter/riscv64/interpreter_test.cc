@@ -45,6 +45,20 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void InterpretLui(uint32_t insn_bytes, uint64_t expected_result) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+  }
+
+  void InterpretAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + code_start);
+  }
+
   void InterpretOpImm(uint32_t insn_bytes,
                       std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
     for (auto [arg1, imm, expected_result] : args) {
@@ -124,9 +138,9 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
   InterpretOp(0x003140b3, {{0b0101, 0b0011, 0b0110}});
   // Sll
   InterpretOp(0x003110b3, {{0b1010, 3, 0b1010'000}});
-  // Slr
+  // Srl
   InterpretOp(0x003150b3, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
-  // Sla
+  // Sra
   InterpretOp(0x403150b3, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
   // Slt
   InterpretOp(0x003120b3, {
@@ -140,6 +154,53 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
                               {23, 19, 0},
                               {~0ULL, 0, 0},
                           });
+
+  // Mul
+  InterpretOp(0x023100b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0x0a3d'70a3'd70a'3d71}});
+  // Mulh
+  InterpretOp(0x23110b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0x28f5'c28f'5c28'f5c3}});
+  // Mulhsu
+  InterpretOp(0x23120b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0xc28f'5c28'f5c2'8f5c}});
+  // Mulhu
+  InterpretOp(0x23130b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0x5c28'f5c2'8f5c'28f5}});
+  // Div
+  InterpretOp(0x23140b3, {{0x9999'9999'9999'9999, 0x3333, 0xfffd'fffd'fffd'fffe}});
+  // Div
+  InterpretOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
+  // Rem
+  InterpretOp(0x23160b3, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
+  // Remu
+  InterpretOp(0x23170b3, {{0x9999'9999'9999'9999, 0x3333, 0}});
+}
+
+TEST_F(Riscv64InterpreterTest, Op32Instructions) {
+  // Addw
+  InterpretOp(0x003100bb, {{19, 23, 42}});
+  // Subw
+  InterpretOp(0x403100bb, {{42, 23, 19}});
+  // Sllw
+  InterpretOp(0x003110bb, {{0b1010, 3, 0b1010'000}});
+  // Srlw
+  InterpretOp(0x003150bb, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
+  // Sraw
+  InterpretOp(0x403150bb, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
+  // Mulw
+  InterpretOp(0x023100bb, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0xffff'ffff'd70a'3d71}});
+  // Divw
+  InterpretOp(0x23140bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'fffd'fffe}});
+  // Divuw
+  InterpretOp(0x23150bb, {{0x9999'9999'9999'9999, 0x3333, 0x0000'0000'0003'0003}});
+  // Remw
+  InterpretOp(0x23160bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
+  // Remuw
+  InterpretOp(0x23170bb, {{0x9999'9999'9999'9999, 0x3333, 0}});
+}
+
+TEST_F(Riscv64InterpreterTest, UpperImmArgs) {
+  // Lui
+  InterpretLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
+  // Auipc
+  InterpretAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
 }
 
 TEST_F(Riscv64InterpreterTest, OpImmInstructions) {
@@ -161,14 +222,25 @@ TEST_F(Riscv64InterpreterTest, OpImmInstructions) {
                              });
   // Xori
   InterpretOpImm(0x00014093, {{0b0101, 0b0011, 0b0110}});
-  // Slri
+  // Srli
   InterpretOpImm(0x00015093, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
-  // Slai
+  // Srai
   InterpretOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
   // Ori
   InterpretOpImm(0x00016093, {{0b0101, 0b0011, 0b0111}});
   // Andi
   InterpretOpImm(0x00017093, {{0b0101, 0b0011, 0b0001}});
+}
+
+TEST_F(Riscv64InterpreterTest, OpImm32Instructions) {
+  // Addiw
+  InterpretOpImm(0x0001009b, {{19, 23, 42}});
+  // Slliw
+  InterpretOpImm(0x0001109b, {{0b1010, 3, 0b1010'000}});
+  // Srliw
+  InterpretOpImm(0x0001509b, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
+  // Sraiw
+  InterpretOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
 }
 
 TEST_F(Riscv64InterpreterTest, LoadInstructions) {
