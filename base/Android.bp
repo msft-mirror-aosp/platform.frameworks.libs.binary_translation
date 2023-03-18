@@ -44,6 +44,10 @@ cc_test_library {
     defaults: ["berberis_test_library_defaults"],
     srcs: [
         "bit_util_test.cc",
+        "forever_alloc_test.cc",
+        "forever_pool_test.cc",
+        "lock_free_stack_test.cc",
+        "pointer_and_counter_test.cc",
     ],
     header_libs: ["libberberis_base_headers"],
 }
