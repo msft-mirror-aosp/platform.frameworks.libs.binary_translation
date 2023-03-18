@@ -31,6 +31,7 @@ cc_library_static {
     defaults: ["berberis_defaults"],
     host_supported: true,
     srcs: [
+        "config_globals.cc",
         "mapped_file_fragment.cc",
         "mmap_posix.cc",
         "prctl_helpers.cc",
