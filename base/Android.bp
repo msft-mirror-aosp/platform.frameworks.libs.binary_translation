@@ -40,6 +40,16 @@ cc_library_static {
     export_header_lib_headers: ["libberberis_base_headers"],
 }
 
+cc_library_static {
+    name: "libberberis_config_globals",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    srcs: [
+        "config_globals_custom.cc",
+    ],
+    header_libs: ["libberberis_base_headers"],
+}
+
 cc_test_library {
     name: "libberberis_base_host_tests",
     defaults: ["berberis_test_library_defaults"],
