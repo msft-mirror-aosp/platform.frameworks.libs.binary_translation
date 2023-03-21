@@ -21,6 +21,15 @@
 
 namespace berberis {
 
+class ConfigStr {
+ public:
+  ConfigStr(const char* env_name, const char* prop_name);
+  [[nodiscard]] const char* get() const { return value_; }
+
+ private:
+  const char* value_ = nullptr;
+};
+
 void SetMainExecutableRealPath(std::string_view path);
 const char* GetMainExecutableRealPath();
 
