@@ -32,6 +32,7 @@ cc_library_static {
     host_supported: true,
     srcs: [
         "config_globals.cc",
+        "format_buffer.cc",
         "mapped_file_fragment.cc",
         "mmap_posix.cc",
         "prctl_helpers.cc",
@@ -59,6 +60,7 @@ cc_test_library {
         "bit_util_test.cc",
         "forever_alloc_test.cc",
         "forever_pool_test.cc",
+        "format_buffer_test.cc",
         "lock_free_stack_test.cc",
         "mmap_pool_test.cc",
         "pointer_and_counter_test.cc",
