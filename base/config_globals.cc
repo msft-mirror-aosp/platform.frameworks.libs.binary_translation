@@ -28,8 +28,6 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/forever_alloc.h"
-#include "berberis/base/logging.h"
-#include "berberis/base/strings.h"
 
 namespace berberis {
 
@@ -89,52 +87,11 @@ bool TryReadConfig(const char* env_name,
 #endif
 }
 
-class ConfigStr {
- public:
-  ConfigStr(const char* env_name, [[maybe_unused]] const char* prop_name) {
-    TryReadConfig(env_name, prop_name, &value_);
-  }
-
-  [[nodiscard]] const char* get() const { return value_; }
-
- private:
-  const char* value_ = nullptr;
-};
-
-std::string ToString(ConfigFlag flag) {
-  switch (flag) {
-    case kVerboseTranslation:
-      return "verbose-translation";
-    case kNumConfigFlags:
-      break;
-  }
-  return "<unknown-config-flag>";
-}
-
-std::bitset<kNumConfigFlags> MakeConfigFlagsSet() {
-  ConfigStr var("BERBERIS_FLAGS", "ro.berberis.flags");
-  std::bitset<kNumConfigFlags> flags_set;
-  if (!var.get()) {
-    return flags_set;
-  }
-  auto token_vector = Split(var.get(), ",");
-  for (const auto& token : token_vector) {
-    bool found = false;
-    for (int flag = 0; flag < kNumConfigFlags; flag++) {
-      if (token == ToString(ConfigFlag(flag))) {
-        flags_set.set(flag);
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      ALOGW("Unrecognized config flag '%s' - ignoring", token.c_str());
-    }
-  }
-  return flags_set;
-}
-
 }  // namespace
+
+ConfigStr::ConfigStr(const char* env_name, const char* prop_name) {
+  TryReadConfig(env_name, prop_name, &value_);
+}
 
 void SetMainExecutableRealPath(std::string_view path) {
   CHECK(!path.empty());
@@ -162,26 +119,6 @@ void SetAppPrivateDir(std::string_view name) {
 
 const char* GetAppPrivateDir() {
   return g_app_private_dir;
-}
-
-const char* GetTracingConfig() {
-  static ConfigStr var("BERBERIS_TRACING", "berberis.tracing");
-  return var.get();
-}
-
-const char* GetTranslationModeConfig() {
-  static ConfigStr var("BERBERIS_MODE", "berberis.mode");
-  return var.get();
-}
-
-const char* GetProfilingConfig() {
-  static ConfigStr var("BERBERIS_PROFILING", "berberis.profiling");
-  return var.get();
-}
-
-bool IsConfigFlagSet(ConfigFlag flag) {
-  static auto flags_set = MakeConfigFlagsSet();
-  return flags_set.test(flag);
 }
 
 }  // namespace berberis
