@@ -85,6 +85,7 @@ cc_test_host {
     defaults: ["berberis_defaults_64"],
     static_libs: [
         "libberberis_base",
+        "libberberis_config_globals",
         "libberberis_interpreter_riscv64",
         "libberberis_kernel_api",
         "libberberis_runtime",

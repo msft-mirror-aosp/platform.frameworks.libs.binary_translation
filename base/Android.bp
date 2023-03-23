@@ -36,6 +36,7 @@ cc_library_static {
         "mapped_file_fragment.cc",
         "mmap_posix.cc",
         "prctl_helpers.cc",
+        "tracing.cc",
     ],
     header_libs: ["libberberis_base_headers"],
     export_header_lib_headers: ["libberberis_base_headers"],
