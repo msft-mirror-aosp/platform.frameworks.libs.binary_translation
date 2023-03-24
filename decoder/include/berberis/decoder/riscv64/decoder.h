@@ -23,6 +23,8 @@
 #include <cstring>
 #include <type_traits>
 
+#include "berberis/base/bit_util.h"
+
 namespace berberis {
 
 // Decode() method takes a sequence of bytes and decodes it into the instruction opcode and fields.
@@ -78,6 +80,36 @@ class Decoder {
     kCustom3 = 0b11'110,
     // Reserved 0b11'111,
     kMaxBaseOpcode = 0b11'111,
+  };
+
+  enum class CompressedOpcode {
+    kAddi4spn = 0b00'000,
+    kFld = 0b001'00,
+    kLw = 0b010'00,
+    kLd = 0b011'00,
+    // Reserved 0b00'100
+    kFsd = 0b101'00,
+    kSw = 0b110'00,
+    kSd = 0b111'00,
+    kAddi = 0b000'00,
+    kAddiw = 0b001'00,
+    kLi = 0b010'00,
+    kLui_Addi16sp = 0b011'01,
+    kMisc_Alu = 0b100'01,
+    kJ = 0b101'01,
+    kBeqz = 0b110'01,
+    kBnez = 0b111'01,
+    kSlli = 0b000'10,
+    kFldsp = 0b001'10,
+    kLwsp = 0b010'10,
+    kDsp = 0b011'10,
+    kJr_Jalr_Mv_Add = 0b100'10,
+    kFdsp = 0b101'10,
+    kSwsp = 0b110'10,
+    kSdsp = 0b111'10,
+    // instruction with 0bxxx'11 opcodes are not compressed instruction and can not be in this
+    // table.
+    kMaxCompressedOpcode = 0b111'11,
   };
 
   enum class OpOpcode {
@@ -268,15 +300,51 @@ class Decoder {
   uint8_t Decode(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
     if ((*code & kInsnLenMask) != kInsnLenMask) {
-      // TODO(b/265372622): Support 16-bit instructions.
-      insn_consumer_->Unimplemented();
-      return 2;
+      code_ = *code;
+      return DecodeCompressedInstruction();
     }
-
     // Warning: do not cast and dereference the pointer
     // since the address may not be 4-bytes aligned.
     memcpy(&code_, code, sizeof(code_));
+    return DecodeBaseInstruction();
+  }
 
+  uint8_t DecodeCompressedInstruction() {
+    CompressedOpcode opcode_bits{(GetBits<uint8_t, 13, 3>() << 2) | GetBits<uint8_t, 0, 2>()};
+
+    switch (opcode_bits) {
+      case CompressedOpcode::kJ:
+        DecodeCJ();
+        break;
+      default:
+        insn_consumer_->Unimplemented();
+    }
+    return 2;
+  }
+
+  void DecodeCJ() {
+    constexpr uint16_t kJHigh[32] = {
+        0x0,    0x400,  0x100,  0x500,  0x200,  0x600,  0x300,  0x700,  0x10,   0x410,  0x110,
+        0x510,  0x210,  0x610,  0x310,  0x710,  0xf800, 0xfc00, 0xf900, 0xfd00, 0xfa00, 0xfe00,
+        0xfb00, 0xff00, 0xf810, 0xfc10, 0xf910, 0xfd10, 0xfa10, 0xfe10, 0xfb10, 0xff10,
+    };
+    constexpr uint8_t kJLow[64] = {
+        0x0,  0x20, 0x2,  0x22, 0x4,  0x24, 0x6,  0x26, 0x8,  0x28, 0xa,  0x2a, 0xc,
+        0x2c, 0xe,  0x2e, 0x80, 0xa0, 0x82, 0xa2, 0x84, 0xa4, 0x86, 0xa6, 0x88, 0xa8,
+        0x8a, 0xaa, 0x8c, 0xac, 0x8e, 0xae, 0x40, 0x60, 0x42, 0x62, 0x44, 0x64, 0x46,
+        0x66, 0x48, 0x68, 0x4a, 0x6a, 0x4c, 0x6c, 0x4e, 0x6e, 0xc0, 0xe0, 0xc2, 0xe2,
+        0xc4, 0xe4, 0xc6, 0xe6, 0xc8, 0xe8, 0xca, 0xea, 0xcc, 0xec, 0xce, 0xee,
+    };
+    const JumpAndLinkArgs args = {
+        .dst = 0,
+        .offset =
+            bit_cast<int16_t>(kJHigh[GetBits<uint16_t, 8, 5>()]) | kJLow[GetBits<uint16_t, 2, 6>()],
+        .insn_len = 2,
+    };
+    insn_consumer_->JumpAndLink(args);
+  }
+
+  uint8_t DecodeBaseInstruction() {
     BaseOpcode opcode_bits{GetBits<uint8_t, 2, 5>()};
 
     switch (opcode_bits) {
