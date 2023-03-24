@@ -16,6 +16,8 @@
 
 #include "runtime_bridge.h"
 
+#include <cstdlib>
+
 #include "berberis/base/checks.h"
 
 namespace berberis {
@@ -26,47 +28,47 @@ long RunGuestSyscall___NR_rt_sigaction(long, long, long, long) {
 }
 
 long RunGuestSyscall___NR_sigaltstack(long, long) {
-  FATAL("unimplemented syscall rt_sigaction");
+  FATAL("unimplemented syscall sigaltstack");
   return -1;
 }
 
 long RunGuestSyscall___NR_timer_create(long, long, long) {
-  FATAL("unimplemented syscall rt_sigaction");
+  FATAL("unimplemented syscall create");
   return -1;
 }
 
-long RunGuestSyscall___NR_exit(long) {
-  FATAL("unimplemented syscall rt_sigaction");
-  return -1;
+long RunGuestSyscall___NR_exit(long code) {
+  _exit(code);
+  return 0;
 }
 
 long RunGuestSyscall___NR_clone(long, long, long, long, long) {
-  FATAL("unimplemented syscall rt_sigaction");
+  FATAL("unimplemented syscall clone");
   return -1;
 }
 
 long RunGuestSyscall___NR_mmap(long, long, long, long, long, long) {
-  FATAL("unimplemented syscall rt_sigaction");
+  FATAL("unimplemented syscall mmap");
   return -1;
 }
 
 long RunGuestSyscall___NR_mmap2(long, long, long, long, long, long) {
-  FATAL("unimplemented syscall rt_sigaction");
+  FATAL("unimplemented syscall mmap2");
   return -1;
 }
 
 long RunGuestSyscall___NR_munmap(long, long) {
-  FATAL("unimplemented syscall rt_sigaction");
+  FATAL("unimplemented syscall munmap");
   return -1;
 }
 
 long RunGuestSyscall___NR_mprotect(long, long, long) {
-  FATAL("unimplemented syscall rt_sigaction");
+  FATAL("unimplemented syscall mprotect");
   return -1;
 }
 
 long RunGuestSyscall___NR_mremap(long, long, long, long, long) {
-  FATAL("unimplemented syscall rt_sigaction");
+  FATAL("unimplemented syscall mremap");
   return -1;
 }
 
