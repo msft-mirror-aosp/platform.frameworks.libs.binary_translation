@@ -34,6 +34,13 @@ namespace {
 
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
+  void InterpretCJ(uint16_t insn_bytes, int16_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    InterpretInsn(&state_);
+    EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+  }
+
   void InterpretOp(uint32_t insn_bytes,
                    std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
@@ -124,6 +131,61 @@ class Riscv64InterpreterTest : public ::testing::Test {
   uint64_t store_area_;
   ThreadState state_;
 };
+
+TEST_F(Riscv64InterpreterTest, CJ) {
+  union {
+    int16_t offset;
+    struct {
+      uint8_t : 1;
+      uint8_t i1 : 1;
+      uint8_t i2 : 1;
+      uint8_t i3 : 1;
+      uint8_t i4 : 1;
+      uint8_t i5 : 1;
+      uint8_t i6 : 1;
+      uint8_t i7 : 1;
+      uint8_t i8 : 1;
+      uint8_t i9 : 1;
+      uint8_t i10 : 1;
+      uint8_t i11 : 1;
+    } i_bits;
+  };
+  for (offset = int16_t{-2048}; offset < int16_t{2048}; offset += 2) {
+    union {
+      int16_t parcel;
+      struct {
+        uint8_t low_opcode : 2;
+        uint8_t i5 : 1;
+        uint8_t i1 : 1;
+        uint8_t i2 : 1;
+        uint8_t i3 : 1;
+        uint8_t i7 : 1;
+        uint8_t i6 : 1;
+        uint8_t i10 : 1;
+        uint8_t i8 : 1;
+        uint8_t i9 : 1;
+        uint8_t i4 : 1;
+        uint8_t i11 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b01,
+        .i5 = i_bits.i5,
+        .i1 = i_bits.i1,
+        .i2 = i_bits.i2,
+        .i3 = i_bits.i3,
+        .i7 = i_bits.i7,
+        .i6 = i_bits.i6,
+        .i10 = i_bits.i10,
+        .i8 = i_bits.i8,
+        .i9 = i_bits.i9,
+        .i4 = i_bits.i4,
+        .i11 = i_bits.i11,
+        .high_opcode = 0b101,
+    };
+    InterpretCJ(o_bits.parcel, offset);
+  }
+}
 
 TEST_F(Riscv64InterpreterTest, OpInstructions) {
   // Add
