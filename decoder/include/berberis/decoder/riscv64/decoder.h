@@ -148,6 +148,32 @@ class Decoder {
     kMaxOp32Opcode = 0b1111'111'111,
   };
 
+  enum class AmoOpcode {
+    kLrW = 0b00010'010,
+    kScW = 0b00011'010,
+    kAmoswapW = 0b00001'010,
+    kAmoaddW = 0b00000'010,
+    kAmoxorW = 0b00100'010,
+    kAmoandW = 0b01100'010,
+    kAmoorW = 0b01000'010,
+    kAmominW = 0b10000'010,
+    kAmomaxW = 0b10100'010,
+    kAmominuW = 0b11000'010,
+    kAmomaxuW = 0b11100'010,
+    kLrD = 0b00010'011,
+    kScD = 0b00011'011,
+    kAmoswapD = 0b00001'011,
+    kAmoaddD = 0b00000'011,
+    kAmoxorD = 0b00100'011,
+    kAmoandD = 0b01100'011,
+    kAmoorD = 0b01000'011,
+    kAmominD = 0b10000'011,
+    kAmomaxD = 0b10100'011,
+    kAmominuD = 0b11000'011,
+    kAmomaxuD = 0b11100'011,
+    kMaxAmoOpcode = 0b11111'111,
+  };
+
   enum class LoadOpcode {
     kLb = 0b000,
     kLh = 0b001,
@@ -224,6 +250,15 @@ class Decoder {
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
+  };
+
+  struct AmoArgs {
+    AmoOpcode opcode;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+    bool aq;
+    bool rl;
   };
 
   struct LoadArgs {
@@ -354,6 +389,9 @@ class Decoder {
       case BaseOpcode::kOp32:
         DecodeOp32();
         break;
+      case BaseOpcode::kAmo:
+        DecodeAmo();
+        break;
       case BaseOpcode::kLoad:
         DecodeLoad();
         break;
@@ -433,6 +471,38 @@ class Decoder {
     insn_consumer_->Op(args);
   }
 
+  void DecodeOp32() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
+    Op32Opcode opcode = Op32Opcode{low_opcode | (high_opcode << 3)};
+    const Op32Args args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+    };
+    insn_consumer_->Op32(args);
+  }
+
+  void DecodeAmo() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    uint16_t high_opcode = GetBits<uint16_t, 27, 5>();
+    // lr instruction must have rs2 == 0
+    if (high_opcode == 0b00010 && GetBits<uint8_t, 20, 5>() != 0) {
+      return Undefined();
+    }
+    AmoOpcode opcode = AmoOpcode{low_opcode | (high_opcode << 3)};
+    const AmoArgs args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+        .aq = bool(GetBits<uint8_t, 25, 1>()),
+        .rl = bool(GetBits<uint8_t, 26, 1>()),
+    };
+    insn_consumer_->Amo(args);
+  }
+
   void DecodeLui() {
     int32_t imm = GetBits<uint32_t, 12, 20>();
     const UpperImmArgs args = {
@@ -449,19 +519,6 @@ class Decoder {
         .imm = imm << 12,
     };
     insn_consumer_->Auipc(args);
-  }
-
-  void DecodeOp32() {
-    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
-    uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
-    Op32Opcode opcode = Op32Opcode{low_opcode | (high_opcode << 3)};
-    const Op32Args args = {
-        .opcode = opcode,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
-    };
-    insn_consumer_->Op32(args);
   }
 
   void DecodeLoad() {

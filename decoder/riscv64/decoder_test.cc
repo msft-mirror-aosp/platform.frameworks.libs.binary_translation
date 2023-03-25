@@ -30,6 +30,7 @@ using Decoder = Decoder<TestInsnConsumer>;
 struct TestInsnConsumer {
   void Op(const Decoder::OpArgs& args) { op_args = args; };
   void Op32(const Decoder::Op32Args&){};
+  void Amo(const Decoder::AmoArgs){};
   void Lui(const Decoder::UpperImmArgs&){};
   void Auipc(const Decoder::UpperImmArgs&){};
   void Unimplemented() { is_unimplemented = true; };
