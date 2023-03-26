@@ -52,6 +52,25 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void InterpretAmo(uint32_t insn_bytes, uint64_t arg1, uint64_t arg2, uint64_t expected_result,
+                    uint64_t expected_memory) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    // Copy arg1 into store_area_
+    store_area_ = arg1;
+    SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_)));
+    SetXReg<3>(state_.cpu, arg2);
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    EXPECT_EQ(store_area_, expected_memory);
+  }
+
+  void InterpretAmo(uint32_t insn_bytes32, uint32_t insn_bytes64, uint64_t expected_memory) {
+    InterpretAmo(insn_bytes32, 0xffff'eeee'dddd'ccccULL, 0xaaaa'bbbb'cccc'ddddULL,
+                 0xffff'ffff'dddd'ccccULL, 0xffff'eeee'0000'0000 | uint32_t(expected_memory));
+    InterpretAmo(insn_bytes64, 0xffff'eeee'dddd'ccccULL, 0xaaaa'bbbb'cccc'ddddULL,
+                 0xffff'eeee'dddd'ccccULL, expected_memory);
+  }
+
   void InterpretLui(uint32_t insn_bytes, uint64_t expected_result) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -256,6 +275,47 @@ TEST_F(Riscv64InterpreterTest, Op32Instructions) {
   InterpretOp(0x23160bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
   // Remuw
   InterpretOp(0x23170bb, {{0x9999'9999'9999'9999, 0x3333, 0}});
+}
+
+TEST_F(Riscv64InterpreterTest, AmoInstructions) {
+  // Verifying that all aq and rl combinations work for Amoswap, but only test relaxed one for most
+  // other instructions for brevity.
+
+  // AmoswaoW/AmoswaoD
+  InterpretAmo(0x083120af, 0x083130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWAq/AmoswapDAq
+  InterpretAmo(0x0c3120af, 0x0c3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWRl/AmoswapDRl
+  InterpretAmo(0x0a3120af, 0x0a3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWAqrl/AmoswapDAqrl
+  InterpretAmo(0x0e3120af, 0x0e3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoaddW/AmoaddD
+  InterpretAmo(0x003120af, 0x003130af, 0xaaaa'aaaa'aaaa'aaa9);
+
+  // AmoxorW/AmoxorD
+  InterpretAmo(0x203120af, 0x203130af, 0x5555'5555'1111'1111);
+
+  // AmoandW/AmoandD
+  InterpretAmo(0x603120af, 0x603130af, 0xaaaa'aaaa'cccc'cccc);
+
+  // AmoorW/AmoorD
+  InterpretAmo(0x403120af, 0x403130af, 0xffff'ffff'dddd'dddd);
+
+  // AmominW/AmominD
+  InterpretAmo(0x803120af, 0x803130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmomaxW/AmomaxD
+  InterpretAmo(0xa03120af, 0xa03130af, 0xffff'eeee'dddd'ccccULL);
+
+  // AmominuW/AmominuD
+  InterpretAmo(0xc03120af, 0xc03130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmomaxuW/AmomaxuD
+  InterpretAmo(0xe03120af, 0xe03130af, 0xffff'eeee'dddd'ccccULL);
 }
 
 TEST_F(Riscv64InterpreterTest, UpperImmArgs) {
