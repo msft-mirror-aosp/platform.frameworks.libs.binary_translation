@@ -46,6 +46,51 @@ class Interpreter {
   // Instruction implementations.
   //
 
+  // Note: we prefer not to use C11/C++ atomic_thread_fence or even gcc/clang builtin
+  // __atomic_thread_fence because all these function rely on the fact that compiler never uses
+  // non-temporal loads and stores and only issue “mfence” when sequentially consistent ordering is
+  // requested. They never issue “lfence” or “sfence”.
+  // Instead we pull the page from Linux's kernel book and map read ordereding to “lfence”, write
+  // ordering to “sfence” and read-write ordering to “mfence”.
+  // This can be important in the future if we would start using nontemporal moves in manually
+  // created assembly code.
+  // Ordering affecting I/O devices is not relevant to user-space code thus we just ignore bits
+  // related to devices I/O.
+  void Fence(Decoder::FenceOpcode opcode,
+             bool sw,
+             bool sr,
+             bool /*so*/,
+             bool /*si*/,
+             bool pw,
+             bool pr,
+             bool /*po*/,
+             bool /*pi*/) {
+    bool read_fence = sr | pr;
+    bool write_fence = sw | pw;
+    switch (opcode) {
+      case Decoder::FenceOpcode::kFence:
+        if (read_fence) {
+          if (write_fence) {
+            asm volatile("mfence" ::: "memory");
+          } else {
+            asm volatile("lfence" ::: "memory");
+          }
+        } else if (write_fence) {
+          asm volatile("sfence" ::: "memory");
+        }
+        return;
+      case Decoder::FenceOpcode::kFenceTso:
+        if (read_fence && write_fence) {
+          asm volatile("mfence" ::: "memory");
+          return;
+        }
+        break;
+      default:
+        break;
+    }
+    return Unimplemented();
+  }
+
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
     using uint128_t = unsigned __int128;
     switch (opcode) {
