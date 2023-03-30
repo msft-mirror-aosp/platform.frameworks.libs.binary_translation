@@ -97,7 +97,6 @@ cc_test_host {
     ],
     whole_static_libs: [
         "libberberis_base_host_tests",
-        "libberberis_decoder_riscv64_host_tests",
         "libberberis_interpreter_riscv64_host_tests",
         "libberberis_runtime_host_tests",
         "libberberis_tinyloader_unit_tests",
