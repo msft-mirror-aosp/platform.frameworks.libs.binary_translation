@@ -47,13 +47,6 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
-  void Amo(const typename Decoder::AmoArgs& args) {
-    Register arg1 = GetRegOrZero(args.src1);
-    Register arg2 = GetRegOrZero(args.src2);
-    Register result = listener_->Amo(args.opcode, arg1, arg2, args.aq, args.rl);
-    SetRegOrIgnore(args.dst, result);
-  };
-
   void Lui(const typename Decoder::UpperImmArgs& args) {
     Register result = listener_->Lui(args.imm);
     SetRegOrIgnore(args.dst, result);
