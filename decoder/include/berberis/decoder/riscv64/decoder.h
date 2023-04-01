@@ -248,14 +248,14 @@ class Decoder {
     FenceOpcode opcode;
     uint8_t dst;
     uint8_t src;
-    uint8_t sw : 1;
-    uint8_t sr : 1;
-    uint8_t so : 1;
-    uint8_t si : 1;
-    uint8_t pw : 1;
-    uint8_t pr : 1;
-    uint8_t po : 1;
-    uint8_t pi : 1;
+    bool sw : 1;
+    bool sr : 1;
+    bool so : 1;
+    bool si : 1;
+    bool pw : 1;
+    bool pr : 1;
+    bool po : 1;
+    bool pi : 1;
   };
 
   struct OpArgs {
@@ -277,8 +277,8 @@ class Decoder {
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
-    bool aq;
-    bool rl;
+    bool rl : 1;
+    bool aq : 1;
   };
 
   struct LoadArgs {
@@ -491,14 +491,14 @@ class Decoder {
             .opcode = opcode,
             .dst = GetBits<uint8_t, 7, 5>(),
             .src = GetBits<uint8_t, 15, 5>(),
-            .sw = GetBits<uint8_t, 20, 1>(),
-            .sr = GetBits<uint8_t, 21, 1>(),
-            .so = GetBits<uint8_t, 22, 1>(),
-            .si = GetBits<uint8_t, 23, 1>(),
-            .pw = GetBits<uint8_t, 24, 1>(),
-            .pr = GetBits<uint8_t, 25, 1>(),
-            .pi = GetBits<uint8_t, 26, 1>(),
-            .po = GetBits<uint8_t, 27, 1>(),
+            .sw = bool(GetBits<uint8_t, 20, 1>()),
+            .sr = bool(GetBits<uint8_t, 21, 1>()),
+            .so = bool(GetBits<uint8_t, 22, 1>()),
+            .si = bool(GetBits<uint8_t, 23, 1>()),
+            .pw = bool(GetBits<uint8_t, 24, 1>()),
+            .pr = bool(GetBits<uint8_t, 25, 1>()),
+            .pi = bool(GetBits<uint8_t, 26, 1>()),
+            .po = bool(GetBits<uint8_t, 27, 1>()),
         };
         insn_consumer_->Fence(args);
         break;
@@ -547,8 +547,8 @@ class Decoder {
         .dst = GetBits<uint8_t, 7, 5>(),
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
-        .aq = bool(GetBits<uint8_t, 25, 1>()),
-        .rl = bool(GetBits<uint8_t, 26, 1>()),
+        .rl = bool(GetBits<uint8_t, 25, 1>()),
+        .aq = bool(GetBits<uint8_t, 26, 1>()),
     };
     insn_consumer_->Amo(args);
   }
