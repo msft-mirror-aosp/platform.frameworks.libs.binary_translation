@@ -52,6 +52,11 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void InterpretFence(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    InterpretInsn(&state_);
+  }
+
   void InterpretAmo(uint32_t insn_bytes, uint64_t arg1, uint64_t arg2, uint64_t expected_result,
                     uint64_t expected_memory) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
@@ -204,6 +209,13 @@ TEST_F(Riscv64InterpreterTest, CJ) {
     };
     InterpretCJ(o_bits.parcel, offset);
   }
+}
+
+TEST_F(Riscv64InterpreterTest, FenceInstructions) {
+  // Fence
+  InterpretFence(0x0ff0000f);
+  // FenceTso
+  InterpretFence(0x8330000f);
 }
 
 TEST_F(Riscv64InterpreterTest, OpInstructions) {
