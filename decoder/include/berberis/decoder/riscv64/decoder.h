@@ -112,6 +112,12 @@ class Decoder {
     kMaxCompressedOpcode = 0b111'11,
   };
 
+  enum class FenceOpcode {
+    kFence = 0b0000,
+    kFenceTso = 0b1000,
+    kFenceMaxOpcode = 0b1111,
+  };
+
   enum class OpOpcode {
     kAdd = 0b0000'000'000,
     kSub = 0b0100'000'000,
@@ -236,6 +242,20 @@ class Decoder {
     kBltu = 0b110,
     kBgeu = 0b111,
     kMaxBranchOpcode = 0b111,
+  };
+
+  struct FenceArgs {
+    FenceOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t sw : 1;
+    uint8_t sr : 1;
+    uint8_t so : 1;
+    uint8_t si : 1;
+    uint8_t pw : 1;
+    uint8_t pr : 1;
+    uint8_t po : 1;
+    uint8_t pi : 1;
   };
 
   struct OpArgs {
@@ -383,6 +403,9 @@ class Decoder {
     BaseOpcode opcode_bits{GetBits<uint8_t, 2, 5>()};
 
     switch (opcode_bits) {
+      case BaseOpcode::kMiscMem:
+        DecodeMiscMem();
+        break;
       case BaseOpcode::kOp:
         DecodeOp();
         break;
@@ -456,6 +479,33 @@ class Decoder {
   void Undefined() {
     // TODO(b/265372622): Handle undefined differently from unimplemented.
     insn_consumer_->Unimplemented();
+  }
+
+  void DecodeMiscMem() {
+    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+    switch (low_opcode) {
+      case 0b000: {
+        uint8_t high_opcode = GetBits<uint8_t, 28, 4>();
+        FenceOpcode opcode = FenceOpcode{high_opcode};
+        const FenceArgs args = {
+            .opcode = opcode,
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .src = GetBits<uint8_t, 15, 5>(),
+            .sw = GetBits<uint8_t, 20, 1>(),
+            .sr = GetBits<uint8_t, 21, 1>(),
+            .so = GetBits<uint8_t, 22, 1>(),
+            .si = GetBits<uint8_t, 23, 1>(),
+            .pw = GetBits<uint8_t, 24, 1>(),
+            .pr = GetBits<uint8_t, 25, 1>(),
+            .pi = GetBits<uint8_t, 26, 1>(),
+            .po = GetBits<uint8_t, 27, 1>(),
+        };
+        insn_consumer_->Fence(args);
+        break;
+      }
+      default:
+        return Undefined();
+    }
   }
 
   void DecodeOp() {
