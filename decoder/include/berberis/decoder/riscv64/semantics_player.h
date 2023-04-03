@@ -33,6 +33,14 @@ class SemanticsPlayer {
 
   // Decoder's InsnConsumer implementation.
 
+  void Fence(const typename Decoder::FenceArgs& args) {
+    if (args.src != 0 || args.dst != 0) {
+      return Unimplemented();
+    }
+    listener_->Fence(
+        args.opcode, args.sw, args.sr, args.so, args.si, args.pw, args.pr, args.po, args.pi);
+  }
+
   void Op(const typename Decoder::OpArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
