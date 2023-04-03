@@ -230,7 +230,7 @@ class Interpreter {
     }
   }
 
-  Register Load(Decoder::LoadOpcode opcode, Register arg, uint16_t offset) {
+  Register Load(Decoder::LoadOpcode opcode, Register arg, int16_t offset) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
       case Decoder::LoadOpcode::kLbu:
@@ -323,7 +323,7 @@ class Interpreter {
     }
   }
 
-  void Store(Decoder::StoreOpcode opcode, Register arg, uint16_t offset, Register data) {
+  void Store(Decoder::StoreOpcode opcode, Register arg, int16_t offset, Register data) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
       case Decoder::StoreOpcode::kSb:
