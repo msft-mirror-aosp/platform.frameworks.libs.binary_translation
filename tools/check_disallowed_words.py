@@ -34,6 +34,8 @@ def check_disallowed_words(commit):
   ]
 
   for line in output.splitlines():
+    if (line.startswith('-')):
+      continue
     for word in disallowed_words:
       if re.search(word, line, re.IGNORECASE):
         print(f"Found disallowed word '{word}' in line '{line}'")
