@@ -32,12 +32,22 @@ cc_library_static {
     host_supported: true,
     srcs: [
         "config_globals.cc",
+        "exec_region.cc",
+        "exec_region_anonymous.cc",
         "format_buffer.cc",
         "mapped_file_fragment.cc",
         "mmap_posix.cc",
         "prctl_helpers.cc",
         "tracing.cc",
     ],
+    arch: {
+        x86: {
+            srcs: ["raw_syscall_x86_32.S"],
+        },
+        x86_64: {
+            srcs: ["raw_syscall_x86_64.S"],
+        },
+    },
     header_libs: ["libberberis_base_headers"],
     export_header_lib_headers: ["libberberis_base_headers"],
 }
@@ -59,6 +69,8 @@ cc_test_library {
         "arena_test.cc",
         "arena_zeroed_array_test.cc",
         "bit_util_test.cc",
+        "exec_region_anonymous.cc",
+        "exec_region_anonymous_test.cc",
         "forever_alloc_test.cc",
         "forever_pool_test.cc",
         "format_buffer_test.cc",
