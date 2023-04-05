@@ -101,6 +101,18 @@ cc_test_host {
         "libberberis_runtime_host_tests",
         "libberberis_tinyloader_unit_tests",
     ],
+    arch: {
+        x86: {
+            srcs: [
+                "base/raw_syscall_tests.cc",
+            ],
+        },
+        x86_64: {
+            srcs: [
+                "base/raw_syscall_tests.cc",
+            ],
+        },
+    },
     data: [
         "tiny_loader/tests/files/32/*",
         "tiny_loader/tests/files/64/*",
