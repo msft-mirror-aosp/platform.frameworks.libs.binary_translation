@@ -91,6 +91,11 @@ class Interpreter {
     return Unimplemented();
   }
 
+  void FenceI(Register /*arg*/, int16_t /*imm*/) {
+    // For interpreter-only mode we don't need to do anything here, but when we will have a
+    // translator we would need to flush caches here.
+  }
+
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
     using uint128_t = unsigned __int128;
     switch (opcode) {
