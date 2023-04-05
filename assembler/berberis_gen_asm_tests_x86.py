@@ -33,6 +33,13 @@ def main(argv):
   #                         <def_arch>
   att_assembler_file_name = argv[1]
   arc_assembler_file_name = argv[2]
+  # Generate empty files if we don't have assembler files to test.
+  if len(argv) <= 4:
+    with open(att_assembler_file_name, 'w') as att_assembler_file:
+      pass
+    with open(arc_assembler_file_name, 'w') as arc_assembler_file:
+      pass
+    return 0
   common_defs = gen_asm_x86._load_asm_defs(argv[3])
   arch_defs = gen_asm_x86._load_asm_defs(argv[4])
 
@@ -68,6 +75,7 @@ def main(argv):
     _gen_arc_assembler(arc_assembler_file, 'Arch', arch_defs, fast_mode)
     print('}  // namespace %s' % (arch), file=arc_assembler_file)
     print('}  // namespace berberis', file=arc_assembler_file)
+  return 0
 
 
 sample_att_arguments = {
