@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "main_executable_real_path_emulation.h"
+#include "berberis/kernel_api/main_executable_real_path_emulation.h"
 
 #include <sys/stat.h>
 

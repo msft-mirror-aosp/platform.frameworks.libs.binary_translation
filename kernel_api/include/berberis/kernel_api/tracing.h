@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-#include <tuple>
-
-#include "berberis/kernel_api/fcntl_emulation.h"
-#include "berberis/kernel_api/sys_ptrace_emulation.h"
+#ifndef BERBERIS_KERNEL_API_TRACING_H_
+#define BERBERIS_KERNEL_API_TRACING_H_
 
 namespace berberis {
 
-std::tuple<bool, int> GuestFcntlArch(int, int, long) {
-  return {false, -1};
-}
-
-std::tuple<bool, int> PtraceForGuestArch(int, pid_t, void*, void*) {
-  return {false, -1};
-}
+void __attribute__((__format__(printf, 1, 2))) KernelApiTrace(const char* format, ...);
 
 }  // namespace berberis
+
+#define KAPI_TRACE(...)                      \
+  do {                                       \
+    ::berberis::KernelApiTrace(__VA_ARGS__); \
+  } while (0)
+
+#endif  // BERBERIS_KERNEL_API_TRACING_H_

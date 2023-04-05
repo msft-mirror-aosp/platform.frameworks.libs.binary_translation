@@ -14,19 +14,13 @@
  * limitations under the License.
  */
 
-#include <tuple>
-
-#include "berberis/kernel_api/fcntl_emulation.h"
-#include "berberis/kernel_api/sys_ptrace_emulation.h"
+#ifndef BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
+#define BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
 
 namespace berberis {
 
-std::tuple<bool, int> GuestFcntlArch(int, int, long) {
-  return {false, -1};
-}
-
-std::tuple<bool, int> PtraceForGuestArch(int, pid_t, void*, void*) {
-  return {false, -1};
-}
+int ToHostSyscallNumber(int);
 
 }  // namespace berberis
+
+#endif  // BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
