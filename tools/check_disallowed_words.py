@@ -30,6 +30,7 @@ def check_disallowed_words(commit):
 
   disallowed_words = [
       'ndk_translation',
+      'NdkTranslation',
       'Google Inc'
   ]
 
