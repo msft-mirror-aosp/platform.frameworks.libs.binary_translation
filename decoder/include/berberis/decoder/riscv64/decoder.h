@@ -285,7 +285,7 @@ class Decoder {
     LoadOpcode opcode;
     uint8_t dst;
     uint8_t src;
-    uint16_t offset;
+    int16_t offset;
   };
 
   struct OpImmArgs {
@@ -323,7 +323,7 @@ class Decoder {
   struct StoreArgs {
     StoreOpcode opcode;
     uint8_t src;
-    uint16_t offset;
+    int16_t offset;
     uint8_t data;
   };
 
@@ -577,9 +577,24 @@ class Decoder {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src = GetBits<uint8_t, 15, 5>(),
-        .offset = GetBits<uint16_t, 20, 12>(),
+        .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
     };
     insn_consumer_->Load(args);
+  }
+
+  void DecodeStore() {
+    StoreOpcode opcode{GetBits<uint8_t, 12, 3>()};
+
+    uint16_t low_imm = GetBits<uint16_t, 7, 5>();
+    uint16_t high_imm = GetBits<uint16_t, 25, 7>();
+
+    const StoreArgs args = {
+        .opcode = opcode,
+        .src = GetBits<uint8_t, 15, 5>(),
+        .offset = SignExtend<12>(int16_t(low_imm | (high_imm << 5))),
+        .data = GetBits<uint8_t, 20, 5>(),
+    };
+    insn_consumer_->Store(args);
   }
 
   void DecodeOpImm() {
@@ -636,21 +651,6 @@ class Decoder {
       };
       insn_consumer_->ShiftImm32(args);
     }
-  }
-
-  void DecodeStore() {
-    StoreOpcode opcode{GetBits<uint8_t, 12, 3>()};
-
-    uint16_t low_imm = GetBits<uint16_t, 7, 5>();
-    uint16_t high_imm = GetBits<uint16_t, 25, 7>();
-
-    const StoreArgs args = {
-        .opcode = opcode,
-        .src = GetBits<uint8_t, 15, 5>(),
-        .offset = static_cast<uint16_t>(low_imm | (high_imm << 5)),
-        .data = GetBits<uint8_t, 20, 5>(),
-    };
-    insn_consumer_->Store(args);
   }
 
   void DecodeBranch() {
