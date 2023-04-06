@@ -25,9 +25,9 @@
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/struct_check.h"
 #include "berberis/base/tracing.h"
+#include "berberis/kernel_api/main_executable_real_path_emulation.h"
 
 #include "guest_types_arch.h"
-#include "main_executable_real_path_emulation.h"
 #include "runtime_bridge.h"
 #include "syscall_emulation_common.h"
 

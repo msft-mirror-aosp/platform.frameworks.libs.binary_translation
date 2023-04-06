@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#include "unistd_emulation.h"
+#include "berberis/kernel_api/unistd_emulation.h"
 
 #include <fcntl.h>  // AT_FDCWD, AT_SYMLINK_NOFOLLOW
 
 #include <cerrno>
 #include <cstring>  // memcpy
 
-#include "main_executable_real_path_emulation.h"
+#include "berberis/kernel_api/main_executable_real_path_emulation.h"
 
 namespace berberis {
 
