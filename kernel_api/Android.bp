@@ -31,7 +31,9 @@ cc_library_static {
     ],
     host_supported: true,
     srcs: [
+        "fcntl_emulation.cc",
         "main_executable_real_path_emulation.cc",
+        "open_emulation.cc",
         "sys_prctl_emulation.cc",
         "sys_ptrace_emulation.cc",
         "unistd_emulation.cc",
@@ -49,8 +51,6 @@ cc_defaults {
     srcs: [
         "epoll_emulation.cc",
         "exec_emulation.cc",
-        "fcntl_emulation.cc",
-        "open_emulation.cc",
     ],
     header_libs: [
         "libberberis_base_headers",
@@ -71,6 +71,7 @@ cc_library_static {
         "libberberis_kernel_api_common",
     ],
     srcs: [
+        "riscv64/open_emulation.cc",
         "riscv64/syscall_emulation_arch.cc",
         "riscv64/syscall_emulation.cc",
         "riscv64/syscall_numbers.cc",
