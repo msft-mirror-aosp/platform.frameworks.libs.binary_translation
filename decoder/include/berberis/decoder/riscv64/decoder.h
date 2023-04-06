@@ -377,6 +377,9 @@ class Decoder {
       case CompressedOpcode::kJ:
         DecodeCJ();
         break;
+      case CompressedOpcode::kAddi4spn:
+        DecodeCAddi4spn();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
@@ -403,6 +406,27 @@ class Decoder {
         .insn_len = 2,
     };
     insn_consumer_->JumpAndLink(args);
+  }
+
+  void DecodeCAddi4spn() {
+    constexpr uint8_t kAddi4spnHigh[16] = {
+        0x0, 0x40, 0x80, 0xc0, 0x4, 0x44, 0x84, 0xc4, 0x8, 0x48, 0x88, 0xc8, 0xc, 0x4c, 0x8c, 0xcc};
+    constexpr uint8_t kAddi4spnLow[16] = {
+        0x0, 0x2, 0x1, 0x3, 0x10, 0x12, 0x11, 0x13, 0x20, 0x22, 0x21, 0x23, 0x30, 0x32, 0x31, 0x33};
+    int16_t imm = (kAddi4spnHigh[GetBits<uint8_t, 9, 4>()] | kAddi4spnLow[GetBits<uint8_t, 5, 4>()])
+                  << 2;
+    // If immediate is zero then this instruction is treated as unimplemented.
+    // This includes RISC-V dedicated 16bit “unimplemented instruction” 0x0000.
+    if (imm == 0) {
+      return Undefined();
+    }
+    const OpImmArgs args = {
+        .opcode = OpImmOpcode::kAddi,
+        .dst = uint8_t(8 + GetBits<uint8_t, 2, 3>()),
+        .src = 2,
+        .imm = imm,
+    };
+    insn_consumer_->OpImm(args);
   }
 
   uint8_t DecodeBaseInstruction() {

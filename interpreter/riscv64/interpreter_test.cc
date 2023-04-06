@@ -34,6 +34,14 @@ namespace {
 
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
+  void InterpretCAddi4spn(uint16_t insn_bytes, uint64_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<2>(state_.cpu, 1);
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
+  }
+
   void InterpretCJ(uint16_t insn_bytes, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -155,6 +163,54 @@ class Riscv64InterpreterTest : public ::testing::Test {
   uint64_t store_area_;
   ThreadState state_;
 };
+
+TEST_F(Riscv64InterpreterTest, CAddi4spn) {
+  union {
+    int16_t offset;
+    struct {
+      uint8_t : 2;
+      uint8_t i2 : 1;
+      uint8_t i3 : 1;
+      uint8_t i4 : 1;
+      uint8_t i5 : 1;
+      uint8_t i6 : 1;
+      uint8_t i7 : 1;
+      uint8_t i8 : 1;
+      uint8_t i9 : 1;
+    } i_bits;
+  };
+  for (offset = int16_t{4}; offset < int16_t{1024}; offset += 4) {
+    union {
+      int16_t parcel;
+      struct {
+        uint8_t low_opcode : 2;
+        uint8_t rd : 3;
+        uint8_t i3 : 1;
+        uint8_t i2 : 1;
+        uint8_t i6 : 1;
+        uint8_t i7 : 1;
+        uint8_t i8 : 1;
+        uint8_t i9 : 1;
+        uint8_t i4 : 1;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b00,
+        .rd = 1,
+        .i3 = i_bits.i3,
+        .i2 = i_bits.i2,
+        .i6 = i_bits.i6,
+        .i7 = i_bits.i7,
+        .i8 = i_bits.i8,
+        .i9 = i_bits.i9,
+        .i4 = i_bits.i4,
+        .i5 = i_bits.i5,
+        .high_opcode = 0b000,
+    };
+    InterpretCAddi4spn(o_bits.parcel, offset);
+  }
+}
 
 TEST_F(Riscv64InterpreterTest, CJ) {
   union {
