@@ -16,9 +16,8 @@
 
 #include <tuple>
 
+#include "berberis/kernel_api/fcntl_emulation.h"
 #include "berberis/kernel_api/sys_ptrace_emulation.h"
-
-#include "fcntl_emulation.h"
 
 namespace berberis {
 
