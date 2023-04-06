@@ -258,6 +258,12 @@ class Decoder {
     bool pi : 1;
   };
 
+  struct FenceIArgs {
+    uint8_t dst;
+    uint8_t src;
+    int16_t imm;
+  };
+
   struct OpArgs {
     OpOpcode opcode;
     uint8_t dst;
@@ -501,6 +507,16 @@ class Decoder {
             .po = bool(GetBits<uint8_t, 27, 1>()),
         };
         insn_consumer_->Fence(args);
+        break;
+      }
+      case 0b001: {
+        uint16_t imm = GetBits<uint16_t, 20, 12>();
+        const FenceIArgs args = {
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .src = GetBits<uint8_t, 15, 5>(),
+            .imm = SignExtend<12>(imm),
+        };
+        insn_consumer_->FenceI(args);
         break;
       }
       default:
