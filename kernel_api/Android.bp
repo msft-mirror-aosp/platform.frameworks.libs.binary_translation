@@ -73,6 +73,7 @@ cc_library_static {
     srcs: [
         "riscv64/syscall_emulation_arch.cc",
         "riscv64/syscall_emulation.cc",
+        "riscv64/tracing.cc",
         "runtime_bridge_stubs.cc",
     ],
     local_include_dirs: ["riscv64"],
