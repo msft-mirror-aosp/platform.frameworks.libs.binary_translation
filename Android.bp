@@ -84,6 +84,7 @@ cc_test_host {
     name: "berberis_host_tests",
     defaults: ["berberis_defaults_64"],
     static_libs: [
+        "libberberis_assembler",
         "libberberis_base",
         "libberberis_config_globals",
         "libberberis_interpreter_riscv64",
@@ -96,11 +97,24 @@ cc_test_host {
         "liblog",
     ],
     whole_static_libs: [
+        "libberberis_assembler_unit_tests",
         "libberberis_base_host_tests",
         "libberberis_interpreter_riscv64_host_tests",
         "libberberis_runtime_host_tests",
         "libberberis_tinyloader_unit_tests",
     ],
+    arch: {
+        x86: {
+            srcs: [
+                "base/raw_syscall_tests.cc",
+            ],
+        },
+        x86_64: {
+            srcs: [
+                "base/raw_syscall_tests.cc",
+            ],
+        },
+    },
     data: [
         "tiny_loader/tests/files/32/*",
         "tiny_loader/tests/files/64/*",
