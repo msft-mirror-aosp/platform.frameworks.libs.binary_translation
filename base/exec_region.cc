@@ -25,20 +25,15 @@ namespace berberis {
 void ExecRegion::Write(const uint8_t* dst, const void* src, size_t size) {
   CHECK_LE(begin(), dst);
   CHECK_GE(end(), dst + size);
-  CHECK_NE(write_, nullptr);
   size_t offset = dst - begin();
-  memcpy(write_ + offset, src, size);
+  memcpy(exec_ + offset, src, size);
 }
 
 void ExecRegion::Detach() {
-  if (write_ != nullptr) {
-    MunmapOrDie(write_, size_);
-  }
-  write_ = nullptr;
+  MprotectOrDie(exec_, size_, PROT_READ | PROT_EXEC);
 }
 
 void ExecRegion::Free() {
-  Detach();
   MunmapOrDie(exec_, size_);
 }
 
