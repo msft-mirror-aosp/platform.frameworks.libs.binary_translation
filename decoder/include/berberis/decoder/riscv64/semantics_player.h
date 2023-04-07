@@ -34,11 +34,22 @@ class SemanticsPlayer {
   // Decoder's InsnConsumer implementation.
 
   void Fence(const typename Decoder::FenceArgs& args) {
-    if (args.src != 0 || args.dst != 0) {
-      return Unimplemented();
-    }
-    listener_->Fence(
-        args.opcode, args.sw, args.sr, args.so, args.si, args.pw, args.pr, args.po, args.pi);
+    listener_->Fence(args.opcode,
+                     args.src,
+                     args.sw,
+                     args.sr,
+                     args.so,
+                     args.si,
+                     args.pw,
+                     args.pr,
+                     args.po,
+                     args.pi);
+    // The unused fields in the FENCE instructions — args.src and args.dst — are reserved for
+    // finer-grain fences in future extensions. For forward compatibility, base implementations
+    // shall ignore these fields, and standard software shall zero these fields. Likewise, many
+    // args.opcode and predecessor/successor set settings are also reserved for future use. Base
+    // implementations shall treat all such reserved configurations as normal fences with
+    // args.opcode=0000, and standard software shall use only non-reserved configurations.
   }
 
   void FenceI(const typename Decoder::FenceIArgs& args) {
