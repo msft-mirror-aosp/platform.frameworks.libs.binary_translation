@@ -24,7 +24,7 @@
 #include <cstring>
 
 #include "berberis/base/bit_util.h"
-#include "berberis/base/tracing.h"
+#include "berberis/kernel_api/tracing.h"
 
 #include "guest_types.h"
 
@@ -83,7 +83,7 @@ long RunGuestSyscall___NR_epoll_pwait(long arg_1,
 }
 
 long RunGuestSyscall___NR_epoll_pwait2(long, long, long, long, long, long) {
-  TRACE("unsupported syscall __NR_epoll_pwait2");
+  KAPI_TRACE("unsupported syscall __NR_epoll_pwait2");
   errno = ENOSYS;
   return -1;
 }
