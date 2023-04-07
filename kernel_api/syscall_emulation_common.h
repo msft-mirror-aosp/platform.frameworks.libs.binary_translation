@@ -24,13 +24,13 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/base/tracing.h"
 #include "berberis/kernel_api/exec_emulation.h"
+#include "berberis/kernel_api/unistd_emulation.h"
 
 #include "epoll_emulation.h"
 #include "fcntl_emulation.h"
 #include "open_emulation.h"
 #include "sys_prctl_emulation.h"
 #include "sys_ptrace_emulation.h"
-#include "unistd_emulation.h"
 
 namespace berberis {
 
