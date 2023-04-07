@@ -389,6 +389,8 @@ class Interpreter {
     return pc + insn_len;
   }
 
+  void Nop() {}
+
   void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
 
   //
