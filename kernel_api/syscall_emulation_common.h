@@ -22,21 +22,21 @@
 #include <cerrno>
 
 #include "berberis/base/bit_util.h"
-#include "berberis/base/tracing.h"
 #include "berberis/kernel_api/exec_emulation.h"
+#include "berberis/kernel_api/fcntl_emulation.h"
+#include "berberis/kernel_api/open_emulation.h"
+#include "berberis/kernel_api/sys_prctl_emulation.h"
+#include "berberis/kernel_api/sys_ptrace_emulation.h"
+#include "berberis/kernel_api/tracing.h"
+#include "berberis/kernel_api/unistd_emulation.h"
 
 #include "epoll_emulation.h"
-#include "fcntl_emulation.h"
-#include "open_emulation.h"
-#include "sys_prctl_emulation.h"
-#include "sys_ptrace_emulation.h"
-#include "unistd_emulation.h"
 
 namespace berberis {
 
 inline long RunGuestSyscall___NR_clone3(long arg_1, long arg_2) {
   UNUSED(arg_1, arg_2);
-  TRACE("unimplemented syscall __NR_clone3");
+  KAPI_TRACE("unimplemented syscall __NR_clone3");
   errno = ENOSYS;
   return -1;
 }
@@ -49,7 +49,7 @@ inline long RunGuestSyscall___NR_execve(long arg_1, long arg_2, long arg_3) {
 
 inline long RunGuestSyscall___NR_faccessat(long arg_1, long arg_2, long arg_3) {
   // TODO(b/128614662): translate!
-  TRACE("unimplemented syscall __NR_faccessat, running host syscall as is");
+  KAPI_TRACE("unimplemented syscall __NR_faccessat, running host syscall as is");
   return syscall(__NR_faccessat, arg_1, arg_2, arg_3);
 }
 
@@ -83,7 +83,7 @@ inline long RunGuestSyscall___NR_readlinkat(long arg_1, long arg_2, long arg_3, 
 }
 
 inline long RunGuestSyscall___NR_rt_sigreturn(long) {
-  TRACE("unsupported syscall __NR_rt_sigaction");
+  KAPI_TRACE("unsupported syscall __NR_rt_sigaction");
   errno = ENOSYS;
   return -1;
 }
@@ -107,7 +107,7 @@ long RunUnknownGuestSyscall(long guest_nr,
                             long arg_5,
                             long arg_6) {
   UNUSED(arg_1, arg_2, arg_3, arg_4, arg_5, arg_6);
-  TRACE("unknown syscall %ld", guest_nr);
+  KAPI_TRACE("unknown syscall %ld", guest_nr);
   errno = ENOSYS;
   return -1;
 }

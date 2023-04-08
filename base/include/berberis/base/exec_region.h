@@ -23,32 +23,19 @@
 namespace berberis {
 
 // ExecRegion manages a range of writable executable memory.
-// This implementation works with 2 mappings of memfd file,
-// one is executable and is read only another one is writable
-// and not executable.
-//
-// Because both mappings are backed by memfd file msycn is not
-// needed in order to keep them up to date. It is backed by shmem
-// and always consistent. shmem implementation of fsync is no-op:
-// https://github.com/torvalds/linux/blob/3de0c269adc6c2fac0bb1fb11965f0de699dc32b/mm/shmem.c#L3931
-//
-//
 // Move-only!
 class ExecRegion {
  public:
   ExecRegion() = default;
-  explicit ExecRegion(uint8_t* exec, uint8_t* write, size_t size)
-      : exec_{exec}, write_{write}, size_{size} {}
+  explicit ExecRegion(uint8_t* exec, size_t size) : exec_{exec}, size_{size} {}
 
   ExecRegion(const ExecRegion& other) = delete;
   ExecRegion& operator=(const ExecRegion& other) = delete;
 
   ExecRegion(ExecRegion&& other) noexcept {
     exec_ = other.exec_;
-    write_ = other.write_;
     size_ = other.size_;
     other.exec_ = nullptr;
-    other.write_ = nullptr;
     other.size_ = 0;
   }
 
@@ -57,10 +44,8 @@ class ExecRegion {
       return *this;
     }
     exec_ = other.exec_;
-    write_ = other.write_;
     size_ = other.size_;
     other.exec_ = nullptr;
-    other.write_ = nullptr;
     other.size_ = 0;
     return *this;
   }
@@ -75,7 +60,6 @@ class ExecRegion {
 
  private:
   uint8_t* exec_ = nullptr;
-  uint8_t* write_ = nullptr;
   size_t size_ = 0;
 };
 

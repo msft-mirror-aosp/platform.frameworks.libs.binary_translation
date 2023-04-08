@@ -56,7 +56,8 @@ class Interpreter {
   // created assembly code.
   // Ordering affecting I/O devices is not relevant to user-space code thus we just ignore bits
   // related to devices I/O.
-  void Fence(Decoder::FenceOpcode opcode,
+  void Fence(Decoder::FenceOpcode /*opcode*/,
+             Register /*src*/,
              bool sw,
              bool sr,
              bool /*so*/,
@@ -67,28 +68,22 @@ class Interpreter {
              bool /*pi*/) {
     bool read_fence = sr | pr;
     bool write_fence = sw | pw;
-    switch (opcode) {
-      case Decoder::FenceOpcode::kFence:
-        if (read_fence) {
-          if (write_fence) {
-            asm volatile("mfence" ::: "memory");
-          } else {
-            asm volatile("lfence" ::: "memory");
-          }
-        } else if (write_fence) {
-          asm volatile("sfence" ::: "memory");
-        }
-        return;
-      case Decoder::FenceOpcode::kFenceTso:
-        if (read_fence && write_fence) {
-          asm volatile("mfence" ::: "memory");
-          return;
-        }
-        break;
-      default:
-        break;
+    // Two types of fences (total store ordering fence and normal fence) are supposed to be
+    // processed differently, but only for the “read_fence && write_fence” case (otherwise total
+    // store ordering fence becomes normal fence for the “forward compatibility”), yet because x86
+    // doesn't distinguish between these two types of fences and since we are supposed to map all
+    // not-yet defined fences to normal fence (again, for the “forward compatibility”) it's Ok to
+    // just ignore opcode field.
+    if (read_fence) {
+      if (write_fence) {
+        asm volatile("mfence" ::: "memory");
+      } else {
+        asm volatile("lfence" ::: "memory");
+      }
+    } else if (write_fence) {
+      asm volatile("sfence" ::: "memory");
     }
-    return Unimplemented();
+    return;
   }
 
   void FenceI(Register /*arg*/, int16_t /*imm*/) {
