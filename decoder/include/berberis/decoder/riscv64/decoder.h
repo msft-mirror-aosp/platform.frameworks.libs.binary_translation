@@ -118,6 +118,12 @@ class Decoder {
     kFenceMaxOpcode = 0b1111,
   };
 
+  enum class LoadFpOpcode {
+    kFlw = 0b010,
+    kFld = 0b011,
+    kLoadFpMaxOpcode = 0b111,
+  };
+
   enum class OpOpcode {
     kAdd = 0b0000'000'000,
     kSub = 0b0100'000'000,
@@ -262,6 +268,13 @@ class Decoder {
     uint8_t dst;
     uint8_t src;
     int16_t imm;
+  };
+
+  struct LoadFpArgs {
+    LoadFpOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    int16_t offset;
   };
 
   struct OpArgs {
@@ -448,6 +461,9 @@ class Decoder {
       case BaseOpcode::kLoad:
         DecodeLoad();
         break;
+      case BaseOpcode::kLoadFp:
+        DecodeLoadFp();
+        break;
       case BaseOpcode::kOpImm:
         DecodeOpImm();
         break;
@@ -620,6 +636,17 @@ class Decoder {
         .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
     };
     insn_consumer_->Load(args);
+  }
+
+  void DecodeLoadFp() {
+    LoadFpOpcode opcode{GetBits<uint8_t, 12, 3>()};
+    const LoadFpArgs args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src = GetBits<uint8_t, 15, 5>(),
+        .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
+    };
+    insn_consumer_->LoadFp(args);
   }
 
   void DecodeStore() {
