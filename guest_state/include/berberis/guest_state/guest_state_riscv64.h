@@ -27,6 +27,9 @@ namespace berberis {
 struct CPUState {
   // x1 to x31.
   uint64_t x[31];
+  // f0 to f31. We are using uint64_t because C++ may change values of NaN when they are passed from
+  // or to function and RISC-V uses NaN-boxing which would make things problematic.
+  uint64_t f[32];
   GuestAddr insn_addr;
 };
 
@@ -42,6 +45,18 @@ inline void SetXReg(CPUState& state, uint64_t val) {
   static_assert(kIndex > 0);
   static_assert((kIndex - 1) < arraysize(state.x));
   state.x[kIndex - 1] = val;
+}
+
+template <uint8_t kIndex>
+inline uint64_t GetFReg(const CPUState& state) {
+  static_assert((kIndex) < arraysize(state.f));
+  return state.f[kIndex];
+}
+
+template <uint8_t kIndex>
+inline void SetFReg(CPUState& state, uint64_t val) {
+  static_assert((kIndex) < arraysize(state.f));
+  state.f[kIndex] = val;
 }
 
 struct ThreadState {
