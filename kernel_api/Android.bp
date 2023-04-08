@@ -24,18 +24,33 @@ cc_library_headers {
     export_include_dirs: ["include"],
 }
 
-cc_defaults {
-    name: "libberberis_kernel_api_defaults",
+cc_library_static {
+    name: "libberberis_kernel_api_common",
+    defaults: [
+        "berberis_defaults",
+    ],
     host_supported: true,
     srcs: [
-        "epoll_emulation.cc",
-        "exec_emulation.cc",
         "fcntl_emulation.cc",
         "main_executable_real_path_emulation.cc",
         "open_emulation.cc",
         "sys_prctl_emulation.cc",
         "sys_ptrace_emulation.cc",
         "unistd_emulation.cc",
+    ],
+    header_libs: [
+        "libberberis_base_headers",
+        "libberberis_kernel_api_headers",
+    ],
+    export_header_lib_headers: ["libberberis_kernel_api_headers"],
+}
+
+cc_defaults {
+    name: "libberberis_kernel_api_defaults",
+    host_supported: true,
+    srcs: [
+        "epoll_emulation.cc",
+        "exec_emulation.cc",
     ],
     header_libs: [
         "libberberis_base_headers",
@@ -52,9 +67,15 @@ cc_library_static {
         "libberberis_kernel_api_defaults",
     ],
     host_supported: true,
+    whole_static_libs: [
+        "libberberis_kernel_api_common",
+    ],
     srcs: [
+        "riscv64/open_emulation.cc",
         "riscv64/syscall_emulation_arch.cc",
         "riscv64/syscall_emulation.cc",
+        "riscv64/syscall_numbers.cc",
+        "riscv64/tracing.cc",
         "runtime_bridge_stubs.cc",
     ],
     local_include_dirs: ["riscv64"],

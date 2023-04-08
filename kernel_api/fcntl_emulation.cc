@@ -25,23 +25,48 @@
 #undef _FILE_OFFSET_BITS
 #endif
 
-#include "fcntl_emulation.h"
+#include "berberis/kernel_api/fcntl_emulation.h"
 
 #include <fcntl.h>
 #include <sys/file.h>
 
 #include <cerrno>
 
-#include "berberis/base/logging.h"
+#include "berberis/kernel_api/open_emulation.h"
+#include "berberis/kernel_api/tracing.h"
 
-#include "guest_types.h"
-#include "open_emulation.h"
+static_assert(F_DUPFD == 0);
+static_assert(F_GETFD == 1);
+static_assert(F_SETFD == 2);
+static_assert(F_GETFL == 3);
+static_assert(F_SETFL == 4);
+static_assert(F_SETOWN == 8);
+static_assert(F_GETOWN == 9);
+static_assert(F_SETSIG == 10);
+static_assert(F_GETSIG == 11);
+static_assert(F_SETOWN_EX == 15);
+static_assert(F_GETOWN_EX == 16);
+static_assert(F_OWNER_TID == 0);
+static_assert(F_OWNER_PID == 1);
+static_assert(F_OWNER_PGRP == 2);
+static_assert(F_RDLCK == 0);
+static_assert(F_WRLCK == 1);
+static_assert(F_UNLCK == 2);
+#ifdef F_EXLCK
+static_assert(F_EXLCK == 4);
+#endif
+#ifdef F_SHLCK
+static_assert(F_SHLCK == 8);
+#endif
+static_assert(F_SETLEASE == 1024);
+static_assert(F_GETLEASE == 1025);
+static_assert(F_NOTIFY == 1026);
+
+static_assert(F_GETLK == 5);
+static_assert(F_SETLK == 6);
+static_assert(F_SETLKW == 7);
 
 namespace berberis {
-
-#define GUEST_F_GETLK 5
-#define GUEST_F_SETLK 6
-#define GUEST_F_SETLKW 7
 
 int GuestFcntl(int fd, int cmd, long arg_3) {
   auto [processed, result] = GuestFcntlArch(fd, cmd, arg_3);
@@ -77,14 +102,14 @@ int GuestFcntl(int fd, int cmd, long arg_3) {
 #if defined(F_GET_SEALS)
     case F_GET_SEALS:
 #endif
-    case GUEST_F_SETLK:
-    case GUEST_F_SETLKW:
-    case GUEST_F_GETLK:
+    case F_SETLK:
+    case F_SETLKW:
+    case F_GETLK:
       return fcntl(fd, cmd, arg_3);
     case F_SETFL:
       return fcntl(fd, cmd, ToHostOpenFlags(arg_3));
     default:
-      ALOGE("Unknown fcntl command: %d", cmd);
+      KAPI_TRACE("Unknown fcntl command: %d", cmd);
       errno = ENOSYS;
       return -1;
   }

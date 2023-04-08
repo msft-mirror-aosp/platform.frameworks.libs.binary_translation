@@ -24,10 +24,10 @@
 #include "berberis/base/macros.h"
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/struct_check.h"
-#include "berberis/base/tracing.h"
+#include "berberis/kernel_api/main_executable_real_path_emulation.h"
+#include "berberis/kernel_api/tracing.h"
 
 #include "guest_types_arch.h"
-#include "main_executable_real_path_emulation.h"
 #include "runtime_bridge.h"
 #include "syscall_emulation_common.h"
 
@@ -62,7 +62,7 @@ int FstatatForGuest(int dirfd, const char* path, struct stat* buf, int flags) {
 
 long RunGuestSyscall___NR_execveat(long arg_1, long arg_2, long arg_3, long arg_4, long arg_5) {
   UNUSED(arg_1, arg_2, arg_3, arg_4, arg_5);
-  TRACE("unimplemented syscall __NR_execveat");
+  KAPI_TRACE("unimplemented syscall __NR_execveat");
   errno = ENOSYS;
   return -1;
 }
@@ -83,7 +83,7 @@ long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
 
 long RunGuestSyscall___NR_ioctl(long arg_1, long arg_2, long arg_3) {
   // TODO(b/128614662): translate!
-  TRACE("unimplemented ioctl 0x%lx, running host syscall as is", arg_2);
+  KAPI_TRACE("unimplemented ioctl 0x%lx, running host syscall as is", arg_2);
   return syscall(__NR_ioctl, arg_1, arg_2, arg_3);
 }
 
