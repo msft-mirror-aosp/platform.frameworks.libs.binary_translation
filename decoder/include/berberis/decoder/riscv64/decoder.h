@@ -234,6 +234,12 @@ class Decoder {
     kMaxStoreOpcode = 0b111,
   };
 
+  enum class StoreFpOpcode {
+    kFsw = 0b010,
+    kFsd = 0b011,
+    kMaxStoreFpOpcode = 0b111,
+  };
+
   enum class SystemOpcode {
     kEcall = 0b000000000000'00000'000'00000,
     kEbreak = 0b000000000001'00000'000'00000,
@@ -341,6 +347,13 @@ class Decoder {
 
   struct StoreArgs {
     StoreOpcode opcode;
+    uint8_t src;
+    int16_t offset;
+    uint8_t data;
+  };
+
+  struct StoreFpArgs {
+    StoreFpOpcode opcode;
     uint8_t src;
     int16_t offset;
     uint8_t data;
@@ -472,6 +485,9 @@ class Decoder {
         break;
       case BaseOpcode::kStore:
         DecodeStore();
+        break;
+      case BaseOpcode::kStoreFp:
+        DecodeStoreFp();
         break;
       case BaseOpcode::kBranch:
         DecodeBranch();
@@ -662,6 +678,21 @@ class Decoder {
         .data = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Store(args);
+  }
+
+  void DecodeStoreFp() {
+    StoreFpOpcode opcode{GetBits<uint8_t, 12, 3>()};
+
+    uint16_t low_imm = GetBits<uint16_t, 7, 5>();
+    uint16_t high_imm = GetBits<uint16_t, 25, 7>();
+
+    const StoreFpArgs args = {
+        .opcode = opcode,
+        .src = GetBits<uint8_t, 15, 5>(),
+        .offset = SignExtend<12>(int16_t(low_imm | (high_imm << 5))),
+        .data = GetBits<uint8_t, 20, 5>(),
+    };
+    insn_consumer_->StoreFp(args);
   }
 
   void DecodeOpImm() {
