@@ -118,6 +118,14 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
+  void InterpretLoadFp(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    // Offset is always 8.
+    SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - 8));
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+  }
+
   void InterpretStore(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
@@ -451,6 +459,14 @@ TEST_F(Riscv64InterpreterTest, LoadInstructions) {
   InterpretLoad(0x00811083, int64_t{int16_t(kDataToLoad)});
   // Lw
   InterpretLoad(0x00812083, int64_t{int32_t(kDataToLoad)});
+}
+
+TEST_F(Riscv64InterpreterTest, LoadFpInstructions) {
+  // Offset is always 8.
+  // Flw
+  InterpretLoadFp(0x00812087, kDataToLoad | 0xffffffff00000000ULL);
+  // Fld
+  InterpretLoadFp(0x00813087, kDataToLoad);
 }
 
 TEST_F(Riscv64InterpreterTest, StoreInstructions) {
