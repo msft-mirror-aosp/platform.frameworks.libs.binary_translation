@@ -133,7 +133,7 @@ long RunGuestSyscallImpl(long guest_nr,
     params = _get_syscall_params(src_syscall, guest_api)
     if params is None:
       print('      // missing prototype')
-      print('      TRACE("unsupported syscall %s");' % (name))
+      print('      KAPI_TRACE("unsupported syscall %s");' % (name))
       print('      errno = ENOSYS;')
       print('      return -1;')
       continue

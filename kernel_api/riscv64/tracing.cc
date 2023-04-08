@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
-#define BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
+#include "berberis/kernel_api/tracing.h"
 
-#include "berberis/base/checks.h"
+#include <cstdarg>
+
+#include "berberis/base/tracing.h"
 
 namespace berberis {
 
-inline int ToHostSyscallNumber(int) {
-  FATAL("Not implemented ToHostSyscallNumber");
+void __attribute__((__format__(printf, 1, 2))) KernelApiTrace(const char* format, ...) {
+  if (Tracing::IsOn()) {
+    va_list ap;
+    va_start(ap, format);
+    Tracing::TraceV(format, ap);
+    va_end(ap);
+  }
 }
 
 }  // namespace berberis
-
-#endif  // BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
