@@ -28,6 +28,7 @@ class SemanticsPlayer {
  public:
   using Decoder = Decoder<SemanticsPlayer>;
   using Register = typename SemanticsListener::Register;
+  using FpRegister = typename SemanticsListener::FpRegister;
 
   explicit SemanticsPlayer(SemanticsListener* listener) : listener_(listener) {}
 
@@ -95,6 +96,12 @@ class SemanticsPlayer {
     Register arg = GetRegOrZero(args.src);
     Register result = listener_->Load(args.opcode, arg, args.offset);
     SetRegOrIgnore(args.dst, result);
+  };
+
+  void LoadFp(const typename Decoder::LoadFpArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    FpRegister result = listener_->LoadFp(args.opcode, arg, args.offset);
+    SetFpReg(args.dst, result);
   };
 
   void OpImm(const typename Decoder::OpImmArgs& args) {
@@ -174,6 +181,10 @@ class SemanticsPlayer {
       listener_->SetReg(reg, value);
     }
   }
+
+  FpRegister GetFpReg(uint8_t reg) { return listener_->GetFpReg(reg); }
+
+  void SetFpReg(uint8_t reg, FpRegister value) { listener_->SetFpReg(reg, value); }
 
   SemanticsListener* listener_;
 };
