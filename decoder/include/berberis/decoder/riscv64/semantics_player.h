@@ -134,6 +134,12 @@ class SemanticsPlayer {
     listener_->Store(args.opcode, arg, args.offset, data);
   };
 
+  void StoreFp(const typename Decoder::StoreFpArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    FpRegister data = GetFpReg(args.data);
+    listener_->StoreFp(args.opcode, arg, args.offset, data);
+  };
+
   void Branch(const typename Decoder::BranchArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
