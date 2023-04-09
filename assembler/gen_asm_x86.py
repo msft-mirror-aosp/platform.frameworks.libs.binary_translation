@@ -17,7 +17,7 @@
 
 """Generate assembler files out of the definition file."""
 
-import berberis_asm_defs as asm_defs
+import asm_defs
 import os
 import re
 import sys
