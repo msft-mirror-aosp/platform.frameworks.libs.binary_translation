@@ -100,6 +100,7 @@ cc_test_host {
         "libberberis_assembler_unit_tests",
         "libberberis_base_host_tests",
         "libberberis_interpreter_riscv64_host_tests",
+        "libberberis_intrinsics_unit_tests",
         "libberberis_runtime_host_tests",
         "libberberis_tinyloader_unit_tests",
     ],
