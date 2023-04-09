@@ -357,6 +357,20 @@ class Interpreter {
     }
   }
 
+  void StoreFp(Decoder::StoreFpOpcode opcode, Register arg, int16_t offset, FpRegister data) {
+    void* ptr = ToHostAddr<void>(arg + offset);
+    switch (opcode) {
+      case Decoder::StoreFpOpcode::kFsw:
+        StoreFp<float>(ptr, data);
+        break;
+      case Decoder::StoreFpOpcode::kFsd:
+        StoreFp<double>(ptr, data);
+        break;
+      default:
+        return Unimplemented();
+    }
+  }
+
   void Branch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset) {
     bool cond_value;
     switch (opcode) {
@@ -444,6 +458,7 @@ class Interpreter {
  private:
   template <typename DataType>
   Register Load(const void* ptr) const {
+    static_assert(std::is_integral_v<DataType>);
     DataType data;
     memcpy(&data, ptr, sizeof(data));
     // Signed types automatically sign-extend to int64_t.
@@ -452,6 +467,7 @@ class Interpreter {
 
   template <typename DataType>
   FpRegister LoadFp(const void* ptr) const {
+    static_assert(std::is_floating_point_v<DataType>);
     FpRegister reg = ~0ULL;
     memcpy(&reg, ptr, sizeof(DataType));
     return reg;
@@ -459,6 +475,13 @@ class Interpreter {
 
   template <typename DataType>
   void Store(void* ptr, uint64_t data) const {
+    static_assert(std::is_integral_v<DataType>);
+    memcpy(ptr, &data, sizeof(DataType));
+  }
+
+  template <typename DataType>
+  void StoreFp(void* ptr, uint64_t data) const {
+    static_assert(std::is_floating_point_v<DataType>);
     memcpy(ptr, &data, sizeof(DataType));
   }
 
