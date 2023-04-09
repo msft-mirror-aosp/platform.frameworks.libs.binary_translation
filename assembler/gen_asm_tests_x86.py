@@ -19,7 +19,7 @@ import itertools
 import json
 import sys
 
-import berberis_gen_asm_x86 as gen_asm_x86
+import gen_asm_x86
 
 
 # Enable to avoid cycles.  Only use one register combo for tests.
