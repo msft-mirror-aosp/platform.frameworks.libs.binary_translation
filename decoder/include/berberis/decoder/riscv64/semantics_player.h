@@ -32,6 +32,23 @@ class SemanticsPlayer {
   explicit SemanticsPlayer(SemanticsListener* listener) : listener_(listener) {}
 
   // Decoder's InsnConsumer implementation.
+
+  void Fence(const typename Decoder::FenceArgs& args) {
+    if (args.src != 0 || args.dst != 0) {
+      return Unimplemented();
+    }
+    listener_->Fence(
+        args.opcode, args.sw, args.sr, args.so, args.si, args.pw, args.pr, args.po, args.pi);
+  }
+
+  void FenceI(const typename Decoder::FenceIArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    listener_->FenceI(arg, args.imm);
+    // The unused fields in the FENCE.I instruction, imm[11:0], rs1, and rd, are reserved for
+    // finer-grain fences in future extensions. For forward compatibility, base implementations
+    // shall ignore these fields, and standard software shall zero these fields.
+  }
+
   void Op(const typename Decoder::OpArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
@@ -39,9 +56,102 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
-  void Unimplemented() {
-    listener_->Unimplemented();
+  void Op32(const typename Decoder::Op32Args& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    Register result = listener_->Op32(args.opcode, arg1, arg2);
+    SetRegOrIgnore(args.dst, result);
   };
+
+  void Amo(const typename Decoder::AmoArgs& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    Register result = listener_->Amo(args.opcode, arg1, arg2, args.aq, args.rl);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void Lui(const typename Decoder::UpperImmArgs& args) {
+    Register result = listener_->Lui(args.imm);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void Auipc(const typename Decoder::UpperImmArgs& args) {
+    Register result = listener_->Auipc(args.imm);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void Load(const typename Decoder::LoadArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->Load(args.opcode, arg, args.offset);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void OpImm(const typename Decoder::OpImmArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->OpImm(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void OpImm32(const typename Decoder::OpImm32Args& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->OpImm32(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void ShiftImm(const typename Decoder::ShiftImmArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->ShiftImm(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void ShiftImm32(const typename Decoder::ShiftImm32Args& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = listener_->ShiftImm32(args.opcode, arg, args.imm);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void Store(const typename Decoder::StoreArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register data = GetRegOrZero(args.data);
+    listener_->Store(args.opcode, arg, args.offset, data);
+  };
+
+  void Branch(const typename Decoder::BranchArgs& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    listener_->Branch(args.opcode, arg1, arg2, args.offset);
+  };
+
+  void JumpAndLink(const typename Decoder::JumpAndLinkArgs& args) {
+    Register result = listener_->JumpAndLink(args.offset, args.insn_len);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
+    Register base = GetRegOrZero(args.base);
+    Register result = listener_->JumpAndLinkRegister(base, args.offset, args.insn_len);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  // We may have executed a signal handler just after the syscall. If that handler changed x10, then
+  // overwriting x10 here would be incorrect. On the other hand asynchronous signals are unlikely to
+  // change CPU state, so we don't support this at the moment for simplicity."
+  void System(const typename Decoder::SystemArgs& args) {
+    if (args.opcode != Decoder::SystemOpcode::kEcall) {
+      return Unimplemented();
+    }
+    Register syscall_nr = GetRegOrZero(17);
+    Register arg0 = GetRegOrZero(10);
+    Register arg1 = GetRegOrZero(11);
+    Register arg2 = GetRegOrZero(12);
+    Register arg3 = GetRegOrZero(13);
+    Register arg4 = GetRegOrZero(14);
+    Register arg5 = GetRegOrZero(15);
+    Register result = listener_->Ecall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
+    SetRegOrIgnore(10, result);
+  }
+
+  void Unimplemented() { listener_->Unimplemented(); };
 
  private:
   Register GetRegOrZero(uint8_t reg) {

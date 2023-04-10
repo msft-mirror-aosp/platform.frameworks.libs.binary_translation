@@ -17,10 +17,19 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 #include <cstdint>
-#include <cstdlib>
+#include <cstring>
 
+#include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
+#include "berberis/base/logging.h"
+#include "berberis/base/macros.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/kernel_api/run_guest_syscall.h"
+
+#include "atomics.h"
 
 namespace berberis {
 
@@ -31,27 +40,361 @@ class Interpreter {
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
 
-  explicit Interpreter(ProcessState* state)
-      : state_(state) {}
+  explicit Interpreter(ThreadState* state) : state_(state), branch_taken_(false) {}
 
   //
   // Instruction implementations.
   //
 
+  // Note: we prefer not to use C11/C++ atomic_thread_fence or even gcc/clang builtin
+  // __atomic_thread_fence because all these function rely on the fact that compiler never uses
+  // non-temporal loads and stores and only issue “mfence” when sequentially consistent ordering is
+  // requested. They never issue “lfence” or “sfence”.
+  // Instead we pull the page from Linux's kernel book and map read ordereding to “lfence”, write
+  // ordering to “sfence” and read-write ordering to “mfence”.
+  // This can be important in the future if we would start using nontemporal moves in manually
+  // created assembly code.
+  // Ordering affecting I/O devices is not relevant to user-space code thus we just ignore bits
+  // related to devices I/O.
+  void Fence(Decoder::FenceOpcode opcode,
+             bool sw,
+             bool sr,
+             bool /*so*/,
+             bool /*si*/,
+             bool pw,
+             bool pr,
+             bool /*po*/,
+             bool /*pi*/) {
+    bool read_fence = sr | pr;
+    bool write_fence = sw | pw;
+    switch (opcode) {
+      case Decoder::FenceOpcode::kFence:
+        if (read_fence) {
+          if (write_fence) {
+            asm volatile("mfence" ::: "memory");
+          } else {
+            asm volatile("lfence" ::: "memory");
+          }
+        } else if (write_fence) {
+          asm volatile("sfence" ::: "memory");
+        }
+        return;
+      case Decoder::FenceOpcode::kFenceTso:
+        if (read_fence && write_fence) {
+          asm volatile("mfence" ::: "memory");
+          return;
+        }
+        break;
+      default:
+        break;
+    }
+    return Unimplemented();
+  }
+
+  void FenceI(Register /*arg*/, int16_t /*imm*/) {
+    // For interpreter-only mode we don't need to do anything here, but when we will have a
+    // translator we would need to flush caches here.
+  }
+
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
+    using uint128_t = unsigned __int128;
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
         return arg1 + arg2;
+      case Decoder::OpOpcode::kSub:
+        return arg1 - arg2;
+      case Decoder::OpOpcode::kAnd:
+        return arg1 & arg2;
+      case Decoder::OpOpcode::kOr:
+        return arg1 | arg2;
+      case Decoder::OpOpcode::kXor:
+        return arg1 ^ arg2;
+      case Decoder::OpOpcode::kSll:
+        return arg1 << arg2;
+      case Decoder::OpOpcode::kSrl:
+        return arg1 >> arg2;
+      case Decoder::OpOpcode::kSra:
+        return bit_cast<int64_t>(arg1) >> arg2;
+      case Decoder::OpOpcode::kSlt:
+        return bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2) ? 1 : 0;
+      case Decoder::OpOpcode::kSltu:
+        return arg1 < arg2 ? 1 : 0;
+      case Decoder::OpOpcode::kMul:
+        return arg1 * arg2;
+      case Decoder::OpOpcode::kMulh:
+        return (__int128{bit_cast<int64_t>(arg1)} * __int128{bit_cast<int64_t>(arg2)}) >> 64;
+      case Decoder::OpOpcode::kMulhsu:
+        return (__int128{bit_cast<int64_t>(arg1)} * uint128_t{arg2}) >> 64;
+      case Decoder::OpOpcode::kMulhu:
+        return (uint128_t{arg1} * uint128_t{arg2}) >> 64;
+      case Decoder::OpOpcode::kDiv:
+        return bit_cast<int64_t>(arg1) / bit_cast<int64_t>(arg2);
+      case Decoder::OpOpcode::kDivu:
+        return arg1 / arg2;
+      case Decoder::OpOpcode::kRem:
+        return bit_cast<int64_t>(arg1) % bit_cast<int64_t>(arg2);
+      case Decoder::OpOpcode::kRemu:
+        return arg1 % arg2;
       default:
         Unimplemented();
-        break;
+        return {};
     }
   }
 
-  void Unimplemented() {
-    // TODO(b/265372622): Replace with fatal from logging.h.
-    abort();
+  Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
+    switch (opcode) {
+      case Decoder::Op32Opcode::kAddw:
+        return int32_t(arg1) + int32_t(arg2);
+      case Decoder::Op32Opcode::kSubw:
+        return int32_t(arg1) - int32_t(arg2);
+      case Decoder::Op32Opcode::kSllw:
+        return int32_t(arg1) << int32_t(arg2);
+      case Decoder::Op32Opcode::kSrlw:
+        return bit_cast<int32_t>(uint32_t(arg1) >> uint32_t(arg2));
+      case Decoder::Op32Opcode::kSraw:
+        return int32_t(arg1) >> int32_t(arg2);
+      case Decoder::Op32Opcode::kMulw:
+        return int32_t(arg1) * int32_t(arg2);
+      case Decoder::Op32Opcode::kDivw:
+        return int32_t(arg1) / int32_t(arg2);
+      case Decoder::Op32Opcode::kDivuw:
+        return uint32_t(arg1) / uint32_t(arg2);
+      case Decoder::Op32Opcode::kRemw:
+        return int32_t(arg1) % int32_t(arg2);
+      case Decoder::Op32Opcode::kRemuw:
+        return uint32_t(arg1) % uint32_t(arg2);
+      default:
+        Unimplemented();
+        return {};
+    }
   }
+
+  Register Amo(Decoder::AmoOpcode opcode, Register arg1, Register arg2, bool aq, bool rl) {
+    switch (opcode) {
+      case Decoder::AmoOpcode::kLrW:
+        Unimplemented();
+        return {};
+      case Decoder::AmoOpcode::kLrD:
+        Unimplemented();
+        return {};
+      case Decoder::AmoOpcode::kScW:
+        Unimplemented();
+        return {};
+      case Decoder::AmoOpcode::kScD:
+        Unimplemented();
+        return {};
+
+      case Decoder::AmoOpcode::kAmoswapW:
+        return AtomicExchange<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoswapD:
+        return AtomicExchange<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmoaddW:
+        return AtomicAdd<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoaddD:
+        return AtomicAdd<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmoxorW:
+        return AtomicXor<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoxorD:
+        return AtomicXor<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmoandW:
+        return AtomicAnd<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoandD:
+        return AtomicAnd<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmoorW:
+        return AtomicOr<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoorD:
+        return AtomicOr<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmominW:
+        return AtomicMin<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmominD:
+        return AtomicMin<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmomaxW:
+        return AtomicMax<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmomaxD:
+        return AtomicMax<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmominuW:
+        return AtomicMinu<uint32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmominuD:
+        return AtomicMinu<uint64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmomaxuW:
+        return AtomicMaxu<uint32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmomaxuD:
+        return AtomicMaxu<uint64_t>(arg1, arg2, aq, rl);
+
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register Load(Decoder::LoadOpcode opcode, Register arg, int16_t offset) {
+    void* ptr = ToHostAddr<void>(arg + offset);
+    switch (opcode) {
+      case Decoder::LoadOpcode::kLbu:
+        return Load<uint8_t>(ptr);
+      case Decoder::LoadOpcode::kLhu:
+        return Load<uint16_t>(ptr);
+      case Decoder::LoadOpcode::kLwu:
+        return Load<uint32_t>(ptr);
+      case Decoder::LoadOpcode::kLd:
+        return Load<uint64_t>(ptr);
+      case Decoder::LoadOpcode::kLb:
+        return Load<int8_t>(ptr);
+      case Decoder::LoadOpcode::kLh:
+        return Load<int16_t>(ptr);
+      case Decoder::LoadOpcode::kLw:
+        return Load<int32_t>(ptr);
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
+    switch (opcode) {
+      case Decoder::OpImmOpcode::kAddi:
+        return arg + int64_t{imm};
+      case Decoder::OpImmOpcode::kSlti:
+        return bit_cast<int64_t>(arg) < int64_t{imm} ? 1 : 0;
+      case Decoder::OpImmOpcode::kSltiu:
+        return arg < bit_cast<uint64_t>(int64_t{imm}) ? 1 : 0;
+      case Decoder::OpImmOpcode::kXori:
+        return arg ^ int64_t { imm };
+      case Decoder::OpImmOpcode::kOri:
+        return arg | int64_t{imm};
+      case Decoder::OpImmOpcode::kAndi:
+        return arg & int64_t{imm};
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register Lui(int32_t imm) { return int64_t{imm}; }
+
+  Register Auipc(int32_t imm) {
+    uint64_t pc = state_->cpu.insn_addr;
+    return pc + int64_t{imm};
+  }
+
+  Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
+    switch (opcode) {
+      case Decoder::OpImm32Opcode::kAddiw:
+        return int32_t(arg) + int32_t{imm};
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register Ecall(Register syscall_nr, Register arg0, Register arg1, Register arg2, Register arg3,
+                 Register arg4, Register arg5) {
+    return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
+  }
+
+  Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
+    switch (opcode) {
+      case Decoder::ShiftImmOpcode::kSlli:
+        return arg << imm;
+      case Decoder::ShiftImmOpcode::kSrli:
+        return arg >> imm;
+      case Decoder::ShiftImmOpcode::kSrai:
+        return bit_cast<int64_t>(arg) >> imm;
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
+    switch (opcode) {
+      case Decoder::ShiftImm32Opcode::kSlliw:
+        return int32_t(arg) << int32_t{imm};
+      case Decoder::ShiftImm32Opcode::kSrliw:
+        return bit_cast<int32_t>(uint32_t(arg) >> uint32_t{imm});
+      case Decoder::ShiftImm32Opcode::kSraiw:
+        return int32_t(arg) >> int32_t{imm};
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  void Store(Decoder::StoreOpcode opcode, Register arg, int16_t offset, Register data) {
+    void* ptr = ToHostAddr<void>(arg + offset);
+    switch (opcode) {
+      case Decoder::StoreOpcode::kSb:
+        Store<uint8_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSh:
+        Store<uint16_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSw:
+        Store<uint32_t>(ptr, data);
+        break;
+      case Decoder::StoreOpcode::kSd:
+        Store<uint64_t>(ptr, data);
+        break;
+      default:
+        return Unimplemented();
+    }
+  }
+
+  void Branch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset) {
+    bool cond_value;
+    switch (opcode) {
+      case Decoder::BranchOpcode::kBeq:
+        cond_value = arg1 == arg2;
+        break;
+      case Decoder::BranchOpcode::kBne:
+        cond_value = arg1 != arg2;
+        break;
+      case Decoder::BranchOpcode::kBltu:
+        cond_value = arg1 < arg2;
+        break;
+      case Decoder::BranchOpcode::kBgeu:
+        cond_value = arg1 >= arg2;
+        break;
+      case Decoder::BranchOpcode::kBlt:
+        cond_value = bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2);
+        break;
+      case Decoder::BranchOpcode::kBge:
+        cond_value = bit_cast<int64_t>(arg1) >= bit_cast<int64_t>(arg2);
+        break;
+      default:
+        return Unimplemented();
+    }
+
+    if (cond_value) {
+      state_->cpu.insn_addr += offset;
+      branch_taken_ = true;
+    }
+  }
+
+  Register JumpAndLink(int32_t offset, uint8_t insn_len) {
+    uint64_t pc = state_->cpu.insn_addr;
+    state_->cpu.insn_addr += offset;
+    branch_taken_ = true;
+    return pc + insn_len;
+  }
+
+  Register JumpAndLinkRegister(Register base, int16_t offset, uint8_t insn_len) {
+    uint64_t pc = state_->cpu.insn_addr;
+    // The lowest bit is always zeroed out.
+    state_->cpu.insn_addr = (base + offset) & ~uint64_t{1};
+    branch_taken_ = true;
+    return pc + insn_len;
+  }
+
+  void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
 
   //
   // Guest state getters/setters.
@@ -74,30 +417,43 @@ class Interpreter {
   uint64_t GetImm(uint64_t imm) const { return imm; }
 
   void FinalizeInsn(uint8_t insn_len) {
+    if (!branch_taken_) {
       state_->cpu.insn_addr += insn_len;
-  }
-
- private:
-  void CheckRegIsValid(uint8_t reg) const {
-    // TODO(b/265372622): Replace with checks from logging.h.
-    if (reg == 0 || (reg > sizeof(state_->cpu.x) / sizeof(state_->cpu.x[0]))) {
-      abort();
     }
   }
 
-  ProcessState* state_;
+ private:
+  template <typename DataType>
+  uint64_t Load(const void* ptr) const {
+    DataType data;
+    memcpy(&data, ptr, sizeof(data));
+    // Signed types automatically sign-extend to int64_t.
+    return static_cast<uint64_t>(data);
+  }
+
+  template <typename DataType>
+  void Store(void* ptr, uint64_t data) const {
+    memcpy(ptr, &data, sizeof(DataType));
+  }
+
+  void CheckRegIsValid(uint8_t reg) const {
+    CHECK_GT(reg, 0u);
+    CHECK_LE(reg, arraysize(state_->cpu.x));
+  }
+
+  ThreadState* state_;
+  bool branch_taken_;
 };
 
 }  // namespace
 
-void InterpretInsn(ProcessState* state) {
+void InterpretInsn(ThreadState* state) {
   GuestAddr pc = state->cpu.insn_addr;
 
   Interpreter interpreter(state);
   SemanticsPlayer sem_player(&interpreter);
   Decoder decoder(&sem_player);
-  // TODO(b/265372622): Replace with bit_cast.
-  uint8_t insn_len = decoder.Decode(reinterpret_cast<const uint16_t*>(pc));
+  uint8_t insn_len = decoder.Decode(ToHostAddr<const uint16_t>(pc));
   interpreter.FinalizeInsn(insn_len);
 }
 
