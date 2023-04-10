@@ -448,35 +448,31 @@ class Decoder {
         DecodeMiscMem();
         break;
       case BaseOpcode::kOp:
-        DecodeOp<OpOpcode, &InsnConsumer::Op>();
+        DecodeOp<OpOpcode>();
         break;
       case BaseOpcode::kOp32:
-        DecodeOp<Op32Opcode, &InsnConsumer::Op32>();
+        DecodeOp<Op32Opcode>();
         break;
       case BaseOpcode::kAmo:
         DecodeAmo();
         break;
       case BaseOpcode::kLoad:
-        DecodeLoad<LoadOpcode, &InsnConsumer::Load>();
+        DecodeLoad<LoadOpcode>();
         break;
       case BaseOpcode::kLoadFp:
-        DecodeLoad<LoadFpOpcode, &InsnConsumer::LoadFp>();
+        DecodeLoad<LoadFpOpcode>();
         break;
       case BaseOpcode::kOpImm:
-        DecodeOp<OpImmOpcode, ShiftImmOpcode, 6, &InsnConsumer::OpImm, &InsnConsumer::ShiftImm>();
+        DecodeOp<OpImmOpcode, ShiftImmOpcode, 6>();
         break;
       case BaseOpcode::kOpImm32:
-        DecodeOp<OpImm32Opcode,
-                 ShiftImm32Opcode,
-                 5,
-                 &InsnConsumer::OpImm32,
-                 &InsnConsumer::ShiftImm32>();
+        DecodeOp<OpImm32Opcode, ShiftImm32Opcode, 5>();
         break;
       case BaseOpcode::kStore:
-        DecodeStore<StoreOpcode, &InsnConsumer::Store>();
+        DecodeStore<StoreOpcode>();
         break;
       case BaseOpcode::kStoreFp:
-        DecodeStore<StoreFpOpcode, &InsnConsumer::StoreFp>();
+        DecodeStore<StoreFpOpcode>();
         break;
       case BaseOpcode::kBranch:
         DecodeBranch();
@@ -569,7 +565,7 @@ class Decoder {
     }
   }
 
-  template <typename OpcodeType, auto OpFunction>
+  template <typename OpcodeType>
   void DecodeOp() {
     uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
     uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
@@ -580,7 +576,7 @@ class Decoder {
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
-    (insn_consumer_->*OpFunction)(args);
+    insn_consumer_->Op(args);
   }
 
   void DecodeAmo() {
@@ -620,7 +616,7 @@ class Decoder {
     insn_consumer_->Auipc(args);
   }
 
-  template <typename OpcodeType, auto LoadFunction>
+  template <typename OpcodeType>
   void DecodeLoad() {
     OpcodeType opcode{GetBits<uint8_t, 12, 3>()};
     const LoadArgsTemplate<OpcodeType> args = {
@@ -629,10 +625,10 @@ class Decoder {
         .src = GetBits<uint8_t, 15, 5>(),
         .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
     };
-    (insn_consumer_->*LoadFunction)(args);
+    insn_consumer_->Load(args);
   }
 
-  template <typename OpcodeType, auto StoreFunction>
+  template <typename OpcodeType>
   void DecodeStore() {
     OpcodeType opcode{GetBits<uint8_t, 12, 3>()};
 
@@ -645,14 +641,10 @@ class Decoder {
         .offset = SignExtend<12>(int16_t(low_imm | (high_imm << 5))),
         .data = GetBits<uint8_t, 20, 5>(),
     };
-    (insn_consumer_->*StoreFunction)(args);
+    insn_consumer_->Store(args);
   }
 
-  template <typename OpOpcodeType,
-            typename ShiftOcodeType,
-            uint32_t kShiftFieldSize,
-            auto OpFunction,
-            auto ShiftFunction>
+  template <typename OpOpcodeType, typename ShiftOcodeType, uint32_t kShiftFieldSize>
   void DecodeOp() {
     uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
     if (low_opcode != 0b001 && low_opcode != 0b101) {
@@ -666,7 +658,7 @@ class Decoder {
           .src = GetBits<uint8_t, 15, 5>(),
           .imm = SignExtend<12>(imm),
       };
-      (insn_consumer_->*OpFunction)(args);
+      insn_consumer_->OpImm(args);
     } else {
       uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
       ShiftOcodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
@@ -677,7 +669,7 @@ class Decoder {
           .src = GetBits<uint8_t, 15, 5>(),
           .imm = GetBits<uint8_t, 20, kShiftFieldSize>(),
       };
-      (insn_consumer_->*ShiftFunction)(args);
+      insn_consumer_->OpImm(args);
     }
   }
 
