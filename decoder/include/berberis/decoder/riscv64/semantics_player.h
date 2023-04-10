@@ -175,6 +175,8 @@ class SemanticsPlayer {
     SetRegOrIgnore(10, result);
   }
 
+  void Nop() { listener_->Nop(); }
+
   void Unimplemented() { listener_->Unimplemented(); };
 
  private:
