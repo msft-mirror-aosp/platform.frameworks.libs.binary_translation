@@ -118,12 +118,6 @@ class Decoder {
     kFenceMaxOpcode = 0b1111,
   };
 
-  enum class LoadFpOpcode {
-    kFlw = 0b010,
-    kFld = 0b011,
-    kLoadFpMaxOpcode = 0b111,
-  };
-
   enum class OpOpcode {
     kAdd = 0b0000'000'000,
     kSub = 0b0100'000'000,
@@ -195,6 +189,12 @@ class Decoder {
     kLhu = 0b101,
     kLwu = 0b110,
     kMaxLoadOpcode = 0b1111,
+  };
+
+  enum class LoadFpOpcode {
+    kFlw = 0b010,
+    kFld = 0b011,
+    kLoadFpMaxOpcode = 0b111,
   };
 
   enum class OpImmOpcode {
@@ -276,13 +276,6 @@ class Decoder {
     int16_t imm;
   };
 
-  struct LoadFpArgs {
-    LoadFpOpcode opcode;
-    uint8_t dst;
-    uint8_t src;
-    int16_t offset;
-  };
-
   struct OpArgs {
     OpOpcode opcode;
     uint8_t dst;
@@ -306,12 +299,16 @@ class Decoder {
     bool aq : 1;
   };
 
-  struct LoadArgs {
-    LoadOpcode opcode;
+  template <typename OpcodeType>
+  struct LoadArgsTemplate {
+    OpcodeType opcode;
     uint8_t dst;
     uint8_t src;
     int16_t offset;
   };
+
+  using LoadArgs = LoadArgsTemplate<LoadOpcode>;
+  using LoadFpArgs = LoadArgsTemplate<LoadFpOpcode>;
 
   struct OpImmArgs {
     OpImmOpcode opcode;
@@ -345,19 +342,16 @@ class Decoder {
     uint8_t imm;
   };
 
-  struct StoreArgs {
-    StoreOpcode opcode;
+  template <typename OpcodeType>
+  struct StoreArgsTemplate {
+    OpcodeType opcode;
     uint8_t src;
     int16_t offset;
     uint8_t data;
   };
 
-  struct StoreFpArgs {
-    StoreFpOpcode opcode;
-    uint8_t src;
-    int16_t offset;
-    uint8_t data;
-  };
+  using StoreArgs = StoreArgsTemplate<StoreOpcode>;
+  using StoreFpArgs = StoreArgsTemplate<StoreFpOpcode>;
 
   struct BranchArgs {
     BranchOpcode opcode;
@@ -472,10 +466,10 @@ class Decoder {
         DecodeAmo();
         break;
       case BaseOpcode::kLoad:
-        DecodeLoad();
+        DecodeLoad<LoadOpcode, &InsnConsumer::Load>();
         break;
       case BaseOpcode::kLoadFp:
-        DecodeLoadFp();
+        DecodeLoad<LoadFpOpcode, &InsnConsumer::LoadFp>();
         break;
       case BaseOpcode::kOpImm:
         DecodeOpImm();
@@ -484,10 +478,10 @@ class Decoder {
         DecodeOpImm32();
         break;
       case BaseOpcode::kStore:
-        DecodeStore();
+        DecodeStore<StoreOpcode, &InsnConsumer::Store>();
         break;
       case BaseOpcode::kStoreFp:
-        DecodeStoreFp();
+        DecodeStore<StoreFpOpcode, &InsnConsumer::StoreFp>();
         break;
       case BaseOpcode::kBranch:
         DecodeBranch();
@@ -643,56 +637,32 @@ class Decoder {
     insn_consumer_->Auipc(args);
   }
 
+  template <typename OpcodeType, auto LoadFunction>
   void DecodeLoad() {
-    LoadOpcode opcode{GetBits<uint8_t, 12, 3>()};
-    const LoadArgs args = {
+    OpcodeType opcode{GetBits<uint8_t, 12, 3>()};
+    const LoadArgsTemplate<OpcodeType> args = {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src = GetBits<uint8_t, 15, 5>(),
         .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
     };
-    insn_consumer_->Load(args);
+    (insn_consumer_->*LoadFunction)(args);
   }
 
-  void DecodeLoadFp() {
-    LoadFpOpcode opcode{GetBits<uint8_t, 12, 3>()};
-    const LoadFpArgs args = {
-        .opcode = opcode,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src = GetBits<uint8_t, 15, 5>(),
-        .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
-    };
-    insn_consumer_->LoadFp(args);
-  }
-
+  template <typename OpcodeType, auto StoreFunction>
   void DecodeStore() {
-    StoreOpcode opcode{GetBits<uint8_t, 12, 3>()};
+    OpcodeType opcode{GetBits<uint8_t, 12, 3>()};
 
     uint16_t low_imm = GetBits<uint16_t, 7, 5>();
     uint16_t high_imm = GetBits<uint16_t, 25, 7>();
 
-    const StoreArgs args = {
+    const StoreArgsTemplate<OpcodeType> args = {
         .opcode = opcode,
         .src = GetBits<uint8_t, 15, 5>(),
         .offset = SignExtend<12>(int16_t(low_imm | (high_imm << 5))),
         .data = GetBits<uint8_t, 20, 5>(),
     };
-    insn_consumer_->Store(args);
-  }
-
-  void DecodeStoreFp() {
-    StoreFpOpcode opcode{GetBits<uint8_t, 12, 3>()};
-
-    uint16_t low_imm = GetBits<uint16_t, 7, 5>();
-    uint16_t high_imm = GetBits<uint16_t, 25, 7>();
-
-    const StoreFpArgs args = {
-        .opcode = opcode,
-        .src = GetBits<uint8_t, 15, 5>(),
-        .offset = SignExtend<12>(int16_t(low_imm | (high_imm << 5))),
-        .data = GetBits<uint8_t, 20, 5>(),
-    };
-    insn_consumer_->StoreFp(args);
+    (insn_consumer_->*StoreFunction)(args);
   }
 
   void DecodeOpImm() {
