@@ -91,9 +91,9 @@ class Decoder {
     kFsd = 0b101'00,
     kSw = 0b110'00,
     kSd = 0b111'00,
-    kAddi = 0b000'00,
-    kAddiw = 0b001'00,
-    kLi = 0b010'00,
+    kAddi = 0b000'01,
+    kAddiw = 0b001'01,
+    kLi = 0b010'01,
     kLui_Addi16sp = 0b011'01,
     kMisc_Alu = 0b100'01,
     kJ = 0b101'01,
@@ -400,10 +400,30 @@ class Decoder {
       case CompressedOpcode::kAddi4spn:
         DecodeCAddi4spn();
         break;
+      case CompressedOpcode::kAddi:
+        DecodeCAddi();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
     return 2;
+  }
+
+  void DecodeCAddi() {
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    int8_t imm = SignExtend<6>(high_imm << 5 | low_imm);
+    uint8_t r = GetBits<uint8_t, 7, 5>();
+    if (r == 0 || imm == 0) {
+      insn_consumer_->Nop();
+    }
+    const OpImmArgs args = {
+        .opcode = OpImmOpcode::kAddi,
+        .dst = r,
+        .src = r,
+        .imm = imm,
+    };
+    insn_consumer_->OpImm(args);
   }
 
   void DecodeCJ() {
