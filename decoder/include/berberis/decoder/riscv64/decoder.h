@@ -256,6 +256,15 @@ class Decoder {
     kMaxBranchOpcode = 0b111,
   };
 
+  struct AmoArgs {
+    AmoOpcode opcode;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+    bool rl : 1;
+    bool aq : 1;
+  };
+
   struct FenceArgs {
     FenceOpcode opcode;
     uint8_t dst;
@@ -276,28 +285,16 @@ class Decoder {
     int16_t imm;
   };
 
-  struct OpArgs {
-    OpOpcode opcode;
+  template <typename OpcodeType>
+  struct OpArgsTemplate {
+    OpcodeType opcode;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
   };
 
-  struct Op32Args {
-    Op32Opcode opcode;
-    uint8_t dst;
-    uint8_t src1;
-    uint8_t src2;
-  };
-
-  struct AmoArgs {
-    AmoOpcode opcode;
-    uint8_t dst;
-    uint8_t src1;
-    uint8_t src2;
-    bool rl : 1;
-    bool aq : 1;
-  };
+  using OpArgs = OpArgsTemplate<OpOpcode>;
+  using Op32Args = OpArgsTemplate<Op32Opcode>;
 
   template <typename OpcodeType>
   struct LoadArgsTemplate {
@@ -310,37 +307,31 @@ class Decoder {
   using LoadArgs = LoadArgsTemplate<LoadOpcode>;
   using LoadFpArgs = LoadArgsTemplate<LoadFpOpcode>;
 
-  struct OpImmArgs {
-    OpImmOpcode opcode;
+  template <typename OpcodeType>
+  struct OpImmArgsTemplate {
+    OpcodeType opcode;
     uint8_t dst;
     uint8_t src;
     int16_t imm;
   };
 
-  struct OpImm32Args {
-    OpImm32Opcode opcode;
-    uint8_t dst;
-    uint8_t src;
-    int16_t imm;
-  };
+  using OpImmArgs = OpImmArgsTemplate<OpImmOpcode>;
+  using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
 
   struct SystemArgs {
     SystemOpcode opcode;
   };
 
-  struct ShiftImmArgs {
-    ShiftImmOpcode opcode;
+  template <typename OpcodeType>
+  struct ShiftImmArgsTemplate {
+    OpcodeType opcode;
     uint8_t dst;
     uint8_t src;
     uint8_t imm;
   };
 
-  struct ShiftImm32Args {
-    ShiftImm32Opcode opcode;
-    uint8_t dst;
-    uint8_t src;
-    uint8_t imm;
-  };
+  using ShiftImmArgs = ShiftImmArgsTemplate<ShiftImmOpcode>;
+  using ShiftImm32Args = ShiftImmArgsTemplate<ShiftImm32Opcode>;
 
   template <typename OpcodeType>
   struct StoreArgsTemplate {
@@ -477,10 +468,10 @@ class Decoder {
         DecodeMiscMem();
         break;
       case BaseOpcode::kOp:
-        DecodeOp();
+        DecodeOp<OpOpcode, &InsnConsumer::Op>();
         break;
       case BaseOpcode::kOp32:
-        DecodeOp32();
+        DecodeOp<Op32Opcode, &InsnConsumer::Op32>();
         break;
       case BaseOpcode::kAmo:
         DecodeAmo();
@@ -492,10 +483,14 @@ class Decoder {
         DecodeLoad<LoadFpOpcode, &InsnConsumer::LoadFp>();
         break;
       case BaseOpcode::kOpImm:
-        DecodeOpImm();
+        DecodeOp<OpImmOpcode, ShiftImmOpcode, 6, &InsnConsumer::OpImm, &InsnConsumer::ShiftImm>();
         break;
       case BaseOpcode::kOpImm32:
-        DecodeOpImm32();
+        DecodeOp<OpImm32Opcode,
+                 ShiftImm32Opcode,
+                 5,
+                 &InsnConsumer::OpImm32,
+                 &InsnConsumer::ShiftImm32>();
         break;
       case BaseOpcode::kStore:
         DecodeStore<StoreOpcode, &InsnConsumer::Store>();
@@ -594,30 +589,18 @@ class Decoder {
     }
   }
 
+  template <typename OpcodeType, auto OpFunction>
   void DecodeOp() {
     uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
     uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
-    OpOpcode opcode = OpOpcode{low_opcode | (high_opcode << 3)};
-    const OpArgs args = {
+    OpcodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
+    const OpArgsTemplate<OpcodeType> args = {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
-    insn_consumer_->Op(args);
-  }
-
-  void DecodeOp32() {
-    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
-    uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
-    Op32Opcode opcode = Op32Opcode{low_opcode | (high_opcode << 3)};
-    const Op32Args args = {
-        .opcode = opcode,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
-    };
-    insn_consumer_->Op32(args);
+    (insn_consumer_->*OpFunction)(args);
   }
 
   void DecodeAmo() {
@@ -685,59 +668,36 @@ class Decoder {
     (insn_consumer_->*StoreFunction)(args);
   }
 
-  void DecodeOpImm() {
-    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+  template <typename OpOpcodeType,
+            typename ShiftOcodeType,
+            uint32_t kShiftFieldSize,
+            auto OpFunction,
+            auto ShiftFunction>
+  void DecodeOp() {
+    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
     if (low_opcode != 0b001 && low_opcode != 0b101) {
-      OpImmOpcode opcode = OpImmOpcode{low_opcode};
+      OpOpcodeType opcode{low_opcode};
 
       uint16_t imm = GetBits<uint16_t, 20, 12>();
 
-      const OpImmArgs args = {
+      const OpImmArgsTemplate<OpOpcodeType> args = {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .src = GetBits<uint8_t, 15, 5>(),
           .imm = SignExtend<12>(imm),
       };
-      insn_consumer_->OpImm(args);
+      (insn_consumer_->*OpFunction)(args);
     } else {
-      uint16_t high_opcode = GetBits<uint16_t, 26, 6>();
-      ShiftImmOpcode opcode = ShiftImmOpcode{low_opcode | (high_opcode << 3)};
+      uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
+      ShiftOcodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
 
-      const ShiftImmArgs args = {
+      const ShiftImmArgsTemplate<ShiftOcodeType> args = {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .src = GetBits<uint8_t, 15, 5>(),
-          .imm = GetBits<uint8_t, 20, 6>(),
+          .imm = GetBits<uint8_t, 20, kShiftFieldSize>(),
       };
-      insn_consumer_->ShiftImm(args);
-    }
-  }
-
-  void DecodeOpImm32() {
-    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
-    if (low_opcode != 0b001 && low_opcode != 0b101) {
-      OpImm32Opcode opcode = OpImm32Opcode{low_opcode};
-
-      uint16_t imm = GetBits<uint16_t, 20, 12>();
-
-      const OpImm32Args args = {
-          .opcode = opcode,
-          .dst = GetBits<uint8_t, 7, 5>(),
-          .src = GetBits<uint8_t, 15, 5>(),
-          .imm = SignExtend<12>(imm),
-      };
-      insn_consumer_->OpImm32(args);
-    } else {
-      uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
-      ShiftImm32Opcode opcode = ShiftImm32Opcode{low_opcode | (high_opcode << 3)};
-
-      const ShiftImm32Args args = {
-          .opcode = opcode,
-          .dst = GetBits<uint8_t, 7, 5>(),
-          .src = GetBits<uint8_t, 15, 5>(),
-          .imm = GetBits<uint8_t, 20, 6>(),
-      };
-      insn_consumer_->ShiftImm32(args);
+      (insn_consumer_->*ShiftFunction)(args);
     }
   }
 
