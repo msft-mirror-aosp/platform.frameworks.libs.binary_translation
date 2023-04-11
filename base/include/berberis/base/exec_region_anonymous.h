@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,4 +14,24 @@
  * limitations under the License.
  */
 
-extern "C" void tiny_symbol() {}
+#ifndef BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
+#define BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
+
+#include <cstddef>
+#include <cstdint>
+
+#include "exec_region.h"
+
+namespace berberis {
+
+class ExecRegionAnonymousFactory {
+ public:
+  // Size of anonymous executable code region.
+  static constexpr uint32_t kExecRegionSize = 4 * 1024 * 1024;
+
+  static ExecRegion Create(size_t size);
+};
+
+}  // namespace berberis
+
+#endif  // BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_

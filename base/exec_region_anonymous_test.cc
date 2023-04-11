@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 The Android Open Source Project
+ * Copyright (C) 2015 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,4 +14,32 @@
  * limitations under the License.
  */
 
-extern "C" void tiny_symbol() {}
+#include "gtest/gtest.h"
+
+#include <utility>
+
+#include "berberis/base/exec_region_anonymous.h"
+
+namespace berberis {
+
+namespace {
+
+TEST(ExecRegionAnonymous, Smoke) {
+  const char buf[] = "deadbeef";
+
+  ExecRegion exec = ExecRegionAnonymousFactory::Create(sizeof(buf));
+  const uint8_t* code = exec.begin();
+  ASSERT_NE(nullptr, code);
+
+  exec.Write(code, buf, sizeof(buf));
+  ASSERT_EQ('f', code[7]);
+
+  exec.Detach();
+  ASSERT_EQ('f', code[7]);
+
+  exec.Free();
+}
+
+}  // namespace
+
+}  // namespace berberis

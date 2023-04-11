@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,4 +14,21 @@
  * limitations under the License.
  */
 
-extern "C" void tiny_symbol() {}
+    .globl berberis_RawSyscallImpl
+    .balign 16
+
+berberis_RawSyscallImpl:
+
+    // x86-64 ABI params:  di,  si,  dx,  cx,  r8, r9, <stack>
+    // syscall params:    rax, rdi, rsi, rdx, r10, r8, r9
+    mov %rdi, %rax
+    mov %rsi, %rdi
+    mov %rdx, %rsi
+    mov %rcx, %rdx
+    mov %r8, %r10
+    mov %r9, %r8
+    mov 8(%rsp), %r9
+
+    syscall
+
+    ret

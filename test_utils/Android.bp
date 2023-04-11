@@ -1,4 +1,4 @@
-// Copyright (C) 2023 The Android Open Source Project
+// Copyright (C) 2018 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,9 +18,8 @@ package {
 }
 
 cc_library_headers {
-    name: "libberberis_decoder_riscv64_headers",
-    defaults: ["berberis_defaults_64"],
-    header_libs: ["libberberis_base_headers"],
+    name: "berberis_test_utils_headers",
+    defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
 }

@@ -33,6 +33,22 @@ class SemanticsPlayer {
 
   // Decoder's InsnConsumer implementation.
 
+  void Fence(const typename Decoder::FenceArgs& args) {
+    if (args.src != 0 || args.dst != 0) {
+      return Unimplemented();
+    }
+    listener_->Fence(
+        args.opcode, args.sw, args.sr, args.so, args.si, args.pw, args.pr, args.po, args.pi);
+  }
+
+  void FenceI(const typename Decoder::FenceIArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    listener_->FenceI(arg, args.imm);
+    // The unused fields in the FENCE.I instruction, imm[11:0], rs1, and rd, are reserved for
+    // finer-grain fences in future extensions. For forward compatibility, base implementations
+    // shall ignore these fields, and standard software shall zero these fields.
+  }
+
   void Op(const typename Decoder::OpArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
@@ -44,6 +60,13 @@ class SemanticsPlayer {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
     Register result = listener_->Op32(args.opcode, arg1, arg2);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void Amo(const typename Decoder::AmoArgs& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    Register result = listener_->Amo(args.opcode, arg1, arg2, args.aq, args.rl);
     SetRegOrIgnore(args.dst, result);
   };
 

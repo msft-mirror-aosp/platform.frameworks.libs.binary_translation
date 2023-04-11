@@ -23,6 +23,8 @@
 #include <cstring>
 #include <type_traits>
 
+#include "berberis/base/bit_util.h"
+
 namespace berberis {
 
 // Decode() method takes a sequence of bytes and decodes it into the instruction opcode and fields.
@@ -80,6 +82,42 @@ class Decoder {
     kMaxBaseOpcode = 0b11'111,
   };
 
+  enum class CompressedOpcode {
+    kAddi4spn = 0b00'000,
+    kFld = 0b001'00,
+    kLw = 0b010'00,
+    kLd = 0b011'00,
+    // Reserved 0b00'100
+    kFsd = 0b101'00,
+    kSw = 0b110'00,
+    kSd = 0b111'00,
+    kAddi = 0b000'00,
+    kAddiw = 0b001'00,
+    kLi = 0b010'00,
+    kLui_Addi16sp = 0b011'01,
+    kMisc_Alu = 0b100'01,
+    kJ = 0b101'01,
+    kBeqz = 0b110'01,
+    kBnez = 0b111'01,
+    kSlli = 0b000'10,
+    kFldsp = 0b001'10,
+    kLwsp = 0b010'10,
+    kDsp = 0b011'10,
+    kJr_Jalr_Mv_Add = 0b100'10,
+    kFdsp = 0b101'10,
+    kSwsp = 0b110'10,
+    kSdsp = 0b111'10,
+    // instruction with 0bxxx'11 opcodes are not compressed instruction and can not be in this
+    // table.
+    kMaxCompressedOpcode = 0b111'11,
+  };
+
+  enum class FenceOpcode {
+    kFence = 0b0000,
+    kFenceTso = 0b1000,
+    kFenceMaxOpcode = 0b1111,
+  };
+
   enum class OpOpcode {
     kAdd = 0b0000'000'000,
     kSub = 0b0100'000'000,
@@ -114,6 +152,32 @@ class Decoder {
     kRemw = 0b0000'001'110,
     kRemuw = 0b0000'001'111,
     kMaxOp32Opcode = 0b1111'111'111,
+  };
+
+  enum class AmoOpcode {
+    kLrW = 0b00010'010,
+    kScW = 0b00011'010,
+    kAmoswapW = 0b00001'010,
+    kAmoaddW = 0b00000'010,
+    kAmoxorW = 0b00100'010,
+    kAmoandW = 0b01100'010,
+    kAmoorW = 0b01000'010,
+    kAmominW = 0b10000'010,
+    kAmomaxW = 0b10100'010,
+    kAmominuW = 0b11000'010,
+    kAmomaxuW = 0b11100'010,
+    kLrD = 0b00010'011,
+    kScD = 0b00011'011,
+    kAmoswapD = 0b00001'011,
+    kAmoaddD = 0b00000'011,
+    kAmoxorD = 0b00100'011,
+    kAmoandD = 0b01100'011,
+    kAmoorD = 0b01000'011,
+    kAmominD = 0b10000'011,
+    kAmomaxD = 0b10100'011,
+    kAmominuD = 0b11000'011,
+    kAmomaxuD = 0b11100'011,
+    kMaxAmoOpcode = 0b11111'111,
   };
 
   enum class LoadOpcode {
@@ -180,6 +244,26 @@ class Decoder {
     kMaxBranchOpcode = 0b111,
   };
 
+  struct FenceArgs {
+    FenceOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    bool sw : 1;
+    bool sr : 1;
+    bool so : 1;
+    bool si : 1;
+    bool pw : 1;
+    bool pr : 1;
+    bool po : 1;
+    bool pi : 1;
+  };
+
+  struct FenceIArgs {
+    uint8_t dst;
+    uint8_t src;
+    int16_t imm;
+  };
+
   struct OpArgs {
     OpOpcode opcode;
     uint8_t dst;
@@ -194,11 +278,20 @@ class Decoder {
     uint8_t src2;
   };
 
+  struct AmoArgs {
+    AmoOpcode opcode;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+    bool rl : 1;
+    bool aq : 1;
+  };
+
   struct LoadArgs {
     LoadOpcode opcode;
     uint8_t dst;
     uint8_t src;
-    uint16_t offset;
+    int16_t offset;
   };
 
   struct OpImmArgs {
@@ -236,7 +329,7 @@ class Decoder {
   struct StoreArgs {
     StoreOpcode opcode;
     uint8_t src;
-    uint16_t offset;
+    int16_t offset;
     uint8_t data;
   };
 
@@ -268,23 +361,89 @@ class Decoder {
   uint8_t Decode(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
     if ((*code & kInsnLenMask) != kInsnLenMask) {
-      // TODO(b/265372622): Support 16-bit instructions.
-      insn_consumer_->Unimplemented();
-      return 2;
+      code_ = *code;
+      return DecodeCompressedInstruction();
     }
-
     // Warning: do not cast and dereference the pointer
     // since the address may not be 4-bytes aligned.
     memcpy(&code_, code, sizeof(code_));
+    return DecodeBaseInstruction();
+  }
 
+  uint8_t DecodeCompressedInstruction() {
+    CompressedOpcode opcode_bits{(GetBits<uint8_t, 13, 3>() << 2) | GetBits<uint8_t, 0, 2>()};
+
+    switch (opcode_bits) {
+      case CompressedOpcode::kJ:
+        DecodeCJ();
+        break;
+      case CompressedOpcode::kAddi4spn:
+        DecodeCAddi4spn();
+        break;
+      default:
+        insn_consumer_->Unimplemented();
+    }
+    return 2;
+  }
+
+  void DecodeCJ() {
+    constexpr uint16_t kJHigh[32] = {
+        0x0,    0x400,  0x100,  0x500,  0x200,  0x600,  0x300,  0x700,  0x10,   0x410,  0x110,
+        0x510,  0x210,  0x610,  0x310,  0x710,  0xf800, 0xfc00, 0xf900, 0xfd00, 0xfa00, 0xfe00,
+        0xfb00, 0xff00, 0xf810, 0xfc10, 0xf910, 0xfd10, 0xfa10, 0xfe10, 0xfb10, 0xff10,
+    };
+    constexpr uint8_t kJLow[64] = {
+        0x0,  0x20, 0x2,  0x22, 0x4,  0x24, 0x6,  0x26, 0x8,  0x28, 0xa,  0x2a, 0xc,
+        0x2c, 0xe,  0x2e, 0x80, 0xa0, 0x82, 0xa2, 0x84, 0xa4, 0x86, 0xa6, 0x88, 0xa8,
+        0x8a, 0xaa, 0x8c, 0xac, 0x8e, 0xae, 0x40, 0x60, 0x42, 0x62, 0x44, 0x64, 0x46,
+        0x66, 0x48, 0x68, 0x4a, 0x6a, 0x4c, 0x6c, 0x4e, 0x6e, 0xc0, 0xe0, 0xc2, 0xe2,
+        0xc4, 0xe4, 0xc6, 0xe6, 0xc8, 0xe8, 0xca, 0xea, 0xcc, 0xec, 0xce, 0xee,
+    };
+    const JumpAndLinkArgs args = {
+        .dst = 0,
+        .offset =
+            bit_cast<int16_t>(kJHigh[GetBits<uint16_t, 8, 5>()]) | kJLow[GetBits<uint16_t, 2, 6>()],
+        .insn_len = 2,
+    };
+    insn_consumer_->JumpAndLink(args);
+  }
+
+  void DecodeCAddi4spn() {
+    constexpr uint8_t kAddi4spnHigh[16] = {
+        0x0, 0x40, 0x80, 0xc0, 0x4, 0x44, 0x84, 0xc4, 0x8, 0x48, 0x88, 0xc8, 0xc, 0x4c, 0x8c, 0xcc};
+    constexpr uint8_t kAddi4spnLow[16] = {
+        0x0, 0x2, 0x1, 0x3, 0x10, 0x12, 0x11, 0x13, 0x20, 0x22, 0x21, 0x23, 0x30, 0x32, 0x31, 0x33};
+    int16_t imm = (kAddi4spnHigh[GetBits<uint8_t, 9, 4>()] | kAddi4spnLow[GetBits<uint8_t, 5, 4>()])
+                  << 2;
+    // If immediate is zero then this instruction is treated as unimplemented.
+    // This includes RISC-V dedicated 16bit “unimplemented instruction” 0x0000.
+    if (imm == 0) {
+      return Undefined();
+    }
+    const OpImmArgs args = {
+        .opcode = OpImmOpcode::kAddi,
+        .dst = uint8_t(8 + GetBits<uint8_t, 2, 3>()),
+        .src = 2,
+        .imm = imm,
+    };
+    insn_consumer_->OpImm(args);
+  }
+
+  uint8_t DecodeBaseInstruction() {
     BaseOpcode opcode_bits{GetBits<uint8_t, 2, 5>()};
 
     switch (opcode_bits) {
+      case BaseOpcode::kMiscMem:
+        DecodeMiscMem();
+        break;
       case BaseOpcode::kOp:
         DecodeOp();
         break;
       case BaseOpcode::kOp32:
         DecodeOp32();
+        break;
+      case BaseOpcode::kAmo:
+        DecodeAmo();
         break;
       case BaseOpcode::kLoad:
         DecodeLoad();
@@ -352,6 +511,43 @@ class Decoder {
     insn_consumer_->Unimplemented();
   }
 
+  void DecodeMiscMem() {
+    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+    switch (low_opcode) {
+      case 0b000: {
+        uint8_t high_opcode = GetBits<uint8_t, 28, 4>();
+        FenceOpcode opcode = FenceOpcode{high_opcode};
+        const FenceArgs args = {
+            .opcode = opcode,
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .src = GetBits<uint8_t, 15, 5>(),
+            .sw = bool(GetBits<uint8_t, 20, 1>()),
+            .sr = bool(GetBits<uint8_t, 21, 1>()),
+            .so = bool(GetBits<uint8_t, 22, 1>()),
+            .si = bool(GetBits<uint8_t, 23, 1>()),
+            .pw = bool(GetBits<uint8_t, 24, 1>()),
+            .pr = bool(GetBits<uint8_t, 25, 1>()),
+            .pi = bool(GetBits<uint8_t, 26, 1>()),
+            .po = bool(GetBits<uint8_t, 27, 1>()),
+        };
+        insn_consumer_->Fence(args);
+        break;
+      }
+      case 0b001: {
+        uint16_t imm = GetBits<uint16_t, 20, 12>();
+        const FenceIArgs args = {
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .src = GetBits<uint8_t, 15, 5>(),
+            .imm = SignExtend<12>(imm),
+        };
+        insn_consumer_->FenceI(args);
+        break;
+      }
+      default:
+        return Undefined();
+    }
+  }
+
   void DecodeOp() {
     uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
     uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
@@ -363,6 +559,38 @@ class Decoder {
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Op(args);
+  }
+
+  void DecodeOp32() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
+    Op32Opcode opcode = Op32Opcode{low_opcode | (high_opcode << 3)};
+    const Op32Args args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+    };
+    insn_consumer_->Op32(args);
+  }
+
+  void DecodeAmo() {
+    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
+    uint16_t high_opcode = GetBits<uint16_t, 27, 5>();
+    // lr instruction must have rs2 == 0
+    if (high_opcode == 0b00010 && GetBits<uint8_t, 20, 5>() != 0) {
+      return Undefined();
+    }
+    AmoOpcode opcode = AmoOpcode{low_opcode | (high_opcode << 3)};
+    const AmoArgs args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+        .rl = bool(GetBits<uint8_t, 25, 1>()),
+        .aq = bool(GetBits<uint8_t, 26, 1>()),
+    };
+    insn_consumer_->Amo(args);
   }
 
   void DecodeLui() {
@@ -383,28 +611,30 @@ class Decoder {
     insn_consumer_->Auipc(args);
   }
 
-  void DecodeOp32() {
-    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
-    uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
-    Op32Opcode opcode = Op32Opcode{low_opcode | (high_opcode << 3)};
-    const Op32Args args = {
-        .opcode = opcode,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
-    };
-    insn_consumer_->Op32(args);
-  }
-
   void DecodeLoad() {
     LoadOpcode opcode{GetBits<uint8_t, 12, 3>()};
     const LoadArgs args = {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src = GetBits<uint8_t, 15, 5>(),
-        .offset = GetBits<uint16_t, 20, 12>(),
+        .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
     };
     insn_consumer_->Load(args);
+  }
+
+  void DecodeStore() {
+    StoreOpcode opcode{GetBits<uint8_t, 12, 3>()};
+
+    uint16_t low_imm = GetBits<uint16_t, 7, 5>();
+    uint16_t high_imm = GetBits<uint16_t, 25, 7>();
+
+    const StoreArgs args = {
+        .opcode = opcode,
+        .src = GetBits<uint8_t, 15, 5>(),
+        .offset = SignExtend<12>(int16_t(low_imm | (high_imm << 5))),
+        .data = GetBits<uint8_t, 20, 5>(),
+    };
+    insn_consumer_->Store(args);
   }
 
   void DecodeOpImm() {
@@ -461,21 +691,6 @@ class Decoder {
       };
       insn_consumer_->ShiftImm32(args);
     }
-  }
-
-  void DecodeStore() {
-    StoreOpcode opcode{GetBits<uint8_t, 12, 3>()};
-
-    uint16_t low_imm = GetBits<uint16_t, 7, 5>();
-    uint16_t high_imm = GetBits<uint16_t, 25, 7>();
-
-    const StoreArgs args = {
-        .opcode = opcode,
-        .src = GetBits<uint8_t, 15, 5>(),
-        .offset = static_cast<uint16_t>(low_imm | (high_imm << 5)),
-        .data = GetBits<uint8_t, 20, 5>(),
-    };
-    insn_consumer_->Store(args);
   }
 
   void DecodeBranch() {

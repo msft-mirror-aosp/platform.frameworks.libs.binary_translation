@@ -29,6 +29,8 @@
 #include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 
+#include "atomics.h"
+
 namespace berberis {
 
 namespace {
@@ -43,6 +45,56 @@ class Interpreter {
   //
   // Instruction implementations.
   //
+
+  // Note: we prefer not to use C11/C++ atomic_thread_fence or even gcc/clang builtin
+  // __atomic_thread_fence because all these function rely on the fact that compiler never uses
+  // non-temporal loads and stores and only issue “mfence” when sequentially consistent ordering is
+  // requested. They never issue “lfence” or “sfence”.
+  // Instead we pull the page from Linux's kernel book and map read ordereding to “lfence”, write
+  // ordering to “sfence” and read-write ordering to “mfence”.
+  // This can be important in the future if we would start using nontemporal moves in manually
+  // created assembly code.
+  // Ordering affecting I/O devices is not relevant to user-space code thus we just ignore bits
+  // related to devices I/O.
+  void Fence(Decoder::FenceOpcode opcode,
+             bool sw,
+             bool sr,
+             bool /*so*/,
+             bool /*si*/,
+             bool pw,
+             bool pr,
+             bool /*po*/,
+             bool /*pi*/) {
+    bool read_fence = sr | pr;
+    bool write_fence = sw | pw;
+    switch (opcode) {
+      case Decoder::FenceOpcode::kFence:
+        if (read_fence) {
+          if (write_fence) {
+            asm volatile("mfence" ::: "memory");
+          } else {
+            asm volatile("lfence" ::: "memory");
+          }
+        } else if (write_fence) {
+          asm volatile("sfence" ::: "memory");
+        }
+        return;
+      case Decoder::FenceOpcode::kFenceTso:
+        if (read_fence && write_fence) {
+          asm volatile("mfence" ::: "memory");
+          return;
+        }
+        break;
+      default:
+        break;
+    }
+    return Unimplemented();
+  }
+
+  void FenceI(Register /*arg*/, int16_t /*imm*/) {
+    // For interpreter-only mode we don't need to do anything here, but when we will have a
+    // translator we would need to flush caches here.
+  }
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
     using uint128_t = unsigned __int128;
@@ -117,7 +169,73 @@ class Interpreter {
     }
   }
 
-  Register Load(Decoder::LoadOpcode opcode, Register arg, uint16_t offset) {
+  Register Amo(Decoder::AmoOpcode opcode, Register arg1, Register arg2, bool aq, bool rl) {
+    switch (opcode) {
+      case Decoder::AmoOpcode::kLrW:
+        Unimplemented();
+        return {};
+      case Decoder::AmoOpcode::kLrD:
+        Unimplemented();
+        return {};
+      case Decoder::AmoOpcode::kScW:
+        Unimplemented();
+        return {};
+      case Decoder::AmoOpcode::kScD:
+        Unimplemented();
+        return {};
+
+      case Decoder::AmoOpcode::kAmoswapW:
+        return AtomicExchange<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoswapD:
+        return AtomicExchange<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmoaddW:
+        return AtomicAdd<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoaddD:
+        return AtomicAdd<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmoxorW:
+        return AtomicXor<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoxorD:
+        return AtomicXor<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmoandW:
+        return AtomicAnd<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoandD:
+        return AtomicAnd<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmoorW:
+        return AtomicOr<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmoorD:
+        return AtomicOr<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmominW:
+        return AtomicMin<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmominD:
+        return AtomicMin<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmomaxW:
+        return AtomicMax<int32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmomaxD:
+        return AtomicMax<int64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmominuW:
+        return AtomicMinu<uint32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmominuD:
+        return AtomicMinu<uint64_t>(arg1, arg2, aq, rl);
+
+      case Decoder::AmoOpcode::kAmomaxuW:
+        return AtomicMaxu<uint32_t>(arg1, arg2, aq, rl);
+      case Decoder::AmoOpcode::kAmomaxuD:
+        return AtomicMaxu<uint64_t>(arg1, arg2, aq, rl);
+
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  Register Load(Decoder::LoadOpcode opcode, Register arg, int16_t offset) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
       case Decoder::LoadOpcode::kLbu:
@@ -210,7 +328,7 @@ class Interpreter {
     }
   }
 
-  void Store(Decoder::StoreOpcode opcode, Register arg, uint16_t offset, Register data) {
+  void Store(Decoder::StoreOpcode opcode, Register arg, int16_t offset, Register data) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
       case Decoder::StoreOpcode::kSb:
