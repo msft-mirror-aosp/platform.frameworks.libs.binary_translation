@@ -37,7 +37,7 @@ const constexpr char* kTestExecutableName = "tiny_static_executable";
 constexpr uintptr_t kStaticExecutableEntryPoint = 0x1ce00;
 constexpr const char* kTestFilesDir = "/tiny_loader/tests/files/64/";
 #else
-constexpr uintptr_t kStaticExecutableEntryPoint = 0x804804c;
+constexpr uintptr_t kStaticExecutableEntryPoint = 0x410f30;
 constexpr const char* kTestFilesDir = "/tiny_loader/tests/files/32/";
 #endif
 

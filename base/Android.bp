@@ -63,7 +63,7 @@ cc_library_static {
 }
 
 cc_test_library {
-    name: "libberberis_base_host_tests",
+    name: "libberberis_base_unit_tests",
     defaults: ["berberis_test_library_defaults"],
     srcs: [
         "arena_test.cc",
