@@ -47,7 +47,7 @@ cc_library_static {
 }
 
 cc_library_static {
-    name: "libberberis_kernel_api",
+    name: "libberberis_kernel_api_riscv64",
     defaults: [
         "berberis_defaults_64",
     ],
