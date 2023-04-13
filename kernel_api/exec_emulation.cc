@@ -27,9 +27,6 @@ namespace berberis {
 
 namespace {
 
-constexpr char kGuestPlatformVarPrefix[] = "BERBERIS_GUEST_";
-constexpr size_t kGuestPlatformVarPrefixSize = sizeof(kGuestPlatformVarPrefix) - 1;
-
 bool IsPlatformVar(const char* s) {
   return StartsWith(s, "LD_CONFIG_FILE=") || StartsWith(s, "LD_LIBRARY_PATH=") ||
          StartsWith(s, "LD_DEBUG=") || StartsWith(s, "LD_PRELOAD=");
@@ -61,9 +58,11 @@ char* const* MangleGuestEnvp(ScopedMmap* dst, char* const* envp) {
     return envp;
   }
 
+  auto [guest_prefix, guest_prefix_size] = GetGuestPlatformVarPrefixWithSize();
+
   size_t array_size = sizeof(char*) * (env_count + 1);    // text pointers + terminating nullptr
   dst->Init(array_size + text_size +                      // array + orig text
-            kGuestPlatformVarPrefixSize * mangle_count);  // added prefixes
+            guest_prefix_size * mangle_count);            // added prefixes
 
   char** new_array = static_cast<char**>(dst->data());
   char* new_text = static_cast<char*>(dst->data()) + array_size;
@@ -73,8 +72,8 @@ char* const* MangleGuestEnvp(ScopedMmap* dst, char* const* envp) {
     new_array[i] = new_text;
 
     if (IsPlatformVar(env)) {
-      strcpy(new_text, kGuestPlatformVarPrefix);
-      new_text += kGuestPlatformVarPrefixSize;
+      strcpy(new_text, guest_prefix);
+      new_text += guest_prefix_size;
     }
 
     strcpy(new_text, env);
@@ -89,14 +88,15 @@ char* const* MangleGuestEnvp(ScopedMmap* dst, char* const* envp) {
 }  // namespace
 
 char** DemangleGuestEnvp(char** dst, char** envp) {
+  auto [guest_prefix, guest_prefix_size] = GetGuestPlatformVarPrefixWithSize();
+
   for (; *envp; ++envp) {
     char* env = *envp;
     if (IsPlatformVar(env)) {
       continue;
     }
-    if (StartsWith(env, kGuestPlatformVarPrefix) &&
-        IsPlatformVar(env + kGuestPlatformVarPrefixSize)) {
-      env += kGuestPlatformVarPrefixSize;
+    if (StartsWith(env, guest_prefix) && IsPlatformVar(env + guest_prefix_size)) {
+      env += guest_prefix_size;
     }
     *dst++ = env;
   }
