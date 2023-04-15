@@ -32,6 +32,7 @@
 
 #include <cerrno>
 
+#include "berberis/base/checks.h"
 #include "berberis/kernel_api/open_emulation.h"
 #include "berberis/kernel_api/tracing.h"
 
@@ -62,9 +63,49 @@ static_assert(F_SETLEASE == 1024);
 static_assert(F_GETLEASE == 1025);
 static_assert(F_NOTIFY == 1026);
 
+#if !defined(ANDROID_HOST_MUSL)
 static_assert(F_GETLK == 5);
 static_assert(F_SETLK == 6);
 static_assert(F_SETLKW == 7);
+#endif
+
+#define GUEST_F_GETLK 5
+#define GUEST_F_SETLK 6
+#define GUEST_F_SETLKW 7
+
+#if defined(ANDROID_HOST_MUSL)
+// Musl only has a 64-bit flock that it uses for flock and flock64.
+
+struct Guest_flock {
+  int16_t l_type;
+  int16_t l_whence;
+  int32_t l_start;
+  int32_t l_len;
+  int32_t l_pid;
+};
+
+const struct flock64* ConvertGuestFlockToHostFlock64(const Guest_flock* guest,
+                                                     struct flock64* host) {
+  if (!guest) {
+    return nullptr;
+  }
+  *host = {guest->l_type, guest->l_whence, guest->l_start, guest->l_len, guest->l_pid};
+  return host;
+}
+
+void ConvertHostFlock64ToGuestFlock(const struct flock64* host, Guest_flock* guest) {
+  CHECK_NE(guest, nullptr);
+  CHECK_LE(host->l_start, INT32_MAX);
+  CHECK_GE(host->l_start, INT32_MIN);
+  CHECK_LE(host->l_len, INT32_MAX);
+  CHECK_GE(host->l_len, INT32_MIN);
+  *guest = {host->l_type,
+            host->l_whence,
+            static_cast<int32_t>(host->l_start),
+            static_cast<int32_t>(host->l_len),
+            host->l_pid};
+}
+#endif
 
 namespace berberis {
 
@@ -102,10 +143,29 @@ int GuestFcntl(int fd, int cmd, long arg_3) {
 #if defined(F_GET_SEALS)
     case F_GET_SEALS:
 #endif
-    case F_SETLK:
-    case F_SETLKW:
-    case F_GETLK:
+    case GUEST_F_SETLK:
+    case GUEST_F_SETLKW:
+    case GUEST_F_GETLK:
+#if defined(ANDROID_HOST_MUSL)
+    {
+      // Musl only has a 64-bit flock for both flock and flock64, translate flock calls to flock64.
+      Guest_flock* guest_flock = reinterpret_cast<Guest_flock*>(arg_3);
+      struct flock64 host_flock64;
+      // In case of GETLK input flock describes region
+      // to check, thus conversion is also required.
+      auto result = fcntl(fd,
+                          cmd + F_SETLK - GUEST_F_SETLK,
+                          ConvertGuestFlockToHostFlock64(guest_flock, &host_flock64));
+      if (result == 0 && cmd == GUEST_F_GETLK) {
+        // Output contains the result of lock check.
+        ConvertHostFlock64ToGuestFlock(&host_flock64, guest_flock);
+      }
+      return result;
+    }
+#else
+      // struct flock compatibility is checked above.
       return fcntl(fd, cmd, arg_3);
+#endif
     case F_SETFL:
       return fcntl(fd, cmd, ToHostOpenFlags(arg_3));
     default:
