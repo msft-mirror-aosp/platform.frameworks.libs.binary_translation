@@ -394,10 +394,28 @@ class Decoder {
       case CompressedOpcode::kAddi:
         DecodeCAddi();
         break;
+      case CompressedOpcode::kFld:
+        DecodeCFld();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
     return 2;
+  }
+
+  void DecodeCFld() {
+    uint8_t low_imm = GetBits<uint8_t, 5, 2>();
+    uint8_t high_imm = GetBits<uint8_t, 10, 3>();
+    uint8_t imm = (low_imm << 6 | high_imm << 3);
+    uint8_t rd = GetBits<uint8_t, 2, 3>();
+    uint8_t rs = GetBits<uint8_t, 7, 3>();
+    const LoadFpArgs args = {
+        .opcode = LoadFpOpcode::kFld,
+        .dst = uint8_t(8 + rd),
+        .src = uint8_t(8 + rs),
+        .offset = imm,
+    };
+    insn_consumer_->Load(args);
   }
 
   void DecodeCAddi() {
