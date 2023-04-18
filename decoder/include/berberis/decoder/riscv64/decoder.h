@@ -194,6 +194,17 @@ class Decoder {
     kMaxAmoOpcode = 0b11111'111,
   };
 
+  enum class OpFpOpcode {
+    // Bit #2 = 1 means rm is an opcode extension.
+    // Bit #3 = 1 means rs2 is an opcode extension
+    // Bits #4, #1, and #0 - actual opcode.
+    kFAdd = 0b0'0'0'00,
+    kFSub = 0b0'0'0'01,
+    kFMul = 0b0'0'0'10,
+    kFDiv = 0b0'0'0'11,
+    kMaxOpFpOpcode = 0b1'1'1'11,
+  };
+
   enum class LoadOpcode {
     kLb = 0b000,
     kLh = 0b001,
@@ -275,6 +286,14 @@ class Decoder {
     kFrm = 0b00'00'0000'0010,
     kFCsr = 0b00'00'0000'0011,
     kMaxCsrRegister = 0b11'11'1111'1111,
+  };
+
+  enum class FloatSize {
+    kFloat = 0b00,
+    kDouble = 0b01,
+    kHalf = 0b10,
+    kQuad = 0b11,
+    kMaxFloatSize = 0b11,
   };
 
   struct AmoArgs {
@@ -378,6 +397,15 @@ class Decoder {
 
   using StoreArgs = StoreArgsTemplate<StoreOpcode>;
   using StoreFpArgs = StoreArgsTemplate<StoreFpOpcode>;
+
+  struct OpFpArgs {
+    OpFpOpcode opcode;
+    FloatSize float_size;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+    uint8_t rm;
+  };
 
   struct BranchArgs {
     BranchOpcode opcode;
@@ -563,6 +591,9 @@ class Decoder {
         break;
       case BaseOpcode::kOpImm32:
         DecodeOp<OpImm32Opcode, ShiftImm32Opcode, 5>();
+        break;
+      case BaseOpcode::kOpFp:
+        DecodeOpFp();
         break;
       case BaseOpcode::kStore:
         DecodeStore<StoreOpcode>();
@@ -806,6 +837,20 @@ class Decoder {
         .insn_len = 4,
     };
     insn_consumer_->JumpAndLink(args);
+  }
+
+  void DecodeOpFp() {
+    uint8_t float_size = GetBits<uint8_t, 25, 2>();
+    uint8_t opcode_bits = GetBits<uint8_t, 27, 5>();
+    const OpFpArgs args = {
+        .opcode = OpFpOpcode(opcode_bits),
+        .float_size = FloatSize(float_size),
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+        .rm = GetBits<uint8_t, 12, 3>(),
+    };
+    insn_consumer_->OpFp(args);
   }
 
   void DecodeSystem() {
