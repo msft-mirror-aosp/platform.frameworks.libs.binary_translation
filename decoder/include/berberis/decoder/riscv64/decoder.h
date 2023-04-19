@@ -400,10 +400,28 @@ class Decoder {
       case CompressedOpcode::kLw:
         DecodeCLw();
         break;
+      case CompressedOpcode::kLd:
+        DecodeCLd();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
     return 2;
+  }
+
+  void DecodeCLd() {
+    uint8_t low_imm = GetBits<uint8_t, 5, 2>();
+    uint8_t high_imm = GetBits<uint8_t, 10, 3>();
+    uint8_t imm = (low_imm << 6 | high_imm << 3);
+    uint8_t rd = GetBits<uint8_t, 2, 3>();
+    uint8_t rs = GetBits<uint8_t, 7, 3>();
+    const LoadArgs args = {
+        .opcode = LoadOpcode::kLd,
+        .dst = uint8_t(8 + rd),
+        .src = uint8_t(8 + rs),
+        .offset = imm,
+    };
+    insn_consumer_->Load(args);
   }
 
   void DecodeCLw() {
