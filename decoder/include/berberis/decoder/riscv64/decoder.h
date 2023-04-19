@@ -112,6 +112,20 @@ class Decoder {
     kMaxCompressedOpcode = 0b111'11,
   };
 
+  enum class CsrOpcode {
+    kCsrrw = 0b01,
+    kCsrrs = 0b10,
+    kCsrrc = 0b11,
+    kMaxCsrOpcode = 0b11,
+  };
+
+  enum class CsrImmOpcode {
+    kCsrrwi = 0b01,
+    kCsrrsi = 0b10,
+    kCsrrci = 0b11,
+    kMaxCsrOpcode = 0b11,
+  };
+
   enum class FenceOpcode {
     kFence = 0b0000,
     kFenceTso = 0b1000,
@@ -256,6 +270,13 @@ class Decoder {
     kMaxBranchOpcode = 0b111,
   };
 
+  enum class CsrRegister {
+    kFFlags = 0b00'00'0000'0001,
+    kFrm = 0b00'00'0000'0010,
+    kFCsr = 0b00'00'0000'0011,
+    kMaxCsrRegister = 0b11'11'1111'1111,
+  };
+
   struct AmoArgs {
     AmoOpcode opcode;
     uint8_t dst;
@@ -263,6 +284,20 @@ class Decoder {
     uint8_t src2;
     bool rl : 1;
     bool aq : 1;
+  };
+
+  struct CsrArgs {
+    CsrOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    CsrRegister csr;
+  };
+
+  struct CsrImmArgs {
+    CsrImmOpcode opcode;
+    uint8_t dst;
+    uint8_t imm;
+    CsrRegister csr;
   };
 
   struct FenceArgs {
@@ -751,11 +786,32 @@ class Decoder {
   }
 
   void DecodeSystem() {
-    int32_t opcode = GetBits<uint32_t, 7, 25>();
-    const SystemArgs args = {
-        .opcode = SystemOpcode(opcode),
+    uint8_t low_opcode = GetBits<uint8_t, 12, 2>();
+    if (low_opcode == 0b00) {
+      int32_t opcode = GetBits<uint32_t, 7, 25>();
+      const SystemArgs args = {
+          .opcode = SystemOpcode(opcode),
+      };
+      return insn_consumer_->System(args);
+    }
+    if (GetBits<uint8_t, 14, 1>()) {
+      CsrImmOpcode opcode = CsrImmOpcode(low_opcode);
+      const CsrImmArgs args = {
+          .opcode = opcode,
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .imm = GetBits<uint8_t, 15, 5>(),
+          .csr = CsrRegister(GetBits<uint16_t, 20, 12>()),
+      };
+      return insn_consumer_->Csr(args);
+    }
+    CsrOpcode opcode = CsrOpcode(low_opcode);
+    const CsrArgs args = {
+        .opcode = opcode,
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src = GetBits<uint8_t, 15, 5>(),
+        .csr = CsrRegister(GetBits<uint16_t, 20, 12>()),
     };
-    insn_consumer_->System(args);
+    return insn_consumer_->Csr(args);
   }
 
   void DecodeJumpAndLinkRegister() {

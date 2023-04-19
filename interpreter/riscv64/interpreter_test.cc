@@ -27,6 +27,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
+#include "berberis/intrinsics/guest_fpstate.h"
 
 namespace berberis {
 
@@ -63,6 +64,15 @@ class Riscv64InterpreterTest : public ::testing::Test {
     state_.cpu.insn_addr = code_start;
     InterpretInsn(&state_);
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+  }
+
+  void InterpretCsr(uint32_t insn_bytes, uint8_t expected_rm) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    state_.cpu.frm = 0b001u;
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
+    EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
 
   void InterpretOp(uint32_t insn_bytes,
@@ -360,6 +370,16 @@ TEST_F(Riscv64InterpreterTest, CJ) {
     };
     InterpretCJ(o_bits.parcel, offset);
   }
+}
+
+TEST_F(Riscv64InterpreterTest, CsrInstrctuion) {
+  ScopedRoundingMode scoped_rounding_mode;
+  // Csrrw x2, frm, 2
+  InterpretCsr(0x00215173, 2);
+  // Csrrsi x2, frm, 2
+  InterpretCsr(0x00216173, 3);
+  // Csrrci x2, frm, 1
+  InterpretCsr(0x0020f173, 0);
 }
 
 TEST_F(Riscv64InterpreterTest, FenceInstructions) {
