@@ -17,6 +17,13 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+cc_library_headers {
+    name: "libberberis_intrinsics_headers",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    export_include_dirs: ["include"],
+}
+
 cc_library_static {
     name: "libberberis_intrinsics",
     defaults: ["berberis_defaults"],
