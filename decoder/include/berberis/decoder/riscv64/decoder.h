@@ -430,13 +430,13 @@ class Decoder {
         DecodeCAddi();
         break;
       case CompressedOpcode::kFld:
-        DecodeCFld();
+        DecodeCLoadStore<LoadFpArgs, LoadFpOpcode::kFld, &InsnConsumer::Load>();
         break;
       case CompressedOpcode::kLw:
         DecodeCLw();
         break;
       case CompressedOpcode::kLd:
-        DecodeCLd();
+        DecodeCLoadStore<LoadArgs, LoadOpcode::kLd, &InsnConsumer::Load>();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -444,19 +444,20 @@ class Decoder {
     return 2;
   }
 
-  void DecodeCLd() {
+  template <typename Args, auto opcode, void (InsnConsumer::*Op)(const Args&)>
+  void DecodeCLoadStore() {
     uint8_t low_imm = GetBits<uint8_t, 5, 2>();
     uint8_t high_imm = GetBits<uint8_t, 10, 3>();
     uint8_t imm = (low_imm << 6 | high_imm << 3);
     uint8_t rd = GetBits<uint8_t, 2, 3>();
     uint8_t rs = GetBits<uint8_t, 7, 3>();
-    const LoadArgs args = {
-        .opcode = LoadOpcode::kLd,
+    const Args args = {
+        .opcode = opcode,
         .dst = uint8_t(8 + rd),
         .src = uint8_t(8 + rs),
         .offset = imm,
     };
-    insn_consumer_->Load(args);
+    (insn_consumer_->*Op)(args);
   }
 
   void DecodeCLw() {
@@ -468,21 +469,6 @@ class Decoder {
     uint8_t rs = GetBits<uint8_t, 7, 3>();
     const LoadArgs args = {
         .opcode = LoadOpcode::kLw,
-        .dst = uint8_t(8 + rd),
-        .src = uint8_t(8 + rs),
-        .offset = imm,
-    };
-    insn_consumer_->Load(args);
-  }
-
-  void DecodeCFld() {
-    uint8_t low_imm = GetBits<uint8_t, 5, 2>();
-    uint8_t high_imm = GetBits<uint8_t, 10, 3>();
-    uint8_t imm = (low_imm << 6 | high_imm << 3);
-    uint8_t rd = GetBits<uint8_t, 2, 3>();
-    uint8_t rs = GetBits<uint8_t, 7, 3>();
-    const LoadFpArgs args = {
-        .opcode = LoadFpOpcode::kFld,
         .dst = uint8_t(8 + rd),
         .src = uint8_t(8 + rs),
         .offset = imm,
