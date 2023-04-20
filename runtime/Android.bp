@@ -41,7 +41,7 @@ cc_library_static {
 }
 
 cc_test_library {
-    name: "libberberis_runtime_host_tests",
+    name: "libberberis_runtime_unit_tests",
     defaults: ["berberis_test_library_defaults_64"],
     srcs: ["execute_guest_test.cc"],
     header_libs: [

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Google Inc. All Rights Reserved.
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ const constexpr char* kTestExecutableName = "tiny_static_executable";
 constexpr uintptr_t kStaticExecutableEntryPoint = 0x1ce00;
 constexpr const char* kTestFilesDir = "/tiny_loader/tests/files/64/";
 #else
-constexpr uintptr_t kStaticExecutableEntryPoint = 0x804804c;
+constexpr uintptr_t kStaticExecutableEntryPoint = 0x410f30;
 constexpr const char* kTestFilesDir = "/tiny_loader/tests/files/32/";
 #endif
 
