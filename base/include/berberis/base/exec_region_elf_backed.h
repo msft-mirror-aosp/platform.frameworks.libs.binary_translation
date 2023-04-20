@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
-#define BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
+#ifndef BERBERIS_BASE_EXEC_REGION_ELF_BACKED_H_
+#define BERBERIS_BASE_EXEC_REGION_ELF_BACKED_H_
 
-#include "berberis/base/checks.h"
+#include <cstddef>
+#include <cstdint>
+
+#include "exec_region.h"
 
 namespace berberis {
 
-inline int ToHostSyscallNumber(int) {
-  FATAL("Not implemented ToHostSyscallNumber");
-}
+class ExecRegionElfBackedFactory {
+ public:
+  // Size of elf-backed executable code region.
+  static constexpr uint32_t kExecRegionSize = 512 * 1024;
+
+  // The size is ignored here since it is property of the elf-file
+  // It is only used to check that it does not exceed kExecRegionSize
+  static ExecRegion Create(size_t size);
+};
 
 }  // namespace berberis
 
-#endif  // BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
+#endif  // BERBERIS_BASE_EXEC_REGION_ELF_BACKED_H_

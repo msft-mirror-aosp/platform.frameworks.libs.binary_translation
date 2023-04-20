@@ -17,7 +17,12 @@
 #ifndef BERBERIS_KERNEL_API_EXEC_EMULATION_H_
 #define BERBERIS_KERNEL_API_EXEC_EMULATION_H_
 
+#include <cstddef>
+#include <utility>
+
 namespace berberis {
+
+std::pair<const char*, size_t> GetGuestPlatformVarPrefixWithSize();
 
 char** DemangleGuestEnvp(char** dst, char** envp);
 

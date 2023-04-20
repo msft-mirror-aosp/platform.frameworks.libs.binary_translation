@@ -27,6 +27,24 @@ namespace berberis {
 struct CPUState {
   // x1 to x31.
   uint64_t x[31];
+  // f0 to f31. We are using uint64_t because C++ may change values of NaN when they are passed from
+  // or to function and RISC-V uses NaN-boxing which would make things problematic.
+  uint64_t f[32];
+  // RISC-V has five rounding modes, while x86-64 has only four.
+  //
+  // Extra rounding mode (RMM in RISC-V documentation) is emulated but requires the use of
+  // FE_TOWARDZERO mode for correct work.
+  //
+  // Additionally RISC-V implementation is supposed to support three “illegal” rounding modes and
+  // when they are selected all instructions which use rounding mode trigger “undefined instruction”
+  // exception.
+  //
+  // For simplicity we always keep full rounding mode (3 bits) in the frm field and set host
+  // rounding mode to appropriate one.
+  //
+  // Exceptions, on the other hand, couldn't be stored here efficiently, instead we rely on the fact
+  // that x86-64 implements all five exceptions that RISC-V needs (and more).
+  uint8_t frm : 3;
   GuestAddr insn_addr;
 };
 
@@ -42,6 +60,18 @@ inline void SetXReg(CPUState& state, uint64_t val) {
   static_assert(kIndex > 0);
   static_assert((kIndex - 1) < arraysize(state.x));
   state.x[kIndex - 1] = val;
+}
+
+template <uint8_t kIndex>
+inline uint64_t GetFReg(const CPUState& state) {
+  static_assert((kIndex) < arraysize(state.f));
+  return state.f[kIndex];
+}
+
+template <uint8_t kIndex>
+inline void SetFReg(CPUState& state, uint64_t val) {
+  static_assert((kIndex) < arraysize(state.f));
+  state.f[kIndex] = val;
 }
 
 struct ThreadState {
