@@ -27,6 +27,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
+#include "berberis/intrinsics/guest_fpstate.h"
 
 namespace berberis {
 
@@ -34,6 +35,22 @@ namespace {
 
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
+  void InterpretCLd(uint16_t insn_bytes, uint64_t offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<8>(state_.cpu), kDataToLoad);
+  }
+
+  void InterpretCLw(uint16_t insn_bytes, uint64_t offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<8>(state_.cpu), uint64_t(int32_t(kDataToLoad)));
+  }
+
   void InterpretCFld(uint16_t insn_bytes, uint64_t offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -63,6 +80,15 @@ class Riscv64InterpreterTest : public ::testing::Test {
     state_.cpu.insn_addr = code_start;
     InterpretInsn(&state_);
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+  }
+
+  void InterpretCsr(uint32_t insn_bytes, uint8_t expected_rm) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    state_.cpu.frm = 0b001u;
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
+    EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
 
   void InterpretOp(uint32_t insn_bytes,
@@ -197,6 +223,73 @@ class Riscv64InterpreterTest : public ::testing::Test {
   uint64_t store_area_;
   ThreadState state_;
 };
+
+TEST_F(Riscv64InterpreterTest, CLd) {
+  union {
+    uint16_t offset;
+    struct {
+      uint8_t : 3;
+      uint8_t i3_i5 : 3;
+      uint8_t i6_i7 : 2;
+    } i_bits;
+  };
+  for (offset = int16_t{0}; offset < int16_t{256}; offset += 8) {
+    union {
+      int16_t parcel;
+      struct {
+        uint8_t low_opcode : 2;
+        uint8_t rd : 3;
+        uint8_t i6_i7 : 2;
+        uint8_t rs : 3;
+        uint8_t i3_i5 : 3;
+        uint8_t high_opcode : 3;
+      } __attribute__((__packed__));
+    } o_bits = {
+        .low_opcode = 0b00,
+        .rd = 0,
+        .i6_i7 = i_bits.i6_i7,
+        .rs = 0,
+        .i3_i5 = i_bits.i3_i5,
+        .high_opcode = 0b011,
+    };
+    InterpretCLd(o_bits.parcel, offset);
+  }
+}
+
+TEST_F(Riscv64InterpreterTest, CLw) {
+  union {
+    uint16_t offset;
+    struct {
+      uint8_t : 2;
+      uint8_t i2 : 1;
+      uint8_t i3_i5 : 3;
+      uint8_t i6 : 1;
+    } i_bits;
+  };
+  for (offset = uint8_t{0}; offset < uint8_t{128}; offset += 4) {
+    union {
+      int16_t parcel;
+      struct {
+        uint8_t low_opcode : 2;
+        uint8_t rd : 3;
+        uint8_t i6 : 1;
+        uint8_t i2 : 1;
+        uint8_t rs : 3;
+        uint8_t i3_i5 : 3;
+        uint8_t high_opcode : 3;
+      } __attribute__((__packed__));
+    } o_bits = {
+        .low_opcode = 0b00,
+        .rd = 0,
+        .i6 = i_bits.i6,
+        .i2 = i_bits.i2,
+        .rs = 0,
+        .i3_i5 = i_bits.i3_i5,
+        .high_opcode = 0b010,
+    };
+    InterpretCLw(o_bits.parcel, offset);
+  }
+}
 
 TEST_F(Riscv64InterpreterTest, CFld) {
   union {
@@ -360,6 +453,16 @@ TEST_F(Riscv64InterpreterTest, CJ) {
     };
     InterpretCJ(o_bits.parcel, offset);
   }
+}
+
+TEST_F(Riscv64InterpreterTest, CsrInstrctuion) {
+  ScopedRoundingMode scoped_rounding_mode;
+  // Csrrw x2, frm, 2
+  InterpretCsr(0x00215173, 2);
+  // Csrrsi x2, frm, 2
+  InterpretCsr(0x00216173, 3);
+  // Csrrci x2, frm, 1
+  InterpretCsr(0x0020f173, 0);
 }
 
 TEST_F(Riscv64InterpreterTest, FenceInstructions) {
