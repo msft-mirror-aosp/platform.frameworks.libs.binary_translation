@@ -430,13 +430,19 @@ class Decoder {
         DecodeCAddi();
         break;
       case CompressedOpcode::kFld:
-        DecodeCLoadStore<LoadFpArgs, LoadFpOpcode::kFld, &InsnConsumer::Load>();
+        DecodeCLoadStore<LoadFpArgs, LoadFpOpcode::kFld, false>();
         break;
       case CompressedOpcode::kLw:
         DecodeCLw();
         break;
       case CompressedOpcode::kLd:
-        DecodeCLoadStore<LoadArgs, LoadOpcode::kLd, &InsnConsumer::Load>();
+        DecodeCLoadStore<LoadArgs, LoadOpcode::kLd, false>();
+        break;
+      case CompressedOpcode::kFsd:
+        DecodeCLoadStore<StoreFpArgs, StoreFpOpcode::kFsd, true>();
+        break;
+      case CompressedOpcode::kSd:
+        DecodeCLoadStore<StoreArgs, StoreOpcode::kSd, true>();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -444,20 +450,30 @@ class Decoder {
     return 2;
   }
 
-  template <typename Args, auto opcode, void (InsnConsumer::*Op)(const Args&)>
+  template <typename Args, auto opcode, bool kStore>
   void DecodeCLoadStore() {
     uint8_t low_imm = GetBits<uint8_t, 5, 2>();
     uint8_t high_imm = GetBits<uint8_t, 10, 3>();
     uint8_t imm = (low_imm << 6 | high_imm << 3);
     uint8_t rd = GetBits<uint8_t, 2, 3>();
     uint8_t rs = GetBits<uint8_t, 7, 3>();
-    const Args args = {
-        .opcode = opcode,
-        .dst = uint8_t(8 + rd),
-        .src = uint8_t(8 + rs),
-        .offset = imm,
-    };
-    (insn_consumer_->*Op)(args);
+    if constexpr (kStore) {
+      const Args args = {
+          .opcode = opcode,
+          .src = uint8_t(8 + rs),
+          .offset = imm,
+          .data = uint8_t(8 + rd),
+      };
+      insn_consumer_->Store(args);
+    } else {
+      const Args args = {
+          .opcode = opcode,
+          .dst = uint8_t(8 + rd),
+          .src = uint8_t(8 + rs),
+          .offset = imm,
+      };
+      insn_consumer_->Load(args);
+    }
   }
 
   void DecodeCLw() {
