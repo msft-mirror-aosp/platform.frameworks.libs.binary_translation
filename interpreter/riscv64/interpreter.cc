@@ -16,6 +16,7 @@
 
 #include "berberis/interpreter/riscv64/interpreter.h"
 
+#include <cfenv>
 #include <cstdint>
 #include <cstring>
 
@@ -27,6 +28,7 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/intrinsics/riscv64/guest_fpstate.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 
 #include "atomics.h"
@@ -46,6 +48,47 @@ class Interpreter {
   //
   // Instruction implementations.
   //
+
+  Register Csr(Decoder::CsrOpcode opcode, Register arg, Decoder::CsrRegister csr) {
+    Register (*UpdateStatus)(Register arg, Register original_csr_value);
+    switch (opcode) {
+      case Decoder::CsrOpcode::kCsrrw:
+        UpdateStatus = [](Register arg, Register /*original_csr_value*/) { return arg; };
+        break;
+      case Decoder::CsrOpcode::kCsrrs:
+        UpdateStatus = [](Register arg, Register original_csr_value) {
+          return arg | original_csr_value;
+        };
+        break;
+      case Decoder::CsrOpcode::kCsrrc:
+        UpdateStatus = [](Register arg, Register original_csr_value) {
+          return ~arg & original_csr_value;
+        };
+        break;
+      default:
+        Unimplemented();
+        return {};
+    }
+    Register result;
+    switch (csr) {
+      case Decoder::CsrRegister::kFrm:
+        result = state_->cpu.frm;
+        arg = UpdateStatus(arg, result);
+        state_->cpu.frm = arg;
+        if (arg <= FPFlags::RM_MAX) {
+          std::fesetround(intrinsics::ToHostRoundingMode(arg));
+        }
+        break;
+      default:
+        Unimplemented();
+        return {};
+    }
+    return result;
+  }
+
+  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, Decoder::CsrRegister csr) {
+    return Csr(Decoder::CsrOpcode(opcode), imm, csr);
+  }
 
   // Note: we prefer not to use C11/C++ atomic_thread_fence or even gcc/clang builtin
   // __atomic_thread_fence because all these function rely on the fact that compiler never uses
