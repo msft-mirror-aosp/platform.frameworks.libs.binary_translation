@@ -135,6 +135,13 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void OpFp(const typename Decoder::OpFpArgs& args) {
+    FpRegister arg1 = GetFpReg(args.src1);
+    FpRegister arg2 = GetFpReg(args.src2);
+    FpRegister result = listener_->OpFp(args.opcode, args.float_size, args.rm, arg1, arg2);
+    SetFpReg(args.dst, result);
+  }
+
   void Store(const typename Decoder::StoreArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register data = GetRegOrZero(args.data);
