@@ -122,6 +122,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void InterpretOpFp(uint32_t insn_bytes,
+                     std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
+    for (auto [arg1, arg2, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg1);
+      SetFReg<3>(state_.cpu, arg2);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+    }
+  }
+
   void InterpretFence(uint32_t insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     InterpretInsn(&state_);
@@ -631,6 +642,17 @@ TEST_F(Riscv64InterpreterTest, OpImm32Instructions) {
   InterpretOpImm(0x0001509b, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
   // Sraiw
   InterpretOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
+}
+
+TEST_F(Riscv64InterpreterTest, OpFpInstructions) {
+  // FAdd.S
+  InterpretOpFp(0x003100d3,
+                {{bit_cast<uint32_t>(1.0f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(2.0f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(3.0f) | 0xffff'ffff'0000'0000}});
+  // FAdd.D
+  InterpretOpFp(0x023100d3,
+                {{bit_cast<uint64_t>(1.0), bit_cast<uint64_t>(2.0), bit_cast<uint64_t>(3.0)}});
 }
 
 TEST_F(Riscv64InterpreterTest, LoadInstructions) {
