@@ -19,6 +19,7 @@
 
 #include <cstdint>
 
+#include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"
 #include "berberis/guest_state/guest_addr.h"
 
@@ -72,6 +73,33 @@ template <uint8_t kIndex>
 inline void SetFReg(CPUState& state, uint64_t val) {
   static_assert((kIndex) < arraysize(state.f));
   state.f[kIndex] = val;
+}
+
+enum class RegisterType {
+  kReg,
+  kFpReg,
+};
+
+template <RegisterType register_type, uint8_t kIndex>
+inline auto GetReg(const CPUState& state) {
+  if constexpr (register_type == RegisterType::kReg) {
+    return GetXReg<kIndex>(state);
+  } else if constexpr (register_type == RegisterType::kFpReg) {
+    return GetFReg<kIndex>(state);
+  } else {
+    static_assert(kDependentValueFalse<register_type>, "Unsupported register type");
+  }
+}
+
+template <RegisterType register_type, uint8_t kIndex, typename Register>
+inline auto SetReg(CPUState& state, Register val) {
+  if constexpr (register_type == RegisterType::kReg) {
+    return SetXReg<kIndex>(state, val);
+  } else if constexpr (register_type == RegisterType::kFpReg) {
+    return SetFReg<kIndex>(state, val);
+  } else {
+    static_assert(kDependentValueFalse<register_type>, "Unsupported register type");
+  }
 }
 
 struct ThreadState {
