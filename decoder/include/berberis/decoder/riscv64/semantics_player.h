@@ -35,6 +35,19 @@ class SemanticsPlayer {
 
   // Decoder's InsnConsumer implementation.
 
+  void Csr(const typename Decoder::CsrArgs& args) {
+    Register result;
+    Register arg = GetRegOrZero(args.src);
+    result = listener_->Csr(args.opcode, arg, args.csr);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void Csr(const typename Decoder::CsrImmArgs& args) {
+    Register result;
+    result = listener_->Csr(args.opcode, args.imm, args.csr);
+    SetRegOrIgnore(args.dst, result);
+  }
+
   void Fence(const typename Decoder::FenceArgs& args) {
     listener_->Fence(args.opcode,
                      args.src,

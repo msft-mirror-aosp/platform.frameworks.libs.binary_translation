@@ -21,8 +21,8 @@
 // portion that is reflected in hosts' fp-environment.
 // TODO(levarum): Rename file to reflect this.
 
-#include <fenv.h>  // FE_TONEAREST and friends.
-#include <stdint.h>
+#include <cfenv>  // FE_TONEAREST and friends.
+#include <cstdint>
 
 namespace berberis {
 
@@ -38,6 +38,16 @@ static_assert(FE_TIESAWAY != FE_TONEAREST);
 static_assert(FE_TIESAWAY != FE_UPWARD);
 static_assert(FE_TIESAWAY != FE_DOWNWARD);
 static_assert(FE_TIESAWAY != FE_TOWARDZERO);
+
+class ScopedRoundingMode {
+ public:
+  ScopedRoundingMode() : saved_round_mode(std::fegetround()) {}
+  ScopedRoundingMode(int rm) : saved_round_mode(std::fegetround()) { std::fesetround(rm); }
+  ~ScopedRoundingMode() { std::fesetround(saved_round_mode); }
+
+ private:
+  int saved_round_mode;
+};
 
 }  // namespace berberis
 
