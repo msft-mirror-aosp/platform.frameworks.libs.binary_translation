@@ -35,48 +35,24 @@ namespace {
 
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
-  void InterpretCSd(uint16_t insn_bytes, uint64_t offset) {
+  template <RegisterType register_type, uint64_t expected_result>
+  void InterpretCompressedStore(uint16_t insn_bytes, uint64_t offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     store_area_ = 0;
     SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
-    SetXReg<9>(state_.cpu, kDataToLoad);
+    SetReg<register_type, 9>(state_.cpu, kDataToLoad);
     InterpretInsn(&state_);
-    EXPECT_EQ(store_area_, kDataToLoad);
+    EXPECT_EQ(store_area_, expected_result);
   }
 
-  void InterpretCFsd(uint16_t insn_bytes, uint64_t offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    store_area_ = 0;
-    SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
-    SetFReg<9>(state_.cpu, kDataToLoad);
-    InterpretInsn(&state_);
-    EXPECT_EQ(store_area_, kDataToLoad);
-  }
-
-  void InterpretCFld(uint16_t insn_bytes, uint64_t offset) {
+  template <RegisterType register_type, uint64_t expected_result>
+  void InterpretCompressedLoad(uint16_t insn_bytes, uint64_t offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
     InterpretInsn(&state_);
-    EXPECT_EQ(GetFReg<9>(state_.cpu), kDataToLoad);
-  }
-
-  void InterpretCLd(uint16_t insn_bytes, uint64_t offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
-    InterpretInsn(&state_);
-    EXPECT_EQ(GetXReg<9>(state_.cpu), kDataToLoad);
-  }
-
-  void InterpretCLw(uint16_t insn_bytes, uint64_t offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
-    InterpretInsn(&state_);
-    EXPECT_EQ(GetXReg<8>(state_.cpu), uint64_t(int32_t(kDataToLoad)));
+    EXPECT_EQ((GetReg<register_type, 9>(state_.cpu)), expected_result);
   }
 
   void InterpretCAddi4spn(uint16_t insn_bytes, uint64_t expected_offset) {
@@ -268,14 +244,16 @@ TEST_F(Riscv64InterpreterTest, CLw) {
       } __attribute__((__packed__));
     } o_bits = {
         .low_opcode = 0b00,
-        .rd = 0,
+        .rd = 1,
         .i6 = i_bits.i6,
         .i2 = i_bits.i2,
         .rs = 0,
         .i3_i5 = i_bits.i3_i5,
         .high_opcode = 0b010,
     };
-    InterpretCLw(o_bits.parcel, offset);
+    InterpretCompressedLoad<RegisterType::kReg,
+                            static_cast<uint64_t>(static_cast<int32_t>(kDataToLoad))>(o_bits.parcel,
+                                                                                      offset);
   }
 }
 
@@ -314,13 +292,21 @@ void TestCompressedLoadOrStore(Riscv64InterpreterTest* that) {
 
 TEST_F(Riscv64InterpreterTest, CompressedLoadAndStores) {
   // c.Fld
-  TestCompressedLoadOrStore<0b001'000'000'00'000'00, &Riscv64InterpreterTest::InterpretCFld>(this);
+  TestCompressedLoadOrStore<
+      0b001'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kFpReg, kDataToLoad>>(this);
   // c.Ld
-  TestCompressedLoadOrStore<0b011'000'000'00'000'00, &Riscv64InterpreterTest::InterpretCLd>(this);
+  TestCompressedLoadOrStore<
+      0b011'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kReg, kDataToLoad>>(this);
   // c.Fsd
-  TestCompressedLoadOrStore<0b101'000'000'00'000'00, &Riscv64InterpreterTest::InterpretCFsd>(this);
+  TestCompressedLoadOrStore<
+      0b101'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kFpReg, kDataToLoad>>(this);
   // c.Sd
-  TestCompressedLoadOrStore<0b111'000'000'00'000'00, &Riscv64InterpreterTest::InterpretCSd>(this);
+  TestCompressedLoadOrStore<
+      0b111'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kReg, kDataToLoad>>(this);
 }
 
 TEST_F(Riscv64InterpreterTest, CAddi) {
