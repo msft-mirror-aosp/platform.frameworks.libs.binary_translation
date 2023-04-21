@@ -64,23 +64,15 @@ class WrappedFloatType {
   explicit constexpr operator uint32_t() const { return value_; }
   explicit constexpr operator int64_t() const { return value_; }
   explicit constexpr operator uint64_t() const { return value_; }
-
-  auto BitCastToIntOfSameSize() {
-    if constexpr (std::is_same_v<BaseType, float>) {
-      return bit_cast<int32_t>(value_);
-    } else {
-      static_assert(std::is_same_v<BaseType, double>, "Only float and double BaseType supported.");
-      return bit_cast<int64_t>(value_);
-    }
-  }
-
-  // Only valid for BaseType==double. Returns the bit representation of the fp value.
   explicit constexpr operator WrappedFloatType<float>() const {
     return WrappedFloatType<float>(value_);
   }
   explicit constexpr operator WrappedFloatType<double>() const {
     return WrappedFloatType<double>(value_);
   }
+#if defined(__i386__) || defined(__x86_64__)
+  explicit constexpr operator long double() const { return value_; }
+#endif
   // Note: we don't provide unary operator-.  That's done on purpose: with floats -x and 0.-x
   // produce different results which could be surprising.  Use fneg instead of unary operator-.
   friend WrappedFloatType operator+(const WrappedFloatType& v1, const WrappedFloatType& v2);
