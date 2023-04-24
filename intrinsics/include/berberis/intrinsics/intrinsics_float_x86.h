@@ -17,43 +17,13 @@
 #ifndef BERBERIS_INTRINSICS_INTRINSICS_FLOAT_X86_H_
 #define BERBERIS_INTRINSICS_INTRINSICS_FLOAT_X86_H_
 
-#include <emmintrin.h>
-#include <immintrin.h>
-#include <math.h>
-#include <pmmintrin.h>  // _MM_DENORMALS_ZERO_ON
-#include <xmmintrin.h>  // _MM_FLUSH_ZERO_ON
+#include <cmath>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/logging.h"
 #include "berberis/intrinsics/guest_fpstate.h"  // FE_HOSTROUND
 
-namespace berberis {
-
-namespace intrinsics {
-
-template <bool precise_nan_operations_handling>
-class ScopedStandardFPSCRValue;
-
-// StandardFPSCRValue does not really depend on type, but it's easier to just always use it
-// for all types.  Types except for Float32 and Float64 don't do anything;
-template <>
-class ScopedStandardFPSCRValue<true> {
- public:
-  ScopedStandardFPSCRValue() : saved_mxcsr_(_mm_getcsr()) {
-    // Keep exceptions disabled, set FTZ and DAZ bits.
-    _mm_setcsr(_MM_MASK_MASK | _MM_FLUSH_ZERO_ON | _MM_DENORMALS_ZERO_ON);
-  }
-  ~ScopedStandardFPSCRValue() {
-    // Keep exceptions, pick everything else from saved mask.
-    _mm_setcsr((_mm_getcsr() & _MM_EXCEPT_MASK) | saved_mxcsr_);
-  }
-
- private:
-  uint32_t saved_mxcsr_;
-};
-
-template <>
-class [[maybe_unused]] ScopedStandardFPSCRValue<false> {};
+namespace berberis::intrinsics {
 
 #define MAKE_BINARY_OPERATOR(guest_name, operator_name, assignment_name)                \
                                                                                         \
@@ -323,18 +293,6 @@ inline Float64 MulAdd(const Float64& v1, const Float64& v2, const Float64& v3) {
   return Float64(fma(v1.value_, v2.value_, v3.value_));
 }
 
-template <typename... Srcs>
-bool AllAreNotNan(Srcs... srcs) {
-  for (const auto src : {srcs...}) {
-    if (IsNan(src)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-}  // namespace intrinsics
-
-}  // namespace berberis
+}  // namespace berberis::intrinsics
 
 #endif  // BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
