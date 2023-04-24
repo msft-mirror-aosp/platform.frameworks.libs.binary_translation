@@ -381,6 +381,15 @@ class Interpreter {
       case Decoder::OpFpOpcode::kFAdd:
         return intrinsics::ExecuteFloatOperation<FloatType>(
             rm, state_->cpu.frm, [](auto x, auto y) { return x + y; }, arg1, arg2);
+      case Decoder::OpFpOpcode::kFSub:
+        return intrinsics::ExecuteFloatOperation<FloatType>(
+            rm, state_->cpu.frm, [](auto x, auto y) { return x - y; }, arg1, arg2);
+      case Decoder::OpFpOpcode::kFMul:
+        return intrinsics::ExecuteFloatOperation<FloatType>(
+            rm, state_->cpu.frm, [](auto x, auto y) { return x * y; }, arg1, arg2);
+      case Decoder::OpFpOpcode::kFDiv:
+        return intrinsics::ExecuteFloatOperation<FloatType>(
+            rm, state_->cpu.frm, [](auto x, auto y) { return x / y; }, arg1, arg2);
       default:
         Unimplemented();
         return {};
