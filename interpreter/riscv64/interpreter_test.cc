@@ -251,7 +251,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
   ThreadState state_;
 };
 
-TEST_F(Riscv64InterpreterTest, CLw) {
+template <uint16_t opcode, auto execute_instruction_func>
+void TestCompressedLoadOrStore32bit(Riscv64InterpreterTest* that) {
   union {
     uint16_t offset;
     struct {
@@ -280,16 +281,29 @@ TEST_F(Riscv64InterpreterTest, CLw) {
         .i2 = i_bits.i2,
         .rs = 0,
         .i3_i5 = i_bits.i3_i5,
-        .high_opcode = 0b010,
+        .high_opcode = 0b000,
     };
-    InterpretCompressedLoad<RegisterType::kReg,
-                            static_cast<uint64_t>(static_cast<int32_t>(kDataToLoad))>(o_bits.parcel,
-                                                                                      offset);
+    (that->*execute_instruction_func)(o_bits.parcel | opcode, offset);
   }
 }
 
+TEST_F(Riscv64InterpreterTest, CompressedLoadAndStores32bit) {
+  // c.Lw
+  TestCompressedLoadOrStore32bit<0b010'000'000'00'000'00,
+                                 &Riscv64InterpreterTest::InterpretCompressedLoad<
+                                     RegisterType::kReg,
+                                     static_cast<uint64_t>(static_cast<int32_t>(kDataToLoad))>>(
+      this);
+  // c.Sw
+  TestCompressedLoadOrStore32bit<0b110'000'000'00'000'00,
+                                 &Riscv64InterpreterTest::InterpretCompressedStore<
+                                     RegisterType::kReg,
+                                     static_cast<uint64_t>(static_cast<uint32_t>(kDataToLoad))>>(
+      this);
+}
+
 template <uint16_t opcode, auto execute_instruction_func>
-void TestCompressedLoadOrStore(Riscv64InterpreterTest* that) {
+void TestCompressedLoadOrStore64bit(Riscv64InterpreterTest* that) {
   union {
     uint16_t offset;
     struct {
@@ -323,19 +337,19 @@ void TestCompressedLoadOrStore(Riscv64InterpreterTest* that) {
 
 TEST_F(Riscv64InterpreterTest, CompressedLoadAndStores) {
   // c.Fld
-  TestCompressedLoadOrStore<
+  TestCompressedLoadOrStore64bit<
       0b001'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kFpReg, kDataToLoad>>(this);
   // c.Ld
-  TestCompressedLoadOrStore<
+  TestCompressedLoadOrStore64bit<
       0b011'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kReg, kDataToLoad>>(this);
   // c.Fsd
-  TestCompressedLoadOrStore<
+  TestCompressedLoadOrStore64bit<
       0b101'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kFpReg, kDataToLoad>>(this);
   // c.Sd
-  TestCompressedLoadOrStore<
+  TestCompressedLoadOrStore64bit<
       0b111'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kReg, kDataToLoad>>(this);
 }
