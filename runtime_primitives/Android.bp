@@ -30,6 +30,7 @@ cc_library_static {
     host_supported: true,
     srcs: [
         "host_call_frame_riscv64.cc",
+        "profiler_interface.cc",
     ],
     header_libs: [
         "libberberis_base_headers",
