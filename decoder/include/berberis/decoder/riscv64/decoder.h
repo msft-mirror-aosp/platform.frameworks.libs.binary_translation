@@ -472,6 +472,9 @@ class Decoder {
       case CompressedOpcode::kSd:
         DecodeCompressedLoadStore<StoreOpcode::kSd>();
         break;
+      case CompressedOpcode::kSw:
+        DecodeCompressedLoadStore<StoreOpcode::kSw>();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
