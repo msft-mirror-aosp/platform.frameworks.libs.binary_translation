@@ -44,6 +44,7 @@ cc_library_static {
     defaults: ["berberis_defaults_64"],
     host_supported: true,
     srcs: [
+        "checks_riscv64.cc",
         "host_call_frame_riscv64.cc",
     ],
     header_libs: [
