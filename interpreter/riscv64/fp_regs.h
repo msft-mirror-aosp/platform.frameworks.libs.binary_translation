@@ -25,37 +25,31 @@
 namespace berberis {
 
 template <typename FloatType>
-inline FloatType NanUnboxFPRegToFloat(uint64_t arg);
+inline FloatType FPRegToFloat(uint64_t arg);
 
 template <>
-inline intrinsics::Float32 NanUnboxFPRegToFloat(uint64_t arg) {
-  // Apart from transfer operations (e.g. loads and stores), all other floating-point operations on
-  // narrower n-bit operations, n < FLEN, check if the input operands are correctly NaN-boxed, i.e.,
-  // all upper FLEN−n bits are 1. If so, the n least-significant bits of the input are used as the
-  // input value, otherwise the input value is treated as an n-bit canonical NaN.
-  if ((arg & 0xffff'ffff'0000'0000) != 0xffff'ffff'0000'0000) {
-    return bit_cast<intrinsics::Float32>(0x7fc00000);
-  }
+inline intrinsics::Float32 FPRegToFloat(uint64_t arg) {
   intrinsics::Float32 result;
   memcpy(&result, &arg, sizeof(intrinsics::Float32));
   return result;
 }
 
 template <>
-inline intrinsics::Float64 NanUnboxFPRegToFloat(uint64_t arg) {
+inline intrinsics::Float64 FPRegToFloat(uint64_t arg) {
   return bit_cast<intrinsics::Float64>(arg);
 }
 
 template <typename FloatType>
-inline uint64_t NanBoxFloatToFPReg(FloatType arg);
+inline uint64_t FloatToFPReg(FloatType arg);
 
 template <>
-inline uint64_t NanBoxFloatToFPReg(intrinsics::Float32 arg) {
-  return bit_cast<uint32_t>(arg) | 0xffff'ffff'0000'0000;
+inline uint64_t FloatToFPReg(intrinsics::Float32 arg) {
+  // Note: NanBoxAndSetFpReg would properly Nan-box the value.
+  return bit_cast<uint32_t>(arg);
 }
 
 template <>
-inline uint64_t NanBoxFloatToFPReg(intrinsics::Float64 arg) {
+inline uint64_t FloatToFPReg(intrinsics::Float64 arg) {
   return bit_cast<uint64_t>(arg);
 }
 
