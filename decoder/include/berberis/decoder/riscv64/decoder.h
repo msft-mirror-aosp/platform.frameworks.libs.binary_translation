@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <type_traits>
 
 #include "berberis/base/bit_util.h"
@@ -205,23 +206,6 @@ class Decoder {
     kMaxOpFpOpcode = 0b1'1'1'11,
   };
 
-  enum class LoadOpcode {
-    kLb = 0b000,
-    kLh = 0b001,
-    kLw = 0b010,
-    kLd = 0b011,
-    kLbu = 0b100,
-    kLhu = 0b101,
-    kLwu = 0b110,
-    kMaxLoadOpcode = 0b1111,
-  };
-
-  enum class LoadFpOpcode {
-    kFlw = 0b010,
-    kFld = 0b011,
-    kLoadFpMaxOpcode = 0b111,
-  };
-
   enum class OpImmOpcode {
     kAddi = 0b000,
     kSlti = 0b010,
@@ -251,20 +235,6 @@ class Decoder {
     kMaxShiftImm32Opcode = 0b111111'111,
   };
 
-  enum class StoreOpcode {
-    kSb = 0b000,
-    kSh = 0b001,
-    kSw = 0b010,
-    kSd = 0b011,
-    kMaxStoreOpcode = 0b111,
-  };
-
-  enum class StoreFpOpcode {
-    kFsw = 0b010,
-    kFsd = 0b011,
-    kMaxStoreFpOpcode = 0b111,
-  };
-
   enum class SystemOpcode {
     kEcall = 0b000000000000'00000'000'00000,
     kEbreak = 0b000000000001'00000'000'00000,
@@ -288,12 +258,44 @@ class Decoder {
     kMaxCsrRegister = 0b11'11'1111'1111,
   };
 
-  enum class FloatSize {
+  // Load/Store instruction include 3bit “width” field while all other floating-point instructions
+  // include 2bit “fmt” field.
+  //
+  // Decoder unifies these differences and uses FloatOperandType for types of all floating-point
+  // operands.
+  //
+  // Load/Store for regular instruction coulnd't be simiarly unified: Load instructions include
+  // seven types, while Store instructions have only four.
+  //
+  // This is because Load can perform either sign-extension or zero-extension for all sizes except
+  // 64bit (which doesn't need neither sign-extension nor zero-extension since operand size is the
+  // same as register size in that case).
+
+  enum class LoadOperandType {
+    k8bitSigned = 0b000,
+    k16bitSigned = 0b001,
+    k32bitSigned = 0b010,
+    k64bit = 0b011,
+    k8bitUnsigned = 0b100,
+    k16bitUnsigned = 0b101,
+    k32bitUnsigned = 0b110,
+    kMaxLoadOperandType = 0b1111,
+  };
+
+  enum class StoreOperandType {
+    k8bit = 0b000,
+    k16bit = 0b001,
+    k32bit = 0b010,
+    k64bit = 0b011,
+    kMaxStoreOperandType = 0b111,
+  };
+
+  enum class FloatOperandType {
     kFloat = 0b00,
     kDouble = 0b01,
     kHalf = 0b10,
     kQuad = 0b11,
-    kMaxFloatSize = 0b11,
+    kMaxFloatOperandType = 0b11,
   };
 
   struct AmoArgs {
@@ -350,16 +352,16 @@ class Decoder {
   using OpArgs = OpArgsTemplate<OpOpcode>;
   using Op32Args = OpArgsTemplate<Op32Opcode>;
 
-  template <typename OpcodeType>
+  template <typename OperandTypeEnum>
   struct LoadArgsTemplate {
-    OpcodeType opcode;
+    OperandTypeEnum operand_type;
     uint8_t dst;
     uint8_t src;
     int16_t offset;
   };
 
-  using LoadArgs = LoadArgsTemplate<LoadOpcode>;
-  using LoadFpArgs = LoadArgsTemplate<LoadFpOpcode>;
+  using LoadArgs = LoadArgsTemplate<LoadOperandType>;
+  using LoadFpArgs = LoadArgsTemplate<FloatOperandType>;
 
   template <typename OpcodeType>
   struct OpImmArgsTemplate {
@@ -387,20 +389,20 @@ class Decoder {
   using ShiftImmArgs = ShiftImmArgsTemplate<ShiftImmOpcode>;
   using ShiftImm32Args = ShiftImmArgsTemplate<ShiftImm32Opcode>;
 
-  template <typename OpcodeType>
+  template <typename OperandTypeEnum>
   struct StoreArgsTemplate {
-    OpcodeType opcode;
+    OperandTypeEnum operand_type;
     uint8_t src;
     int16_t offset;
     uint8_t data;
   };
 
-  using StoreArgs = StoreArgsTemplate<StoreOpcode>;
-  using StoreFpArgs = StoreArgsTemplate<StoreFpOpcode>;
+  using StoreArgs = StoreArgsTemplate<StoreOperandType>;
+  using StoreFpArgs = StoreArgsTemplate<FloatOperandType>;
 
   struct OpFpArgs {
     OpFpOpcode opcode;
-    FloatSize float_size;
+    FloatOperandType operand_type;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
@@ -458,22 +460,22 @@ class Decoder {
         DecodeCAddi();
         break;
       case CompressedOpcode::kFld:
-        DecodeCompressedLoadStore<LoadFpOpcode::kFld>();
+        DecodeCompressedLoadStore<LoadStore::kLoad, FloatOperandType::kDouble>();
         break;
       case CompressedOpcode::kLw:
-        DecodeCompressedLoadStore<LoadOpcode::kLw>();
+        DecodeCompressedLoadStore<LoadStore::kLoad, LoadOperandType::k32bitSigned>();
         break;
       case CompressedOpcode::kLd:
-        DecodeCompressedLoadStore<LoadOpcode::kLd>();
+        DecodeCompressedLoadStore<LoadStore::kLoad, LoadOperandType::k64bit>();
         break;
       case CompressedOpcode::kFsd:
-        DecodeCompressedLoadStore<StoreFpOpcode::kFsd>();
+        DecodeCompressedLoadStore<LoadStore::kStore, FloatOperandType::kDouble>();
         break;
       case CompressedOpcode::kSd:
-        DecodeCompressedLoadStore<StoreOpcode::kSd>();
+        DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k64bit>();
         break;
       case CompressedOpcode::kSw:
-        DecodeCompressedLoadStore<StoreOpcode::kSw>();
+        DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k32bit>();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -481,12 +483,14 @@ class Decoder {
     return 2;
   }
 
-  template <auto opcode>
+  enum class LoadStore { kLoad, kStore };
+
+  template <enum LoadStore kLoadStore, auto kOperandType>
   void DecodeCompressedLoadStore() {
     uint8_t low_imm = GetBits<uint8_t, 5, 2>();
     uint8_t high_imm = GetBits<uint8_t, 10, 3>();
     uint8_t imm;
-    if constexpr ((uint8_t(opcode) & 1) == 0) {
+    if constexpr ((uint8_t(kOperandType) & 1) == 0) {
       constexpr uint8_t kLwLow[4] = {0x0, 0x40, 0x04, 0x44};
       imm = (kLwLow[low_imm] | high_imm << 3);
     } else {
@@ -494,18 +498,17 @@ class Decoder {
     }
     uint8_t rd = GetBits<uint8_t, 2, 3>();
     uint8_t rs = GetBits<uint8_t, 7, 3>();
-    if constexpr (std::is_same_v<decltype(opcode), StoreOpcode> ||
-                  std::is_same_v<decltype(opcode), StoreFpOpcode>) {
-      const StoreArgsTemplate<decltype(opcode)> args = {
-          .opcode = opcode,
+    if constexpr (kLoadStore == LoadStore::kStore) {
+      const StoreArgsTemplate<decltype(kOperandType)> args = {
+          .operand_type = kOperandType,
           .src = uint8_t(8 + rs),
           .offset = imm,
           .data = uint8_t(8 + rd),
       };
       insn_consumer_->Store(args);
     } else {
-      const LoadArgsTemplate<decltype(opcode)> args = {
-          .opcode = opcode,
+      const LoadArgsTemplate<decltype(kOperandType)> args = {
+          .operand_type = kOperandType,
           .dst = uint8_t(8 + rd),
           .src = uint8_t(8 + rs),
           .offset = imm,
@@ -591,10 +594,10 @@ class Decoder {
         DecodeAmo();
         break;
       case BaseOpcode::kLoad:
-        DecodeLoad<LoadOpcode>();
+        DecodeLoad<LoadOperandType>();
         break;
       case BaseOpcode::kLoadFp:
-        DecodeLoad<LoadFpOpcode>();
+        DecodeLoad<FloatOperandType>();
         break;
       case BaseOpcode::kOpImm:
         DecodeOp<OpImmOpcode, ShiftImmOpcode, 6>();
@@ -606,10 +609,10 @@ class Decoder {
         DecodeOpFp();
         break;
       case BaseOpcode::kStore:
-        DecodeStore<StoreOpcode>();
+        DecodeStore<StoreOperandType>();
         break;
       case BaseOpcode::kStoreFp:
-        DecodeStore<StoreFpOpcode>();
+        DecodeStore<FloatOperandType>();
         break;
       case BaseOpcode::kBranch:
         DecodeBranch();
@@ -753,11 +756,20 @@ class Decoder {
     insn_consumer_->Auipc(args);
   }
 
-  template <typename OpcodeType>
+  template <typename OperandTypeEnum>
   void DecodeLoad() {
-    OpcodeType opcode{GetBits<uint8_t, 12, 3>()};
-    const LoadArgsTemplate<OpcodeType> args = {
-        .opcode = opcode,
+    OperandTypeEnum operand_type;
+    if constexpr (std::is_same_v<OperandTypeEnum, FloatOperandType>) {
+      auto decoded_operand_type = kLoadStoreWidthToFloatOperandType[GetBits<uint8_t, 12, 3>()];
+      if (!decoded_operand_type.has_value()) {
+        return Undefined();
+      }
+      operand_type = *decoded_operand_type;
+    } else {
+      operand_type = OperandTypeEnum{GetBits<uint8_t, 12, 3>()};
+    }
+    const LoadArgsTemplate<OperandTypeEnum> args = {
+        .operand_type = operand_type,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src = GetBits<uint8_t, 15, 5>(),
         .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
@@ -765,15 +777,24 @@ class Decoder {
     insn_consumer_->Load(args);
   }
 
-  template <typename OpcodeType>
+  template <typename OperandTypeEnum>
   void DecodeStore() {
-    OpcodeType opcode{GetBits<uint8_t, 12, 3>()};
+    OperandTypeEnum operand_type;
+    if constexpr (std::is_same_v<OperandTypeEnum, FloatOperandType>) {
+      auto decoded_operand_type = kLoadStoreWidthToFloatOperandType[GetBits<uint8_t, 12, 3>()];
+      if (!decoded_operand_type.has_value()) {
+        return Undefined();
+      }
+      operand_type = *decoded_operand_type;
+    } else {
+      operand_type = OperandTypeEnum{GetBits<uint8_t, 12, 3>()};
+    }
 
     uint16_t low_imm = GetBits<uint16_t, 7, 5>();
     uint16_t high_imm = GetBits<uint16_t, 25, 7>();
 
-    const StoreArgsTemplate<OpcodeType> args = {
-        .opcode = opcode,
+    const StoreArgsTemplate<OperandTypeEnum> args = {
+        .operand_type = operand_type,
         .src = GetBits<uint8_t, 15, 5>(),
         .offset = SignExtend<12>(int16_t(low_imm | (high_imm << 5))),
         .data = GetBits<uint8_t, 20, 5>(),
@@ -850,11 +871,11 @@ class Decoder {
   }
 
   void DecodeOpFp() {
-    uint8_t float_size = GetBits<uint8_t, 25, 2>();
+    uint8_t operand_type = GetBits<uint8_t, 25, 2>();
     uint8_t opcode_bits = GetBits<uint8_t, 27, 5>();
     const OpFpArgs args = {
         .opcode = OpFpOpcode(opcode_bits),
-        .float_size = FloatSize(float_size),
+        .operand_type = FloatOperandType(operand_type),
         .dst = GetBits<uint8_t, 7, 5>(),
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
@@ -909,6 +930,16 @@ class Decoder {
     };
     insn_consumer_->JumpAndLinkRegister(args);
   }
+
+  static constexpr std::optional<FloatOperandType> kLoadStoreWidthToFloatOperandType[8] = {
+      {},
+      {FloatOperandType::kHalf},
+      {FloatOperandType::kFloat},
+      {FloatOperandType::kDouble},
+      {FloatOperandType::kQuad},
+      {},
+      {},
+      {}};
 
   InsnConsumer* insn_consumer_;
   uint32_t code_;

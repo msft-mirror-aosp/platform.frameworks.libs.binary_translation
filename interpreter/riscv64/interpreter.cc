@@ -277,22 +277,22 @@ class Interpreter {
     }
   }
 
-  Register Load(Decoder::LoadOpcode opcode, Register arg, int16_t offset) {
+  Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
     void* ptr = ToHostAddr<void>(arg + offset);
-    switch (opcode) {
-      case Decoder::LoadOpcode::kLbu:
+    switch (operand_type) {
+      case Decoder::LoadOperandType::k8bitUnsigned:
         return Load<uint8_t>(ptr);
-      case Decoder::LoadOpcode::kLhu:
+      case Decoder::LoadOperandType::k16bitUnsigned:
         return Load<uint16_t>(ptr);
-      case Decoder::LoadOpcode::kLwu:
+      case Decoder::LoadOperandType::k32bitUnsigned:
         return Load<uint32_t>(ptr);
-      case Decoder::LoadOpcode::kLd:
+      case Decoder::LoadOperandType::k64bit:
         return Load<uint64_t>(ptr);
-      case Decoder::LoadOpcode::kLb:
+      case Decoder::LoadOperandType::k8bitSigned:
         return Load<int8_t>(ptr);
-      case Decoder::LoadOpcode::kLh:
+      case Decoder::LoadOperandType::k16bitSigned:
         return Load<int16_t>(ptr);
-      case Decoder::LoadOpcode::kLw:
+      case Decoder::LoadOperandType::k32bitSigned:
         return Load<int32_t>(ptr);
       default:
         Unimplemented();
@@ -300,12 +300,12 @@ class Interpreter {
     }
   }
 
-  FpRegister LoadFp(Decoder::LoadFpOpcode opcode, Register arg, int16_t offset) {
+  FpRegister LoadFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
-      case Decoder::LoadFpOpcode::kFlw:
+      case Decoder::FloatOperandType::kFloat:
         return LoadFp<float>(ptr);
-      case Decoder::LoadFpOpcode::kFld:
+      case Decoder::FloatOperandType::kDouble:
         return LoadFp<double>(ptr);
       default:
         Unimplemented();
@@ -356,17 +356,17 @@ class Interpreter {
   }
 
   FpRegister OpFp(Decoder::OpFpOpcode opcode,
-                  Decoder::FloatSize float_size,
+                  Decoder::FloatOperandType float_size,
                   uint8_t rm,
                   FpRegister arg1,
                   FpRegister arg2) {
     switch (float_size) {
-      case Decoder::FloatSize::kFloat:
-        return NanBoxFloatToFPReg(OpFp<Float32>(
-            opcode, rm, NanUnboxFPRegToFloat<Float32>(arg1), NanUnboxFPRegToFloat<Float32>(arg2)));
-      case Decoder::FloatSize::kDouble:
-        return NanBoxFloatToFPReg(OpFp<Float64>(
-            opcode, rm, NanUnboxFPRegToFloat<Float64>(arg1), NanUnboxFPRegToFloat<Float64>(arg2)));
+      case Decoder::FloatOperandType::kFloat:
+        return FloatToFPReg(
+            OpFp<Float32>(opcode, rm, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2)));
+      case Decoder::FloatOperandType::kDouble:
+        return FloatToFPReg(
+            OpFp<Float64>(opcode, rm, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2)));
       default:
         Unimplemented();
         return {};
@@ -424,19 +424,19 @@ class Interpreter {
     }
   }
 
-  void Store(Decoder::StoreOpcode opcode, Register arg, int16_t offset, Register data) {
+  void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data) {
     void* ptr = ToHostAddr<void>(arg + offset);
-    switch (opcode) {
-      case Decoder::StoreOpcode::kSb:
+    switch (operand_type) {
+      case Decoder::StoreOperandType::k8bit:
         Store<uint8_t>(ptr, data);
         break;
-      case Decoder::StoreOpcode::kSh:
+      case Decoder::StoreOperandType::k16bit:
         Store<uint16_t>(ptr, data);
         break;
-      case Decoder::StoreOpcode::kSw:
+      case Decoder::StoreOperandType::k32bit:
         Store<uint32_t>(ptr, data);
         break;
-      case Decoder::StoreOpcode::kSd:
+      case Decoder::StoreOperandType::k64bit:
         Store<uint64_t>(ptr, data);
         break;
       default:
@@ -444,13 +444,13 @@ class Interpreter {
     }
   }
 
-  void StoreFp(Decoder::StoreFpOpcode opcode, Register arg, int16_t offset, FpRegister data) {
+  void StoreFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset, FpRegister data) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (opcode) {
-      case Decoder::StoreFpOpcode::kFsw:
+      case Decoder::FloatOperandType::kFloat:
         StoreFp<float>(ptr, data);
         break;
-      case Decoder::StoreFpOpcode::kFsd:
+      case Decoder::FloatOperandType::kDouble:
         StoreFp<double>(ptr, data);
         break;
       default:
@@ -527,9 +527,61 @@ class Interpreter {
     return state_->cpu.f[reg];
   }
 
-  void SetFpReg(uint8_t reg, FpRegister value) {
+  FpRegister GetFRegAndUnboxNaN(uint8_t reg, Decoder::FloatOperandType operand_type) {
     CheckFpRegIsValid(reg);
-    state_->cpu.f[reg] = value;
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat: {
+        FpRegister value = state_->cpu.f[reg];
+        if ((value & 0xffff'ffff'0000'0000) != 0xffff'ffff'0000'0000) {
+          return 0x0ffff'ffff'7fc0'0000;
+        }
+        return value;
+      }
+      case Decoder::FloatOperandType::kDouble:
+        return state_->cpu.f[reg];
+      // No support for half-precision and quad-precision operands.
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  FpRegister CanonicalizeNans(FpRegister value, Decoder::FloatOperandType operand_type) {
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat: {
+        intrinsics::Float32 result = FPRegToFloat<intrinsics::Float32>(value);
+        if (IsNan(result)) {
+          return 0x0ffff'ffff'7fc0'0000;
+        }
+        return value;
+      }
+      case Decoder::FloatOperandType::kDouble: {
+        intrinsics::Float64 result = FPRegToFloat<intrinsics::Float64>(value);
+        if (IsNan(result)) {
+          return 0x7ff8'0000'0000'0000;
+        }
+        return value;
+      }
+      // No support for half-precision and quad-precision operands.
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value, Decoder::FloatOperandType operand_type) {
+    CheckFpRegIsValid(reg);
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        state_->cpu.f[reg] = value | 0xffff'ffff'0000'0000;
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        state_->cpu.f[reg] = value;
+        break;
+      // No support for half-precision and quad-precision operands.
+      default:
+        return Unimplemented();
+    }
   }
 
   //
@@ -557,7 +609,7 @@ class Interpreter {
   template <typename DataType>
   FpRegister LoadFp(const void* ptr) const {
     static_assert(std::is_floating_point_v<DataType>);
-    FpRegister reg = ~0ULL;
+    FpRegister reg = 0;
     memcpy(&reg, ptr, sizeof(DataType));
     return reg;
   }
