@@ -33,24 +33,24 @@ TEST(HostCallFrame, InitPC) {
   CPUState cpu{};
 
   alignas(uint64_t) std::array<char, 128> stack;
-  cpu.x[2] = ToGuestAddr(stack.data() + stack.size());
+  SetXReg<2>(cpu, ToGuestAddr(stack.data() + stack.size()));
 
   ScopedHostCallFrame host_call_frame(&cpu, 0xdeadbeef);
 
-  EXPECT_EQ(kHostCallFrameGuestPC, cpu.x[1]);
+  EXPECT_EQ(kHostCallFrameGuestPC, GetXReg<1>(cpu));
 
   // Pretend guest code executed up to return address.
-  cpu.insn_addr = cpu.x[1];
+  cpu.insn_addr = GetXReg<1>(cpu);
 }
 
 void RunHostCall(CPUState* cpu) {
   ScopedHostCallFrame host_call_frame(cpu, 0xbaaaaaad);
 
   // Pretend guest code executed up to return address.
-  cpu->insn_addr = cpu->x[1];
+  cpu->insn_addr = GetXReg<1>(*cpu);
 
   // Host call frame allows random adjustments of ra.
-  cpu->x[1] = 0xbaadf00d;
+  SetXReg<1>(*cpu, 0xbaadf00d);
 }
 
 TEST(HostCallFrame, Restore) {
@@ -61,15 +61,15 @@ TEST(HostCallFrame, Restore) {
   const GuestAddr ra = 0xdeadbeef;
   const GuestAddr fp = 0xdeadc0de;
 
-  cpu.x[1] = ra;
-  cpu.x[2] = sp;
-  cpu.x[8] = fp;
+  SetXReg<1>(cpu, ra);
+  SetXReg<2>(cpu, sp);
+  SetXReg<8>(cpu, fp);
 
   RunHostCall(&cpu);
 
-  EXPECT_EQ(ra, cpu.x[1]);
-  EXPECT_EQ(sp, cpu.x[2]);
-  EXPECT_EQ(fp, cpu.x[8]);
+  EXPECT_EQ(ra, GetXReg<1>(cpu));
+  EXPECT_EQ(sp, GetXReg<2>(cpu));
+  EXPECT_EQ(fp, GetXReg<8>(cpu));
 }
 
 }  // namespace
