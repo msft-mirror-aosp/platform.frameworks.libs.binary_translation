@@ -29,6 +29,7 @@ cc_library_static {
     defaults: ["berberis_defaults"],
     host_supported: true,
     srcs: [
+        "known_guest_function_wrapper.cc",
         "profiler_interface.cc",
     ],
     header_libs: [
