@@ -19,7 +19,7 @@
 #include <cstdint>
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/runtime_primitives/host_call_frame.h"
 
 namespace berberis {
@@ -33,24 +33,24 @@ TEST(HostCallFrame, InitPC) {
   CPUState cpu{};
 
   alignas(uint64_t) std::array<char, 128> stack;
-  SetXReg<2>(cpu, ToGuestAddr(stack.data() + stack.size()));
+  SetXReg<SP>(cpu, ToGuestAddr(stack.data() + stack.size()));
 
   ScopedHostCallFrame host_call_frame(&cpu, 0xdeadbeef);
 
-  EXPECT_EQ(kHostCallFrameGuestPC, GetXReg<1>(cpu));
+  EXPECT_EQ(kHostCallFrameGuestPC, GetXReg<RA>(cpu));
 
   // Pretend guest code executed up to return address.
-  cpu.insn_addr = GetXReg<1>(cpu);
+  cpu.insn_addr = GetXReg<RA>(cpu);
 }
 
 void RunHostCall(CPUState* cpu) {
   ScopedHostCallFrame host_call_frame(cpu, 0xbaaaaaad);
 
   // Pretend guest code executed up to return address.
-  cpu->insn_addr = GetXReg<1>(*cpu);
+  cpu->insn_addr = GetXReg<RA>(*cpu);
 
   // Host call frame allows random adjustments of ra.
-  SetXReg<1>(*cpu, 0xbaadf00d);
+  SetXReg<RA>(*cpu, 0xbaadf00d);
 }
 
 TEST(HostCallFrame, Restore) {
@@ -61,15 +61,15 @@ TEST(HostCallFrame, Restore) {
   const GuestAddr ra = 0xdeadbeef;
   const GuestAddr fp = 0xdeadc0de;
 
-  SetXReg<1>(cpu, ra);
-  SetXReg<2>(cpu, sp);
-  SetXReg<8>(cpu, fp);
+  SetXReg<RA>(cpu, ra);
+  SetXReg<SP>(cpu, sp);
+  SetXReg<FP>(cpu, fp);
 
   RunHostCall(&cpu);
 
-  EXPECT_EQ(ra, GetXReg<1>(cpu));
-  EXPECT_EQ(sp, GetXReg<2>(cpu));
-  EXPECT_EQ(fp, GetXReg<8>(cpu));
+  EXPECT_EQ(ra, GetXReg<RA>(cpu));
+  EXPECT_EQ(sp, GetXReg<SP>(cpu));
+  EXPECT_EQ(fp, GetXReg<FP>(cpu));
 }
 
 }  // namespace

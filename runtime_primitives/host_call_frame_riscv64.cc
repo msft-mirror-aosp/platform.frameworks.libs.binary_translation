@@ -49,23 +49,23 @@ GuestAddr ScopedHostCallFrame::g_host_call_frame_guest_pc_ = 0;
 //
 ScopedHostCallFrame::ScopedHostCallFrame(CPUState* cpu, GuestAddr pc) : cpu_(cpu) {
   // addi sp, sp, -16
-  SetXReg<2>(*cpu_, GetXReg<2>(*cpu_) - 16);
+  SetXReg<SP>(*cpu_, GetXReg<SP>(*cpu_) - 16);
   // sd fp, 0(sp)
   // sd ra, 8(sp)
-  uint64_t* saved_regs = ToHostAddr<uint64_t>(GetXReg<2>(*cpu_));
-  saved_regs[0] = GetXReg<8>(*cpu_);
-  saved_regs[1] = GetXReg<1>(*cpu_);
+  uint64_t* saved_regs = ToHostAddr<uint64_t>(GetXReg<SP>(*cpu_));
+  saved_regs[0] = GetXReg<FP>(*cpu_);
+  saved_regs[1] = GetXReg<RA>(*cpu_);
   // addi fp, x0, sp
-  SetXReg<8>(*cpu_, GetXReg<2>(*cpu_));
+  SetXReg<FP>(*cpu_, GetXReg<SP>(*cpu_));
 
   // For safety checks!
-  stack_pointer_ = GetXReg<2>(*cpu_);
-  link_register_ = GetXReg<1>(*cpu_);
+  stack_pointer_ = GetXReg<SP>(*cpu_);
+  link_register_ = GetXReg<RA>(*cpu_);
 
   program_counter_ = cpu_->insn_addr;
 
   // Set pc and ra as for 'jalr ra, <guest>'.
-  SetXReg<1>(*cpu_, g_host_call_frame_guest_pc_);
+  SetXReg<RA>(*cpu_, g_host_call_frame_guest_pc_);
   cpu_->insn_addr = pc;
 }
 
@@ -73,19 +73,19 @@ ScopedHostCallFrame::~ScopedHostCallFrame() {
   // Safety check - returned to correct pc?
   CHECK_EQ(g_host_call_frame_guest_pc_, cpu_->insn_addr);
   // Safety check - guest call didn't preserve sp?
-  CHECK_EQ(stack_pointer_, GetXReg<2>(*cpu_));
+  CHECK_EQ(stack_pointer_, GetXReg<SP>(*cpu_));
 
-  const uint64_t* saved_regs = ToHostAddr<uint64_t>(GetXReg<2>(*cpu_));
+  const uint64_t* saved_regs = ToHostAddr<uint64_t>(GetXReg<SP>(*cpu_));
   // ld fp, 0(sp)
   // ld ra, 8(sp)
-  SetXReg<8>(*cpu_, saved_regs[0]);
-  SetXReg<1>(*cpu_, saved_regs[1]);
+  SetXReg<FP>(*cpu_, saved_regs[0]);
+  SetXReg<RA>(*cpu_, saved_regs[1]);
   // addi sp, sp, 16
-  SetXReg<2>(*cpu_, GetXReg<2>(*cpu_) + 16);
+  SetXReg<SP>(*cpu_, GetXReg<SP>(*cpu_) + 16);
   cpu_->insn_addr = program_counter_;
 
   // Safety checks - guest stack was smashed?
-  CHECK_EQ(link_register_, GetXReg<1>(*cpu_));
+  CHECK_EQ(link_register_, GetXReg<RA>(*cpu_));
 }
 
 }  // namespace berberis
