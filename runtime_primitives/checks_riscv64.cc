@@ -18,7 +18,7 @@
 
 namespace berberis {
 
-bool IsProgramCounterProperlyAlignedForArch4(GuestAddr pc) {
+bool IsProgramCounterProperlyAlignedForArch(GuestAddr pc) {
   // RISC-V C only supports 16-bit address alignment. The least-significant bit
   // will be set to zero on JALR instructions.
   return (pc & 0x1) == 0;
