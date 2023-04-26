@@ -26,8 +26,8 @@
 namespace berberis {
 
 struct CPUState {
-  // x1 to x31.
-  uint64_t x[31];
+  // x0 to x31.
+  uint64_t x[32];
   // f0 to f31. We are using uint64_t because C++ may change values of NaN when they are passed from
   // or to function and RISC-V uses NaN-boxing which would make things problematic.
   uint64_t f[32];
@@ -52,15 +52,15 @@ struct CPUState {
 template <uint8_t kIndex>
 inline uint64_t GetXReg(const CPUState& state) {
   static_assert(kIndex > 0);
-  static_assert((kIndex - 1) < arraysize(state.x));
-  return state.x[kIndex - 1];
+  static_assert(kIndex < arraysize(state.x));
+  return state.x[kIndex];
 }
 
 template <uint8_t kIndex>
 inline void SetXReg(CPUState& state, uint64_t val) {
   static_assert(kIndex > 0);
-  static_assert((kIndex - 1) < arraysize(state.x));
-  state.x[kIndex - 1] = val;
+  static_assert(kIndex < arraysize(state.x));
+  state.x[kIndex] = val;
 }
 
 template <uint8_t kIndex>
