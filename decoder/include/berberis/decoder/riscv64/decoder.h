@@ -195,6 +195,14 @@ class Decoder {
     kMaxAmoOpcode = 0b11111'111,
   };
 
+  enum class FmaOpcode {
+    kFmadd = 0b00,
+    kFmsub = 0b01,
+    kFnmsub = 0b10,
+    kFnmadd = 0b11,
+    kMaxFmaOpcode = 0b11,
+  };
+
   enum class OpFpOpcode {
     // Bit #2 = 1 means rm is an opcode extension.
     // Bit #3 = 1 means rs2 is an opcode extension
@@ -339,6 +347,16 @@ class Decoder {
     uint8_t dst;
     uint8_t src;
     int16_t imm;
+  };
+
+  struct FmaArgs {
+    FmaOpcode opcode;
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+    uint8_t src3;
+    uint8_t rm;
   };
 
   template <typename OpcodeType>
@@ -599,6 +617,12 @@ class Decoder {
       case BaseOpcode::kLoadFp:
         DecodeLoad<FloatOperandType>();
         break;
+      case BaseOpcode::kMAdd:
+      case BaseOpcode::kMSub:
+      case BaseOpcode::kNmSub:
+      case BaseOpcode::kNmAdd:
+        DecodeFma();
+        break;
       case BaseOpcode::kOpImm:
         DecodeOp<OpImmOpcode, ShiftImmOpcode, 6>();
         break;
@@ -736,6 +760,21 @@ class Decoder {
         .aq = bool(GetBits<uint8_t, 26, 1>()),
     };
     insn_consumer_->Amo(args);
+  }
+
+  void DecodeFma() {
+    uint8_t operand_type = GetBits<uint8_t, 25, 2>();
+    uint8_t opcode_bits = GetBits<uint8_t, 2, 2>();
+    const FmaArgs args = {
+        .opcode = FmaOpcode(opcode_bits),
+        .operand_type = FloatOperandType(operand_type),
+        .dst = GetBits<uint8_t, 7, 5>(),
+        .src1 = GetBits<uint8_t, 15, 5>(),
+        .src2 = GetBits<uint8_t, 20, 5>(),
+        .src3 = GetBits<uint8_t, 27, 5>(),
+        .rm = GetBits<uint8_t, 12, 3>(),
+    };
+    insn_consumer_->Fma(args);
   }
 
   void DecodeLui() {
