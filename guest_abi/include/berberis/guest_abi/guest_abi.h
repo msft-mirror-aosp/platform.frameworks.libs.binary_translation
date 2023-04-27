@@ -20,4 +20,10 @@
 // TODO(b/265372622): Make it configurable for specific guest arch.
 #include "berberis/guest_abi/guest_abi_riscv64.h"  // IWYU pragma: export.
 
+namespace berberis {
+
+using GuestAbi = GuestAbiRiscv64;
+
+}  // namespace berberis
+
 #endif  // BERBERIS_GUEST_ABI_GUEST_ABI_H_
