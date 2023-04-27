@@ -47,6 +47,12 @@ cc_defaults {
         riscv64: {
             enabled: false,
         },
+        x86_64: {
+            // TODO(b/123294366): disconnect guest arch from host arch!
+            cflags: [
+                "-DBERBERIS_GUEST_LP64=1",
+            ],
+        },
     },
     compile_multilib: "both",
     // Only check our headers.
