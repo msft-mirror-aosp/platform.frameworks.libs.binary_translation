@@ -169,6 +169,11 @@ inline Float64 Negative(const Float64& v) {
   return result;
 }
 
+// We only need Negative(long double) for FMA, b/120563432 doesn't affect this function.
+inline long double Negative(const long double& v) {
+  return -v;
+}
+
 inline FPInfo FPClassify(const Float32& v) {
   return static_cast<FPInfo>(__builtin_fpclassify(static_cast<int>(FPInfo::kNaN),
                                                   static_cast<int>(FPInfo::kInfinite),
@@ -291,6 +296,10 @@ inline Float32 MulAdd(const Float32& v1, const Float32& v2, const Float32& v3) {
 
 inline Float64 MulAdd(const Float64& v1, const Float64& v2, const Float64& v3) {
   return Float64(fma(v1.value_, v2.value_, v3.value_));
+}
+
+inline long double MulAdd(const long double& v1, const long double& v2, const long double& v3) {
+  return fma(v1, v2, v3);
 }
 
 }  // namespace berberis::intrinsics
