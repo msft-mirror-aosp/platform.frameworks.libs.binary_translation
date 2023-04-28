@@ -94,6 +94,7 @@ cc_test_host {
         "libberberis_base",
         "libberberis_config_globals",
         "libberberis_tinyloader",
+        "libberberis_runtime_library",
     ],
     shared_libs: [
         "libbase",
