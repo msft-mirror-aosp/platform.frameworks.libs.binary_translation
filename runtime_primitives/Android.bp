@@ -33,6 +33,7 @@ cc_library_static {
         "known_guest_function_wrapper.cc",
         "profiler_interface.cc",
         "signal_queue.cc",
+        "translation_cache.cc",
     ],
     header_libs: [
         "libberberis_base_headers",
@@ -71,6 +72,7 @@ cc_test_library {
         "host_call_frame_riscv64_test.cc",
         "signal_queue_test.cc",
         "table_of_tables_test.cc",
+        "translation_cache_test.cc",
     ],
     header_libs: [
         "berberis_test_utils_headers",
