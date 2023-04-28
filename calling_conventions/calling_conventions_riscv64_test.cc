@@ -68,7 +68,7 @@ TEST(CallingConventions_riscv64, Smoke) {
 
   loc = conv.GetIntResLoc(1);
   EXPECT_EQ(kArgLocationInt, loc.kind);
-  EXPECT_EQ(10u, loc.offset);
+  EXPECT_EQ(0u, loc.offset);
 }
 
 TEST(CallingConventions_riscv64, LastIntRegNotUsed) {
