@@ -35,6 +35,8 @@ namespace {
 
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
+  // Compressed Instructions.
+
   template <RegisterType register_type, uint64_t expected_result>
   void InterpretCompressedStore(uint16_t insn_bytes, uint64_t offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
@@ -86,6 +88,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
 
+  // Non-Compressed Instructions.
+
   void InterpretCsr(uint32_t insn_bytes, uint8_t expected_rm) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -93,6 +97,41 @@ class Riscv64InterpreterTest : public ::testing::Test {
     InterpretInsn(&state_);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
     EXPECT_EQ(state_.cpu.frm, expected_rm);
+  }
+
+  void InterpretFma(
+      uint32_t insn_bytes,
+      std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>> args) {
+    for (auto [arg1, arg2, arg3, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg1);
+      SetFReg<3>(state_.cpu, arg2);
+      SetFReg<4>(state_.cpu, arg3);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  void InterpretFmaSingle(uint32_t insn_bytes,
+                          std::initializer_list<std::tuple<float, float, float, float>> args) {
+    for (auto [arg1, arg2, arg3, expected_result] : args) {
+      InterpretFma(insn_bytes,
+                   {{bit_cast<uint32_t>(arg1) | 0xffff'ffff'0000'0000,
+                     bit_cast<uint32_t>(arg2) | 0xffff'ffff'0000'0000,
+                     bit_cast<uint32_t>(arg3) | 0xffff'ffff'0000'0000,
+                     bit_cast<uint32_t>(expected_result) | 0xffff'ffff'0000'0000}});
+    }
+  }
+
+  void InterpretFmaDouble(uint32_t insn_bytes,
+                          std::initializer_list<std::tuple<double, double, double, double>> args) {
+    for (auto [arg1, arg2, arg3, expected_result] : args) {
+      InterpretFma(insn_bytes,
+                   {{bit_cast<uint64_t>(arg1),
+                     bit_cast<uint64_t>(arg2),
+                     bit_cast<uint64_t>(arg3),
+                     bit_cast<uint64_t>(expected_result)}});
+    }
   }
 
   void InterpretOp(uint32_t insn_bytes,
@@ -258,6 +297,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
   uint64_t store_area_;
   ThreadState state_;
 };
+
+// Tests for Compressed Instructions.
 
 template <uint16_t opcode, auto execute_instruction_func>
 void TestCompressedLoadOrStore32bit(Riscv64InterpreterTest* that) {
@@ -566,6 +607,8 @@ TEST_F(Riscv64InterpreterTest, CJ) {
   }
 }
 
+// Tests for Non-Compressed Instructions.
+
 TEST_F(Riscv64InterpreterTest, CsrInstrctuion) {
   ScopedRoundingMode scoped_rounding_mode;
   // Csrrw x2, frm, 2
@@ -583,6 +626,25 @@ TEST_F(Riscv64InterpreterTest, FenceInstructions) {
   InterpretFence(0x8330000f);
   // FenceI
   InterpretFence(0x0000100f);
+}
+
+TEST_F(Riscv64InterpreterTest, FmaInstructions) {
+  // Fmadd.S
+  InterpretFmaSingle(0x203170c3, {{1.0f, 2.0f, 3.0f, 5.0f}});
+  // Fmadd.D
+  InterpretFmaDouble(0x223170c3, {{1.0, 2.0, 3.0, 5.0}});
+  // Fmsub.S
+  InterpretFmaSingle(0x203170c7, {{1.0f, 2.0f, 3.0f, -1.0f}});
+  // Fmsub.D
+  InterpretFmaDouble(0x223170c7, {{1.0, 2.0, 3.0, -1.0}});
+  // Fnmsub.S
+  InterpretFmaSingle(0x203170cb, {{1.0f, 2.0f, 3.0f, 1.0f}});
+  // Fnmsub.D
+  InterpretFmaDouble(0x223170cb, {{1.0, 2.0, 3.0, 1.0}});
+  // Fnmadd.S
+  InterpretFmaSingle(0x203170cf, {{1.0f, 2.0f, 3.0f, -5.0f}});
+  // Fnmadd.D
+  InterpretFmaDouble(0x223170cf, {{1.0, 2.0, 3.0, -5.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, OpInstructions) {

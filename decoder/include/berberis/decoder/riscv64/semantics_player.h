@@ -95,6 +95,15 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void Fma(const typename Decoder::FmaArgs& args) {
+    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
+    FpRegister arg3 = GetFRegAndUnboxNaN(args.src3, args.operand_type);
+    FpRegister result = listener_->Fma(args.opcode, args.operand_type, args.rm, arg1, arg2, arg3);
+    result = CanonicalizeNan(result, args.operand_type);
+    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
   void Lui(const typename Decoder::UpperImmArgs& args) {
     Register result = listener_->Lui(args.imm);
     SetRegOrIgnore(args.dst, result);
