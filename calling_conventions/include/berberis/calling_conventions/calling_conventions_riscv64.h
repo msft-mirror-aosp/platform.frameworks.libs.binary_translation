@@ -29,9 +29,14 @@ enum ArgLocationKind {
   kArgLocationFp,   // f10 - f17
 };
 
+// The meaning of offset depends on kind.
+//
+// Stack argument locations are byte offsets from the stack frame.
+// Register argument locations are register offsets from the first ABI argument register, which is
+// x10/a0 for int arguments and f10/fa0 for fp arguments.
 struct ArgLocation {
   ArgLocationKind kind;
-  unsigned offset;  // meaning of offset depends on kind!
+  unsigned offset;
 };
 
 class CallingConventions {
@@ -81,7 +86,7 @@ class CallingConventions {
     CHECK_LE(size, 16u);
 
     // Use x10/a0.
-    return {kArgLocationInt, 10u};
+    return {kArgLocationInt, 0u};
   }
 
   constexpr ArgLocation GetFpResLoc(unsigned size) {
@@ -89,7 +94,7 @@ class CallingConventions {
     CHECK_LE(size, 16u);
 
     // Use f10/fa0.
-    return {kArgLocationFp, 10u};
+    return {kArgLocationFp, 0u};
   }
 
  private:
