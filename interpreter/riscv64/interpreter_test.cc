@@ -27,6 +27,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
+#include "berberis/intrinsics/guest_fpstate.h"
 
 namespace berberis {
 
@@ -34,6 +35,26 @@ namespace {
 
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
+  template <RegisterType register_type, uint64_t expected_result>
+  void InterpretCompressedStore(uint16_t insn_bytes, uint64_t offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    store_area_ = 0;
+    SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
+    SetReg<register_type, 9>(state_.cpu, kDataToLoad);
+    InterpretInsn(&state_);
+    EXPECT_EQ(store_area_, expected_result);
+  }
+
+  template <RegisterType register_type, uint64_t expected_result>
+  void InterpretCompressedLoad(uint16_t insn_bytes, uint64_t offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
+    InterpretInsn(&state_);
+    EXPECT_EQ((GetReg<register_type, 9>(state_.cpu)), expected_result);
+  }
+
   void InterpretCAddi4spn(uint16_t insn_bytes, uint64_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -57,6 +78,15 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
 
+  void InterpretCsr(uint32_t insn_bytes, uint8_t expected_rm) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    state_.cpu.frm = 0b001u;
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
+    EXPECT_EQ(state_.cpu.frm, expected_rm);
+  }
+
   void InterpretOp(uint32_t insn_bytes,
                    std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
@@ -65,6 +95,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
       SetXReg<3>(state_.cpu, arg2);
       InterpretInsn(&state_);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  void InterpretOpFp(uint32_t insn_bytes,
+                     std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
+    for (auto [arg1, arg2, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg1);
+      SetFReg<3>(state_.cpu, arg2);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
 
@@ -189,6 +230,95 @@ class Riscv64InterpreterTest : public ::testing::Test {
   uint64_t store_area_;
   ThreadState state_;
 };
+
+TEST_F(Riscv64InterpreterTest, CLw) {
+  union {
+    uint16_t offset;
+    struct {
+      uint8_t : 2;
+      uint8_t i2 : 1;
+      uint8_t i3_i5 : 3;
+      uint8_t i6 : 1;
+    } i_bits;
+  };
+  for (offset = uint8_t{0}; offset < uint8_t{128}; offset += 4) {
+    union {
+      int16_t parcel;
+      struct {
+        uint8_t low_opcode : 2;
+        uint8_t rd : 3;
+        uint8_t i6 : 1;
+        uint8_t i2 : 1;
+        uint8_t rs : 3;
+        uint8_t i3_i5 : 3;
+        uint8_t high_opcode : 3;
+      } __attribute__((__packed__));
+    } o_bits = {
+        .low_opcode = 0b00,
+        .rd = 1,
+        .i6 = i_bits.i6,
+        .i2 = i_bits.i2,
+        .rs = 0,
+        .i3_i5 = i_bits.i3_i5,
+        .high_opcode = 0b010,
+    };
+    InterpretCompressedLoad<RegisterType::kReg,
+                            static_cast<uint64_t>(static_cast<int32_t>(kDataToLoad))>(o_bits.parcel,
+                                                                                      offset);
+  }
+}
+
+template <uint16_t opcode, auto execute_instruction_func>
+void TestCompressedLoadOrStore(Riscv64InterpreterTest* that) {
+  union {
+    uint16_t offset;
+    struct {
+      uint8_t : 3;
+      uint8_t i3_i5 : 3;
+      uint8_t i6_i7 : 2;
+    } i_bits;
+  };
+  for (offset = int16_t{0}; offset < int16_t{256}; offset += 8) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t rd : 3;
+        uint8_t i6_i7 : 2;
+        uint8_t rs : 3;
+        uint8_t i3_i5 : 3;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b00,
+        .rd = 1,
+        .i6_i7 = i_bits.i6_i7,
+        .rs = 0,
+        .i3_i5 = i_bits.i3_i5,
+        .high_opcode = 0b000,
+    };
+    (that->*execute_instruction_func)(o_bits.parcel | opcode, offset);
+  }
+}
+
+TEST_F(Riscv64InterpreterTest, CompressedLoadAndStores) {
+  // c.Fld
+  TestCompressedLoadOrStore<
+      0b001'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kFpReg, kDataToLoad>>(this);
+  // c.Ld
+  TestCompressedLoadOrStore<
+      0b011'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kReg, kDataToLoad>>(this);
+  // c.Fsd
+  TestCompressedLoadOrStore<
+      0b101'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kFpReg, kDataToLoad>>(this);
+  // c.Sd
+  TestCompressedLoadOrStore<
+      0b111'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kReg, kDataToLoad>>(this);
+}
 
 TEST_F(Riscv64InterpreterTest, CAddi) {
   union {
@@ -320,6 +450,16 @@ TEST_F(Riscv64InterpreterTest, CJ) {
     };
     InterpretCJ(o_bits.parcel, offset);
   }
+}
+
+TEST_F(Riscv64InterpreterTest, CsrInstrctuion) {
+  ScopedRoundingMode scoped_rounding_mode;
+  // Csrrw x2, frm, 2
+  InterpretCsr(0x00215173, 2);
+  // Csrrsi x2, frm, 2
+  InterpretCsr(0x00216173, 3);
+  // Csrrci x2, frm, 1
+  InterpretCsr(0x0020f173, 0);
 }
 
 TEST_F(Riscv64InterpreterTest, FenceInstructions) {
@@ -488,6 +628,231 @@ TEST_F(Riscv64InterpreterTest, OpImm32Instructions) {
   InterpretOpImm(0x0001509b, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
   // Sraiw
   InterpretOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
+}
+
+TEST_F(Riscv64InterpreterTest, OpFpInstructions) {
+  // FAdd.S
+  InterpretOpFp(0x003100d3,
+                {{bit_cast<uint32_t>(1.0f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(2.0f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(3.0f) | 0xffff'ffff'0000'0000}});
+  // FAdd.D
+  InterpretOpFp(0x023100d3,
+                {{bit_cast<uint64_t>(1.0), bit_cast<uint64_t>(2.0), bit_cast<uint64_t>(3.0)}});
+}
+
+TEST_F(Riscv64InterpreterTest, RoundingModeTest) {
+  // FAdd.S
+  InterpretOpFp(0x003100d3,
+                // Test RNE
+                {{bit_cast<uint32_t>(1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000005f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000005f) | 0xffff'ffff'0000'0000}});
+  // FAdd.S
+  InterpretOpFp(0x003110d3,
+                // Test RTZ
+                {{bit_cast<uint32_t>(1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000001f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000001f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000}});
+  // FAdd.S
+  InterpretOpFp(0x003120d3,
+                // Test RDN
+                {{bit_cast<uint32_t>(1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000001f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000005f) | 0xffff'ffff'0000'0000}});
+  // FAdd.S
+  InterpretOpFp(0x003130d3,
+                // Test RUP
+                {{bit_cast<uint32_t>(1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000005f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000001f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000}});
+  // FAdd.S
+  InterpretOpFp(0x003140d3,
+                // Test RMM
+                {{bit_cast<uint32_t>(1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(1.0000005f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000001f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000002f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000},
+                 {bit_cast<uint32_t>(-1.0000004f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-0.000000059604645f) | 0xffff'ffff'0000'0000,
+                  bit_cast<uint32_t>(-1.0000005f) | 0xffff'ffff'0000'0000}});
+
+  // FAdd.D
+  InterpretOpFp(0x023100d3,
+                // Test RNE
+                {{bit_cast<uint64_t>(1.0000000000000002),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000004)},
+                 {bit_cast<uint64_t>(1.0000000000000004),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000004)},
+                 {bit_cast<uint64_t>(1.0000000000000007),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000009)},
+                 {bit_cast<uint64_t>(-1.0000000000000002),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000004)},
+                 {bit_cast<uint64_t>(-1.0000000000000004),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000004)},
+                 {bit_cast<uint64_t>(-1.0000000000000007),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000009)}});
+  // FAdd.D
+  InterpretOpFp(0x023110d3,
+                // Test RTZ
+                {{bit_cast<uint64_t>(1.0000000000000002),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000002)},
+                 {bit_cast<uint64_t>(1.0000000000000004),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000004)},
+                 {bit_cast<uint64_t>(1.0000000000000007),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000007)},
+                 {bit_cast<uint64_t>(-1.0000000000000002),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000002)},
+                 {bit_cast<uint64_t>(-1.0000000000000004),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000004)},
+                 {bit_cast<uint64_t>(-1.0000000000000007),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000007)}});
+  // FAdd.D
+  InterpretOpFp(0x023120d3,
+                // Test RDN
+                {{bit_cast<uint64_t>(1.0000000000000002),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000002)},
+                 {bit_cast<uint64_t>(1.0000000000000004),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000004)},
+                 {bit_cast<uint64_t>(1.0000000000000007),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000007)},
+                 {bit_cast<uint64_t>(-1.0000000000000002),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000004)},
+                 {bit_cast<uint64_t>(-1.0000000000000004),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000007)},
+                 {bit_cast<uint64_t>(-1.0000000000000007),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000009)}});
+  // FAdd.D
+  InterpretOpFp(0x023130d3,
+                // Test RUP
+                {{bit_cast<uint64_t>(1.0000000000000002),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000004)},
+                 {bit_cast<uint64_t>(1.0000000000000004),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000007)},
+                 {bit_cast<uint64_t>(1.0000000000000007),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000009)},
+                 {bit_cast<uint64_t>(-1.0000000000000002),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000002)},
+                 {bit_cast<uint64_t>(-1.0000000000000004),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000004)},
+                 {bit_cast<uint64_t>(-1.0000000000000007),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000007)}});
+  // FAdd.D
+  InterpretOpFp(0x023140d3,
+                // Test RMM
+                {{bit_cast<uint64_t>(1.0000000000000002),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000004)},
+                 {bit_cast<uint64_t>(1.0000000000000004),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000007)},
+                 {bit_cast<uint64_t>(1.0000000000000007),
+                  bit_cast<uint64_t>(0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(1.0000000000000009)},
+                 {bit_cast<uint64_t>(-1.0000000000000002),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000004)},
+                 {bit_cast<uint64_t>(-1.0000000000000004),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000007)},
+                 {bit_cast<uint64_t>(-1.0000000000000007),
+                  bit_cast<uint64_t>(-0.00000000000000011102230246251565),
+                  bit_cast<uint64_t>(-1.0000000000000009)}});
 }
 
 TEST_F(Riscv64InterpreterTest, LoadInstructions) {
