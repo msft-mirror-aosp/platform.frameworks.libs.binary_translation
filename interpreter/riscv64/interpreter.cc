@@ -313,6 +313,84 @@ class Interpreter {
     }
   }
 
+  FpRegister Fma(Decoder::FmaOpcode opcode,
+                 Decoder::FloatOperandType float_size,
+                 uint8_t rm,
+                 FpRegister arg1,
+                 FpRegister arg2,
+                 FpRegister arg3) {
+    switch (float_size) {
+      case Decoder::FloatOperandType::kFloat:
+        return FloatToFPReg(Fma<Float32>(opcode,
+                                         rm,
+                                         FPRegToFloat<Float32>(arg1),
+                                         FPRegToFloat<Float32>(arg2),
+                                         FPRegToFloat<Float32>(arg3)));
+      case Decoder::FloatOperandType::kDouble:
+        return FloatToFPReg(Fma<Float64>(opcode,
+                                         rm,
+                                         FPRegToFloat<Float64>(arg1),
+                                         FPRegToFloat<Float64>(arg2),
+                                         FPRegToFloat<Float64>(arg3)));
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  // TODO(b/278812060): switch to intrinsics when they would become available and stop using
+  // ExecuteFloatOperation directly.
+  template <typename FloatType>
+  FloatType Fma(Decoder::FmaOpcode opcode,
+                uint8_t rm,
+                FloatType arg1,
+                FloatType arg2,
+                FloatType arg3) {
+    switch (opcode) {
+      case Decoder::FmaOpcode::kFmadd:
+        return intrinsics::ExecuteFloatOperation<FloatType>(
+            rm,
+            state_->cpu.frm,
+            [](auto x, auto y, auto z) { return intrinsics::MulAdd(x, y, z); },
+            arg1,
+            arg2,
+            arg3);
+      case Decoder::FmaOpcode::kFmsub:
+        return intrinsics::ExecuteFloatOperation<FloatType>(
+            rm,
+            state_->cpu.frm,
+            [](auto x, auto y, auto z) {
+              return intrinsics::MulAdd(x, y, intrinsics::Negative(z));
+            },
+            arg1,
+            arg2,
+            arg3);
+      case Decoder::FmaOpcode::kFnmsub:
+        return intrinsics::ExecuteFloatOperation<FloatType>(
+            rm,
+            state_->cpu.frm,
+            [](auto x, auto y, auto z) {
+              return intrinsics::MulAdd(intrinsics::Negative(x), y, z);
+            },
+            arg1,
+            arg2,
+            arg3);
+      case Decoder::FmaOpcode::kFnmadd:
+        return intrinsics::ExecuteFloatOperation<FloatType>(
+            rm,
+            state_->cpu.frm,
+            [](auto x, auto y, auto z) {
+              return intrinsics::MulAdd(intrinsics::Negative(x), y, intrinsics::Negative(z));
+            },
+            arg1,
+            arg2,
+            arg3);
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
     switch (opcode) {
       case Decoder::OpImmOpcode::kAddi:
