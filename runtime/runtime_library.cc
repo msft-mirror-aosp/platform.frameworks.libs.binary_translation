@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#include "berberis/runtime_primitives/checks.h"
+#include "berberis/runtime_primitives/runtime_library.h"
 
-namespace berberis {
+extern "C" {
 
-bool IsProgramCounterProperlyAlignedForArch(GuestAddr pc) {
-  // RISC-V C only supports 16-bit address alignment. The least-significant bit
-  // will be set to zero on JALR instructions.
-  return (pc & 0x1) == 0;
-}
+void berberis_entry_Stop() {}
+void berberis_entry_NoExec() {}
+void berberis_entry_NotTranslated() {}
+void berberis_entry_Translating() {}
+void berberis_entry_Invalidating() {}
+void berberis_entry_Wrapping() {}
 
-}  // namespace berberis
+}  // extern "C"
