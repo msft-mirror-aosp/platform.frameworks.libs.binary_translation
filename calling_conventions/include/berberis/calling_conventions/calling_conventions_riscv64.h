@@ -43,6 +43,13 @@ class CallingConventions {
  public:
   static constexpr unsigned kStackAlignmentBeforeCall = 16;
 
+  CallingConventions() = default;
+  CallingConventions(const CallingConventions&) = default;
+  CallingConventions(CallingConventions&&) = default;
+  static constexpr struct StackOnly {
+  } kStackOnly;
+  CallingConventions(StackOnly) : int_offset_(kMaxIntOffset), fp_offset_(kMaxFpOffset) {}
+
   constexpr ArgLocation GetNextIntArgLoc(unsigned size, unsigned alignment) {
     // Fundamental integer type - 1/1, 2/2, 4/4, 8/8, 16/16.
     CHECK_LE(size, 16u);
