@@ -17,6 +17,7 @@
 #include "gtest/gtest.h"
 
 #include <cstddef>
+#include <cstdint>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/guest_abi/guest_arguments.h"
@@ -25,7 +26,7 @@ namespace berberis {
 
 namespace {
 
-TEST(GuestArguments_riscv64, SmokeLp64) {
+TEST(GuestArguments_riscv64_lp64, Smoke) {
   constexpr std::size_t padding_size =
       AlignUp(offsetof(GuestArgumentBuffer, stack_argv), sizeof(uint64_t)) / sizeof(uint64_t) + 4;
   union {
@@ -81,7 +82,7 @@ TEST(GuestArguments_riscv64, SmokeLp64) {
   EXPECT_EQ(0, f2_args.GuestResult());
 }
 
-TEST(GuestArguments_riscv64, SmokeLp64d) {
+TEST(GuestArguments_riscv64_lp64d, Smoke) {
   constexpr std::size_t padding_size =
       AlignUp(offsetof(GuestArgumentBuffer, stack_argv), sizeof(uint64_t)) / sizeof(uint64_t) + 4;
   union {
@@ -190,7 +191,31 @@ TEST(GuestArguments_riscv64, SmokeLp64d) {
   EXPECT_EQ(1, f2_args.GuestResult());
 }
 
-TEST(GuestArguments_riscv64, GuestArgumentsReferences) {
+TEST(GuestArguments_riscv64_lp64d, LongParamLargeStructRes) {
+  struct Result {
+    uint64_t values[10];
+  } result{};
+  GuestArgumentBuffer buffer{.argv = {ToGuestAddr(&result), 0xdead0000beef}};
+
+  GuestArgumentsAndResult<Result(uint64_t)> args(&buffer);
+
+  EXPECT_EQ(0xdead0000beefUL, args.GuestArgument<0>());
+
+  args.GuestResult() = Result{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+
+  EXPECT_EQ(1U, result.values[0]);
+  EXPECT_EQ(2U, result.values[1]);
+  EXPECT_EQ(3U, result.values[2]);
+  EXPECT_EQ(4U, result.values[3]);
+  EXPECT_EQ(5U, result.values[4]);
+  EXPECT_EQ(6U, result.values[5]);
+  EXPECT_EQ(7U, result.values[6]);
+  EXPECT_EQ(8U, result.values[7]);
+  EXPECT_EQ(9U, result.values[8]);
+  EXPECT_EQ(10U, result.values[9]);
+}
+
+TEST(GuestArguments_riscv64_lp64d, GuestArgumentsReferences) {
   GuestArgumentBuffer buffer{.argv = {100}, .fp_argv = {0x3fe0000000000000}};
 
   auto&& [length1, angle1] =
@@ -208,7 +233,7 @@ TEST(GuestArguments_riscv64, GuestArgumentsReferences) {
   EXPECT_EQ(angle2, 1.0);
 }
 
-TEST(GuestArguments_riscv64, HostArgumentsValues) {
+TEST(GuestArguments_riscv64_lp64d, HostArgumentsValues) {
   GuestArgumentBuffer buffer{.argv = {100}, .fp_argv = {0x3fe0000000000000}};
 
   auto [length, angle] = HostArgumentsValues<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
@@ -216,14 +241,14 @@ TEST(GuestArguments_riscv64, HostArgumentsValues) {
   EXPECT_EQ(angle, 1.0 / 2.0);
 }
 
-TEST(GuestArguments_riscv64, GuestResultValue) {
+TEST(GuestArguments_riscv64_lp64d, GuestResultValue) {
   GuestArgumentBuffer buffer{.argv = {100}, .fp_argv = {0x3fe0000000000000}};
 
   auto [result] = GuestResultValue<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
   EXPECT_EQ(result, 1.0 / 2.0);
 }
 
-TEST(GuestArguments_riscv64, HostResultReference) {
+TEST(GuestArguments_riscv64_lp64d, HostResultReference) {
   GuestArgumentBuffer buffer{.argv = {100}, .fp_argv = {0x3fe0000000000000}};
 
   auto&& [result1] = HostResultReference<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
