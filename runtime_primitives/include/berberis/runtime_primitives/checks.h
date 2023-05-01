@@ -21,7 +21,7 @@
 
 namespace berberis {
 
-bool IsProgramCounterProperlyAlignedForArch4(GuestAddr pc);
+bool IsProgramCounterProperlyAlignedForArch(GuestAddr pc);
 
 }  // namespace berberis
 
