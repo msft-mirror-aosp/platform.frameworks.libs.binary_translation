@@ -35,15 +35,12 @@ cc_library_static {
         "signal_queue.cc",
     ],
     header_libs: [
+        "libberberis_assembler_headers",
         "libberberis_base_headers",
         "libberberis_guest_state_headers",
         "libberberis_runtime_primitives_headers",
     ],
     export_header_lib_headers: ["libberberis_runtime_primitives_headers"],
-    // TODO(b/279669792): convert to header lib
-    static_libs: [
-        "libberberis_assembler",
-    ],
 }
 
 cc_library_static {
@@ -72,13 +69,10 @@ cc_test_library {
         "signal_queue_test.cc",
     ],
     header_libs: [
+        "libberberis_assembler_headers",
         "berberis_test_utils_headers",
         "libberberis_base_headers",
         "libberberis_guest_state_headers",
         "libberberis_runtime_primitives_headers",
-    ],
-    // TODO(b/279669792): convert to header lib
-    static_libs: [
-        "libberberis_assembler",
     ],
 }
