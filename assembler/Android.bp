@@ -77,13 +77,12 @@ genrule {
     cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
 }
 
-cc_library_static {
-    name: "libberberis_assembler",
+cc_library_headers {
+    name: "libberberis_assembler_headers",
     defaults: ["berberis_defaults"],
     host_supported: true,
-    srcs: [
-        "machine_code.cc",
-    ],
+    header_libs: ["libberberis_base_headers"],
+    export_header_lib_headers: ["libberberis_base_headers"],
     generated_headers: [
         "libberberis_assembler_gen_public_headers_x86_32",
         "libberberis_assembler_gen_public_headers_x86_64",
@@ -92,9 +91,18 @@ cc_library_static {
         "libberberis_assembler_gen_public_headers_x86_32",
         "libberberis_assembler_gen_public_headers_x86_64",
     ],
-    static_libs: ["libberberis_base"],
     export_include_dirs: ["include"],
-    export_static_lib_headers: ["libberberis_base"],
+}
+
+cc_library_static {
+    name: "libberberis_assembler",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    srcs: [
+        "machine_code.cc",
+    ],
+    header_libs: ["libberberis_assembler_headers"],
+    export_header_lib_headers: ["libberberis_assembler_headers"],
 }
 
 cc_genrule {
