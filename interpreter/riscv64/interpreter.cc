@@ -592,12 +592,12 @@ class Interpreter {
 
   Register GetReg(uint8_t reg) const {
     CheckRegIsValid(reg);
-    return state_->cpu.x[reg - 1];
+    return state_->cpu.x[reg];
   }
 
   void SetReg(uint8_t reg, Register value) {
     CheckRegIsValid(reg);
-    state_->cpu.x[reg - 1] = value;
+    state_->cpu.x[reg] = value;
   }
 
   FpRegister GetFpReg(uint8_t reg) const {
