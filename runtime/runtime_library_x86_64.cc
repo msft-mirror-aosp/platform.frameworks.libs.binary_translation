@@ -128,6 +128,60 @@ __attribute__((__visibility__("hidden"))) void berberis_HandleNotTranslated(
   FATAL("berberis_HandleNotTranslated not yet implemented");
 }
 
+[[gnu::naked]] [[gnu::noinline]] void berberis_RunGeneratedCode(ThreadState* state, HostCode code) {
+  // Parameters are in %rdi - state and %rsi - code
+  //
+  // On x86_64 Linux, stack should be aligned on 16 at every call insn.
+  // That means stack is 8 mod 16 on function entry.
+  // See https://software.intel.com/sites/default/files/article/402129/mpx-linux64-abi.pdf (3.2.2)
+  //
+  // Stack:
+  //  0:               <- stack after prologue, aligned for next call
+  //  8: saved r15     <- stack after prologue
+  // 16: saved r14
+  // 24: saved r13
+  // 32: saved r12
+  // 40: saved rbx
+  // 48: saved rbp
+  // 56: return addr
+  // 00: <- stack at call insn - aligned on 16
+
+  // clang-format off
+  asm(
+      // Prologue
+      "push %%rbp\n"
+      "push %%rbx\n"
+      "push %%r12\n"
+      "push %%r13\n"
+      "push %%r14\n"
+      "push %%r15\n"
+
+      // Align stack for next call
+      "sub %[FrameSizeAtTranslatedCode], %%rsp\n"  // kStackAlignAtCall, kFrameSizeAtTranslatedCode
+
+      // Set state pointer
+      "mov %%rdi, %%rbp\n"  // kStateRegister, kOmitFramePointer
+
+      // Set insn_addr.
+      "mov %[InsnAddr](%%rbp), %%rax\n"
+      // Set kInsideGeneratedCode residence.
+      "movb %[InsideGeneratedCode], %[Residence](%%rbp)\n"
+
+      // Jump to entry
+      "jmp *%%rsi"
+      ::[InsnAddr] "p"(offsetof(ThreadState, cpu.insn_addr)),
+      [Residence] "p"(offsetof(ThreadState, residence)),
+      [InsideGeneratedCode] "J"(kInsideGeneratedCode),
+      [FrameSizeAtTranslatedCode] "J"(8));
+  // TODO(b/278926583): create and use
+  // berberis::config::kFrameSizeAtTranslatedCode instead of "8"
+  // clang-format on
+}
+
+[[gnu::naked]] [[gnu::noinline]] void berberis_entry_ExitGeneratedCode() {
+  END_GENERATED_CODE("ret");
+}
+
 [[gnu::naked]] [[gnu::noinline]] void berberis_entry_Stop() {
   END_GENERATED_CODE("ret");
 }
