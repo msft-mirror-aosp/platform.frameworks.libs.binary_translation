@@ -32,6 +32,7 @@ cc_library_static {
         "code_pool.cc",
         "known_guest_function_wrapper.cc",
         "profiler_interface.cc",
+        "recovery_code.cc",
         "signal_queue.cc",
         "translation_cache.cc",
     ],
