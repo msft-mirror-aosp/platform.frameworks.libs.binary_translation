@@ -30,17 +30,33 @@ TEST(CallingConventions_riscv64, Smoke) {
   EXPECT_EQ(kArgLocationInt, loc.kind);
   EXPECT_EQ(0u, loc.offset);
 
-  loc = conv.GetNextIntArgLoc(16, 16);
+  loc = conv.GetNextIntArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(1u, loc.offset);
+
+  loc = conv.GetNextIntArgLoc(8, 8);
   EXPECT_EQ(kArgLocationInt, loc.kind);
   EXPECT_EQ(2u, loc.offset);
 
   loc = conv.GetNextIntArgLoc(8, 8);
   EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(3u, loc.offset);
+
+  loc = conv.GetNextIntArgLoc(2, 2);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
   EXPECT_EQ(4u, loc.offset);
 
-  loc = conv.GetNextIntArgLoc(16, 16);
+  loc = conv.GetNextIntArgLoc(1, 1);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(5u, loc.offset);
+
+  loc = conv.GetNextIntArgLoc(1, 1);
   EXPECT_EQ(kArgLocationInt, loc.kind);
   EXPECT_EQ(6u, loc.offset);
+
+  loc = conv.GetNextIntArgLoc(2, 2);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(7u, loc.offset);
 
   loc = conv.GetNextIntArgLoc(4, 4);
   EXPECT_EQ(kArgLocationStack, loc.kind);
@@ -54,47 +70,29 @@ TEST(CallingConventions_riscv64, Smoke) {
   EXPECT_EQ(kArgLocationStack, loc.kind);
   EXPECT_EQ(16u, loc.offset);
 
-  loc = conv.GetNextIntArgLoc(16, 16);
+  loc = conv.GetNextIntArgLoc(2, 2);
+  EXPECT_EQ(kArgLocationStack, loc.kind);
+  EXPECT_EQ(24u, loc.offset);
+
+  loc = conv.GetNextIntArgLoc(1, 1);
   EXPECT_EQ(kArgLocationStack, loc.kind);
   EXPECT_EQ(32u, loc.offset);
 
-  loc = conv.GetNextFpArgLoc(16, 16);
+  loc = conv.GetNextFpArgLoc(8, 8);
   EXPECT_EQ(kArgLocationFp, loc.kind);
   EXPECT_EQ(0u, loc.offset);
 
-  loc = conv.GetNextFpArgLoc(16, 16);
+  loc = conv.GetNextFpArgLoc(4, 4);
   EXPECT_EQ(kArgLocationFp, loc.kind);
   EXPECT_EQ(1u, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(4, 4);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(2u, loc.offset);
 
   loc = conv.GetIntResLoc(1);
   EXPECT_EQ(kArgLocationInt, loc.kind);
   EXPECT_EQ(0u, loc.offset);
-}
-
-TEST(CallingConventions_riscv64, LastIntRegNotUsed) {
-  CallingConventions conv;
-  ArgLocation loc;
-
-  // Use 7 of 8 int regs.
-  conv.GetNextIntArgLoc(4, 4);
-  conv.GetNextIntArgLoc(4, 4);
-  conv.GetNextIntArgLoc(4, 4);
-  conv.GetNextIntArgLoc(4, 4);
-  conv.GetNextIntArgLoc(4, 4);
-  conv.GetNextIntArgLoc(4, 4);
-  loc = conv.GetNextIntArgLoc(4, 4);
-  EXPECT_EQ(kArgLocationInt, loc.kind);
-  EXPECT_EQ(6u, loc.offset);
-
-  // Add param that doesn't fit in the last reg.
-  loc = conv.GetNextIntArgLoc(16, 16);
-  EXPECT_EQ(kArgLocationStack, loc.kind);
-  EXPECT_EQ(0u, loc.offset);
-
-  // Add param that can fit in the last reg, but still goes to stack.
-  loc = conv.GetNextIntArgLoc(4, 4);
-  EXPECT_EQ(kArgLocationStack, loc.kind);
-  EXPECT_EQ(16u, loc.offset);
 }
 
 }  // namespace
