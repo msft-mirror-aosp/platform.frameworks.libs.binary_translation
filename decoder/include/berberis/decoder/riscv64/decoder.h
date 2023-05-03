@@ -502,10 +502,54 @@ class Decoder {
       case CompressedOpcode::kBnez:
         DecodeCBeqzBnez();
         break;
+      case CompressedOpcode::kMisc_Alu:
+        DecodeCMiscAlu();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
     return 2;
+  }
+
+  void DecodeCMiscAlu() {
+    uint8_t r = GetBits<uint8_t, 7, 3>() + 8;
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t imm = (high_imm << 5) + low_imm;
+    switch (GetBits<uint8_t, 10, 2>()) {
+      case 0b00: {
+        const ShiftImmArgs args = {
+            .opcode = ShiftImmOpcode::kSrli,
+            .dst = r,
+            .src = r,
+            .imm = imm,
+        };
+        insn_consumer_->OpImm(args);
+        break;
+      }
+      case 0b01: {
+        const ShiftImmArgs args = {
+            .opcode = ShiftImmOpcode::kSrai,
+            .dst = r,
+            .src = r,
+            .imm = imm,
+        };
+        insn_consumer_->OpImm(args);
+        break;
+      }
+      case 0b10: {
+        const OpImmArgs args = {
+            .opcode = OpImmOpcode::kAndi,
+            .dst = r,
+            .src = r,
+            .imm = SignExtend<6>(imm),
+        };
+        insn_consumer_->OpImm(args);
+        break;
+      }
+      default:
+        return Undefined();
+    }
   }
 
   void DecodeCompressedLuiAddi16sp() {
