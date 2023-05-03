@@ -18,6 +18,7 @@
 #define BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_RISCV64_H_
 
 #include <array>
+#include <tuple>
 
 #include "berberis/base/dependent_false.h"
 #include "berberis/calling_conventions/calling_conventions_riscv64.h"
@@ -98,7 +99,8 @@ class GuestArgumentsAndResult<ResultType(ArgumentType...) noexcept(kNoexcept),
     }
   }
 
-  constexpr static const std::array<riscv64::ArgLocation, sizeof...(ArgumentType)>
+  constexpr static const std::tuple<riscv64::ArgLocation,
+                                    std::array<riscv64::ArgLocation, sizeof...(ArgumentType)>>
   ArgumentsInfoHelper() {
     struct {
       const ArgumentClass kArgumentClass;
@@ -111,25 +113,27 @@ class GuestArgumentsAndResult<ResultType(ArgumentType...) noexcept(kNoexcept),
          .kAlignment = GuestArgumentInfo<ArgumentType, kCallingConventionsVariant>::kAlignment}...};
 
     riscv64::CallingConventions conv;
-    std::array<riscv64::ArgLocation, sizeof...(ArgumentType)> result{};
+    // The result location must be allocated before any arguments to ensure that the implicit a0
+    // argument for functions with large structure return types is reserved.
+    riscv64::ArgLocation result_loc = ResultInfoHelper(conv);
+    std::array<riscv64::ArgLocation, sizeof...(ArgumentType)> arg_locs{};
     for (const auto& kArgInfo : kArgumentsInfo) {
       if (kArgInfo.kArgumentClass == ArgumentClass::kInteger ||
           kArgInfo.kArgumentClass == ArgumentClass::kLargeStruct) {
-        result[&kArgInfo - kArgumentsInfo] =
+        arg_locs[&kArgInfo - kArgumentsInfo] =
             conv.GetNextIntArgLoc(kArgInfo.kSize, kArgInfo.kAlignment);
       } else if (kArgInfo.kArgumentClass == ArgumentClass::kFp) {
-        result[&kArgInfo - kArgumentsInfo] =
+        arg_locs[&kArgInfo - kArgumentsInfo] =
             conv.GetNextFpArgLoc(kArgInfo.kSize, kArgInfo.kAlignment);
       } else {
         LOG_ALWAYS_FATAL("Unsupported ArgumentClass");
       }
     }
 
-    return result;
+    return {result_loc, arg_locs};
   }
 
-  constexpr static riscv64::ArgLocation ResultInfoHelper() {
-    riscv64::CallingConventions conv;
+  constexpr static riscv64::ArgLocation ResultInfoHelper(riscv64::CallingConventions& conv) {
     using ResultInfo = GuestArgumentInfo<ResultType, kCallingConventionsVariant>;
     if constexpr (std::is_same_v<ResultType, void>) {
       return {riscv64::kArgLocationNone, 0};
@@ -137,6 +141,11 @@ class GuestArgumentsAndResult<ResultType(ArgumentType...) noexcept(kNoexcept),
       return conv.GetIntResLoc(ResultInfo::kSize);
     } else if constexpr (ResultInfo::kArgumentClass == ArgumentClass::kFp) {
       return conv.GetFpResLoc(ResultInfo::kSize);
+    } else if constexpr (ResultInfo::kArgumentClass == ArgumentClass::kLargeStruct) {
+      // The caller allocates memory for large structure return values and passes the address in a0
+      // as an implicit parameter.  If the return type is a large structure, we must reserve a0 for
+      // this implicit parameter.
+      return conv.GetNextIntArgLoc(ResultInfo::kSize, ResultInfo::kAlignment);
     } else {
       static_assert(kDependentTypeFalse<ResultType>, "Unsupported ArgumentClass");
     }
@@ -154,10 +163,10 @@ class GuestArgumentsAndResult<ResultType(ArgumentType...) noexcept(kNoexcept),
     }
   }
 
-  constexpr static riscv64::ArgLocation kResultLocation = ResultInfoHelper();
+  constexpr static riscv64::ArgLocation kResultLocation = std::get<0>(ArgumentsInfoHelper());
 
   constexpr static std::array<riscv64::ArgLocation, sizeof...(ArgumentType)> kArgumentsLocations =
-      ArgumentsInfoHelper();
+      std::get<1>(ArgumentsInfoHelper());
 
   GuestArgumentBuffer* const buffer_;
 };
