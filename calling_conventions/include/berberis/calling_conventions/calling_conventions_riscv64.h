@@ -43,32 +43,31 @@ class CallingConventions {
  public:
   static constexpr unsigned kStackAlignmentBeforeCall = 16;
 
+  CallingConventions() = default;
+  CallingConventions(const CallingConventions&) = default;
+  CallingConventions(CallingConventions&&) = default;
+  static constexpr struct StackOnly {
+  } kStackOnly;
+  CallingConventions(StackOnly) : int_offset_(kMaxIntOffset), fp_offset_(kMaxFpOffset) {}
+
   constexpr ArgLocation GetNextIntArgLoc(unsigned size, unsigned alignment) {
-    // Fundamental integer type - 1/1, 2/2, 4/4, 8/8, 16/16.
-    CHECK_LE(size, 16u);
+    // Fundamental integer type - 1/1, 2/2, 4/4, 8/8.
+    CHECK_LE(size, 8u);
     CHECK_EQ(size, alignment);
 
-    unsigned size_in_regs = size > 8 ? 2 : 1;
-    unsigned alignment_in_regs = size_in_regs;
-
-    unsigned aligned_int_offset = AlignUp(int_offset_, alignment_in_regs);
-
-    if (aligned_int_offset + size_in_regs <= kMaxIntOffset) {
-      // Use 1 or 2 int regs.
-      ArgLocation loc{kArgLocationInt, aligned_int_offset};
-      int_offset_ = aligned_int_offset + size_in_regs;
+    if (int_offset_ < kMaxIntOffset) {
+      // Use 1 int reg.
+      ArgLocation loc{kArgLocationInt, int_offset_};
+      ++int_offset_;
       return loc;
     }
-
-    // ATTENTION: _ensure_ no more int regs params!
-    int_offset_ = kMaxIntOffset;
 
     return GetNextStackArgLoc(size, alignment);
   }
 
   constexpr ArgLocation GetNextFpArgLoc(unsigned size, unsigned alignment) {
-    // Fundamental floating-point type - 4/4, 8/8, 16/16.
-    CHECK_LE(size, 16u);
+    // Fundamental floating-point type - 4/4, 8/8.
+    CHECK_LE(size, 8u);
     CHECK_EQ(size, alignment);
 
     if (fp_offset_ < kMaxFpOffset) {
@@ -82,16 +81,16 @@ class CallingConventions {
   }
 
   constexpr ArgLocation GetIntResLoc(unsigned size) {
-    // Fundamental integer type - 1/1, 2/2, 4/4, 8/8, 16/16.
-    CHECK_LE(size, 16u);
+    // Fundamental integer type - 1/1, 2/2, 4/4, 8/8.
+    CHECK_LE(size, 8u);
 
     // Use x10/a0.
     return {kArgLocationInt, 0u};
   }
 
   constexpr ArgLocation GetFpResLoc(unsigned size) {
-    // Fundamental floating-point type - 4/4, 8/8, 16/16.
-    CHECK_LE(size, 16u);
+    // Fundamental floating-point type - 4/4, 8/8.
+    CHECK_LE(size, 8u);
 
     // Use f10/fa0.
     return {kArgLocationFp, 0u};
