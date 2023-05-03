@@ -102,8 +102,24 @@ inline auto SetReg(CPUState& state, Register val) {
   }
 }
 
+class GuestThread;
+
+// Track whether we are in generated code or not.
+enum GuestThreadResidence : uint8_t {
+  kOutsideGeneratedCode = 0,
+  kInsideGeneratedCode = 1,
+};
+
 struct ThreadState {
   CPUState cpu;
+
+  // Guest thread pointer.
+  GuestThread* thread;
+
+  GuestThreadResidence residence;
+
+  // Arbitrary per-thread data added by instrumentation.
+  void* instrument_data;
 };
 
 // The ABI names come from
