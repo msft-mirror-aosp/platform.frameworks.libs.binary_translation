@@ -43,11 +43,15 @@ cc_library_static {
         "libberberis_guest_state_headers",
         "libberberis_interpreter_riscv64_headers",
         "libberberis_runtime_headers",
+        "libberberis_runtime_primitives_headers",
     ],
     export_header_lib_headers: [
         "libberberis_runtime_headers",
     ],
-    srcs: ["execute_guest.cc"],
+    srcs: [
+        "execute_guest.cc",
+        "translator.cc",
+    ],
 }
 
 cc_test_library {

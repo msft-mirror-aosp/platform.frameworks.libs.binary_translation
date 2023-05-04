@@ -17,6 +17,7 @@
 #ifndef BERBERIS_RUNTIME_PRIMITIVES_RUNTIME_LIBRARY_H_
 #define BERBERIS_RUNTIME_PRIMITIVES_RUNTIME_LIBRARY_H_
 
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/host_code.h"
 
 extern "C" {
@@ -44,6 +45,8 @@ inline const auto kEntryNotTranslated = AsHostCode(berberis_entry_NotTranslated)
 inline const auto kEntryTranslating = AsHostCode(berberis_entry_Translating);
 inline const auto kEntryInvalidating = AsHostCode(berberis_entry_Invalidating);
 inline const auto kEntryWrapping = AsHostCode(berberis_entry_Wrapping);
+
+void InvalidateGuestRange(GuestAddr start, GuestAddr end);
 
 }  // namespace berberis
 
