@@ -29,6 +29,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/intrinsics/riscv64_to_x86_64/intrinsics_float.h"
+#include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 
 #include "atomics.h"
@@ -451,6 +452,23 @@ class Interpreter {
     }
   }
 
+  FpRegister OpFpNoRm(Decoder::OpFpNoRmOpcode opcode,
+                      Decoder::FloatOperandType float_size,
+                      FpRegister arg1,
+                      FpRegister arg2) {
+    switch (float_size) {
+      case Decoder::FloatOperandType::kFloat:
+        return FloatToFPReg(
+            OpFpNoRm<Float32>(opcode, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2)));
+      case Decoder::FloatOperandType::kDouble:
+        return FloatToFPReg(
+            OpFpNoRm<Float64>(opcode, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2)));
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
   // TODO(b/278812060): switch to intrinsics when they would become available and stop using
   // ExecuteFloatOperation directly.
   template <typename FloatType>
@@ -468,6 +486,27 @@ class Interpreter {
       case Decoder::OpFpOpcode::kFDiv:
         return intrinsics::ExecuteFloatOperation<FloatType>(
             rm, state_->cpu.frm, [](auto x, auto y) { return x / y; }, arg1, arg2);
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  template <typename FloatType>
+  FloatType OpFpNoRm(Decoder::OpFpNoRmOpcode opcode, FloatType arg1, FloatType arg2) {
+    using Int = typename TypeTraits<FloatType>::Int;
+    using UInt = std::make_unsigned_t<Int>;
+    constexpr UInt sign_bit = std::numeric_limits<Int>::min();
+    constexpr UInt non_sign_bit = std::numeric_limits<Int>::max();
+    switch (opcode) {
+      case Decoder::OpFpNoRmOpcode::kFSgnj:
+        return bit_cast<FloatType>((bit_cast<UInt>(arg1) & non_sign_bit) |
+                                   (bit_cast<UInt>(arg2) & sign_bit));
+      case Decoder::OpFpNoRmOpcode::kFSgnjn:
+        return bit_cast<FloatType>((bit_cast<UInt>(arg1) & non_sign_bit) |
+                                   ((bit_cast<UInt>(arg2) & sign_bit) ^ sign_bit));
+      case Decoder::OpFpNoRmOpcode::kFSgnjx:
+        return bit_cast<FloatType>(bit_cast<UInt>(arg1) ^ (bit_cast<UInt>(arg2) & sign_bit));
       default:
         Unimplemented();
         return {};

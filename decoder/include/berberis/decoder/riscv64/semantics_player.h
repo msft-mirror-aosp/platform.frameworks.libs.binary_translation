@@ -152,6 +152,14 @@ class SemanticsPlayer {
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
 
+  void OpFpNoRm(const typename Decoder::OpFpNoRmArgs& args) {
+    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
+    FpRegister result = listener_->OpFpNoRm(args.opcode, args.operand_type, arg1, arg2);
+    result = CanonicalizeNan(result, args.operand_type);
+    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
   void Store(const typename Decoder::StoreArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register data = GetRegOrZero(args.data);
