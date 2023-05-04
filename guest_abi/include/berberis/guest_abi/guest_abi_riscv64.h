@@ -42,6 +42,9 @@ class GuestAbiRiscv64 {
   struct GuestArgumentInfo<IntegerType,
                            kCallingConventionsVariant,
                            std::enable_if_t<std::is_integral_v<IntegerType>>> {
+    // Integers wider than 8 bytes are not supported.  They do not appear in the public Android API.
+    // TODO: Remove this if 16-byte parameters are encountered.
+    static_assert(sizeof(IntegerType) <= 8);
     constexpr static ArgumentClass kArgumentClass = ArgumentClass::kInteger;
     constexpr static unsigned kSize = sizeof(IntegerType);
     // Use sizeof, not alignof for kAlignment because all integer types are naturally aligned on

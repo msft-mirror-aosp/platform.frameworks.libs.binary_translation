@@ -49,6 +49,7 @@ cc_test_library {
     defaults: ["berberis_test_library_defaults_64"],
     srcs: [
         "guest_arguments_riscv64_test.cc",
+        "guest_params_riscv64_test.cc",
     ],
     header_libs: ["libberberis_guest_abi_headers"],
 }
