@@ -16,14 +16,17 @@
 
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/runtime_library.h"
+#include "berberis/runtime_primitives/translation_cache.h"
 
 #include "berberis/base/checks.h"
 
 namespace berberis {
 
-// TODO(b/278926583) Implement
-void InvalidateGuestRange(GuestAddr /* start */, GuestAddr /* end */) {
-  FATAL("Not yet implemented");
+// Invalidate regions overlapping with the range. Could be pretty slow.
+void InvalidateGuestRange(GuestAddr start, GuestAddr end) {
+  TranslationCache* cache = TranslationCache::GetInstance();
+  cache->InvalidateGuestRange(start, end);
+  // TODO(b/280671643): Flush guest code in other threads here.
 }
 
 }  // namespace berberis
