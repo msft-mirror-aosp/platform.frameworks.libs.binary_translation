@@ -25,11 +25,13 @@ cc_library_headers {
 }
 
 cc_library_static {
-    name: "libberberis_runtime_library",
-    defaults: ["berberis_defaults"],
+    name: "libberberis_runtime_library_riscv64_to_x86_64",
+    defaults: ["berberis_defaults_64"],
     host_supported: true,
-    srcs: ["runtime_library.cc"],
+    srcs: ["runtime_library_x86_64.cc"],
     header_libs: [
+        "libberberis_base_headers",
+        "libberberis_guest_state_headers",
         "libberberis_runtime_primitives_headers",
     ],
 }
