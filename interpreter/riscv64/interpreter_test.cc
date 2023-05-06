@@ -84,6 +84,14 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_increment);
   }
 
+  void InterpretCBeqzBnez(uint16_t insn_bytes, uint64_t value, int16_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<9>(state_.cpu, value);
+    InterpretInsn(&state_);
+    EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+  }
+
   void InterpretCJ(uint16_t insn_bytes, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -509,6 +517,55 @@ TEST_F(Riscv64InterpreterTest, CAddi4spn) {
         .high_opcode = 0b000,
     };
     InterpretCAddi4spn(o_bits.parcel, offset);
+  }
+}
+
+TEST_F(Riscv64InterpreterTest, CBeqzBnez) {
+  union {
+    int16_t offset;
+    struct {
+      uint8_t : 1;
+      uint8_t i1 : 1;
+      uint8_t i2 : 1;
+      uint8_t i3 : 1;
+      uint8_t i4 : 1;
+      uint8_t i5 : 1;
+      uint8_t i6 : 1;
+      uint8_t i7 : 1;
+      uint8_t i8 : 1;
+    } i_bits;
+  };
+  for (offset = int16_t{-256}; offset < int16_t{256}; offset += 8) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i5 : 1;
+        uint8_t i1 : 1;
+        uint8_t i2 : 1;
+        uint8_t i6 : 1;
+        uint8_t i7 : 1;
+        uint8_t rs : 3;
+        uint8_t i3 : 1;
+        uint8_t i4 : 1;
+        uint8_t i8 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0,
+        .i5 = i_bits.i5,
+        .i1 = i_bits.i1,
+        .i2 = i_bits.i2,
+        .i6 = i_bits.i6,
+        .i7 = i_bits.i7,
+        .rs = 1,
+        .i3 = i_bits.i3,
+        .i4 = i_bits.i4,
+        .i8 = i_bits.i8,
+        .high_opcode = 0,
+    };
+    InterpretCBeqzBnez(o_bits.parcel | 0b1100'0000'0000'0001, 0, offset);
+    InterpretCBeqzBnez(o_bits.parcel | 0b1110'0000'0000'0001, 1, offset);
   }
 }
 
