@@ -92,6 +92,14 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
 
+  void InterpretCMiscAluImm(uint16_t insn_bytes, uint64_t value, uint64_t expected_result) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<9>(state_.cpu, value);
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<9>(state_.cpu), expected_result);
+  }
+
   void InterpretCJ(uint16_t insn_bytes, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -566,6 +574,53 @@ TEST_F(Riscv64InterpreterTest, CBeqzBnez) {
     };
     InterpretCBeqzBnez(o_bits.parcel | 0b1100'0000'0000'0001, 0, offset);
     InterpretCBeqzBnez(o_bits.parcel | 0b1110'0000'0000'0001, 1, offset);
+  }
+}
+
+TEST_F(Riscv64InterpreterTest, CMiscAluImm) {
+  union {
+    uint8_t uimm;
+    // Note: c.Andi uses sign-extended immediate while c.Srli/c.cSrain need zero-extended one.
+    // If we store the value into uimm and read from imm compiler would do correct conversion.
+    int8_t imm : 6;
+    struct {
+      uint8_t i0_i4 : 5;
+      uint8_t i5 : 1;
+    } i_bits;
+  };
+  for (uimm = uint8_t{0}; uimm < uint8_t{64}; uimm++) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i0_i4 : 5;
+        uint8_t r : 3;
+        uint8_t mid_opcode : 2;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0,
+        .i0_i4 = i_bits.i0_i4,
+        .r = 1,
+        .mid_opcode = 0,
+        .i5 = i_bits.i5,
+        .high_opcode = 0,
+    };
+    // The o_bits.parcel here doesn't include opcodes and we are adding it in the function call.
+    // c.Srli
+    InterpretCMiscAluImm(o_bits.parcel | 0b1000'0000'0000'0001,
+                         0x8000'0000'0000'0000ULL,
+                         0x8000'0000'0000'0000ULL >> uimm);
+    // c.Srai
+    InterpretCMiscAluImm(o_bits.parcel | 0b1000'0100'0000'0001,
+                         0x8000'0000'0000'0000LL,
+                         ~0 ^ ((0x8000'0000'0000'0000 ^ ~0) >>
+                               uimm));  // Avoid shifting negative numbers to avoid UB
+    // c.Andi
+    InterpretCMiscAluImm(o_bits.parcel | 0b1000'1000'0000'0001,
+                         0xffff'ffff'ffff'ffffULL,
+                         0xffff'ffff'ffff'ffffULL & imm);
   }
 }
 
