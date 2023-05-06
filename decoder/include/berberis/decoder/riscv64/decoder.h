@@ -498,6 +498,10 @@ class Decoder {
       case CompressedOpcode::kLui_Addi16sp:
         DecodeCompressedLuiAddi16sp();
         break;
+      case CompressedOpcode::kBeqz:
+      case CompressedOpcode::kBnez:
+        DecodeCBeqzBnez();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
@@ -579,6 +583,24 @@ class Decoder {
         .imm = imm,
     };
     insn_consumer_->OpImm(args);
+  }
+
+  void DecodeCBeqzBnez() {
+    constexpr uint16_t kBHigh[8] = {0x0, 0x8, 0x10, 0x18, 0x100, 0x108, 0x110, 0x118};
+    constexpr uint8_t kBLow[32] = {0x00, 0x20, 0x02, 0x22, 0x04, 0x24, 0x06, 0x26, 0x40, 0x60, 0x42,
+                                   0x62, 0x44, 0x64, 0x46, 0x66, 0x80, 0xa0, 0x82, 0xa2, 0x84, 0xa4,
+                                   0x86, 0xa6, 0xc0, 0xe0, 0xc2, 0xe2, 0xc4, 0xe4, 0xc6, 0xe6};
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 10, 3>();
+    uint8_t rs = GetBits<uint8_t, 7, 3>();
+
+    const BranchArgs args = {
+        .opcode = BranchOpcode(GetBits<uint8_t, 13, 1>()),
+        .src1 = uint8_t(8 + rs),
+        .src2 = 0,
+        .offset = int16_t(SignExtend<9>(kBHigh[high_imm] + kBLow[low_imm])),
+    };
+    insn_consumer_->Branch(args);
   }
 
   void DecodeCJ() {
