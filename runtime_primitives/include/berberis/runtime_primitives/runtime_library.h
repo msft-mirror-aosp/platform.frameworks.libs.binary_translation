@@ -18,10 +18,15 @@
 #define BERBERIS_RUNTIME_PRIMITIVES_RUNTIME_LIBRARY_H_
 
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state.h"
 #include "berberis/runtime_primitives/host_code.h"
+
+namespace berberis {
 
 extern "C" {
 
+void berberis_RunGeneratedCode(ThreadState* state, HostCode code);
+void berberis_entry_ExitGeneratedCode();
 void berberis_entry_Stop();
 void berberis_entry_NoExec();
 
@@ -36,8 +41,6 @@ static_assert(berberis_entry_NotTranslated != berberis_entry_Translating,
 
 }  // extern "C"
 
-namespace berberis {
-
 // Inline const since we cannot use constexpr because of reinterpret_cast.
 inline const auto kEntryStop = AsHostCode(berberis_entry_Stop);
 inline const auto kEntryNoExec = AsHostCode(berberis_entry_NoExec);
@@ -47,6 +50,13 @@ inline const auto kEntryInvalidating = AsHostCode(berberis_entry_Invalidating);
 inline const auto kEntryWrapping = AsHostCode(berberis_entry_Wrapping);
 
 void InvalidateGuestRange(GuestAddr start, GuestAddr end);
+
+// Don't pull in the dependency on guest_abi to runtime_primitives, since GuestArgumentBuffer is
+// used strictly in opaque manner here.
+struct GuestArgumentBuffer;
+
+void RunGuestCall(GuestAddr pc, GuestArgumentBuffer* buf);
+void ExecuteGuestCall(ThreadState* state);
 
 }  // namespace berberis
 
