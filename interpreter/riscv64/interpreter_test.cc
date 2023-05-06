@@ -29,6 +29,9 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 #include "berberis/intrinsics/guest_fpstate.h"
 
+#include "fp_regs_util.h"
+#include "tuple_map.h"
+
 namespace berberis {
 
 namespace {
@@ -99,38 +102,15 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
 
-  void InterpretFma(
-      uint32_t insn_bytes,
-      std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t, uint64_t>> args) {
-    for (auto [arg1, arg2, arg3, expected_result] : args) {
+  template <typename... Types>
+  void InterpretFma(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg1, arg2, arg3, expected_result] : TupleMap(args, kFPValueToFPReg)) {
       state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg1);
       SetFReg<3>(state_.cpu, arg2);
       SetFReg<4>(state_.cpu, arg3);
       InterpretInsn(&state_);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
-    }
-  }
-
-  void InterpretFmaSingle(uint32_t insn_bytes,
-                          std::initializer_list<std::tuple<float, float, float, float>> args) {
-    for (auto [arg1, arg2, arg3, expected_result] : args) {
-      InterpretFma(insn_bytes,
-                   {{bit_cast<uint32_t>(arg1) | 0xffff'ffff'0000'0000,
-                     bit_cast<uint32_t>(arg2) | 0xffff'ffff'0000'0000,
-                     bit_cast<uint32_t>(arg3) | 0xffff'ffff'0000'0000,
-                     bit_cast<uint32_t>(expected_result) | 0xffff'ffff'0000'0000}});
-    }
-  }
-
-  void InterpretFmaDouble(uint32_t insn_bytes,
-                          std::initializer_list<std::tuple<double, double, double, double>> args) {
-    for (auto [arg1, arg2, arg3, expected_result] : args) {
-      InterpretFma(insn_bytes,
-                   {{bit_cast<uint64_t>(arg1),
-                     bit_cast<uint64_t>(arg2),
-                     bit_cast<uint64_t>(arg3),
-                     bit_cast<uint64_t>(expected_result)}});
     }
   }
 
@@ -145,34 +125,14 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
-  void InterpretOpFp(uint32_t insn_bytes,
-                     std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
-    for (auto [arg1, arg2, expected_result] : args) {
+  template <typename... Types>
+  void InterpretOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
       state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg1);
       SetFReg<3>(state_.cpu, arg2);
       InterpretInsn(&state_);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
-    }
-  }
-
-  void InterpretOpFpSingle(uint32_t insn_bytes,
-                           std::initializer_list<std::tuple<float, float, float>> args) {
-    for (auto [arg1, arg2, expected_result] : args) {
-      InterpretOpFp(insn_bytes,
-                    {{bit_cast<uint32_t>(arg1) | 0xffff'ffff'0000'0000,
-                      bit_cast<uint32_t>(arg2) | 0xffff'ffff'0000'0000,
-                      bit_cast<uint32_t>(expected_result) | 0xffff'ffff'0000'0000}});
-    }
-  }
-
-  void InterpretOpFpDouble(uint32_t insn_bytes,
-                           std::initializer_list<std::tuple<double, double, double>> args) {
-    for (auto [arg1, arg2, expected_result] : args) {
-      InterpretOpFp(insn_bytes,
-                    {{bit_cast<uint64_t>(arg1),
-                      bit_cast<uint64_t>(arg2),
-                      bit_cast<uint64_t>(expected_result)}});
     }
   }
 
@@ -630,21 +590,21 @@ TEST_F(Riscv64InterpreterTest, FenceInstructions) {
 
 TEST_F(Riscv64InterpreterTest, FmaInstructions) {
   // Fmadd.S
-  InterpretFmaSingle(0x203170c3, {{1.0f, 2.0f, 3.0f, 5.0f}});
+  InterpretFma(0x203170c3, {std::tuple{1.0f, 2.0f, 3.0f, 5.0f}});
   // Fmadd.D
-  InterpretFmaDouble(0x223170c3, {{1.0, 2.0, 3.0, 5.0}});
+  InterpretFma(0x223170c3, {std::tuple{1.0, 2.0, 3.0, 5.0}});
   // Fmsub.S
-  InterpretFmaSingle(0x203170c7, {{1.0f, 2.0f, 3.0f, -1.0f}});
+  InterpretFma(0x203170c7, {std::tuple{1.0f, 2.0f, 3.0f, -1.0f}});
   // Fmsub.D
-  InterpretFmaDouble(0x223170c7, {{1.0, 2.0, 3.0, -1.0}});
+  InterpretFma(0x223170c7, {std::tuple{1.0, 2.0, 3.0, -1.0}});
   // Fnmsub.S
-  InterpretFmaSingle(0x203170cb, {{1.0f, 2.0f, 3.0f, 1.0f}});
+  InterpretFma(0x203170cb, {std::tuple{1.0f, 2.0f, 3.0f, 1.0f}});
   // Fnmsub.D
-  InterpretFmaDouble(0x223170cb, {{1.0, 2.0, 3.0, 1.0}});
+  InterpretFma(0x223170cb, {std::tuple{1.0, 2.0, 3.0, 1.0}});
   // Fnmadd.S
-  InterpretFmaSingle(0x203170cf, {{1.0f, 2.0f, 3.0f, -5.0f}});
+  InterpretFma(0x203170cf, {std::tuple{1.0f, 2.0f, 3.0f, -5.0f}});
   // Fnmadd.D
-  InterpretFmaDouble(0x223170cf, {{1.0, 2.0, 3.0, -5.0}});
+  InterpretFma(0x223170cf, {std::tuple{1.0, 2.0, 3.0, -5.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, OpInstructions) {
@@ -808,115 +768,115 @@ TEST_F(Riscv64InterpreterTest, OpImm32Instructions) {
 
 TEST_F(Riscv64InterpreterTest, OpFpInstructions) {
   // FAdd.S
-  InterpretOpFpSingle(0x003100d3, {{1.0f, 2.0f, 3.0f}});
+  InterpretOpFp(0x003100d3, {std::tuple{1.0f, 2.0f, 3.0f}});
   // FAdd.D
-  InterpretOpFpDouble(0x023100d3, {{1.0, 2.0, 3.0}});
+  InterpretOpFp(0x023100d3, {std::tuple{1.0, 2.0, 3.0}});
   // FSub.S
-  InterpretOpFpSingle(0x083100d3, {{3.0f, 2.0f, 1.0f}});
+  InterpretOpFp(0x083100d3, {std::tuple{3.0f, 2.0f, 1.0f}});
   // FSub.D
-  InterpretOpFpDouble(0x0a3100d3, {{3.0, 2.0, 1.0}});
+  InterpretOpFp(0x0a3100d3, {std::tuple{3.0, 2.0, 1.0}});
   // FMul.S
-  InterpretOpFpSingle(0x103100d3, {{3.0f, 2.0f, 6.0f}});
+  InterpretOpFp(0x103100d3, {std::tuple{3.0f, 2.0f, 6.0f}});
   // FMul.D
-  InterpretOpFpDouble(0x123100d3, {{3.0, 2.0, 6.0}});
+  InterpretOpFp(0x123100d3, {std::tuple{3.0, 2.0, 6.0}});
   // FDiv.S
-  InterpretOpFpSingle(0x183100d3, {{6.0f, 2.0f, 3.0f}});
+  InterpretOpFp(0x183100d3, {std::tuple{6.0f, 2.0f, 3.0f}});
   // FDiv.D
-  InterpretOpFpDouble(0x1a3100d3, {{6.0, 2.0, 3.0}});
+  InterpretOpFp(0x1a3100d3, {std::tuple{6.0, 2.0, 3.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, RoundingModeTest) {
   // FAdd.S
-  InterpretOpFpSingle(0x003100d3,
-                      // Test RNE
-                      {{1.0000001f, 0.000000059604645f, 1.0000002f},
-                       {1.0000002f, 0.000000059604645f, 1.0000002f},
-                       {1.0000004f, 0.000000059604645f, 1.0000005f},
-                       {-1.0000001f, -0.000000059604645f, -1.0000002f},
-                       {-1.0000002f, -0.000000059604645f, -1.0000002f},
-                       {-1.0000004f, -0.000000059604645f, -1.0000005f}});
+  InterpretOpFp(0x003100d3,
+                // Test RNE
+                {std::tuple{1.0000001f, 0.000000059604645f, 1.0000002f},
+                 {1.0000002f, 0.000000059604645f, 1.0000002f},
+                 {1.0000004f, 0.000000059604645f, 1.0000005f},
+                 {-1.0000001f, -0.000000059604645f, -1.0000002f},
+                 {-1.0000002f, -0.000000059604645f, -1.0000002f},
+                 {-1.0000004f, -0.000000059604645f, -1.0000005f}});
   // FAdd.S
-  InterpretOpFpSingle(0x003110d3,
-                      // Test RTZ
-                      {{1.0000001f, 0.000000059604645f, 1.0000001f},
-                       {1.0000002f, 0.000000059604645f, 1.0000002f},
-                       {1.0000004f, 0.000000059604645f, 1.0000004f},
-                       {-1.0000001f, -0.000000059604645f, -1.0000001f},
-                       {-1.0000002f, -0.000000059604645f, -1.0000002f},
-                       {-1.0000004f, -0.000000059604645f, -1.0000004f}});
+  InterpretOpFp(0x003110d3,
+                // Test RTZ
+                {std::tuple{1.0000001f, 0.000000059604645f, 1.0000001f},
+                 {1.0000002f, 0.000000059604645f, 1.0000002f},
+                 {1.0000004f, 0.000000059604645f, 1.0000004f},
+                 {-1.0000001f, -0.000000059604645f, -1.0000001f},
+                 {-1.0000002f, -0.000000059604645f, -1.0000002f},
+                 {-1.0000004f, -0.000000059604645f, -1.0000004f}});
   // FAdd.S
-  InterpretOpFpSingle(0x003120d3,
-                      // Test RDN
-                      {{1.0000001f, 0.000000059604645f, 1.0000001f},
-                       {1.0000002f, 0.000000059604645f, 1.0000002f},
-                       {1.0000004f, 0.000000059604645f, 1.0000004f},
-                       {-1.0000001f, -0.000000059604645f, -1.0000002f},
-                       {-1.0000002f, -0.000000059604645f, -1.0000004f},
-                       {-1.0000004f, -0.000000059604645f, -1.0000005f}});
+  InterpretOpFp(0x003120d3,
+                // Test RDN
+                {std::tuple{1.0000001f, 0.000000059604645f, 1.0000001f},
+                 {1.0000002f, 0.000000059604645f, 1.0000002f},
+                 {1.0000004f, 0.000000059604645f, 1.0000004f},
+                 {-1.0000001f, -0.000000059604645f, -1.0000002f},
+                 {-1.0000002f, -0.000000059604645f, -1.0000004f},
+                 {-1.0000004f, -0.000000059604645f, -1.0000005f}});
   // FAdd.S
-  InterpretOpFpSingle(0x003130d3,
-                      // Test RUP
-                      {{1.0000001f, 0.000000059604645f, 1.0000002f},
-                       {1.0000002f, 0.000000059604645f, 1.0000004f},
-                       {1.0000004f, 0.000000059604645f, 1.0000005f},
-                       {-1.0000001f, -0.000000059604645f, -1.0000001f},
-                       {-1.0000002f, -0.000000059604645f, -1.0000002f},
-                       {-1.0000004f, -0.000000059604645f, -1.0000004f}});
+  InterpretOpFp(0x003130d3,
+                // Test RUP
+                {std::tuple{1.0000001f, 0.000000059604645f, 1.0000002f},
+                 {1.0000002f, 0.000000059604645f, 1.0000004f},
+                 {1.0000004f, 0.000000059604645f, 1.0000005f},
+                 {-1.0000001f, -0.000000059604645f, -1.0000001f},
+                 {-1.0000002f, -0.000000059604645f, -1.0000002f},
+                 {-1.0000004f, -0.000000059604645f, -1.0000004f}});
   // FAdd.S
-  InterpretOpFpSingle(0x003140d3,
-                      // Test RMM
-                      {{1.0000001f, 0.000000059604645f, 1.0000002f},
-                       {1.0000002f, 0.000000059604645f, 1.0000004f},
-                       {1.0000004f, 0.000000059604645f, 1.0000005f},
-                       {-1.0000001f, -0.000000059604645f, -1.0000002f},
-                       {-1.0000002f, -0.000000059604645f, -1.0000004f},
-                       {-1.0000004f, -0.000000059604645f, -1.0000005f}});
+  InterpretOpFp(0x003140d3,
+                // Test RMM
+                {std::tuple{1.0000001f, 0.000000059604645f, 1.0000002f},
+                 {1.0000002f, 0.000000059604645f, 1.0000004f},
+                 {1.0000004f, 0.000000059604645f, 1.0000005f},
+                 {-1.0000001f, -0.000000059604645f, -1.0000002f},
+                 {-1.0000002f, -0.000000059604645f, -1.0000004f},
+                 {-1.0000004f, -0.000000059604645f, -1.0000005f}});
 
   // FAdd.D
-  InterpretOpFpDouble(
+  InterpretOpFp(
       0x023100d3,
       // Test RNE
-      {{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
+      {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
        {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000004},
        {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000009},
        {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000004},
        {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000004},
        {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000009}});
   // FAdd.D
-  InterpretOpFpDouble(
+  InterpretOpFp(
       0x023110d3,
       // Test RTZ
-      {{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000002},
+      {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000002},
        {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000004},
        {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000007},
        {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000002},
        {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000004},
        {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000007}});
   // FAdd.D
-  InterpretOpFpDouble(
+  InterpretOpFp(
       0x023120d3,
       // Test RDN
-      {{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000002},
+      {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000002},
        {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000004},
        {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000007},
        {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000004},
        {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000007},
        {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000009}});
   // FAdd.D
-  InterpretOpFpDouble(
+  InterpretOpFp(
       0x023130d3,
       // Test RUP
-      {{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
+      {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
        {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000007},
        {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000009},
        {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000002},
        {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000004},
        {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000007}});
   // FAdd.D
-  InterpretOpFpDouble(
+  InterpretOpFp(
       0x023140d3,
       // Test RMM
-      {{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
+      {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
        {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000007},
        {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000009},
        {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000004},
