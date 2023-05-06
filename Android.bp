@@ -94,7 +94,6 @@ cc_test_host {
         "libberberis_base",
         "libberberis_config_globals",
         "libberberis_tinyloader",
-        "libberberis_runtime_library",
     ],
     shared_libs: [
         "libbase",
@@ -123,6 +122,7 @@ cc_test_host {
                 "libberberis_interpreter_riscv64",
                 "libberberis_kernel_api_riscv64",
                 "libberberis_runtime",
+                "libberberis_runtime_library_riscv64_to_x86_64",
                 "libberberis_runtime_primitives",
                 "libberberis_runtime_primitives_riscv64",
             ],
