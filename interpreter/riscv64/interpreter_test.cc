@@ -830,6 +830,38 @@ TEST_F(Riscv64InterpreterTest, OpFpInstructions) {
                     {1.0, -2.0, -1.0},
                     {-1.0, -2.0, 1.0},
                 });
+  // FMin.S
+  InterpretOpFp(0x283100d3,
+                {std::tuple{+0.f, +0.f, +0.f},
+                 {+0.f, -0.f, -0.f},
+                 {-0.f, +0.f, -0.f},
+                 {-0.f, -0.f, -0.f},
+                 {+0.f, 1.f, +0.f},
+                 {-0.f, 1.f, -0.f}});
+  // FMin.D
+  InterpretOpFp(0x2a3100d3,
+                {std::tuple{+0.0, +0.0, +0.0},
+                 {+0.0, -0.0, -0.0},
+                 {-0.0, +0.0, -0.0},
+                 {-0.0, -0.0, -0.0},
+                 {+0.0, 1.0, +0.0},
+                 {-0.0, 1.0, -0.0}});
+  // FMax.S
+  InterpretOpFp(0x283110d3,
+                {std::tuple{+0.f, +0.f, +0.f},
+                 {+0.f, -0.f, +0.f},
+                 {-0.f, +0.f, +0.f},
+                 {-0.f, -0.f, -0.f},
+                 {+0.f, 1.f, 1.f},
+                 {-0.f, 1.f, 1.f}});
+  // FMax.D
+  InterpretOpFp(0x2a3110d3,
+                {std::tuple{+0.0, +0.0, +0.0},
+                 {+0.0, -0.0, +0.0},
+                 {-0.0, +0.0, +0.0},
+                 {-0.0, -0.0, -0.0},
+                 {+0.0, 1.0, 1.0},
+                 {-0.0, 1.0, 1.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, RoundingModeTest) {

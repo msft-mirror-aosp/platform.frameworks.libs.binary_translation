@@ -507,6 +507,10 @@ class Interpreter {
                                    ((bit_cast<UInt>(arg2) & sign_bit) ^ sign_bit));
       case Decoder::OpFpNoRmOpcode::kFSgnjx:
         return bit_cast<FloatType>(bit_cast<UInt>(arg1) ^ (bit_cast<UInt>(arg2) & sign_bit));
+      case Decoder::OpFpNoRmOpcode::kFMin:
+        return Min(arg1, arg2);
+      case Decoder::OpFpNoRmOpcode::kFMax:
+        return Max(arg1, arg2);
       default:
         Unimplemented();
         return {};
