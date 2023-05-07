@@ -102,6 +102,34 @@ class WrappedFloatType {
                                         const WrappedFloatType& v2,
                                         const WrappedFloatType& v3);
 
+  friend inline WrappedFloatType Max(WrappedFloatType op1, WrappedFloatType op2) {
+    if (FPClassify(op1) == FPInfo::kZero && FPClassify(op2) == FPInfo::kZero &&
+        SignBit(op1) != SignBit(op2)) {
+      return WrappedFloatType(BaseType(+0.f));
+    }
+    // If either argument is NaN - return default NaN (fmax() may return other).
+    if (IsNan(op1) || IsNan(op2)) {
+      return std::numeric_limits<WrappedFloatType>::quiet_NaN();
+    }
+    // Note: fmax is not needed here - it differs from std::max based on operator< only if NANs are
+    // involved - and does wrong thing there.  We have no NANs at this point thus could use std::max
+    return std::max(op1, op2);
+  }
+
+  friend inline WrappedFloatType Min(WrappedFloatType op1, WrappedFloatType op2) {
+    if (FPClassify(op1) == FPInfo::kZero && FPClassify(op2) == FPInfo::kZero &&
+        SignBit(op1) != SignBit(op2)) {
+      return WrappedFloatType(BaseType(-0.f));
+    }
+    // If either argument is NaN - return default NaN (fmin() may return other).
+    if (IsNan(op1) || IsNan(op2)) {
+      return std::numeric_limits<WrappedFloatType>::quiet_NaN();
+    }
+    // Note: fmin is not needed here - it differs from std::min based on operator< only if NANs are
+    // involved - and does wrong thing there.  We have no NANs at this point thus could use std::min
+    return std::min(op1, op2);
+  }
+
  private:
   static_assert(!std::numeric_limits<BaseType>::is_exact,
                 "WrappedFloatType should only be used with float types!");
