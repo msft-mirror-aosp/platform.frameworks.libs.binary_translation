@@ -100,6 +100,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<9>(state_.cpu), expected_result);
   }
 
+  void InterpretCMiscAlu(uint16_t insn_bytes,
+                         std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
+    for (auto [arg1, arg2, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<8>(state_.cpu, arg1);
+      SetXReg<9>(state_.cpu, arg2);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetXReg<8>(state_.cpu), expected_result);
+    }
+  }
+
   void InterpretCJ(uint16_t insn_bytes, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -575,6 +586,21 @@ TEST_F(Riscv64InterpreterTest, CBeqzBnez) {
     InterpretCBeqzBnez(o_bits.parcel | 0b1100'0000'0000'0001, 0, offset);
     InterpretCBeqzBnez(o_bits.parcel | 0b1110'0000'0000'0001, 1, offset);
   }
+}
+
+TEST_F(Riscv64InterpreterTest, CMiscAluInstructions) {
+  // c.Sub
+  InterpretCMiscAlu(0x8c05, {{42, 23, 19}});
+  // c.Xor
+  InterpretCMiscAlu(0x8c25, {{0b0101, 0b0011, 0b0110}});
+  // c.Or
+  InterpretCMiscAlu(0x8c45, {{0b0101, 0b0011, 0b0111}});
+  // c.And
+  InterpretCMiscAlu(0x8c65, {{0b0101, 0b0011, 0b0001}});
+  // c.SubW
+  InterpretCMiscAlu(0x9c05, {{42, 23, 19}});
+  // c.AddW
+  InterpretCMiscAlu(0x9c25, {{19, 23, 42}});
 }
 
 TEST_F(Riscv64InterpreterTest, CMiscAluImm) {
