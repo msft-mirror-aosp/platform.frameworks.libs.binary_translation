@@ -214,6 +214,15 @@ class Decoder {
     kMaxOpFpOpcode = 0b1'1'1'11,
   };
 
+  enum class OpFpNoRmOpcode {
+    kFSgnj = 0b0'0'1'00'000,
+    kFSgnjn = 0b0'0'1'00'001,
+    kFSgnjx = 0b0'0'1'00'010,
+    kFMin = 0b0'0'1'01'000,
+    kFMax = 0b0'0'1'01'001,
+    kMaxOpFpNoRmOpcode = 0b1'1'1'11'111,
+  };
+
   enum class OpImmOpcode {
     kAddi = 0b000,
     kSlti = 0b010,
@@ -425,6 +434,14 @@ class Decoder {
     uint8_t src1;
     uint8_t src2;
     uint8_t rm;
+  };
+
+  struct OpFpNoRmArgs {
+    OpFpNoRmOpcode opcode;
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
   };
 
   struct BranchArgs {
@@ -1007,6 +1024,19 @@ class Decoder {
   void DecodeOpFp() {
     uint8_t operand_type = GetBits<uint8_t, 25, 2>();
     uint8_t opcode_bits = GetBits<uint8_t, 27, 5>();
+    if (GetBits<uint8_t, 29, 1>()) {
+      uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+      uint8_t opcode = (opcode_bits << 3) + low_opcode;
+      const OpFpNoRmArgs args = {
+          .opcode = OpFpNoRmOpcode(opcode),
+          .operand_type = FloatOperandType(operand_type),
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .src1 = GetBits<uint8_t, 15, 5>(),
+          .src2 = GetBits<uint8_t, 20, 5>(),
+      };
+      return insn_consumer_->OpFpNoRm(args);
+    }
+
     const OpFpArgs args = {
         .opcode = OpFpOpcode(opcode_bits),
         .operand_type = FloatOperandType(operand_type),
