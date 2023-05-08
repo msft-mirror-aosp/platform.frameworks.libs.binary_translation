@@ -494,6 +494,9 @@ class Decoder {
       case CompressedOpcode::kAddi:
         DecodeCAddi();
         break;
+      case CompressedOpcode::kAddiw:
+        DecodeCAddiw();
+        break;
       case CompressedOpcode::kFld:
         DecodeCompressedLoadStore<LoadStore::kLoad, FloatOperandType::kDouble>();
         break;
@@ -678,6 +681,20 @@ class Decoder {
     }
     const OpImmArgs args = {
         .opcode = OpImmOpcode::kAddi,
+        .dst = r,
+        .src = r,
+        .imm = imm,
+    };
+    insn_consumer_->OpImm(args);
+  }
+
+  void DecodeCAddiw() {
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    int8_t imm = SignExtend<6>(high_imm << 5 | low_imm);
+    uint8_t r = GetBits<uint8_t, 7, 5>();
+    const OpImm32Args args = {
+        .opcode = OpImm32Opcode::kAddiw,
         .dst = r,
         .src = r,
         .imm = imm,
