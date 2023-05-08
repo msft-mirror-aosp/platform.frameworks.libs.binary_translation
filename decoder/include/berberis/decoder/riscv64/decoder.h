@@ -204,23 +204,20 @@ class Decoder {
   };
 
   enum class OpFpOpcode {
-    // Bit #2 = 1 means rm is an opcode extension.
-    // Bit #3 = 1 means rs2 is an opcode extension
-    // Bits #4, #1, and #0 - actual opcode.
-    kFAdd = 0b0'0'0'00,
-    kFSub = 0b0'0'0'01,
-    kFMul = 0b0'0'0'10,
-    kFDiv = 0b0'0'0'11,
-    kMaxOpFpOpcode = 0b1'1'1'11,
+    kFAdd = 0b00,
+    kFSub = 0b01,
+    kFMul = 0b10,
+    kFDiv = 0b11,
+    kMaxOpFpOpcode = 0b11,
   };
 
   enum class OpFpNoRmOpcode {
-    kFSgnj = 0b0'0'1'00'000,
-    kFSgnjn = 0b0'0'1'00'001,
-    kFSgnjx = 0b0'0'1'00'010,
-    kFMin = 0b0'0'1'01'000,
-    kFMax = 0b0'0'1'01'001,
-    kMaxOpFpNoRmOpcode = 0b1'1'1'11'111,
+    kFSgnj = 0b00'000,
+    kFSgnjn = 0b00'001,
+    kFSgnjx = 0b00'010,
+    kFMin = 0b01'000,
+    kFMax = 0b01'001,
+    kMaxOpFpNoRmOpcode = 0b11'111,
   };
 
   enum class OpImmOpcode {
@@ -1061,30 +1058,38 @@ class Decoder {
   }
 
   void DecodeOpFp() {
+    // Bit #29 = 1: means rm is an opcode extension and not operand.
+    // Bit #30 = 1: means rs2 is an opcode extension and not operand.
+    // Bit #31 = 1: selects general purpose register instead of floating point register as target.
     uint8_t operand_type = GetBits<uint8_t, 25, 2>();
-    uint8_t opcode_bits = GetBits<uint8_t, 27, 5>();
-    if (GetBits<uint8_t, 29, 1>()) {
-      uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
-      uint8_t opcode = (opcode_bits << 3) + low_opcode;
-      const OpFpNoRmArgs args = {
-          .opcode = OpFpNoRmOpcode(opcode),
-          .operand_type = FloatOperandType(operand_type),
-          .dst = GetBits<uint8_t, 7, 5>(),
-          .src1 = GetBits<uint8_t, 15, 5>(),
-          .src2 = GetBits<uint8_t, 20, 5>(),
-      };
-      return insn_consumer_->OpFpNoRm(args);
+    uint8_t opcode_bits = GetBits<uint8_t, 27, 2>();
+    switch (GetBits<uint8_t, 29, 3>()) {
+      case 0b000: {
+        const OpFpArgs args = {
+            .opcode = OpFpOpcode(opcode_bits),
+            .operand_type = FloatOperandType(operand_type),
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .src1 = GetBits<uint8_t, 15, 5>(),
+            .src2 = GetBits<uint8_t, 20, 5>(),
+            .rm = GetBits<uint8_t, 12, 3>(),
+        };
+        return insn_consumer_->OpFp(args);
+      }
+      case 0b001: {
+        uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+        uint8_t opcode = (opcode_bits << 3) + low_opcode;
+        const OpFpNoRmArgs args = {
+            .opcode = OpFpNoRmOpcode(opcode),
+            .operand_type = FloatOperandType(operand_type),
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .src1 = GetBits<uint8_t, 15, 5>(),
+            .src2 = GetBits<uint8_t, 20, 5>(),
+        };
+        return insn_consumer_->OpFpNoRm(args);
+      }
+      default:
+        return Undefined();
     }
-
-    const OpFpArgs args = {
-        .opcode = OpFpOpcode(opcode_bits),
-        .operand_type = FloatOperandType(operand_type),
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
-        .rm = GetBits<uint8_t, 12, 3>(),
-    };
-    insn_consumer_->OpFp(args);
   }
 
   void DecodeSystem() {
