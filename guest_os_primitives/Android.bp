@@ -38,6 +38,7 @@ cc_library_static {
     host_supported: true,
     srcs: [
         "guest_map_shadow.cc",
+        "guest_thread.cc",
     ],
     header_libs: [
         "libberberis_base_headers",
