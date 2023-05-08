@@ -211,13 +211,22 @@ class Decoder {
     kMaxOpFpOpcode = 0b11,
   };
 
-  enum class OpFpNoRmOpcode {
+  enum class OpFpNoRoundingOpcode {
     kFSgnj = 0b00'000,
     kFSgnjn = 0b00'001,
     kFSgnjx = 0b00'010,
     kFMin = 0b01'000,
     kFMax = 0b01'001,
-    kMaxOpFpNoRmOpcode = 0b11'111,
+    kMaxOpFpNoRoundingOpcode = 0b11'111,
+  };
+
+  enum class OpFpSingleInputOpcode {
+    kFSqrt = 0b11'00000,
+    kFcvtFloat = 0b00'00000,
+    kFcvtDouble = 0b00'00001,
+    kFcvtHalf = 0b00'00010,
+    KFcvtQuad = 0b00'00011,
+    kMaxOpFpSingleInputOpcode = 0b11'11111,
   };
 
   enum class OpImmOpcode {
@@ -433,12 +442,20 @@ class Decoder {
     uint8_t rm;
   };
 
-  struct OpFpNoRmArgs {
-    OpFpNoRmOpcode opcode;
+  struct OpFpNoRoundingArgs {
+    OpFpNoRoundingOpcode opcode;
     FloatOperandType operand_type;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
+  };
+
+  struct OpFpSingleInputArgs {
+    OpFpSingleInputOpcode opcode;
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t rm;
   };
 
   struct BranchArgs {
@@ -1063,29 +1080,43 @@ class Decoder {
     // Bit #31 = 1: selects general purpose register instead of floating point register as target.
     uint8_t operand_type = GetBits<uint8_t, 25, 2>();
     uint8_t opcode_bits = GetBits<uint8_t, 27, 2>();
+    uint8_t rd = GetBits<uint8_t, 7, 5>();
+    uint8_t rs1 = GetBits<uint8_t, 15, 5>();
+    uint8_t rs2 = GetBits<uint8_t, 20, 5>();
+    uint8_t rm = GetBits<uint8_t, 12, 3>();
     switch (GetBits<uint8_t, 29, 3>()) {
       case 0b000: {
         const OpFpArgs args = {
             .opcode = OpFpOpcode(opcode_bits),
             .operand_type = FloatOperandType(operand_type),
-            .dst = GetBits<uint8_t, 7, 5>(),
-            .src1 = GetBits<uint8_t, 15, 5>(),
-            .src2 = GetBits<uint8_t, 20, 5>(),
-            .rm = GetBits<uint8_t, 12, 3>(),
+            .dst = rd,
+            .src1 = rs1,
+            .src2 = rs2,
+            .rm = rm,
         };
         return insn_consumer_->OpFp(args);
       }
       case 0b001: {
-        uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
-        uint8_t opcode = (opcode_bits << 3) + low_opcode;
-        const OpFpNoRmArgs args = {
-            .opcode = OpFpNoRmOpcode(opcode),
+        uint8_t opcode = (opcode_bits << 3) + rm;
+        const OpFpNoRoundingArgs args = {
+            .opcode = OpFpNoRoundingOpcode(opcode),
             .operand_type = FloatOperandType(operand_type),
-            .dst = GetBits<uint8_t, 7, 5>(),
-            .src1 = GetBits<uint8_t, 15, 5>(),
-            .src2 = GetBits<uint8_t, 20, 5>(),
+            .dst = rd,
+            .src1 = rs1,
+            .src2 = rs2,
         };
-        return insn_consumer_->OpFpNoRm(args);
+        return insn_consumer_->OpFpNoRounding(args);
+      }
+      case 0b010: {
+        uint8_t opcode = (opcode_bits << 5) + rs2;
+        const OpFpSingleInputArgs args = {
+            .opcode = OpFpSingleInputOpcode(opcode),
+            .operand_type = FloatOperandType(operand_type),
+            .dst = rd,
+            .src = rs1,
+            .rm = rm,
+        };
+        return insn_consumer_->OpFpSingleInput(args);
       }
       default:
         return Undefined();
