@@ -541,8 +541,7 @@ class Decoder {
             .src = r,
             .imm = imm,
         };
-        insn_consumer_->OpImm(args);
-        break;
+        return insn_consumer_->OpImm(args);
       }
       case 0b01: {
         const ShiftImmArgs args = {
@@ -551,8 +550,7 @@ class Decoder {
             .src = r,
             .imm = imm,
         };
-        insn_consumer_->OpImm(args);
-        break;
+        return insn_consumer_->OpImm(args);
       }
       case 0b10: {
         const OpImmArgs args = {
@@ -561,11 +559,52 @@ class Decoder {
             .src = r,
             .imm = SignExtend<6>(imm),
         };
-        insn_consumer_->OpImm(args);
-        break;
+        return insn_consumer_->OpImm(args);
       }
-      default:
-        return Undefined();
+    }
+    uint8_t rs2 = GetBits<uint8_t, 2, 3>() + 8;
+    if (GetBits<uint8_t, 12, 1>() == 0) {
+      OpOpcode opcode;
+      switch (GetBits<uint8_t, 5, 2>()) {
+        case 0b00:
+          opcode = OpOpcode::kSub;
+          break;
+        case 0b01:
+          opcode = OpOpcode::kXor;
+          break;
+        case 0b10:
+          opcode = OpOpcode::kOr;
+          break;
+        case 0b11:
+          opcode = OpOpcode::kAnd;
+          break;
+      }
+      const OpArgs args = {
+          .opcode = opcode,
+          .dst = r,
+          .src1 = r,
+          .src2 = rs2,
+      };
+      return insn_consumer_->Op(args);
+    } else {
+      Op32Opcode opcode;
+      switch (GetBits<uint8_t, 5, 2>()) {
+        case 0b00:
+          opcode = Op32Opcode::kSubw;
+          break;
+        case 0b01:
+          opcode = Op32Opcode::kAddw;
+          break;
+        default:
+          return Undefined();
+      }
+      const Op32Args args = {
+          .opcode = opcode,
+          .dst = r,
+          .src1 = r,
+          .src2 = rs2,
+      };
+      return insn_consumer_->Op(args);
     }
   }
 
