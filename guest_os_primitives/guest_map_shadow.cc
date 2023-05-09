@@ -188,7 +188,7 @@ void GuestMapShadow::RemapExecutable(GuestAddr old_start,
 
 void GuestMapShadow::AddProtectedMapping(const void* start, const void* end) {
   std::lock_guard<std::mutex> lock(mutex_);
-  protected_maps_.push_back(std::make_pair(start, end));
+  protected_maps_.emplace_back(std::make_pair(start, end));
 }
 
 bool GuestMapShadow::IntersectsWithProtectedMapping(const void* start, const void* end) {

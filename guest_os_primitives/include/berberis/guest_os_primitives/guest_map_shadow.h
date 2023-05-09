@@ -38,10 +38,10 @@ class GuestMapShadow {
   GuestMapShadow();
   ~GuestMapShadow();
 
-  BitValue GetExecutable(GuestAddr start, size_t size) const;
+  [[nodiscard]] BitValue GetExecutable(GuestAddr start, size_t size) const;
 
   // Check if region start..start+size is fully executable.
-  bool IsExecutable(GuestAddr start, size_t size) const;
+  [[nodiscard]] bool IsExecutable(GuestAddr start, size_t size) const;
 
   // Mark region start..start+size as executable.
   void SetExecutable(GuestAddr start, size_t size);
@@ -53,12 +53,12 @@ class GuestMapShadow {
 
   void AddProtectedMapping(const void* start, const void* end);
 
-  bool IntersectsWithProtectedMapping(const void* start, const void* end);
+  [[nodiscard]] bool IntersectsWithProtectedMapping(const void* start, const void* end);
 
   static GuestMapShadow* GetInstance();
 
  private:
-  bool IsExecAddr(GuestAddr addr) const;
+  [[nodiscard]] bool IsExecAddr(GuestAddr addr) const;
   bool SetExecAddr(GuestAddr addr, int set);
   void CopyExecutable(GuestAddr from, size_t from_size, GuestAddr to, size_t to_size);
 
