@@ -15,15 +15,65 @@
  */
 
 #include <pthread.h>
+#include <sys/types.h>  // pid_t
+#include <mutex>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/forever_map.h"
 
 namespace berberis {
+
+// TODO(b/280551726): Replace this forward declaration with a full class
+// declaration included from guest_thread.h.
+class GuestThread;
 
 // Manages the current guest thread.
 pthread_key_t g_guest_thread_key;
 
 namespace {
+
+typedef ForeverMap<pid_t, GuestThread*> GuestThreadMap;
+GuestThreadMap g_guest_thread_map_;
+
+std::mutex g_guest_thread_mutex_;
+
+[[maybe_unused]] void ResetThreadTable(pid_t tid, GuestThread* thread) {
+  std::lock_guard<std::mutex> lock(g_guest_thread_mutex_);
+  g_guest_thread_map_.clear();
+  g_guest_thread_map_[tid] = thread;
+}
+
+[[maybe_unused]] void InsertThread(pid_t tid, GuestThread* thread) {
+  std::lock_guard<std::mutex> lock(g_guest_thread_mutex_);
+  auto result = g_guest_thread_map_.insert({tid, thread});
+  CHECK(result.second);
+}
+
+[[maybe_unused]] GuestThread* RemoveThread(pid_t tid) {
+  std::lock_guard<std::mutex> lock(g_guest_thread_mutex_);
+  auto it = g_guest_thread_map_.find(tid);
+  CHECK(it != g_guest_thread_map_.end());
+  GuestThread* thread = it->second;
+  g_guest_thread_map_.erase(it);
+  return thread;
+}
+
+[[maybe_unused]] GuestThread* FindThread(pid_t tid) {
+  std::lock_guard<std::mutex> lock(g_guest_thread_mutex_);
+  auto it = g_guest_thread_map_.find(tid);
+  if (it == g_guest_thread_map_.end()) {
+    return nullptr;
+  }
+  return it->second;
+}
+
+template <typename F>
+[[maybe_unused]] void ForEachThread(const F& f) {
+  std::lock_guard<std::mutex> lock(g_guest_thread_mutex_);
+  for (const auto& v : g_guest_thread_map_) {
+    f(v.first, v.second);
+  }
+}
 
 void GuestThreadDtor(void* /* arg */) {
   // TODO(b/280671643): Implement DetachCurrentThread().
