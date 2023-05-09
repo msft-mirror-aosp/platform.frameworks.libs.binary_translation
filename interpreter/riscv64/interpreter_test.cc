@@ -409,13 +409,16 @@ TEST_F(Riscv64InterpreterTest, CAddi) {
         uint8_t high_opcode : 3;
       } __attribute__((__packed__));
     } o_bits = {
-        .low_opcode = 0b01,
+        .low_opcode = 0,
         .i4_i0 = i_bits.i4_i0,
         .r = 2,
         .i5 = i_bits.i5,
-        .high_opcode = 0b000,
+        .high_opcode = 0,
     };
-    InterpretCAddi(o_bits.parcel, offset);
+    // c.Addi
+    InterpretCAddi(o_bits.parcel | 0b0000'0000'0000'0001, offset);
+    // c.Addiw
+    InterpretCAddi(o_bits.parcel | 0b0010'0000'0000'0001, offset);
   }
 }
 
