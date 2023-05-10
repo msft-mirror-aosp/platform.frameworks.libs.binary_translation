@@ -38,13 +38,13 @@ TEST(GuestParams_riscv64_lp64d, PtrIntArgs) {
   SetXReg<A2>(state.cpu, static_cast<uint64_t>(-7));
 
   auto [param1, param2, param3] =
-      GuestParamsValues<void(int*, unsigned int, int), GuestAbiRiscv64::kLp64d>(&state);
+      GuestParamsValues<void(int*, unsigned int, int), GuestAbi::kLp64d>(&state);
   auto [param1f, param2f, param3f] =
-      GuestParamsValues<void (*)(int*, unsigned int, int), GuestAbiRiscv64::kLp64d>(&state);
+      GuestParamsValues<void (*)(int*, unsigned int, int), GuestAbi::kLp64d>(&state);
   auto [param1v, param2v, param3v] =
-      GuestParamsValues<void(int*, unsigned int, int, ...), GuestAbiRiscv64::kLp64d>(&state);
+      GuestParamsValues<void(int*, unsigned int, int, ...), GuestAbi::kLp64d>(&state);
   auto [param1fv, param2fv, param3fv] =
-      GuestParamsValues<void (*)(int*, unsigned int, int, ...), GuestAbiRiscv64::kLp64d>(&state);
+      GuestParamsValues<void (*)(int*, unsigned int, int, ...), GuestAbi::kLp64d>(&state);
 
   EXPECT_EQ(param1, &x);
   EXPECT_EQ(param2, 1234U);
@@ -66,10 +66,10 @@ TEST(GuestParams_riscv64_lp64d, PtrIntArgs) {
 TEST(GuestParams_riscv64_lp64d, IntRes) {
   ThreadState state{};
 
-  auto&& [ret] = GuestReturnReference<int(), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retf] = GuestReturnReference<int (*)(), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retv] = GuestReturnReference<int(...), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retfv] = GuestReturnReference<int (*)(...), GuestAbiRiscv64::kLp64d>(&state);
+  auto&& [ret] = GuestReturnReference<int(), GuestAbi::kLp64d>(&state);
+  auto&& [retf] = GuestReturnReference<int (*)(), GuestAbi::kLp64d>(&state);
+  auto&& [retv] = GuestReturnReference<int(...), GuestAbi::kLp64d>(&state);
+  auto&& [retfv] = GuestReturnReference<int (*)(...), GuestAbi::kLp64d>(&state);
 
   ret = 123;
   EXPECT_EQ(GetXReg<A0>(state.cpu), 123U);
@@ -89,10 +89,10 @@ TEST(GuestParams_riscv64_lp64d, SignedCharRes) {
 
   SetXReg<A0>(state.cpu, 0);
 
-  auto&& [ret] = GuestReturnReference<signed char(), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retf] = GuestReturnReference<signed char (*)(), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retv] = GuestReturnReference<signed char(...), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retfv] = GuestReturnReference<signed char (*)(...), GuestAbiRiscv64::kLp64d>(&state);
+  auto&& [ret] = GuestReturnReference<signed char(), GuestAbi::kLp64d>(&state);
+  auto&& [retf] = GuestReturnReference<signed char (*)(), GuestAbi::kLp64d>(&state);
+  auto&& [retv] = GuestReturnReference<signed char(...), GuestAbi::kLp64d>(&state);
+  auto&& [retfv] = GuestReturnReference<signed char (*)(...), GuestAbi::kLp64d>(&state);
 
   ret = -1;
   EXPECT_EQ(GetXReg<A0>(state.cpu), 0xffU);
@@ -112,7 +112,7 @@ TEST(GuestParams_riscv64_lp64d, PtrRes) {
 
   SetXReg<A0>(state.cpu, static_cast<uint64_t>(42));
 
-  auto&& [ret] = GuestReturnReference<void*(), GuestAbiRiscv64::kLp64d>(&state);
+  auto&& [ret] = GuestReturnReference<void*(), GuestAbi::kLp64d>(&state);
 
   ret = nullptr;
   EXPECT_EQ(GetXReg<A0>(state.cpu), 0U);
@@ -123,10 +123,10 @@ TEST(GuestParams_riscv64_lp64d, SignedCharArg) {
 
   SetXReg<A0>(state.cpu, 0xf0f0f0f0f0f0f0f0ULL);
 
-  auto [arg] = GuestParamsValues<void(signed char), GuestAbiRiscv64::kLp64d>(&state);
-  auto [argf] = GuestParamsValues<void (*)(signed char), GuestAbiRiscv64::kLp64d>(&state);
-  auto [argv] = GuestParamsValues<void(signed char, ...), GuestAbiRiscv64::kLp64d>(&state);
-  auto [argfv] = GuestParamsValues<void (*)(signed char, ...), GuestAbiRiscv64::kLp64d>(&state);
+  auto [arg] = GuestParamsValues<void(signed char), GuestAbi::kLp64d>(&state);
+  auto [argf] = GuestParamsValues<void (*)(signed char), GuestAbi::kLp64d>(&state);
+  auto [argv] = GuestParamsValues<void(signed char, ...), GuestAbi::kLp64d>(&state);
+  auto [argfv] = GuestParamsValues<void (*)(signed char, ...), GuestAbi::kLp64d>(&state);
 
   EXPECT_EQ(arg, -16);
 
@@ -146,16 +146,13 @@ TEST(GuestParams_riscv64_lp64d, IntFloatIntDoubleArgs) {
   SetFReg<FA1>(state.cpu, bit_cast<uint64_t>(3.14));
 
   auto [param1, param2, param3, param4] =
-      GuestParamsValues<void(unsigned int, float, int, double), GuestAbiRiscv64::kLp64d>(&state);
+      GuestParamsValues<void(unsigned int, float, int, double), GuestAbi::kLp64d>(&state);
   auto [param1f, param2f, param3f, param4f] =
-      GuestParamsValues<void (*)(unsigned int, float, int, double), GuestAbiRiscv64::kLp64d>(
-          &state);
+      GuestParamsValues<void (*)(unsigned int, float, int, double), GuestAbi::kLp64d>(&state);
   auto [param1v, param2v, param3v, param4v] =
-      GuestParamsValues<void(unsigned int, float, int, double, ...), GuestAbiRiscv64::kLp64d>(
-          &state);
+      GuestParamsValues<void(unsigned int, float, int, double, ...), GuestAbi::kLp64d>(&state);
   auto [param1fv, param2fv, param3fv, param4fv] =
-      GuestParamsValues<void (*)(unsigned int, float, int, double, ...), GuestAbiRiscv64::kLp64d>(
-          &state);
+      GuestParamsValues<void (*)(unsigned int, float, int, double, ...), GuestAbi::kLp64d>(&state);
 
   EXPECT_EQ(param1, 1234U);
   EXPECT_FLOAT_EQ(param2, 2.71f);
@@ -181,10 +178,10 @@ TEST(GuestParams_riscv64_lp64d, IntFloatIntDoubleArgs) {
 TEST(GuestParams_riscv64_lp64d, DoubleRes) {
   ThreadState state{};
 
-  auto&& [ret] = GuestReturnReference<double(), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retf] = GuestReturnReference<double (*)(), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retv] = GuestReturnReference<double(...), GuestAbiRiscv64::kLp64d>(&state);
-  auto&& [retfv] = GuestReturnReference<double (*)(...), GuestAbiRiscv64::kLp64d>(&state);
+  auto&& [ret] = GuestReturnReference<double(), GuestAbi::kLp64d>(&state);
+  auto&& [retf] = GuestReturnReference<double (*)(), GuestAbi::kLp64d>(&state);
+  auto&& [retv] = GuestReturnReference<double(...), GuestAbi::kLp64d>(&state);
+  auto&& [retfv] = GuestReturnReference<double (*)(...), GuestAbi::kLp64d>(&state);
 
   ret = 3.14;
   EXPECT_DOUBLE_EQ(bit_cast<double>(GetFReg<FA0>(state.cpu)), 3.14);
@@ -265,7 +262,7 @@ TEST(GuestParams_riscv64_lp64d, StackArgs) {
                                           double,
                                           double,
                                           double),
-                                     GuestAbiRiscv64::kLp64d>(&state);
+                                     GuestAbi::kLp64d>(&state);
   auto [param1f,
         param2f,
         param3f,
@@ -305,7 +302,7 @@ TEST(GuestParams_riscv64_lp64d, StackArgs) {
                                                double,
                                                double,
                                                double),
-                                      GuestAbiRiscv64::kLp64d>(&state);
+                                      GuestAbi::kLp64d>(&state);
   auto [param1v,
         param2v,
         param3v,
@@ -346,7 +343,7 @@ TEST(GuestParams_riscv64_lp64d, StackArgs) {
                                            double,
                                            double,
                                            ...),
-                                      GuestAbiRiscv64::kLp64d>(&state);
+                                      GuestAbi::kLp64d>(&state);
   auto [param1fv,
         param2fv,
         param3fv,
@@ -387,7 +384,7 @@ TEST(GuestParams_riscv64_lp64d, StackArgs) {
                                                 double,
                                                 double,
                                                 ...),
-                                       GuestAbiRiscv64::kLp64d>(&state);
+                                       GuestAbi::kLp64d>(&state);
 
   EXPECT_EQ(param1, 0);
   EXPECT_EQ(param2, 1);
@@ -488,11 +485,11 @@ TEST(GuestParams_riscv64_lp64d, LongArgLargeStructRes) {
   SetXReg<A0>(state.cpu, ToGuestAddr(&result));
   SetXReg<A1>(state.cpu, 0xdead0000beef);
 
-  auto [arg] = GuestParamsValues<Result(uint64_t), GuestAbiRiscv64::kLp64d>(&state);
+  auto [arg] = GuestParamsValues<Result(uint64_t), GuestAbi::kLp64d>(&state);
 
   EXPECT_EQ(arg, 0xdead0000beefU);
 
-  auto&& [ret] = GuestReturnReference<Result(uint64_t), GuestAbiRiscv64::kLp64d>(&state);
+  auto&& [ret] = GuestReturnReference<Result(uint64_t), GuestAbi::kLp64d>(&state);
 
   ret = Result{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
@@ -517,7 +514,7 @@ TEST(GuestVAListParams_riscv64_lp64d, PtrIntArgs) {
   SetXReg<A1>(state.cpu, 1234);
   SetXReg<A2>(state.cpu, static_cast<uint64_t>(-7));
 
-  GuestVAListParams params = GuestParamsValues<void(...), GuestAbiRiscv64::kLp64d>(&state);
+  GuestVAListParams params = GuestParamsValues<void(...), GuestAbi::kLp64d>(&state);
 
   EXPECT_EQ(params.GetPointerParam<int>(), &x);
   EXPECT_EQ(params.GetParam<unsigned int>(), 1234U);
@@ -532,7 +529,7 @@ TEST(GuestVAListParams_riscv64_lp64d, IntFloatIntDoubleArgs) {
   SetXReg<A2>(state.cpu, static_cast<uint64_t>(-7));
   SetXReg<A3>(state.cpu, bit_cast<uint64_t>(3.14));
 
-  GuestVAListParams params = GuestParamsValues<void(...), GuestAbiRiscv64::kLp64d>(&state);
+  GuestVAListParams params = GuestParamsValues<void(...), GuestAbi::kLp64d>(&state);
 
   EXPECT_EQ(params.GetParam<unsigned int>(), 1234U);
   EXPECT_FLOAT_EQ(params.GetParam<float>(), 2.71f);
@@ -558,7 +555,7 @@ TEST(GuestVAListParams_riscv64_lp64d, StackArgs) {
   stack[2] = 10;
   stack[3] = bit_cast<uint64_t>(11.11);
 
-  GuestVAListParams params = GuestParamsValues<void(...), GuestAbiRiscv64::kLp64d>(&state);
+  GuestVAListParams params = GuestParamsValues<void(...), GuestAbi::kLp64d>(&state);
 
   EXPECT_EQ(params.GetParam<int>(), 0);
   EXPECT_DOUBLE_EQ(params.GetParam<double>(), 1.1);

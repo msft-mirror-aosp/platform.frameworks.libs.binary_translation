@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_RISCV64_H_
-#define BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_RISCV64_H_
+#ifndef BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_ARCH_H_
+#define BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_ARCH_H_
 
 #include <array>
 #include <tuple>
 
 #include "berberis/base/dependent_false.h"
 #include "berberis/calling_conventions/calling_conventions_riscv64.h"
-#include "berberis/guest_abi/guest_abi_riscv64.h"
+#include "berberis/guest_abi/guest_abi_arch.h"
 
 namespace berberis {
 
@@ -38,7 +38,7 @@ struct GuestArgumentBuffer {
   uint64_t stack_argv[1];  // VLA.
 };
 
-template <typename, GuestAbiRiscv64::CallingConventionsVariant = GuestAbiRiscv64::kDefaultAbi>
+template <typename, GuestAbi::CallingConventionsVariant = GuestAbi::kDefaultAbi>
 class GuestArgumentsAndResult;
 
 // GuestArguments is a typesafe wrapper around GuestArgumentBuffer.
@@ -51,9 +51,9 @@ class GuestArgumentsAndResult;
 template <typename ResultType,
           typename... ArgumentType,
           bool kNoexcept,
-          GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+          GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestArgumentsAndResult<ResultType(ArgumentType...) noexcept(kNoexcept),
-                              kCallingConventionsVariant> : GuestAbiRiscv64 {
+                              kCallingConventionsVariant> : GuestAbi {
  public:
   GuestArgumentsAndResult(GuestArgumentBuffer* buffer) : buffer_(buffer) {}
 
@@ -176,7 +176,7 @@ class GuestArgumentsAndResult<ResultType(ArgumentType...) noexcept(kNoexcept),
 template <typename ResultType,
           typename... ArgumentType,
           bool kNoexcept,
-          GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+          GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestArgumentsAndResult<ResultType (*)(ArgumentType...) noexcept(kNoexcept),
                               kCallingConventionsVariant>
     : public GuestArgumentsAndResult<ResultType(ArgumentType...) noexcept(kNoexcept),
@@ -189,4 +189,4 @@ class GuestArgumentsAndResult<ResultType (*)(ArgumentType...) noexcept(kNoexcept
 
 }  // namespace berberis
 
-#endif  // BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_RISCV64_H_
+#endif  // BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_ARCH_H_

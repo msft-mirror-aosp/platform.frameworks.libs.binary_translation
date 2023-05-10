@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_ABI_GUEST_CALL_RISCV64_H_
-#define BERBERIS_GUEST_ABI_GUEST_CALL_RISCV64_H_
+#ifndef BERBERIS_GUEST_ABI_GUEST_CALL_ARCH_H_
+#define BERBERIS_GUEST_ABI_GUEST_CALL_ARCH_H_
 
 #include <cstddef>
 #include <cstdint>
 
-#include "berberis/guest_abi/guest_arguments_riscv64.h"
+#include "berberis/guest_abi/guest_arguments_arch.h"
 #include "berberis/guest_state/guest_addr.h"
 
 namespace berberis {
@@ -49,4 +49,4 @@ class GuestCall {
 
 }  // namespace berberis
 
-#endif  // BERBERIS_GUEST_ABI_GUEST_CALL_RISCV64_H_
+#endif  // BERBERIS_GUEST_ABI_GUEST_CALL_ARCH_H_
