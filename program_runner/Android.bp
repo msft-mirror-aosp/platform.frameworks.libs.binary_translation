@@ -27,8 +27,9 @@ cc_binary {
     ],
     static_libs: [
         "libberberis_base",
+        "libberberis_config_globals",
         "libberberis_interpreter_riscv64",
-        "libberberis_kernel_api",
+        "libberberis_kernel_api_riscv64",
         "libberberis_runtime",
         "libberberis_tinyloader",
     ],
