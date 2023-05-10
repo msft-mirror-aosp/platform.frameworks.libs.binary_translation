@@ -22,4 +22,23 @@ cc_library_headers {
     defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
+    header_libs: [
+        "libberberis_base_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_base_headers",
+    ],
+}
+
+cc_library_static {
+    name: "libberberis_guest_state",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    srcs: [
+        "guest_state.cc",
+    ],
+    header_libs: [
+        "libberberis_guest_state_headers",
+    ],
+    export_header_lib_headers: ["libberberis_guest_state_headers"],
 }

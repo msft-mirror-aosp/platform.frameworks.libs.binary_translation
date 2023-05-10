@@ -25,6 +25,7 @@
 #include "berberis/base/mmap.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_addr.h"  // ToGuestAddr
+#include "berberis/guest_state/guest_state.h"
 #include "berberis/runtime_primitives/host_stack.h"
 #include "native_bridge_support/linker/static_tls_config.h"
 
@@ -54,8 +55,7 @@ GuestThread* GuestThread::Create() {
   GuestThread* thread = new (thread_storage) GuestThread;
   CHECK(thread);
 
-  // TODO(b/281864904): Implement.
-  // InitThreadState(&thread->state_);
+  InitThreadState(&thread->state_);
   thread->state_.thread = thread;
 
   return thread;
