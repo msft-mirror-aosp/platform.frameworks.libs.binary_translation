@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_ABI_GUEST_ABI_RISCV64_H_
-#define BERBERIS_GUEST_ABI_GUEST_ABI_RISCV64_H_
+#ifndef BERBERIS_GUEST_ABI_GUEST_ABI_ARCH_H_
+#define BERBERIS_GUEST_ABI_GUEST_ABI_ARCH_H_
 
 #include <array>
 
@@ -24,7 +24,7 @@
 
 namespace berberis {
 
-class GuestAbiRiscv64 {
+class GuestAbi {
  public:
   enum CallingConventionsVariant {
     kLp64,   // Soft float.
@@ -131,4 +131,4 @@ class GuestAbiRiscv64 {
 
 }  // namespace berberis
 
-#endif  // BERBERIS_GUEST_ABI_GUEST_ABI_RISCV64_H_
+#endif  // BERBERIS_GUEST_ABI_GUEST_ABI_ARCH_H_
