@@ -34,6 +34,7 @@ cc_library_headers {
     ],
 }
 
+// Common sources to be shared across arch-specific libraries.
 cc_library_static {
     name: "libberberis_guest_os_primitives",
     defaults: ["berberis_defaults"],
@@ -50,8 +51,13 @@ cc_library_static {
         "libberberis_guest_state_headers",
         "libberberis_instrument_headers",
         "libberberis_runtime_primitives_headers",
+        "//frameworks/libs/native_bridge_support:native_bridge_guest_linker_headers",
     ],
     export_header_lib_headers: ["libberberis_guest_os_primitives_headers"],
+    include_dirs: [
+        // private/bionic_constants.h
+        "bionic/libc",
+    ],
 }
 
 cc_test_library {

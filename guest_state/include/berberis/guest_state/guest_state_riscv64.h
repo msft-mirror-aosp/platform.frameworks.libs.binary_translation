@@ -137,6 +137,11 @@ struct ThreadState {
   void* instrument_data;
 };
 
+// TODO(b/28058920): Refactor into GuestThread.
+inline bool ArePendingSignalsPresent(const ThreadState* state) {
+  return state->pending_signals_status.load(std::memory_order_relaxed) == kPendingSignalsPresent;
+}
+
 // The ABI names come from
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc.
 
