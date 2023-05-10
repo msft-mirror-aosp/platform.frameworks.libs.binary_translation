@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_ABI_GUEST_PARAMS_RISCV64_H_
-#define BERBERIS_GUEST_ABI_GUEST_PARAMS_RISCV64_H_
+#ifndef BERBERIS_GUEST_ABI_GUEST_PARAMS_ARCH_H_
+#define BERBERIS_GUEST_ABI_GUEST_PARAMS_ARCH_H_
 
 #include <array>
 #include <cstdint>
@@ -26,18 +26,17 @@
 #include "berberis/base/logging.h"
 #include "berberis/calling_conventions/calling_conventions_riscv64.h"
 #include "berberis/guest_abi/guest_abi.h"
-#include "berberis/guest_abi/guest_abi_riscv64.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 
 namespace berberis {
 
-template <GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+template <GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestVAListParams;
 
-class GuestParamsAndReturnHelper : protected GuestAbiRiscv64 {
+class GuestParamsAndReturnHelper : protected GuestAbi {
  protected:
-  template <typename T, GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+  template <typename T, GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
   constexpr static auto* ParamLocationAddress(uint64_t* x,
                                               uint64_t* f,
                                               uint8_t* s,
@@ -64,7 +63,7 @@ class GuestParamsAndReturnHelper : protected GuestAbiRiscv64 {
   }
 };
 
-template <typename, GuestAbiRiscv64::CallingConventionsVariant = GuestAbiRiscv64::kDefaultAbi>
+template <typename, GuestAbi::CallingConventionsVariant = GuestAbi::kDefaultAbi>
 class GuestParamsAndReturn;
 
 // GuestParamsAndReturn is typesafe wrapper around ThreadState.
@@ -77,7 +76,7 @@ class GuestParamsAndReturn;
 template <typename ReturnType,
           typename... ParamType,
           bool kNoexcept,
-          GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+          GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestParamsAndReturn<ReturnType(ParamType...) noexcept(kNoexcept), kCallingConventionsVariant>
     : GuestParamsAndReturnHelper {
  public:
@@ -170,7 +169,7 @@ class GuestParamsAndReturn<ReturnType(ParamType...) noexcept(kNoexcept), kCallin
 template <typename ReturnType,
           typename... ParamType,
           bool kNoexcept,
-          GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+          GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestParamsAndReturn<ReturnType (*)(ParamType...) noexcept(kNoexcept),
                            kCallingConventionsVariant>
     : public GuestParamsAndReturn<ReturnType(ParamType...) noexcept(kNoexcept),
@@ -186,7 +185,7 @@ class GuestParamsAndReturn<ReturnType (*)(ParamType...) noexcept(kNoexcept),
 template <typename ReturnType,
           typename... ParamType,
           bool kNoexcept,
-          GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+          GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestParamsAndReturn<ReturnType(ParamType..., ...) noexcept(kNoexcept),
                            kCallingConventionsVariant>
     : public GuestParamsAndReturn<ReturnType(ParamType...) noexcept(kNoexcept),
@@ -209,7 +208,7 @@ class GuestParamsAndReturn<ReturnType(ParamType..., ...) noexcept(kNoexcept),
 template <typename ReturnType,
           typename... ParamType,
           bool kNoexcept,
-          GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+          GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestParamsAndReturn<ReturnType (*)(ParamType..., ...) noexcept(kNoexcept),
                            kCallingConventionsVariant>
     : public GuestParamsAndReturn<ReturnType(ParamType..., ...) noexcept(kNoexcept),
@@ -224,7 +223,7 @@ template <typename FunctionType,
           GuestAbi::CallingConventionsVariant kCallingConventionsVariant = GuestAbi::kDefaultAbi>
 class GuestParamsValues;
 
-template <GuestAbiRiscv64::CallingConventionsVariant kCallingConventionsVariant>
+template <GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestVAListParams : GuestParamsAndReturnHelper {
  public:
   template <typename Func>
@@ -271,4 +270,4 @@ class GuestVAListParams : GuestParamsAndReturnHelper {
 
 }  // namespace berberis
 
-#endif  // BERBERIS_GUEST_ABI_GUEST_PARAMS_RISCV64_H_
+#endif  // BERBERIS_GUEST_ABI_GUEST_PARAMS_ARCH_H_
