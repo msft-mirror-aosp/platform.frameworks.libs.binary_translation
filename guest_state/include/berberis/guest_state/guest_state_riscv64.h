@@ -17,6 +17,7 @@
 #ifndef BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
 #define BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
 
+#include <atomic>
 #include <cstdint>
 
 #include "berberis/base/dependent_false.h"
@@ -104,6 +105,15 @@ inline auto SetReg(CPUState& state, Register val) {
 
 class GuestThread;
 
+// TODO(b/28058920): Refactor into GuestThread.
+// Pending signals status state machine:
+//   disabled <-> enabled <-> enabled and pending signals present
+enum PendingSignalsStatus : uint8_t {
+  kPendingSignalsDisabled = 0,  // initial value, must be 0
+  kPendingSignalsEnabled,
+  kPendingSignalsPresent,  // implies enabled
+};
+
 // Track whether we are in generated code or not.
 enum GuestThreadResidence : uint8_t {
   kOutsideGeneratedCode = 0,
@@ -115,6 +125,11 @@ struct ThreadState {
 
   // Guest thread pointer.
   GuestThread* thread;
+
+  // Keep pending signals status here for fast checking in generated code.
+  // Uses enum values from PendingSignalsStatus.
+  // TODO(b/28058920): Refactor into GuestThread.
+  std::atomic<uint_least8_t> pending_signals_status;
 
   GuestThreadResidence residence;
 
