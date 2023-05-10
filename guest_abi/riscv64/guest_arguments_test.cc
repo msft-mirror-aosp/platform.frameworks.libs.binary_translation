@@ -47,7 +47,7 @@ TEST(GuestArguments_riscv64_lp64, Smoke) {
 
   GuestArgumentsAndResult<
       double(int, double, int, double, int, double, int, double, int, double, int, double),
-      GuestAbiRiscv64::kLp64>
+      GuestAbi::kLp64>
       f1_args(&arguments.buffer);
   EXPECT_EQ(0x00000000, f1_args.GuestArgument<0>());
   EXPECT_EQ(1.0, f1_args.GuestArgument<1>());
@@ -65,7 +65,7 @@ TEST(GuestArguments_riscv64_lp64, Smoke) {
 
   GuestArgumentsAndResult<
       int(double, int, double, int, double, int, double, int, double, int, double, int),
-      GuestAbiRiscv64::kLp64>
+      GuestAbi::kLp64>
       f2_args(&arguments.buffer);
   EXPECT_EQ(-0.0, f2_args.GuestArgument<0>());
   EXPECT_EQ(0x00000000, f2_args.GuestArgument<1>());
@@ -122,7 +122,7 @@ TEST(GuestArguments_riscv64_lp64d, Smoke) {
                                  double,
                                  int,
                                  double),
-                          GuestAbiRiscv64::kLp64d>
+                          GuestAbi::kLp64d>
       f1_args(&arguments.buffer);
   EXPECT_EQ(1, f1_args.GuestArgument<0>());
   EXPECT_EQ(1.0, f1_args.GuestArgument<1>());
@@ -166,7 +166,7 @@ TEST(GuestArguments_riscv64_lp64d, Smoke) {
                               int,
                               double,
                               int),
-                          GuestAbiRiscv64::kLp64d>
+                          GuestAbi::kLp64d>
       f2_args(&arguments.buffer);
   EXPECT_EQ(1.0, f2_args.GuestArgument<0>());
   EXPECT_EQ(1, f2_args.GuestArgument<1>());
@@ -219,7 +219,7 @@ TEST(GuestArguments_riscv64_lp64d, GuestArgumentsReferences) {
   GuestArgumentBuffer buffer{.argv = {100}, .fp_argv = {0x3fe0000000000000}};
 
   auto&& [length1, angle1] =
-      GuestArgumentsReferences<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
+      GuestArgumentsReferences<double(int, double), GuestAbi::kLp64d>(&buffer);
   EXPECT_EQ(length1, 100);
   EXPECT_EQ(angle1, 1.0 / 2.0);
   length1 = 200;
@@ -228,7 +228,7 @@ TEST(GuestArguments_riscv64_lp64d, GuestArgumentsReferences) {
   EXPECT_EQ(angle1, 1.0);
 
   auto&& [length2, angle2] =
-      GuestArgumentsReferences<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
+      GuestArgumentsReferences<double(int, double), GuestAbi::kLp64d>(&buffer);
   EXPECT_EQ(length2, 200);
   EXPECT_EQ(angle2, 1.0);
 }
@@ -236,7 +236,7 @@ TEST(GuestArguments_riscv64_lp64d, GuestArgumentsReferences) {
 TEST(GuestArguments_riscv64_lp64d, HostArgumentsValues) {
   GuestArgumentBuffer buffer{.argv = {100}, .fp_argv = {0x3fe0000000000000}};
 
-  auto [length, angle] = HostArgumentsValues<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
+  auto [length, angle] = HostArgumentsValues<double(int, double), GuestAbi::kLp64d>(&buffer);
   EXPECT_EQ(length, 100);
   EXPECT_EQ(angle, 1.0 / 2.0);
 }
@@ -244,18 +244,18 @@ TEST(GuestArguments_riscv64_lp64d, HostArgumentsValues) {
 TEST(GuestArguments_riscv64_lp64d, GuestResultValue) {
   GuestArgumentBuffer buffer{.argv = {100}, .fp_argv = {0x3fe0000000000000}};
 
-  auto [result] = GuestResultValue<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
+  auto [result] = GuestResultValue<double(int, double), GuestAbi::kLp64d>(&buffer);
   EXPECT_EQ(result, 1.0 / 2.0);
 }
 
 TEST(GuestArguments_riscv64_lp64d, HostResultReference) {
   GuestArgumentBuffer buffer{.argv = {100}, .fp_argv = {0x3fe0000000000000}};
 
-  auto&& [result1] = HostResultReference<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
+  auto&& [result1] = HostResultReference<double(int, double), GuestAbi::kLp64d>(&buffer);
   EXPECT_EQ(result1, 1.0 / 2.0);
   result1 = 1.0;
 
-  auto&& [result2] = HostResultReference<double(int, double), GuestAbiRiscv64::kLp64d>(&buffer);
+  auto&& [result2] = HostResultReference<double(int, double), GuestAbi::kLp64d>(&buffer);
   EXPECT_EQ(result2, 1.0);
 }
 
