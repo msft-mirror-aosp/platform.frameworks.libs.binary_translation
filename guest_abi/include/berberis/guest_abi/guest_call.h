@@ -17,7 +17,6 @@
 #ifndef BERBERIS_GUEST_ABI_GUEST_CALL_H_
 #define BERBERIS_GUEST_ABI_GUEST_CALL_H_
 
-// TODO(b/265372622): Make it configurable for specific guest arch.
-#include "berberis/guest_abi/guest_call_riscv64.h"  // IWYU pragma: export.
+#include "berberis/guest_abi/guest_call_arch.h"
 
 #endif  // BERBERIS_GUEST_ABI_GUEST_CALL_H_

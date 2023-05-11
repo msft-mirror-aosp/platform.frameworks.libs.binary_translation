@@ -18,9 +18,7 @@
 #define BERBERIS_GUEST_ABI_GUEST_PARAMS_H_
 
 #include "berberis/guest_abi/guest_abi.h"
-
-// TODO(b/265372622): Make it configurable for specific guest arch.
-#include "berberis/guest_abi/guest_params_riscv64.h"  // IWYU pragma: export.
+#include "berberis/guest_abi/guest_params_arch.h"
 
 namespace berberis {
 
