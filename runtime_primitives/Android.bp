@@ -22,8 +22,16 @@ cc_library_headers {
     defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
-    header_libs: ["libberberis_guest_state_headers"],
-    export_header_lib_headers: ["libberberis_guest_state_headers"],
+    header_libs: [
+        "libberberis_assembler_headers",
+        "libberberis_base_headers",
+        "libberberis_guest_state_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_assembler_headers",
+        "libberberis_base_headers",
+        "libberberis_guest_state_headers",
+    ],
 }
 
 cc_library_static {
@@ -39,7 +47,6 @@ cc_library_static {
         "translation_cache.cc",
     ],
     header_libs: [
-        "libberberis_assembler_headers",
         "libberberis_base_headers",
         "libberberis_guest_state_headers",
         "libberberis_runtime_primitives_headers",
@@ -75,7 +82,6 @@ cc_test_library {
         "translation_cache_test.cc",
     ],
     header_libs: [
-        "libberberis_assembler_headers",
         "berberis_test_utils_headers",
         "libberberis_base_headers",
         "libberberis_guest_state_headers",
