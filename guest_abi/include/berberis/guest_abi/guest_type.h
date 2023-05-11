@@ -35,8 +35,8 @@ GuestType(Type) -> GuestType<Type>;
 template <typename Type>
 inline constexpr bool kIsGuestType = false;
 
-template <typename Type, typename Typе>
-inline constexpr bool kIsGuestType<GuestType<Type, Typе>> = true;
+template <typename Type1, typename Type2>
+inline constexpr bool kIsGuestType<GuestType<Type1, Type2>> = true;
 
 template <typename StructType>
 class GuestType<
@@ -336,22 +336,22 @@ class GuestType<ResultType (*const)(ArgumentType...)> {
 
 // Const cast conversion routine for most GuestTypes. If a certain type is not compatible for some
 // reason then deleted specialization should be provided.
-template <typename TypeOut, typename TypeIn, typename TypеIn>
-inline auto ConstCast(GuestType<TypeIn, TypеIn> value)
+template <typename TypeOut, typename TypeIn1, typename TypeIn2>
+inline auto ConstCast(GuestType<TypeIn1, TypeIn2> value)
     -> std::enable_if_t<kIsGuestType<TypeOut> &&
                             sizeof(const_cast<typename TypeOut::Type>(
-                                std::declval<typename GuestType<TypeIn, TypеIn>::Type>())),
+                                std::declval<typename GuestType<TypeIn1, TypeIn2>::Type>())),
                         TypeOut> {
   return bit_cast<TypeOut>(value);
 }
 
 // Static cast conversion routine for most GuestTypes. If a certain type is not compatible for some
 // reason then deleted specialization should be provided.
-template <typename TypeOut, typename TypeIn, typename TypеIn>
-inline auto StaticCast(GuestType<TypeIn, TypеIn> value)
+template <typename TypeOut, typename TypeIn1, typename TypeIn2>
+inline auto StaticCast(GuestType<TypeIn1, TypeIn2> value)
     -> std::enable_if_t<kIsGuestType<TypeOut> &&
                             sizeof(static_cast<typename TypeOut::Type>(
-                                std::declval<typename GuestType<TypeIn, TypеIn>::Type>())),
+                                std::declval<typename GuestType<TypeIn1, TypeIn2>::Type>())),
                         TypeOut> {
   return bit_cast<TypeOut>(value);
 }
