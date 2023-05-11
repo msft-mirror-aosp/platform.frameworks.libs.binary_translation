@@ -127,8 +127,10 @@ cc_test_host {
                 "libberberis_runtime",
                 "libberberis_runtime_library_riscv64_to_x86_64",
                 "libberberis_runtime_primitives_riscv64",
+                "libberberis_code_gen_lib_riscv64",
             ],
             whole_static_libs: [
+                "libberberis_code_gen_lib_riscv64_unit_tests",
                 "libberberis_guest_abi_riscv64_unit_tests",
                 "libberberis_guest_os_primitives_unit_tests",
                 "libberberis_interpreter_riscv64_unit_tests",
