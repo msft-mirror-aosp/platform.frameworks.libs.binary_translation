@@ -16,11 +16,7 @@
 
 #include "gtest/gtest.h"
 
-#if defined(__i386__)
-#include "berberis/assembler/x86_32.h"
-#elif defined(__x86_64__)
 #include "berberis/assembler/x86_64.h"
-#endif
 
 #include "berberis/assembler/machine_code.h"
 #include "berberis/base/bit_util.h"
@@ -30,14 +26,104 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/runtime_primitives/host_code.h"
+#include "berberis/runtime_primitives/translation_cache.h"
 #include "berberis/test_utils/scoped_exec_region.h"
+#include "berberis/test_utils/testing_run_generated_code.h"
 
 namespace berberis {
 
 namespace {
 
 bool g_called;
+uint32_t g_arg;
+ThreadState g_state{};
 uint32_t g_insn;
+uint32_t g_ret_insn;
+
+void DummyTrampoline(void* arg, ThreadState* state) {
+  g_called = true;
+  ASSERT_EQ(&g_arg, arg);
+  ASSERT_EQ(&g_state, state);
+  ASSERT_EQ(g_state.cpu.insn_addr, ToGuestAddr(&g_insn));
+  ASSERT_EQ(GetLinkRegister(g_state.cpu), ToGuestAddr(&g_ret_insn));
+}
+
+// TODO(b/283298171): Reenable the following test when berberis_HandleNotTranslated
+//  implemented.
+TEST(CodeGenLib, DISABLED_GenTrampolineAdaptor) {
+  MachineCode machine_code;
+
+  GenTrampolineAdaptor(
+      &machine_code, ToGuestAddr(&g_insn), AsHostCode(DummyTrampoline), &g_arg, "DummyTrampoline");
+
+  ScopedExecRegion exec(&machine_code);
+
+  g_called = false;
+  g_state.cpu.insn_addr = 0;
+  SetLinkRegister(&g_state.cpu, ToGuestAddr(&g_ret_insn));
+
+  TestingRunGeneratedCode(&g_state, exec.get(), ToGuestAddr(&g_ret_insn));
+
+  ASSERT_TRUE(g_called);
+  ASSERT_EQ(g_state.cpu.insn_addr, ToGuestAddr(&g_ret_insn));
+}
+
+void GenMoveResidenceToReg(MachineCode* machine_code) {
+  x86_64::Assembler as(machine_code);
+  // Perform x0 = ThreadState::residence.
+  as.Movq(as.rdx, {.base = as.rbp, .disp = offsetof(ThreadState, residence)});
+  as.Movq({.base = as.rbp, .disp = offsetof(ThreadState, cpu.x[0])}, as.rdx);
+  as.Jmp(kEntryExitGeneratedCode);
+}
+
+uint64_t GetResidenceReg(const ThreadState& state) {
+  return state.cpu.x[0];
+}
+
+void CheckResidenceTrampoline(void*, ThreadState* state) {
+  EXPECT_EQ(state->residence, kOutsideGeneratedCode);
+}
+
+void AddToTranslationCache(GuestAddr guest_addr, HostCodePiece host_code_piece) {
+  auto* tc = TranslationCache::GetInstance();
+  GuestCodeEntry* entry = tc->AddAndLockForTranslation(guest_addr, 0);
+  ASSERT_NE(entry, nullptr);
+  tc->SetTranslatedAndUnlock(
+      guest_addr, entry, 1, GuestCodeEntry::Kind::kSpecialHandler, host_code_piece);
+}
+
+// TODO(b/283298171): Reenable the following test when berberis_HandleNotTranslated
+//  implemented.
+TEST(CodeGenLib, DISABLED_GenTrampolineAdaptorResidence) {
+  MachineCode trampoline_adaptor;
+  GenTrampolineAdaptor(&trampoline_adaptor,
+                       ToGuestAddr(&g_insn),
+                       AsHostCode(CheckResidenceTrampoline),
+                       nullptr,
+                       nullptr);
+  ScopedExecRegion trampoline_exec(&trampoline_adaptor);
+
+  // Trampoline returns to generated code, so we generate some.
+  MachineCode generated_code;
+  GenMoveResidenceToReg(&generated_code);
+  ScopedExecRegion generated_code_exec(&generated_code);
+
+  AddToTranslationCache(ToGuestAddr(&g_ret_insn),
+                        {generated_code_exec.get(), generated_code.install_size()});
+
+  g_state.cpu.insn_addr = 0;
+  SetLinkRegister(&g_state.cpu, ToGuestAddr(&g_ret_insn));
+  EXPECT_EQ(g_state.residence, kOutsideGeneratedCode);
+
+  berberis_RunGeneratedCode(&g_state, trampoline_exec.get());
+
+  EXPECT_EQ(g_state.residence, kOutsideGeneratedCode);
+  EXPECT_EQ(g_state.cpu.insn_addr, ToGuestAddr(&g_ret_insn));
+  EXPECT_EQ(GetResidenceReg(g_state), kInsideGeneratedCode);
+
+  TranslationCache::GetInstance()->InvalidateGuestRange(ToGuestAddr(&g_ret_insn),
+                                                        ToGuestAddr(&g_ret_insn) + 1);
+}
 
 void DummyRunner2(GuestAddr pc, GuestArgumentBuffer* buf) {
   g_called = true;

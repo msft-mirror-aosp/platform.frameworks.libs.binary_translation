@@ -41,6 +41,7 @@ cc_library_static {
     arch: {
         x86_64: {
             srcs: [
+                "code_gen_lib_riscv64_to_x86_64.cc",
                 "gen_wrapper_riscv64_to_x86_64.cc",
             ],
         },

@@ -115,7 +115,6 @@ void GenWrapGuestFunction(MachineCode* mc,
           Assembler::xmm7,
       };
       if (fp_argc < static_cast<int>(arraysize(kParamRegs))) {
-        // fp registers are 8 bytes
         as.Movq({.base = Assembler::rsp, .disp = kFpArgvOffset + fp_argc * 8}, kParamRegs[fp_argc]);
       } else {
         as.Movq(Assembler::rax,
