@@ -18,25 +18,25 @@ package {
 }
 
 python_binary_host {
-    name: "berberis_gen_asm_x86",
-    main: "berberis_gen_asm_x86.py",
-    srcs: ["berberis_gen_asm_x86.py"],
-    libs: ["berberis_asm_defs_lib"],
+    name: "gen_asm_x86",
+    main: "gen_asm_x86.py",
+    srcs: ["gen_asm_x86.py"],
+    libs: ["asm_defs_lib"],
 }
 
 python_binary_host {
-    name: "berberis_gen_asm_tests_x86",
-    main: "berberis_gen_asm_tests_x86.py",
+    name: "gen_asm_tests_x86",
+    main: "gen_asm_tests_x86.py",
     srcs: [
-        "berberis_gen_asm_tests_x86.py",
-        "berberis_gen_asm_x86.py",
+        "gen_asm_tests_x86.py",
+        "gen_asm_x86.py",
     ],
-    libs: ["berberis_asm_defs_lib"],
+    libs: ["asm_defs_lib"],
 }
 
 python_library_host {
-    name: "berberis_asm_defs_lib",
-    srcs: ["berberis_asm_defs.py"],
+    name: "asm_defs_lib",
+    srcs: ["asm_defs.py"],
 }
 
 filegroup {
@@ -62,8 +62,8 @@ genrule {
         "berberis/assembler/gen_assembler_x86_32-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_32"],
-    tools: ["berberis_gen_asm_x86"],
-    cmd: "$(location berberis_gen_asm_x86) --binary-assembler $(out) $(in)",
+    tools: ["gen_asm_x86"],
+    cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
 }
 
 genrule {
@@ -73,8 +73,8 @@ genrule {
         "berberis/assembler/gen_assembler_x86_64-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_64"],
-    tools: ["berberis_gen_asm_x86"],
-    cmd: "$(location berberis_gen_asm_x86) --binary-assembler $(out) $(in)",
+    tools: ["gen_asm_x86"],
+    cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
 }
 
 cc_library_static {
@@ -112,8 +112,8 @@ cc_genrule {
             srcs: [":libberberis_assembler_gen_inputs_x86_64"],
         },
     },
-    tools: ["berberis_gen_asm_tests_x86"],
-    cmd: "$(location berberis_gen_asm_tests_x86) $(out) $(in) --fast",
+    tools: ["gen_asm_tests_x86"],
+    cmd: "$(location gen_asm_tests_x86) $(out) $(in) --fast",
 }
 
 cc_test_library {

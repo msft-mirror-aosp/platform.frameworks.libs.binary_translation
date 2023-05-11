@@ -14,27 +14,14 @@
 //
 
 package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
+    default_applicable_licenses: [
+        "Android-Apache-2.0",
+    ],
 }
 
-cc_binary {
-    name: "berberis_program_runner_riscv64",
-    defaults: ["berberis_defaults_64"],
-    host_supported: true,
-    srcs: ["main.cc"],
-    header_libs: [
-        "libberberis_guest_state_headers",
-    ],
-    static_libs: [
-        "libberberis_base",
-        "libberberis_config_globals",
-        "libberberis_interpreter_riscv64",
-        "libberberis_kernel_api_riscv64",
-        "libberberis_runtime",
-        "libberberis_tinyloader",
-    ],
-    shared_libs: [
-        "libbase",
-        "liblog",
-    ],
+cc_library_shared {
+    name: "libberberis_exec_region",
+    defaults: ["berberis_defaults"],
+    srcs: ["exec_region.cc"],
+    linker_scripts: ["sections.ld"],
 }

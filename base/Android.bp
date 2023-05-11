@@ -48,6 +48,12 @@ cc_library_static {
             srcs: ["raw_syscall_x86_64.S"],
         },
     },
+    target: {
+        bionic: {
+            srcs: ["exec_region_elf_backed.cc"],
+        },
+    },
+
     header_libs: ["libberberis_base_headers"],
     export_header_lib_headers: ["libberberis_base_headers"],
 }
@@ -63,7 +69,7 @@ cc_library_static {
 }
 
 cc_test_library {
-    name: "libberberis_base_host_tests",
+    name: "libberberis_base_unit_tests",
     defaults: ["berberis_test_library_defaults"],
     srcs: [
         "arena_test.cc",
@@ -78,5 +84,10 @@ cc_test_library {
         "mmap_pool_test.cc",
         "pointer_and_counter_test.cc",
     ],
+    target: {
+        bionic: {
+            srcs: ["exec_region_elf_backed_test.cc"],
+        },
+    },
     header_libs: ["libberberis_base_headers"],
 }

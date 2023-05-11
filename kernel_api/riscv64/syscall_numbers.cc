@@ -14,27 +14,12 @@
  * limitations under the License.
  */
 
-#include <cstddef>
-#include <tuple>
-#include <utility>
-
-#include "berberis/kernel_api/exec_emulation.h"
-#include "berberis/kernel_api/fcntl_emulation.h"
-#include "berberis/kernel_api/sys_ptrace_emulation.h"
+#include "berberis/base/checks.h"
 
 namespace berberis {
 
-std::pair<const char*, size_t> GetGuestPlatformVarPrefixWithSize() {
-  constexpr char kGuestPlatformVarPrefix[] = "BERBERIS_GUEST_";
-  return {kGuestPlatformVarPrefix, sizeof(kGuestPlatformVarPrefix) - 1};
-}
-
-std::tuple<bool, int> GuestFcntlArch(int, int, long) {
-  return {false, -1};
-}
-
-std::tuple<bool, int> PtraceForGuestArch(int, pid_t, void*, void*) {
-  return {false, -1};
+int ToHostSyscallNumber(int) {
+  FATAL("Not implemented ToHostSyscallNumber");
 }
 
 }  // namespace berberis

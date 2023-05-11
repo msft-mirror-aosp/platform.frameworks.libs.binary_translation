@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,18 @@
  * limitations under the License.
  */
 
-#include "berberis/base/exec_region.h"
-
-#include <sys/mman.h>
-
-#include "berberis/base/mmap.h"
+#ifndef BERBERIS_KERNEL_API_TRACING_H_
+#define BERBERIS_KERNEL_API_TRACING_H_
 
 namespace berberis {
 
-void ExecRegion::Write(const uint8_t* dst, const void* src, size_t size) {
-  CHECK_LE(begin(), dst);
-  CHECK_GE(end(), dst + size);
-  size_t offset = dst - begin();
-  memcpy(exec_ + offset, src, size);
-}
-
-void ExecRegion::Detach() {
-  MprotectOrDie(exec_, size_, PROT_READ | PROT_EXEC);
-}
-
-void ExecRegion::Free() {
-  MunmapOrDie(exec_, size_);
-}
+void __attribute__((__format__(printf, 1, 2))) KernelApiTrace(const char* format, ...);
 
 }  // namespace berberis
+
+#define KAPI_TRACE(...)                      \
+  do {                                       \
+    ::berberis::KernelApiTrace(__VA_ARGS__); \
+  } while (0)
+
+#endif  // BERBERIS_KERNEL_API_TRACING_H_

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,19 @@
  * limitations under the License.
  */
 
-#include "berberis/base/exec_region.h"
+#ifndef BERBERIS_BASE_DEPENDENT_FALSE_H_
+#define BERBERIS_BASE_DEPENDENT_FALSE_H_
 
-#include <sys/mman.h>
-
-#include "berberis/base/mmap.h"
+#include <type_traits>
 
 namespace berberis {
 
-void ExecRegion::Write(const uint8_t* dst, const void* src, size_t size) {
-  CHECK_LE(begin(), dst);
-  CHECK_GE(end(), dst + size);
-  size_t offset = dst - begin();
-  memcpy(exec_ + offset, src, size);
-}
+template <typename T>
+inline constexpr bool kDependentTypeFalse = false;
 
-void ExecRegion::Detach() {
-  MprotectOrDie(exec_, size_, PROT_READ | PROT_EXEC);
-}
-
-void ExecRegion::Free() {
-  MunmapOrDie(exec_, size_);
-}
+template <auto T>
+inline constexpr bool kDependentValueFalse = false;
 
 }  // namespace berberis
+
+#endif  // BERBERIS_BASE_DEPENDENT_FALSE_H_
