@@ -24,19 +24,19 @@ namespace berberis {
 
 // Structured binding rules are designed for access to the insides of a structured type.
 // Specifically:
-//   auto [ｘ,ｙ] = structured_var;   // Makes copy of structured_var.
-//   auto& [ｘ,ｙ] = structured_var;  // Doesn't make copy of a structures var.
-// Note that ｘ and ｙ themselves are always references — either to the copy or the original.
+//   auto [x,y] = structured_var;   // Makes copy of structured_var.
+//   auto& [x,y] = structured_var;  // Doesn't make copy of a structures var.
+// Note that x and y themselves are always references -- either to the copy or the original.
 // Access modifiers are aplied to the declaration of hidden, invisible variable.
 //
 // This works well when structured_var has some "insides" which may be copied.
 //
 // But in our case all these types are "lightweight adapters" used to parse GuestArgumentBuffer.
-// There are no difference which copy you use — all of the calls to XxxArgument() or XxxResult()
+// There are no difference which copy you use -- all of the calls to XxxArgument() or XxxResult()
 // would return references to original GuestArgumentBuffer.
 //
 // However, it's allowed to return regular variable, not reference, from "get<>" function.
-// In that case variables ｘ and ｙ (in the example above) would become rvalue references which
+// In that case variables x and y (in the example above) would become rvalue references which
 // would point to copy of the appropriate value.
 //
 // This allows us to make accessorts XxxValues and XxxReferences which either allow one to access
@@ -50,7 +50,7 @@ namespace berberis {
 //     length = 100;
 //   }
 //
-// Note: variables are references here not because "auto&& [ｘ,ｙ,ｚ] =" construct is used but
+// Note: variables are references here not because "auto&& [x,y,z] =" construct is used but
 // because GuestArgumentsReferences always returns references. See above.
 
 template <typename FunctionType,
@@ -75,7 +75,7 @@ class GuestArgumentsReferences : GuestArgumentsAndResult<FunctionType, kCallingC
 //     length = 100;
 //   }
 //
-// Note: variables are copies here not because "auto [ｘ,ｙ,ｚ] =" construct is used but
+// Note: variables are copies here not because "auto [x,y,z] =" construct is used but
 // because HostArgumentsValues always returns values. See above.
 
 template <typename FunctionType,
@@ -96,10 +96,10 @@ class HostArgumentsValues : GuestArgumentsAndResult<FunctionType, kCallingConven
 // Usage looks like this:
 //   auto [result] = GuestResultValue<double(int, double)>(buf);
 //   if (result == 5.0) {
-//     …
+//     ...
 //   }
 //
-// Note: the variable is a copy here not because "auto [ｘ,ｙ,ｚ] =" construct is used but
+// Note: the variable is a copy here not because "auto [x,y,z] =" construct is used but
 // because GuestResultValue always returns values. See above.
 
 template <typename FunctionType,
@@ -122,7 +122,7 @@ class GuestResultValue : GuestArgumentsAndResult<FunctionType, kCallingConventio
 //   auto&& [result] = HostResultReference<double(int, double)>(buf);
 //   result = 5.0;
 //
-// Note: variable is a reference here not because "auto&& [ｘ,ｙ,ｚ] =" construct is used but
+// Note: variable is a reference here not because "auto&& [x,y,z] =" construct is used but
 // because GuestArgumentsReferences always returns references. See above.
 
 template <typename FunctionType,
