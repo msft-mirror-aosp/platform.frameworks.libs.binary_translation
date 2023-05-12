@@ -46,8 +46,12 @@ class GuestThread {
   ThreadState* state() { return &state_; }
 
  private:
-  GuestThread() {}
+  GuestThread() = default;
   static GuestThread* Create();
+
+  bool AllocStack(void* stack, size_t stack_size, size_t guard_size);
+  bool AllocShadowCallStack();
+  bool AllocStaticTls();
 
   // Host stack. Valid for cloned threads only.
   void* host_stack_ = nullptr;
