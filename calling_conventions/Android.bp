@@ -31,6 +31,7 @@ cc_test_library {
     defaults: ["berberis_test_library_defaults"],
     srcs: [
         "calling_conventions_riscv64_test.cc",
+        "calling_conventions_x86_32_test.cc",
         "calling_conventions_x86_64_test.cc",
     ],
     header_libs: ["libberberis_calling_conventions_headers"],
