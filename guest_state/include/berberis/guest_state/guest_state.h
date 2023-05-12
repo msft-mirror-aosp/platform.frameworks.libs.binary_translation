@@ -20,4 +20,10 @@
 // TODO(b/265372622): Make it configurable for specific guest arch.
 #include "berberis/guest_state/guest_state_riscv64.h"  // IWYU pragma: export.
 
+namespace berberis {
+
+void InitThreadState(ThreadState* state);
+
+}  // namespace berberis
+
 #endif  // BERBERIS_GUEST_STATE_GUEST_STATE_H_
