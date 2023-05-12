@@ -119,6 +119,7 @@ cc_test_host {
             static_libs: [
                 // guest_os_primitives depends on runtime, which is currently 64-only.
                 "libberberis_guest_os_primitives",
+                "libberberis_guest_state",
                 "libberberis_interpreter_riscv64",
                 "libberberis_kernel_api_riscv64",
                 "libberberis_runtime",
