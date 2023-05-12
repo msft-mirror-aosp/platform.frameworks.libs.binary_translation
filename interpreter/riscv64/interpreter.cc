@@ -452,17 +452,32 @@ class Interpreter {
     }
   }
 
-  FpRegister OpFpNoRm(Decoder::OpFpNoRmOpcode opcode,
-                      Decoder::FloatOperandType float_size,
-                      FpRegister arg1,
-                      FpRegister arg2) {
+  FpRegister OpFpNoRounding(Decoder::OpFpNoRoundingOpcode opcode,
+                            Decoder::FloatOperandType float_size,
+                            FpRegister arg1,
+                            FpRegister arg2) {
     switch (float_size) {
       case Decoder::FloatOperandType::kFloat:
-        return FloatToFPReg(
-            OpFpNoRm<Float32>(opcode, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2)));
+        return FloatToFPReg(OpFpNoRounding<Float32>(
+            opcode, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2)));
       case Decoder::FloatOperandType::kDouble:
-        return FloatToFPReg(
-            OpFpNoRm<Float64>(opcode, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2)));
+        return FloatToFPReg(OpFpNoRounding<Float64>(
+            opcode, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2)));
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  FpRegister OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode,
+                             Decoder::FloatOperandType float_size,
+                             uint8_t rm,
+                             FpRegister arg) {
+    switch (float_size) {
+      case Decoder::FloatOperandType::kFloat:
+        return FloatToFPReg(OpFpSingleInput<Float32>(opcode, rm, FPRegToFloat<Float32>(arg)));
+      case Decoder::FloatOperandType::kDouble:
+        return FloatToFPReg(OpFpSingleInput<Float64>(opcode, rm, FPRegToFloat<Float64>(arg)));
       default:
         Unimplemented();
         return {};
@@ -493,24 +508,36 @@ class Interpreter {
   }
 
   template <typename FloatType>
-  FloatType OpFpNoRm(Decoder::OpFpNoRmOpcode opcode, FloatType arg1, FloatType arg2) {
+  FloatType OpFpNoRounding(Decoder::OpFpNoRoundingOpcode opcode, FloatType arg1, FloatType arg2) {
     using Int = typename TypeTraits<FloatType>::Int;
     using UInt = std::make_unsigned_t<Int>;
     constexpr UInt sign_bit = std::numeric_limits<Int>::min();
     constexpr UInt non_sign_bit = std::numeric_limits<Int>::max();
     switch (opcode) {
-      case Decoder::OpFpNoRmOpcode::kFSgnj:
+      case Decoder::OpFpNoRoundingOpcode::kFSgnj:
         return bit_cast<FloatType>((bit_cast<UInt>(arg1) & non_sign_bit) |
                                    (bit_cast<UInt>(arg2) & sign_bit));
-      case Decoder::OpFpNoRmOpcode::kFSgnjn:
+      case Decoder::OpFpNoRoundingOpcode::kFSgnjn:
         return bit_cast<FloatType>((bit_cast<UInt>(arg1) & non_sign_bit) |
                                    ((bit_cast<UInt>(arg2) & sign_bit) ^ sign_bit));
-      case Decoder::OpFpNoRmOpcode::kFSgnjx:
+      case Decoder::OpFpNoRoundingOpcode::kFSgnjx:
         return bit_cast<FloatType>(bit_cast<UInt>(arg1) ^ (bit_cast<UInt>(arg2) & sign_bit));
-      case Decoder::OpFpNoRmOpcode::kFMin:
+      case Decoder::OpFpNoRoundingOpcode::kFMin:
         return Min(arg1, arg2);
-      case Decoder::OpFpNoRmOpcode::kFMax:
+      case Decoder::OpFpNoRoundingOpcode::kFMax:
         return Max(arg1, arg2);
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  template <typename FloatType>
+  FloatType OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode, uint8_t rm, FloatType arg) {
+    switch (opcode) {
+      case Decoder::OpFpSingleInputOpcode::kFSqrt:
+        return intrinsics::ExecuteFloatOperation<FloatType>(
+            rm, state_->cpu.frm, [](auto x) { return intrinsics::Sqrt(x); }, arg);
       default:
         Unimplemented();
         return {};

@@ -152,10 +152,17 @@ class SemanticsPlayer {
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
 
-  void OpFpNoRm(const typename Decoder::OpFpNoRmArgs& args) {
+  void OpFpNoRounding(const typename Decoder::OpFpNoRoundingArgs& args) {
     FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
-    FpRegister result = listener_->OpFpNoRm(args.opcode, args.operand_type, arg1, arg2);
+    FpRegister result = listener_->OpFpNoRounding(args.opcode, args.operand_type, arg1, arg2);
+    result = CanonicalizeNan(result, args.operand_type);
+    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
+  void OpFpSingleInput(const typename Decoder::OpFpSingleInputArgs& args) {
+    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
+    FpRegister result = listener_->OpFpSingleInput(args.opcode, args.operand_type, args.rm, arg);
     result = CanonicalizeNan(result, args.operand_type);
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
