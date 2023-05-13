@@ -18,7 +18,7 @@
 #define BERBERIS_RUNTIME_PRIMITIVES_HOST_CALL_FRAME_H_
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis {
 
