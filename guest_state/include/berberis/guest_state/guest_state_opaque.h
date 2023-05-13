@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_RUNTIME_EXECUTE_GUEST_H_
-#define BERBERIS_RUNTIME_EXECUTE_GUEST_H_
-
-#include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state_opaque.h"
+#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
+#define BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
 
 namespace berberis {
 
-void ExecuteGuest(ThreadState* state, GuestAddr stop_pc);
+struct CPUState;
+struct ThreadState;
+
+void InitThreadState(ThreadState* state);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_RUNTIME_EXECUTE_GUEST_H_
+#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
