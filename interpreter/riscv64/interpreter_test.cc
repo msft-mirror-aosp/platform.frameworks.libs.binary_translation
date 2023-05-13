@@ -163,6 +163,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  template <typename... Types>
+  void InterpretOpFpSingleInput(uint32_t insn_bytes,
+                                std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+    }
+  }
+
   void InterpretFence(uint32_t insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     InterpretInsn(&state_);
@@ -1003,6 +1014,13 @@ TEST_F(Riscv64InterpreterTest, OpFpInstructions) {
                  {-0.0, -0.0, -0.0},
                  {+0.0, 1.0, 1.0},
                  {-0.0, 1.0, 1.0}});
+}
+
+TEST_F(Riscv64InterpreterTest, OpFpSingleInputInstructions) {
+  // FSqrt.S
+  InterpretOpFpSingleInput(0x580170d3, {std::tuple{4.0f, 2.0f}});
+  // FSqrt.D
+  InterpretOpFpSingleInput(0x5a0170d3, {std::tuple{16.0, 4.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, RoundingModeTest) {
