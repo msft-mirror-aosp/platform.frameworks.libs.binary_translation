@@ -18,7 +18,7 @@
 #define BERBERIS_RUNTIME_PRIMITIVES_RUNTIME_LIBRARY_H_
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/host_code.h"
 
 namespace berberis {
