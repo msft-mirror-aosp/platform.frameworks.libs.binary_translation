@@ -21,9 +21,9 @@
 #include <initializer_list>
 #include <utility>
 
-namespace berberis {
+#include "berberis/guest_state/guest_state_opaque.h"
 
-struct ThreadState;
+namespace berberis {
 
 // Can only be called one time during single-threaded initialization.
 void InitExtraRecoveryCodeUnsafe(
