@@ -96,6 +96,19 @@ inline auto ExecuteFloatOperation(uint8_t requested_rm,
   return operation(args...);
 }
 
+// We only need Negative(long double) for FMA, b/120563432 doesn't affect this function.
+inline long double Negative(const long double& v) {
+  return -v;
+}
+
+inline long double Sqrt(const long double& v) {
+  return sqrt(v);
+}
+
+inline long double MulAdd(const long double& v1, const long double& v2, const long double& v3) {
+  return fma(v1, v2, v3);
+}
+
 }  // namespace berberis::intrinsics
 
 #endif  // BERBERIS_INTRINSICS_RISCV64_TO_X86_64_INTRINSICS_FLOAT_H_
