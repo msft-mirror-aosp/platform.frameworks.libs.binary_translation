@@ -17,8 +17,6 @@
 #ifndef BERBERIS_KERNEL_API_RUN_GUEST_SYSCALL_H_
 #define BERBERIS_KERNEL_API_RUN_GUEST_SYSCALL_H_
 
-#include "berberis/guest_state/guest_state.h"
-
 namespace berberis {
 
 long RunGuestSyscall(long syscall_nr, long arg0, long arg1, long arg2, long arg3, long arg4,
