@@ -61,7 +61,6 @@ GuestThread* GuestThread::Create() {
     Destroy(thread);
     return nullptr;
   }
-  InitThreadState(thread->state_);
   SetGuestThread(thread->state_, thread);
 
   return thread;
