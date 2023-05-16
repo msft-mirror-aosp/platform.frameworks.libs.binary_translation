@@ -23,6 +23,7 @@
 #include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis {
 
@@ -105,21 +106,6 @@ inline auto SetReg(CPUState& state, Register val) {
 
 class GuestThread;
 
-// TODO(b/28058920): Refactor into GuestThread.
-// Pending signals status state machine:
-//   disabled <-> enabled <-> enabled and pending signals present
-enum PendingSignalsStatus : uint8_t {
-  kPendingSignalsDisabled = 0,  // initial value, must be 0
-  kPendingSignalsEnabled,
-  kPendingSignalsPresent,  // implies enabled
-};
-
-// Track whether we are in generated code or not.
-enum GuestThreadResidence : uint8_t {
-  kOutsideGeneratedCode = 0,
-  kInsideGeneratedCode = 1,
-};
-
 struct ThreadState {
   CPUState cpu;
 
@@ -136,11 +122,6 @@ struct ThreadState {
   // Arbitrary per-thread data added by instrumentation.
   void* instrument_data;
 };
-
-// TODO(b/28058920): Refactor into GuestThread.
-inline bool ArePendingSignalsPresent(const ThreadState* state) {
-  return state->pending_signals_status.load(std::memory_order_relaxed) == kPendingSignalsPresent;
-}
 
 // The ABI names come from
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc.
