@@ -25,7 +25,7 @@
 #include "berberis/base/mmap.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_addr.h"  // ToGuestAddr
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/host_stack.h"
 #include "native_bridge_support/linker/static_tls_config.h"
 
@@ -55,8 +55,14 @@ GuestThread* GuestThread::Create() {
   GuestThread* thread = new (thread_storage) GuestThread;
   CHECK(thread);
 
-  InitThreadState(&thread->state_);
-  thread->state_.thread = thread;
+  thread->state_ = CreateThreadState();
+  if (!thread->state_) {
+    TRACE("failed to allocate thread state");
+    Destroy(thread);
+    return nullptr;
+  }
+  InitThreadState(thread->state_);
+  SetGuestThread(thread->state_, thread);
 
   return thread;
 }
@@ -73,7 +79,7 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
     return nullptr;
   }
   // TODO(b/280551726): Implement.
-  // SetStackRegister(&thread->state_.cpu, thread->stack_top_);
+  // SetStackRegister(&thread->state_->cpu, thread->stack_top_);
 
   // TODO(b/281859262): Implement shadow call stack initialization.
 
@@ -90,7 +96,7 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
 // static
 void GuestThread::Destroy(GuestThread* thread) {
   // ATTENTION: Don't run guest code from here!
-  if (ArePendingSignalsPresent(&(thread->state_))) {
+  if (ArePendingSignalsPresent(thread->state_)) {
     TRACE("thread destroyed with pending signals, signals ignored!");
   }
 
@@ -109,6 +115,9 @@ void GuestThread::Destroy(GuestThread* thread) {
     MunmapOrDie(thread->scs_region_, SCS_GUARD_REGION_SIZE);
   }
 #endif  // defined(__BIONIC__)
+  if (thread->state_) {
+    DestroyThreadState(thread->state_);
+  }
   MunmapOrDie(thread, kGuestThreadPageAlignedSize);
 }
 
