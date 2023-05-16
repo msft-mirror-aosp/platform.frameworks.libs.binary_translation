@@ -17,12 +17,42 @@
 #ifndef BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
 #define BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
 
+#include <cstdint>
+
 namespace berberis {
 
 struct CPUState;
 struct ThreadState;
 
 void InitThreadState(ThreadState* state);
+
+ThreadState* CreateThreadState();
+void DestroyThreadState(ThreadState* state);
+
+class GuestThread;
+void SetGuestThread(ThreadState* state, GuestThread* thread);
+
+// Track whether we are in generated code or not.
+enum GuestThreadResidence : uint8_t {
+  kOutsideGeneratedCode = 0,
+  kInsideGeneratedCode = 1,
+};
+
+void SetResidence(ThreadState* state, GuestThreadResidence residence);
+
+// TODO(b/28058920): Refactor into GuestThread.
+// Pending signals status state machine:
+//   disabled <-> enabled <-> enabled and pending signals present
+enum PendingSignalsStatus : uint8_t {
+  kPendingSignalsDisabled = 0,  // initial value, must be 0
+  kPendingSignalsEnabled,
+  kPendingSignalsPresent,  // implies enabled
+};
+
+void SetPendingSignalsStatus(ThreadState* state, PendingSignalsStatus status);
+
+// TODO(b/28058920): Refactor into GuestThread.
+bool ArePendingSignalsPresent(const ThreadState* state);
 
 }  // namespace berberis
 
