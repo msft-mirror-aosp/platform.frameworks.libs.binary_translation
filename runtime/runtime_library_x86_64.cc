@@ -18,6 +18,7 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/guest_state/guest_state.h"
+#include "berberis/runtime_primitives/config.h"
 
 // Perform all the steps needed to exit generated code except return, which is
 // up to the users of this macro. The users of this macro may choose to perform
@@ -50,9 +51,7 @@
       ::[InsnAddr] "p"(offsetof(berberis::ThreadState, cpu.insn_addr)), \
       [Residence] "p"(offsetof(berberis::ThreadState, residence)),      \
       [OutsideGeneratedCode] "J"(berberis::kOutsideGeneratedCode),      \
-      [FrameSizeAtTranslatedCode] "J"(8))
-// TODO(b/278926583): create and use
-// berberis::config::kFrameSizeAtTranslatedCode instead of "8"
+      [FrameSizeAtTranslatedCode] "J"(berberis::config::kFrameSizeAtTranslatedCode))
 // clang-format on
 
 namespace berberis {
@@ -172,9 +171,7 @@ __attribute__((__visibility__("hidden"))) void berberis_HandleNotTranslated(
       ::[InsnAddr] "p"(offsetof(ThreadState, cpu.insn_addr)),
       [Residence] "p"(offsetof(ThreadState, residence)),
       [InsideGeneratedCode] "J"(kInsideGeneratedCode),
-      [FrameSizeAtTranslatedCode] "J"(8));
-  // TODO(b/278926583): create and use
-  // berberis::config::kFrameSizeAtTranslatedCode instead of "8"
+      [FrameSizeAtTranslatedCode] "J"(config::kFrameSizeAtTranslatedCode));
   // clang-format on
 }
 
