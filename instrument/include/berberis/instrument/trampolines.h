@@ -14,13 +14,22 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INSTRUMENT_INSTRUMENT_H_
-#define BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#ifndef BERBERIS_INSTRUMENT_TRAMPOLINES_H_
+#define BERBERIS_INSTRUMENT_TRAMPOLINES_H_
+
+#include "berberis/instrument/instrument.h"
+
+#include "berberis/guest_state/guest_state.h"
 
 namespace berberis {
 
-inline constexpr bool kInstrumentWrappers = false;
+inline constexpr bool kInstrumentTrampolines = false;
+
+using OnTrampolineFunc = void (*)(ThreadState*, const void*);
+
+OnTrampolineFunc GetOnTrampolineCall(const char* name);
+OnTrampolineFunc GetOnTrampolineReturn(const char* name);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#endif  // BERBERIS_INSTRUMENT_TRAMPOLINES_H_

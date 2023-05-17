@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INSTRUMENT_INSTRUMENT_H_
-#define BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#ifndef BERBERIS_INSTRUMENT_LOADER_H_
+#define BERBERIS_INSTRUMENT_LOADER_H_
+
+#include "berberis/instrument/instrument.h"
+
+#include <link.h>
 
 namespace berberis {
 
-inline constexpr bool kInstrumentWrappers = false;
+inline constexpr bool kInstrumentLoader = true;
+
+void OnConsistentLinkMap(const struct link_map* link);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#endif  // BERBERIS_INSTRUMENT_LOADER_H_
