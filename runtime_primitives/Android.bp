@@ -44,6 +44,7 @@ cc_library_static {
         "host_function_wrapper_impl.cc",
         "known_guest_function_wrapper.cc",
         "profiler_interface.cc",
+        "recovery_code.cc",
         "signal_queue.cc",
         "translation_cache.cc",
     ],
@@ -64,7 +65,6 @@ cc_library_static {
     srcs: [
         "checks_riscv64.cc",
         "host_call_frame_riscv64.cc",
-        "recovery_code.cc",
     ],
     header_libs: [
         "libberberis_assembler_headers",

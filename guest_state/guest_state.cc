@@ -68,6 +68,10 @@ void SetGuestThread(ThreadState* state, GuestThread* thread) {
   state->thread = thread;
 }
 
+GuestThreadResidence GetResidence(ThreadState* state) {
+  return state->residence;
+}
+
 void SetResidence(ThreadState* state, GuestThreadResidence residence) {
   state->residence = residence;
 }
