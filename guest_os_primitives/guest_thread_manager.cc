@@ -22,8 +22,7 @@
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"
-#include "berberis/instrument/instrument.h"
-
+#include "berberis/instrument/guest_thread.h"
 #include "guest_thread_manager_impl.h"
 #include "guest_thread_map.h"
 #include "scoped_signal_blocker.h"
@@ -126,7 +125,7 @@ void InsertCurrentThread(GuestThread* thread, bool register_dtor) {
     CHECK_EQ(0, pthread_setspecific(g_guest_thread_key, thread));
   }
   if (kInstrumentGuestThread) {
-    // TODO(b/280498513): Call instrumentation hook(s) here.
+    OnInsertGuestThread(tid, thread);
   }
 
   TRACE("guest thread attached %d", tid);
@@ -142,7 +141,7 @@ void DetachCurrentThread() {
   // Remove thread from global table.
   GuestThread* thread = g_guest_thread_map_.RemoveThread(tid);
   if (kInstrumentGuestThread) {
-    // TODO(b/280498513): Call instrumentation hook(s) here.
+    OnRemoveGuestThread(tid, thread);
   }
 
   TRACE("guest thread detached %d", tid);
