@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INSTRUMENT_INSTRUMENT_H_
-#define BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#ifndef BERBERIS_INSTRUMENT_GUEST_CALL_H_
+#define BERBERIS_INSTRUMENT_GUEST_CALL_H_
+
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state.h"
+#include "berberis/instrument/instrument.h"
 
 namespace berberis {
 
-inline constexpr bool kInstrumentWrappers = false;
+void OnWrappedGuestCall(ThreadState* state, GuestAddr function_addr);
+void OnWrappedGuestReturn(ThreadState* state, GuestAddr function_addr);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#endif  // BERBERIS_INSTRUMENT_GUEST_CALL_H_
