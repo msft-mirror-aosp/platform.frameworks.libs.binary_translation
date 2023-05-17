@@ -20,7 +20,7 @@
 #include <setjmp.h>  // jmp_buf
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/signal_queue.h"
 
 struct NativeBridgeStaticTlsConfig;
@@ -42,8 +42,8 @@ class GuestThread {
   // Initialize *current* guest thread.
   void InitStaticTls();
 
-  const ThreadState* state() const { return &state_; }
-  ThreadState* state() { return &state_; }
+  const ThreadState* state() const { return state_; }
+  ThreadState* state() { return state_; }
 
  private:
   GuestThread() = default;
@@ -69,7 +69,7 @@ class GuestThread {
   void* scs_region_ = nullptr;
   GuestAddr scs_base_ = 0;
 
-  ThreadState state_;
+  ThreadState* state_ = nullptr;
 
   SignalQueue pending_signals_;
 
