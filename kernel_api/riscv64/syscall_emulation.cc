@@ -24,6 +24,7 @@
 #include "berberis/base/macros.h"
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/struct_check.h"
+#include "berberis/guest_state/guest_state.h"
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
 #include "berberis/kernel_api/syscall_emulation_common.h"
 #include "berberis/kernel_api/tracing.h"
@@ -122,6 +123,16 @@ long RunGuestSyscall(long syscall_nr,
   } else {
     return result;
   }
+}
+
+void RunKernelSyscall(ThreadState* state) {
+  RunGuestSyscall(state->cpu.x[A7],
+                  state->cpu.x[A0],
+                  state->cpu.x[A1],
+                  state->cpu.x[A2],
+                  state->cpu.x[A3],
+                  state->cpu.x[A4],
+                  state->cpu.x[A5]);
 }
 
 }  // namespace berberis
