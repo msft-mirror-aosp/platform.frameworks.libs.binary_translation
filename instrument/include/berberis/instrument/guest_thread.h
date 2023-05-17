@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INSTRUMENT_INSTRUMENT_H_
-#define BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#ifndef BERBERIS_INSTRUMENT_GUEST_THREAD_H_
+#define BERBERIS_INSTRUMENT_GUEST_THREAD_H_
+
+#include <sys/types.h>
+
+#include "berberis/instrument/instrument.h"
 
 namespace berberis {
 
-inline constexpr bool kInstrumentWrappers = false;
+class GuestThread;
+inline constexpr bool kInstrumentGuestThread = false;
+
+void OnInsertGuestThread(pid_t tid, GuestThread* thread);
+void OnRemoveGuestThread(pid_t tid, GuestThread* thread);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#endif  // BERBERIS_INSTRUMENT_GUEST_THREAD_H_

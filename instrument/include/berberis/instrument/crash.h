@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INSTRUMENT_INSTRUMENT_H_
-#define BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#ifndef BERBERIS_INSTRUMENT_CRASH_H_
+#define BERBERIS_INSTRUMENT_CRASH_H_
+
+#include <signal.h>
 
 namespace berberis {
 
-inline constexpr bool kInstrumentWrappers = false;
+void OnCrash(int sig, siginfo_t* info, void* context);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#endif  // BERBERIS_INSTRUMENT_CRASH_H_
