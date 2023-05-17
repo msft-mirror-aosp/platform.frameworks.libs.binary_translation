@@ -24,8 +24,6 @@ namespace berberis {
 struct CPUState;
 struct ThreadState;
 
-void InitThreadState(ThreadState* state);
-
 ThreadState* CreateThreadState();
 void DestroyThreadState(ThreadState* state);
 
