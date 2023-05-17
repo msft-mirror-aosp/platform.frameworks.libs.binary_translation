@@ -42,6 +42,7 @@ static_assert(berberis_entry_NotTranslated != berberis_entry_Translating,
 }  // extern "C"
 
 // Inline const since we cannot use constexpr because of reinterpret_cast.
+inline const auto kEntryExitGeneratedCode = AsHostCode(berberis_entry_ExitGeneratedCode);
 inline const auto kEntryStop = AsHostCode(berberis_entry_Stop);
 inline const auto kEntryNoExec = AsHostCode(berberis_entry_NoExec);
 inline const auto kEntryNotTranslated = AsHostCode(berberis_entry_NotTranslated);
