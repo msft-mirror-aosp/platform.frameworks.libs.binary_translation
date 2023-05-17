@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INSTRUMENT_INSTRUMENT_H_
-#define BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#ifndef BERBERIS_INSTRUMENT_EXEC_H_
+#define BERBERIS_INSTRUMENT_EXEC_H_
+
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state.h"
+#include "berberis/instrument/instrument.h"
 
 namespace berberis {
 
-inline constexpr bool kInstrumentWrappers = false;
+inline constexpr bool kInstrumentExec = false;
+
+using OnExecInsnFunc = void (*)(ThreadState*, const void*);
+
+OnExecInsnFunc GetOnExecInsn(GuestAddr pc);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INSTRUMENT_INSTRUMENT_H_
+#endif  // BERBERIS_INSTRUMENT_EXEC_H_
