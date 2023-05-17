@@ -29,8 +29,6 @@ namespace {
 
 constexpr size_t kThreadStatePageAlignedSize = AlignUpPageSize(sizeof(ThreadState));
 
-}  // namespace
-
 void InitThreadState(ThreadState* state) {
   // This is needed to set all flag values to 0.
   memset(&(state->cpu), 0, sizeof(CPUState));
@@ -46,6 +44,8 @@ void InitThreadState(ThreadState* state) {
   state->instrument_data = nullptr;
 }
 
+}  // namespace
+
 ThreadState* CreateThreadState() {
   void* storage = Mmap(kThreadStatePageAlignedSize);
   if (storage == MAP_FAILED) {
@@ -53,6 +53,8 @@ ThreadState* CreateThreadState() {
   }
   ThreadState* state = new (storage) ThreadState;
   CHECK(state);
+
+  InitThreadState(state);
   return state;
 };
 
