@@ -61,6 +61,9 @@ class ScopedHostCallFrame {
   GuestAddr program_counter_;
 };
 
+// Set return address for guest calls. On this address, guest execution will stop.
+void InitHostCallFrameGuestPC(GuestAddr pc);
+
 }  // namespace berberis
 
 #endif  // BERBERIS_RUNTIME_PRIMITIVES_HOST_CALL_FRAME_H_
