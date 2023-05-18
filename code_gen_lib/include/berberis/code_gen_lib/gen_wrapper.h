@@ -17,11 +17,11 @@
 #ifndef BERBERIS_CODE_GEN_LIB_GEN_WRAPPER_H_
 #define BERBERIS_CODE_GEN_LIB_GEN_WRAPPER_H_
 
-namespace berberis {
-
 #include "berberis/assembler/machine_code.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/host_code.h"
+
+namespace berberis {
 
 // Generate machine code fragment which converts arguments
 // from host ABI to guest ABI, calls 'guest_runner' which executes
