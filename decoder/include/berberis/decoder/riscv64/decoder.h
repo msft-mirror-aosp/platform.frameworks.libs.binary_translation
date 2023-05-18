@@ -543,6 +543,9 @@ class Decoder {
       case CompressedOpcode::kMisc_Alu:
         DecodeCMiscAlu();
         break;
+      case CompressedOpcode::kSlli:
+        DecodeCSlli();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
@@ -779,6 +782,20 @@ class Decoder {
         .imm = imm,
     };
     insn_consumer_->OpImm(args);
+  }
+
+  void DecodeCSlli() {
+    uint8_t r = GetBits<uint8_t, 7, 5>();
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t imm = (high_imm << 5) + low_imm;
+    const ShiftImmArgs args = {
+        .opcode = ShiftImmOpcode::kSlli,
+        .dst = r,
+        .src = r,
+        .imm = imm,
+    };
+    return insn_consumer_->OpImm(args);
   }
 
   uint8_t DecodeBaseInstruction() {
