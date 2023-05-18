@@ -41,6 +41,7 @@ cc_library_static {
     host_supported: true,
     srcs: [
         "guest_map_shadow.cc",
+        "guest_signal_handling.cc",
         "guest_thread.cc",
         "guest_thread_manager.cc",
         "guest_thread_map.cc",
