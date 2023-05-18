@@ -36,6 +36,7 @@ enum GuestThreadResidence : uint8_t {
   kInsideGeneratedCode = 1,
 };
 
+GuestThreadResidence GetResidence(ThreadState* state);
 void SetResidence(ThreadState* state, GuestThreadResidence residence);
 
 // TODO(b/28058920): Refactor into GuestThread.
