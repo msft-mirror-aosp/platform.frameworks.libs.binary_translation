@@ -17,7 +17,7 @@
 #ifndef BERBERIS_INSTRUMENT_SYSCALL_H_
 #define BERBERIS_INSTRUMENT_SYSCALL_H_
 
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/instrument/instrument.h"
 
 namespace berberis {
