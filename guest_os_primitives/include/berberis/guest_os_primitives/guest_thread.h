@@ -42,6 +42,10 @@ class GuestThread {
   // Initialize *current* guest thread.
   void InitStaticTls();
 
+  // Both return *previous* pending signals status (false: disabled, true: enabled).
+  bool ProcessAndDisablePendingSignals();
+  bool TestAndEnablePendingSignals();
+
   const ThreadState* state() const { return state_; }
   ThreadState* state() { return state_; }
 
