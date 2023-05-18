@@ -95,6 +95,12 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void Fcvt(const typename Decoder::FcvtArgs& args) {
+    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
+    FpRegister result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
+    NanBoxAndSetFpReg(args.dst, result, args.dst_type);
+  }
+
   void Fma(const typename Decoder::FmaArgs& args) {
     FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);

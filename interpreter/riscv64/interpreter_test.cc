@@ -1018,6 +1018,10 @@ TEST_F(Riscv64InterpreterTest, OpFpSingleInputInstructions) {
   InterpretOpFpSingleInput(0x580170d3, {std::tuple{4.0f, 2.0f}});
   // FSqrt.D
   InterpretOpFpSingleInput(0x5a0170d3, {std::tuple{16.0, 4.0}});
+  // Fcvt.S.D
+  InterpretOpFpSingleInput(0x401170d3, {std::tuple{1.0, 1.0f}});
+  // Fcvt.D.S
+  InterpretOpFpSingleInput(0x420100d3, {std::tuple{2.0f, 2.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, RoundingModeTest) {
