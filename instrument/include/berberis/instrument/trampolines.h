@@ -19,7 +19,7 @@
 
 #include "berberis/instrument/instrument.h"
 
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis {
 
