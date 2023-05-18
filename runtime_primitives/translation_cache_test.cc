@@ -20,7 +20,6 @@
 #include <string>
 #include <thread>  // this_thread::sleep_for
 
-#include "berberis/base/logging.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/runtime_library.h"  // kEntry*
