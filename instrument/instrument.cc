@@ -19,7 +19,7 @@
 
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/instrument/crash.h"
 #include "berberis/instrument/exec.h"
 #include "berberis/instrument/guest_call.h"
