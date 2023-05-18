@@ -18,7 +18,7 @@
 #define BERBERIS_INSTRUMENT_GUEST_CALL_H_
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/instrument/instrument.h"
 
 namespace berberis {
