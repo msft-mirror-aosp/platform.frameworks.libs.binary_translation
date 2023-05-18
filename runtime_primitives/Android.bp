@@ -76,19 +76,33 @@ cc_library_static {
 }
 
 cc_test_library {
+    name: "libberberis_runtime_primitives_unit_tests",
+    defaults: ["berberis_test_library_defaults"],
+    host_supported: true,
+    srcs: [
+        "code_pool_test.cc",
+        "signal_queue_test.cc",
+        "table_of_tables_test.cc",
+    ],
+    header_libs: [
+        "berberis_test_utils_headers",
+        "libberberis_guest_state_headers",
+        "libberberis_runtime_primitives_headers",
+    ],
+}
+
+cc_test_library {
     name: "libberberis_runtime_primitives_riscv64_unit_tests",
     defaults: ["berberis_test_library_defaults_64"],
     host_supported: true,
     srcs: [
-        "code_pool_test.cc",
         "host_call_frame_riscv64_test.cc",
-        "signal_queue_test.cc",
-        "table_of_tables_test.cc",
+        // Translation cache test relies on implementation of runtime_library
+        // function pointers to link.
         "translation_cache_test.cc",
     ],
     header_libs: [
         "berberis_test_utils_headers",
-        "libberberis_base_headers",
         "libberberis_guest_state_headers",
         "libberberis_runtime_primitives_headers",
     ],
