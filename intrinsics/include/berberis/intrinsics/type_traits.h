@@ -106,6 +106,13 @@ struct TypeTraits<intrinsics::Float64> {
 #endif
 };
 
+#if defined(__i386__) || defined(__x86_64__)
+template <>
+struct TypeTraits<long double> {
+  using Narrow = intrinsics::Float64;
+};
+#endif
+
 #if defined(__x86_64__)
 
 template <>

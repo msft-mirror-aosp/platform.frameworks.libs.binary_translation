@@ -314,6 +314,37 @@ class Interpreter {
     }
   }
 
+  FpRegister Fcvt(Decoder::FloatOperandType target_operand_size,
+                  Decoder::FloatOperandType source_operand_size,
+                  uint8_t rm,
+                  FpRegister arg) {
+    if (target_operand_size == Decoder::FloatOperandType::kFloat &&
+        source_operand_size == Decoder::FloatOperandType::kDouble) {
+      return FloatToFPReg(Fcvt<Float32, Float64>(rm, FPRegToFloat<Float64>(arg)));
+    }
+    if (target_operand_size == Decoder::FloatOperandType::kDouble &&
+        source_operand_size == Decoder::FloatOperandType::kFloat) {
+      return FloatToFPReg(Fcvt<Float64, Float32>(rm, FPRegToFloat<Float32>(arg)));
+    }
+    Unimplemented();
+    return {};
+  }
+
+  template <typename TargetOperandType, typename SourceOperandType>
+  TargetOperandType Fcvt(uint8_t rm, SourceOperandType arg) {
+    if constexpr (sizeof(TargetOperandType) > sizeof(SourceOperandType)) {
+      // Conversion from narrow type to wide one ignores rm because all possible values from narrow
+      // type fit in the wide type.
+      return TargetOperandType(arg);
+    } else {
+      return intrinsics::ExecuteFloatOperation<TargetOperandType>(
+          rm,
+          state_->cpu.frm,
+          [](auto x) { return typename TypeTraits<decltype(x)>::Narrow(x); },
+          arg);
+    }
+  }
+
   FpRegister Fma(Decoder::FmaOpcode opcode,
                  Decoder::FloatOperandType float_size,
                  uint8_t rm,
