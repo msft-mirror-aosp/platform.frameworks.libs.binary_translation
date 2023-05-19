@@ -222,10 +222,6 @@ class Decoder {
 
   enum class OpFpSingleInputOpcode {
     kFSqrt = 0b11'00000,
-    kFcvtFloat = 0b00'00000,
-    kFcvtDouble = 0b00'00001,
-    kFcvtHalf = 0b00'00010,
-    KFcvtQuad = 0b00'00011,
     kMaxOpFpSingleInputOpcode = 0b11'11111,
   };
 
@@ -362,6 +358,14 @@ class Decoder {
     uint8_t dst;
     uint8_t src;
     int16_t imm;
+  };
+
+  struct FcvtArgs {
+    FloatOperandType dst_type;
+    FloatOperandType src_type;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t rm;
   };
 
   struct FmaArgs {
@@ -1125,6 +1129,24 @@ class Decoder {
         return insn_consumer_->OpFpNoRounding(args);
       }
       case 0b010: {
+        if (opcode_bits == 0) {
+          // Conversion from one float to the same float type is not supported.
+          if (operand_type == rs2) {
+            return Undefined();
+          }
+          // Values larger than 0b11 are reserved in Fcvt.
+          if (rs2 > 0b11) {
+            return Undefined();
+          }
+          const FcvtArgs args = {
+              .dst_type = FloatOperandType(operand_type),
+              .src_type = FloatOperandType(rs2),
+              .dst = rd,
+              .src = rs1,
+              .rm = rm,
+          };
+          return insn_consumer_->Fcvt(args);
+        }
         uint8_t opcode = (opcode_bits << 5) + rs2;
         const OpFpSingleInputArgs args = {
             .opcode = OpFpSingleInputOpcode(opcode),

@@ -31,10 +31,9 @@ namespace berberis::intrinsics {
 // in the FE_TOWARDZERO mode then we can easily adjust fraction part and would only need to remember
 // this addition may overflow.
 template <typename FloatType, typename OperationType, typename... Args>
-inline auto ExecuteFloatOperationRmm(OperationType operation, Args... args)
-    -> std::enable_if_t<(std::is_same_v<Args, FloatType> && ...), FloatType> {
+inline FloatType ExecuteFloatOperationRmm(OperationType operation, Args... args) {
   using Wide = typename TypeTraits<FloatType>::Wide;
-  Wide wide_result = operation(Wide(args)...);
+  Wide wide_result = operation(static_cast<typename TypeTraits<Args>::Wide>(args)...);
   if constexpr (std::is_same_v<FloatType, Float32>) {
     // In the 32bit->64bit case everything happens almost automatically, we just need to clear low
     // bits to ensure that we are getting ±∞ and not NaN.
@@ -75,11 +74,10 @@ inline auto ExecuteFloatOperationRmm(OperationType operation, Args... args)
 // postulates that invalid rm or frm should trigger illegal instruction exception.
 // Here we can assume both rm and frm fields are valid.
 template <typename FloatType, typename OperationType, typename... Args>
-inline auto ExecuteFloatOperation(uint8_t requested_rm,
-                                  uint8_t current_rm,
-                                  OperationType operation,
-                                  Args... args)
-    -> std::enable_if_t<(std::is_same_v<Args, FloatType> && ...), FloatType> {
+inline FloatType ExecuteFloatOperation(uint8_t requested_rm,
+                                       uint8_t current_rm,
+                                       OperationType operation,
+                                       Args... args) {
   int host_requested_rm = ToHostRoundingMode(requested_rm);
   int host_current_rm = ToHostRoundingMode(current_rm);
   if (requested_rm == FPFlags::DYN || host_requested_rm == host_current_rm) {
