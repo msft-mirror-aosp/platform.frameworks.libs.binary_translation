@@ -21,6 +21,7 @@
 
 #include <atomic>   // std::memory_order_relaxed
 #include <cstddef>  // size_t
+#include <cstdint>  // uint_least8_t
 #include <cstring>  // memset
 
 namespace berberis {
@@ -80,8 +81,8 @@ void SetResidence(ThreadState* state, GuestThreadResidence residence) {
   state->residence = residence;
 }
 
-void SetPendingSignalsStatus(ThreadState* state, PendingSignalsStatus status) {
-  state->pending_signals_status = status;
+std::atomic<uint_least8_t>* GetPendingSignalsStatusAtomic(ThreadState* state) {
+  return &state->pending_signals_status;
 }
 
 bool ArePendingSignalsPresent(const ThreadState* state) {
