@@ -40,6 +40,7 @@ cc_library_static {
     host_supported: true,
     srcs: [
         "code_pool.cc",
+        "crash_reporter.cc",
         "guest_function_wrapper_impl.cc",
         "host_call_frame.cc",
         "host_function_wrapper_impl.cc",
@@ -54,6 +55,7 @@ cc_library_static {
         "libberberis_base_headers",
         "libberberis_guest_abi_headers",
         "libberberis_guest_state_headers",
+        "libberberis_instrument_headers",
         "libberberis_runtime_primitives_headers",
     ],
     export_header_lib_headers: ["libberberis_runtime_primitives_headers"],
