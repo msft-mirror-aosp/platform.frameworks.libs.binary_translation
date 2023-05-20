@@ -103,7 +103,7 @@ GuestThread* AttachCurrentThread(bool register_dtor, bool* attached) {
   // If thread is attached in HandleHostSignal we must run guest handler
   // immediately because we detach guest thread before exit from HandleHostSignal.
   // All non-reentrant code in runtime must be protected with ScopedPendingSignalsEnabler.
-  SetPendingSignalsStatus(thread->state(), kPendingSignalsDisabled);
+  *GetPendingSignalsStatusAtomic(thread->state()) = kPendingSignalsDisabled;
   // AttachCurrentThread is never called from generated code.
   SetResidence(thread->state(), kOutsideGeneratedCode);
 
