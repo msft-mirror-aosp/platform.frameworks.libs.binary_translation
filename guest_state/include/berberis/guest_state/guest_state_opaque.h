@@ -19,8 +19,6 @@
 
 #include <cstdint>
 
-#include "berberis/guest_state/guest_addr.h"
-
 namespace berberis {
 
 struct CPUState;
@@ -31,7 +29,6 @@ void DestroyThreadState(ThreadState* state);
 
 class GuestThread;
 void SetGuestThread(ThreadState* state, GuestThread* thread);
-GuestThread* GetGuestThread(const ThreadState* state);
 
 // Track whether we are in generated code or not.
 enum GuestThreadResidence : uint8_t {
@@ -52,16 +49,6 @@ enum PendingSignalsStatus : uint8_t {
 };
 
 void SetPendingSignalsStatus(ThreadState* state, PendingSignalsStatus status);
-
-CPUState* GetCPUState(ThreadState* state);
-
-void SetLinkRegister(CPUState* cpu, GuestAddr val);
-
-GuestAddr GetLinkRegister(const CPUState* cpu);
-
-void SetInsnAddr(CPUState* cpu, GuestAddr addr);
-
-GuestAddr GetInsnAddr(const CPUState* cpu);
 
 // TODO(b/28058920): Refactor into GuestThread.
 bool ArePendingSignalsPresent(const ThreadState* state);
