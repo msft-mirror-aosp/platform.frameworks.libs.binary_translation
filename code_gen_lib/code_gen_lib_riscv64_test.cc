@@ -45,10 +45,12 @@ void DummyTrampoline(void* arg, ThreadState* state) {
   ASSERT_EQ(&g_arg, arg);
   ASSERT_EQ(&g_state, state);
   ASSERT_EQ(g_state.cpu.insn_addr, ToGuestAddr(&g_insn));
-  ASSERT_EQ(GetLinkRegister(&g_state.cpu), ToGuestAddr(&g_ret_insn));
+  ASSERT_EQ(GetLinkRegister(g_state.cpu), ToGuestAddr(&g_ret_insn));
 }
 
-TEST(CodeGenLib, GenTrampolineAdaptor) {
+// TODO(b/283298171): Reenable the following test when berberis_HandleNotTranslated
+//  implemented.
+TEST(CodeGenLib, DISABLED_GenTrampolineAdaptor) {
   MachineCode machine_code;
 
   GenTrampolineAdaptor(
@@ -90,7 +92,9 @@ void AddToTranslationCache(GuestAddr guest_addr, HostCodePiece host_code_piece) 
       guest_addr, entry, 1, GuestCodeEntry::Kind::kSpecialHandler, host_code_piece);
 }
 
-TEST(CodeGenLib, GenTrampolineAdaptorResidence) {
+// TODO(b/283298171): Reenable the following test when berberis_HandleNotTranslated
+//  implemented.
+TEST(CodeGenLib, DISABLED_GenTrampolineAdaptorResidence) {
   MachineCode trampoline_adaptor;
   GenTrampolineAdaptor(&trampoline_adaptor,
                        ToGuestAddr(&g_insn),
