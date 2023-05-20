@@ -17,6 +17,7 @@
 #ifndef BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
 #define BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
 
+#include <atomic>
 #include <cstdint>
 
 #include "berberis/guest_state/guest_addr.h"
@@ -45,13 +46,14 @@ void SetResidence(ThreadState* state, GuestThreadResidence residence);
 // TODO(b/28058920): Refactor into GuestThread.
 // Pending signals status state machine:
 //   disabled <-> enabled <-> enabled and pending signals present
-enum PendingSignalsStatus : uint8_t {
+enum PendingSignalsStatus : uint_least8_t {
   kPendingSignalsDisabled = 0,  // initial value, must be 0
   kPendingSignalsEnabled,
   kPendingSignalsPresent,  // implies enabled
 };
 
-void SetPendingSignalsStatus(ThreadState* state, PendingSignalsStatus status);
+// Values are interpreted as PendingSignalsStatus.
+std::atomic<uint_least8_t>* GetPendingSignalsStatusAtomic(ThreadState* state);
 
 CPUState* GetCPUState(ThreadState* state);
 
