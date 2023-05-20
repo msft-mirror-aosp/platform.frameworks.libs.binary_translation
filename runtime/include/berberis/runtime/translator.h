@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-#include "berberis/runtime/execute_guest.h"
+#ifndef BERBERIS_RUNTIME_TRANSLATOR_H_
+#define BERBERIS_RUNTIME_TRANSLATOR_H_
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state_opaque.h"
-#include "berberis/interpreter/riscv64/interpreter.h"
 
 namespace berberis {
 
-void ExecuteGuest(ThreadState* state, GuestAddr stop_pc) {
-  while (GetInsnAddr(GetCPUState(state)) != stop_pc) {
-    InterpretInsn(state);
-  }
-}
+void InitTranslator();
+
+void TranslateRegionAtFirstGear(GuestAddr pc);
 
 }  // namespace berberis
+
+#endif  // BERBERIS_RUNTIME_TRANSLATOR_H_
