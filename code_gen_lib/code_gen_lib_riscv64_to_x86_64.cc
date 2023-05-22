@@ -89,9 +89,9 @@ void GenTrampolineAdaptor(MachineCode* mc,
     }
   }
 
-  // br x30
+  // j ra
   // Prefer rdx, since rax/rcx will result in extra moves inside EmitIndirectDispatch.
-  as.Movq(as.rdx, {.base = as.rbp, .disp = offsetof(ThreadState, cpu.x[30])});
+  as.Movq(as.rdx, {.base = as.rbp, .disp = offsetof(ThreadState, cpu.x[RA])});
   // We are returning to generated code.
   as.Movq({.base = as.rbp, .disp = offsetof(ThreadState, residence)}, kInsideGeneratedCode);
   EmitIndirectDispatch(&as, as.rdx);
