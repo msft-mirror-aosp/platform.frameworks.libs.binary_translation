@@ -57,6 +57,8 @@ class GuestThread {
   bool AllocShadowCallStack();
   bool AllocStaticTls();
 
+  void ProcessPendingSignalsImpl();
+
   // Host stack. Valid for cloned threads only.
   void* host_stack_ = nullptr;
 
