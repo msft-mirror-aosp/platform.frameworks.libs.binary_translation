@@ -164,6 +164,18 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename... Types>
+  void InterpretOpFpGpRegisterTarget(uint32_t insn_bytes,
+                                     std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg1);
+      SetFReg<3>(state_.cpu, arg2);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
   void InterpretOpFpSingleInput(uint32_t insn_bytes,
                                 std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -1022,6 +1034,27 @@ TEST_F(Riscv64InterpreterTest, OpFpSingleInputInstructions) {
   InterpretOpFpSingleInput(0x401170d3, {std::tuple{1.0, 1.0f}});
   // Fcvt.D.S
   InterpretOpFpSingleInput(0x420100d3, {std::tuple{2.0f, 2.0}});
+}
+
+TEST_F(Riscv64InterpreterTest, OpFpGpRegisterTargetInstructions) {
+  // Fle.S
+  InterpretOpFpGpRegisterTarget(
+      0xa03100d3, {std::tuple{1.0f, 2.0f, 1UL}, {2.0f, 1.0f, 0UL}, {0.0f, 0.0f, 1UL}});
+  // Fle.D
+  InterpretOpFpGpRegisterTarget(0xa23100d3,
+                                {std::tuple{1.0, 2.0, 1UL}, {2.0, 1.0, 0UL}, {0.0, 0.0, 1UL}});
+  // Flt.S
+  InterpretOpFpGpRegisterTarget(
+      0xa03110d3, {std::tuple{1.0f, 2.0f, 1UL}, {2.0f, 1.0f, 0UL}, {0.0f, 0.0f, 0UL}});
+  // Flt.D
+  InterpretOpFpGpRegisterTarget(0xa23110d3,
+                                {std::tuple{1.0, 2.0, 1UL}, {2.0, 1.0, 0UL}, {0.0, 0.0, 0UL}});
+  // Feq.S
+  InterpretOpFpGpRegisterTarget(
+      0xa03120d3, {std::tuple{1.0f, 2.0f, 0UL}, {2.0f, 1.0f, 0UL}, {0.0f, 0.0f, 1UL}});
+  // Feq.D
+  InterpretOpFpGpRegisterTarget(0xa23120d3,
+                                {std::tuple{1.0, 2.0, 0UL}, {2.0, 1.0, 0UL}, {0.0, 0.0, 1UL}});
 }
 
 TEST_F(Riscv64InterpreterTest, RoundingModeTest) {

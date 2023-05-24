@@ -203,6 +203,13 @@ class Decoder {
     kMaxFmaOpcode = 0b11,
   };
 
+  enum class OpFpGpRegisterTargetOpcode {
+    kFle = 0b00'000,
+    kFlt = 0b00'001,
+    kFeq = 0b00'010,
+    kMaxOpFpGpRegisterTargetOpcode = 0b11'111,
+  };
+
   enum class OpFpOpcode {
     kFAdd = 0b00,
     kFSub = 0b01,
@@ -444,6 +451,14 @@ class Decoder {
     uint8_t src1;
     uint8_t src2;
     uint8_t rm;
+  };
+
+  struct OpFpGpRegisterTargetArgs {
+    OpFpGpRegisterTargetOpcode opcode;
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
   };
 
   struct OpFpNoRoundingArgs {
@@ -1139,6 +1154,17 @@ class Decoder {
             .rm = rm,
         };
         return insn_consumer_->OpFpSingleInput(args);
+      }
+      case 0b101: {
+        uint8_t opcode = (opcode_bits << 3) + rm;
+        const OpFpGpRegisterTargetArgs args = {
+            .opcode = OpFpGpRegisterTargetOpcode(opcode),
+            .operand_type = FloatOperandType(operand_type),
+            .dst = rd,
+            .src1 = rs1,
+            .src2 = rs2,
+        };
+        return insn_consumer_->OpFpGpRegisterTarget(args);
       }
       default:
         return Undefined();
