@@ -80,7 +80,12 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
   // TODO(b/280551726): Implement.
   // SetStackRegister(&thread->state_->cpu, thread->stack_top_);
 
-  // TODO(b/281859262): Implement shadow call stack initialization.
+#if defined(__BIONIC__)
+  if (!thread->AllocShadowCallStack()) {
+    Destroy(thread);
+    return nullptr;
+  }
+#endif  // defined(__BIONIC__)
 
   // Static TLS must be in an independent mapping, because on creation of main thread its config
   // is yet unknown. Loader sets main thread's static TLS explicitly later.
@@ -162,7 +167,30 @@ bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) 
 }
 
 bool GuestThread::AllocShadowCallStack() {
-  // TODO(b/281859262): Implement.
+#if defined(__BIONIC__)
+  CHECK(IsAlignedPageSize(SCS_GUARD_REGION_SIZE));
+  CHECK(IsAlignedPageSize(SCS_SIZE));
+
+  scs_region_ = Mmap(SCS_GUARD_REGION_SIZE);
+  if (scs_region_ == MAP_FAILED) {
+    TRACE("failed to allocate shadow call stack!");
+    scs_region_ = nullptr;  // do not unmap in Destroy!
+    return false;
+  }
+
+  GuestAddr scs_region_base = ToGuestAddr(scs_region_);
+  // TODO(b/138425729): use random offset!
+  scs_base_ = AlignUp(scs_region_base, SCS_SIZE);
+  GuestAddr scs_top = scs_base_ + SCS_SIZE;
+
+  if (mprotect(scs_region_, scs_base_ - scs_region_base, PROT_NONE) != 0 ||
+      mprotect(ToHostAddr<void>(scs_top),
+               scs_region_base + SCS_GUARD_REGION_SIZE - scs_top,
+               PROT_NONE) != 0) {
+    TRACE("failed to protect shadow call stack!");
+    return false;
+  }
+#endif  // defined(__BIONIC__)
   return true;
 }
 
