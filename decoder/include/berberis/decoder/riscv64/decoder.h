@@ -103,7 +103,7 @@ class Decoder {
     kSlli = 0b000'10,
     kFldsp = 0b001'10,
     kLwsp = 0b010'10,
-    kDsp = 0b011'10,
+    kLdsp = 0b011'10,
     kJr_Jalr_Mv_Add = 0b100'10,
     kFdsp = 0b101'10,
     kSwsp = 0b110'10,
@@ -546,10 +546,57 @@ class Decoder {
       case CompressedOpcode::kSlli:
         DecodeCSlli();
         break;
+      case CompressedOpcode::kFldsp:
+        DecodeCFldsp();
+        break;
+      case CompressedOpcode::kLdsp:
+        DecodeCLdsp();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
     return 2;
+  }
+
+  void DecodeCFldsp() {
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t rd = GetBits<uint8_t, 7, 5>();
+    constexpr uint8_t kFldspLow[32] = {0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38,
+                                       0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39,
+                                       0x02, 0x0a, 0x12, 0x1a, 0x22, 0x2a, 0x32, 0x3a,
+                                       0x03, 0x0b, 0x13, 0x1b, 0x23, 0x2b, 0x33, 0x3b};
+
+    int16_t imm = (high_imm << 5) + (kFldspLow[low_imm] << 3);
+    const LoadFpArgs args = {
+        .operand_type = FloatOperandType::kDouble,
+        .dst = rd,
+        .src = 2,
+        .offset = imm,
+    };
+    insn_consumer_->Load(args);
+  }
+
+  void DecodeCLdsp() {
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t rd = GetBits<uint8_t, 7, 5>();
+    if (rd == 0) {
+      return Undefined();
+    }
+    constexpr uint8_t kLdspLow[32] = {0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38,
+                                      0x01, 0x09, 0x11, 0x19, 0x21, 0x29, 0x31, 0x39,
+                                      0x02, 0x0a, 0x12, 0x1a, 0x22, 0x2a, 0x32, 0x3a,
+                                      0x03, 0x0b, 0x13, 0x1b, 0x23, 0x2b, 0x33, 0x3b};
+
+    int16_t imm = (high_imm << 5) + (kLdspLow[low_imm] << 3);
+    const LoadArgs args = {
+        .operand_type = LoadOperandType::k64bit,
+        .dst = rd,
+        .src = 2,
+        .offset = imm,
+    };
+    insn_consumer_->Load(args);
   }
 
   void DecodeCMiscAlu() {
