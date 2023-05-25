@@ -500,6 +500,23 @@ class Interpreter {
     }
   }
 
+  Register OpFpGpRegisterTarget(Decoder::OpFpGpRegisterTargetOpcode opcode,
+                                Decoder::FloatOperandType float_size,
+                                FpRegister arg1,
+                                FpRegister arg2) {
+    switch (float_size) {
+      case Decoder::FloatOperandType::kFloat:
+        return OpFpGpRegisterTarget<Float32>(
+            opcode, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2));
+      case Decoder::FloatOperandType::kDouble:
+        return OpFpGpRegisterTarget<Float64>(
+            opcode, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2));
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
   FpRegister OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode,
                              Decoder::FloatOperandType float_size,
                              uint8_t rm,
@@ -557,6 +574,23 @@ class Interpreter {
         return Min(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFMax:
         return Max(arg1, arg2);
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  template <typename FloatType>
+  Register OpFpGpRegisterTarget(Decoder::OpFpGpRegisterTargetOpcode opcode,
+                                FloatType arg1,
+                                FloatType arg2) {
+    switch (opcode) {
+      case Decoder::OpFpGpRegisterTargetOpcode::kFle:
+        return arg1 <= arg2;
+      case Decoder::OpFpGpRegisterTargetOpcode::kFlt:
+        return arg1 < arg2;
+      case Decoder::OpFpGpRegisterTargetOpcode::kFeq:
+        return arg1 == arg2;
       default:
         Unimplemented();
         return {};
