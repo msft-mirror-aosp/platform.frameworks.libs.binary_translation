@@ -166,6 +166,14 @@ class SemanticsPlayer {
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
 
+  void OpFpGpRegisterTarget(const typename Decoder::OpFpGpRegisterTargetArgs& args) {
+    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
+    FpRegister result = listener_->OpFpGpRegisterTarget(args.opcode, args.operand_type, arg1, arg2);
+    result = CanonicalizeNan(result, args.operand_type);
+    SetRegOrIgnore(args.dst, result);
+  }
+
   void OpFpSingleInput(const typename Decoder::OpFpSingleInputArgs& args) {
     FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
     FpRegister result = listener_->OpFpSingleInput(args.opcode, args.operand_type, args.rm, arg);
