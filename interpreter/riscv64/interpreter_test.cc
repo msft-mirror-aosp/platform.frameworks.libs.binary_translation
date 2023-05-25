@@ -661,6 +661,14 @@ TEST_F(Riscv64InterpreterTest, CMiscAluImm) {
     InterpretCMiscAluImm(o_bits.parcel | 0b1000'1000'0000'0001,
                          0xffff'ffff'ffff'ffffULL,
                          0xffff'ffff'ffff'ffffULL & imm);
+
+    // Previous instructions use 3-bit register encoding where 0b000 is r8, 0b001 is r9, etc.
+    // c.Slli uses 5-bit register encoding. Since we want it to also work with r9 in the test body
+    // we add 0b01000 to register bits to mimic that shift-by-8.
+    // c.Slli                                   vvvvvv adds 8 to r to handle rd' vs rd difference.
+    InterpretCMiscAluImm(o_bits.parcel | 0b0000'0100'0000'0010,
+                         0x0000'0000'0000'0001ULL,
+                         0x0000'0000'0000'0001ULL << uimm);
   }
 }
 
