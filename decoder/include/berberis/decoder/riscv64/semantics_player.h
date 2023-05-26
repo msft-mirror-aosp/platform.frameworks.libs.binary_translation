@@ -174,6 +174,15 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   }
 
+  void OpFpGpRegisterTargetSingleInputNoRounding(
+      const typename Decoder::OpFpGpRegisterTargetSingleInputNoRoundingArgs& args) {
+    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
+    FpRegister result =
+        listener_->OpFpGpRegisterTargetSingleInputNoRounding(args.opcode, args.operand_type, arg);
+    result = CanonicalizeNan(result, args.operand_type);
+    SetRegOrIgnore(args.dst, result);
+  }
+
   void OpFpSingleInput(const typename Decoder::OpFpSingleInputArgs& args) {
     FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
     FpRegister result = listener_->OpFpSingleInput(args.opcode, args.operand_type, args.rm, arg);
