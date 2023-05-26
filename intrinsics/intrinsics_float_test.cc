@@ -54,7 +54,7 @@ constexpr uint32_t kBadNegativeNan32 = 0xff811dea;
 constexpr uint32_t kBadPositiveNan32 = 0x7f811dea;
 constexpr uint64_t kBadNegativeNan64 = 0xfff0deadbeaf0000;
 constexpr uint64_t kBadPositiveNan64 = 0x7ff0deadbeaf0000;
-// We don't use std::limits because we want to be sure definitions match ARM.
+// We don't use std::limits because we want to be sure definitions match RISC-V.
 constexpr uint32_t kPlusZero32 = 0x00000000;
 constexpr uint32_t kPlusOne32 = 0x3f800000;
 constexpr uint32_t kMinusZero32 = 0x80000000;
@@ -68,9 +68,9 @@ constexpr uint32_t kDefaultNan32 = 0xffc00000;
 constexpr uint32_t kDefaultNan32 = 0x7fc00000;
 #endif
 constexpr uint64_t kPlusZero64 = 0x0000000000000000;
-// constexpr uint64_t kPlusOne64 = 0x3ff0000000000000;
+constexpr uint64_t kPlusOne64 = 0x3ff0000000000000;
 constexpr uint64_t kMinusZero64 = 0x8000000000000000;
-// constexpr uint64_t kMinusOne64 = 0xbff0000000000000;
+constexpr uint64_t kMinusOne64 = 0xbff0000000000000;
 constexpr uint64_t kPlusInfinity64 = 0x7ff0000000000000;
 constexpr uint64_t kMinusInfinity64 = 0xfff0000000000000;
 #if defined(__i386__) || defined(__x86_64__)
@@ -491,6 +491,21 @@ TEST(FPU, Float32_Sqrt) {
   // -1.0 => dNaN
   result = bit_cast<uint32_t, Float32>(Sqrt(bit_cast<Float32, uint32_t>(kMinusOne32)));
   EXPECT_EQ(result, kDefaultNan32);
+}
+
+TEST(FPU, Float64_Sqrt) {
+  // +0.0 => +0.0
+  uint64_t result = bit_cast<uint64_t, Float64>(Sqrt(bit_cast<Float64, uint64_t>(kPlusZero64)));
+  EXPECT_EQ(result, kPlusZero64);
+  // -0.0 => -0.0
+  result = bit_cast<uint64_t, Float64>(Sqrt(bit_cast<Float64, uint64_t>(kMinusZero64)));
+  EXPECT_EQ(result, kMinusZero64);
+  // +1.0 => +1.0
+  result = bit_cast<uint64_t, Float64>(Sqrt(bit_cast<Float64, uint64_t>(kPlusOne64)));
+  EXPECT_EQ(result, kPlusOne64);
+  // -1.0 => dNaN
+  result = bit_cast<uint64_t, Float64>(Sqrt(bit_cast<Float64, uint64_t>(kMinusOne64)));
+  EXPECT_EQ(result, kDefaultNan64);
 }
 
 }  // namespace

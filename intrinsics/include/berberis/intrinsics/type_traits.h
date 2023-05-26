@@ -93,14 +93,25 @@ struct TypeTraits<int64_t> {
 template <>
 struct TypeTraits<intrinsics::Float32> {
   using Int = int32_t;
+  using Wide = intrinsics::Float64;
 };
 
 template <>
 struct TypeTraits<intrinsics::Float64> {
   using Int = int64_t;
+  using Narrow = intrinsics::Float32;
+#if defined(__x86_64__)
+  static_assert(sizeof(long double) > sizeof(intrinsics::Float64));
+  using Wide = long double;
+#endif
 };
 
 #if defined(__x86_64__)
+
+template <>
+struct TypeTraits<long double> {
+  using Narrow = intrinsics::Float64;
+};
 
 template <>
 struct TypeTraits<__uint128_t> {
