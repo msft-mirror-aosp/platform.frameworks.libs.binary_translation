@@ -321,6 +321,14 @@ class Decoder {
     kMaxStoreOperandType = 0b111,
   };
 
+  enum class FcvtOperandType {
+    k32bitSigned = 0b00000,
+    k32bitUnsigned = 0b00001,
+    k64bitSigned = 0b00010,
+    k64bitUnsigned = 0b00011,
+    kMaxFcvtOperandType = 0b11111,
+  };
+
   enum class FloatOperandType {
     kFloat = 0b00,
     kDouble = 0b01,
@@ -372,9 +380,25 @@ class Decoder {
     int16_t imm;
   };
 
-  struct FcvtArgs {
+  struct FcvtFloatToFloatArgs {
     FloatOperandType dst_type;
     FloatOperandType src_type;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t rm;
+  };
+
+  struct FcvtFloatToIntegerArgs {
+    FcvtOperandType dst_type;
+    FloatOperandType src_type;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t rm;
+  };
+
+  struct FcvtIntegerToFloatArgs {
+    FloatOperandType dst_type;
+    FcvtOperandType src_type;
     uint8_t dst;
     uint8_t src;
     uint8_t rm;
@@ -1229,7 +1253,7 @@ class Decoder {
           if (rs2 > 0b11) {
             return Undefined();
           }
-          const FcvtArgs args = {
+          const FcvtFloatToFloatArgs args = {
               .dst_type = FloatOperandType(operand_type),
               .src_type = FloatOperandType(rs2),
               .dst = rd,
@@ -1259,6 +1283,31 @@ class Decoder {
         };
         return insn_consumer_->OpFpGpRegisterTarget(args);
       }
+      case 0b110:
+        switch (opcode_bits) {
+          case 0b00: {
+            const FcvtFloatToIntegerArgs args = {
+                .dst_type = FcvtOperandType(rs2),
+                .src_type = FloatOperandType(operand_type),
+                .dst = rd,
+                .src = rs1,
+                .rm = rm,
+            };
+            return insn_consumer_->Fcvt(args);
+          }
+          case 0b10: {
+            const FcvtIntegerToFloatArgs args = {
+                .dst_type = FloatOperandType(operand_type),
+                .src_type = FcvtOperandType(rs2),
+                .dst = rd,
+                .src = rs1,
+                .rm = rm,
+            };
+            return insn_consumer_->Fcvt(args);
+          }
+          default:
+            return Undefined();
+        }
       case 0b111: {
         uint16_t opcode = (opcode_bits << 8) + (rs2 << 3) + rm;
         const OpFpGpRegisterTargetSingleInputNoRoundingArgs args = {
