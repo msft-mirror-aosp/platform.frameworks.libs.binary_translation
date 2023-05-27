@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
-#define BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#ifndef BERBERIS_INTRINSICS_COMMON_INTRINSICS_FLOAT_H_
+#define BERBERIS_INTRINSICS_COMMON_INTRINSICS_FLOAT_H_
 
 // We couldn't safely pass arguments using "raw" float and double on X86 because of peculiarities
 // of psABI (sometimes floating point registers are used by guest programs to pass integer value and
@@ -214,4 +214,4 @@ class numeric_limits<berberis::intrinsics::WrappedFloatType<BaseType>> {
 #include "berberis/intrinsics/intrinsics_float_x86.h"
 #endif
 
-#endif  // BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#endif  // BERBERIS_INTRINSICS_COMMON_INTRINSICS_FLOAT_H_
