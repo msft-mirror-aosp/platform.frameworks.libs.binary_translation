@@ -187,6 +187,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename... Types>
+  void InterpretOpFpGpRegisterSourceSingleInput(uint32_t insn_bytes,
+                                                std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<2>(state_.cpu, arg);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
   void InterpretOpFpSingleInput(uint32_t insn_bytes,
                                 std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -1101,10 +1112,45 @@ TEST_F(Riscv64InterpreterTest, OpFpSingleInputInstructions) {
   InterpretOpFpSingleInput(0x580170d3, {std::tuple{4.0f, 2.0f}});
   // FSqrt.D
   InterpretOpFpSingleInput(0x5a0170d3, {std::tuple{16.0, 4.0}});
+}
+
+TEST_F(Riscv64InterpreterTest, OpFpFcvt) {
   // Fcvt.S.D
   InterpretOpFpSingleInput(0x401170d3, {std::tuple{1.0, 1.0f}});
   // Fcvt.D.S
   InterpretOpFpSingleInput(0x420100d3, {std::tuple{2.0f, 2.0}});
+  // Fcvt.W.S
+  InterpretOpFpGpRegisterTargetSingleInput(0xc00170d3, {std::tuple{3.0f, 3UL}});
+  // Fcvt.WU.S
+  InterpretOpFpGpRegisterTargetSingleInput(0xc01170d3, {std::tuple{3.0f, 3UL}});
+  // Fcvt.L.S
+  InterpretOpFpGpRegisterTargetSingleInput(0xc02170d3, {std::tuple{3.0f, 3UL}});
+  // Fcvt.LU.S
+  InterpretOpFpGpRegisterTargetSingleInput(0xc03170d3, {std::tuple{3.0f, 3UL}});
+  // Fcvt.W.D
+  InterpretOpFpGpRegisterTargetSingleInput(0xc20170d3, {std::tuple{3.0, 3UL}});
+  // Fcvt.WU.D
+  InterpretOpFpGpRegisterTargetSingleInput(0xc21170d3, {std::tuple{3.0, 3UL}});
+  // Fcvt.L.D
+  InterpretOpFpGpRegisterTargetSingleInput(0xc22170d3, {std::tuple{3.0, 3UL}});
+  // Fcvt.LU.D
+  InterpretOpFpGpRegisterTargetSingleInput(0xc23170d3, {std::tuple{3.0, 3UL}});
+  // Fcvt.S.W
+  InterpretOpFpGpRegisterSourceSingleInput(0xd00170d3, {std::tuple{3UL, 3.0f}});
+  // Fcvt.S.WU
+  InterpretOpFpGpRegisterSourceSingleInput(0xd01170d3, {std::tuple{3UL, 3.0f}});
+  // Fcvt.S.L
+  InterpretOpFpGpRegisterSourceSingleInput(0xd02170d3, {std::tuple{3UL, 3.0f}});
+  // Fcvt.S.LU
+  InterpretOpFpGpRegisterSourceSingleInput(0xd03170d3, {std::tuple{3UL, 3.0f}});
+  // Fcvt.D.W
+  InterpretOpFpGpRegisterSourceSingleInput(0xd20170d3, {std::tuple{3UL, 3.0}});
+  // Fcvt.D.Wu
+  InterpretOpFpGpRegisterSourceSingleInput(0xd21170d3, {std::tuple{3UL, 3.0}});
+  // Fcvt.D.L
+  InterpretOpFpGpRegisterSourceSingleInput(0xd22170d3, {std::tuple{3UL, 3.0}});
+  // Fcvt.D.LU
+  InterpretOpFpGpRegisterSourceSingleInput(0xd23170d3, {std::tuple{3UL, 3.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, OpFpGpRegisterTargetInstructions) {
