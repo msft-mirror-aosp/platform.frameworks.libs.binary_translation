@@ -176,6 +176,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename... Types>
+  void InterpretOpFpGpRegisterTargetSingleInput(uint32_t insn_bytes,
+                                                std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
   void InterpretOpFpSingleInput(uint32_t insn_bytes,
                                 std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -1115,6 +1126,35 @@ TEST_F(Riscv64InterpreterTest, OpFpGpRegisterTargetInstructions) {
   // Feq.D
   InterpretOpFpGpRegisterTarget(0xa23120d3,
                                 {std::tuple{1.0, 2.0, 0UL}, {2.0, 1.0, 0UL}, {0.0, 0.0, 1UL}});
+}
+
+TEST_F(Riscv64InterpreterTest, InterpretOpFpGpRegisterTargetSingleInput) {
+  // Fclass.S
+  InterpretOpFpGpRegisterTargetSingleInput(
+      0xe00110d3,
+      {std::tuple{-std::numeric_limits<float>::infinity(), 0b00'0000'0001UL},
+       {-1.0f, 0b00'0000'0010UL},
+       {-std::numeric_limits<float>::denorm_min(), 0b00'0000'0100UL},
+       {-0.0f, 0b00'0000'1000UL},
+       {0.0f, 0b00'0001'0000UL},
+       {std::numeric_limits<float>::denorm_min(), 0b00'0010'0000UL},
+       {1.0f, 0b00'0100'0000UL},
+       {std::numeric_limits<float>::infinity(), 0b00'1000'0000UL},
+       {std::numeric_limits<float>::signaling_NaN(), 0b01'0000'0000UL},
+       {std::numeric_limits<float>::quiet_NaN(), 0b10'0000'0000UL}});
+  // Fclass.D
+  InterpretOpFpGpRegisterTargetSingleInput(
+      0xe20110d3,
+      {std::tuple{-std::numeric_limits<double>::infinity(), 0b00'0000'0001UL},
+       {-1.0, 0b00'0000'0010UL},
+       {-std::numeric_limits<double>::denorm_min(), 0b00'0000'0100UL},
+       {-0.0, 0b00'0000'1000UL},
+       {0.0, 0b00'0001'0000UL},
+       {std::numeric_limits<double>::denorm_min(), 0b00'0010'0000UL},
+       {1.0, 0b00'0100'0000UL},
+       {std::numeric_limits<double>::infinity(), 0b00'1000'0000UL},
+       {std::numeric_limits<double>::signaling_NaN(), 0b01'0000'0000UL},
+       {std::numeric_limits<double>::quiet_NaN(), 0b10'0000'0000UL}});
 }
 
 TEST_F(Riscv64InterpreterTest, RoundingModeTest) {
