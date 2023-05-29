@@ -113,6 +113,42 @@ class Decoder {
     kMaxCompressedOpcode = 0b111'11,
   };
 
+  enum class AmoOpcode {
+    kLrW = 0b00010'010,
+    kScW = 0b00011'010,
+    kAmoswapW = 0b00001'010,
+    kAmoaddW = 0b00000'010,
+    kAmoxorW = 0b00100'010,
+    kAmoandW = 0b01100'010,
+    kAmoorW = 0b01000'010,
+    kAmominW = 0b10000'010,
+    kAmomaxW = 0b10100'010,
+    kAmominuW = 0b11000'010,
+    kAmomaxuW = 0b11100'010,
+    kLrD = 0b00010'011,
+    kScD = 0b00011'011,
+    kAmoswapD = 0b00001'011,
+    kAmoaddD = 0b00000'011,
+    kAmoxorD = 0b00100'011,
+    kAmoandD = 0b01100'011,
+    kAmoorD = 0b01000'011,
+    kAmominD = 0b10000'011,
+    kAmomaxD = 0b10100'011,
+    kAmominuD = 0b11000'011,
+    kAmomaxuD = 0b11100'011,
+    kMaxAmoOpcode = 0b11111'111,
+  };
+
+  enum class BranchOpcode {
+    kBeq = 0b000,
+    kBne = 0b001,
+    kBlt = 0b100,
+    kBge = 0b101,
+    kBltu = 0b110,
+    kBgeu = 0b111,
+    kMaxBranchOpcode = 0b111,
+  };
+
   enum class CsrOpcode {
     kCsrrw = 0b01,
     kCsrrs = 0b10,
@@ -125,6 +161,14 @@ class Decoder {
     kCsrrsi = 0b10,
     kCsrrci = 0b11,
     kMaxCsrOpcode = 0b11,
+  };
+
+  enum class FmaOpcode {
+    kFmadd = 0b00,
+    kFmsub = 0b01,
+    kFnmsub = 0b10,
+    kFnmadd = 0b11,
+    kMaxFmaOpcode = 0b11,
   };
 
   enum class FenceOpcode {
@@ -169,40 +213,6 @@ class Decoder {
     kMaxOp32Opcode = 0b1111'111'111,
   };
 
-  enum class AmoOpcode {
-    kLrW = 0b00010'010,
-    kScW = 0b00011'010,
-    kAmoswapW = 0b00001'010,
-    kAmoaddW = 0b00000'010,
-    kAmoxorW = 0b00100'010,
-    kAmoandW = 0b01100'010,
-    kAmoorW = 0b01000'010,
-    kAmominW = 0b10000'010,
-    kAmomaxW = 0b10100'010,
-    kAmominuW = 0b11000'010,
-    kAmomaxuW = 0b11100'010,
-    kLrD = 0b00010'011,
-    kScD = 0b00011'011,
-    kAmoswapD = 0b00001'011,
-    kAmoaddD = 0b00000'011,
-    kAmoxorD = 0b00100'011,
-    kAmoandD = 0b01100'011,
-    kAmoorD = 0b01000'011,
-    kAmominD = 0b10000'011,
-    kAmomaxD = 0b10100'011,
-    kAmominuD = 0b11000'011,
-    kAmomaxuD = 0b11100'011,
-    kMaxAmoOpcode = 0b11111'111,
-  };
-
-  enum class FmaOpcode {
-    kFmadd = 0b00,
-    kFmsub = 0b01,
-    kFnmsub = 0b10,
-    kFnmadd = 0b11,
-    kMaxFmaOpcode = 0b11,
-  };
-
   enum class OpFpGpRegisterTargetOpcode {
     kFle = 0b00'000,
     kFlt = 0b00'001,
@@ -215,14 +225,6 @@ class Decoder {
     kMaxOpFpGpRegisterTargetSingleInputNoRoundingOpcode = 0b11'11111'111,
   };
 
-  enum class OpFpOpcode {
-    kFAdd = 0b00,
-    kFSub = 0b01,
-    kFMul = 0b10,
-    kFDiv = 0b11,
-    kMaxOpFpOpcode = 0b11,
-  };
-
   enum class OpFpNoRoundingOpcode {
     kFSgnj = 0b00'000,
     kFSgnjn = 0b00'001,
@@ -230,6 +232,14 @@ class Decoder {
     kFMin = 0b01'000,
     kFMax = 0b01'001,
     kMaxOpFpNoRoundingOpcode = 0b11'111,
+  };
+
+  enum class OpFpOpcode {
+    kFAdd = 0b00,
+    kFSub = 0b01,
+    kFMul = 0b10,
+    kFDiv = 0b11,
+    kMaxOpFpOpcode = 0b11,
   };
 
   enum class OpFpSingleInputOpcode {
@@ -272,15 +282,9 @@ class Decoder {
     kMaxSystemOpcode = 0b111111111111'11111'111'11111,
   };
 
-  enum class BranchOpcode {
-    kBeq = 0b000,
-    kBne = 0b001,
-    kBlt = 0b100,
-    kBge = 0b101,
-    kBltu = 0b110,
-    kBgeu = 0b111,
-    kMaxBranchOpcode = 0b111,
-  };
+  // Technically CsrRegister is instruction argument, but it's handling is closer to the handling
+  // of opcode: instructions which deal with different registers have radically different semantic
+  // while most combinations trigger “illegal instruction opcode”.
 
   enum class CsrRegister {
     kFFlags = 0b00'00'0000'0001,
@@ -298,9 +302,28 @@ class Decoder {
   // Load/Store for regular instruction coulnd't be simiarly unified: Load instructions include
   // seven types, while Store instructions have only four.
   //
+  // Fcvt instructions have their own operand type encoding because they are only supporting 32bit
+  // and 64bit operands, there is no support for 8bit and 16bit operands.
+  //
   // This is because Load can perform either sign-extension or zero-extension for all sizes except
   // 64bit (which doesn't need neither sign-extension nor zero-extension since operand size is the
   // same as register size in that case).
+
+  enum class FcvtOperandType {
+    k32bitSigned = 0b00000,
+    k32bitUnsigned = 0b00001,
+    k64bitSigned = 0b00010,
+    k64bitUnsigned = 0b00011,
+    kMaxFcvtOperandType = 0b11111,
+  };
+
+  enum class FloatOperandType {
+    kFloat = 0b00,
+    kDouble = 0b01,
+    kHalf = 0b10,
+    kQuad = 0b11,
+    kMaxFloatOperandType = 0b11,
+  };
 
   enum class LoadOperandType {
     k8bitSigned = 0b000,
@@ -321,22 +344,6 @@ class Decoder {
     kMaxStoreOperandType = 0b111,
   };
 
-  enum class FcvtOperandType {
-    k32bitSigned = 0b00000,
-    k32bitUnsigned = 0b00001,
-    k64bitSigned = 0b00010,
-    k64bitUnsigned = 0b00011,
-    kMaxFcvtOperandType = 0b11111,
-  };
-
-  enum class FloatOperandType {
-    kFloat = 0b00,
-    kDouble = 0b01,
-    kHalf = 0b10,
-    kQuad = 0b11,
-    kMaxFloatOperandType = 0b11,
-  };
-
   struct AmoArgs {
     AmoOpcode opcode;
     uint8_t dst;
@@ -344,6 +351,13 @@ class Decoder {
     uint8_t src2;
     bool rl : 1;
     bool aq : 1;
+  };
+
+  struct BranchArgs {
+    BranchOpcode opcode;
+    uint8_t src1;
+    uint8_t src2;
+    int16_t offset;
   };
 
   struct CsrArgs {
@@ -358,26 +372,6 @@ class Decoder {
     uint8_t dst;
     uint8_t imm;
     CsrRegister csr;
-  };
-
-  struct FenceArgs {
-    FenceOpcode opcode;
-    uint8_t dst;
-    uint8_t src;
-    bool sw : 1;
-    bool sr : 1;
-    bool so : 1;
-    bool si : 1;
-    bool pw : 1;
-    bool pr : 1;
-    bool po : 1;
-    bool pi : 1;
-  };
-
-  struct FenceIArgs {
-    uint8_t dst;
-    uint8_t src;
-    int16_t imm;
   };
 
   struct FcvtFloatToFloatArgs {
@@ -404,6 +398,26 @@ class Decoder {
     uint8_t rm;
   };
 
+  struct FenceArgs {
+    FenceOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+    bool sw : 1;
+    bool sr : 1;
+    bool so : 1;
+    bool si : 1;
+    bool pw : 1;
+    bool pr : 1;
+    bool po : 1;
+    bool pi : 1;
+  };
+
+  struct FenceIArgs {
+    uint8_t dst;
+    uint8_t src;
+    int16_t imm;
+  };
+
   struct FmaArgs {
     FmaOpcode opcode;
     FloatOperandType operand_type;
@@ -412,6 +426,19 @@ class Decoder {
     uint8_t src2;
     uint8_t src3;
     uint8_t rm;
+  };
+
+  struct JumpAndLinkArgs {
+    uint8_t dst;
+    int32_t offset;
+    uint8_t insn_len;
+  };
+
+  struct JumpAndLinkRegisterArgs {
+    uint8_t dst;
+    uint8_t base;
+    int16_t offset;
+    uint8_t insn_len;
   };
 
   template <typename OpcodeType>
@@ -424,54 +451,6 @@ class Decoder {
 
   using OpArgs = OpArgsTemplate<OpOpcode>;
   using Op32Args = OpArgsTemplate<Op32Opcode>;
-
-  template <typename OperandTypeEnum>
-  struct LoadArgsTemplate {
-    OperandTypeEnum operand_type;
-    uint8_t dst;
-    uint8_t src;
-    int16_t offset;
-  };
-
-  using LoadArgs = LoadArgsTemplate<LoadOperandType>;
-  using LoadFpArgs = LoadArgsTemplate<FloatOperandType>;
-
-  template <typename OpcodeType>
-  struct OpImmArgsTemplate {
-    OpcodeType opcode;
-    uint8_t dst;
-    uint8_t src;
-    int16_t imm;
-  };
-
-  using OpImmArgs = OpImmArgsTemplate<OpImmOpcode>;
-  using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
-
-  struct SystemArgs {
-    SystemOpcode opcode;
-  };
-
-  template <typename OpcodeType>
-  struct ShiftImmArgsTemplate {
-    OpcodeType opcode;
-    uint8_t dst;
-    uint8_t src;
-    uint8_t imm;
-  };
-
-  using ShiftImmArgs = ShiftImmArgsTemplate<ShiftImmOpcode>;
-  using ShiftImm32Args = ShiftImmArgsTemplate<ShiftImm32Opcode>;
-
-  template <typename OperandTypeEnum>
-  struct StoreArgsTemplate {
-    OperandTypeEnum operand_type;
-    uint8_t src;
-    int16_t offset;
-    uint8_t data;
-  };
-
-  using StoreArgs = StoreArgsTemplate<StoreOperandType>;
-  using StoreFpArgs = StoreArgsTemplate<FloatOperandType>;
 
   struct OpFpArgs {
     OpFpOpcode opcode;
@@ -513,29 +492,57 @@ class Decoder {
     uint8_t rm;
   };
 
-  struct BranchArgs {
-    BranchOpcode opcode;
-    uint8_t src1;
-    uint8_t src2;
+  template <typename OpcodeType>
+  struct OpImmArgsTemplate {
+    OpcodeType opcode;
+    uint8_t dst;
+    uint8_t src;
+    int16_t imm;
+  };
+
+  using OpImmArgs = OpImmArgsTemplate<OpImmOpcode>;
+  using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
+
+  template <typename OperandTypeEnum>
+  struct LoadArgsTemplate {
+    OperandTypeEnum operand_type;
+    uint8_t dst;
+    uint8_t src;
     int16_t offset;
+  };
+
+  using LoadArgs = LoadArgsTemplate<LoadOperandType>;
+  using LoadFpArgs = LoadArgsTemplate<FloatOperandType>;
+
+  template <typename OpcodeType>
+  struct ShiftImmArgsTemplate {
+    OpcodeType opcode;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t imm;
+  };
+
+  using ShiftImmArgs = ShiftImmArgsTemplate<ShiftImmOpcode>;
+  using ShiftImm32Args = ShiftImmArgsTemplate<ShiftImm32Opcode>;
+
+  template <typename OperandTypeEnum>
+  struct StoreArgsTemplate {
+    OperandTypeEnum operand_type;
+    uint8_t src;
+    int16_t offset;
+    uint8_t data;
+  };
+
+  using StoreArgs = StoreArgsTemplate<StoreOperandType>;
+  using StoreFpArgs = StoreArgsTemplate<FloatOperandType>;
+
+  struct SystemArgs {
+    SystemOpcode opcode;
   };
 
   struct UpperImmArgs {
     uint8_t dst;
     int32_t imm;
-  };
-
-  struct JumpAndLinkArgs {
-    uint8_t dst;
-    int32_t offset;
-    uint8_t insn_len;
-  };
-
-  struct JumpAndLinkRegisterArgs {
-    uint8_t dst;
-    uint8_t base;
-    int16_t offset;
-    uint8_t insn_len;
   };
 
   uint8_t Decode(const uint16_t* code) {
