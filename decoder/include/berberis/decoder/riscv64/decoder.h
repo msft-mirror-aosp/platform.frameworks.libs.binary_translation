@@ -567,6 +567,9 @@ class Decoder {
       case CompressedOpcode::kLdsp:
         DecodeCLdsp();
         break;
+      case CompressedOpcode::kJr_Jalr_Mv_Add:
+        DecodeCJr_Jalr_Mv_Add();
+        break;
       default:
         insn_consumer_->Unimplemented();
     }
@@ -844,6 +847,53 @@ class Decoder {
         .imm = imm,
     };
     insn_consumer_->OpImm(args);
+  }
+
+  void DecodeCJr_Jalr_Mv_Add() {
+    uint8_t r = GetBits<uint8_t, 7, 5>();
+    uint8_t rs2 = GetBits<uint8_t, 2, 5>();
+    if (GetBits<uint8_t, 12, 1>()) {
+      if (r == 0 && rs2 == 0) {
+        const SystemArgs args = {
+            .opcode = SystemOpcode::kEbreak,
+        };
+        return insn_consumer_->System(args);
+      } else if (rs2 == 0) {
+        const JumpAndLinkRegisterArgs args = {
+            .dst = 1,
+            .base = r,
+            .offset = 0,
+            .insn_len = 2,
+        };
+        insn_consumer_->JumpAndLinkRegister(args);
+      } else {
+        const OpArgs args = {
+            .opcode = OpOpcode::kAdd,
+            .dst = r,
+            .src1 = r,
+            .src2 = rs2,
+        };
+        insn_consumer_->Op(args);
+      }
+    } else {
+      if (rs2 == 0) {
+        const JumpAndLinkRegisterArgs args = {
+            .dst = 0,
+            .base = r,
+            .offset = 0,
+            .insn_len = 2,
+        };
+        insn_consumer_->JumpAndLinkRegister(args);
+      } else {
+        const OpArgs args = {
+            .opcode = OpOpcode::kAdd,
+            .dst = r,
+            .src1 = 0,
+            .src2 = rs2,
+        };
+        insn_consumer_->Op(args);
+      }
+    }
   }
 
   void DecodeCSlli() {

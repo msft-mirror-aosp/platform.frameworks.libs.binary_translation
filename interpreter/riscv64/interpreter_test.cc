@@ -118,6 +118,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
 
+  void InterpretCOp(uint32_t insn_bytes,
+                    std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
+    for (auto [arg1, arg2, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<1>(state_.cpu, arg1);
+      SetXReg<2>(state_.cpu, arg2);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
   // Non-Compressed Instructions.
 
   void InterpretCsr(uint32_t insn_bytes, uint8_t expected_rm) {
@@ -782,6 +793,17 @@ TEST_F(Riscv64InterpreterTest, CJ) {
     };
     InterpretCJ(o_bits.parcel, offset);
   }
+}
+
+TEST_F(Riscv64InterpreterTest, CJalr) {
+  // C.Jr
+  InterpretJumpAndLinkRegister(0x8102, 42, 42);
+  // C.Mv
+  InterpretCOp(0x808a, {{0, 1, 1}});
+  // C.Jalr
+  InterpretJumpAndLinkRegister(0x9102, 42, 42);
+  // C.Add
+  InterpretCOp(0x908a, {{1, 2, 3}});
 }
 
 // Tests for Non-Compressed Instructions.
