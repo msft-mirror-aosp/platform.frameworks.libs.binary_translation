@@ -517,6 +517,23 @@ class Interpreter {
     }
   }
 
+  Register OpFpGpRegisterTargetSingleInputNoRounding(
+      Decoder::OpFpGpRegisterTargetSingleInputNoRoundingOpcode opcode,
+      Decoder::FloatOperandType float_size,
+      FpRegister arg) {
+    switch (float_size) {
+      case Decoder::FloatOperandType::kFloat:
+        return OpFpGpRegisterTargetSingleInputNoRounding<Float32>(opcode,
+                                                                  FPRegToFloat<Float32>(arg));
+      case Decoder::FloatOperandType::kDouble:
+        return OpFpGpRegisterTargetSingleInputNoRounding<Float64>(opcode,
+                                                                  FPRegToFloat<Float64>(arg));
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
   FpRegister OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode,
                              Decoder::FloatOperandType float_size,
                              uint8_t rm,
@@ -591,6 +608,37 @@ class Interpreter {
         return arg1 < arg2;
       case Decoder::OpFpGpRegisterTargetOpcode::kFeq:
         return arg1 == arg2;
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
+  template <typename FloatType>
+  Register OpFpGpRegisterTargetSingleInputNoRounding(
+      Decoder::OpFpGpRegisterTargetSingleInputNoRoundingOpcode opcode,
+      FloatType arg) {
+    using IntType = std::make_unsigned_t<typename TypeTraits<FloatType>::Int>;
+    // TODO(b/284735067): make it constexpr when C++20 would be available.
+    IntType quiet_bit = bit_cast<IntType>(std::numeric_limits<FloatType>::quiet_NaN()) &
+                        ~bit_cast<IntType>(std::numeric_limits<FloatType>::signaling_NaN());
+    IntType raw_bits = bit_cast<IntType>(arg);
+
+    switch (opcode) {
+      case Decoder::OpFpGpRegisterTargetSingleInputNoRoundingOpcode::kFclass:
+        switch (FPClassify(arg)) {
+          case intrinsics::FPInfo::kNaN:
+            return (raw_bits & quiet_bit) ? 0b10'0000'0000 : 0b01'0000'0000;
+          case intrinsics::FPInfo::kInfinite:
+            return intrinsics::SignBit(arg) ? 0b00'0000'0001 : 0b00'1000'0000;
+          case intrinsics::FPInfo::kNormal:
+            return intrinsics::SignBit(arg) ? 0b00'0000'0010 : 0b00'0100'0000;
+          case intrinsics::FPInfo::kSubnormal:
+            return intrinsics::SignBit(arg) ? 0b00'0000'0100 : 0b00'0010'0000;
+          case intrinsics::FPInfo::kZero:
+            return intrinsics::SignBit(arg) ? 0b00'0000'1000 : 0b00'0001'0000;
+        }
+        [[fallthrough]];
       default:
         Unimplemented();
         return {};
