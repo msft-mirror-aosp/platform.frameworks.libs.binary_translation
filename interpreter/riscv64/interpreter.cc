@@ -201,11 +201,11 @@ class Interpreter {
       case Decoder::Op32Opcode::kDivw:
         return int32_t(arg1) / int32_t(arg2);
       case Decoder::Op32Opcode::kDivuw:
-        return uint32_t(arg1) / uint32_t(arg2);
+        return static_cast<int32_t>(uint32_t(arg1) / uint32_t(arg2));
       case Decoder::Op32Opcode::kRemw:
         return int32_t(arg1) % int32_t(arg2);
       case Decoder::Op32Opcode::kRemuw:
-        return uint32_t(arg1) % uint32_t(arg2);
+        return static_cast<int32_t>(uint32_t(arg1) % uint32_t(arg2));
       default:
         Unimplemented();
         return {};

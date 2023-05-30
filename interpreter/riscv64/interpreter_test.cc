@@ -888,11 +888,15 @@ TEST_F(Riscv64InterpreterTest, Op32Instructions) {
   // Divw
   InterpretOp(0x23140bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'fffd'fffe}});
   // Divuw
-  InterpretOp(0x23150bb, {{0x9999'9999'9999'9999, 0x3333, 0x0000'0000'0003'0003}});
+  InterpretOp(0x23150bb,
+              {{0x9999'9999'9999'9999, 0x3333, 0x0000'0000'0003'0003},
+               {0xffff'ffff'8000'0000, 1, 0xffff'ffff'8000'0000}});
   // Remw
   InterpretOp(0x23160bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
   // Remuw
-  InterpretOp(0x23170bb, {{0x9999'9999'9999'9999, 0x3333, 0}});
+  InterpretOp(0x23170bb,
+              {{0x9999'9999'9999'9999, 0x3333, 0},
+               {0xffff'ffff'8000'0000, 0xffff'ffff'8000'0001, 0xffff'ffff'8000'0000}});
 }
 
 TEST_F(Riscv64InterpreterTest, AmoInstructions) {
