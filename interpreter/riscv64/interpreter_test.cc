@@ -27,7 +27,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_riscv64.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
-#include "berberis/intrinsics/guest_fpstate.h"
+#include "berberis/intrinsics/guest_rounding_modes.h"  // ScopedRoundingMode
 
 #include "fp_regs_util.h"
 #include "tuple_map.h"
