@@ -21,7 +21,7 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/logging.h"
-#include "berberis/intrinsics/guest_fpstate.h"  // FE_HOSTROUND
+#include "berberis/intrinsics/guest_rounding_modes.h"  // FE_HOSTROUND/FE_TIESAWAY
 
 namespace berberis::intrinsics {
 
