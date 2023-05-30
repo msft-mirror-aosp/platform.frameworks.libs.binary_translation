@@ -325,13 +325,22 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), code_start + 4);
   }
 
-  void InterpretJumpAndLinkRegister(uint32_t insn_bytes, uint64_t base_disp,
+  // kLinkRegisterOffsetIfUsed is size of instruction or 0 if instruction does not link register.
+  template <uint8_t kLinkRegisterOffsetIfUsed>
+  void InterpretJumpAndLinkRegister(uint32_t insn_bytes,
+                                    uint64_t base_disp,
                                     int64_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
+    SetXReg<1>(state_.cpu, 0);
     SetXReg<2>(state_.cpu, code_start + base_disp);
     InterpretInsn(&state_);
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+    if constexpr (kLinkRegisterOffsetIfUsed == 0) {
+      EXPECT_EQ(GetXReg<1>(state_.cpu), 0UL);
+    } else {
+      EXPECT_EQ(GetXReg<1>(state_.cpu), code_start + kLinkRegisterOffsetIfUsed);
+    }
   }
 
  protected:
@@ -819,11 +828,11 @@ TEST_F(Riscv64InterpreterTest, CJ) {
 
 TEST_F(Riscv64InterpreterTest, CJalr) {
   // C.Jr
-  InterpretJumpAndLinkRegister(0x8102, 42, 42);
+  InterpretJumpAndLinkRegister<0>(0x8102, 42, 42);
   // C.Mv
   InterpretCOp(0x808a, {{0, 1, 1}});
   // C.Jalr
-  InterpretJumpAndLinkRegister(0x9102, 42, 42);
+  InterpretJumpAndLinkRegister<2>(0x9102, 42, 42);
   // C.Add
   InterpretCOp(0x908a, {{1, 2, 3}});
 }
@@ -1430,11 +1439,17 @@ TEST_F(Riscv64InterpreterTest, JumpAndLinkInstructions) {
 
 TEST_F(Riscv64InterpreterTest, JumpAndLinkRegisterInstructions) {
   // Jalr offset=4.
-  InterpretJumpAndLinkRegister(0x004100e7, 38, 42);
+  InterpretJumpAndLinkRegister<4>(0x004100e7, 38, 42);
   // Jalr offset=-4.
-  InterpretJumpAndLinkRegister(0xffc100e7, 42, 38);
+  InterpretJumpAndLinkRegister<4>(0xffc100e7, 42, 38);
   // Jalr offset=5 - must properly align the target to even.
-  InterpretJumpAndLinkRegister(0x005100e7, 38, 42);
+  InterpretJumpAndLinkRegister<4>(0x005100e7, 38, 42);
+  // Jr offset=4.
+  InterpretJumpAndLinkRegister<0>(0x00410067, 38, 42);
+  // Jr offset=-4.
+  InterpretJumpAndLinkRegister<0>(0xffc10067, 42, 38);
+  // Jr offset=5 - must properly align the target to even.
+  InterpretJumpAndLinkRegister<0>(0x00510067, 38, 42);
 }
 
 TEST_F(Riscv64InterpreterTest, SyscallWrite) {
