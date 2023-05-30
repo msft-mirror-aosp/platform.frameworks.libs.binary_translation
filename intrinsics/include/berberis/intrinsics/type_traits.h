@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 
-#include "berberis/intrinsics/intrinsics_float.h"
+#include "berberis/intrinsics/common/intrinsics_float.h"
 
 namespace berberis {
 
