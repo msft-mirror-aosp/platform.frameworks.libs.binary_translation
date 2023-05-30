@@ -45,8 +45,12 @@ class Decoder {
   // any of its enumerators. If the enumerator-list is empty, the values of the enumeration are as
   // if the enumeration had a single enumerator with value 0.
 
-  // To ensure that we wouldn't trigger UB by accident each opcode includes kMaxXXX value (kOpOcode,
-  // kSystemOpcode and so on) which have all possible bit values set.
+  // To ensure that we wouldn't trigger UB by accident each opcode includes kMaxValue variant in
+  // kOpOcode, kSystemOpcode and so on, which have all possible bit values set.
+  //
+  // Note: that value is not used anywhere in the code, it exists solely to make conversion of not
+  // yet known to decoder RISC-V instructions robust.
+
   enum class AmoOpcode {
     kLrW = 0b00010'010,
     kScW = 0b00011'010,
@@ -70,7 +74,7 @@ class Decoder {
     kAmomaxD = 0b10100'011,
     kAmominuD = 0b11000'011,
     kAmomaxuD = 0b11100'011,
-    kMaxAmoOpcode = 0b11111'111,
+    kMaxValue = 0b11111'111,
   };
 
   enum class BranchOpcode {
@@ -80,21 +84,21 @@ class Decoder {
     kBge = 0b101,
     kBltu = 0b110,
     kBgeu = 0b111,
-    kMaxBranchOpcode = 0b111,
+    kMaxValue = 0b111,
   };
 
   enum class CsrOpcode {
     kCsrrw = 0b01,
     kCsrrs = 0b10,
     kCsrrc = 0b11,
-    kMaxCsrOpcode = 0b11,
+    kMaxValue = 0b11,
   };
 
   enum class CsrImmOpcode {
     kCsrrwi = 0b01,
     kCsrrsi = 0b10,
     kCsrrci = 0b11,
-    kMaxCsrOpcode = 0b11,
+    kMaxValue = 0b11,
   };
 
   enum class FmaOpcode {
@@ -102,13 +106,13 @@ class Decoder {
     kFmsub = 0b01,
     kFnmsub = 0b10,
     kFnmadd = 0b11,
-    kMaxFmaOpcode = 0b11,
+    kMaxValue = 0b11,
   };
 
   enum class FenceOpcode {
     kFence = 0b0000,
     kFenceTso = 0b1000,
-    kFenceMaxOpcode = 0b1111,
+    kMaxValue = 0b1111,
   };
 
   enum class OpOpcode {
@@ -130,7 +134,7 @@ class Decoder {
     kDivu = 0b0000'001'101,
     kRem = 0b0000'001'110,
     kRemu = 0b0000'001'111,
-    kMaxOpOpcode = 0b1111'111'111,
+    kMaxValue = 0b1111'111'111,
   };
 
   enum class Op32Opcode {
@@ -144,19 +148,19 @@ class Decoder {
     kDivuw = 0b0000'001'101,
     kRemw = 0b0000'001'110,
     kRemuw = 0b0000'001'111,
-    kMaxOp32Opcode = 0b1111'111'111,
+    kMaxValue = 0b1111'111'111,
   };
 
   enum class OpFpGpRegisterTargetOpcode {
     kFle = 0b00'000,
     kFlt = 0b00'001,
     kFeq = 0b00'010,
-    kMaxOpFpGpRegisterTargetOpcode = 0b11'111,
+    kMaxValue = 0b11'111,
   };
 
   enum class OpFpGpRegisterTargetSingleInputNoRoundingOpcode {
     kFclass = 0b00'00000'001,
-    kMaxOpFpGpRegisterTargetSingleInputNoRoundingOpcode = 0b11'11111'111,
+    kMaxValue = 0b11'11111'111,
   };
 
   enum class OpFpNoRoundingOpcode {
@@ -165,7 +169,7 @@ class Decoder {
     kFSgnjx = 0b00'010,
     kFMin = 0b01'000,
     kFMax = 0b01'001,
-    kMaxOpFpNoRoundingOpcode = 0b11'111,
+    kMaxValue = 0b11'111,
   };
 
   enum class OpFpOpcode {
@@ -173,12 +177,12 @@ class Decoder {
     kFSub = 0b01,
     kFMul = 0b10,
     kFDiv = 0b11,
-    kMaxOpFpOpcode = 0b11,
+    kMaxValue = 0b11,
   };
 
   enum class OpFpSingleInputOpcode {
     kFSqrt = 0b11'00000,
-    kMaxOpFpSingleInputOpcode = 0b11'11111,
+    kMaxValue = 0b11'11111,
   };
 
   enum class OpImmOpcode {
@@ -188,32 +192,32 @@ class Decoder {
     kXori = 0b100,
     kOri = 0b110,
     kAndi = 0b111,
-    kMaxOpImmOpcode = 0b111,
+    kMaxValue = 0b111,
   };
 
   enum class OpImm32Opcode {
     kAddiw = 0b000,
-    kMaxOpImm32Opcode = 0b111,
+    kMaxValue = 0b111,
   };
 
   enum class ShiftImmOpcode {
     kSlli = 0b000000'001,
     kSrli = 0b000000'101,
     kSrai = 0b010000'101,
-    kMaxShiftImmOpcode = 0b11111'111,
+    kMaxValue = 0b11111'111,
   };
 
   enum class ShiftImm32Opcode {
     kSlliw = 0b0000000'001,
     kSrliw = 0b0000000'101,
     kSraiw = 0b0100000'101,
-    kMaxShiftImm32Opcode = 0b111111'111,
+    kMaxValue = 0b111111'111,
   };
 
   enum class SystemOpcode {
     kEcall = 0b000000000000'00000'000'00000,
     kEbreak = 0b000000000001'00000'000'00000,
-    kMaxSystemOpcode = 0b111111111111'11111'111'11111,
+    kMaxValue = 0b111111111111'11111'111'11111,
   };
 
   // Technically CsrRegister is instruction argument, but it's handling is closer to the handling
@@ -224,7 +228,7 @@ class Decoder {
     kFFlags = 0b00'00'0000'0001,
     kFrm = 0b00'00'0000'0010,
     kFCsr = 0b00'00'0000'0011,
-    kMaxCsrRegister = 0b11'11'1111'1111,
+    kMaxValue = 0b11'11'1111'1111,
   };
 
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions
@@ -248,7 +252,7 @@ class Decoder {
     k32bitUnsigned = 0b00001,
     k64bitSigned = 0b00010,
     k64bitUnsigned = 0b00011,
-    kMaxFcvtOperandType = 0b11111,
+    kMaxValue = 0b11111,
   };
 
   enum class FloatOperandType {
@@ -256,7 +260,7 @@ class Decoder {
     kDouble = 0b01,
     kHalf = 0b10,
     kQuad = 0b11,
-    kMaxFloatOperandType = 0b11,
+    kMaxValue = 0b11,
   };
 
   enum class LoadOperandType {
@@ -267,7 +271,7 @@ class Decoder {
     k8bitUnsigned = 0b100,
     k16bitUnsigned = 0b101,
     k32bitUnsigned = 0b110,
-    kMaxLoadOperandType = 0b1111,
+    kMaxValue = 0b1111,
   };
 
   enum class StoreOperandType {
@@ -275,7 +279,7 @@ class Decoder {
     k16bit = 0b001,
     k32bit = 0b010,
     k64bit = 0b011,
-    kMaxStoreOperandType = 0b111,
+    kMaxValue = 0b111,
   };
 
   struct AmoArgs {
@@ -1344,7 +1348,7 @@ class Decoder {
     // Reserved 0b11'101,
     kCustom3 = 0b11'110,
     // Reserved 0b11'111,
-    kMaxBaseOpcode = 0b11'111,
+    kMaxValue = 0b11'111,
   };
 
   enum class CompressedOpcode {
@@ -1374,7 +1378,7 @@ class Decoder {
     kSdsp = 0b111'10,
     // instruction with 0bxxx'11 opcodes are not compressed instruction and can not be in this
     // table.
-    kMaxCompressedOpcode = 0b111'11,
+    kMaxValue = 0b111'11,
   };
 
   static constexpr std::optional<FloatOperandType> kLoadStoreWidthToFloatOperandType[8] = {
