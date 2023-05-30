@@ -18,10 +18,30 @@ package {
 }
 
 cc_library_headers {
+    name: "libberberis_intrinsics_riscv64_headers",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    export_include_dirs: [
+        "riscv64_to_x86_64/include",
+        "riscv64/include",
+    ],
+    header_libs: [
+        "libberberis_base_headers",
+        "libberberis_intrinsics_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_base_headers",
+        "libberberis_intrinsics_headers",
+    ],
+}
+
+cc_library_headers {
     name: "libberberis_intrinsics_headers",
     defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
+    header_libs: ["libberberis_base_headers"],
+    export_header_lib_headers: ["libberberis_base_headers"],
 }
 
 cc_library_static {
