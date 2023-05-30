@@ -20,8 +20,8 @@
 #include <limits>
 
 #include "berberis/base/bit_util.h"
-#include "berberis/intrinsics/intrinsics_float.h"
-#include "berberis/intrinsics/riscv64/guest_fpstate.h"  // ScopedRoundingMode
+#include "berberis/intrinsics/common/intrinsics_float.h"
+#include "berberis/intrinsics/guest_rounding_modes.h"  // ScopedRoundingMode
 #include "berberis/intrinsics/type_traits.h"
 
 namespace berberis::intrinsics {
