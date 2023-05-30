@@ -95,8 +95,20 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
-  void Fcvt(const typename Decoder::FcvtArgs& args) {
+  void Fcvt(const typename Decoder::FcvtFloatToFloatArgs& args) {
     FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
+    FpRegister result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
+    NanBoxAndSetFpReg(args.dst, result, args.dst_type);
+  }
+
+  void Fcvt(const typename Decoder::FcvtFloatToIntegerArgs& args) {
+    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
+    Register result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void Fcvt(const typename Decoder::FcvtIntegerToFloatArgs& args) {
+    Register arg = GetRegOrZero(args.src);
     FpRegister result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
     NanBoxAndSetFpReg(args.dst, result, args.dst_type);
   }
