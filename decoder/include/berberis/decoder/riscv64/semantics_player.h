@@ -35,6 +35,24 @@ class SemanticsPlayer {
 
   // Decoder's InsnConsumer implementation.
 
+  void Amo(const typename Decoder::AmoArgs& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    Register result = listener_->Amo(args.opcode, arg1, arg2, args.aq, args.rl);
+    SetRegOrIgnore(args.dst, result);
+  };
+
+  void Auipc(const typename Decoder::UpperImmArgs& args) {
+    Register result = listener_->Auipc(args.imm);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void Branch(const typename Decoder::BranchArgs& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    listener_->Branch(args.opcode, arg1, arg2, args.offset);
+  };
+
   void Csr(const typename Decoder::CsrArgs& args) {
     Register result;
     Register arg = GetRegOrZero(args.src);
@@ -46,6 +64,33 @@ class SemanticsPlayer {
     Register result;
     result = listener_->Csr(args.opcode, args.imm, args.csr);
     SetRegOrIgnore(args.dst, result);
+  }
+
+  void Fcvt(const typename Decoder::FcvtFloatToFloatArgs& args) {
+    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
+    FpRegister result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
+    NanBoxAndSetFpReg(args.dst, result, args.dst_type);
+  }
+
+  void Fcvt(const typename Decoder::FcvtFloatToIntegerArgs& args) {
+    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
+    Register result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void Fcvt(const typename Decoder::FcvtIntegerToFloatArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    FpRegister result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
+    NanBoxAndSetFpReg(args.dst, result, args.dst_type);
+  }
+
+  void Fma(const typename Decoder::FmaArgs& args) {
+    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
+    FpRegister arg3 = GetFRegAndUnboxNaN(args.src3, args.operand_type);
+    FpRegister result = listener_->Fma(args.opcode, args.operand_type, args.rm, arg1, arg2, arg3);
+    result = CanonicalizeNan(result, args.operand_type);
+    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
 
   void Fence(const typename Decoder::FenceArgs& args) {
@@ -75,62 +120,16 @@ class SemanticsPlayer {
     // shall ignore these fields, and standard software shall zero these fields.
   }
 
-  template <typename OpArgs>
-  void Op(OpArgs&& args) {
-    Register arg1 = GetRegOrZero(args.src1);
-    Register arg2 = GetRegOrZero(args.src2);
-    Register result = Overloaded{[&](const typename Decoder::OpArgs& args) {
-                                   return listener_->Op(args.opcode, arg1, arg2);
-                                 },
-                                 [&](const typename Decoder::Op32Args& args) {
-                                   return listener_->Op32(args.opcode, arg1, arg2);
-                                 }}(args);
+  void JumpAndLink(const typename Decoder::JumpAndLinkArgs& args) {
+    Register result = listener_->JumpAndLink(args.offset, args.insn_len);
     SetRegOrIgnore(args.dst, result);
   };
 
-  void Amo(const typename Decoder::AmoArgs& args) {
-    Register arg1 = GetRegOrZero(args.src1);
-    Register arg2 = GetRegOrZero(args.src2);
-    Register result = listener_->Amo(args.opcode, arg1, arg2, args.aq, args.rl);
+  void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
+    Register base = GetRegOrZero(args.base);
+    Register result = listener_->JumpAndLinkRegister(base, args.offset, args.insn_len);
     SetRegOrIgnore(args.dst, result);
   };
-
-  void Fcvt(const typename Decoder::FcvtFloatToFloatArgs& args) {
-    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
-    FpRegister result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
-    NanBoxAndSetFpReg(args.dst, result, args.dst_type);
-  }
-
-  void Fcvt(const typename Decoder::FcvtFloatToIntegerArgs& args) {
-    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
-    Register result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
-    SetRegOrIgnore(args.dst, result);
-  }
-
-  void Fcvt(const typename Decoder::FcvtIntegerToFloatArgs& args) {
-    Register arg = GetRegOrZero(args.src);
-    FpRegister result = listener_->Fcvt(args.dst_type, args.src_type, args.rm, arg);
-    NanBoxAndSetFpReg(args.dst, result, args.dst_type);
-  }
-
-  void Fma(const typename Decoder::FmaArgs& args) {
-    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
-    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
-    FpRegister arg3 = GetFRegAndUnboxNaN(args.src3, args.operand_type);
-    FpRegister result = listener_->Fma(args.opcode, args.operand_type, args.rm, arg1, arg2, arg3);
-    result = CanonicalizeNan(result, args.operand_type);
-    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
-  }
-
-  void Lui(const typename Decoder::UpperImmArgs& args) {
-    Register result = listener_->Lui(args.imm);
-    SetRegOrIgnore(args.dst, result);
-  }
-
-  void Auipc(const typename Decoder::UpperImmArgs& args) {
-    Register result = listener_->Auipc(args.imm);
-    SetRegOrIgnore(args.dst, result);
-  }
 
   void Load(const typename Decoder::LoadArgs& args) {
     Register arg = GetRegOrZero(args.src);
@@ -144,20 +143,22 @@ class SemanticsPlayer {
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   };
 
-  template <typename OpImmArgs>
-  void OpImm(OpImmArgs&& args) {
-    Register arg = GetRegOrZero(args.src);
-    Register result = Overloaded{[&](const typename Decoder::OpImmArgs& args) {
-                                   return listener_->OpImm(args.opcode, arg, args.imm);
+  void Lui(const typename Decoder::UpperImmArgs& args) {
+    Register result = listener_->Lui(args.imm);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void Nop() { listener_->Nop(); }
+
+  template <typename OpArgs>
+  void Op(OpArgs&& args) {
+    Register arg1 = GetRegOrZero(args.src1);
+    Register arg2 = GetRegOrZero(args.src2);
+    Register result = Overloaded{[&](const typename Decoder::OpArgs& args) {
+                                   return listener_->Op(args.opcode, arg1, arg2);
                                  },
-                                 [&](const typename Decoder::OpImm32Args& args) {
-                                   return listener_->OpImm32(args.opcode, arg, args.imm);
-                                 },
-                                 [&](const typename Decoder::ShiftImmArgs& args) {
-                                   return listener_->ShiftImm(args.opcode, arg, args.imm);
-                                 },
-                                 [&](const typename Decoder::ShiftImm32Args& args) {
-                                   return listener_->ShiftImm32(args.opcode, arg, args.imm);
+                                 [&](const typename Decoder::Op32Args& args) {
+                                   return listener_->Op32(args.opcode, arg1, arg2);
                                  }}(args);
     SetRegOrIgnore(args.dst, result);
   };
@@ -166,14 +167,6 @@ class SemanticsPlayer {
     FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
     FpRegister result = listener_->OpFp(args.opcode, args.operand_type, args.rm, arg1, arg2);
-    result = CanonicalizeNan(result, args.operand_type);
-    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
-  }
-
-  void OpFpNoRounding(const typename Decoder::OpFpNoRoundingArgs& args) {
-    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
-    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
-    FpRegister result = listener_->OpFpNoRounding(args.opcode, args.operand_type, arg1, arg2);
     result = CanonicalizeNan(result, args.operand_type);
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
@@ -195,12 +188,38 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   }
 
+  void OpFpNoRounding(const typename Decoder::OpFpNoRoundingArgs& args) {
+    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
+    FpRegister result = listener_->OpFpNoRounding(args.opcode, args.operand_type, arg1, arg2);
+    result = CanonicalizeNan(result, args.operand_type);
+    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
   void OpFpSingleInput(const typename Decoder::OpFpSingleInputArgs& args) {
     FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
     FpRegister result = listener_->OpFpSingleInput(args.opcode, args.operand_type, args.rm, arg);
     result = CanonicalizeNan(result, args.operand_type);
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
+
+  template <typename OpImmArgs>
+  void OpImm(OpImmArgs&& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result = Overloaded{[&](const typename Decoder::OpImmArgs& args) {
+                                   return listener_->OpImm(args.opcode, arg, args.imm);
+                                 },
+                                 [&](const typename Decoder::OpImm32Args& args) {
+                                   return listener_->OpImm32(args.opcode, arg, args.imm);
+                                 },
+                                 [&](const typename Decoder::ShiftImmArgs& args) {
+                                   return listener_->ShiftImm(args.opcode, arg, args.imm);
+                                 },
+                                 [&](const typename Decoder::ShiftImm32Args& args) {
+                                   return listener_->ShiftImm32(args.opcode, arg, args.imm);
+                                 }}(args);
+    SetRegOrIgnore(args.dst, result);
+  };
 
   void Store(const typename Decoder::StoreArgs& args) {
     Register arg = GetRegOrZero(args.src);
@@ -212,23 +231,6 @@ class SemanticsPlayer {
     Register arg = GetRegOrZero(args.src);
     FpRegister data = GetFpReg(args.data);
     listener_->StoreFp(args.operand_type, arg, args.offset, data);
-  };
-
-  void Branch(const typename Decoder::BranchArgs& args) {
-    Register arg1 = GetRegOrZero(args.src1);
-    Register arg2 = GetRegOrZero(args.src2);
-    listener_->Branch(args.opcode, arg1, arg2, args.offset);
-  };
-
-  void JumpAndLink(const typename Decoder::JumpAndLinkArgs& args) {
-    Register result = listener_->JumpAndLink(args.offset, args.insn_len);
-    SetRegOrIgnore(args.dst, result);
-  };
-
-  void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
-    Register base = GetRegOrZero(args.base);
-    Register result = listener_->JumpAndLinkRegister(base, args.offset, args.insn_len);
-    SetRegOrIgnore(args.dst, result);
   };
 
   // We may have executed a signal handler just after the syscall. If that handler changed x10, then
@@ -248,8 +250,6 @@ class SemanticsPlayer {
     Register result = listener_->Ecall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
     SetRegOrIgnore(10, result);
   }
-
-  void Nop() { listener_->Nop(); }
 
   void Unimplemented() { listener_->Unimplemented(); };
 
