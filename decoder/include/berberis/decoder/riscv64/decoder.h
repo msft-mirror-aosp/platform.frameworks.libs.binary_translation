@@ -526,6 +526,9 @@ class Decoder {
       case CompressedOpcode::kAddiw:
         DecodeCompressedAddiw();
         break;
+      case CompressedOpcode::kLi:
+        DecodeCompressedLi();
+        break;
       case CompressedOpcode::kLui_Addi16sp:
         DecodeCompressedLuiAddi16sp();
         break;
@@ -558,6 +561,20 @@ class Decoder {
         insn_consumer_->Unimplemented();
     }
     return 2;
+  }
+
+  void DecodeCompressedLi() {
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t rd = GetBits<uint8_t, 7, 5>();
+    int8_t imm = SignExtend<6>((high_imm << 5) + low_imm);
+    const OpImmArgs args = {
+        .opcode = OpImmOpcode::kAddi,
+        .dst = rd,
+        .src = 0,
+        .imm = imm,
+    };
+    insn_consumer_->OpImm(args);
   }
 
   void DecodeCompressedMiscAlu() {
