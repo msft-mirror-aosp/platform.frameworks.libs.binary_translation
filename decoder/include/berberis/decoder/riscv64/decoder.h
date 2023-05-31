@@ -151,7 +151,7 @@ class Decoder {
     kMaxValue = 0b1111'111'111,
   };
 
-  enum class OpFpGpRegisterTargetOpcode {
+  enum class OpFpGpRegisterTargetNoRoundingOpcode {
     kFle = 0b00'000,
     kFlt = 0b00'001,
     kFeq = 0b00'010,
@@ -399,8 +399,8 @@ class Decoder {
     uint8_t rm;
   };
 
-  struct OpFpGpRegisterTargetArgs {
-    OpFpGpRegisterTargetOpcode opcode;
+  struct OpFpGpRegisterTargetNoRoundingArgs {
+    OpFpGpRegisterTargetNoRoundingOpcode opcode;
     FloatOperandType operand_type;
     uint8_t dst;
     uint8_t src1;
@@ -1269,14 +1269,14 @@ class Decoder {
       }
       case 0b101: {
         uint8_t opcode = (opcode_bits << 3) + rm;
-        const OpFpGpRegisterTargetArgs args = {
-            .opcode = OpFpGpRegisterTargetOpcode(opcode),
+        const OpFpGpRegisterTargetNoRoundingArgs args = {
+            .opcode = OpFpGpRegisterTargetNoRoundingOpcode(opcode),
             .operand_type = FloatOperandType(operand_type),
             .dst = rd,
             .src1 = rs1,
             .src2 = rs2,
         };
-        return insn_consumer_->OpFpGpRegisterTarget(args);
+        return insn_consumer_->OpFpGpRegisterTargetNoRounding(args);
       }
       case 0b110:
         switch (opcode_bits) {
