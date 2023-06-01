@@ -243,7 +243,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
                  0xffff'eeee'dddd'ccccULL, expected_memory);
   }
 
-  void InterpretLui(uint32_t insn_bytes, uint64_t expected_result) {
+  void InterpretLi(uint32_t insn_bytes, uint64_t expected_result) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     InterpretInsn(&state_);
@@ -636,7 +636,36 @@ TEST_F(Riscv64InterpreterTest, CLui) {
         .i17 = i_bits.i17,
         .high_opcode = 0b011,
     };
-    InterpretLui(o_bits.parcel, offset);
+    InterpretLi(o_bits.parcel, offset);
+  }
+}
+
+TEST_F(Riscv64InterpreterTest, CLi) {
+  union {
+    int8_t offset;
+    struct [[gnu::packed]] {
+      uint8_t i0_i4 : 5;
+      uint8_t i5 : 1;
+    } i_bits;
+  };
+  for (offset = int8_t{-32}; offset < int8_t{32}; offset++) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i0_i4 : 5;
+        uint8_t rd : 5;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b01,
+        .i0_i4 = i_bits.i0_i4,
+        .rd = 1,
+        .i5 = i_bits.i5,
+        .high_opcode = 0b010,
+    };
+    InterpretLi(o_bits.parcel, offset);
   }
 }
 
@@ -1031,7 +1060,7 @@ TEST_F(Riscv64InterpreterTest, AmoInstructions) {
 
 TEST_F(Riscv64InterpreterTest, UpperImmArgs) {
   // Lui
-  InterpretLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
+  InterpretLi(0xfedcb0b7, 0xffff'ffff'fedc'b000);
   // Auipc
   InterpretAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
 }
