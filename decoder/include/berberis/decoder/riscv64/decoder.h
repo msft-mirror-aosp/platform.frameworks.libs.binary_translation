@@ -499,17 +499,8 @@ class Decoder {
     CompressedOpcode opcode_bits{(GetBits<uint8_t, 13, 3>() << 2) | GetBits<uint8_t, 0, 2>()};
 
     switch (opcode_bits) {
-      case CompressedOpcode::kJ:
-        DecodeCompressedJ();
-        break;
       case CompressedOpcode::kAddi4spn:
         DecodeCompressedAddi4spn();
-        break;
-      case CompressedOpcode::kAddi:
-        DecodeCompressedAddi();
-        break;
-      case CompressedOpcode::kAddiw:
-        DecodeCompressedAddiw();
         break;
       case CompressedOpcode::kFld:
         DecodeCompressedLoadStore<LoadStore::kLoad, FloatOperandType::kDouble>();
@@ -523,21 +514,30 @@ class Decoder {
       case CompressedOpcode::kFsd:
         DecodeCompressedLoadStore<LoadStore::kStore, FloatOperandType::kDouble>();
         break;
+      case CompressedOpcode::kSw:
+        DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k32bit>();
+        break;
       case CompressedOpcode::kSd:
         DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k64bit>();
         break;
-      case CompressedOpcode::kSw:
-        DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k32bit>();
+      case CompressedOpcode::kAddi:
+        DecodeCompressedAddi();
+        break;
+      case CompressedOpcode::kAddiw:
+        DecodeCompressedAddiw();
         break;
       case CompressedOpcode::kLui_Addi16sp:
         DecodeCompressedLuiAddi16sp();
         break;
+      case CompressedOpcode::kMisc_Alu:
+        DecodeCompressedMiscAlu();
+        break;
+      case CompressedOpcode::kJ:
+        DecodeCompressedJ();
+        break;
       case CompressedOpcode::kBeqz:
       case CompressedOpcode::kBnez:
         DecodeCompressedBeqzBnez();
-        break;
-      case CompressedOpcode::kMisc_Alu:
-        DecodeCompressedMiscAlu();
         break;
       case CompressedOpcode::kSlli:
         DecodeCompressedSlli();
@@ -545,11 +545,11 @@ class Decoder {
       case CompressedOpcode::kFldsp:
         DecodeCompressedLoadsp<FloatOperandType::kDouble>();
         break;
-      case CompressedOpcode::kLdsp:
-        DecodeCompressedLoadsp<LoadOperandType::k64bit>();
-        break;
       case CompressedOpcode::kLwsp:
         DecodeCompressedLoadsp<LoadOperandType::k32bitSigned>();
+        break;
+      case CompressedOpcode::kLdsp:
+        DecodeCompressedLoadsp<LoadOperandType::k64bit>();
         break;
       case CompressedOpcode::kJr_Jalr_Mv_Add:
         DecodeCompressedJr_Jalr_Mv_Add();
