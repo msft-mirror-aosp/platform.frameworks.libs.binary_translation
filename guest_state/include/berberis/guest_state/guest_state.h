@@ -17,6 +17,9 @@
 #ifndef BERBERIS_GUEST_STATE_GUEST_STATE_H_
 #define BERBERIS_GUEST_STATE_GUEST_STATE_H_
 
+// Opaque declarations from this header will be checked against the full ones by the compiler.
+#include "berberis/guest_state/guest_state_opaque.h"
+
 // TODO(b/265372622): Make it configurable for specific guest arch.
 #include "berberis/guest_state/guest_state_riscv64.h"  // IWYU pragma: export.
 

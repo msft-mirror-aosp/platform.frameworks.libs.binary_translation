@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
-#define BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#ifndef BERBERIS_INTRINSICS_COMMON_INTRINSICS_FLOAT_H_
+#define BERBERIS_INTRINSICS_COMMON_INTRINSICS_FLOAT_H_
 
 // We couldn't safely pass arguments using "raw" float and double on X86 because of peculiarities
 // of psABI (sometimes floating point registers are used by guest programs to pass integer value and
@@ -64,23 +64,15 @@ class WrappedFloatType {
   explicit constexpr operator uint32_t() const { return value_; }
   explicit constexpr operator int64_t() const { return value_; }
   explicit constexpr operator uint64_t() const { return value_; }
-
-  auto BitCastToIntOfSameSize() {
-    if constexpr (std::is_same_v<BaseType, float>) {
-      return bit_cast<int32_t>(value_);
-    } else {
-      static_assert(std::is_same_v<BaseType, double>, "Only float and double BaseType supported.");
-      return bit_cast<int64_t>(value_);
-    }
-  }
-
-  // Only valid for BaseType==double. Returns the bit representation of the fp value.
   explicit constexpr operator WrappedFloatType<float>() const {
     return WrappedFloatType<float>(value_);
   }
   explicit constexpr operator WrappedFloatType<double>() const {
     return WrappedFloatType<double>(value_);
   }
+#if defined(__i386__) || defined(__x86_64__)
+  explicit constexpr operator long double() const { return value_; }
+#endif
   // Note: we don't provide unary operator-.  That's done on purpose: with floats -x and 0.-x
   // produce different results which could be surprising.  Use fneg instead of unary operator-.
   friend WrappedFloatType operator+(const WrappedFloatType& v1, const WrappedFloatType& v2);
@@ -109,6 +101,34 @@ class WrappedFloatType {
   friend inline WrappedFloatType MulAdd(const WrappedFloatType& v1,
                                         const WrappedFloatType& v2,
                                         const WrappedFloatType& v3);
+
+  friend inline WrappedFloatType Max(WrappedFloatType op1, WrappedFloatType op2) {
+    if (FPClassify(op1) == FPInfo::kZero && FPClassify(op2) == FPInfo::kZero &&
+        SignBit(op1) != SignBit(op2)) {
+      return WrappedFloatType(BaseType(+0.f));
+    }
+    // If either argument is NaN - return default NaN (fmax() may return other).
+    if (IsNan(op1) || IsNan(op2)) {
+      return std::numeric_limits<WrappedFloatType>::quiet_NaN();
+    }
+    // Note: fmax is not needed here - it differs from std::max based on operator< only if NANs are
+    // involved - and does wrong thing there.  We have no NANs at this point thus could use std::max
+    return std::max(op1, op2);
+  }
+
+  friend inline WrappedFloatType Min(WrappedFloatType op1, WrappedFloatType op2) {
+    if (FPClassify(op1) == FPInfo::kZero && FPClassify(op2) == FPInfo::kZero &&
+        SignBit(op1) != SignBit(op2)) {
+      return WrappedFloatType(BaseType(-0.f));
+    }
+    // If either argument is NaN - return default NaN (fmin() may return other).
+    if (IsNan(op1) || IsNan(op2)) {
+      return std::numeric_limits<WrappedFloatType>::quiet_NaN();
+    }
+    // Note: fmin is not needed here - it differs from std::min based on operator< only if NANs are
+    // involved - and does wrong thing there.  We have no NANs at this point thus could use std::min
+    return std::min(op1, op2);
+  }
 
  private:
   static_assert(!std::numeric_limits<BaseType>::is_exact,
@@ -194,4 +214,4 @@ class numeric_limits<berberis::intrinsics::WrappedFloatType<BaseType>> {
 #include "berberis/intrinsics/intrinsics_float_x86.h"
 #endif
 
-#endif  // BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#endif  // BERBERIS_INTRINSICS_COMMON_INTRINSICS_FLOAT_H_
