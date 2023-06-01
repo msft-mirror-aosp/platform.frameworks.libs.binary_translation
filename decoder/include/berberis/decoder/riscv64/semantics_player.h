@@ -95,7 +95,8 @@ class SemanticsPlayer {
 
   void Fence(const typename Decoder::FenceArgs& args) {
     listener_->Fence(args.opcode,
-                     args.src,
+                     // args.src is currently unused - read below.
+                     Register{},
                      args.sw,
                      args.sr,
                      args.so,
