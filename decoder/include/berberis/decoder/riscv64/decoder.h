@@ -500,16 +500,16 @@ class Decoder {
 
     switch (opcode_bits) {
       case CompressedOpcode::kJ:
-        DecodeCJ();
+        DecodeCompressedJ();
         break;
       case CompressedOpcode::kAddi4spn:
-        DecodeCAddi4spn();
+        DecodeCompressedAddi4spn();
         break;
       case CompressedOpcode::kAddi:
-        DecodeCAddi();
+        DecodeCompressedAddi();
         break;
       case CompressedOpcode::kAddiw:
-        DecodeCAddiw();
+        DecodeCompressedAddiw();
         break;
       case CompressedOpcode::kFld:
         DecodeCompressedLoadStore<LoadStore::kLoad, FloatOperandType::kDouble>();
@@ -534,25 +534,25 @@ class Decoder {
         break;
       case CompressedOpcode::kBeqz:
       case CompressedOpcode::kBnez:
-        DecodeCBeqzBnez();
+        DecodeCompressedBeqzBnez();
         break;
       case CompressedOpcode::kMisc_Alu:
-        DecodeCMiscAlu();
+        DecodeCompressedMiscAlu();
         break;
       case CompressedOpcode::kSlli:
-        DecodeCSlli();
+        DecodeCompressedSlli();
         break;
       case CompressedOpcode::kFldsp:
-        DecodeCLoadsp<FloatOperandType::kDouble>();
+        DecodeCompressedLoadsp<FloatOperandType::kDouble>();
         break;
       case CompressedOpcode::kLdsp:
-        DecodeCLoadsp<LoadOperandType::k64bit>();
+        DecodeCompressedLoadsp<LoadOperandType::k64bit>();
         break;
       case CompressedOpcode::kLwsp:
-        DecodeCLoadsp<LoadOperandType::k32bitSigned>();
+        DecodeCompressedLoadsp<LoadOperandType::k32bitSigned>();
         break;
       case CompressedOpcode::kJr_Jalr_Mv_Add:
-        DecodeCJr_Jalr_Mv_Add();
+        DecodeCompressedJr_Jalr_Mv_Add();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -560,7 +560,7 @@ class Decoder {
     return 2;
   }
 
-  void DecodeCMiscAlu() {
+  void DecodeCompressedMiscAlu() {
     uint8_t r = GetBits<uint8_t, 7, 3>() + 8;
     uint8_t low_imm = GetBits<uint8_t, 2, 5>();
     uint8_t high_imm = GetBits<uint8_t, 12, 1>();
@@ -701,7 +701,7 @@ class Decoder {
   }
 
   template <auto kOperandType>
-  void DecodeCLoadsp() {
+  void DecodeCompressedLoadsp() {
     uint8_t low_imm = GetBits<uint8_t, 2, 5>();
     uint8_t high_imm = GetBits<uint8_t, 12, 1>();
     uint8_t rd = GetBits<uint8_t, 7, 5>();
@@ -724,7 +724,7 @@ class Decoder {
     insn_consumer_->Load(args);
   }
 
-  void DecodeCAddi() {
+  void DecodeCompressedAddi() {
     uint8_t low_imm = GetBits<uint8_t, 2, 5>();
     uint8_t high_imm = GetBits<uint8_t, 12, 1>();
     int8_t imm = SignExtend<6>(high_imm << 5 | low_imm);
@@ -741,7 +741,7 @@ class Decoder {
     insn_consumer_->OpImm(args);
   }
 
-  void DecodeCAddiw() {
+  void DecodeCompressedAddiw() {
     uint8_t low_imm = GetBits<uint8_t, 2, 5>();
     uint8_t high_imm = GetBits<uint8_t, 12, 1>();
     int8_t imm = SignExtend<6>(high_imm << 5 | low_imm);
@@ -755,7 +755,7 @@ class Decoder {
     insn_consumer_->OpImm(args);
   }
 
-  void DecodeCBeqzBnez() {
+  void DecodeCompressedBeqzBnez() {
     constexpr uint16_t kBHigh[8] = {0x0, 0x8, 0x10, 0x18, 0x100, 0x108, 0x110, 0x118};
     constexpr uint8_t kBLow[32] = {0x00, 0x20, 0x02, 0x22, 0x04, 0x24, 0x06, 0x26, 0x40, 0x60, 0x42,
                                    0x62, 0x44, 0x64, 0x46, 0x66, 0x80, 0xa0, 0x82, 0xa2, 0x84, 0xa4,
@@ -773,7 +773,7 @@ class Decoder {
     insn_consumer_->Branch(args);
   }
 
-  void DecodeCJ() {
+  void DecodeCompressedJ() {
     constexpr uint16_t kJHigh[32] = {
         0x0,    0x400,  0x100,  0x500,  0x200,  0x600,  0x300,  0x700,  0x10,   0x410,  0x110,
         0x510,  0x210,  0x610,  0x310,  0x710,  0xf800, 0xfc00, 0xf900, 0xfd00, 0xfa00, 0xfe00,
@@ -795,7 +795,7 @@ class Decoder {
     insn_consumer_->JumpAndLink(args);
   }
 
-  void DecodeCAddi4spn() {
+  void DecodeCompressedAddi4spn() {
     constexpr uint8_t kAddi4spnHigh[16] = {
         0x0, 0x40, 0x80, 0xc0, 0x4, 0x44, 0x84, 0xc4, 0x8, 0x48, 0x88, 0xc8, 0xc, 0x4c, 0x8c, 0xcc};
     constexpr uint8_t kAddi4spnLow[16] = {
@@ -816,7 +816,7 @@ class Decoder {
     insn_consumer_->OpImm(args);
   }
 
-  void DecodeCJr_Jalr_Mv_Add() {
+  void DecodeCompressedJr_Jalr_Mv_Add() {
     uint8_t r = GetBits<uint8_t, 7, 5>();
     uint8_t rs2 = GetBits<uint8_t, 2, 5>();
     if (GetBits<uint8_t, 12, 1>()) {
@@ -863,7 +863,7 @@ class Decoder {
     }
   }
 
-  void DecodeCSlli() {
+  void DecodeCompressedSlli() {
     uint8_t r = GetBits<uint8_t, 7, 5>();
     uint8_t low_imm = GetBits<uint8_t, 2, 5>();
     uint8_t high_imm = GetBits<uint8_t, 12, 1>();
