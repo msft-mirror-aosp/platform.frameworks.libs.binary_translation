@@ -69,6 +69,10 @@ void SetGuestThread(ThreadState* state, GuestThread* thread) {
   state->thread = thread;
 }
 
+GuestThread* GetGuestThread(const ThreadState* state) {
+  return state->thread;
+}
+
 GuestThreadResidence GetResidence(ThreadState* state) {
   return state->residence;
 }
@@ -83,6 +87,26 @@ std::atomic<uint_least8_t>* GetPendingSignalsStatusAtomic(ThreadState* state) {
 
 bool ArePendingSignalsPresent(const ThreadState* state) {
   return state->pending_signals_status.load(std::memory_order_relaxed) == kPendingSignalsPresent;
+}
+
+CPUState* GetCPUState(ThreadState* state) {
+  return &state->cpu;
+}
+
+void SetLinkRegister(CPUState* cpu, GuestAddr val) {
+  SetXReg<RA>(*cpu, val);
+}
+
+GuestAddr GetLinkRegister(const CPUState* cpu) {
+  return GetXReg<RA>(*cpu);
+}
+
+void SetInsnAddr(CPUState* cpu, GuestAddr addr) {
+  cpu->insn_addr = addr;
+}
+
+GuestAddr GetInsnAddr(const CPUState* cpu) {
+  return cpu->insn_addr;
 }
 
 }  // namespace berberis
