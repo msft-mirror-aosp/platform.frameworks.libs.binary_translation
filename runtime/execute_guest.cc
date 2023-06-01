@@ -17,13 +17,13 @@
 #include "berberis/runtime/execute_guest.h"
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 namespace berberis {
 
 void ExecuteGuest(ThreadState* state, GuestAddr stop_pc) {
-  while (state->cpu.insn_addr != stop_pc) {
+  while (GetInsnAddr(GetCPUState(state)) != stop_pc) {
     InterpretInsn(state);
   }
 }
