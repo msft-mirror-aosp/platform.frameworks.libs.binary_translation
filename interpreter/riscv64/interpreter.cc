@@ -353,10 +353,10 @@ class Interpreter {
     return {};
   }
 
-  FpRegister Fcvt(Decoder::FcvtOperandType target_operand_size,
-                  Decoder::FloatOperandType source_operand_size,
-                  uint8_t rm,
-                  FpRegister arg) {
+  Register Fcvt(Decoder::FcvtOperandType target_operand_size,
+                Decoder::FloatOperandType source_operand_size,
+                uint8_t rm,
+                FpRegister arg) {
     switch (source_operand_size) {
       case Decoder::FloatOperandType::kFloat:
         switch (target_operand_size) {
@@ -395,7 +395,7 @@ class Interpreter {
   FpRegister Fcvt(Decoder::FloatOperandType target_operand_size,
                   Decoder::FcvtOperandType source_operand_size,
                   uint8_t rm,
-                  FpRegister arg) {
+                  Register arg) {
     switch (target_operand_size) {
       case Decoder::FloatOperandType::kFloat:
         switch (source_operand_size) {
@@ -586,16 +586,16 @@ class Interpreter {
     }
   }
 
-  Register OpFpGpRegisterTarget(Decoder::OpFpGpRegisterTargetOpcode opcode,
-                                Decoder::FloatOperandType float_size,
-                                FpRegister arg1,
-                                FpRegister arg2) {
+  Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
+                                          Decoder::FloatOperandType float_size,
+                                          FpRegister arg1,
+                                          FpRegister arg2) {
     switch (float_size) {
       case Decoder::FloatOperandType::kFloat:
-        return OpFpGpRegisterTarget<Float32>(
+        return OpFpGpRegisterTargetNoRounding<Float32>(
             opcode, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2));
       case Decoder::FloatOperandType::kDouble:
-        return OpFpGpRegisterTarget<Float64>(
+        return OpFpGpRegisterTargetNoRounding<Float64>(
             opcode, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2));
       default:
         Unimplemented();
@@ -684,15 +684,15 @@ class Interpreter {
   }
 
   template <typename FloatType>
-  Register OpFpGpRegisterTarget(Decoder::OpFpGpRegisterTargetOpcode opcode,
-                                FloatType arg1,
-                                FloatType arg2) {
+  Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
+                                          FloatType arg1,
+                                          FloatType arg2) {
     switch (opcode) {
-      case Decoder::OpFpGpRegisterTargetOpcode::kFle:
+      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFle:
         return arg1 <= arg2;
-      case Decoder::OpFpGpRegisterTargetOpcode::kFlt:
+      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFlt:
         return arg1 < arg2;
-      case Decoder::OpFpGpRegisterTargetOpcode::kFeq:
+      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFeq:
         return arg1 == arg2;
       default:
         Unimplemented();
