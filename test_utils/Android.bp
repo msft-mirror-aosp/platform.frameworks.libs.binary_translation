@@ -22,4 +22,10 @@ cc_library_headers {
     defaults: ["berberis_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
+    header_libs: [
+        "libberberis_runtime_primitives_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_runtime_primitives_headers",
+    ],
 }
