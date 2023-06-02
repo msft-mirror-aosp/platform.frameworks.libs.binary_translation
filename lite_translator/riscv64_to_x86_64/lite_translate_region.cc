@@ -16,7 +16,7 @@
 
 #include <cstdint>
 #include <limits>
-#include <utility>
+#include <tuple>
 
 #include "berberis/assembler/machine_code.h"
 #include "berberis/base/checks.h"
@@ -40,9 +40,9 @@ void Finalize(LiteTranslator* translator, GuestAddr pc) {
 // - in case of success, the pc of the next instruction past the translated region
 // - in case of failure, the pc of the failed instruction
 // Specifically, returnes input pc if we cannot translate even the first instruction.
-std::pair<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
-                                                      GuestAddr end_pc,
-                                                      MachineCode* machine_code) {
+std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
+                                                       GuestAddr end_pc,
+                                                       MachineCode* machine_code) {
   CHECK_LT(start_pc, end_pc);
   LiteTranslator translator(machine_code);
   SemanticsPlayer sem_player(&translator);
@@ -62,7 +62,7 @@ bool LiteTranslateRange(GuestAddr start_pc, GuestAddr end_pc, MachineCode* machi
   return success;
 }
 
-std::pair<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc, MachineCode* machine_code) {
+std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc, MachineCode* machine_code) {
   // This effectively makes translating code at max guest address impossible, but we
   // assume that it's not practically significant.
   return TryLiteTranslateRegionImpl(start_pc, std::numeric_limits<GuestAddr>::max(), machine_code);

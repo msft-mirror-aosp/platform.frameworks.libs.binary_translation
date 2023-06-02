@@ -17,7 +17,7 @@
 #ifndef BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
 #define BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
 
-#include <utility>
+#include <tuple>
 
 #include "berberis/assembler/machine_code.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -25,7 +25,7 @@
 namespace berberis {
 
 bool LiteTranslateRange(GuestAddr start_pc, GuestAddr end_pc, MachineCode* machine_code);
-std::pair<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc, MachineCode* machine_code);
+std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc, MachineCode* machine_code);
 
 }  // namespace berberis
 
