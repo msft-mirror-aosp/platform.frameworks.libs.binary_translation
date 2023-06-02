@@ -898,38 +898,23 @@ class Decoder {
     BaseOpcode opcode_bits{GetBits<uint8_t, 2, 5>()};
 
     switch (opcode_bits) {
-      case BaseOpcode::kMiscMem:
-        DecodeMiscMem();
-        break;
-      case BaseOpcode::kOp:
-        DecodeOp<OpOpcode>();
-        break;
-      case BaseOpcode::kOp32:
-        DecodeOp<Op32Opcode>();
-        break;
-      case BaseOpcode::kAmo:
-        DecodeAmo();
-        break;
       case BaseOpcode::kLoad:
         DecodeLoad<LoadOperandType>();
         break;
       case BaseOpcode::kLoadFp:
         DecodeLoad<FloatOperandType>();
         break;
-      case BaseOpcode::kMAdd:
-      case BaseOpcode::kMSub:
-      case BaseOpcode::kNmSub:
-      case BaseOpcode::kNmAdd:
-        DecodeFma();
+      case BaseOpcode::kMiscMem:
+        DecodeMiscMem();
         break;
       case BaseOpcode::kOpImm:
         DecodeOp<OpImmOpcode, ShiftImmOpcode, 6>();
         break;
+      case BaseOpcode::kAuipc:
+        DecodeAuipc();
+        break;
       case BaseOpcode::kOpImm32:
         DecodeOp<OpImm32Opcode, ShiftImm32Opcode, 5>();
-        break;
-      case BaseOpcode::kOpFp:
-        DecodeOpFp();
         break;
       case BaseOpcode::kStore:
         DecodeStore<StoreOperandType>();
@@ -937,23 +922,38 @@ class Decoder {
       case BaseOpcode::kStoreFp:
         DecodeStore<FloatOperandType>();
         break;
-      case BaseOpcode::kBranch:
-        DecodeBranch();
+      case BaseOpcode::kAmo:
+        DecodeAmo();
         break;
-      case BaseOpcode::kJal:
-        DecodeJumpAndLink();
-        break;
-      case BaseOpcode::kJalr:
-        DecodeJumpAndLinkRegister();
-        break;
-      case BaseOpcode::kSystem:
-        DecodeSystem();
+      case BaseOpcode::kOp:
+        DecodeOp<OpOpcode>();
         break;
       case BaseOpcode::kLui:
         DecodeLui();
         break;
-      case BaseOpcode::kAuipc:
-        DecodeAuipc();
+      case BaseOpcode::kOp32:
+        DecodeOp<Op32Opcode>();
+        break;
+      case BaseOpcode::kMAdd:
+      case BaseOpcode::kMSub:
+      case BaseOpcode::kNmSub:
+      case BaseOpcode::kNmAdd:
+        DecodeFma();
+        break;
+      case BaseOpcode::kOpFp:
+        DecodeOpFp();
+        break;
+      case BaseOpcode::kBranch:
+        DecodeBranch();
+        break;
+      case BaseOpcode::kJalr:
+        DecodeJumpAndLinkRegister();
+        break;
+      case BaseOpcode::kJal:
+        DecodeJumpAndLink();
+        break;
+      case BaseOpcode::kSystem:
+        DecodeSystem();
         break;
       default:
         insn_consumer_->Unimplemented();
