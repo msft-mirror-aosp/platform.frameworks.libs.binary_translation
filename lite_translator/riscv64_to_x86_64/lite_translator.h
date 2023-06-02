@@ -21,10 +21,12 @@
 
 #include "berberis/assembler/common.h"
 #include "berberis/assembler/x86_64.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/macros.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state_riscv64.h"
 
 namespace berberis {
 
@@ -36,16 +38,25 @@ class LiteTranslator {
   using Register = x86_64::Assembler::Register;
   using FpRegister = x86_64::Assembler::XMMRegister;
 
-  explicit LiteTranslator(MachineCode* machine_code) : as_(machine_code), success_(true){};
+  explicit LiteTranslator(MachineCode* machine_code)
+      : as_(machine_code), success_(true), next_gp_reg_for_alloc_(0){};
 
   //
   // Instruction implementations.
   //
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
-    UNUSED(opcode, arg1, arg2);
-    Unimplemented();
-    return {};
+    Register res = AllocTempReg();
+    as_.Movq(res, arg1);
+    switch (opcode) {
+      case Decoder::OpOpcode::kAdd:
+        as_.Addq(res, arg2);
+        break;
+      default:
+        Unimplemented();
+        return {};
+    }
+    return res;
   }
 
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
@@ -270,14 +281,19 @@ class LiteTranslator {
   //
 
   Register GetReg(uint8_t reg) {
-    UNUSED(reg);
-    Unimplemented();
-    return {};
+    CHECK_GT(reg, 0);
+    CHECK_LT(reg, arraysize(ThreadState::cpu.x));
+    Register result = AllocTempReg();
+    int32_t offset = offsetof(ThreadState, cpu.x[0]) + reg * 8;
+    as_.Movq(result, {.base = as_.rbp, .disp = offset});
+    return result;
   }
 
   void SetReg(uint8_t reg, Register value) {
-    UNUSED(reg, value);
-    Unimplemented();
+    CHECK_GT(reg, 0);
+    CHECK_LT(reg, arraysize(ThreadState::cpu.x));
+    int32_t offset = offsetof(ThreadState, cpu.x[0]) + reg * 8;
+    as_.Movq({.base = as_.rbp, .disp = offset}, value);
   }
 
   FpRegister GetFpReg(uint8_t reg) {
@@ -321,11 +337,31 @@ class LiteTranslator {
 
   void Unimplemented() { success_ = false; }
 
-  MachineCode* as() { return as_; }
+  x86_64::Assembler* as() { return &as_; }
+  bool success() const { return success_; }
 
  private:
-  MachineCode* as_;
+  Register AllocTempReg() {
+    static constexpr x86_64::Assembler::Register kRegs[] = {x86_64::Assembler::rdx,
+                                                            x86_64::Assembler::rbx,
+                                                            x86_64::Assembler::rsi,
+                                                            x86_64::Assembler::rdi,
+                                                            x86_64::Assembler::r8,
+                                                            x86_64::Assembler::r9,
+                                                            x86_64::Assembler::r10,
+                                                            x86_64::Assembler::r11,
+                                                            x86_64::Assembler::r12,
+                                                            x86_64::Assembler::r13,
+                                                            x86_64::Assembler::r14,
+                                                            x86_64::Assembler::r15};
+    CHECK_LT(next_gp_reg_for_alloc_, arraysize(kRegs));
+
+    return kRegs[next_gp_reg_for_alloc_++];
+  }
+
+  x86_64::Assembler as_;
   bool success_;
+  uint8_t next_gp_reg_for_alloc_;
 };
 
 }  // namespace berberis
