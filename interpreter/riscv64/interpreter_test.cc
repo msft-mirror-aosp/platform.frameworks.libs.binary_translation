@@ -356,7 +356,7 @@ template <uint16_t opcode, auto execute_instruction_func>
 void TestCompressedLoadOrStore32bit(Riscv64InterpreterTest* that) {
   union {
     uint16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 2;
       uint8_t i2 : 1;
       uint8_t i3_i5 : 3;
@@ -366,7 +366,7 @@ void TestCompressedLoadOrStore32bit(Riscv64InterpreterTest* that) {
   for (offset = uint8_t{0}; offset < uint8_t{128}; offset += 4) {
     union {
       int16_t parcel;
-      struct {
+      struct [[gnu::packed]] {
         uint8_t low_opcode : 2;
         uint8_t rd : 3;
         uint8_t i6 : 1;
@@ -407,7 +407,7 @@ template <uint16_t opcode, auto execute_instruction_func>
 void TestCompressedLoadOrStore64bit(Riscv64InterpreterTest* that) {
   union {
     uint16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 3;
       uint8_t i3_i5 : 3;
       uint8_t i6_i7 : 2;
@@ -616,7 +616,7 @@ TEST_F(Riscv64InterpreterTest, TestCompressedLoad64bitsp) {
 TEST_F(Riscv64InterpreterTest, CAddi) {
   union {
     int8_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t i4_i0 : 5;
       uint8_t i5 : 1;
     } i_bits;
@@ -624,7 +624,7 @@ TEST_F(Riscv64InterpreterTest, CAddi) {
   for (offset = int8_t{-32}; offset < int8_t{31}; offset++) {
     union {
       int16_t parcel;
-      struct {
+      struct [[gnu::packed]] {
         uint8_t low_opcode : 2;
         uint8_t i4_i0 : 5;
         uint8_t r : 5;
@@ -648,7 +648,7 @@ TEST_F(Riscv64InterpreterTest, CAddi) {
 TEST_F(Riscv64InterpreterTest, CAddi16sp) {
   union {
     int16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 4;
       uint8_t i4 : 1;
       uint8_t i5 : 1;
@@ -749,7 +749,7 @@ TEST_F(Riscv64InterpreterTest, CLi) {
 TEST_F(Riscv64InterpreterTest, CAddi4spn) {
   union {
     int16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 2;
       uint8_t i2 : 1;
       uint8_t i3 : 1;
@@ -764,7 +764,7 @@ TEST_F(Riscv64InterpreterTest, CAddi4spn) {
   for (offset = int16_t{4}; offset < int16_t{1024}; offset += 4) {
     union {
       int16_t parcel;
-      struct {
+      struct [[gnu::packed]] {
         uint8_t low_opcode : 2;
         uint8_t rd : 3;
         uint8_t i3 : 1;
@@ -797,7 +797,7 @@ TEST_F(Riscv64InterpreterTest, CAddi4spn) {
 TEST_F(Riscv64InterpreterTest, CBeqzBnez) {
   union {
     int16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 1;
       uint8_t i1 : 1;
       uint8_t i2 : 1;
@@ -864,7 +864,7 @@ TEST_F(Riscv64InterpreterTest, CMiscAluImm) {
     // Note: c.Andi uses sign-extended immediate while c.Srli/c.cSrain need zero-extended one.
     // If we store the value into uimm and read from imm compiler would do correct conversion.
     int8_t imm : 6;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t i0_i4 : 5;
       uint8_t i5 : 1;
     } i_bits;
@@ -916,7 +916,7 @@ TEST_F(Riscv64InterpreterTest, CMiscAluImm) {
 TEST_F(Riscv64InterpreterTest, CJ) {
   union {
     int16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 1;
       uint8_t i1 : 1;
       uint8_t i2 : 1;
@@ -934,7 +934,7 @@ TEST_F(Riscv64InterpreterTest, CJ) {
   for (offset = int16_t{-2048}; offset < int16_t{2048}; offset += 2) {
     union {
       int16_t parcel;
-      struct {
+      struct [[gnu::packed]] {
         uint8_t low_opcode : 2;
         uint8_t i5 : 1;
         uint8_t i1 : 1;
