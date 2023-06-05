@@ -95,6 +95,7 @@ cc_test_host {
         "libberberis_config_globals",
         "libberberis_runtime_primitives",
         "libberberis_tinyloader",
+        "libgmock",
     ],
     shared_libs: [
         "libbase",
