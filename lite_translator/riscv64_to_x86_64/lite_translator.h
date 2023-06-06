@@ -52,6 +52,22 @@ class LiteTranslator {
       case Decoder::OpOpcode::kAdd:
         as_.Addq(res, arg2);
         break;
+      case Decoder::OpOpcode::kSub:
+        as_.Subq(res, arg2);
+        break;
+      case Decoder::OpOpcode::kAnd:
+        as_.Andq(res, arg2);
+        break;
+      case Decoder::OpOpcode::kOr:
+        as_.Orq(res, arg2);
+        break;
+      case Decoder::OpOpcode::kXor:
+        as_.Xorq(res, arg2);
+        break;
+      case Decoder::OpOpcode::kSll:
+        as_.Movl(as_.rcx, arg2);
+        as_.ShlqByCl(res);
+        break;
       default:
         Unimplemented();
         return {};
