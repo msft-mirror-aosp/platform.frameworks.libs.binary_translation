@@ -414,6 +414,18 @@ class Decoder {
     uint8_t src;
   };
 
+  struct FmvFloatToIntegerArgs {
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src;
+  };
+
+  struct FmvIntegerToFloatArgs {
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src;
+  };
+
   struct OpFpNoRoundingArgs {
     OpFpNoRoundingOpcode opcode;
     FloatOperandType operand_type;
@@ -1343,13 +1355,38 @@ class Decoder {
         }
       case 0b111: {
         uint16_t opcode = (opcode_bits << 8) + (rs2 << 3) + rm;
-        const OpFpGpRegisterTargetSingleInputNoRoundingArgs args = {
-            .opcode = OpFpGpRegisterTargetSingleInputNoRoundingOpcode(opcode),
-            .operand_type = FloatOperandType(operand_type),
-            .dst = rd,
-            .src = rs1,
-        };
-        return insn_consumer_->OpFpGpRegisterTargetSingleInputNoRounding(args);
+        switch (rm) {
+          case 0b001: {
+            const OpFpGpRegisterTargetSingleInputNoRoundingArgs args = {
+                .opcode = OpFpGpRegisterTargetSingleInputNoRoundingOpcode(opcode),
+                .operand_type = FloatOperandType(operand_type),
+                .dst = rd,
+                .src = rs1,
+            };
+            return insn_consumer_->OpFpGpRegisterTargetSingleInputNoRounding(args);
+          }
+          case 0b000: {
+            if (opcode_bits == 0b00) {
+              const FmvFloatToIntegerArgs args = {
+                  .operand_type = FloatOperandType(operand_type),
+                  .dst = rd,
+                  .src = rs1,
+              };
+              return insn_consumer_->FmvFloatToInteger(args);
+            } else if (opcode_bits == 0b10) {
+              const FmvIntegerToFloatArgs args = {
+                  .operand_type = FloatOperandType(operand_type),
+                  .dst = rd,
+                  .src = rs1,
+              };
+              return insn_consumer_->FmvIntegerToFloat(args);
+            } else {
+              return Undefined();
+            }
+          }
+          default:
+            return Undefined();
+        }
       }
       default:
         return Undefined();

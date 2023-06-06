@@ -215,6 +215,18 @@ class LiteTranslator {
     return {};
   }
 
+  FpRegister Fmv(Register arg) {
+    UNUSED(arg);
+    Unimplemented();
+    return {};
+  }
+
+  Register Fmv(Decoder::FloatOperandType float_size, FpRegister arg) {
+    UNUSED(float_size, arg);
+    Unimplemented();
+    return {};
+  }
+
   FpRegister Fcvt(Decoder::FloatOperandType target_operand_size,
                   Decoder::FloatOperandType source_operand_size,
                   uint8_t rm,
