@@ -175,6 +175,28 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename... Types>
+  void InterpretFmvFloatToInteger(uint32_t insn_bytes,
+                                  std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<1>(state_.cpu, arg);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
+  void InterpretFmvIntegerToFloat(uint32_t insn_bytes,
+                                  std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<1>(state_.cpu, arg);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetFReg<1>(state_.cpu), kFPValueToFPReg(expected_result));
+    }
+  }
+
+  template <typename... Types>
   void InterpretOpFpGpRegisterTarget(uint32_t insn_bytes,
                                      std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -1285,6 +1307,22 @@ TEST_F(Riscv64InterpreterTest, OpFpSingleInputInstructions) {
   InterpretOpFpSingleInput(0x580170d3, {std::tuple{4.0f, 2.0f}});
   // FSqrt.D
   InterpretOpFpSingleInput(0x5a0170d3, {std::tuple{16.0, 4.0}});
+}
+
+TEST_F(Riscv64InterpreterTest, Fmv) {
+  // Fmv.X.W
+  InterpretFmvFloatToInteger(0xe00080d3,
+                             {std::tuple{1.0f, static_cast<uint64_t>(bit_cast<uint32_t>(1.0f))},
+                              {-1.0f, static_cast<int64_t>(bit_cast<int32_t>(-1.0f))}});
+  // Fmv.W.X
+  InterpretFmvIntegerToFloat(
+      0xf00080d3, {std::tuple{bit_cast<uint32_t>(1.0f), 1.0f}, {bit_cast<uint32_t>(-1.0f), -1.0f}});
+  // Fmv.X.D
+  InterpretFmvFloatToInteger(
+      0xe20080d3, {std::tuple{1.0, bit_cast<uint64_t>(1.0)}, {-1.0, bit_cast<uint64_t>(-1.0)}});
+  // Fmv.D.X
+  InterpretFmvIntegerToFloat(
+      0xf20080d3, {std::tuple{bit_cast<uint64_t>(1.0), 1.0}, {bit_cast<uint64_t>(-1.0), -1.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, OpFpFcvt) {
