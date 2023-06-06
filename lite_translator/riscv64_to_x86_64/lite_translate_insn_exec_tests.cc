@@ -70,6 +70,16 @@ class Riscv64LiteTranslateInsnTest : public ::testing::Test {
 TEST_F(Riscv64LiteTranslateInsnTest, OpInstructions) {
   // Add
   TestOp(0x003100b3, {{19, 23, 42}});
+  // Sub
+  TestOp(0x403100b3, {{42, 23, 19}});
+  // And
+  TestOp(0x003170b3, {{0b0101, 0b0011, 0b0001}});
+  // Or
+  TestOp(0x003160b3, {{0b0101, 0b0011, 0b0111}});
+  // Xor
+  TestOp(0x003140b3, {{0b0101, 0b0011, 0b0110}});
+  // Sll
+  TestOp(0x003110b3, {{0b1010, 3, 0b1010'000}});
 }
 
 }  // namespace
