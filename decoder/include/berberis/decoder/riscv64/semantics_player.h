@@ -197,6 +197,18 @@ class SemanticsPlayer {
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
 
+  void FmvFloatToInteger(const typename Decoder::FmvFloatToIntegerArgs& args) {
+    FpRegister arg = GetFpReg(args.src);
+    Register result = listener_->Fmv(args.operand_type, arg);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void FmvIntegerToFloat(const typename Decoder::FmvIntegerToFloatArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    FpRegister result = listener_->Fmv(arg);
+    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
   void OpFpSingleInput(const typename Decoder::OpFpSingleInputArgs& args) {
     FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
     FpRegister result = listener_->OpFpSingleInput(args.opcode, args.operand_type, args.rm, arg);

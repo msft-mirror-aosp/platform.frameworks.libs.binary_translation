@@ -586,6 +586,21 @@ class Interpreter {
     }
   }
 
+  // In 32-bit case we don't care about the upper 32-bits because nan-boxing will clobber them.
+  FpRegister Fmv(Register arg) { return arg; }
+
+  Register Fmv(Decoder::FloatOperandType float_size, FpRegister arg) {
+    switch (float_size) {
+      case Decoder::FloatOperandType::kFloat:
+        return static_cast<int64_t>(static_cast<int32_t>(arg));
+      case Decoder::FloatOperandType::kDouble:
+        return arg;
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
+
   Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
                                           Decoder::FloatOperandType float_size,
                                           FpRegister arg1,
