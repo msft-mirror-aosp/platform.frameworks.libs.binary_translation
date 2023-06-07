@@ -196,14 +196,6 @@ constexpr uint8_t FT9 = 29;   // FP Temporary register 9 - caller saved.
 constexpr uint8_t FT10 = 30;  // FP Temporary register 10 - caller saved.
 constexpr uint8_t FT11 = 31;  // FP Temporary register 11 - caller saved.
 
-inline void SetLinkRegister(CPUState* cpu, GuestAddr val) {
-  SetXReg<RA>(*cpu, val);
-}
-
-inline GuestAddr GetLinkRegister(const CPUState& cpu) {
-  return GetXReg<RA>(cpu);
-}
-
 }  // namespace berberis
 
 #endif  // BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
