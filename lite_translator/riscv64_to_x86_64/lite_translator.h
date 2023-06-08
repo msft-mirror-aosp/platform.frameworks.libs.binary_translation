@@ -37,6 +37,7 @@ class LiteTranslator {
   using Decoder = Decoder<SemanticsPlayer<LiteTranslator>>;
   using Register = x86_64::Assembler::Register;
   using FpRegister = x86_64::Assembler::XMMRegister;
+  using Condition = x86_64::Assembler::Condition;
 
   explicit LiteTranslator(MachineCode* machine_code)
       : as_(machine_code), success_(true), next_gp_reg_for_alloc_(0){};
@@ -47,26 +48,106 @@ class LiteTranslator {
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
     Register res = AllocTempReg();
-    as_.Movq(res, arg1);
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
+        as_.Movq(res, arg1);
         as_.Addq(res, arg2);
         break;
       case Decoder::OpOpcode::kSub:
+        as_.Movq(res, arg1);
         as_.Subq(res, arg2);
         break;
       case Decoder::OpOpcode::kAnd:
+        as_.Movq(res, arg1);
         as_.Andq(res, arg2);
         break;
       case Decoder::OpOpcode::kOr:
+        as_.Movq(res, arg1);
         as_.Orq(res, arg2);
         break;
       case Decoder::OpOpcode::kXor:
+        as_.Movq(res, arg1);
         as_.Xorq(res, arg2);
         break;
       case Decoder::OpOpcode::kSll:
+        as_.Movq(res, arg1);
         as_.Movl(as_.rcx, arg2);
         as_.ShlqByCl(res);
+        break;
+      case Decoder::OpOpcode::kSrl:
+        as_.Movq(res, arg1);
+        as_.Movl(as_.rcx, arg2);
+        as_.ShrqByCl(res);
+        break;
+      case Decoder::OpOpcode::kSra:
+        as_.Movq(res, arg1);
+        as_.Movl(as_.rcx, arg2);
+        as_.SarqByCl(res);
+        break;
+      case Decoder::OpOpcode::kSlt:
+        as_.Xorq(res, res);
+        as_.Cmpq(arg1, arg2);
+        as_.Setcc(Condition::kLess, res);
+        break;
+      case Decoder::OpOpcode::kSltu:
+        as_.Xorq(res, res);
+        as_.Cmpq(arg1, arg2);
+        as_.Setcc(Condition::kBelow, res);
+        break;
+      case Decoder::OpOpcode::kMul:
+        as_.Movq(res, arg1);
+        as_.Imulq(res, arg2);
+        break;
+      case Decoder::OpOpcode::kMulh:
+        as_.Movq(res, arg1);
+        as_.Movq(as_.rax, arg1);
+        as_.Imulq(arg2);
+        as_.Movq(res, as_.rdx);
+        break;
+      case Decoder::OpOpcode::kMulhsu: {
+        as_.Movq(res, arg1);
+        as_.Movq(as_.rax, arg2);
+        as_.Movq(res, arg1);
+        as_.Mulq(res);
+        as_.Sarq(res, int8_t{63});
+        as_.Imulq(res, arg2);
+        as_.Addq(res, as_.rdx);
+        break;
+      }
+      case Decoder::OpOpcode::kMulhu:
+        as_.Movq(as_.rax, arg1);
+        as_.Mulq(arg2);
+        as_.Movq(res, as_.rdx);
+        break;
+      case Decoder::OpOpcode::kDiv:
+        as_.Movq(as_.rax, arg1);
+        as_.Xorq(as_.rdx, as_.rdx);
+        as_.Notq(as_.rdx);
+        as_.Movq(as_.rdx, as_.rax);
+        as_.Sarq(as_.rdx, int8_t{63});
+        as_.Idivq(arg2);
+        as_.Movq(res, as_.rax);
+        break;
+      case Decoder::OpOpcode::kDivu:
+        as_.Movq(as_.rax, arg1);
+        as_.Xorq(as_.rdx, as_.rdx);
+        as_.Divq(arg2);
+        as_.Movq(res, as_.rax);
+        break;
+      case Decoder::OpOpcode::kRem:
+        as_.Movq(as_.rax, arg1);
+        as_.Xorq(as_.rdx, as_.rdx);
+        as_.Notq(as_.rdx);
+        as_.Movq(as_.rdx, as_.rax);
+        as_.Sarq(as_.rdx, int8_t{63});
+        as_.Idivq(arg2);
+        as_.Movq(res, as_.rdx);
+        break;
+      case Decoder::OpOpcode::kRemu:
+        as_.Movq(as_.rax, arg1);
+        as_.Xorq(as_.rdx, as_.rdx);
+        as_.Divq(arg2);
+        as_.Movq(res, as_.rdx);
         break;
       default:
         Unimplemented();
@@ -370,8 +451,9 @@ class LiteTranslator {
 
  private:
   Register AllocTempReg() {
-    static constexpr x86_64::Assembler::Register kRegs[] = {x86_64::Assembler::rdx,
-                                                            x86_64::Assembler::rbx,
+    // TODO(286261771): Add rdx to registers, push it on stack in all instances that are clobbering
+    // it.
+    static constexpr x86_64::Assembler::Register kRegs[] = {x86_64::Assembler::rbx,
                                                             x86_64::Assembler::rsi,
                                                             x86_64::Assembler::rdi,
                                                             x86_64::Assembler::r8,
