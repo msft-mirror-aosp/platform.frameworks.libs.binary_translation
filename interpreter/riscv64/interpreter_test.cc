@@ -1082,6 +1082,8 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
   // Div
   InterpretOp(0x23140b3, {{0x9999'9999'9999'9999, 0x3333, 0xfffd'fffd'fffd'fffe}});
   // Div
+  InterpretOp(0x23140b3, {{42, 2, 21}});
+  // Div
   InterpretOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
   // Rem
   InterpretOp(0x23160b3, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
