@@ -35,6 +35,7 @@ cc_library_static {
         "fcntl_emulation.cc",
         "main_executable_real_path_emulation.cc",
         "open_emulation.cc",
+        "sigevent_emulation.cc",
         "sys_mman_emulation.cc",
         "sys_prctl_emulation.cc",
         "sys_ptrace_emulation.cc",
