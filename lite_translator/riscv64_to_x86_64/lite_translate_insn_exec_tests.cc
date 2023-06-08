@@ -118,6 +118,33 @@ TEST_F(Riscv64LiteTranslateInsnTest, OpInstructions) {
   TestOp(0x23170b3, {{0x9999'9999'9999'9999, 0x3333, 0}});
 }
 
+TEST_F(Riscv64LiteTranslateInsnTest, Op32Instructions) {
+  // Addw
+  TestOp(0x003100bb, {{19, 23, 42}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
+  // Subw
+  TestOp(0x403100bb, {{42, 23, 19}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
+  // Sllw
+  TestOp(0x003110bb, {{0b1010, 3, 0b1010'000}});
+  // Srlw
+  TestOp(0x003150bb, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
+  // Sraw
+  TestOp(0x403150bb, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
+  // Mulw
+  TestOp(0x023100bb, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0xffff'ffff'd70a'3d71}});
+  // Divw
+  TestOp(0x23140bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'fffd'fffe}});
+  // Divuw
+  TestOp(0x23150bb,
+         {{0x9999'9999'9999'9999, 0x3333, 0x0000'0000'0003'0003},
+          {0xffff'ffff'8000'0000, 1, 0xffff'ffff'8000'0000}});
+  // Remw
+  TestOp(0x23160bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
+  // Remuw
+  TestOp(0x23170bb,
+         {{0x9999'9999'9999'9999, 0x3333, 0},
+          {0xffff'ffff'8000'0000, 0xffff'ffff'8000'0001, 0xffff'ffff'8000'0000}});
+}
+
 }  // namespace
 
 }  // namespace berberis
