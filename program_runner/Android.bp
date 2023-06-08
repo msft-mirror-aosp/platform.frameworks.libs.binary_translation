@@ -24,7 +24,7 @@ cc_binary {
     srcs: ["main.cc"],
     header_libs: [
         "libberberis_calling_conventions_headers",
-        "libberberis_guest_state_headers",
+        "libberberis_guest_state_riscv64_headers",
     ],
     static_libs: [
         "libberberis_assembler",
@@ -32,8 +32,7 @@ cc_binary {
         "libberberis_code_gen_lib_riscv64",
         "libberberis_config_globals",
         "libberberis_guest_os_primitives",
-        "libberberis_guest_state",
-        "libberberis_guest_os_primitives",
+        "libberberis_guest_state_riscv64",
         "libberberis_interpreter_riscv64",
         "libberberis_kernel_api_riscv64",
         "libberberis_runtime_riscv64_to_x86_64",

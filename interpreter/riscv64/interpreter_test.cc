@@ -25,7 +25,7 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
 #include "berberis/intrinsics/guest_rounding_modes.h"  // ScopedRoundingMode
 
