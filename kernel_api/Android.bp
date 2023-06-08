@@ -70,6 +70,7 @@ cc_library_static {
     local_include_dirs: ["riscv64"],
     header_libs: [
         "libberberis_base_headers",
+        "libberberis_guest_os_primitives_headers",
         "libberberis_guest_state_headers",
         "libberberis_kernel_api_headers",
     ],
