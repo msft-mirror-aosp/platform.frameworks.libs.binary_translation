@@ -143,9 +143,60 @@ class LiteTranslator {
   }
 
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
-    UNUSED(opcode, arg1, arg2);
-    Unimplemented();
-    return {};
+    using Op32Opcode = Decoder::Op32Opcode;
+    Register res = AllocTempReg();
+    switch (opcode) {
+      case Op32Opcode::kAddw:
+        as_.Movl(res, arg1);
+        as_.Addl(res, arg2);
+        as_.Movsxlq(res, res);
+        break;
+      case Op32Opcode::kSubw:
+        as_.Movl(res, arg1);
+        as_.Subl(res, arg2);
+        as_.Movsxlq(res, res);
+        break;
+      case Op32Opcode::kSllw:
+      case Op32Opcode::kSrlw:
+      case Op32Opcode::kSraw:
+        as_.Movl(res, arg1);
+        as_.Movl(as_.rcx, arg2);
+        if (opcode == Op32Opcode::kSrlw) {
+          as_.ShrlByCl(res);
+        } else if (opcode == Op32Opcode::kSllw) {
+          as_.ShllByCl(res);
+        } else if (opcode == Op32Opcode::kSraw) {
+          as_.SarlByCl(res);
+        } else {
+          FATAL("Unexpected Op32Opcode");
+        }
+        as_.Movsxlq(res, res);
+        break;
+      case Op32Opcode::kMulw:
+        as_.Movl(res, arg1);
+        as_.Imull(res, arg2);
+        as_.Movsxlq(res, res);
+        break;
+      case Op32Opcode::kDivw:
+      case Op32Opcode::kRemw:
+        as_.Movl(as_.rax, arg1);
+        as_.Movl(as_.rdx, as_.rax);
+        as_.Sarl(as_.rdx, int8_t{31});
+        as_.Idivl(arg2);
+        as_.Movsxlq(res, opcode == Op32Opcode::kDivw ? as_.rax : as_.rdx);
+        break;
+      case Op32Opcode::kDivuw:
+      case Op32Opcode::kRemuw:
+        as_.Movl(as_.rax, arg1);
+        as_.Xorl(as_.rdx, as_.rdx);
+        as_.Divl(arg2);
+        as_.Movsxlq(res, opcode == Op32Opcode::kDivuw ? as_.rax : as_.rdx);
+        break;
+      default:
+        Unimplemented();
+        return {};
+    }
+    return res;
   }
 
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
