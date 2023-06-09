@@ -63,6 +63,18 @@ class Riscv64LiteTranslateInsnTest : public ::testing::Test {
     }
   }
 
+  void TestOpImm(uint32_t insn_bytes,
+                 std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
+    for (auto [arg1, imm, expected_result] : args) {
+      CHECK_LE(imm, 63);
+      uint32_t insn_bytes_with_immediate = insn_bytes | imm << 20;
+      state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes_with_immediate);
+      SetXReg<2>(state_.cpu, arg1);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
  private:
   ThreadState state_;
 };
@@ -143,6 +155,36 @@ TEST_F(Riscv64LiteTranslateInsnTest, Op32Instructions) {
   TestOp(0x23170bb,
          {{0x9999'9999'9999'9999, 0x3333, 0},
           {0xffff'ffff'8000'0000, 0xffff'ffff'8000'0001, 0xffff'ffff'8000'0000}});
+}
+
+TEST_F(Riscv64LiteTranslateInsnTest, OpImmInstructions) {
+  // Addi
+  TestOpImm(0x00010093, {{19, 23, 42}});
+  // Slti
+  TestOpImm(0x00012093,
+            {
+                {19, 23, 1},
+                {23, 19, 0},
+                {~0ULL, 0, 1},
+            });
+  // Sltiu
+  TestOpImm(0x00013093,
+            {
+                {19, 23, 1},
+                {23, 19, 0},
+                {~0ULL, 0, 0},
+            });
+  // Xori
+  TestOpImm(0x00014093, {{0b0101, 0b0011, 0b0110}});
+  // Ori
+  TestOpImm(0x00016093, {{0b0101, 0b0011, 0b0111}});
+  // Andi
+  TestOpImm(0x00017093, {{0b0101, 0b0011, 0b0001}});
+}
+
+TEST_F(Riscv64LiteTranslateInsnTest, OpImm32Instructions) {
+  // Addiw
+  TestOpImm(0x0001009b, {{19, 23, 42}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
 }
 
 }  // namespace
