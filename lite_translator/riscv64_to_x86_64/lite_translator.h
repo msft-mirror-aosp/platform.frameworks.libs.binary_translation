@@ -200,15 +200,55 @@ class LiteTranslator {
   }
 
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
-    UNUSED(opcode, arg, imm);
-    Unimplemented();
-    return {};
+    using OpImmOpcode = Decoder::OpImmOpcode;
+    Register res = AllocTempReg();
+    switch (opcode) {
+      case OpImmOpcode::kAddi:
+        as_.Movq(res, arg);
+        as_.Addq(res, imm);
+        break;
+      case OpImmOpcode::kSlti:
+        as_.Xorq(res, res);
+        as_.Cmpq(arg, imm);
+        as_.Setcc(Condition::kLess, res);
+        break;
+      case OpImmOpcode::kSltiu:
+        as_.Xorq(res, res);
+        as_.Cmpq(arg, imm);
+        as_.Setcc(Condition::kBelow, res);
+        break;
+      case OpImmOpcode::kXori:
+        as_.Movq(res, arg);
+        as_.Xorq(res, imm);
+        break;
+      case OpImmOpcode::kOri:
+        as_.Movq(res, arg);
+        as_.Orq(res, imm);
+        break;
+      case OpImmOpcode::kAndi:
+        as_.Movq(res, arg);
+        as_.Andq(res, imm);
+        break;
+      default:
+        Unimplemented();
+        return {};
+    }
+    return res;
   }
 
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
-    UNUSED(opcode, arg, imm);
-    Unimplemented();
-    return {};
+    Register res = AllocTempReg();
+    switch (opcode) {
+      case Decoder::OpImm32Opcode::kAddiw:
+        as_.Movl(res, arg);
+        as_.Addl(res, imm);
+        as_.Movsxlq(res, res);
+        break;
+      default:
+        Unimplemented();
+        return {};
+    }
+    return res;
   }
 
   Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
