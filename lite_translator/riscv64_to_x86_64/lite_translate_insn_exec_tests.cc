@@ -180,11 +180,23 @@ TEST_F(Riscv64LiteTranslateInsnTest, OpImmInstructions) {
   TestOpImm(0x00016093, {{0b0101, 0b0011, 0b0111}});
   // Andi
   TestOpImm(0x00017093, {{0b0101, 0b0011, 0b0001}});
+  // Slli
+  TestOpImm(0x00011093, {{0b1010, 3, 0b1010'000}});
+  // Srli
+  TestOpImm(0x00015093, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
+  // Srai
+  TestOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
 }
 
 TEST_F(Riscv64LiteTranslateInsnTest, OpImm32Instructions) {
   // Addiw
   TestOpImm(0x0001009b, {{19, 23, 42}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
+  // Slliw
+  TestOpImm(0x0001109b, {{0b1010, 3, 0b1010'000}});
+  // Srliw
+  TestOpImm(0x0001509b, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
+  // Sraiw
+  TestOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
 }
 
 }  // namespace
