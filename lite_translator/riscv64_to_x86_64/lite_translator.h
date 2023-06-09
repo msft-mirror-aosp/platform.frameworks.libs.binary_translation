@@ -252,15 +252,40 @@ class LiteTranslator {
   }
 
   Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
-    UNUSED(opcode, arg, imm);
-    Unimplemented();
-    return {};
+    using ShiftImmOpcode = Decoder::ShiftImmOpcode;
+    Register res = AllocTempReg();
+    as_.Movq(res, arg);
+    as_.Movq(as_.rcx, imm);
+    if (opcode == ShiftImmOpcode::kSrli) {
+      as_.ShrqByCl(res);
+    } else if (opcode == ShiftImmOpcode::kSlli) {
+      as_.ShlqByCl(res);
+    } else if (opcode == ShiftImmOpcode::kSrai) {
+      as_.SarqByCl(res);
+    } else {
+      Unimplemented();
+      return {};
+    }
+    return res;
   }
 
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
-    UNUSED(opcode, arg, imm);
-    Unimplemented();
-    return {};
+    using ShiftImm32Opcode = Decoder::ShiftImm32Opcode;
+    Register res = AllocTempReg();
+    as_.Movl(res, arg);
+    as_.Movl(as_.rcx, imm);
+    if (opcode == ShiftImm32Opcode::kSrliw) {
+      as_.ShrlByCl(res);
+    } else if (opcode == ShiftImm32Opcode::kSlliw) {
+      as_.ShllByCl(res);
+    } else if (opcode == ShiftImm32Opcode::kSraiw) {
+      as_.SarlByCl(res);
+    } else {
+      Unimplemented();
+      return {};
+    }
+    as_.Movsxlq(res, res);
+    return res;
   }
 
   Register Lui(int32_t imm) {
