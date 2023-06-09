@@ -1093,9 +1093,9 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
 
 TEST_F(Riscv64InterpreterTest, Op32Instructions) {
   // Addw
-  InterpretOp(0x003100bb, {{19, 23, 42}});
+  InterpretOp(0x003100bb, {{19, 23, 42}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
   // Subw
-  InterpretOp(0x403100bb, {{42, 23, 19}});
+  InterpretOp(0x403100bb, {{42, 23, 19}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
   // Sllw
   InterpretOp(0x003110bb, {{0b1010, 3, 0b1010'000}});
   // Srlw
