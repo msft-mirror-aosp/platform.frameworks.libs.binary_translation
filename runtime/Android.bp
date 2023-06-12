@@ -33,6 +33,7 @@ cc_library_static {
         "run_guest_call_riscv64.cc",
         "translator_riscv64.cc",
     ],
+    whole_static_libs: ["libberberis_runtime"],
     header_libs: [
         "libberberis_base_headers",
         "libberberis_guest_abi_riscv64_headers",
@@ -41,6 +42,9 @@ cc_library_static {
         "libberberis_interpreter_riscv64_headers",
         "libberberis_runtime_headers",
         "libberberis_runtime_primitives_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_runtime_headers",
     ],
 }
 
