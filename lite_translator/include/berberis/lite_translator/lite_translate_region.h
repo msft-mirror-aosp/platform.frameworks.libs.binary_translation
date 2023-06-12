@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-#include "berberis/runtime/execute_guest.h"
+#ifndef BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
+#define BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
 
+#include <tuple>
+
+#include "berberis/assembler/machine_code.h"
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state_opaque.h"
-#include "berberis/interpreter/riscv64/interpreter.h"
 
 namespace berberis {
 
-void ExecuteGuest(ThreadState* state, GuestAddr stop_pc) {
-  while (GetInsnAddr(GetCPUState(state)) != stop_pc) {
-    InterpretInsn(state);
-  }
-}
+bool LiteTranslateRange(GuestAddr start_pc, GuestAddr end_pc, MachineCode* machine_code);
+std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc, MachineCode* machine_code);
 
 }  // namespace berberis
+
+#endif  // BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_

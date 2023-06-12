@@ -95,7 +95,8 @@ class SemanticsPlayer {
 
   void Fence(const typename Decoder::FenceArgs& args) {
     listener_->Fence(args.opcode,
-                     args.src,
+                     // args.src is currently unused - read below.
+                     Register{},
                      args.sw,
                      args.sr,
                      args.so,
@@ -193,6 +194,18 @@ class SemanticsPlayer {
     FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
     FpRegister result = listener_->OpFpNoRounding(args.opcode, args.operand_type, arg1, arg2);
     result = CanonicalizeNan(result, args.operand_type);
+    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
+  void FmvFloatToInteger(const typename Decoder::FmvFloatToIntegerArgs& args) {
+    FpRegister arg = GetFpReg(args.src);
+    Register result = listener_->Fmv(args.operand_type, arg);
+    SetRegOrIgnore(args.dst, result);
+  }
+
+  void FmvIntegerToFloat(const typename Decoder::FmvIntegerToFloatArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    FpRegister result = listener_->Fmv(arg);
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
 

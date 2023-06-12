@@ -414,6 +414,18 @@ class Decoder {
     uint8_t src;
   };
 
+  struct FmvFloatToIntegerArgs {
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src;
+  };
+
+  struct FmvIntegerToFloatArgs {
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src;
+  };
+
   struct OpFpNoRoundingArgs {
     OpFpNoRoundingOpcode opcode;
     FloatOperandType operand_type;
@@ -499,17 +511,8 @@ class Decoder {
     CompressedOpcode opcode_bits{(GetBits<uint8_t, 13, 3>() << 2) | GetBits<uint8_t, 0, 2>()};
 
     switch (opcode_bits) {
-      case CompressedOpcode::kJ:
-        DecodeCompressedJ();
-        break;
       case CompressedOpcode::kAddi4spn:
         DecodeCompressedAddi4spn();
-        break;
-      case CompressedOpcode::kAddi:
-        DecodeCompressedAddi();
-        break;
-      case CompressedOpcode::kAddiw:
-        DecodeCompressedAddiw();
         break;
       case CompressedOpcode::kFld:
         DecodeCompressedLoadStore<LoadStore::kLoad, FloatOperandType::kDouble>();
@@ -523,21 +526,33 @@ class Decoder {
       case CompressedOpcode::kFsd:
         DecodeCompressedLoadStore<LoadStore::kStore, FloatOperandType::kDouble>();
         break;
+      case CompressedOpcode::kSw:
+        DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k32bit>();
+        break;
       case CompressedOpcode::kSd:
         DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k64bit>();
         break;
-      case CompressedOpcode::kSw:
-        DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k32bit>();
+      case CompressedOpcode::kAddi:
+        DecodeCompressedAddi();
+        break;
+      case CompressedOpcode::kAddiw:
+        DecodeCompressedAddiw();
+        break;
+      case CompressedOpcode::kLi:
+        DecodeCompressedLi();
         break;
       case CompressedOpcode::kLui_Addi16sp:
         DecodeCompressedLuiAddi16sp();
         break;
+      case CompressedOpcode::kMisc_Alu:
+        DecodeCompressedMiscAlu();
+        break;
+      case CompressedOpcode::kJ:
+        DecodeCompressedJ();
+        break;
       case CompressedOpcode::kBeqz:
       case CompressedOpcode::kBnez:
         DecodeCompressedBeqzBnez();
-        break;
-      case CompressedOpcode::kMisc_Alu:
-        DecodeCompressedMiscAlu();
         break;
       case CompressedOpcode::kSlli:
         DecodeCompressedSlli();
@@ -545,19 +560,42 @@ class Decoder {
       case CompressedOpcode::kFldsp:
         DecodeCompressedLoadsp<FloatOperandType::kDouble>();
         break;
-      case CompressedOpcode::kLdsp:
-        DecodeCompressedLoadsp<LoadOperandType::k64bit>();
-        break;
       case CompressedOpcode::kLwsp:
         DecodeCompressedLoadsp<LoadOperandType::k32bitSigned>();
         break;
+      case CompressedOpcode::kLdsp:
+        DecodeCompressedLoadsp<LoadOperandType::k64bit>();
+        break;
       case CompressedOpcode::kJr_Jalr_Mv_Add:
         DecodeCompressedJr_Jalr_Mv_Add();
+        break;
+      case CompressedOpcode::kFsdsp:
+        DecodeCompressedStoresp<FloatOperandType::kDouble>();
+        break;
+      case CompressedOpcode::kSwsp:
+        DecodeCompressedStoresp<StoreOperandType::k32bit>();
+        break;
+      case CompressedOpcode::kSdsp:
+        DecodeCompressedStoresp<StoreOperandType::k64bit>();
         break;
       default:
         insn_consumer_->Unimplemented();
     }
     return 2;
+  }
+
+  void DecodeCompressedLi() {
+    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
+    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t rd = GetBits<uint8_t, 7, 5>();
+    int8_t imm = SignExtend<6>((high_imm << 5) + low_imm);
+    const OpImmArgs args = {
+        .opcode = OpImmOpcode::kAddi,
+        .dst = rd,
+        .src = 0,
+        .imm = imm,
+    };
+    insn_consumer_->OpImm(args);
   }
 
   void DecodeCompressedMiscAlu() {
@@ -638,6 +676,32 @@ class Decoder {
       };
       return insn_consumer_->Op(args);
     }
+  }
+
+  template <auto kOperandType>
+  void DecodeCompressedStoresp() {
+    uint8_t raw_imm = GetBits<uint8_t, 7, 6>();
+    uint8_t rs2 = GetBits<uint8_t, 2, 5>();
+    constexpr uint8_t k32bit[64] = {
+        0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03,
+        0x13, 0x23, 0x33, 0x04, 0x14, 0x24, 0x34, 0x05, 0x15, 0x25, 0x35, 0x06, 0x16,
+        0x26, 0x36, 0x07, 0x17, 0x27, 0x37, 0x08, 0x18, 0x28, 0x38, 0x09, 0x19, 0x29,
+        0x39, 0x0a, 0x1a, 0x2a, 0x3a, 0x0b, 0x1b, 0x2b, 0x3b, 0x0c, 0x1c, 0x2c, 0x3c,
+        0x0d, 0x1d, 0x2d, 0x3d, 0x0e, 0x1e, 0x2e, 0x3e, 0x0f, 0x1f, 0x2f, 0x3f};
+    constexpr uint8_t k64bit[64] = {
+        0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x02, 0x12, 0x22, 0x32, 0x42,
+        0x52, 0x62, 0x72, 0x04, 0x14, 0x24, 0x34, 0x44, 0x54, 0x64, 0x74, 0x06, 0x16,
+        0x26, 0x36, 0x46, 0x56, 0x66, 0x76, 0x08, 0x18, 0x28, 0x38, 0x48, 0x58, 0x68,
+        0x78, 0x0a, 0x1a, 0x2a, 0x3a, 0x4a, 0x5a, 0x6a, 0x7a, 0x0c, 0x1c, 0x2c, 0x3c,
+        0x4c, 0x5c, 0x6c, 0x7c, 0x0e, 0x1e, 0x2e, 0x3e, 0x4e, 0x5e, 0x6e, 0x7e};
+    int16_t imm = (((uint8_t(kOperandType) & 1) == 0) ? k32bit : k64bit)[raw_imm] << 2;
+    const StoreArgsTemplate<decltype(kOperandType)> args = {
+        .operand_type = kOperandType,
+        .src = 2,
+        .offset = imm,
+        .data = rs2,
+    };
+    insn_consumer_->Store(args);
   }
 
   void DecodeCompressedLuiAddi16sp() {
@@ -881,38 +945,23 @@ class Decoder {
     BaseOpcode opcode_bits{GetBits<uint8_t, 2, 5>()};
 
     switch (opcode_bits) {
-      case BaseOpcode::kMiscMem:
-        DecodeMiscMem();
-        break;
-      case BaseOpcode::kOp:
-        DecodeOp<OpOpcode>();
-        break;
-      case BaseOpcode::kOp32:
-        DecodeOp<Op32Opcode>();
-        break;
-      case BaseOpcode::kAmo:
-        DecodeAmo();
-        break;
       case BaseOpcode::kLoad:
         DecodeLoad<LoadOperandType>();
         break;
       case BaseOpcode::kLoadFp:
         DecodeLoad<FloatOperandType>();
         break;
-      case BaseOpcode::kMAdd:
-      case BaseOpcode::kMSub:
-      case BaseOpcode::kNmSub:
-      case BaseOpcode::kNmAdd:
-        DecodeFma();
+      case BaseOpcode::kMiscMem:
+        DecodeMiscMem();
         break;
       case BaseOpcode::kOpImm:
         DecodeOp<OpImmOpcode, ShiftImmOpcode, 6>();
         break;
+      case BaseOpcode::kAuipc:
+        DecodeAuipc();
+        break;
       case BaseOpcode::kOpImm32:
         DecodeOp<OpImm32Opcode, ShiftImm32Opcode, 5>();
-        break;
-      case BaseOpcode::kOpFp:
-        DecodeOpFp();
         break;
       case BaseOpcode::kStore:
         DecodeStore<StoreOperandType>();
@@ -920,23 +969,38 @@ class Decoder {
       case BaseOpcode::kStoreFp:
         DecodeStore<FloatOperandType>();
         break;
-      case BaseOpcode::kBranch:
-        DecodeBranch();
+      case BaseOpcode::kAmo:
+        DecodeAmo();
         break;
-      case BaseOpcode::kJal:
-        DecodeJumpAndLink();
-        break;
-      case BaseOpcode::kJalr:
-        DecodeJumpAndLinkRegister();
-        break;
-      case BaseOpcode::kSystem:
-        DecodeSystem();
+      case BaseOpcode::kOp:
+        DecodeOp<OpOpcode>();
         break;
       case BaseOpcode::kLui:
         DecodeLui();
         break;
-      case BaseOpcode::kAuipc:
-        DecodeAuipc();
+      case BaseOpcode::kOp32:
+        DecodeOp<Op32Opcode>();
+        break;
+      case BaseOpcode::kMAdd:
+      case BaseOpcode::kMSub:
+      case BaseOpcode::kNmSub:
+      case BaseOpcode::kNmAdd:
+        DecodeFma();
+        break;
+      case BaseOpcode::kOpFp:
+        DecodeOpFp();
+        break;
+      case BaseOpcode::kBranch:
+        DecodeBranch();
+        break;
+      case BaseOpcode::kJalr:
+        DecodeJumpAndLinkRegister();
+        break;
+      case BaseOpcode::kJal:
+        DecodeJumpAndLink();
+        break;
+      case BaseOpcode::kSystem:
+        DecodeSystem();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -1291,13 +1355,38 @@ class Decoder {
         }
       case 0b111: {
         uint16_t opcode = (opcode_bits << 8) + (rs2 << 3) + rm;
-        const OpFpGpRegisterTargetSingleInputNoRoundingArgs args = {
-            .opcode = OpFpGpRegisterTargetSingleInputNoRoundingOpcode(opcode),
-            .operand_type = FloatOperandType(operand_type),
-            .dst = rd,
-            .src = rs1,
-        };
-        return insn_consumer_->OpFpGpRegisterTargetSingleInputNoRounding(args);
+        switch (rm) {
+          case 0b001: {
+            const OpFpGpRegisterTargetSingleInputNoRoundingArgs args = {
+                .opcode = OpFpGpRegisterTargetSingleInputNoRoundingOpcode(opcode),
+                .operand_type = FloatOperandType(operand_type),
+                .dst = rd,
+                .src = rs1,
+            };
+            return insn_consumer_->OpFpGpRegisterTargetSingleInputNoRounding(args);
+          }
+          case 0b000: {
+            if (opcode_bits == 0b00) {
+              const FmvFloatToIntegerArgs args = {
+                  .operand_type = FloatOperandType(operand_type),
+                  .dst = rd,
+                  .src = rs1,
+              };
+              return insn_consumer_->FmvFloatToInteger(args);
+            } else if (opcode_bits == 0b10) {
+              const FmvIntegerToFloatArgs args = {
+                  .operand_type = FloatOperandType(operand_type),
+                  .dst = rd,
+                  .src = rs1,
+              };
+              return insn_consumer_->FmvIntegerToFloat(args);
+            } else {
+              return Undefined();
+            }
+          }
+          default:
+            return Undefined();
+        }
       }
       default:
         return Undefined();
@@ -1409,7 +1498,7 @@ class Decoder {
     kLwsp = 0b010'10,
     kLdsp = 0b011'10,
     kJr_Jalr_Mv_Add = 0b100'10,
-    kFdsp = 0b101'10,
+    kFsdsp = 0b101'10,
     kSwsp = 0b110'10,
     kSdsp = 0b111'10,
     // instruction with 0bxxx'11 opcodes are not compressed instruction and can not be in this

@@ -110,23 +110,6 @@ namespace berberis {
 
 extern "C" {
 
-// ATTENTION: this symbol gets called directly, without PLT. To keep text
-// sharable we should prevent preemption of this symbol, so do not export it!
-// TODO(b/232598137): may be set default visibility to protected instead?
-__attribute__((__visibility__("hidden"))) void berberis_HandleNoExec(ThreadState* /* state */) {
-  // TODO(b/278926583): Add implementation.
-  FATAL("berberis_HandleNoExec not yet implemented");
-}
-
-// ATTENTION: this symbol gets called directly, without PLT. To keep text
-// sharable we should prevent preemption of this symbol, so do not export it!
-// TODO(b/232598137): may be set default visibility to protected instead?
-__attribute__((__visibility__("hidden"))) void berberis_HandleNotTranslated(
-    ThreadState* /* state */) {
-  // TODO(b/278926583): move to translator.
-  FATAL("berberis_HandleNotTranslated not yet implemented");
-}
-
 [[gnu::naked]] [[gnu::noinline]] void berberis_RunGeneratedCode(ThreadState* state, HostCode code) {
   // Parameters are in %rdi - state and %rsi - code
   //
@@ -147,31 +130,62 @@ __attribute__((__visibility__("hidden"))) void berberis_HandleNotTranslated(
 
   // clang-format off
   asm(
-      // Prologue
-      "push %%rbp\n"
-      "push %%rbx\n"
-      "push %%r12\n"
-      "push %%r13\n"
-      "push %%r14\n"
-      "push %%r15\n"
+    // Prologue
+    "push %%rbp\n"
+    "push %%rbx\n"
+    "push %%r12\n"
+    "push %%r13\n"
+    "push %%r14\n"
+    "push %%r15\n"
 
-      // Align stack for next call
-      "sub %[FrameSizeAtTranslatedCode], %%rsp\n"  // kStackAlignAtCall, kFrameSizeAtTranslatedCode
+    // Align stack for next call
+    "sub %[FrameSizeAtTranslatedCode], %%rsp\n"  // kStackAlignAtCall, kFrameSizeAtTranslatedCode
 
-      // Set state pointer
-      "mov %%rdi, %%rbp\n"  // kStateRegister, kOmitFramePointer
+    // Set state pointer
+    "mov %%rdi, %%rbp\n"  // kStateRegister, kOmitFramePointer
 
-      // Set insn_addr.
-      "mov %[InsnAddr](%%rbp), %%rax\n"
-      // Set kInsideGeneratedCode residence.
-      "movb %[InsideGeneratedCode], %[Residence](%%rbp)\n"
+    // Set insn_addr.
+    "mov %[InsnAddr](%%rbp), %%rax\n"
+    // Set kInsideGeneratedCode residence.
+    "movb %[InsideGeneratedCode], %[Residence](%%rbp)\n"
 
-      // Jump to entry
-      "jmp *%%rsi"
-      ::[InsnAddr] "p"(offsetof(ThreadState, cpu.insn_addr)),
-      [Residence] "p"(offsetof(ThreadState, residence)),
-      [InsideGeneratedCode] "J"(kInsideGeneratedCode),
-      [FrameSizeAtTranslatedCode] "J"(config::kFrameSizeAtTranslatedCode));
+    // Jump to entry
+    "jmp *%%rsi"
+    ::[InsnAddr] "p"(offsetof(ThreadState, cpu.insn_addr)),
+    [Residence] "p"(offsetof(ThreadState, residence)),
+    [InsideGeneratedCode] "J"(kInsideGeneratedCode),
+    [FrameSizeAtTranslatedCode] "J"(config::kFrameSizeAtTranslatedCode));
+  // clang-format on
+}
+
+extern "C" [[gnu::naked]] [[gnu::noinline]] void berberis_entry_Interpret() {
+  // clang-format off
+  asm(
+    // Sync insn_addr.
+    "mov %%rax, %[InsnAddr](%%rbp)\n"
+    // Set kOutsideGeneratedCode residence.
+    "movb %[OutsideGeneratedCode], %[Residence](%%rbp)\n"
+
+    // rbp holds the pointer to state which is the argument to the call.
+    "mov %%rbp, %%rdi\n"
+    "call berberis_HandleInterpret\n"
+
+    // rdi may be clobbered by the call above, so init it again.
+    "mov %%rbp, %%rdi\n"
+    "call berberis_GetDispatchAddress\n"
+    "mov %%rax, %%rcx\n"
+
+    // Set insn_addr.
+    "mov %[InsnAddr](%%rbp), %%rax\n"
+    // Set kInsideGeneratedCode residence.
+    "movb %[InsideGeneratedCode], %[Residence](%%rbp)\n"
+
+    "jmp *%%rcx\n"
+    ::[InsnAddr] "p"(offsetof(berberis::ThreadState, cpu.insn_addr)),
+    [Residence] "p"(offsetof(berberis::ThreadState, residence)),
+    [OutsideGeneratedCode] "J"(berberis::kOutsideGeneratedCode),
+    [InsideGeneratedCode] "J"(berberis::kInsideGeneratedCode),
+    [FrameSizeAtTranslatedCode] "J"(berberis::config::kFrameSizeAtTranslatedCode));
   // clang-format on
 }
 

@@ -40,12 +40,12 @@ class Riscv64InterpreterTest : public ::testing::Test {
  public:
   // Compressed Instructions.
 
-  template <RegisterType register_type, uint64_t expected_result>
+  template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
   void InterpretCompressedStore(uint16_t insn_bytes, uint64_t offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     store_area_ = 0;
-    SetXReg<8>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
+    SetXReg<kTargetReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
     SetReg<register_type, 9>(state_.cpu, kDataToLoad);
     InterpretInsn(&state_);
     EXPECT_EQ(store_area_, expected_result);
@@ -175,6 +175,28 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename... Types>
+  void InterpretFmvFloatToInteger(uint32_t insn_bytes,
+                                  std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<1>(state_.cpu, arg);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
+  void InterpretFmvIntegerToFloat(uint32_t insn_bytes,
+                                  std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<1>(state_.cpu, arg);
+      InterpretInsn(&state_);
+      EXPECT_EQ(GetFReg<1>(state_.cpu), kFPValueToFPReg(expected_result));
+    }
+  }
+
+  template <typename... Types>
   void InterpretOpFpGpRegisterTarget(uint32_t insn_bytes,
                                      std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -243,7 +265,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
                  0xffff'eeee'dddd'ccccULL, expected_memory);
   }
 
-  void InterpretLui(uint32_t insn_bytes, uint64_t expected_result) {
+  void InterpretLi(uint32_t insn_bytes, uint64_t expected_result) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     InterpretInsn(&state_);
@@ -356,7 +378,7 @@ template <uint16_t opcode, auto execute_instruction_func>
 void TestCompressedLoadOrStore32bit(Riscv64InterpreterTest* that) {
   union {
     uint16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 2;
       uint8_t i2 : 1;
       uint8_t i3_i5 : 3;
@@ -366,7 +388,7 @@ void TestCompressedLoadOrStore32bit(Riscv64InterpreterTest* that) {
   for (offset = uint8_t{0}; offset < uint8_t{128}; offset += 4) {
     union {
       int16_t parcel;
-      struct {
+      struct [[gnu::packed]] {
         uint8_t low_opcode : 2;
         uint8_t rd : 3;
         uint8_t i6 : 1;
@@ -399,15 +421,15 @@ TEST_F(Riscv64InterpreterTest, CompressedLoadAndStores32bit) {
   TestCompressedLoadOrStore32bit<0b110'000'000'00'000'00,
                                  &Riscv64InterpreterTest::InterpretCompressedStore<
                                      RegisterType::kReg,
-                                     static_cast<uint64_t>(static_cast<uint32_t>(kDataToLoad))>>(
-      this);
+                                     static_cast<uint64_t>(static_cast<uint32_t>(kDataToLoad)),
+                                     8>>(this);
 }
 
 template <uint16_t opcode, auto execute_instruction_func>
 void TestCompressedLoadOrStore64bit(Riscv64InterpreterTest* that) {
   union {
     uint16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 3;
       uint8_t i3_i5 : 3;
       uint8_t i6_i7 : 2;
@@ -448,11 +470,88 @@ TEST_F(Riscv64InterpreterTest, CompressedLoadAndStores) {
   // c.Fsd
   TestCompressedLoadOrStore64bit<
       0b101'000'000'00'000'00,
-      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kFpReg, kDataToLoad>>(this);
+      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kFpReg, kDataToLoad, 8>>(
+      this);
   // c.Sd
   TestCompressedLoadOrStore64bit<
       0b111'000'000'00'000'00,
-      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kReg, kDataToLoad>>(this);
+      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kReg, kDataToLoad, 8>>(this);
+}
+
+TEST_F(Riscv64InterpreterTest, TestCompressedStore32bitsp) {
+  union {
+    uint16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 2;
+      uint8_t i2_i5 : 4;
+      uint8_t i6_i7 : 2;
+    } i_bits;
+  };
+  for (offset = uint16_t{0}; offset < uint16_t{256}; offset += 4) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t rs2 : 5;
+        uint8_t i6_i7 : 2;
+        uint8_t i2_i5 : 4;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b10,
+        .rs2 = 9,
+        .i6_i7 = i_bits.i6_i7,
+        .i2_i5 = i_bits.i2_i5,
+        .high_opcode = 0b110,
+    };
+    // c.Swsp
+    InterpretCompressedStore<RegisterType::kReg,
+                             static_cast<uint64_t>(static_cast<uint32_t>(kDataToStore)),
+                             2>(o_bits.parcel, offset);
+  }
+}
+
+template <uint16_t opcode, auto execute_instruction_func>
+void TestCompressedStore64bitsp(Riscv64InterpreterTest* that) {
+  union {
+    uint16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 3;
+      uint8_t i3_i5 : 3;
+      uint8_t i6_i8 : 3;
+    } i_bits;
+  };
+  for (offset = uint16_t{0}; offset < uint16_t{512}; offset += 8) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t rs2 : 5;
+        uint8_t i6_i8 : 3;
+        uint8_t i3_i5 : 3;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b10,
+        .rs2 = 9,
+        .i6_i8 = i_bits.i6_i8,
+        .i3_i5 = i_bits.i3_i5,
+        .high_opcode = 0b101,
+    };
+    (that->*execute_instruction_func)(o_bits.parcel | opcode, offset);
+  }
+}
+
+TEST_F(Riscv64InterpreterTest, TestCompressedStore64bitsp) {
+  // c.Fsdsp
+  TestCompressedStore64bitsp<
+      0b001'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kFpReg, kDataToStore, 2>>(
+      this);
+  // c.Sdsp
+  TestCompressedStore64bitsp<
+      0b011'000'000'00'000'00,
+      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kReg, kDataToStore, 2>>(this);
 }
 
 TEST_F(Riscv64InterpreterTest, TestCompressedLoad32bitsp) {
@@ -539,7 +638,7 @@ TEST_F(Riscv64InterpreterTest, TestCompressedLoad64bitsp) {
 TEST_F(Riscv64InterpreterTest, CAddi) {
   union {
     int8_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t i4_i0 : 5;
       uint8_t i5 : 1;
     } i_bits;
@@ -547,7 +646,7 @@ TEST_F(Riscv64InterpreterTest, CAddi) {
   for (offset = int8_t{-32}; offset < int8_t{31}; offset++) {
     union {
       int16_t parcel;
-      struct {
+      struct [[gnu::packed]] {
         uint8_t low_opcode : 2;
         uint8_t i4_i0 : 5;
         uint8_t r : 5;
@@ -571,7 +670,7 @@ TEST_F(Riscv64InterpreterTest, CAddi) {
 TEST_F(Riscv64InterpreterTest, CAddi16sp) {
   union {
     int16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 4;
       uint8_t i4 : 1;
       uint8_t i5 : 1;
@@ -636,14 +735,43 @@ TEST_F(Riscv64InterpreterTest, CLui) {
         .i17 = i_bits.i17,
         .high_opcode = 0b011,
     };
-    InterpretLui(o_bits.parcel, offset);
+    InterpretLi(o_bits.parcel, offset);
+  }
+}
+
+TEST_F(Riscv64InterpreterTest, CLi) {
+  union {
+    int8_t offset;
+    struct [[gnu::packed]] {
+      uint8_t i0_i4 : 5;
+      uint8_t i5 : 1;
+    } i_bits;
+  };
+  for (offset = int8_t{-32}; offset < int8_t{32}; offset++) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i0_i4 : 5;
+        uint8_t rd : 5;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b01,
+        .i0_i4 = i_bits.i0_i4,
+        .rd = 1,
+        .i5 = i_bits.i5,
+        .high_opcode = 0b010,
+    };
+    InterpretLi(o_bits.parcel, offset);
   }
 }
 
 TEST_F(Riscv64InterpreterTest, CAddi4spn) {
   union {
     int16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 2;
       uint8_t i2 : 1;
       uint8_t i3 : 1;
@@ -658,7 +786,7 @@ TEST_F(Riscv64InterpreterTest, CAddi4spn) {
   for (offset = int16_t{4}; offset < int16_t{1024}; offset += 4) {
     union {
       int16_t parcel;
-      struct {
+      struct [[gnu::packed]] {
         uint8_t low_opcode : 2;
         uint8_t rd : 3;
         uint8_t i3 : 1;
@@ -691,7 +819,7 @@ TEST_F(Riscv64InterpreterTest, CAddi4spn) {
 TEST_F(Riscv64InterpreterTest, CBeqzBnez) {
   union {
     int16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 1;
       uint8_t i1 : 1;
       uint8_t i2 : 1;
@@ -758,7 +886,7 @@ TEST_F(Riscv64InterpreterTest, CMiscAluImm) {
     // Note: c.Andi uses sign-extended immediate while c.Srli/c.cSrain need zero-extended one.
     // If we store the value into uimm and read from imm compiler would do correct conversion.
     int8_t imm : 6;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t i0_i4 : 5;
       uint8_t i5 : 1;
     } i_bits;
@@ -810,7 +938,7 @@ TEST_F(Riscv64InterpreterTest, CMiscAluImm) {
 TEST_F(Riscv64InterpreterTest, CJ) {
   union {
     int16_t offset;
-    struct {
+    struct [[gnu::packed]] {
       uint8_t : 1;
       uint8_t i1 : 1;
       uint8_t i2 : 1;
@@ -828,7 +956,7 @@ TEST_F(Riscv64InterpreterTest, CJ) {
   for (offset = int16_t{-2048}; offset < int16_t{2048}; offset += 2) {
     union {
       int16_t parcel;
-      struct {
+      struct [[gnu::packed]] {
         uint8_t low_opcode : 2;
         uint8_t i5 : 1;
         uint8_t i1 : 1;
@@ -954,6 +1082,8 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
   // Div
   InterpretOp(0x23140b3, {{0x9999'9999'9999'9999, 0x3333, 0xfffd'fffd'fffd'fffe}});
   // Div
+  InterpretOp(0x23140b3, {{42, 2, 21}});
+  // Div
   InterpretOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
   // Rem
   InterpretOp(0x23160b3, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
@@ -963,9 +1093,9 @@ TEST_F(Riscv64InterpreterTest, OpInstructions) {
 
 TEST_F(Riscv64InterpreterTest, Op32Instructions) {
   // Addw
-  InterpretOp(0x003100bb, {{19, 23, 42}});
+  InterpretOp(0x003100bb, {{19, 23, 42}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
   // Subw
-  InterpretOp(0x403100bb, {{42, 23, 19}});
+  InterpretOp(0x403100bb, {{42, 23, 19}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
   // Sllw
   InterpretOp(0x003110bb, {{0b1010, 3, 0b1010'000}});
   // Srlw
@@ -1031,7 +1161,7 @@ TEST_F(Riscv64InterpreterTest, AmoInstructions) {
 
 TEST_F(Riscv64InterpreterTest, UpperImmArgs) {
   // Lui
-  InterpretLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
+  InterpretLi(0xfedcb0b7, 0xffff'ffff'fedc'b000);
   // Auipc
   InterpretAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
 }
@@ -1179,6 +1309,22 @@ TEST_F(Riscv64InterpreterTest, OpFpSingleInputInstructions) {
   InterpretOpFpSingleInput(0x580170d3, {std::tuple{4.0f, 2.0f}});
   // FSqrt.D
   InterpretOpFpSingleInput(0x5a0170d3, {std::tuple{16.0, 4.0}});
+}
+
+TEST_F(Riscv64InterpreterTest, Fmv) {
+  // Fmv.X.W
+  InterpretFmvFloatToInteger(0xe00080d3,
+                             {std::tuple{1.0f, static_cast<uint64_t>(bit_cast<uint32_t>(1.0f))},
+                              {-1.0f, static_cast<int64_t>(bit_cast<int32_t>(-1.0f))}});
+  // Fmv.W.X
+  InterpretFmvIntegerToFloat(
+      0xf00080d3, {std::tuple{bit_cast<uint32_t>(1.0f), 1.0f}, {bit_cast<uint32_t>(-1.0f), -1.0f}});
+  // Fmv.X.D
+  InterpretFmvFloatToInteger(
+      0xe20080d3, {std::tuple{1.0, bit_cast<uint64_t>(1.0)}, {-1.0, bit_cast<uint64_t>(-1.0)}});
+  // Fmv.D.X
+  InterpretFmvIntegerToFloat(
+      0xf20080d3, {std::tuple{bit_cast<uint64_t>(1.0), 1.0}, {bit_cast<uint64_t>(-1.0), -1.0}});
 }
 
 TEST_F(Riscv64InterpreterTest, OpFpFcvt) {
