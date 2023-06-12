@@ -44,7 +44,10 @@ cc_library_static {
         "libberberis_kernel_api_headers",
         "libberberis_lite_translator_headers",
     ],
-    srcs: ["riscv64_to_x86_64/lite_translate_region.cc"],
+    srcs: [
+        "riscv64_to_x86_64/lite_translate_region.cc",
+        "riscv64_to_x86_64/lite_translator.cc",
+    ],
 }
 
 cc_test_library {
