@@ -49,7 +49,7 @@ class GuestParamsAndReturnHelper : protected GuestAbi {
     } else if (loc.kind == riscv64::kArgLocationInt) {
       address = x + loc.offset + A0;
     } else if (loc.kind == riscv64::kArgLocationFp) {
-      address = f + loc.offset + A0;
+      address = f + loc.offset + FA0;
     } else {
       FATAL("Unknown ArgumentKind");
     }
