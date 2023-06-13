@@ -21,6 +21,8 @@ namespace berberis {
 
 void InitGuestThreadManager();
 
+GuestThread* GetCurrentGuestThread();
+
 }  // namespace berberis
 
 #endif  // BERBERIS_GUEST_OS_PRIMITIVES_GUEST_THREAD_MANAGER_H_
