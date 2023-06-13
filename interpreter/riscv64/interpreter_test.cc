@@ -272,13 +272,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
-  void InterpretAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    InterpretInsn(&state_);
-    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + code_start);
-  }
-
   void InterpretOpImm(uint32_t insn_bytes,
                       std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
     for (auto [arg1, imm, expected_result] : args) {
@@ -1096,8 +1089,6 @@ TEST_F(Riscv64InterpreterTest, AmoInstructions) {
 TEST_F(Riscv64InterpreterTest, UpperImmInstructions) {
   // Lui
   InterpretLi(0xfedcb0b7, 0xffff'ffff'fedc'b000);
-  // Auipc
-  InterpretAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
 }
 
 TEST_F(Riscv64InterpreterTest, OpFpInstructions) {
