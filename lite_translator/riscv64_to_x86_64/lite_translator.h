@@ -39,8 +39,8 @@ class LiteTranslator {
   using FpRegister = x86_64::Assembler::XMMRegister;
   using Condition = x86_64::Assembler::Condition;
 
-  explicit LiteTranslator(MachineCode* machine_code)
-      : as_(machine_code), success_(true), next_gp_reg_for_alloc_(0){};
+  explicit LiteTranslator(MachineCode* machine_code, GuestAddr pc)
+      : as_(machine_code), success_(true), next_gp_reg_for_alloc_(0), pc_(pc){};
 
   //
   // Instruction implementations.
@@ -52,14 +52,9 @@ class LiteTranslator {
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm);
   Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm);
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm);
+  Register Auipc(int32_t imm);
 
   Register Lui(int32_t imm) {
-    UNUSED(imm);
-    Unimplemented();
-    return {};
-  }
-
-  Register Auipc(int32_t imm) {
     UNUSED(imm);
     Unimplemented();
     return {};
@@ -256,6 +251,8 @@ class LiteTranslator {
   // Guest state getters/setters.
   //
 
+  GuestAddr GetInsnAddr() const { return pc_; }
+
   Register GetReg(uint8_t reg) {
     CHECK_GT(reg, 0);
     CHECK_LT(reg, arraysize(ThreadState::cpu.x));
@@ -306,9 +303,9 @@ class LiteTranslator {
   //
 
   Register GetImm(uint64_t imm) {
-    UNUSED(imm);
-    Unimplemented();
-    return {};
+    Register imm_reg = AllocTempReg();
+    as_.Movq(imm_reg, imm);
+    return imm_reg;
   }
 
   void Unimplemented() { success_ = false; }
@@ -339,6 +336,7 @@ class LiteTranslator {
   x86_64::Assembler as_;
   bool success_;
   uint8_t next_gp_reg_for_alloc_;
+  GuestAddr pc_;
 };
 
 }  // namespace berberis
