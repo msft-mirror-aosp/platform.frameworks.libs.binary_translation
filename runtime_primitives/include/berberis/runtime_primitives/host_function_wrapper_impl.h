@@ -18,6 +18,7 @@
 #define BERBERIS_RUNTIME_PRIMITIVES_HOST_FUNCTION_WRAPPER_IMPL_H_
 
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/checks.h"
 #include "berberis/runtime_primitives/host_code.h"
 
@@ -28,9 +29,7 @@ namespace berberis {
 // It extracts guest parameters, applies necessary conversions and calls 'func', then converts
 // the return value and writes it back to the guest state.
 // 'name' is used for debugging.
-struct ProcessState;
-
-using TrampolineFunc = void (*)(HostCode, ProcessState*);
+using TrampolineFunc = void (*)(HostCode, ThreadState*);
 
 struct NamedTrampolineFunc {
   const char* name;
