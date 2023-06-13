@@ -17,6 +17,7 @@
 #ifndef BERBERIS_RUNTIME_PRIMITIVES_CONFIG_H_
 #define BERBERIS_RUNTIME_PRIMITIVES_CONFIG_H_
 
+#include <cstddef>
 #include <cstdint>
 
 #include "berberis/runtime_primitives/platform.h"
@@ -41,6 +42,8 @@ static constexpr bool kAllJumpsExitGeneratedCode = false;
 // Eliminate overhead of exiting/reentering generated code by searching in
 // the translation cache directly from the generated code.
 static constexpr bool kLinkJumpsBetweenRegions = !kAllJumpsExitGeneratedCode;
+// Guest page size. Always 4K for now.
+static constexpr size_t kGuestPageSize = 4096;
 
 }  // namespace berberis::config
 
