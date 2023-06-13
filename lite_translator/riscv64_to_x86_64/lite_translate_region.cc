@@ -44,7 +44,7 @@ std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
                                                        GuestAddr end_pc,
                                                        MachineCode* machine_code) {
   CHECK_LT(start_pc, end_pc);
-  LiteTranslator translator(machine_code);
+  LiteTranslator translator(machine_code, start_pc);
   SemanticsPlayer sem_player(&translator);
   Decoder decoder(&sem_player);
 
