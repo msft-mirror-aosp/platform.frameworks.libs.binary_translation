@@ -73,6 +73,18 @@ void ProcessGuestSignal(GuestThread* thread, const Guest_sigaction* sa, siginfo_
 
 }  // namespace
 
+void GuestThread::ProcessPendingSignals() {
+  for (;;) {
+    // Process pending signals while present.
+    uint8_t status = GetPendingSignalsStatusAtomic(state_)->load(std::memory_order_acquire);
+    CHECK_NE(kPendingSignalsDisabled, status);
+    if (status == kPendingSignalsEnabled) {
+      return;
+    }
+    ProcessPendingSignalsImpl();
+  }
+}
+
 bool GuestThread::ProcessAndDisablePendingSignals() {
   for (;;) {
     // If pending signals are not present, cas should disable them.
