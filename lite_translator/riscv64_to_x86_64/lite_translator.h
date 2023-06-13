@@ -52,13 +52,8 @@ class LiteTranslator {
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm);
   Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm);
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm);
+  Register Lui(int32_t imm);
   Register Auipc(int32_t imm);
-
-  Register Lui(int32_t imm) {
-    UNUSED(imm);
-    Unimplemented();
-    return {};
-  }
 
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
     UNUSED(operand_type, arg, offset);
