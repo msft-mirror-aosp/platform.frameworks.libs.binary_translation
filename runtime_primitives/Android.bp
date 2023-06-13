@@ -69,6 +69,7 @@ cc_library_static {
         "checks_riscv64.cc",
         "host_call_frame_riscv64.cc",
     ],
+    whole_static_libs: ["libberberis_runtime_primitives"],
     header_libs: [
         "libberberis_assembler_headers",
         "libberberis_base_headers",
