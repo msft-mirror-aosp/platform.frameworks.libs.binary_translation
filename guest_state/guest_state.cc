@@ -93,6 +93,10 @@ CPUState* GetCPUState(ThreadState* state) {
   return &state->cpu;
 }
 
+void SetStackRegister(CPUState* cpu, GuestAddr val) {
+  SetXReg<SP>(*cpu, val);
+}
+
 void SetLinkRegister(CPUState* cpu, GuestAddr val) {
   SetXReg<RA>(*cpu, val);
 }
