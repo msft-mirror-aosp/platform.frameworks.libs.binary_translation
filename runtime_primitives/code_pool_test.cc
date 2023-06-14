@@ -14,13 +14,83 @@
  * limitations under the License.
  */
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+
+#include <string_view>
 
 #include "berberis/runtime_primitives/code_pool.h"
 
 namespace berberis {
 
+class MockExecRegionFactory {
+ public:
+  static void SetImpl(MockExecRegionFactory* impl) { impl_ = impl; }
+
+  static const uint32_t kExecRegionSize;
+
+  // Gmock is not able to mock static methods so we call *Impl counterpart
+  // and mock it instead.
+  static ExecRegion Create(size_t size) { return impl_->CreateImpl(size); }
+
+  MOCK_METHOD(ExecRegion, CreateImpl, (size_t));
+
+ private:
+  static MockExecRegionFactory* impl_;
+};
+
+const uint32_t MockExecRegionFactory::kExecRegionSize = sysconf(_SC_PAGESIZE);
+MockExecRegionFactory* MockExecRegionFactory::impl_ = nullptr;
+
 namespace {
+
+uint8_t* AllocWritableRegion() {
+  return reinterpret_cast<uint8_t*>(MmapImplOrDie({
+      .size = MockExecRegionFactory::kExecRegionSize,
+      .prot = PROT_READ | PROT_WRITE,
+      .flags = MAP_PRIVATE | MAP_ANONYMOUS,
+  }));
+}
+
+TEST(CodePool, Smoke) {
+  MockExecRegionFactory exec_region_factory_mock;
+  MockExecRegionFactory::SetImpl(&exec_region_factory_mock);
+  auto* first_exec_region_memory_write = AllocWritableRegion();
+  auto* first_exec_region_memory_exec = first_exec_region_memory_write;
+  auto* second_exec_region_memory_write = AllocWritableRegion();
+  auto* second_exec_region_memory_exec = second_exec_region_memory_write;
+
+  EXPECT_CALL(exec_region_factory_mock, CreateImpl(MockExecRegionFactory::kExecRegionSize))
+      .WillOnce([&](size_t) {
+        return ExecRegion{first_exec_region_memory_write, MockExecRegionFactory::kExecRegionSize};
+      })
+      .WillOnce([&](size_t) {
+        return ExecRegion{second_exec_region_memory_write, MockExecRegionFactory::kExecRegionSize};
+      });
+
+  CodePool<MockExecRegionFactory> code_pool;
+  {
+    MachineCode machine_code;
+    constexpr std::string_view kCode = "test1";
+    machine_code.AddSequence(kCode.data(), kCode.size());
+    auto host_code = code_pool.Add(&machine_code);
+    ASSERT_EQ(host_code, first_exec_region_memory_exec);
+    EXPECT_EQ(std::string_view{reinterpret_cast<const char*>(first_exec_region_memory_write)},
+              kCode);
+  }
+
+  code_pool.ResetExecRegion();
+
+  {
+    MachineCode machine_code;
+    constexpr std::string_view kCode = "test2";
+    machine_code.AddSequence(kCode.data(), kCode.size());
+    auto host_code = code_pool.Add(&machine_code);
+    ASSERT_EQ(host_code, second_exec_region_memory_exec);
+    EXPECT_EQ(std::string_view{reinterpret_cast<const char*>(second_exec_region_memory_write)},
+              kCode);
+  }
+}
 
 TEST(DataPool, Smoke) {
   DataPool data_pool;
