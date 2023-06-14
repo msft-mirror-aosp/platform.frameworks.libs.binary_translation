@@ -77,6 +77,18 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
+  void TestBranch(uint32_t insn_bytes,
+                  std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    for (auto [arg1, arg2, expected_offset] : args) {
+      state_.cpu.insn_addr = code_start;
+      SetXReg<1>(state_.cpu, arg1);
+      SetXReg<2>(state_.cpu, arg2);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + expected_offset));
+      EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+    }
+  }
+
  private:
   ThreadState state_;
 };
@@ -206,4 +218,62 @@ TEST_F(TESTSUITE, UpperImmInstructions) {
   TestAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
   // Lui
   TestLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
+}
+
+TEST_F(TESTSUITE, TestBranchInstructions) {
+  // Beq
+  TestBranch(0x00208463,
+             {
+                 {42, 42, 8},
+                 {41, 42, 4},
+                 {42, 41, 4},
+             });
+  // Bne
+  TestBranch(0x00209463,
+             {
+                 {42, 42, 4},
+                 {41, 42, 8},
+                 {42, 41, 8},
+             });
+  // Bltu
+  TestBranch(0x0020e463,
+             {
+                 {41, 42, 8},
+                 {42, 42, 4},
+                 {42, 41, 4},
+                 {0xf000'0000'0000'0000ULL, 42, 4},
+                 {42, 0xf000'0000'0000'0000ULL, 8},
+             });
+  // Bgeu
+  TestBranch(0x0020f463,
+             {
+                 {42, 41, 8},
+                 {42, 42, 8},
+                 {41, 42, 4},
+                 {0xf000'0000'0000'0000ULL, 42, 8},
+                 {42, 0xf000'0000'0000'0000ULL, 4},
+             });
+  // Blt
+  TestBranch(0x0020c463,
+             {
+                 {41, 42, 8},
+                 {42, 42, 4},
+                 {42, 41, 4},
+                 {0xf000'0000'0000'0000ULL, 42, 8},
+                 {42, 0xf000'0000'0000'0000ULL, 4},
+             });
+  // Bge
+  TestBranch(0x0020d463,
+             {
+                 {42, 41, 8},
+                 {42, 42, 8},
+                 {41, 42, 4},
+                 {0xf000'0000'0000'0000ULL, 42, 4},
+                 {42, 0xf000'0000'0000'0000ULL, 8},
+             });
+  // Beq with negative offset.
+  TestBranch(0xfe208ee3,
+             {
+                 {42, 42, -4},
+             });
 }
