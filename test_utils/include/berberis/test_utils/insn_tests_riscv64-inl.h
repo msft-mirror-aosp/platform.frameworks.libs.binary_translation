@@ -63,6 +63,13 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+  void TestAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + code_start);
+  }
+
  private:
   ThreadState state_;
 };
@@ -185,4 +192,9 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   TestOpImm(0x0001509b, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
   // Sraiw
   TestOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
+}
+
+TEST_F(TESTSUITE, UpperImmInstructions) {
+  // Auipc
+  TestAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
 }
