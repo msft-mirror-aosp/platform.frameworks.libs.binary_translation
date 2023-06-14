@@ -28,40 +28,6 @@
 
 namespace berberis {
 
-template <typename ExecRegionFactory>
-HostCode CodePool<ExecRegionFactory>::Add(MachineCode* code) {
-  std::lock_guard<std::mutex> lock(mutex_);
-
-  uint32_t size = code->install_size();
-
-  // This is the start of a generated code region which is always a branch
-  // target. Align on 16-bytes as recommended by Intel.
-  // TODO(b/232598137) Extract this into host specified behavior.
-  current_address_ = AlignUp(current_address_, 16);
-
-  if (exec_.end() < current_address_ + size) {
-    exec_.Detach();
-    exec_ = ExecRegionFactory::Create(std::max(size, ExecRegionFactory::kExecRegionSize));
-    current_address_ = exec_.begin();
-  }
-
-  const uint8_t* result = current_address_;
-  current_address_ += size;
-
-  code->Install(&exec_, result, &recovery_map_);
-  return result;
-}
-
-template <typename ExecRegionFactory>
-uintptr_t CodePool<ExecRegionFactory>::FindRecoveryCode(uintptr_t fault_addr) const {
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto it = recovery_map_.find(fault_addr);
-  if (it != recovery_map_.end()) {
-    return it->second;
-  }
-  return 0;
-}
-
 void* DataPool::AddRaw(const void* ptr, uint32_t size) {
   void* result;
   // Take the lock to allocate in arena.
@@ -73,11 +39,10 @@ void* DataPool::AddRaw(const void* ptr, uint32_t size) {
   return result;
 }
 
-// Specialize supported exec regions for CodePool
-template class CodePool<ExecRegionAnonymousFactory>;
-#if defined(__BIONIC__)
-template class CodePool<ExecRegionElfBackedFactory>;
-#endif
+void ResetAllExecRegions() {
+  GetDefaultCodePoolInstance()->ResetExecRegion();
+  GetFunctionWrapperCodePoolInstance()->ResetExecRegion();
+}
 
 CodePool<ExecRegionAnonymousFactory>* GetDefaultCodePoolInstance() {
   static CodePool<ExecRegionAnonymousFactory> g_code_pool;
