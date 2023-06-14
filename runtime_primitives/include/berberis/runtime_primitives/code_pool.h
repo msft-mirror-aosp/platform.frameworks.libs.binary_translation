@@ -34,7 +34,7 @@ namespace berberis {
 
 // Code pool is an arena used to store fragments of generated code.
 // TODO(b/232598137): Consider freeing allocated regions.
-template <typename ExecRegionConstructor>
+template <typename ExecRegionFactory>
 class CodePool {
  public:
   CodePool() = default;
@@ -45,9 +45,41 @@ class CodePool {
   CodePool(CodePool&&) = delete;
   CodePool& operator=(CodePool&&) = delete;
 
-  [[nodiscard]] HostCode Add(MachineCode* code);
+  [[nodiscard]] HostCode Add(MachineCode* code) {
+    std::lock_guard<std::mutex> lock(mutex_);
 
-  [[nodiscard]] uintptr_t FindRecoveryCode(uintptr_t fault_addr) const;
+    uint32_t size = code->install_size();
+
+    // This is the start of a generated code region which is always a branch
+    // target. Align on 16-bytes as recommended by Intel.
+    // TODO(b/232598137) Extract this into host specified behavior.
+    current_address_ = AlignUp(current_address_, 16);
+
+    if (exec_.end() < current_address_ + size) {
+      ResetExecRegion(size);
+    }
+
+    const uint8_t* result = current_address_;
+    current_address_ += size;
+
+    code->Install(&exec_, result, &recovery_map_);
+    return result;
+  }
+
+  [[nodiscard]] uintptr_t FindRecoveryCode(uintptr_t fault_addr) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = recovery_map_.find(fault_addr);
+    if (it != recovery_map_.end()) {
+      return it->second;
+    }
+    return 0;
+  }
+
+  void ResetExecRegion(uint32_t size = ExecRegionFactory::kExecRegionSize) {
+    exec_.Detach();
+    exec_ = ExecRegionFactory::Create(std::max(size, ExecRegionFactory::kExecRegionSize));
+    current_address_ = exec_.begin();
+  }
 
  private:
   ExecRegion exec_;
@@ -76,6 +108,9 @@ class DataPool {
   Arena arena_;
   std::mutex mutex_;
 };
+
+// Resets exec regions for all CodePools
+void ResetAllExecRegions();
 
 // Returns default code pool.
 [[nodiscard]] CodePool<ExecRegionAnonymousFactory>* GetDefaultCodePoolInstance();
