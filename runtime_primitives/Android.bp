@@ -93,6 +93,8 @@ cc_test_library {
         "libberberis_guest_state_headers",
         "libberberis_runtime_primitives_headers",
     ],
+    // libgmock does not have header_lib
+    static_libs: ["libgmock"],
 }
 
 cc_test_library {
