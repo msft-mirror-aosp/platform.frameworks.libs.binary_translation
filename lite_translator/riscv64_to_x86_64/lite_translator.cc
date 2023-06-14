@@ -274,6 +274,13 @@ Register LiteTranslator::ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register a
   return res;
 }
 
+Register LiteTranslator::Lui(int32_t imm) {
+  Register res = AllocTempReg();
+  as_.Movl(res, imm);
+  as_.Movsxlq(res, res);
+  return res;
+}
+
 Register LiteTranslator::Auipc(int32_t imm) {
   Register res = AllocTempReg();
   Register pc = GetImm(GetInsnAddr());
