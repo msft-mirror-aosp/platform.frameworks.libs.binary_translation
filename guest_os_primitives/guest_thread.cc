@@ -77,8 +77,8 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
     Destroy(thread);
     return nullptr;
   }
-  // TODO(b/280551726): Implement.
-  // SetStackRegister(&thread->state_->cpu, thread->stack_top_);
+
+  SetStackRegister(GetCPUState(thread->state()), thread->stack_top_);
 
 #if defined(__BIONIC__)
   if (!thread->AllocShadowCallStack()) {
@@ -211,6 +211,10 @@ bool GuestThread::AllocStaticTls() {
 #endif  // defined(__BIONIC__)
 
   return true;
+}
+
+void GuestThread::InitStaticTls() {
+  // TODO(b/277625454): Implement.
 }
 
 }  // namespace berberis
