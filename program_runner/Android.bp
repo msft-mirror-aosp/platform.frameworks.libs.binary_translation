@@ -32,6 +32,7 @@ cc_binary {
         "libberberis_config_globals",
         "libberberis_guest_os_primitives",
         "libberberis_guest_state",
+        "libberberis_guest_os_primitives",
         "libberberis_interpreter_riscv64",
         "libberberis_kernel_api_riscv64",
         "libberberis_runtime_riscv64_to_x86_64",
