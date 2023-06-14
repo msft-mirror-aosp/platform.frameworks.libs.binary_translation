@@ -70,6 +70,13 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + code_start);
   }
 
+  void TestLui(uint32_t insn_bytes, uint64_t expected_result) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+  }
+
  private:
   ThreadState state_;
 };
@@ -197,4 +204,6 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
 TEST_F(TESTSUITE, UpperImmInstructions) {
   // Auipc
   TestAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
+  // Lui
+  TestLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
 }

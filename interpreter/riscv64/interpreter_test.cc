@@ -1086,11 +1086,6 @@ TEST_F(Riscv64InterpreterTest, AmoInstructions) {
   InterpretAmo(0xe03120af, 0xe03130af, 0xffff'eeee'dddd'ccccULL);
 }
 
-TEST_F(Riscv64InterpreterTest, UpperImmInstructions) {
-  // Lui
-  InterpretLi(0xfedcb0b7, 0xffff'ffff'fedc'b000);
-}
-
 TEST_F(Riscv64InterpreterTest, OpFpInstructions) {
   // FAdd.S
   InterpretOpFp(0x003100d3, {std::tuple{1.0f, 2.0f, 3.0f}});
