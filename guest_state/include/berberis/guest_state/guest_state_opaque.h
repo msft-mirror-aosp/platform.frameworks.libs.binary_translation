@@ -57,6 +57,8 @@ std::atomic<uint_least8_t>* GetPendingSignalsStatusAtomic(ThreadState* state);
 
 CPUState* GetCPUState(ThreadState* state);
 
+void SetStackRegister(CPUState* cpu, GuestAddr val);
+
 void SetLinkRegister(CPUState* cpu, GuestAddr val);
 
 GuestAddr GetLinkRegister(const CPUState* cpu);

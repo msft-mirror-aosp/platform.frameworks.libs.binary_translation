@@ -24,6 +24,8 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/macros.h"
+#include "berberis/base/tracing.h"
+#include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/runtime/execute_guest.h"
@@ -117,9 +119,13 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  berberis::ThreadState state{};
-  state.cpu.insn_addr = opts.start_addr;
-  ExecuteGuest(&state, berberis::kNullGuestAddr);
+  // TODO(b/276786584): define InitBerberis instead.
+  berberis::InitGuestThreadManager();
+  berberis::Tracing::Init();
+
+  auto* thread = berberis::GetCurrentGuestThread();
+  thread->state()->cpu.insn_addr = opts.start_addr;
+  ExecuteGuest(thread->state(), berberis::kNullGuestAddr);
 
   return 0;
 }
