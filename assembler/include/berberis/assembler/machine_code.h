@@ -113,7 +113,7 @@ class MachineCode {
   typedef ArenaVector<Relocation> RelocationList;
 
   uint8_t* AddrOf(uint32_t offset);
-  const uint8_t* AddrOf(uint32_t offset) const;
+  [[nodiscard]] const uint8_t* AddrOf(uint32_t offset) const;
   uint32_t Grow(uint32_t count);
 
   // Relocate the code, in assumption it is to be installed at address 'code'.
