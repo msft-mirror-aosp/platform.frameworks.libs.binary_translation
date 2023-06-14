@@ -26,12 +26,18 @@ cc_binary {
         "libberberis_guest_state_headers",
     ],
     static_libs: [
+        "libberberis_assembler",
         "libberberis_base",
+        "libberberis_code_gen_lib_riscv64",
         "libberberis_config_globals",
+        "libberberis_guest_os_primitives",
         "libberberis_guest_state",
         "libberberis_interpreter_riscv64",
         "libberberis_kernel_api_riscv64",
         "libberberis_runtime",
+        "libberberis_runtime_riscv64_to_x86_64",
+        "libberberis_runtime_primitives",
+        "libberberis_runtime_primitives_riscv64",
         "libberberis_tinyloader",
     ],
     shared_libs: [
