@@ -330,8 +330,7 @@ void LiteTranslator::BranchToGuestAddr(GuestAddr target) {
 }
 
 void LiteTranslator::Branch(int32_t offset) {
-  UNUSED(offset);
-  Unimplemented();
+  BranchToGuestAddr(GetInsnAddr() + offset);
 }
 
 }  // namespace berberis
