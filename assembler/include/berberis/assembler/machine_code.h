@@ -40,7 +40,7 @@ enum class RelocationType {
   RelocRecoveryPoint,
 };
 
-typedef ForeverMap<uintptr_t, uintptr_t> RecoveryMap;
+using RecoveryMap = ForeverMap<uintptr_t, uintptr_t>;
 
 // Generated machine code for host architecture. Used by trampolines
 // and JIT translator.
@@ -110,9 +110,9 @@ class MachineCode {
     uint32_t pc;
     intptr_t data;
   };
-  typedef ArenaVector<Relocation> RelocationList;
+  using RelocationList = ArenaVector<Relocation>;
 
-  uint8_t* AddrOf(uint32_t offset);
+  [[nodiscard]] uint8_t* AddrOf(uint32_t offset);
   [[nodiscard]] const uint8_t* AddrOf(uint32_t offset) const;
   uint32_t Grow(uint32_t count);
 
