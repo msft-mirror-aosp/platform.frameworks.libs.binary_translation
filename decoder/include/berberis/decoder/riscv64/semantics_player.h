@@ -47,10 +47,10 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   }
 
-  void Branch(const typename Decoder::BranchArgs& args) {
+  void CompareAndBranch(const typename Decoder::BranchArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
-    listener_->Branch(args.opcode, arg1, arg2, args.offset);
+    listener_->CompareAndBranch(args.opcode, arg1, arg2, args.offset);
   };
 
   void Csr(const typename Decoder::CsrArgs& args) {
@@ -122,8 +122,9 @@ class SemanticsPlayer {
   }
 
   void JumpAndLink(const typename Decoder::JumpAndLinkArgs& args) {
-    Register result = listener_->JumpAndLink(args.offset, args.insn_len);
+    Register result = listener_->GetImm(listener_->GetInsnAddr() + args.insn_len);
     SetRegOrIgnore(args.dst, result);
+    listener_->Branch(args.offset);
   };
 
   void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
