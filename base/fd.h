@@ -41,9 +41,15 @@ namespace berberis {
 
 inline int CreateMemfdOrDie(const char* name) {
   // Use MFD_CLOEXEC to avoid leaking the file descriptor to child processes.
-  int fd = RawSyscall(__NR_memfd_create, bit_cast<long>(name), MFD_CLOEXEC);
+  int fd = static_cast<int>(RawSyscall(__NR_memfd_create, bit_cast<long>(name), MFD_CLOEXEC));
   CHECK(fd >= 0);
   return fd;
+}
+
+inline void FtruncateOrDie(int fd, off64_t size) {
+  // Call libc instead of syscall because we want 64 version and do not want to
+  // do ifdefs for 32/64/glibc/bionic in order to get the correct one.
+  CHECK_EQ(ftruncate64(fd, size), 0);
 }
 
 inline void WriteFullyOrDie(int fd, const void* data, size_t size) {
@@ -58,6 +64,10 @@ inline void WriteFullyOrDie(int fd, const void* data, size_t size) {
       CHECK(written == -EINTR);
     }
   }
+}
+
+inline void CloseUnsafe(int fd) {
+  RawSyscall(__NR_close, fd);
 }
 
 }  // namespace berberis
