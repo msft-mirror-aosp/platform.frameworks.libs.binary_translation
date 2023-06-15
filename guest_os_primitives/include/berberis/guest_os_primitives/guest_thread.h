@@ -42,6 +42,9 @@ class GuestThread {
   // Initialize *current* guest thread.
   void InitStaticTls();
 
+  // Configure static tls for *current* *main* guest thread.
+  void ConfigStaticTls(const NativeBridgeStaticTlsConfig* config);
+
   void ProcessPendingSignals();
 
   // Both return *previous* pending signals status (false: disabled, true: enabled).
