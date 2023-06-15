@@ -22,6 +22,7 @@
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/macros.h"
+#include "berberis/code_gen_lib/code_gen_lib.h"
 #include "berberis/decoder/riscv64/decoder.h"
 
 namespace berberis {
@@ -288,6 +289,44 @@ Register LiteTranslator::Auipc(int32_t imm) {
   as_.Movsxlq(res, res);
   as_.Addq(res, pc);
   return res;
+}
+
+void LiteTranslator::Branch(Decoder::BranchOpcode opcode,
+                            Register arg1,
+                            Register arg2,
+                            int16_t offset) {
+  AssemblerBase::Label* cont = as_.MakeLabel();
+  as_.Cmpq(arg1, arg2);
+  switch (opcode) {
+    case Decoder::BranchOpcode::kBeq:
+      as_.Jcc(Condition::kNotEqual, *cont);
+      break;
+    case Decoder::BranchOpcode::kBne:
+      as_.Jcc(Condition::kEqual, *cont);
+      break;
+    case Decoder::BranchOpcode::kBltu:
+      as_.Jcc(Condition::kAboveEqual, *cont);
+      break;
+    case Decoder::BranchOpcode::kBgeu:
+      as_.Jcc(Condition::kBelow, *cont);
+      break;
+    case Decoder::BranchOpcode::kBlt:
+      as_.Jcc(Condition::kGreaterEqual, *cont);
+      break;
+    case Decoder::BranchOpcode::kBge:
+      as_.Jcc(Condition::kLess, *cont);
+      break;
+    default:
+      return Unimplemented();
+  }
+  BranchToGuestAddr(GetInsnAddr() + offset);
+  as_.Bind(cont);
+}
+
+void LiteTranslator::BranchToGuestAddr(GuestAddr target) {
+  // EmitExitGeneratedCode is more efficient if receives target in rax.
+  as_.Movq(as_.rax, target);
+  EmitExitGeneratedCode(&as_, as_.rax);
 }
 
 }  // namespace berberis
