@@ -217,9 +217,8 @@ class Assembler : public AssemblerX86<Assembler> {
   };
 
   // This type is only used by CmpXchg16b and acts similarly to Memory64Bit there.
-  typedef Memory64Bit Memory128Bit;
-
-  typedef Label64Bit Label128Bit;
+  using Memory128Bit = Memory64Bit;
+  using Label128Bit = Label64Bit;
 
   // Check if a given type is "a register with size" (for EmitInstruction).
   template <typename ArgumentType>
