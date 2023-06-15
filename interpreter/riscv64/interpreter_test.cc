@@ -300,6 +300,13 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
   }
 
+  void InterpretAtomicLoad(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&kDataToLoad));
+    InterpretInsn(&state_);
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
+  }
+
   void InterpretStore(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
@@ -318,6 +325,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
     store_area_ = 0;
     InterpretInsn(&state_);
     EXPECT_EQ(store_area_, expected_result);
+  }
+
+  void InterpretAtomicStore(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    store_area_ = 0;
+    InterpretInsn(&state_);
+    EXPECT_EQ(store_area_, expected_result);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
   }
 
   void InterpretJumpAndLink(uint32_t insn_bytes, int8_t expected_offset) {
@@ -1409,6 +1427,13 @@ TEST_F(Riscv64InterpreterTest, LoadFpInstructions) {
   InterpretLoadFp(0x00813087, kDataToLoad);
 }
 
+TEST_F(Riscv64InterpreterTest, AtomicLoadInstructions) {
+  // Lrw
+  InterpretAtomicLoad(0x1000a12f, int64_t{int32_t(kDataToLoad)});
+  // Lrd
+  InterpretAtomicLoad(0x1000b12f, kDataToLoad);
+}
+
 TEST_F(Riscv64InterpreterTest, StoreInstructions) {
   // Offset is always 8.
   // Sb
@@ -1427,6 +1452,13 @@ TEST_F(Riscv64InterpreterTest, StoreFpInstructions) {
   InterpretStoreFp(0x0020a427, kDataToStore & 0xffff'ffffULL);
   // Fsd
   InterpretStoreFp(0x0020b427, kDataToStore);
+}
+
+TEST_F(Riscv64InterpreterTest, AtomicStoreInstructions) {
+  // Scw
+  InterpretAtomicStore(0x1820a1af, kDataToStore & 0xffff'ffffULL);
+  // Scd
+  InterpretAtomicStore(0x1820b1af, kDataToStore);
 }
 
 TEST_F(Riscv64InterpreterTest, JumpAndLinkInstructions) {
