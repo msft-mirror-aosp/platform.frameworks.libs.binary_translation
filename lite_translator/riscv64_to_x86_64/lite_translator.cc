@@ -291,10 +291,10 @@ Register LiteTranslator::Auipc(int32_t imm) {
   return res;
 }
 
-void LiteTranslator::Branch(Decoder::BranchOpcode opcode,
-                            Register arg1,
-                            Register arg2,
-                            int16_t offset) {
+void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
+                                      Register arg1,
+                                      Register arg2,
+                                      int16_t offset) {
   AssemblerBase::Label* cont = as_.MakeLabel();
   as_.Cmpq(arg1, arg2);
   switch (opcode) {
@@ -327,6 +327,11 @@ void LiteTranslator::BranchToGuestAddr(GuestAddr target) {
   // EmitExitGeneratedCode is more efficient if receives target in rax.
   as_.Movq(as_.rax, target);
   EmitExitGeneratedCode(&as_, as_.rax);
+}
+
+void LiteTranslator::Branch(int32_t offset) {
+  UNUSED(offset);
+  Unimplemented();
 }
 
 }  // namespace berberis
