@@ -820,7 +820,10 @@ class Interpreter {
     }
   }
 
-  void Branch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset) {
+  void CompareAndBranch(Decoder::BranchOpcode opcode,
+                        Register arg1,
+                        Register arg2,
+                        int16_t offset) {
     bool cond_value;
     switch (opcode) {
       case Decoder::BranchOpcode::kBeq:
@@ -851,11 +854,9 @@ class Interpreter {
     }
   }
 
-  Register JumpAndLink(int32_t offset, uint8_t insn_len) {
-    uint64_t pc = state_->cpu.insn_addr;
+  void Branch(int32_t offset) {
     state_->cpu.insn_addr += offset;
     branch_taken_ = true;
-    return pc + insn_len;
   }
 
   Register JumpAndLinkRegister(Register base, int16_t offset, uint8_t insn_len) {
@@ -951,6 +952,8 @@ class Interpreter {
   //
 
   uint64_t GetImm(uint64_t imm) const { return imm; }
+
+  GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
 
   void FinalizeInsn(uint8_t insn_len) {
     if (!branch_taken_) {
