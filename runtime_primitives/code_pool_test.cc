@@ -52,20 +52,32 @@ uint8_t* AllocWritableRegion() {
   }));
 }
 
+uint8_t* AllocExecutableRegion() {
+  return reinterpret_cast<uint8_t*>(MmapImplOrDie({
+      .size = MockExecRegionFactory::kExecRegionSize,
+      .prot = PROT_NONE,
+      .flags = MAP_PRIVATE | MAP_ANONYMOUS,
+  }));
+}
+
 TEST(CodePool, Smoke) {
   MockExecRegionFactory exec_region_factory_mock;
   MockExecRegionFactory::SetImpl(&exec_region_factory_mock);
   auto* first_exec_region_memory_write = AllocWritableRegion();
-  auto* first_exec_region_memory_exec = first_exec_region_memory_write;
+  auto* first_exec_region_memory_exec = AllocExecutableRegion();
   auto* second_exec_region_memory_write = AllocWritableRegion();
-  auto* second_exec_region_memory_exec = second_exec_region_memory_write;
+  auto* second_exec_region_memory_exec = AllocExecutableRegion();
 
   EXPECT_CALL(exec_region_factory_mock, CreateImpl(MockExecRegionFactory::kExecRegionSize))
       .WillOnce([&](size_t) {
-        return ExecRegion{first_exec_region_memory_write, MockExecRegionFactory::kExecRegionSize};
+        return ExecRegion{first_exec_region_memory_exec,
+                          first_exec_region_memory_write,
+                          MockExecRegionFactory::kExecRegionSize};
       })
       .WillOnce([&](size_t) {
-        return ExecRegion{second_exec_region_memory_write, MockExecRegionFactory::kExecRegionSize};
+        return ExecRegion{second_exec_region_memory_exec,
+                          second_exec_region_memory_write,
+                          MockExecRegionFactory::kExecRegionSize};
       });
 
   CodePool<MockExecRegionFactory> code_pool;
