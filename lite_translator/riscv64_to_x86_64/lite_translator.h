@@ -54,7 +54,8 @@ class LiteTranslator {
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm);
   Register Lui(int32_t imm);
   Register Auipc(int32_t imm);
-  void Branch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset);
+  void CompareAndBranch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset);
+  void Branch(int32_t offset);
 
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
     UNUSED(operand_type, arg, offset);
@@ -73,8 +74,8 @@ class LiteTranslator {
     return {};
   }
 
-  Register JumpAndLink(int32_t offset, uint8_t insn_len) {
-    UNUSED(offset, insn_len);
+  Register JumpAndLink(uint8_t insn_len) {
+    UNUSED(insn_len);
     Unimplemented();
     return {};
   }
