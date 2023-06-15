@@ -56,7 +56,9 @@ long RunGuestSyscall___NR_rt_sigaction(long sig_num_arg,
 }
 
 long RunGuestSyscall___NR_sigaltstack(long, long) {
-  FATAL("unimplemented syscall sigalstack");
+  // TODO(b/283534035): Implement when GuestThread::SigAltStack is ready.
+  TRACE("unimplemented syscall sigaltstack");
+  errno = ENOSYS;
   return -1;
 }
 
