@@ -74,12 +74,6 @@ class LiteTranslator {
     return {};
   }
 
-  Register JumpAndLink(uint8_t insn_len) {
-    UNUSED(insn_len);
-    Unimplemented();
-    return {};
-  }
-
   Register JumpAndLinkRegister(Register base, int16_t offset, uint8_t insn_len) {
     UNUSED(base, offset, insn_len);
     Unimplemented();
