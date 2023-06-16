@@ -316,6 +316,8 @@ class LiteTranslator {
 
   void BranchToGuestAddr(GuestAddr target);
 
+  void BranchToGuestAddr(Register target);
+
   x86_64::Assembler as_;
   bool success_;
   uint8_t next_gp_reg_for_alloc_;
