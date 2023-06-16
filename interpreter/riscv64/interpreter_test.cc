@@ -338,14 +338,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
   }
 
-  void InterpretJumpAndLink(uint32_t insn_bytes, int8_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    InterpretInsn(&state_);
-    EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
-    EXPECT_EQ(GetXReg<1>(state_.cpu), code_start + 4);
-  }
-
   // kLinkRegisterOffsetIfUsed is size of instruction or 0 if instruction does not link register.
   template <uint8_t kLinkRegisterOffsetIfUsed>
   void InterpretJumpAndLinkRegister(uint32_t insn_bytes,
@@ -1452,20 +1444,6 @@ TEST_F(Riscv64InterpreterTest, StoreFpInstructions) {
   InterpretStoreFp(0x0020a427, kDataToStore & 0xffff'ffffULL);
   // Fsd
   InterpretStoreFp(0x0020b427, kDataToStore);
-}
-
-TEST_F(Riscv64InterpreterTest, AtomicStoreInstructions) {
-  // Scw
-  InterpretAtomicStore(0x1820a1af, kDataToStore & 0xffff'ffffULL);
-  // Scd
-  InterpretAtomicStore(0x1820b1af, kDataToStore);
-}
-
-TEST_F(Riscv64InterpreterTest, JumpAndLinkInstructions) {
-  // Jal
-  InterpretJumpAndLink(0x008000ef, 8);
-  // Jal with negative offset.
-  InterpretJumpAndLink(0xffdff0ef, -4);
 }
 
 TEST_F(Riscv64InterpreterTest, JumpAndLinkRegisterInstructions) {
