@@ -858,12 +858,9 @@ class Interpreter {
     branch_taken_ = true;
   }
 
-  Register JumpAndLinkRegister(Register base, int16_t offset, uint8_t insn_len) {
-    uint64_t pc = state_->cpu.insn_addr;
-    // The lowest bit is always zeroed out.
+  void BranchRegister(Register base, int16_t offset) {
     state_->cpu.insn_addr = (base + offset) & ~uint64_t{1};
     branch_taken_ = true;
-    return pc + insn_len;
   }
 
   void Nop() {}
