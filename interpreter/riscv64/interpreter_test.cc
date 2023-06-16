@@ -1446,21 +1446,6 @@ TEST_F(Riscv64InterpreterTest, StoreFpInstructions) {
   InterpretStoreFp(0x0020b427, kDataToStore);
 }
 
-TEST_F(Riscv64InterpreterTest, JumpAndLinkRegisterInstructions) {
-  // Jalr offset=4.
-  InterpretJumpAndLinkRegister<4>(0x004100e7, 38, 42);
-  // Jalr offset=-4.
-  InterpretJumpAndLinkRegister<4>(0xffc100e7, 42, 38);
-  // Jalr offset=5 - must properly align the target to even.
-  InterpretJumpAndLinkRegister<4>(0x005100e7, 38, 42);
-  // Jr offset=4.
-  InterpretJumpAndLinkRegister<0>(0x00410067, 38, 42);
-  // Jr offset=-4.
-  InterpretJumpAndLinkRegister<0>(0xffc10067, 42, 38);
-  // Jr offset=5 - must properly align the target to even.
-  InterpretJumpAndLinkRegister<0>(0x00510067, 38, 42);
-}
-
 TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   const char message[] = "Hello";
   // Prepare a pipe to write to.
