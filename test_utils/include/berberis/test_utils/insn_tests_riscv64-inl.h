@@ -89,6 +89,14 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+  void TestJumpAndLink(uint32_t insn_bytes, int8_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + expected_offset));
+    EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), code_start + 4);
+  }
+
  private:
   ThreadState state_;
 };
@@ -276,4 +284,11 @@ TEST_F(TESTSUITE, TestBranchInstructions) {
              {
                  {42, 42, -4},
              });
+}
+
+TEST_F(TESTSUITE, JumpAndLinkInstructions) {
+  // Jal
+  TestJumpAndLink(0x008000ef, 8);
+  // Jal with negative offset.
+  TestJumpAndLink(0xffdff0ef, -4);
 }
