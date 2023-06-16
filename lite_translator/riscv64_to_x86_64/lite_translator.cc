@@ -329,13 +329,21 @@ void LiteTranslator::BranchToGuestAddr(GuestAddr target) {
   EmitExitGeneratedCode(&as_, as_.rax);
 }
 
+void LiteTranslator::BranchToGuestAddr(Register target) {
+  EmitExitGeneratedCode(&as_, target);
+}
+
 void LiteTranslator::Branch(int32_t offset) {
   BranchToGuestAddr(GetInsnAddr() + offset);
 }
 
 void LiteTranslator::BranchRegister(Register base, int16_t offset) {
-  UNUSED(base, offset);
-  Unimplemented();
+  Register res = AllocTempReg();
+  as_.Movq(res, base);
+  as_.Addq(res, offset);
+  // Zeroing out the last bit.
+  as_.Andq(res, ~int32_t{1});
+  BranchToGuestAddr(res);
 }
 
 }  // namespace berberis
