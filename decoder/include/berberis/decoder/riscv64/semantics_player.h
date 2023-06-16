@@ -128,9 +128,10 @@ class SemanticsPlayer {
   };
 
   void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
-    Register base = GetRegOrZero(args.base);
-    Register result = listener_->JumpAndLinkRegister(base, args.offset, args.insn_len);
+    Register result = listener_->GetImm(listener_->GetInsnAddr() + args.insn_len);
     SetRegOrIgnore(args.dst, result);
+    Register base = GetRegOrZero(args.base);
+    listener_->BranchRegister(base, args.offset);
   };
 
   void Load(const typename Decoder::LoadArgs& args) {
