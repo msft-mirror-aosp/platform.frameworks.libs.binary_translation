@@ -29,6 +29,7 @@ namespace berberis {
 const char* kAppProcessPath = "/system/bin/riscv64/app_process64";
 const char* kPtInterpPath = "/system/bin/riscv64/linker64";
 const char* kVdsoPath = "/system/lib64/riscv64/libnative_bridge_vdso.so";
+const char* kProxyPrefix = "libberberis_proxy_";
 
 GuestAddr InitKernelArgs(GuestAddr guest_sp,
                          size_t argc,
