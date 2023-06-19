@@ -36,6 +36,8 @@ _imm_types = {
 
 def _get_arg_type_name(arg):
   cls = arg.get('class')
+  if asm_defs.is_x87reg(cls):
+    return 'X87Register'
   if asm_defs.is_greg(cls):
     return 'Register'
   if asm_defs.is_xreg(cls):
@@ -297,6 +299,7 @@ def _is_insn_match(insn, expected_name, expected_args):
 
 
 _ARGUMENT_FORMATS_TO_SIZES = {
+  'X87Reg' : 'RegisterDefaultBit',
   'Cond': '',
   'FpReg32' : 'VectorRegister128Bit',
   'FpReg64' : 'VectorRegister128Bit',
@@ -315,24 +318,18 @@ _ARGUMENT_FORMATS_TO_SIZES = {
   'Mem32' : 'Memory32Bit',
   'Mem64' : 'Memory64Bit',
   'Mem128' : 'Memory128Bit',
+  'MemX87': 'MemoryX87',
+  'MemX8716': 'MemoryX8716Bit',
+  'MemX8732': 'MemoryX8732Bit',
+  'MemX8764': 'MemoryX8764Bit',
+  'MemX8780': 'MemoryX8780Bit',
+  'RegX87': 'X87Register',
   'XmmReg' : 'VectorRegister128Bit',
   'VecMem32': 'VectorMemory32Bit',
   'VecMem64': 'VectorMemory64Bit',
   'VecMem128': 'VectorMemory128Bit',
   'VecReg128' : 'VectorRegister128Bit'
 }
-
-
-_ARGUMENT_FORMATS_TO_SIZES_X87 = {
-  # Note: currently we don't support X87 registers (except implicit %st).
-  'Mem16' : 'MemoryX87',
-  'Mem32' : 'MemoryX87',
-  'Mem64' : 'MemoryX87',
-}
-
-
-def _is_x87_opcode(opcode):
-  return opcode >= 0xD8 and opcode <= 0xDF
 
 
 # On x86-64 each instruction which accepts explicit memory operant (there may at most be one)
@@ -349,10 +346,7 @@ def _gen_emit_instruction(f, insn, rip_operand=False):
   for arg in insn['args']:
     if asm_defs.is_implicit_reg(arg['class']):
       continue
-    if _is_x87_opcode(int(insn['opcodes'][0], 16)):
-      result.append('%s(arg%d)' % (_ARGUMENT_FORMATS_TO_SIZES_X87[arg['class']], arg_count))
-    else:
-      result.append('%s(arg%d)' % (_ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count))
+    result.append('%s(arg%d)' % (_ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count))
     arg_count += 1
   if insn.get('reg_to_rm', False):
     result[0], result[1] = result[1], result[0]

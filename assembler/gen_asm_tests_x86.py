@@ -79,6 +79,12 @@ def main(argv):
 
 
 sample_att_arguments = {
+    # Note: st(0) is not tested on purpose: many instructions have ambiguity
+    # where st(0) to st(0) version can be encoded in two different ways and both
+    # work fine, but assemblers produce different versions!
+    # Rather than try to match everything perfectly we limit ourselves to st(1),
+    # st(2), and st(4) which ensures that all bits are ancoded correctly.
+    'RegX87': ('%st(1)', '%st(2)', '%st(4)'),
     'Imm2': ('$0', '$1', '$2', '$3'),
     'Imm8': ('$-1', '$0', '$1', '$2'),
     'Imm16': ('$-1', '$0', '$1', '$2', '$256'),
@@ -131,6 +137,12 @@ sample_att_arguments_x86_64 = {
 }
 
 sample_arc_arguments = {
+    # Note: st(0) is not tested on purpose: many instructions have ambiguity
+    # where st(0) to st(0) version can be encoded in two different ways and both
+    # work fine, but assemblers produce different versions!
+    # Rather than try to match everything perfectly we limit ourselves to st(1),
+    # st(2), and st(4) which ensures that all bits are ancoded correctly.
+    'RegX87': ('Assembler::st1', 'Assembler::st2', 'Assembler::st4'),
     'Imm2': ('0', '1', '2', '3'),
     'Imm8': ('-1', '0', '1', '2'),
     'Imm16': ('-1', '0', '1', '2', '256'),
@@ -206,9 +218,9 @@ MNEMO_TO_ASM = {
 
 FIXED_REGISTER_CLASSES = (
     'AL', 'AX', 'EAX', 'RAX',
-    'CL', 'ECX', 'RCX',
-    'DX', 'EDX', 'RDX',
-    'BX', 'EBX', 'RBX',
+    'CL', 'ECX', 'RCX', 'ST',
+    'DX', 'EDX', 'RDX', 'CC',
+    'BX', 'EBX', 'RBX', 'SW',
     'EBP', 'RSP', 'FLAGS'
 )
 
@@ -238,6 +250,7 @@ def _update_arguments(x86_64):
             for scale in ('', ',2', ',4', ',8')
             if index not in ('%ESP', '%RSP')]
   for mem_arg in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+                  'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                   'VecMem32', 'VecMem64', 'VecMem128'):
     sample_att_arguments[mem_arg] = tuple(addrs)
 
@@ -263,6 +276,7 @@ def _update_arguments(x86_64):
             for scale in ('One', 'Two', 'Four', 'Eight')
             if 'Assembler::esp' not in index and 'Assembler::rsp' not in index]
   for mem_arg in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+                  'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                   'VecMem32', 'VecMem64', 'VecMem128'):
     sample_arc_arguments[mem_arg] = tuple(addrs)
 
@@ -311,6 +325,12 @@ def _gen_att_instruction_variants(
   elif arc_name.endswith('ByCl'):
     assert insn_name.endswith('BYCL')
     insn_name = insn_name[:-4]
+  elif arc_name.endswith('FromSt'):
+    assert insn_name.endswith('FROMST')
+    insn_name = insn_name[:-6]
+  elif arc_name.endswith('ToSt'):
+    assert insn_name.endswith('TOST')
+    insn_name = insn_name[:-4]
   for arg_nr, insn_arg in enumerate(insn_args):
     arg_class = insn_arg['class']
     if arg_class == 'Cond':
@@ -318,10 +338,13 @@ def _gen_att_instruction_variants(
       continue
     if arg_class == 'Label':
       label_present = True
-    if arg_class in ('AL', 'AX', 'EAX', 'RAX') and arc_name.endswith('Accumulator'):
+    if arg_class in ('AL', 'AX', 'EAX', 'RAX') and (
+       arc_name.endswith('Accumulator') or arc_name == "Fnstsw"):
       arg_variants = ('%%%s' % arg_class,)
     elif arg_class == 'CL' and arc_name.endswith('ByCl'):
       arg_variants = ('%CL',)
+    elif arg_class == 'ST' and (arc_name.endswith('FromSt') or arc_name.endswith('ToSt')):
+      arg_variants = ('%ST',)
     elif arg_class == 'GeneralReg' and insn_name not in ('PUSH', 'POP'):
       arg_variants = tuple('*%s' % reg for reg in sample_att_arguments['GeneralReg'])
     elif arg_class[:3] == 'Imm' and insn_name in (
@@ -514,6 +537,8 @@ def _argument_class_to_arc_type(arg_class):
     return 'Assembler::Label'
   elif sample_arc_arguments[arg_class][0] in gp_registers_32 + gp_registers_64:
     return 'Assembler::Register'
+  elif sample_arc_arguments[arg_class][0].startswith('Assembler::st'):
+    return 'Assembler::X87Register'
   elif sample_arc_arguments[arg_class][0].startswith('Assembler::xmm'):
     return 'Assembler::XMMRegister'
   else:

@@ -957,38 +957,118 @@
     },
     {
       "encodings": {
+        "FaddFromSt": { "opcodes": [ "Dc", "0" ] }
+      },
+      "args": [
+        { "class": "RegX87", "usage": "use_def" },
+        { "class": "ST", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "FaddToSt": { "opcodes": [ "D8", "0" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" },
+        { "class": "RegX87", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fcom": { "opcodes": [ "D8", "2" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use" },
+        { "class": "RegX87", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fildl": { "opcodes": [ "DB", "0" ] },
+        "Flds": { "opcodes": [ "D9", "0" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "def" },
+        { "class": "MemX8732", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fildll": { "opcodes": [ "DF", "5" ] },
         "Fldl": { "opcodes": [ "DD", "0" ] }
       },
       "args": [
-        { "class": "Mem64", "usage": "use" }
+        { "class": "ST", "usage": "def" },
+        { "class": "MemX8764", "usage": "use" }
       ]
     },
     {
       "encodings": {
-        "Flds": { "opcodes": [ "D9", "0" ] },
-        "Ldmxcsr": { "opcodes": [ "0F", "AE", "2" ] },
-        "Vldmxcsr": { "opcodes": [ "C4", "01", "00", "AE", "2" ] }
+        "Filds": { "opcodes": [ "DF", "0" ] }
       },
       "args": [
-        { "class": "Mem32", "usage": "use" }
+        { "class": "ST", "usage": "def" },
+        { "class": "MemX8732", "usage": "use" }
       ]
     },
     {
       "encodings": {
+        "Fistl": { "opcodes": [ "DB", "2" ] },
+        "Fistpl": { "opcodes": [ "DB", "3" ] },
+        "Fstps": { "opcodes": [ "D9", "3" ] },
+        "Fsts": { "opcodes": [ "D9", "2" ] }
+      },
+      "args": [
+        { "class": "MemX8732", "usage": "def" },
+        { "class": "ST", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fistpll": { "opcodes": [ "DF", "7" ] },
+        "Fstl": { "opcodes": [ "DD", "2" ] },
         "Fstpl": { "opcodes": [ "DD", "3" ] }
       },
       "args": [
-        { "class": "Mem64", "usage": "def" }
+        { "class": "MemX8764", "usage": "def" },
+        { "class": "ST", "usage": "use" }
       ]
     },
     {
       "encodings": {
-        "Fstps": { "opcodes": [ "D9", "3" ] },
-        "Stmxcsr": { "opcodes": [ "0F", "AE", "3" ] },
-        "Vstmxcsr": { "opcodes": [ "C4", "01", "00", "AE", "3" ] }
+        "Fldcw": { "opcodes": [ "D9", "5" ] }
       },
       "args": [
-        { "class": "Mem32", "usage": "def" }
+        { "class": "CC", "usage": "def" },
+        { "class": "MemX8732", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fnstcw": { "opcodes": [ "D9", "7" ] }
+      },
+      "args": [
+        { "class": "MemX8732", "usage": "def" },
+        { "class": "CC", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fnstsw": { "opcodes": [ "DF", "E0" ] }
+      },
+      "args": [
+        { "class": "AX", "usage": "def" },
+        { "class": "SW", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fnstsw": { "opcodes": [ "DD", "7" ] }
+      },
+      "args": [
+        { "class": "MemX8732", "usage": "def" },
+        { "class": "SW", "usage": "use" }
       ]
     },
     {
@@ -1131,6 +1211,15 @@
         { "class": "FLAGS", "usage": "use" }
       ],
       "comment": "Use use_def below because LAHF writes to AH while preserving the rest of RAX"
+    },
+    {
+      "encodings": {
+        "Ldmxcsr": { "opcodes": [ "0F", "AE", "2" ] },
+        "Vldmxcsr": { "opcodes": [ "C4", "01", "00", "AE", "2" ] }
+      },
+      "args": [
+        { "class": "Mem32", "usage": "use" }
+      ]
     },
     {
       "encodings": {
@@ -1824,6 +1913,15 @@
       "args": [
         { "class": "FpReg32", "usage": "def" },
         { "class": "FpReg32/VecMem32", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Stmxcsr": { "opcodes": [ "0F", "AE", "3" ] },
+        "Vstmxcsr": { "opcodes": [ "C4", "01", "00", "AE", "3" ] }
+      },
+      "args": [
+        { "class": "Mem32", "usage": "def" }
       ]
     },
     {
