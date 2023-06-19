@@ -92,6 +92,29 @@ class AssemblerX86 : public AssemblerBase {
     uint8_t num;
   };
 
+  struct X87Register {
+    // Note: we couldn't make the following private because of peculiarities of C++ (see
+    // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
+    // for explanation), but you are not supposed to access num or use GetHighBit() and GetLowBits()
+    // functions.  Treat that type as opaque cookie.
+
+    constexpr bool operator==(const Register& reg) const { return num == reg.num; }
+
+    constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
+
+    uint8_t num;
+  };
+
+  static constexpr X87Register st{0};
+  static constexpr X87Register st0{0};
+  static constexpr X87Register st1{1};
+  static constexpr X87Register st2{2};
+  static constexpr X87Register st3{3};
+  static constexpr X87Register st4{4};
+  static constexpr X87Register st5{5};
+  static constexpr X87Register st6{6};
+  static constexpr X87Register st7{7};
+
   struct XMMRegister {
     // Note: we couldn't make the following private because of peculiarities of C++ (see
     // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
@@ -312,7 +335,8 @@ class AssemblerX86 : public AssemblerBase {
 
   template <typename ArgumentType>
   struct IsRegister {
-    static constexpr bool value = Assembler::template IsRegister<ArgumentType>::value;
+    static constexpr bool value = Assembler::template IsRegister<ArgumentType>::value ||
+                                  std::is_same_v<ArgumentType, X87Register>;
   };
 
   template <typename ArgumentType>
