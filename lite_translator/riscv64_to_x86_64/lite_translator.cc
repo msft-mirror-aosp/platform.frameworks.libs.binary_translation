@@ -319,22 +319,30 @@ void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
     default:
       return Unimplemented();
   }
-  BranchToGuestAddr(GetInsnAddr() + offset);
+  ExitRegion(GetInsnAddr() + offset);
   as_.Bind(cont);
 }
 
-void LiteTranslator::BranchToGuestAddr(GuestAddr target) {
-  // EmitExitGeneratedCode is more efficient if receives target in rax.
-  as_.Movq(as_.rax, target);
-  EmitExitGeneratedCode(&as_, as_.rax);
+void LiteTranslator::ExitRegion(GuestAddr target) {
+  if (params_.allow_dispatch) {
+    EmitDirectDispatch(&as_, target, /* check_pending_signals */ true);
+  } else {
+    // EmitExitGeneratedCode is more efficient if receives target in rax.
+    as_.Movq(as_.rax, target);
+    EmitExitGeneratedCode(&as_, as_.rax);
+  }
 }
 
-void LiteTranslator::BranchToGuestAddr(Register target) {
-  EmitExitGeneratedCode(&as_, target);
+void LiteTranslator::ExitRegionIndirect(Register target) {
+  if (params_.allow_dispatch) {
+    EmitIndirectDispatch(&as_, target);
+  } else {
+    EmitExitGeneratedCode(&as_, target);
+  }
 }
 
 void LiteTranslator::Branch(int32_t offset) {
-  BranchToGuestAddr(GetInsnAddr() + offset);
+  ExitRegion(GetInsnAddr() + offset);
 }
 
 void LiteTranslator::BranchRegister(Register base, int16_t offset) {
@@ -343,7 +351,7 @@ void LiteTranslator::BranchRegister(Register base, int16_t offset) {
   as_.Addq(res, offset);
   // Zeroing out the last bit.
   as_.Andq(res, ~int32_t{1});
-  BranchToGuestAddr(res);
+  ExitRegionIndirect(res);
 }
 
 }  // namespace berberis
