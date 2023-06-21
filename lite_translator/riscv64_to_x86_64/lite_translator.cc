@@ -386,4 +386,27 @@ Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register ar
   return res;
 }
 
+void LiteTranslator::Store(Decoder::StoreOperandType operand_type,
+                           Register arg,
+                           int16_t offset,
+                           Register data) {
+  x86_64::Assembler::Operand asm_memop{.base = arg, .disp = offset};
+  switch (operand_type) {
+    case Decoder::StoreOperandType::k8bit:
+      as_.Movb(asm_memop, data);
+      break;
+    case Decoder::StoreOperandType::k16bit:
+      as_.Movw(asm_memop, data);
+      break;
+    case Decoder::StoreOperandType::k32bit:
+      as_.Movl(asm_memop, data);
+      break;
+    case Decoder::StoreOperandType::k64bit:
+      as_.Movq(asm_memop, data);
+      break;
+    default:
+      return Unimplemented();
+  }
+}
+
 }  // namespace berberis
