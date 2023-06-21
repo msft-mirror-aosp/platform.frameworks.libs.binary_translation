@@ -59,6 +59,8 @@ CPUState* GetCPUState(ThreadState* state);
 
 void SetStackRegister(CPUState* cpu, GuestAddr val);
 
+GuestAddr GetStackRegister(CPUState* cpu);
+
 void SetLinkRegister(CPUState* cpu, GuestAddr val);
 
 GuestAddr GetLinkRegister(const CPUState* cpu);
