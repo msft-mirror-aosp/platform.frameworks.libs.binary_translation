@@ -116,7 +116,7 @@ def is_xreg(arg_type):
 # Operands of this type are NOT passed to assembler
 def is_implicit_reg(arg_type):
   return arg_type in ('RAX', 'EAX', 'AX', 'AL',
-                      'RCX', 'ECX', 'CL', 'ST',
+                      'RCX', 'ECX', 'CL', 'ST', 'ST1',
                       'RDX', 'EDX', 'DX', 'CC',
                       'RBX', 'EBX', 'BX', 'SW',
                       'RDI', 'RSI', 'RSP', 'FLAGS')

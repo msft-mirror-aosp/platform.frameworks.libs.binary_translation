@@ -364,6 +364,24 @@
     },
     {
       "encodings": {
+        "Fxrstor64": { "opcodes": [ "0F", "AE", "1" ] }
+      },
+      "args": [
+        { "class": "Mem64", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fxsave64": { "opcodes": [ "0F", "AE", "0" ] }
+      },
+      "args": [
+        { "class": "CC", "usage": "def" },
+        { "class": "Mem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Imulq": { "opcodes": [ "F7", "5" ] },
         "Mulq": { "opcodes": [ "F7", "4" ] }
       },
