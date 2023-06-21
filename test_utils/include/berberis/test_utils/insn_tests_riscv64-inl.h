@@ -40,6 +40,30 @@
 
 class TESTSUITE : public ::testing::Test {
  public:
+  // Compressed Instructions.
+
+  template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
+  void TestCompressedStore(uint16_t insn_bytes, uint64_t offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    store_area_ = 0;
+    SetXReg<kTargetReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
+    SetReg<register_type, 9>(state_.cpu, kDataToLoad);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_EQ(store_area_, expected_result);
+  }
+
+  template <RegisterType register_type, uint64_t expected_result, uint8_t kSourceReg>
+  void TestCompressedLoad(uint16_t insn_bytes, uint64_t offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<kSourceReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_EQ((GetReg<register_type, 9>(state_.cpu)), expected_result);
+  }
+
+  // Non-Compressed Instructions.
+
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
@@ -139,6 +163,60 @@ class TESTSUITE : public ::testing::Test {
  private:
   ThreadState state_;
 };
+
+// Tests for Compressed Instructions.
+template <uint16_t opcode, auto execute_instruction_func>
+void TestCompressedLoadOrStore32bit(TESTSUITE* that) {
+  union {
+    uint16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 2;
+      uint8_t i2 : 1;
+      uint8_t i3_i5 : 3;
+      uint8_t i6 : 1;
+    } i_bits;
+  };
+  for (offset = uint8_t{0}; offset < uint8_t{128}; offset += 4) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t rd : 3;
+        uint8_t i6 : 1;
+        uint8_t i2 : 1;
+        uint8_t rs : 3;
+        uint8_t i3_i5 : 3;
+        uint8_t high_opcode : 3;
+      } __attribute__((__packed__));
+    } o_bits = {
+        .low_opcode = 0b00,
+        .rd = 1,
+        .i6 = i_bits.i6,
+        .i2 = i_bits.i2,
+        .rs = 0,
+        .i3_i5 = i_bits.i3_i5,
+        .high_opcode = 0b000,
+    };
+    (that->*execute_instruction_func)(o_bits.parcel | opcode, offset);
+  }
+}
+
+TEST_F(TESTSUITE, CompressedLoadAndStores32bit) {
+  // c.Lw
+  TestCompressedLoadOrStore32bit<
+      0b010'000'000'00'000'00,
+      &TESTSUITE::TestCompressedLoad<RegisterType::kReg,
+                                     static_cast<uint64_t>(static_cast<int32_t>(kDataToLoad)),
+                                     8>>(this);
+  // c.Sw
+  TestCompressedLoadOrStore32bit<
+      0b110'000'000'00'000'00,
+      &TESTSUITE::TestCompressedStore<RegisterType::kReg,
+                                      static_cast<uint64_t>(static_cast<uint32_t>(kDataToLoad)),
+                                      8>>(this);
+}
+
+// Tests for Non-Compressed Instructions.
 
 TEST_F(TESTSUITE, OpInstructions) {
   // Add
