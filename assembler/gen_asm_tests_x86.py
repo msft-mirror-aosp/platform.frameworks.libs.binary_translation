@@ -218,7 +218,7 @@ MNEMO_TO_ASM = {
 
 FIXED_REGISTER_CLASSES = (
     'AL', 'AX', 'EAX', 'RAX',
-    'CL', 'ECX', 'RCX', 'ST',
+    'CL', 'ECX', 'RCX', 'ST', 'ST1',
     'DX', 'EDX', 'RDX', 'CC',
     'BX', 'EBX', 'RBX', 'SW',
     'EBP', 'RSP', 'FLAGS'
@@ -393,6 +393,12 @@ def _gen_att_instruction_variants(
     if insn_name[0:4] == 'LOCK':
      # TODO(b/161986409): replace '\n' with ' ' when clang would be fixed.
      fixed_name = '%s\n%s' % (insn_name[0:4], insn_name[4:])
+    fixed_name = {
+      # GNU disassembler accepts these instructions, but not Clang assembler.
+      'FNDISI': '.byte 0xdb, 0xe1',
+      'FNENI': '.byte 0xdb, 0xe0',
+      'FNSETPM': '.byte 0xdb, 0xe4',
+    }.get(fixed_name, fixed_name)
     if label_present:
       print('.p2align 5, 0x90', file=file)
       print('0:', file=file)
