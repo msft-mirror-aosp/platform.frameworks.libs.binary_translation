@@ -121,8 +121,20 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+  void TestStore(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    // Offset is always 8.
+    SetXReg<1>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - 8));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, expected_result);
+  }
+
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
+  static constexpr uint64_t kDataToStore = kDataToLoad;
+  uint64_t store_area_;
 
  private:
   ThreadState state_;
@@ -351,4 +363,16 @@ TEST_F(TESTSUITE, LoadInstructions) {
   TestLoad(0x00811083, int64_t{int16_t(kDataToLoad)});
   // Lw
   TestLoad(0x00812083, int64_t{int32_t(kDataToLoad)});
+}
+
+TEST_F(TESTSUITE, StoreInstructions) {
+  // Offset is always 8.
+  // Sb
+  TestStore(0x00208423, kDataToStore & 0xffULL);
+  // Sh
+  TestStore(0x00209423, kDataToStore & 0xffffULL);
+  // Sw
+  TestStore(0x0020a423, kDataToStore & 0xffff'ffffULL);
+  // Sd
+  TestStore(0x0020b423, kDataToStore);
 }
