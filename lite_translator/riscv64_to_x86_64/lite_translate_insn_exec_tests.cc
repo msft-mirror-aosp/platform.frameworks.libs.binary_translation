@@ -36,8 +36,10 @@ namespace {
 template <uint8_t kInsnSize = 4>
 bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
   MachineCode machine_code;
-  bool success =
-      LiteTranslateRange(state->cpu.insn_addr, state->cpu.insn_addr + kInsnSize, &machine_code);
+  bool success = LiteTranslateRange(state->cpu.insn_addr,
+                                    state->cpu.insn_addr + kInsnSize,
+                                    &machine_code,
+                                    LiteTranslateParams{.allow_dispatch = false});
 
   if (!success) {
     return false;
