@@ -284,14 +284,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
-  void InterpretLoad(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    // Offset is always 8.
-    SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - 8));
-    InterpretInsn(&state_);
-    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
-  }
-
   void InterpretLoadFp(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
@@ -1391,24 +1383,6 @@ TEST_F(Riscv64InterpreterTest, RoundingModeTest) {
        {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000004},
        {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000007},
        {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000009}});
-}
-
-TEST_F(Riscv64InterpreterTest, LoadInstructions) {
-  // Offset is always 8.
-  // Lbu
-  InterpretLoad(0x00814083, kDataToLoad & 0xffULL);
-  // Lhu
-  InterpretLoad(0x00815083, kDataToLoad & 0xffffULL);
-  // Lwu
-  InterpretLoad(0x00816083, kDataToLoad & 0xffff'ffffULL);
-  // Ldu
-  InterpretLoad(0x00813083, kDataToLoad);
-  // Lb
-  InterpretLoad(0x00810083, int64_t{int8_t(kDataToLoad)});
-  // Lh
-  InterpretLoad(0x00811083, int64_t{int16_t(kDataToLoad)});
-  // Lw
-  InterpretLoad(0x00812083, int64_t{int32_t(kDataToLoad)});
 }
 
 TEST_F(Riscv64InterpreterTest, LoadFpInstructions) {

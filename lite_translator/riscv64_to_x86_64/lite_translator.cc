@@ -354,4 +354,36 @@ void LiteTranslator::BranchRegister(Register base, int16_t offset) {
   ExitRegionIndirect(res);
 }
 
+Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
+  Register res = AllocTempReg();
+  x86_64::Assembler::Operand asm_memop{.base = arg, .disp = offset};
+  switch (operand_type) {
+    case Decoder::LoadOperandType::k8bitUnsigned:
+      as_.Movzxbl(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k16bitUnsigned:
+      as_.Movzxwl(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k32bitUnsigned:
+      as_.Movl(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k64bit:
+      as_.Movq(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k8bitSigned:
+      as_.Movsxbq(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k16bitSigned:
+      as_.Movsxwq(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k32bitSigned:
+      as_.Movsxlq(res, asm_memop);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
 }  // namespace berberis
