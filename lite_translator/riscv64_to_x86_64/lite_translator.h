@@ -60,12 +60,7 @@ class LiteTranslator {
   void BranchRegister(Register base, int16_t offset);
   void ExitRegion(GuestAddr target);
   void ExitRegionIndirect(Register target);
-
-  Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
-    UNUSED(operand_type, arg, offset);
-    Unimplemented();
-    return {};
-  }
+  Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
 
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data) {
     UNUSED(operand_type, arg, offset, data);
