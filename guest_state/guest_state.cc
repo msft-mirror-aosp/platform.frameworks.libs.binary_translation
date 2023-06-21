@@ -19,7 +19,7 @@
 #include "berberis/base/checks.h"
 #include "berberis/base/mmap.h"
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/guest_state/guest_state.h"
 
 #include <atomic>   // std::memory_order_relaxed
 #include <cstddef>  // size_t
