@@ -350,52 +350,11 @@ TEST_F(Riscv64InterpreterTest, CompressedLoadAndStores) {
   TestCompressedLoadOrStore64bit<
       0b001'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kFpReg, kDataToLoad, 8>>(this);
-  // c.Ld
-  TestCompressedLoadOrStore64bit<
-      0b011'000'000'00'000'00,
-      &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kReg, kDataToLoad, 8>>(this);
   // c.Fsd
   TestCompressedLoadOrStore64bit<
       0b101'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kFpReg, kDataToLoad, 8>>(
       this);
-  // c.Sd
-  TestCompressedLoadOrStore64bit<
-      0b111'000'000'00'000'00,
-      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kReg, kDataToLoad, 8>>(this);
-}
-
-TEST_F(Riscv64InterpreterTest, TestCompressedStore32bitsp) {
-  union {
-    uint16_t offset;
-    struct [[gnu::packed]] {
-      uint8_t : 2;
-      uint8_t i2_i5 : 4;
-      uint8_t i6_i7 : 2;
-    } i_bits;
-  };
-  for (offset = uint16_t{0}; offset < uint16_t{256}; offset += 4) {
-    union {
-      int16_t parcel;
-      struct [[gnu::packed]] {
-        uint8_t low_opcode : 2;
-        uint8_t rs2 : 5;
-        uint8_t i6_i7 : 2;
-        uint8_t i2_i5 : 4;
-        uint8_t high_opcode : 3;
-      };
-    } o_bits = {
-        .low_opcode = 0b10,
-        .rs2 = 9,
-        .i6_i7 = i_bits.i6_i7,
-        .i2_i5 = i_bits.i2_i5,
-        .high_opcode = 0b110,
-    };
-    // c.Swsp
-    InterpretCompressedStore<RegisterType::kReg,
-                             static_cast<uint64_t>(static_cast<uint32_t>(kDataToStore)),
-                             2>(o_bits.parcel, offset);
-  }
 }
 
 template <uint16_t opcode, auto execute_instruction_func>
@@ -435,46 +394,6 @@ TEST_F(Riscv64InterpreterTest, TestCompressedStore64bitsp) {
       0b001'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kFpReg, kDataToStore, 2>>(
       this);
-  // c.Sdsp
-  TestCompressedStore64bitsp<
-      0b011'000'000'00'000'00,
-      &Riscv64InterpreterTest::InterpretCompressedStore<RegisterType::kReg, kDataToStore, 2>>(this);
-}
-
-TEST_F(Riscv64InterpreterTest, TestCompressedLoad32bitsp) {
-  union {
-    uint16_t offset;
-    struct [[gnu::packed]] {
-      uint8_t : 2;
-      uint8_t i2_i4 : 3;
-      uint8_t i5 : 1;
-      uint8_t i6_i7 : 2;
-    } i_bits;
-  };
-  for (offset = uint16_t{0}; offset < uint16_t{256}; offset += 4) {
-    union {
-      int16_t parcel;
-      struct [[gnu::packed]] {
-        uint8_t low_opcode : 2;
-        uint8_t i6_i7 : 2;
-        uint8_t i2_i4 : 3;
-        uint8_t rd : 5;
-        uint8_t i5 : 1;
-        uint8_t high_opcode : 3;
-      };
-    } o_bits = {
-        .low_opcode = 0b10,
-        .i6_i7 = i_bits.i6_i7,
-        .i2_i4 = i_bits.i2_i4,
-        .rd = 9,
-        .i5 = i_bits.i5,
-        .high_opcode = 0b010,
-    };
-    // c.Lwsp
-    InterpretCompressedLoad<RegisterType::kReg,
-                            static_cast<uint64_t>(static_cast<int32_t>(kDataToLoad)),
-                            2>(o_bits.parcel, offset);
-  }
 }
 
 template <uint16_t opcode, auto execute_instruction_func>
@@ -516,10 +435,6 @@ TEST_F(Riscv64InterpreterTest, TestCompressedLoad64bitsp) {
   TestCompressedLoad64bitsp<
       0b001'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kFpReg, kDataToLoad, 2>>(this);
-  // c.Ldsp
-  TestCompressedLoad64bitsp<
-      0b011'000'000'00'000'00,
-      &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kReg, kDataToLoad, 2>>(this);
 }
 
 TEST_F(Riscv64InterpreterTest, CBeqzBnez) {

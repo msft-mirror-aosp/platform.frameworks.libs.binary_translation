@@ -247,6 +247,198 @@ TEST_F(TESTSUITE, CompressedLoadAndStores32bit) {
                                       8>>(this);
 }
 
+template <uint16_t opcode, auto execute_instruction_func>
+void TestCompressedLoadOrStore64bit(TESTSUITE* that) {
+  union {
+    uint16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 3;
+      uint8_t i3_i5 : 3;
+      uint8_t i6_i7 : 2;
+    } i_bits;
+  };
+  for (offset = int16_t{0}; offset < int16_t{256}; offset += 8) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t rd : 3;
+        uint8_t i6_i7 : 2;
+        uint8_t rs : 3;
+        uint8_t i3_i5 : 3;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b00,
+        .rd = 1,
+        .i6_i7 = i_bits.i6_i7,
+        .rs = 0,
+        .i3_i5 = i_bits.i3_i5,
+        .high_opcode = 0b000,
+    };
+    (that->*execute_instruction_func)(o_bits.parcel | opcode, offset);
+  }
+}
+
+TEST_F(TESTSUITE, CompressedLoadAndStores) {
+  // c.Ld
+  TestCompressedLoadOrStore64bit<
+      0b011'000'000'00'000'00,
+      &TESTSUITE::TestCompressedLoad<RegisterType::kReg, kDataToLoad, 8>>(this);
+  // c.Sd
+  TestCompressedLoadOrStore64bit<
+      0b111'000'000'00'000'00,
+      &TESTSUITE::TestCompressedStore<RegisterType::kReg, kDataToLoad, 8>>(this);
+}
+
+TEST_F(TESTSUITE, TestCompressedStore32bitsp) {
+  union {
+    uint16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 2;
+      uint8_t i2_i5 : 4;
+      uint8_t i6_i7 : 2;
+    } i_bits;
+  };
+  for (offset = uint16_t{0}; offset < uint16_t{256}; offset += 4) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t rs2 : 5;
+        uint8_t i6_i7 : 2;
+        uint8_t i2_i5 : 4;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b10,
+        .rs2 = 9,
+        .i6_i7 = i_bits.i6_i7,
+        .i2_i5 = i_bits.i2_i5,
+        .high_opcode = 0b110,
+    };
+    // c.Swsp
+    TestCompressedStore<RegisterType::kReg,
+                        static_cast<uint64_t>(static_cast<uint32_t>(kDataToStore)),
+                        2>(o_bits.parcel, offset);
+  }
+}
+
+template <uint16_t opcode, auto execute_instruction_func>
+void TestCompressedStore64bitsp(TESTSUITE* that) {
+  union {
+    uint16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 3;
+      uint8_t i3_i5 : 3;
+      uint8_t i6_i8 : 3;
+    } i_bits;
+  };
+  for (offset = uint16_t{0}; offset < uint16_t{512}; offset += 8) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t rs2 : 5;
+        uint8_t i6_i8 : 3;
+        uint8_t i3_i5 : 3;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b10,
+        .rs2 = 9,
+        .i6_i8 = i_bits.i6_i8,
+        .i3_i5 = i_bits.i3_i5,
+        .high_opcode = 0b101,
+    };
+    (that->*execute_instruction_func)(o_bits.parcel | opcode, offset);
+  }
+}
+
+TEST_F(TESTSUITE, TestCompressedStore64bitsp) {
+  // c.Sdsp
+  TestCompressedStore64bitsp<0b011'000'000'00'000'00,
+                             &TESTSUITE::TestCompressedStore<RegisterType::kReg, kDataToStore, 2>>(
+      this);
+}
+
+TEST_F(TESTSUITE, TestCompressedLoad32bitsp) {
+  union {
+    uint16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 2;
+      uint8_t i2_i4 : 3;
+      uint8_t i5 : 1;
+      uint8_t i6_i7 : 2;
+    } i_bits;
+  };
+  for (offset = uint16_t{0}; offset < uint16_t{256}; offset += 4) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i6_i7 : 2;
+        uint8_t i2_i4 : 3;
+        uint8_t rd : 5;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b10,
+        .i6_i7 = i_bits.i6_i7,
+        .i2_i4 = i_bits.i2_i4,
+        .rd = 9,
+        .i5 = i_bits.i5,
+        .high_opcode = 0b010,
+    };
+    // c.Lwsp
+    TestCompressedLoad<RegisterType::kReg,
+                       static_cast<uint64_t>(static_cast<int32_t>(kDataToLoad)),
+                       2>(o_bits.parcel, offset);
+  }
+}
+
+template <uint16_t opcode, auto execute_instruction_func>
+void TestCompressedLoad64bitsp(TESTSUITE* that) {
+  union {
+    uint16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 3;
+      uint8_t i3_i4 : 2;
+      uint8_t i5 : 1;
+      uint8_t i6_i8 : 3;
+    } i_bits;
+  };
+  for (offset = uint16_t{0}; offset < uint16_t{512}; offset += 8) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i6_i8 : 3;
+        uint8_t i3_i4 : 2;
+        uint8_t rd : 5;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b10,
+        .i6_i8 = i_bits.i6_i8,
+        .i3_i4 = i_bits.i3_i4,
+        .rd = 9,
+        .i5 = i_bits.i5,
+        .high_opcode = 0b001,
+    };
+    (that->*execute_instruction_func)(o_bits.parcel | opcode, offset);
+  }
+}
+
+TEST_F(TESTSUITE, TestCompressedLoad64bitsp) {
+  // c.Ldsp
+  TestCompressedLoad64bitsp<0b011'000'000'00'000'00,
+                            &TESTSUITE::TestCompressedLoad<RegisterType::kReg, kDataToLoad, 2>>(
+      this);
+}
+
 TEST_F(TESTSUITE, CAddi) {
   union {
     int8_t offset;
