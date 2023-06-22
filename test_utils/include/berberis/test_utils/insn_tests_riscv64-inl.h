@@ -62,6 +62,37 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ((GetReg<register_type, 9>(state_.cpu)), expected_result);
   }
 
+  void TestCAddi(uint16_t insn_bytes, uint64_t expected_increment) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<2>(state_.cpu, 1);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_increment);
+  }
+
+  void TestCAddi16sp(uint16_t insn_bytes, uint64_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<2>(state_.cpu, 1);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_offset);
+  }
+
+  void TestLi(uint32_t insn_bytes, uint64_t expected_result) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+  }
+
+  void TestCAddi4spn(uint16_t insn_bytes, uint64_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<2>(state_.cpu, 1);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
+  }
+
   // Non-Compressed Instructions.
 
   void TestOp(uint32_t insn_bytes,
@@ -214,6 +245,187 @@ TEST_F(TESTSUITE, CompressedLoadAndStores32bit) {
       &TESTSUITE::TestCompressedStore<RegisterType::kReg,
                                       static_cast<uint64_t>(static_cast<uint32_t>(kDataToLoad)),
                                       8>>(this);
+}
+
+TEST_F(TESTSUITE, CAddi) {
+  union {
+    int8_t offset;
+    struct [[gnu::packed]] {
+      uint8_t i4_i0 : 5;
+      uint8_t i5 : 1;
+    } i_bits;
+  };
+  for (offset = int8_t{-32}; offset < int8_t{31}; offset++) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i4_i0 : 5;
+        uint8_t r : 5;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      } __attribute__((__packed__));
+    } o_bits = {
+        .low_opcode = 0,
+        .i4_i0 = i_bits.i4_i0,
+        .r = 2,
+        .i5 = i_bits.i5,
+        .high_opcode = 0,
+    };
+    // c.Addi
+    TestCAddi(o_bits.parcel | 0b0000'0000'0000'0001, offset);
+    // c.Addiw
+    TestCAddi(o_bits.parcel | 0b0010'0000'0000'0001, offset);
+  }
+}
+
+TEST_F(TESTSUITE, CAddi16sp) {
+  union {
+    int16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 4;
+      uint8_t i4 : 1;
+      uint8_t i5 : 1;
+      uint8_t i6 : 1;
+      uint8_t i7 : 1;
+      uint8_t i8 : 1;
+      uint8_t i9 : 1;
+    } i_bits;
+  };
+  for (offset = int16_t{-512}; offset < int16_t{512}; offset += 16) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i5 : 1;
+        uint8_t i7 : 1;
+        uint8_t i8 : 1;
+        uint8_t i6 : 1;
+        uint8_t i4 : 1;
+        uint8_t rd : 5;
+        uint8_t i9 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b01,
+        .i5 = i_bits.i5,
+        .i7 = i_bits.i7,
+        .i8 = i_bits.i8,
+        .i6 = i_bits.i6,
+        .i4 = i_bits.i4,
+        .rd = 2,
+        .i9 = i_bits.i9,
+        .high_opcode = 0b011,
+    };
+    TestCAddi16sp(o_bits.parcel, offset);
+  }
+}
+
+TEST_F(TESTSUITE, CLui) {
+  union {
+    int32_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 12;
+      uint8_t i12_i16 : 5;
+      uint8_t i17 : 1;
+    } i_bits;
+  };
+  for (offset = int32_t{-131072}; offset < int32_t{131072}; offset += 4096) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i12_i16 : 5;
+        uint8_t rd : 5;
+        uint8_t i17 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b01,
+        .i12_i16 = i_bits.i12_i16,
+        .rd = 1,
+        .i17 = i_bits.i17,
+        .high_opcode = 0b011,
+    };
+    TestLi(o_bits.parcel, offset);
+  }
+}
+
+TEST_F(TESTSUITE, CLi) {
+  union {
+    int8_t offset;
+    struct [[gnu::packed]] {
+      uint8_t i0_i4 : 5;
+      uint8_t i5 : 1;
+    } i_bits;
+  };
+  for (offset = int8_t{-32}; offset < int8_t{32}; offset++) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i0_i4 : 5;
+        uint8_t rd : 5;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b01,
+        .i0_i4 = i_bits.i0_i4,
+        .rd = 1,
+        .i5 = i_bits.i5,
+        .high_opcode = 0b010,
+    };
+    TestLi(o_bits.parcel, offset);
+  }
+}
+
+TEST_F(TESTSUITE, CAddi4spn) {
+  union {
+    int16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 2;
+      uint8_t i2 : 1;
+      uint8_t i3 : 1;
+      uint8_t i4 : 1;
+      uint8_t i5 : 1;
+      uint8_t i6 : 1;
+      uint8_t i7 : 1;
+      uint8_t i8 : 1;
+      uint8_t i9 : 1;
+    } i_bits;
+  };
+  for (offset = int16_t{4}; offset < int16_t{1024}; offset += 4) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t rd : 3;
+        uint8_t i3 : 1;
+        uint8_t i2 : 1;
+        uint8_t i6 : 1;
+        uint8_t i7 : 1;
+        uint8_t i8 : 1;
+        uint8_t i9 : 1;
+        uint8_t i4 : 1;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b00,
+        .rd = 1,
+        .i3 = i_bits.i3,
+        .i2 = i_bits.i2,
+        .i6 = i_bits.i6,
+        .i7 = i_bits.i7,
+        .i8 = i_bits.i8,
+        .i9 = i_bits.i9,
+        .i4 = i_bits.i4,
+        .i5 = i_bits.i5,
+        .high_opcode = 0b000,
+    };
+    TestCAddi4spn(o_bits.parcel, offset);
+  }
 }
 
 // Tests for Non-Compressed Instructions.
