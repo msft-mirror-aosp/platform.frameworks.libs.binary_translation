@@ -1,0 +1,38 @@
+{
+  "FSgnjD": {
+    "comment": "Copy sign of one float to another",
+    "class": "scalar",
+    "in": [ "Float64", "Float64" ],
+    "out": [ "Float64" ]
+  },
+  "FSgnjS": {
+    "comment": "Copy sign of one float to another",
+    "class": "scalar",
+    "in": [ "Float32", "Float32" ],
+    "out": [ "Float32" ]
+  },
+  "FSgnjnD": {
+    "comment": "Copy negated sign of one float to another",
+    "class": "scalar",
+    "in": [ "Float64", "Float64" ],
+    "out": [ "Float64" ]
+  },
+  "FSgnjnS": {
+    "comment": "Copy negated sign of one float to another",
+    "class": "scalar",
+    "in": [ "Float32", "Float32" ],
+    "out": [ "Float32" ]
+  },
+  "FSgnjxD": {
+    "comment": "Xor two sign bits of two floats and return",
+    "class": "scalar",
+    "in": [ "Float64", "Float64" ],
+    "out": [ "Float64" ]
+  },
+  "FSgnjxS": {
+    "comment": "Xor two sign bits of two floats and return",
+    "class": "scalar",
+    "in": [ "Float32", "Float32" ],
+    "out": [ "Float32" ]
+  }
+}
