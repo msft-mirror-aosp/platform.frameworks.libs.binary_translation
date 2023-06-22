@@ -13,3 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include "berberis/intrinsics/intrinsics.h"
+
+namespace berberis::intrinsics {
+
+std::tuple<Float32> FSgnjS(Float32 x, Float32 y) {
+  return FSgnj(x, y);
+}
+
+std::tuple<Float64> FSgnjD(Float64 x, Float64 y) {
+  return FSgnj(x, y);
+}
+
+std::tuple<Float32> FSgnjnS(Float32 x, Float32 y) {
+  return FSgnjn(x, y);
+}
+
+std::tuple<Float64> FSgnjnD(Float64 x, Float64 y) {
+  return FSgnjn(x, y);
+}
+
+std::tuple<Float32> FSgnjxS(Float32 x, Float32 y) {
+  return FSgnjx(x, y);
+}
+
+std::tuple<Float64> FSgnjxD(Float64 x, Float64 y) {
+  return FSgnjx(x, y);
+}
+
+}  // namespace berberis::intrinsics
