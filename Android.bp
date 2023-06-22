@@ -93,6 +93,7 @@ cc_test_host {
         "libberberis_assembler",
         "libberberis_base",
         "libberberis_config_globals",
+        "libberberis_intrinsics",
         "libberberis_runtime_primitives",
         "libberberis_tinyloader",
         "libgmock",
