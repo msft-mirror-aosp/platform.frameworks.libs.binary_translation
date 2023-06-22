@@ -59,6 +59,8 @@ class GuestThread {
     guest_call_execution_ = guest_call_execution;
   }
 
+  void DisallowStackUnmap() { mmap_size_ = 0; }
+
  private:
   GuestThread() = default;
   static GuestThread* Create();
