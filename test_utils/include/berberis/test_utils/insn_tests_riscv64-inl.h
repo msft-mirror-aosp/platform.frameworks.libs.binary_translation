@@ -93,6 +93,51 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
   }
 
+  void TestCBeqzBnez(uint16_t insn_bytes, uint64_t value, int16_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<9>(state_.cpu, value);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + expected_offset));
+    EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+  }
+
+  void TestCMiscAlu(uint16_t insn_bytes,
+                    std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
+    for (auto [arg1, arg2, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<8>(state_.cpu, arg1);
+      SetXReg<9>(state_.cpu, arg2);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+      EXPECT_EQ(GetXReg<8>(state_.cpu), expected_result);
+    }
+  }
+
+  void TestCMiscAluImm(uint16_t insn_bytes, uint64_t value, uint64_t expected_result) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<9>(state_.cpu, value);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_EQ(GetXReg<9>(state_.cpu), expected_result);
+  }
+
+  void TestCJ(uint16_t insn_bytes, int16_t expected_offset) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + expected_offset));
+    EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
+  }
+
+  void TestCOp(uint32_t insn_bytes,
+               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
+    for (auto [arg1, arg2, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<1>(state_.cpu, arg1);
+      SetXReg<2>(state_.cpu, arg2);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
   // Non-Compressed Instructions.
 
   void TestOp(uint32_t insn_bytes,
@@ -426,6 +471,191 @@ TEST_F(TESTSUITE, CAddi4spn) {
     };
     TestCAddi4spn(o_bits.parcel, offset);
   }
+}
+
+TEST_F(TESTSUITE, CBeqzBnez) {
+  union {
+    int16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 1;
+      uint8_t i1 : 1;
+      uint8_t i2 : 1;
+      uint8_t i3 : 1;
+      uint8_t i4 : 1;
+      uint8_t i5 : 1;
+      uint8_t i6 : 1;
+      uint8_t i7 : 1;
+      uint8_t i8 : 1;
+    } i_bits;
+  };
+  for (offset = int16_t{-256}; offset < int16_t{256}; offset += 8) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i5 : 1;
+        uint8_t i1 : 1;
+        uint8_t i2 : 1;
+        uint8_t i6 : 1;
+        uint8_t i7 : 1;
+        uint8_t rs : 3;
+        uint8_t i3 : 1;
+        uint8_t i4 : 1;
+        uint8_t i8 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0,
+        .i5 = i_bits.i5,
+        .i1 = i_bits.i1,
+        .i2 = i_bits.i2,
+        .i6 = i_bits.i6,
+        .i7 = i_bits.i7,
+        .rs = 1,
+        .i3 = i_bits.i3,
+        .i4 = i_bits.i4,
+        .i8 = i_bits.i8,
+        .high_opcode = 0,
+    };
+    TestCBeqzBnez(o_bits.parcel | 0b1100'0000'0000'0001, 0, offset);
+    TestCBeqzBnez(o_bits.parcel | 0b1110'0000'0000'0001, 1, offset);
+  }
+}
+
+TEST_F(TESTSUITE, CMiscAluInstructions) {
+  // c.Sub
+  TestCMiscAlu(0x8c05, {{42, 23, 19}});
+  // c.Xor
+  TestCMiscAlu(0x8c25, {{0b0101, 0b0011, 0b0110}});
+  // c.Or
+  TestCMiscAlu(0x8c45, {{0b0101, 0b0011, 0b0111}});
+  // c.And
+  TestCMiscAlu(0x8c65, {{0b0101, 0b0011, 0b0001}});
+  // c.SubW
+  TestCMiscAlu(0x9c05, {{42, 23, 19}});
+  // c.AddW
+  TestCMiscAlu(0x9c25, {{19, 23, 42}});
+}
+
+TEST_F(TESTSUITE, CMiscAluImm) {
+  union {
+    uint8_t uimm;
+    // Note: c.Andi uses sign-extended immediate while c.Srli/c.cSrain need zero-extended one.
+    // If we store the value into uimm and read from imm compiler would do correct conversion.
+    int8_t imm : 6;
+    struct [[gnu::packed]] {
+      uint8_t i0_i4 : 5;
+      uint8_t i5 : 1;
+    } i_bits;
+  };
+  for (uimm = uint8_t{0}; uimm < uint8_t{64}; uimm++) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i0_i4 : 5;
+        uint8_t r : 3;
+        uint8_t mid_opcode : 2;
+        uint8_t i5 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0,
+        .i0_i4 = i_bits.i0_i4,
+        .r = 1,
+        .mid_opcode = 0,
+        .i5 = i_bits.i5,
+        .high_opcode = 0,
+    };
+    // The o_bits.parcel here doesn't include opcodes and we are adding it in the function call.
+    // c.Srli
+    TestCMiscAluImm(o_bits.parcel | 0b1000'0000'0000'0001,
+                    0x8000'0000'0000'0000ULL,
+                    0x8000'0000'0000'0000ULL >> uimm);
+    // c.Srai
+    TestCMiscAluImm(o_bits.parcel | 0b1000'0100'0000'0001,
+                    0x8000'0000'0000'0000LL,
+                    ~0 ^ ((0x8000'0000'0000'0000 ^ ~0) >>
+                          uimm));  // Avoid shifting negative numbers to avoid UB
+    // c.Andi
+    TestCMiscAluImm(o_bits.parcel | 0b1000'1000'0000'0001,
+                    0xffff'ffff'ffff'ffffULL,
+                    0xffff'ffff'ffff'ffffULL & imm);
+
+    // Previous instructions use 3-bit register encoding where 0b000 is r8, 0b001 is r9, etc.
+    // c.Slli uses 5-bit register encoding. Since we want it to also work with r9 in the test body
+    // we add 0b01000 to register bits to mimic that shift-by-8.
+    // c.Slli                                   vvvvvv adds 8 to r to handle rd' vs rd difference.
+    TestCMiscAluImm(o_bits.parcel | 0b0000'0100'0000'0010,
+                    0x0000'0000'0000'0001ULL,
+                    0x0000'0000'0000'0001ULL << uimm);
+  }
+}
+
+TEST_F(TESTSUITE, CJ) {
+  union {
+    int16_t offset;
+    struct [[gnu::packed]] {
+      uint8_t : 1;
+      uint8_t i1 : 1;
+      uint8_t i2 : 1;
+      uint8_t i3 : 1;
+      uint8_t i4 : 1;
+      uint8_t i5 : 1;
+      uint8_t i6 : 1;
+      uint8_t i7 : 1;
+      uint8_t i8 : 1;
+      uint8_t i9 : 1;
+      uint8_t i10 : 1;
+      uint8_t i11 : 1;
+    } i_bits;
+  };
+  for (offset = int16_t{-2048}; offset < int16_t{2048}; offset += 2) {
+    union {
+      int16_t parcel;
+      struct [[gnu::packed]] {
+        uint8_t low_opcode : 2;
+        uint8_t i5 : 1;
+        uint8_t i1 : 1;
+        uint8_t i2 : 1;
+        uint8_t i3 : 1;
+        uint8_t i7 : 1;
+        uint8_t i6 : 1;
+        uint8_t i10 : 1;
+        uint8_t i8 : 1;
+        uint8_t i9 : 1;
+        uint8_t i4 : 1;
+        uint8_t i11 : 1;
+        uint8_t high_opcode : 3;
+      };
+    } o_bits = {
+        .low_opcode = 0b01,
+        .i5 = i_bits.i5,
+        .i1 = i_bits.i1,
+        .i2 = i_bits.i2,
+        .i3 = i_bits.i3,
+        .i7 = i_bits.i7,
+        .i6 = i_bits.i6,
+        .i10 = i_bits.i10,
+        .i8 = i_bits.i8,
+        .i9 = i_bits.i9,
+        .i4 = i_bits.i4,
+        .i11 = i_bits.i11,
+        .high_opcode = 0b101,
+    };
+    TestCJ(o_bits.parcel, offset);
+  }
+}
+
+TEST_F(TESTSUITE, CJalr) {
+  // C.Jr
+  TestJumpAndLinkRegister<0>(0x8102, 42, 42);
+  // C.Mv
+  TestCOp(0x808a, {{0, 1, 1}});
+  // C.Jalr
+  TestJumpAndLinkRegister<2>(0x9102, 42, 42);
+  // C.Add
+  TestCOp(0x908a, {{1, 2, 3}});
 }
 
 // Tests for Non-Compressed Instructions.
