@@ -152,17 +152,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
-  void InterpretOp(uint32_t insn_bytes,
-                   std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
-    for (auto [arg1, arg2, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-      SetXReg<2>(state_.cpu, arg1);
-      SetXReg<3>(state_.cpu, arg2);
-      InterpretInsn(&state_);
-      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
-    }
-  }
-
   template <typename... Types>
   void InterpretOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -272,18 +261,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
-  void InterpretOpImm(uint32_t insn_bytes,
-                      std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
-    for (auto [arg1, imm, expected_result] : args) {
-      CHECK_LE(imm, 63);
-      uint32_t insn_bytes_with_immediate = insn_bytes | imm << 20;
-      state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes_with_immediate);
-      SetXReg<2>(state_.cpu, arg1);
-      InterpretInsn(&state_);
-      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
-    }
-  }
-
   void InterpretLoadFp(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
@@ -357,57 +334,6 @@ bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
 #undef TESTSUITE
 
 // Tests for Compressed Instructions.
-
-template <uint16_t opcode, auto execute_instruction_func>
-void TestCompressedLoadOrStore32bit(Riscv64InterpreterTest* that) {
-  union {
-    uint16_t offset;
-    struct [[gnu::packed]] {
-      uint8_t : 2;
-      uint8_t i2 : 1;
-      uint8_t i3_i5 : 3;
-      uint8_t i6 : 1;
-    } i_bits;
-  };
-  for (offset = uint8_t{0}; offset < uint8_t{128}; offset += 4) {
-    union {
-      int16_t parcel;
-      struct [[gnu::packed]] {
-        uint8_t low_opcode : 2;
-        uint8_t rd : 3;
-        uint8_t i6 : 1;
-        uint8_t i2 : 1;
-        uint8_t rs : 3;
-        uint8_t i3_i5 : 3;
-        uint8_t high_opcode : 3;
-      } __attribute__((__packed__));
-    } o_bits = {
-        .low_opcode = 0b00,
-        .rd = 1,
-        .i6 = i_bits.i6,
-        .i2 = i_bits.i2,
-        .rs = 0,
-        .i3_i5 = i_bits.i3_i5,
-        .high_opcode = 0b000,
-    };
-    (that->*execute_instruction_func)(o_bits.parcel | opcode, offset);
-  }
-}
-
-TEST_F(Riscv64InterpreterTest, CompressedLoadAndStores32bit) {
-  // c.Lw
-  TestCompressedLoadOrStore32bit<0b010'000'000'00'000'00,
-                                 &Riscv64InterpreterTest::InterpretCompressedLoad<
-                                     RegisterType::kReg,
-                                     static_cast<uint64_t>(static_cast<int32_t>(kDataToLoad)),
-                                     8>>(this);
-  // c.Sw
-  TestCompressedLoadOrStore32bit<0b110'000'000'00'000'00,
-                                 &Riscv64InterpreterTest::InterpretCompressedStore<
-                                     RegisterType::kReg,
-                                     static_cast<uint64_t>(static_cast<uint32_t>(kDataToLoad)),
-                                     8>>(this);
-}
 
 template <uint16_t opcode, auto execute_instruction_func>
 void TestCompressedLoadOrStore64bit(Riscv64InterpreterTest* that) {
