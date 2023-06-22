@@ -40,6 +40,7 @@ cc_library_static {
         "libberberis_base_headers",
         "libberberis_code_gen_lib_headers",
         "libberberis_decoder_riscv64_headers",
+        "libberberis_guest_state_riscv64_headers",
         "libberberis_intrinsics_riscv64_headers",
         "libberberis_kernel_api_headers",
         "libberberis_lite_translator_headers",
@@ -57,6 +58,7 @@ cc_test_library {
     header_libs: [
         "libberberis_base_headers",
         "libberberis_decoder_riscv64_headers",
+        "libberberis_guest_state_riscv64_headers",
         "libberberis_lite_translator_headers",
         "berberis_test_utils_headers",
     ],
