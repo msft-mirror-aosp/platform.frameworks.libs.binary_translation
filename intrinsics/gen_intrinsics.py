@@ -707,6 +707,7 @@ def _load_intrs_def_files(intrs_def_files):
   for intrs_def in intrs_def_files:
     with open(intrs_def) as intrs:
       result.update(json.load(intrs))
+  result.pop('License', None)
   return result
 
 
@@ -714,7 +715,10 @@ def _load_intrs_arch_def(intrs_defs):
   json_data = []
   for intrs_def in intrs_defs:
     with open(intrs_def) as intrs:
-      json_data.extend(json.load(intrs))
+      json_array = json.load(intrs)
+      while isinstance(json_array[0], str):
+        json_array.pop(0)
+      json_data.extend(json_array)
   return json_data
 
 
