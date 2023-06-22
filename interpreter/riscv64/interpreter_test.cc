@@ -60,28 +60,12 @@ class Riscv64InterpreterTest : public ::testing::Test {
     EXPECT_EQ((GetReg<register_type, 9>(state_.cpu)), expected_result);
   }
 
-  void InterpretCAddi16sp(uint16_t insn_bytes, uint64_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    SetXReg<2>(state_.cpu, 1);
-    InterpretInsn(&state_);
-    EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_offset);
-  }
-
   void InterpretCAddi4spn(uint16_t insn_bytes, uint64_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
     InterpretInsn(&state_);
     EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
-  }
-
-  void InterpretCAddi(uint16_t insn_bytes, uint64_t expected_increment) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    SetXReg<2>(state_.cpu, 1);
-    InterpretInsn(&state_);
-    EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_increment);
   }
 
   void InterpretCBeqzBnez(uint16_t insn_bytes, uint64_t value, int16_t expected_offset) {
@@ -252,13 +236,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
                  0xffff'ffff'dddd'ccccULL, 0xffff'eeee'0000'0000 | uint32_t(expected_memory));
     InterpretAmo(insn_bytes64, 0xffff'eeee'dddd'ccccULL, 0xaaaa'bbbb'cccc'ddddULL,
                  0xffff'eeee'dddd'ccccULL, expected_memory);
-  }
-
-  void InterpretLi(uint32_t insn_bytes, uint64_t expected_result) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    InterpretInsn(&state_);
-    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
   void InterpretLoadFp(uint32_t insn_bytes, uint64_t expected_result) {
@@ -543,187 +520,6 @@ TEST_F(Riscv64InterpreterTest, TestCompressedLoad64bitsp) {
   TestCompressedLoad64bitsp<
       0b011'000'000'00'000'00,
       &Riscv64InterpreterTest::InterpretCompressedLoad<RegisterType::kReg, kDataToLoad, 2>>(this);
-}
-
-TEST_F(Riscv64InterpreterTest, CAddi) {
-  union {
-    int8_t offset;
-    struct [[gnu::packed]] {
-      uint8_t i4_i0 : 5;
-      uint8_t i5 : 1;
-    } i_bits;
-  };
-  for (offset = int8_t{-32}; offset < int8_t{31}; offset++) {
-    union {
-      int16_t parcel;
-      struct [[gnu::packed]] {
-        uint8_t low_opcode : 2;
-        uint8_t i4_i0 : 5;
-        uint8_t r : 5;
-        uint8_t i5 : 1;
-        uint8_t high_opcode : 3;
-      } __attribute__((__packed__));
-    } o_bits = {
-        .low_opcode = 0,
-        .i4_i0 = i_bits.i4_i0,
-        .r = 2,
-        .i5 = i_bits.i5,
-        .high_opcode = 0,
-    };
-    // c.Addi
-    InterpretCAddi(o_bits.parcel | 0b0000'0000'0000'0001, offset);
-    // c.Addiw
-    InterpretCAddi(o_bits.parcel | 0b0010'0000'0000'0001, offset);
-  }
-}
-
-TEST_F(Riscv64InterpreterTest, CAddi16sp) {
-  union {
-    int16_t offset;
-    struct [[gnu::packed]] {
-      uint8_t : 4;
-      uint8_t i4 : 1;
-      uint8_t i5 : 1;
-      uint8_t i6 : 1;
-      uint8_t i7 : 1;
-      uint8_t i8 : 1;
-      uint8_t i9 : 1;
-    } i_bits;
-  };
-  for (offset = int16_t{-512}; offset < int16_t{512}; offset += 16) {
-    union {
-      int16_t parcel;
-      struct [[gnu::packed]] {
-        uint8_t low_opcode : 2;
-        uint8_t i5 : 1;
-        uint8_t i7 : 1;
-        uint8_t i8 : 1;
-        uint8_t i6 : 1;
-        uint8_t i4 : 1;
-        uint8_t rd : 5;
-        uint8_t i9 : 1;
-        uint8_t high_opcode : 3;
-      };
-    } o_bits = {
-        .low_opcode = 0b01,
-        .i5 = i_bits.i5,
-        .i7 = i_bits.i7,
-        .i8 = i_bits.i8,
-        .i6 = i_bits.i6,
-        .i4 = i_bits.i4,
-        .rd = 2,
-        .i9 = i_bits.i9,
-        .high_opcode = 0b011,
-    };
-    InterpretCAddi16sp(o_bits.parcel, offset);
-  }
-}
-
-TEST_F(Riscv64InterpreterTest, CLui) {
-  union {
-    int32_t offset;
-    struct [[gnu::packed]] {
-      uint8_t : 12;
-      uint8_t i12_i16 : 5;
-      uint8_t i17 : 1;
-    } i_bits;
-  };
-  for (offset = int32_t{-131072}; offset < int32_t{131072}; offset += 4096) {
-    union {
-      int16_t parcel;
-      struct [[gnu::packed]] {
-        uint8_t low_opcode : 2;
-        uint8_t i12_i16 : 5;
-        uint8_t rd : 5;
-        uint8_t i17 : 1;
-        uint8_t high_opcode : 3;
-      };
-    } o_bits = {
-        .low_opcode = 0b01,
-        .i12_i16 = i_bits.i12_i16,
-        .rd = 1,
-        .i17 = i_bits.i17,
-        .high_opcode = 0b011,
-    };
-    InterpretLi(o_bits.parcel, offset);
-  }
-}
-
-TEST_F(Riscv64InterpreterTest, CLi) {
-  union {
-    int8_t offset;
-    struct [[gnu::packed]] {
-      uint8_t i0_i4 : 5;
-      uint8_t i5 : 1;
-    } i_bits;
-  };
-  for (offset = int8_t{-32}; offset < int8_t{32}; offset++) {
-    union {
-      int16_t parcel;
-      struct [[gnu::packed]] {
-        uint8_t low_opcode : 2;
-        uint8_t i0_i4 : 5;
-        uint8_t rd : 5;
-        uint8_t i5 : 1;
-        uint8_t high_opcode : 3;
-      };
-    } o_bits = {
-        .low_opcode = 0b01,
-        .i0_i4 = i_bits.i0_i4,
-        .rd = 1,
-        .i5 = i_bits.i5,
-        .high_opcode = 0b010,
-    };
-    InterpretLi(o_bits.parcel, offset);
-  }
-}
-
-TEST_F(Riscv64InterpreterTest, CAddi4spn) {
-  union {
-    int16_t offset;
-    struct [[gnu::packed]] {
-      uint8_t : 2;
-      uint8_t i2 : 1;
-      uint8_t i3 : 1;
-      uint8_t i4 : 1;
-      uint8_t i5 : 1;
-      uint8_t i6 : 1;
-      uint8_t i7 : 1;
-      uint8_t i8 : 1;
-      uint8_t i9 : 1;
-    } i_bits;
-  };
-  for (offset = int16_t{4}; offset < int16_t{1024}; offset += 4) {
-    union {
-      int16_t parcel;
-      struct [[gnu::packed]] {
-        uint8_t low_opcode : 2;
-        uint8_t rd : 3;
-        uint8_t i3 : 1;
-        uint8_t i2 : 1;
-        uint8_t i6 : 1;
-        uint8_t i7 : 1;
-        uint8_t i8 : 1;
-        uint8_t i9 : 1;
-        uint8_t i4 : 1;
-        uint8_t i5 : 1;
-        uint8_t high_opcode : 3;
-      };
-    } o_bits = {
-        .low_opcode = 0b00,
-        .rd = 1,
-        .i3 = i_bits.i3,
-        .i2 = i_bits.i2,
-        .i6 = i_bits.i6,
-        .i7 = i_bits.i7,
-        .i8 = i_bits.i8,
-        .i9 = i_bits.i9,
-        .i4 = i_bits.i4,
-        .i5 = i_bits.i5,
-        .high_opcode = 0b000,
-    };
-    InterpretCAddi4spn(o_bits.parcel, offset);
-  }
 }
 
 TEST_F(Riscv64InterpreterTest, CBeqzBnez) {
