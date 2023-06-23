@@ -35,6 +35,7 @@ namespace berberis {
 extern const char* kAppProcessPath;
 extern const char* kPtInterpPath;
 extern const char* kVdsoPath;
+extern const char* kProxyPrefix;
 
 GuestAddr InitKernelArgs(GuestAddr guest_sp,
                          size_t argc,
