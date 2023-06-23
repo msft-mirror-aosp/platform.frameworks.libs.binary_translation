@@ -34,6 +34,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/kernel_api/sys_mman_emulation.h"
+#include "berberis/proxy_loader/proxy_loader.h"
 #include "berberis/runtime_primitives/host_call_frame.h"
 #include "berberis/runtime_primitives/host_function_wrapper_impl.h"  // MakeTrampolineCallable
 #include "berberis/runtime_primitives/runtime_library.h"             // ExecuteGuestCall
@@ -147,11 +148,12 @@ void PostInitCallback(HostCode callee, ThreadState* state) {
 }
 
 void InterceptGuestSymbolCallback(HostCode callee, ThreadState* state) {
-  UNUSED(callee, state);
+  UNUSED(callee);
 
-  // TODO(b/284194965): Uncomment when proxy_loader is ready.
-  // auto [addr, lib_name, sym_name] = GuestParamsValues<decltype(InterceptGuestSymbol)>(state);
-  // InterceptGuestSymbol(addr, lib_name, sym_name);
+  // Function prototype used here is the signature of native_bridge_intercept_symbol
+  auto [addr, lib_name, sym_name] =
+      GuestParamsValues<void(GuestAddr, const char*, const char* name)>(state);
+  InterceptGuestSymbol(addr, lib_name, sym_name, kProxyPrefix);
 }
 
 void ConfigStaticTlsCallback(HostCode callee, ThreadState* state) {
