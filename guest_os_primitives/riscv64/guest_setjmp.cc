@@ -53,14 +53,9 @@ const int kJmpBufRaWord = 2;
 const int kJmpBufCoreBaseWord = 5;
 const int kJmpBufFloatingPointBaseWord = 17;
 const int kJmpBufChecksumWord = 29;
-#if defined(__BIONIC__)
-const int kJmpBufHostBufWord = (_JBLEN - 1);
-static_assert(kJmpBufHostBufWord < _JBLEN);
-#else
 // jmp_buf should be at least 32 words long.
 // Use the last word to store the address of the host jmp_buf.
 const int kJmpBufHostBufWord = 31;
-#endif
 
 // jmp_buf cookie can be anything but 0 (see bionic/tests/setjmp_test.cpp: setjmp_cookie)
 // ATTENTION: Keep low bit 0 for signal mask flag.
