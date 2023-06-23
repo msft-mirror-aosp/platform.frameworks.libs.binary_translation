@@ -99,6 +99,10 @@ void SetStackRegister(CPUState* cpu, GuestAddr val) {
   SetXReg<SP>(*cpu, val);
 }
 
+GuestAddr GetStackRegister(CPUState* cpu) {
+  return GetXReg<SP>(*cpu);
+}
+
 void SetLinkRegister(CPUState* cpu, GuestAddr val) {
   SetXReg<RA>(*cpu, val);
 }
