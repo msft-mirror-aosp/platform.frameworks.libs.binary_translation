@@ -203,8 +203,8 @@ int main(int argc, char* argv[], char* envp[]) {
 
   cpu_state.x[berberis::SP] =
       berberis::InitKernelArgs(cpu_state.x[berberis::SP],
-                               argc,
-                               argv,
+                               argc - optind,
+                               argv + optind,
                                envp,
                                berberis::ToGuestAddr(elf_file.base_addr()),
                                berberis::ToGuestAddr(elf_file.entry_point()),
