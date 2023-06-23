@@ -22,8 +22,8 @@
 
 #include "berberis/base/logging.h"
 #include "berberis/base/tracing.h"
-#include "berberis/guest_abi/function_wrappers.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
+#include "berberis/runtime_primitives/host_function_wrapper_impl.h"
 
 namespace berberis {
 
@@ -35,7 +35,7 @@ void DoBadTrampoline(HostCode callee, ThreadState* state) {
   const char* name = static_cast<const char*>(callee);
   LOG_ALWAYS_FATAL("Bad '%s' call from %p",
                    name ? name : "[unknown name]",
-                   ToHostAddr<void>(GetLinkRegister(&state->cpu)));
+                   ToHostAddr<void>(GetLinkRegister(GetCPUState(state))));
 }
 
 void ProxyLibraryBuilder::InterceptSymbol(GuestAddr guest_addr, const char* name) {

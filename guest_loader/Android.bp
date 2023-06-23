@@ -68,6 +68,7 @@ cc_defaults {
         "libberberis_guest_state_headers",
         "libberberis_instrument_headers",
         "libberberis_kernel_api_headers",
+        "libberberis_proxy_loader_headers",
         "libberberis_runtime_primitives_headers",
         "libberberis_tinyloader_headers",
     ],

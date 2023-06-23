@@ -21,7 +21,10 @@
 
 namespace berberis {
 
-void InterceptGuestSymbol(GuestAddr addr, const char* library_name, const char* name);
+void InterceptGuestSymbol(GuestAddr addr,
+                          const char* library_name,
+                          const char* name,
+                          const char* proxy_prefix);
 
 }  // namespace berberis
 

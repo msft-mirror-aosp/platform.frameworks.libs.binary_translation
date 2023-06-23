@@ -30,9 +30,11 @@ namespace berberis {
 
 namespace {
 
-bool LoadProxyLibrary(ProxyLibraryBuilder* builder, const char* library_name) {
+bool LoadProxyLibrary(ProxyLibraryBuilder* builder,
+                      const char* library_name,
+                      const char* proxy_prefix) {
   // library_name is the soname of original library
-  std::string proxy_name("libberberis_proxy_");
+  std::string proxy_name = proxy_prefix;
   proxy_name += library_name;
 
   void* proxy = dlopen(proxy_name.c_str(), RTLD_NOW | RTLD_LOCAL);
@@ -57,7 +59,10 @@ bool LoadProxyLibrary(ProxyLibraryBuilder* builder, const char* library_name) {
 
 }  // namespace
 
-void InterceptGuestSymbol(GuestAddr addr, const char* library_name, const char* name) {
+void InterceptGuestSymbol(GuestAddr addr,
+                          const char* library_name,
+                          const char* name,
+                          const char* proxy_prefix) {
   static std::mutex g_guard_mutex;
   std::lock_guard<std::mutex> guard(g_guard_mutex);
 
@@ -65,7 +70,7 @@ void InterceptGuestSymbol(GuestAddr addr, const char* library_name, const char* 
   static Libraries g_libraries;
 
   auto res = g_libraries.insert({library_name, {}});
-  if (res.second && !LoadProxyLibrary(&res.first->second, library_name)) {
+  if (res.second && !LoadProxyLibrary(&res.first->second, library_name, proxy_prefix)) {
     LOG_ALWAYS_FATAL(
         "Unable to load library \"%s\" (upon using symbol \"%s\")", library_name, name);
   }
