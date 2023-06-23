@@ -18,9 +18,26 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+cc_library_headers {
+    name: "libberberis_proxy_loader_headers",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    export_include_dirs: ["include"],
+    header_libs: [
+        "libberberis_base_headers",
+        "libberberis_guest_state_headers",
+        "libberberis_runtime_primitives_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_base_headers",
+        "libberberis_guest_state_headers",
+        "libberberis_runtime_primitives_headers",
+    ],
+}
+
 cc_library_static {
-    name: "libberberis_proxy_loader_riscv64",
-    defaults: ["berberis_defaults_64"],
+    name: "libberberis_proxy_loader",
+    defaults: ["berberis_defaults"],
     host_supported: true,
     srcs: [
         "proxy_loader.cc",
@@ -28,9 +45,9 @@ cc_library_static {
     ],
     header_libs: [
         "libberberis_base_headers",
-        "libberberis_guest_abi_riscv64_headers",
         "libberberis_guest_state_headers",
         "libberberis_runtime_primitives_headers",
+        "libberberis_proxy_loader_headers",
     ],
-    export_include_dirs: ["include"],
+    export_header_lib_headers: ["libberberis_proxy_loader_headers"],
 }
