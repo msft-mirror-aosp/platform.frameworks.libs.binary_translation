@@ -121,8 +121,7 @@ cc_test_host {
                 "base/raw_syscall_tests.cc",
             ],
             static_libs: [
-                // guest_os_primitives depends on runtime, which is currently 64-only.
-                "libberberis_guest_os_primitives",
+                "libberberis_guest_os_primitives_riscv64",
                 "libberberis_guest_state_riscv64",
                 "libberberis_interpreter_riscv64",
                 "libberberis_kernel_api_riscv64",
