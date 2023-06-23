@@ -92,3 +92,22 @@ cc_library_static {
         "libberberis_guest_abi_riscv64_headers",
     ],
 }
+
+cc_test {
+    name: "berberis_guest_loader_riscv64_tests",
+    defaults: ["berberis_defaults_64"],
+    host_supported: false,
+    srcs: ["guest_loader_test.cc"],
+    header_libs: [
+        "libberberis_runtime_headers",
+    ],
+    static_libs: [
+        "libbase",
+        "libberberis_base",
+        "libberberis_guest_loader_riscv64",
+    ],
+    shared_libs: [
+        "libberberis_riscv64",
+        "liblog",
+    ],
+}
