@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_INTRINSICS_FLOAT_X86_H_
-#define BERBERIS_INTRINSICS_INTRINSICS_FLOAT_X86_H_
+#ifndef COMMON_TO_X86_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#define COMMON_TO_X86_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
 
 #include <cmath>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/logging.h"
-#include "berberis/intrinsics/guest_rounding_modes.h"  // FE_HOSTROUND/FE_TIESAWAY
+#include "berberis/intrinsics/common/intrinsics_float.h"  // Float32/Float64
+#include "berberis/intrinsics/guest_rounding_modes.h"     // FE_HOSTROUND/FE_TIESAWAY
 
 namespace berberis::intrinsics {
 
@@ -295,4 +296,4 @@ inline Float64 MulAdd(const Float64& v1, const Float64& v2, const Float64& v3) {
 
 }  // namespace berberis::intrinsics
 
-#endif  // BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#endif  // COMMON_TO_X86_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
