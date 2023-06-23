@@ -62,6 +62,18 @@ cc_library_headers {
     export_include_dirs: ["include"],
     header_libs: ["libberberis_base_headers"],
     export_header_lib_headers: ["libberberis_base_headers"],
+    arch: {
+        x86: {
+            export_include_dirs: [
+                "common_to_x86/include",
+            ],
+        },
+        x86_64: {
+            export_include_dirs: [
+                "common_to_x86/include",
+            ],
+        },
+    },
 }
 
 genrule {
