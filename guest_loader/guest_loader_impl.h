@@ -21,6 +21,7 @@
 #include <cstdint>  // uint8_t
 
 #include "berberis/base/stringprintf.h"
+#include "berberis/guest_abi/guest_function_wrapper.h"
 #include "berberis/guest_abi/guest_type.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
@@ -69,7 +70,7 @@ void InitLinkerDebug(const LoadedElfFile& linker_elf_file);
 template <typename T>
 bool FindSymbol(const LoadedElfFile& elf_file,
                 const char* symbol_name,
-                T* /* fn */,
+                T* fn,
                 std::string* error_msg) {
   T guest_fn = reinterpret_cast<T>(elf_file.FindSymbol(symbol_name));
   if (guest_fn == nullptr) {
@@ -77,8 +78,7 @@ bool FindSymbol(const LoadedElfFile& elf_file,
     return false;
   }
 
-  // TODO(279068747): Uncomment when available.
-  // *fn = WrapGuestFunction(GuestType(guest_fn), symbol_name);
+  *fn = WrapGuestFunction(GuestType(guest_fn), symbol_name);
 
   return true;
 }
