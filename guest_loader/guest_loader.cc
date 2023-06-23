@@ -16,19 +16,27 @@
 
 #include "berberis/guest_loader/guest_loader.h"
 
+#include <algorithm>   // std::generate
+#include <climits>     // CHAR_BIT
+#include <functional>  // std::ref
 #include <mutex>
+#include <random>
 #include <thread>
 
+#include "berberis/base/checks.h"
 #include "berberis/base/config_globals.h"  // SetMainExecutableRealPath
 #include "berberis/base/stringprintf.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_abi/guest_params.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
+#include "berberis/guest_os_primitives/guest_thread_manager.h"  // GetCurrentGuestThread
+#include "berberis/guest_os_primitives/scoped_pending_signals.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/kernel_api/sys_mman_emulation.h"
 #include "berberis/runtime_primitives/host_call_frame.h"
 #include "berberis/runtime_primitives/host_function_wrapper_impl.h"  // MakeTrampolineCallable
+#include "berberis/runtime_primitives/runtime_library.h"             // ExecuteGuestCall
 #include "berberis/tiny_loader/tiny_loader.h"
 #include "native_bridge_support/linker/static_tls_config.h"
 
@@ -56,27 +64,47 @@ const char* FindPtInterp(const LoadedElfFile* loaded_executable) {
   return nullptr;
 }
 
-// Never returns.
-void StartGuestExecutableImpl(size_t argc,
-                              const char* argv[],
-                              char* envp[],
-                              const LoadedElfFile* linker_elf_file,
-                              const LoadedElfFile* main_executable_elf_file,
-                              const LoadedElfFile* vdso_elf_file) {
+[[noreturn]] void StartGuestExecutableImpl(size_t argc,
+                                           const char* argv[],
+                                           char* envp[],
+                                           const LoadedElfFile* linker_elf_file,
+                                           const LoadedElfFile* main_executable_elf_file,
+                                           const LoadedElfFile* vdso_elf_file) {
   GuestAddr main_executable_entry_point = ToGuestAddr(main_executable_elf_file->entry_point());
   GuestAddr entry_point = linker_elf_file->is_loaded() ? ToGuestAddr(linker_elf_file->entry_point())
                                                        : main_executable_entry_point;
 
-  // Passing environ to guest "as is" is ok unless/until proven otherwise.
-  StartExecutable(argc,
-                  argv,
-                  envp,
-                  ToGuestAddr(linker_elf_file->base_addr()),
-                  entry_point,
-                  main_executable_entry_point,
-                  ToGuestAddr(main_executable_elf_file->phdr_table()),
-                  main_executable_elf_file->phdr_count(),
-                  ToGuestAddr(vdso_elf_file->base_addr()));
+  uint8_t kRandomBytes[16];
+  std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> engine;
+  std::generate(&kRandomBytes[0], &kRandomBytes[0] + sizeof(kRandomBytes), std::ref(engine));
+
+  GuestThread* main_thread = GetCurrentGuestThread();
+  ThreadState* state = main_thread->state();
+
+  ScopedPendingSignalsEnabler scoped_pending_signals_enabler(main_thread);
+
+  CPUState* cpu = &state->cpu;
+  ScopedHostCallFrame host_call_frame(cpu, entry_point);
+
+  GuestAddr updated_stack = InitKernelArgs(GetStackRegister(cpu),
+                                           argc,
+                                           argv,
+                                           envp,
+                                           ToGuestAddr(linker_elf_file->base_addr()),
+                                           main_executable_entry_point,
+                                           ToGuestAddr(main_executable_elf_file->phdr_table()),
+                                           main_executable_elf_file->phdr_count(),
+                                           ToGuestAddr(vdso_elf_file->base_addr()),
+                                           &kRandomBytes);
+  SetStackRegister(cpu, updated_stack);
+
+  // Main thread's stack contains envp and aux that may be used by other threads.
+  // Prevent stack unmap on main thread exit so the data remains available.
+  main_thread->DisallowStackUnmap();
+
+  ExecuteGuestCall(state);
+
+  FATAL("program '%s' didn't exit()", argv[0]);
 }
 
 // ATTENTION: Assume guest and host integer and pointer types match.
