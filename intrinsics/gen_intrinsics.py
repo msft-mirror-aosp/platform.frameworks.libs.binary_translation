@@ -807,13 +807,13 @@ def main(argv):
   #                                      <mock_semantics_listener_intrinsics_hooks-inl.h>
   #                                      <riscv64_to_x86_64/intrinsic_def.json",
   #                                      ...
-  #   gen_intrinsics.py --make_intrinsics_cc <make_intrinsics.cc>
-  #                                          <riscv64_to_x86_64/intrinsic_def.json",
-  #                                          ...
-  #                                          <riscv64_to_x86_64/machine_ir_intrinsic_binding.json>,
-  #                                          ...
-  #                                          <riscv64_to_x86_64/macro_def.json>,
-  #                                          ...
+  #   gen_intrinsics.py --make_intrinsics_inl_h <make_intrinsics-inl.h>
+  #                                             <riscv64_to_x86_64/intrinsic_def.json",
+  #                                             ...
+  #                                             <riscv64_to_x86_64/machine_ir_intrinsic_binding.json>,
+  #                                             ...
+  #                                             <riscv64_to_x86_64/macro_def.json>,
+  #                                             ...
 
   def open_out_file(name):
     try:
@@ -831,7 +831,7 @@ def main(argv):
         open_out_file(argv[4]), intrs)
     _gen_mock_semantics_listener_intrinsics_hooks_impl_inl_h(
         open_out_file(argv[5]), intrs)
-  elif mode == '--make_intrinsics_cc':
+  elif mode == '--make_intrinsics_inl_h':
     def_files_end = 3
     while argv[def_files_end].endswith('intrinsic_def.json'):
       def_files_end += 1

@@ -24,6 +24,11 @@ python_binary_host {
     libs: ["asm_defs_lib"],
 }
 
+python_library_host {
+    name: "gen_intrinsics_lib",
+    srcs: ["gen_intrinsics.py"],
+}
+
 filegroup {
     name: "libberberis_intrinsics_gen_inputs_riscv64_to_x86_64",
     srcs: [
@@ -95,7 +100,7 @@ cc_library_static {
     host_supported: true,
     arch: {
         x86_64: {
-            srcs: ["intrinsics_impl.cc"],
+            srcs: ["riscv64_to_x86_64/intrinsics_impl.cc"],
         },
     },
     header_libs: ["libberberis_intrinsics_riscv64_headers"],
@@ -107,12 +112,15 @@ cc_test_library {
     name: "libberberis_intrinsics_unit_tests",
     defaults: ["berberis_defaults"],
     host_supported: true,
-    srcs: ["intrinsics_float_test.cc"],
     arch: {
+        x86: {
+            srcs: ["common_to_x86/intrinsics_float_test.cc"],
+        },
         x86_64: {
             srcs: [
-                "intrinsics_impl_test.cc",
-                "tuple_test.cc",
+                "common_to_x86/intrinsics_float_test.cc",
+                "common_to_x86_64/tuple_test.cc",
+                "riscv64_to_x86_64/intrinsics_impl_test.cc",
             ],
         },
     },
