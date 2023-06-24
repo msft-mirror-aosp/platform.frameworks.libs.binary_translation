@@ -17,11 +17,11 @@
 #ifndef BERBERIS_BASE_MMAP_POOL_H_
 #define BERBERIS_BASE_MMAP_POOL_H_
 
-#include <atomic>
+#include <array>
 #include <cstddef>
 
+#include "berberis/base/checks.h"
 #include "berberis/base/lock_free_stack.h"
-#include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
 
 namespace berberis {
@@ -36,61 +36,51 @@ class MmapPool {
 
  public:
   static void* Alloc() {
-    Node* node = g_free_list_.Pop();
-    if (node) {
-      ReleaseFreeListBlock();
-      return node;
+    Node* node = g_nodes_with_available_blocks_.Pop();
+    if (!node) {
+      return MmapOrDie(kBlockSize);
     }
-    return MmapOrDie(kBlockSize);
+    // Memorize the block before releasing the node since it may be immediately overwritten.
+    void* block = node->block;
+    g_nodes_without_blocks_.Push(node);
+    return block;
   }
 
-  static void Free(void* node) {
-    if (AcquireFreeListBlock()) {
-      g_free_list_.Push(static_cast<Node*>(node));
-      return;
+  static void Free(void* block) {
+    Node* node = g_nodes_without_blocks_.Pop();
+    if (!node) {
+      return MunmapOrDie(block, kBlockSize);
     }
-    return MunmapOrDie(node, kBlockSize);
+    node->block = block;
+    g_nodes_with_available_blocks_.Push(node);
   }
 
  private:
-  // When a block is freed we reinterpret it as Node, so that
-  // it can be linked to LockFreeStack.
   struct Node {
     Node* next;
+    void* block;
   };
 
-  static void ReleaseFreeListBlock() {
-    // Memory order release to ensure list pop isn't observed by another
-    // thread after size decrement.
-    g_size_.fetch_sub(kBlockSize, std::memory_order_release);
-    // There must be no more releases than acquires.
-    // On underflow g_size may become close to size_t max.
-    CHECK_LE(g_size_.load(std::memory_order_relaxed), kSizeLimit);
-  }
+  static_assert(kSizeLimit % kBlockSize == 0);
+  using NodesArray = std::array<Node, kSizeLimit / kBlockSize>;
 
-  static bool AcquireFreeListBlock() {
-    // We need acquire semantics so that list push isn't observed by another
-    // thread before the size reservation.
-    size_t cmp = g_size_.load(std::memory_order_acquire);
-    while (true) {
-      size_t xch = cmp + kBlockSize;
-      // This guarantees that g_size_ is never set to a value above kSizeLimit.
-      if (xch > kSizeLimit) {
-        return false;
-      }
-      // Updates cmp!
-      if (g_size_.compare_exchange_weak(cmp, xch, std::memory_order_acquire)) {
-        return true;
+  // Helper wrapper to add a constructor from std::array which can be used for
+  // static member initialization.
+  class FreeNodes : public LockFreeStack<Node> {
+   public:
+    explicit FreeNodes(NodesArray& nodes_arr) {
+      for (auto& node : nodes_arr) {
+        LockFreeStack<Node>::Push(&node);
       }
     }
-  }
+  };
 
-  static LockFreeStack<Node> g_free_list_;
-  // Note, the size is not strictly synchronized with g_free_list_ updates,
-  // but we err on the side of a greater size everywhere to make sure kSizeLimit
-  // isn't overflown. We increase the size *before* pushing a node to list, and
-  // decrease size *after* removing a node.
-  static std::atomic_size_t g_size_;
+  // Attention: we cannot use blocks as nodes since a thread may unmap block while another thread
+  // still tries to dereference (node->next) it inside LockFreeStack. So instead we use permanent
+  // array of nodes.
+  static NodesArray g_nodes_;
+  static LockFreeStack<Node> g_nodes_with_available_blocks_;
+  static FreeNodes g_nodes_without_blocks_;
 
   MmapPool() = delete;
 
@@ -98,11 +88,17 @@ class MmapPool {
 };
 
 template <size_t kBlockSize, size_t kSizeLimit>
-std::atomic_size_t MmapPool<kBlockSize, kSizeLimit>::g_size_{0};
+std::array<typename MmapPool<kBlockSize, kSizeLimit>::Node, kSizeLimit / kBlockSize>
+    MmapPool<kBlockSize, kSizeLimit>::g_nodes_;
 
 template <size_t kBlockSize, size_t kSizeLimit>
 LockFreeStack<typename MmapPool<kBlockSize, kSizeLimit>::Node>
-    MmapPool<kBlockSize, kSizeLimit>::g_free_list_;
+    MmapPool<kBlockSize, kSizeLimit>::g_nodes_with_available_blocks_;
+
+template <size_t kBlockSize, size_t kSizeLimit>
+typename MmapPool<kBlockSize, kSizeLimit>::FreeNodes
+    MmapPool<kBlockSize, kSizeLimit>::g_nodes_without_blocks_(
+        MmapPool<kBlockSize, kSizeLimit>::g_nodes_);
 
 }  // namespace berberis
 
