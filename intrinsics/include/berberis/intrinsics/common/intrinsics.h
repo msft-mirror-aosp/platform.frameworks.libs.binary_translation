@@ -31,9 +31,28 @@ class SIMD128Register;
 
 namespace intrinsics {
 
+// A solution for the inability to call generic implementation from specialization.
+// Declaration:
+//   template <typename Type,
+//             int size,
+//             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+//   inline std::tuple<SIMD128Register> VectorMultiplyByScalarInt(SIMD128Register op1,
+//                                                                SIMD128Register op2);
+// Normal use only specifies two arguments, e.g. VectorMultiplyByScalarInt<uint32_t, 2>,
+// but assembler implementation can (if SSE 4.1 is not available) do the following call:
+//   return VectorMultiplyByScalarInt<uint32_t, 2, kUseCppImplementation>(in0, in1);
+//
+// Because PreferredIntrinsicsImplementation argument has non-default value we have call to the
+// generic C-based implementation here.
+
+enum PreferredIntrinsicsImplementation {
+  kUseAssemblerImplementationIfPossible,
+  kUseCppImplementation
+};
+
 #include "berberis/intrinsics/intrinsics-inl.h"  // NOLINT: generated file!
 
-template <typename FloatType>
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FSgnj(FloatType x, FloatType y) {
   using Int = typename TypeTraits<FloatType>::Int;
   using UInt = std::make_unsigned_t<Int>;
@@ -42,12 +61,12 @@ std::tuple<FloatType> FSgnj(FloatType x, FloatType y) {
   return {bit_cast<FloatType>((bit_cast<UInt>(x) & non_sign_bit) | (bit_cast<UInt>(y) & sign_bit))};
 }
 
-template <typename FloatType>
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FSgnjn(FloatType x, FloatType y) {
   return FSgnj(x, Negative(y));
 }
 
-template <typename FloatType>
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FSgnjx(FloatType x, FloatType y) {
   using Int = typename TypeTraits<FloatType>::Int;
   using UInt = std::make_unsigned_t<Int>;
