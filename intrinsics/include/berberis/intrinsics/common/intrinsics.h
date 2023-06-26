@@ -52,6 +52,52 @@ enum PreferredIntrinsicsImplementation {
 
 #include "berberis/intrinsics/intrinsics-inl.h"  // NOLINT: generated file!
 
+template <typename TargetOperandType,
+          typename SourceOperandType,
+          enum PreferredIntrinsicsImplementation>
+std::tuple<TargetOperandType> FCvtFloatToFloat(uint8_t rm, uint8_t frm, SourceOperandType arg) {
+  static_assert(std::is_same_v<Float32, SourceOperandType> ||
+                std::is_same_v<Float64, SourceOperandType>);
+  static_assert(std::is_same_v<Float32, TargetOperandType> ||
+                std::is_same_v<Float64, TargetOperandType>);
+  if constexpr (sizeof(TargetOperandType) > sizeof(SourceOperandType)) {
+    // Conversion from narrow type to wide one ignores rm because all possible values from narrow
+    // type fit in the wide type.
+    return TargetOperandType(arg);
+  } else {
+    return intrinsics::ExecuteFloatOperation<TargetOperandType>(
+        rm, frm, [](auto x) { return typename TypeTraits<decltype(x)>::Narrow(x); }, arg);
+  }
+}
+
+template <typename TargetOperandType,
+          typename SourceOperandType,
+          enum PreferredIntrinsicsImplementation>
+std::tuple<TargetOperandType> FCvtFloatToInteger(uint8_t /*rm*/,
+                                                 uint8_t /*frm*/,
+                                                 SourceOperandType arg) {
+  static_assert(std::is_same_v<Float32, SourceOperandType> ||
+                std::is_same_v<Float64, SourceOperandType>);
+  static_assert(std::is_integral_v<TargetOperandType>);
+  // TODO(265372622): handle rm properly in integer-to-float and float-to-integer cases.
+  TargetOperandType result = static_cast<TargetOperandType>(arg);
+  return static_cast<std::make_signed_t<TargetOperandType>>(result);
+}
+
+template <typename TargetOperandType,
+          typename SourceOperandType,
+          enum PreferredIntrinsicsImplementation>
+std::tuple<TargetOperandType> FCvtIntegerToFloat(uint8_t /*rm*/,
+                                                 uint8_t /*frm*/,
+                                                 SourceOperandType arg) {
+  static_assert(std::is_integral_v<SourceOperandType>);
+  static_assert(std::is_same_v<Float32, TargetOperandType> ||
+                std::is_same_v<Float64, TargetOperandType>);
+  // TODO(265372622): handle rm properly in integer-to-float and float-to-integer cases.
+  TargetOperandType result = static_cast<TargetOperandType>(arg);
+  return result;
+}
+
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FMax(FloatType x, FloatType y) {
   return {Max(x, y)};
