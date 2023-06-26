@@ -683,9 +683,9 @@ class Interpreter {
       case Decoder::OpFpNoRoundingOpcode::kFSgnjx:
         return FSgnjx(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFMin:
-        return Min(arg1, arg2);
+        return FMin(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFMax:
-        return Max(arg1, arg2);
+        return FMax(arg1, arg2);
       default:
         Unimplemented();
         return {};
