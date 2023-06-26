@@ -29,6 +29,20 @@ python_library_host {
     srcs: ["gen_intrinsics.py"],
 }
 
+python_test_host {
+    name: "gen_intrinsics_tests",
+    main: "gen_intrinsics_test.py",
+    srcs: [
+        "gen_intrinsics_test.py",
+        "gen_intrinsics.py",
+    ],
+    libs: ["asm_defs_lib"],
+    test_suites: ["device-tests"],
+    test_options: {
+        unit_test: true,
+    },
+}
+
 filegroup {
     name: "libberberis_intrinsics_gen_inputs_riscv64_to_x86_64",
     srcs: [
