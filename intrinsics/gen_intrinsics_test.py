@@ -89,14 +89,15 @@ class GenIntrinsicsTests(unittest.TestCase):
         }}
     gen_intrinsics._gen_semantic_player_types(intr.items())
     out = gen_intrinsics._get_interpreter_hook_call_expr("Foo", intr["Foo"])
-    self.assertEqual(out,
-                     "std::make_signed<uint32_t>(std::get<0>(intrinsics::Foo("
-                         "arg0, "
-                         "arg1, "
-                         "FPRegToFloat<Type0>(arg2), "
-                         "arg3, "
-                         "arg4, "
-                         "arg5)))" ) # pyforman: disable
+    self.assertEqual(
+        out,
+        "std::make_signed_t<uint32_t>(std::get<0>(intrinsics::Foo<Type0, Type1>("
+            "arg0, "
+            "arg1, "
+            "FPRegToFloat<Type0>(arg2), "
+            "arg3, "
+            "arg4, "
+            "arg5)))" ) # pyforman: disable
 
   def test_get_interpreter_hook_call_expr_operand_types(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
