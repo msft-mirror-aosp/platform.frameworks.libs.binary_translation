@@ -575,11 +575,9 @@ class Interpreter {
                             FpRegister arg2) {
     switch (float_size) {
       case Decoder::FloatOperandType::kFloat:
-        return FloatToFPReg(OpFpNoRounding<Float32>(
-            opcode, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2)));
+        return OpFpNoRounding<Float32>(opcode, arg1, arg2);
       case Decoder::FloatOperandType::kDouble:
-        return FloatToFPReg(OpFpNoRounding<Float64>(
-            opcode, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2)));
+        return OpFpNoRounding<Float64>(opcode, arg1, arg2);
       default:
         Unimplemented();
         return {};
@@ -674,18 +672,20 @@ class Interpreter {
   }
 
   template <typename FloatType>
-  FloatType OpFpNoRounding(Decoder::OpFpNoRoundingOpcode opcode, FloatType arg1, FloatType arg2) {
+  FpRegister OpFpNoRounding(Decoder::OpFpNoRoundingOpcode opcode,
+                            FpRegister arg1,
+                            FpRegister arg2) {
     switch (opcode) {
       case Decoder::OpFpNoRoundingOpcode::kFSgnj:
-        return FSgnj(arg1, arg2);
+        return FSgnj<FloatType>(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFSgnjn:
-        return FSgnjn(arg1, arg2);
+        return FSgnjn<FloatType>(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFSgnjx:
-        return FSgnjx(arg1, arg2);
+        return FSgnjx<FloatType>(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFMin:
-        return FMin(arg1, arg2);
+        return FMin<FloatType>(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFMax:
-        return FMax(arg1, arg2);
+        return FMax<FloatType>(arg1, arg2);
       default:
         Unimplemented();
         return {};
