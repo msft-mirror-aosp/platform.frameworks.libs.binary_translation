@@ -14,6 +14,20 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
+  "FMin": {
+    "comment": "Minimum from two floats",
+    "class": "template",
+    "variants": ["Float32", "Float64"],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FMax": {
+    "comment": "Maximum from two floats",
+    "class": "template",
+    "variants": ["Float32", "Float64"],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FSgnj": {
     "comment": "Copy sign of one float to another",
     "class": "template",
