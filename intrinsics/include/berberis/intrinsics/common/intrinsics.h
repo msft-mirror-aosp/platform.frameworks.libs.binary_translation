@@ -53,6 +53,16 @@ enum PreferredIntrinsicsImplementation {
 #include "berberis/intrinsics/intrinsics-inl.h"  // NOLINT: generated file!
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
+std::tuple<FloatType> FMax(FloatType x, FloatType y) {
+  return {Max(x, y)};
+}
+
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
+std::tuple<FloatType> FMin(FloatType x, FloatType y) {
+  return {Min(x, y)};
+}
+
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FSgnj(FloatType x, FloatType y) {
   using Int = typename TypeTraits<FloatType>::Int;
   using UInt = std::make_unsigned_t<Int>;
