@@ -677,11 +677,11 @@ class Interpreter {
   FloatType OpFpNoRounding(Decoder::OpFpNoRoundingOpcode opcode, FloatType arg1, FloatType arg2) {
     switch (opcode) {
       case Decoder::OpFpNoRoundingOpcode::kFSgnj:
-        return std::get<0>(FSgnj(arg1, arg2));
+        return FSgnj(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFSgnjn:
-        return std::get<0>(FSgnjn(arg1, arg2));
+        return FSgnjn(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFSgnjx:
-        return std::get<0>(FSgnjx(arg1, arg2));
+        return FSgnjx(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFMin:
         return Min(arg1, arg2);
       case Decoder::OpFpNoRoundingOpcode::kFMax:
@@ -953,6 +953,8 @@ class Interpreter {
   }
 
  private:
+#include "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h"
+
   template <typename DataType>
   Register Load(const void* ptr) const {
     static_assert(std::is_integral_v<DataType>);
