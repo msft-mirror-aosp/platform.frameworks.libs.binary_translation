@@ -30,9 +30,9 @@ BERBERIS_PRODUCT_PACKAGES := \
 # when all its bits are ready for riscv64.
 BERBERIS_PRODUCT_PACKAGES += $(NATIVE_BRIDGE_PRODUCT_PACKAGES_RISCV64_READY)
 
-
 BERBERIS_DEV_PRODUCT_PACKAGES := \
     berberis_dwarf_reader \
+    berberis_guest_loader_riscv64_tests \
     berberis_host_tests \
     berberis_nogrod_unit_tests \
     gen_intrinsics_tests
