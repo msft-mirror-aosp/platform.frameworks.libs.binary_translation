@@ -23,7 +23,8 @@ include frameworks/libs/native_bridge_support/native_bridge_support.mk
 
 BERBERIS_PRODUCT_PACKAGES := \
     berberis_program_runner_riscv64 \
-    libberberis_exec_region
+    libberberis_exec_region \
+    libberberis_riscv64
 
 # TODO(b/277625560): Include $(NATIVE_BRIDGE_PRODUCT_PACKAGES) instead
 # when all its bits are ready for riscv64.
