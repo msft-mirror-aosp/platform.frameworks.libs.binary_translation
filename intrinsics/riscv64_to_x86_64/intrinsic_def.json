@@ -14,40 +14,25 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
-  "FSgnjD": {
+  "FSgnj": {
     "comment": "Copy sign of one float to another",
-    "class": "scalar",
-    "in": [ "Float64", "Float64" ],
-    "out": [ "Float64" ]
+    "class": "template",
+    "variants": ["Float32", "Float64"],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
   },
-  "FSgnjS": {
-    "comment": "Copy sign of one float to another",
-    "class": "scalar",
-    "in": [ "Float32", "Float32" ],
-    "out": [ "Float32" ]
-  },
-  "FSgnjnD": {
+  "FSgnjn": {
     "comment": "Copy negated sign of one float to another",
-    "class": "scalar",
-    "in": [ "Float64", "Float64" ],
-    "out": [ "Float64" ]
+    "class": "template",
+    "variants": ["Float32", "Float64"],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
   },
-  "FSgnjnS": {
-    "comment": "Copy negated sign of one float to another",
-    "class": "scalar",
-    "in": [ "Float32", "Float32" ],
-    "out": [ "Float32" ]
-  },
-  "FSgnjxD": {
+  "FSgnjx": {
     "comment": "Xor two sign bits of two floats and return",
-    "class": "scalar",
-    "in": [ "Float64", "Float64" ],
-    "out": [ "Float64" ]
-  },
-  "FSgnjxS": {
-    "comment": "Xor two sign bits of two floats and return",
-    "class": "scalar",
-    "in": [ "Float32", "Float32" ],
-    "out": [ "Float32" ]
+    "class": "template",
+    "variants": ["Float32", "Float64"],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
   }
 }
