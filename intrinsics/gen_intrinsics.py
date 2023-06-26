@@ -22,6 +22,7 @@ from collections import OrderedDict
 import asm_defs
 import json
 import os
+import re
 import sys
 
 # C-level intrinsic calling convention:
@@ -108,6 +109,13 @@ def _is_imm_type(arg_type):
   return 'imm' in arg_type
 
 
+def _is_template_type(arg_type):
+  if not arg_type.startswith('Type'):
+    return False
+  assert isinstance(int(arg_type[4:]), int)
+  return True
+
+
 def _get_imm_c_type(arg_type):
   return {
       'imm8' : 'int8_t',
@@ -117,9 +125,10 @@ def _get_imm_c_type(arg_type):
 
 
 def _get_c_type(arg_type):
-  if arg_type in ('Float32', 'Float64', 'int8_t', 'uint8_t', 'int16_t',
+  if (arg_type in ('Float32', 'Float64', 'int8_t', 'uint8_t', 'int16_t',
                   'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t',
-                  'volatile uint8_t*', 'volatile uint32_t*'):
+                  'volatile uint8_t*', 'volatile uint32_t*') or
+      _is_template_type(arg_type)):
     return arg_type
   if arg_type in ('fp_flags', 'fp_control', 'int', 'flag', 'flags', 'vec32'):
     return 'uint32_t'
@@ -131,6 +140,8 @@ def _get_c_type(arg_type):
 
 
 def _get_semantic_player_type(arg_type):
+  if _is_template_type(arg_type):
+    return arg_type
   if arg_type in ('Float32', 'Float64', 'vec'):
     return 'SimdRegister'
   if _is_imm_type(arg_type):
@@ -151,9 +162,42 @@ def _gen_scalar_intr_decl(f, name, intr):
     print('// %s.' % (comment), file=f)
   if intr.get('precise_nans', False):
     print('template <bool precise_nan_operations_handling, '
-          'enum PreferCppImplementation = kUseAssemblerImplementationIfPossible>',
+          'enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>',
           file=f)
   print('%s %s(%s);' % (retval, name, ', '.join(params)), file=f)
+
+
+def _gen_template_intr_decl(f, name, intr):
+  ins = intr.get('in')
+  outs = intr.get('out')
+  params = [_get_c_type(op) for op in ins]
+  if len(outs) > 0:
+    retval = 'std::tuple<' + ', '.join(_get_c_type(out) for out in outs) + '>'
+  else:
+    retval = 'void'
+  comment = intr.get('comment')
+  if comment:
+    print('// %s.' % (comment), file=f)
+  print('template <%s>' % _get_template_arguments(intr.get('variants')), file=f)
+  print('%s %s(%s);' % (retval, name, ', '.join(params)), file=f)
+
+
+def _get_template_arguments(variants,
+    extra = ['enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible']):
+  template = None
+  for variant in variants:
+    counter = -1
+    def get_counter():
+      nonlocal counter
+      counter += 1
+      return counter
+    new_template = ', '.join([
+      'bool' if param.strip() in ('true', 'false') else
+      'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else 'int'
+      for param in variant.split(',')] + extra)
+    assert template is None or template == new_template
+    template = new_template
+  return template
 
 
 def _is_vector_class(intr):
@@ -203,6 +247,9 @@ def _get_semantics_player_hook_proto_components(name, intr):
 
 def _get_semantics_player_hook_proto(name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
+  if intr.get('class') == 'template':
+    return 'template<%s>\n%s %s(%s)' % (
+      _get_template_arguments(intr.get('variants'), []), result, name, args)
   return '%s %s(%s)' % (result, name, args)
 
 
@@ -545,6 +592,8 @@ def _gen_intrinsics_inl_h(f, intrs):
   for name, intr in intrs:
     if intr.get('class') == 'scalar':
       _gen_scalar_intr_decl(f, name, intr)
+    elif intr.get('class') == 'template':
+      _gen_template_intr_decl(f, name, intr)
 
 
 def _gen_interpreter_intrinsics_hooks_impl_inl_h(f, intrs):
