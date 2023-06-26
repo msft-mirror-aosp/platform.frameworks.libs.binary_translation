@@ -30,6 +30,25 @@ class GenIntrinsicsTests(unittest.TestCase):
     })
     self.assertEqual(out, "void Foo(Register arg0)")
 
+  def test_get_semantics_player_hook_proto_template_types(self):
+    intr = {
+        "Foo": {
+            "in": ["uint32_t", "uint8_t", "Type0", "Type1", "vec", "uimm8"],
+            "out": ["uint32_t"],
+            "class": "template",
+            "variants": ["Float32, int32", "Float64, int64"]
+        }}
+    gen_intrinsics._gen_semantic_player_types(intr.items())
+    out = gen_intrinsics._get_semantics_player_hook_proto("Foo", intr["Foo"])
+    self.assertEqual(out,
+                     "template<typename Type0, typename Type1>\n"
+                     "Register Foo(Register arg0, "
+                                  "Register arg1, "
+                                  "FpRegister arg2, "
+                                  "Register arg3, "
+                                  "SimdRegister arg4, "
+                                  "uint8_t arg5)" ) # pyformat: disable
+
   def test_get_semantics_player_hook_proto_operand_types(self):
     out = gen_intrinsics._get_semantics_player_hook_proto(
         "Foo", {
@@ -59,6 +78,25 @@ class GenIntrinsicsTests(unittest.TestCase):
             "out": []
         })
     self.assertEqual(out, "intrinsics::Foo(arg0)")
+
+  def test_get_interpreter_hook_call_expr_template_types(self):
+    intr = {
+        "Foo": {
+            "in": ["uint32_t", "uint8_t", "Type0", "Type1", "vec", "uimm8"],
+            "out": ["uint32_t"],
+            "class": "template",
+            "variants": ["Float32, int32", "Float64, int64"]
+        }}
+    gen_intrinsics._gen_semantic_player_types(intr.items())
+    out = gen_intrinsics._get_interpreter_hook_call_expr("Foo", intr["Foo"])
+    self.assertEqual(out,
+                     "std::make_signed<uint32_t>(std::get<0>(intrinsics::Foo("
+                         "arg0, "
+                         "arg1, "
+                         "FPRegToFloat<Type0>(arg2), "
+                         "arg3, "
+                         "arg4, "
+                         "arg5)))" ) # pyforman: disable
 
   def test_get_interpreter_hook_call_expr_operand_types(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
