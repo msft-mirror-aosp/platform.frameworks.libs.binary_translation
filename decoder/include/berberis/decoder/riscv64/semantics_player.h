@@ -29,6 +29,8 @@ class SemanticsPlayer {
  public:
   using Decoder = Decoder<SemanticsPlayer>;
   using Register = typename SemanticsListener::Register;
+  using Float32 = typename SemanticsListener::Float32;
+  using Float64 = typename SemanticsListener::Float64;
   using FpRegister = typename SemanticsListener::FpRegister;
 
   explicit SemanticsPlayer(SemanticsListener* listener) : listener_(listener) {}
@@ -194,9 +196,41 @@ class SemanticsPlayer {
   void OpFpNoRounding(const typename Decoder::OpFpNoRoundingArgs& args) {
     FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
-    FpRegister result = listener_->OpFpNoRounding(args.opcode, args.operand_type, arg1, arg2);
+    FpRegister result;
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        result = OpFpNoRounding<Float32>(args.opcode, arg1, arg2);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        result = OpFpNoRounding<Float64>(args.opcode, arg1, arg2);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     result = CanonicalizeNan(result, args.operand_type);
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
+  template <typename FloatType>
+  FpRegister OpFpNoRounding(const typename Decoder::OpFpNoRoundingOpcode opcode,
+                            FpRegister arg1,
+                            FpRegister arg2) {
+    switch (opcode) {
+      case Decoder::OpFpNoRoundingOpcode::kFSgnj:
+        return listener_->template FSgnj<FloatType>(arg1, arg2);
+      case Decoder::OpFpNoRoundingOpcode::kFSgnjn:
+        return listener_->template FSgnjn<FloatType>(arg1, arg2);
+      case Decoder::OpFpNoRoundingOpcode::kFSgnjx:
+        return listener_->template FSgnjx<FloatType>(arg1, arg2);
+      case Decoder::OpFpNoRoundingOpcode::kFMin:
+        return listener_->template FMin<FloatType>(arg1, arg2);
+      case Decoder::OpFpNoRoundingOpcode::kFMax:
+        return listener_->template FMax<FloatType>(arg1, arg2);
+      default:
+        Unimplemented();
+        return {};
+    }
   }
 
   void FmvFloatToInteger(const typename Decoder::FmvFloatToIntegerArgs& args) {
