@@ -211,7 +211,7 @@ int main(int argc, char* argv[], char* envp[]) {
                                berberis::ToGuestAddr(elf_file.phdr_table()),
                                elf_file.phdr_count());
 
-  ExecuteGuest(thread->state(), berberis::kNullGuestAddr);
+  ExecuteGuest(thread->state());
 
   return 0;
 }
