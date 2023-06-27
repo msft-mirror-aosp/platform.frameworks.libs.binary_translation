@@ -27,6 +27,8 @@
 
 namespace berberis {
 
+using Reservation = uint64_t;
+
 struct CPUState {
   // x0 to x31.
   uint64_t x[32];
@@ -49,6 +51,9 @@ struct CPUState {
   // that x86-64 implements all five exceptions that RISC-V needs (and more).
   uint8_t frm : 3;
   GuestAddr insn_addr;
+
+  GuestAddr reservation_address;
+  Reservation reservation_value;
 };
 
 template <uint8_t kIndex>
