@@ -22,7 +22,7 @@
 
 namespace berberis {
 
-void ExecuteGuest(ThreadState* state, GuestAddr stop_pc);
+void ExecuteGuest(ThreadState* state);
 
 }  // namespace berberis
 
