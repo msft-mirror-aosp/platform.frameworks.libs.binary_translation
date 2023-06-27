@@ -139,9 +139,9 @@ def _get_c_type(arg_type):
   raise Exception('Type %s not supported' % (arg_type))
 
 
-def _get_semantic_player_type(arg_type):
+def _get_semantic_player_type(arg_type, type_map):
   if _is_template_type(arg_type):
-    return arg_type
+    return type_map[arg_type]
   if arg_type in ('Float32', 'Float64', 'vec'):
     return 'SimdRegister'
   if _is_imm_type(arg_type):
@@ -207,7 +207,7 @@ def _is_vector_class(intr):
 
 
 def _is_simd128_conversion_required(t):
-  return (_get_semantic_player_type(t) == 'SimdRegister' and
+  return (_get_semantic_player_type(t, None) == 'SimdRegister' and
           _get_c_type(t) != 'SIMD128Register')
 
 
@@ -217,9 +217,10 @@ def _get_semantics_player_hook_result(intr):
     return 'void'
   elif len(outs) == 1:
     # No tuple for single result.
-    return _get_semantic_player_type(outs[0])
+    return _get_semantic_player_type(outs[0], intr.get('sem-player-types'))
   return 'std::tuple<' + ', '.join(
-      _get_semantic_player_type(out) for out in outs) + '>'
+      _get_semantic_player_type(out, intr.get('sem-player-types'))
+      for out in outs) + '>'
 
 
 def _get_semantics_player_hook_proto_components(name, intr):
@@ -236,7 +237,8 @@ def _get_semantics_player_hook_proto_components(name, intr):
         args += ['bool is_signed']
 
   args += [
-      '%s arg%d' % (_get_semantic_player_type(op), num)
+      '%s arg%d' % (
+          _get_semantic_player_type(op, intr.get('sem-player-types')), num)
       for num, op in enumerate(ins)
   ]
 
@@ -260,7 +262,11 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
   call_params = []
   for num, op in enumerate(ins):
     arg = 'arg%d' % (num)
-    if _get_semantic_player_type(op) == 'SimdRegister':
+    semantic_player_type = _get_semantic_player_type(
+        op, intr.get('sem-player-types'))
+    if semantic_player_type == 'FpRegister':
+      call_params.append('FPRegToFloat<%s>(%s)' % (op, arg))
+    elif semantic_player_type == 'SimdRegister':
       call_params.append(_get_cast_from_simd128(arg, op, ptr_bits=64))
     elif '*' in _get_c_type(op):
       call_params.append('bit_cast<%s>(%s)' % (_get_c_type(op), arg))
@@ -271,19 +277,28 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
       name, _get_desc_specializations(intr, desc).replace(
           'Float', 'intrinsics::Float'), ', '.join(call_params))
 
-  if (len(outs) == 1):
+  if 'sem-player-types' in intr:
+    assert len(outs) == 1
+    out_type = _get_semantic_player_type(outs[0], intr.get('sem-player-types'))
+    if out_type == "FpRegister":
+      call_expr = 'FloatToFPReg(std::get<0>(%s))' % call_expr
+    else:
+      assert out_type == "Register"
+      assert not _is_simd128_conversion_required(outs[0])
+      call_expr = 'std::make_signed<%s>(std::get<0>(%s))' % (outs[0], call_expr)
+  elif len(outs) == 1:
     # Unwrap tuple for single result.
     call_expr = 'std::get<0>(%s)' % call_expr
     # Currently this kind of mismatch can only happen for single result, so we
     # can keep simple code here for now.
-    if (_is_simd128_conversion_required(outs[0])):
+    if _is_simd128_conversion_required(outs[0]):
       out_type = _get_c_type(outs[0])
       if out_type in ('Float32', 'Float64'):
         call_expr = 'SimdRegister(%s)' % call_expr
       else:
         raise Exception('Type %s is not supported' % (out_type))
   else:
-    if (any(_is_simd128_conversion_required(out) for out in outs)):
+    if any(_is_simd128_conversion_required(out) for out in outs):
       raise Exception(
           'Unsupported SIMD128Register conversion with multiple results')
 
@@ -596,6 +611,29 @@ def _gen_intrinsics_inl_h(f, intrs):
       _gen_template_intr_decl(f, name, intr)
 
 
+def _gen_semantic_player_types(intrs):
+  for name, intr in intrs:
+    if intr.get('class') == 'template':
+      map = None
+      for variant in intr.get('variants'):
+        counter = -1
+        def get_counter():
+          nonlocal counter
+          counter += 1
+          return counter
+        new_map = {}
+        for type in filter(
+              lambda param: param.strip() not in ('true', 'false') and
+                            re.search('[_a-zA-Z]', param),
+            variant.split(',')):
+          new_map['Type%d' % get_counter()] = (
+              'FpRegister' if type in ('Float32', 'Float64') else
+              _get_semantic_player_type(type, None))
+        assert map is None or map == new_map
+        map = new_map
+      intr['sem-player-types'] = map
+
+
 def _gen_interpreter_intrinsics_hooks_impl_inl_h(f, intrs):
   print(AUTOGEN, file=f)
   for name, intr in intrs:
@@ -875,6 +913,7 @@ def main(argv):
   if mode == '--public_headers':
     intrs = sorted(_load_intrs_def_files(argv[6:]).items())
     _gen_intrinsics_inl_h(open_out_file(argv[2]), intrs)
+    _gen_semantic_player_types(intrs)
     _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[3]), intrs)
     _gen_translator_intrinsics_hooks_impl_inl_h(
         open_out_file(argv[4]), intrs)
