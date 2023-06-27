@@ -342,6 +342,7 @@ void LiteTranslator::ExitRegionIndirect(Register target) {
 }
 
 void LiteTranslator::Branch(int32_t offset) {
+  is_region_end_reached_ = true;
   ExitRegion(GetInsnAddr() + offset);
 }
 
@@ -351,6 +352,7 @@ void LiteTranslator::BranchRegister(Register base, int16_t offset) {
   as_.Addq(res, offset);
   // Zeroing out the last bit.
   as_.Andq(res, ~int32_t{1});
+  is_region_end_reached_ = true;
   ExitRegionIndirect(res);
 }
 

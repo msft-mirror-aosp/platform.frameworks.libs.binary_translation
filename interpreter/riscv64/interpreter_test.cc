@@ -246,6 +246,9 @@ class Riscv64InterpreterTest : public ::testing::Test {
   ThreadState state_;
 };
 
+//  Interpreter decodes the size itself, but we need to accept this template parameter to share
+//  tests with translators.
+template <uint8_t kInsnSize = 4>
 bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
   InterpretInsn(state);
   return state->cpu.insn_addr == stop_pc;
