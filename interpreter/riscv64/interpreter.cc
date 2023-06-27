@@ -569,21 +569,6 @@ class Interpreter {
     }
   }
 
-  FpRegister OpFpNoRounding(Decoder::OpFpNoRoundingOpcode opcode,
-                            Decoder::FloatOperandType float_size,
-                            FpRegister arg1,
-                            FpRegister arg2) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return OpFpNoRounding<Float32>(opcode, arg1, arg2);
-      case Decoder::FloatOperandType::kDouble:
-        return OpFpNoRounding<Float64>(opcode, arg1, arg2);
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   // In 32-bit case we don't care about the upper 32-bits because nan-boxing will clobber them.
   FpRegister Fmv(Register arg) { return arg; }
 
@@ -665,27 +650,6 @@ class Interpreter {
       case Decoder::OpFpOpcode::kFDiv:
         return intrinsics::ExecuteFloatOperation<FloatType>(
             rm, state_->cpu.frm, [](auto x, auto y) { return x / y; }, arg1, arg2);
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  template <typename FloatType>
-  FpRegister OpFpNoRounding(Decoder::OpFpNoRoundingOpcode opcode,
-                            FpRegister arg1,
-                            FpRegister arg2) {
-    switch (opcode) {
-      case Decoder::OpFpNoRoundingOpcode::kFSgnj:
-        return FSgnj<FloatType>(arg1, arg2);
-      case Decoder::OpFpNoRoundingOpcode::kFSgnjn:
-        return FSgnjn<FloatType>(arg1, arg2);
-      case Decoder::OpFpNoRoundingOpcode::kFSgnjx:
-        return FSgnjx<FloatType>(arg1, arg2);
-      case Decoder::OpFpNoRoundingOpcode::kFMin:
-        return FMin<FloatType>(arg1, arg2);
-      case Decoder::OpFpNoRoundingOpcode::kFMax:
-        return FMax<FloatType>(arg1, arg2);
       default:
         Unimplemented();
         return {};
@@ -952,9 +916,9 @@ class Interpreter {
     }
   }
 
- private:
 #include "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h"
 
+ private:
   template <typename DataType>
   Register Load(const void* ptr) const {
     static_assert(std::is_integral_v<DataType>);
