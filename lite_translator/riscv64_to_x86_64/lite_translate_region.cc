@@ -50,11 +50,18 @@ std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
   SemanticsPlayer sem_player(&translator);
   Decoder decoder(&sem_player);
 
-  uint8_t insn_size = decoder.Decode(ToHostAddr<const uint16_t>(start_pc));
+  while (translator.GetInsnAddr() != end_pc && !translator.is_region_end_reached()) {
+    uint8_t insn_size = decoder.Decode(ToHostAddr<const uint16_t>(translator.GetInsnAddr()));
+    if (!translator.success()) {
+      return {false, translator.GetInsnAddr()};
+    }
+    translator.FreeTempRegs();
+    translator.IncrementInsnAddr(insn_size);
+  }
 
-  Finalize(&translator, start_pc + insn_size);
+  Finalize(&translator, translator.GetInsnAddr());
 
-  return {translator.success(), start_pc + insn_size};
+  return {translator.success(), translator.GetInsnAddr()};
 }
 
 }  // namespace

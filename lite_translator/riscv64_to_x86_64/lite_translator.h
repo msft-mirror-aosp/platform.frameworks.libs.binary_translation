@@ -45,7 +45,12 @@ class LiteTranslator {
   using Float64 = intrinsics::Float64;
 
   explicit LiteTranslator(MachineCode* machine_code, GuestAddr pc, LiteTranslateParams& params)
-      : as_(machine_code), success_(true), next_gp_reg_for_alloc_(0), pc_(pc), params_(params){};
+      : as_(machine_code),
+        success_(true),
+        next_gp_reg_for_alloc_(0),
+        pc_(pc),
+        params_(params),
+        is_region_end_reached_(false){};
 
   //
   // Instruction implementations.
@@ -263,6 +268,12 @@ class LiteTranslator {
 
 #include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
 
+  bool is_region_end_reached() const { return is_region_end_reached_; }
+
+  void IncrementInsnAddr(uint8_t insn_size) { pc_ += insn_size; }
+
+  void FreeTempRegs() { next_gp_reg_for_alloc_ = 0; }
+
  private:
   template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
   AssemblerResType CallIntrinsic(AssemblerArgType...) {
@@ -294,6 +305,7 @@ class LiteTranslator {
   uint8_t next_gp_reg_for_alloc_;
   GuestAddr pc_;
   const LiteTranslateParams& params_;
+  bool is_region_end_reached_;
 };
 
 }  // namespace berberis
