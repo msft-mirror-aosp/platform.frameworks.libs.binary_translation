@@ -49,7 +49,7 @@ class TESTSUITE : public ::testing::Test {
     store_area_ = 0;
     SetXReg<kTargetReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
     SetReg<register_type, 9>(state_.cpu, kDataToLoad);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
     EXPECT_EQ(store_area_, expected_result);
   }
 
@@ -58,7 +58,7 @@ class TESTSUITE : public ::testing::Test {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<kSourceReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
     EXPECT_EQ((GetReg<register_type, 9>(state_.cpu)), expected_result);
   }
 
@@ -66,7 +66,7 @@ class TESTSUITE : public ::testing::Test {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
     EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_increment);
   }
 
@@ -74,14 +74,14 @@ class TESTSUITE : public ::testing::Test {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
     EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_offset);
   }
 
   void TestLi(uint32_t insn_bytes, uint64_t expected_result) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
@@ -89,7 +89,7 @@ class TESTSUITE : public ::testing::Test {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
     EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
   }
 
@@ -97,7 +97,7 @@ class TESTSUITE : public ::testing::Test {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<9>(state_.cpu, value);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + expected_offset));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + expected_offset));
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
 
@@ -107,7 +107,7 @@ class TESTSUITE : public ::testing::Test {
       state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<8>(state_.cpu, arg1);
       SetXReg<9>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+      EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
       EXPECT_EQ(GetXReg<8>(state_.cpu), expected_result);
     }
   }
@@ -116,14 +116,14 @@ class TESTSUITE : public ::testing::Test {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     SetXReg<9>(state_.cpu, value);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
     EXPECT_EQ(GetXReg<9>(state_.cpu), expected_result);
   }
 
   void TestCJ(uint16_t insn_bytes, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + expected_offset));
+    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + expected_offset));
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
 
@@ -133,7 +133,7 @@ class TESTSUITE : public ::testing::Test {
       state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<1>(state_.cpu, arg1);
       SetXReg<2>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 2));
+      EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
