@@ -156,33 +156,6 @@ class LiteTranslator {
     return {};
   }
 
-  FpRegister Fcvt(Decoder::FloatOperandType target_operand_size,
-                  Decoder::FloatOperandType source_operand_size,
-                  uint8_t rm,
-                  FpRegister arg) {
-    UNUSED(target_operand_size, source_operand_size, rm, arg);
-    Unimplemented();
-    return {};
-  }
-
-  Register Fcvt(Decoder::FcvtOperandType target_operand_size,
-                Decoder::FloatOperandType source_operand_size,
-                uint8_t rm,
-                FpRegister arg) {
-    UNUSED(target_operand_size, source_operand_size, rm, arg);
-    Unimplemented();
-    return {};
-  }
-
-  FpRegister Fcvt(Decoder::FloatOperandType target_operand_size,
-                  Decoder::FcvtOperandType source_operand_size,
-                  uint8_t rm,
-                  Register arg) {
-    UNUSED(target_operand_size, source_operand_size, rm, arg);
-    Unimplemented();
-    return {};
-  }
-
   FpRegister Fma(Decoder::FmaOpcode opcode,
                  Decoder::FloatOperandType float_size,
                  uint8_t rm,
@@ -272,7 +245,12 @@ class LiteTranslator {
   // Various helper methods.
   //
 
-  Register GetImm(uint64_t imm) {
+  [[nodiscard]] Register GetFrm() {
+    Unimplemented();
+    return {};
+  }
+
+  [[nodiscard]] Register GetImm(uint64_t imm) {
     Register imm_reg = AllocTempReg();
     as_.Movq(imm_reg, imm);
     return imm_reg;
@@ -280,8 +258,8 @@ class LiteTranslator {
 
   void Unimplemented() { success_ = false; }
 
-  x86_64::Assembler* as() { return &as_; }
-  bool success() const { return success_; }
+  [[nodiscard]] x86_64::Assembler* as() { return &as_; }
+  [[nodiscard]] bool success() const { return success_; }
 
 #include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
 
