@@ -27,6 +27,8 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
+#include "berberis/intrinsics/intrinsics.h"
+#include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/lite_translator/lite_translate_region.h"
 
 namespace berberis {
@@ -39,6 +41,8 @@ class LiteTranslator {
   using Register = x86_64::Assembler::Register;
   using FpRegister = x86_64::Assembler::XMMRegister;
   using Condition = x86_64::Assembler::Condition;
+  using Float32 = intrinsics::Float32;
+  using Float64 = intrinsics::Float64;
 
   explicit LiteTranslator(MachineCode* machine_code, GuestAddr pc, LiteTranslateParams& params)
       : as_(machine_code), success_(true), next_gp_reg_for_alloc_(0), pc_(pc), params_(params){};
@@ -109,15 +113,6 @@ class LiteTranslator {
                   FpRegister arg1,
                   FpRegister arg2) {
     UNUSED(opcode, float_size, rm, arg1, arg2);
-    Unimplemented();
-    return {};
-  }
-
-  FpRegister OpFpNoRounding(Decoder::OpFpNoRoundingOpcode opcode,
-                            Decoder::FloatOperandType float_size,
-                            FpRegister arg1,
-                            FpRegister arg2) {
-    UNUSED(opcode, float_size, arg1, arg2);
     Unimplemented();
     return {};
   }
@@ -288,7 +283,15 @@ class LiteTranslator {
   x86_64::Assembler* as() { return &as_; }
   bool success() const { return success_; }
 
+#include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
+
  private:
+  template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
+  AssemblerResType CallIntrinsic(AssemblerArgType...) {
+    Unimplemented();
+    return {};
+  }
+
   Register AllocTempReg() {
     // TODO(286261771): Add rdx to registers, push it on stack in all instances that are clobbering
     // it.
