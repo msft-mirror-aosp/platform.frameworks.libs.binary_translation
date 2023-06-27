@@ -17,7 +17,7 @@
 #include "berberis/runtime_primitives/runtime_library.h"
 
 #include "berberis/base/checks.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis {
 
