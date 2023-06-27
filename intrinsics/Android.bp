@@ -112,11 +112,6 @@ cc_library_static {
     name: "libberberis_intrinsics",
     defaults: ["berberis_defaults"],
     host_supported: true,
-    arch: {
-        x86_64: {
-            srcs: ["riscv64_to_x86_64/intrinsics_impl.cc"],
-        },
-    },
     header_libs: ["libberberis_intrinsics_riscv64_headers"],
     static_libs: ["libberberis_base"],
     export_header_lib_headers: ["libberberis_intrinsics_riscv64_headers"],
@@ -134,7 +129,6 @@ cc_test_library {
             srcs: [
                 "common_to_x86/intrinsics_float_test.cc",
                 "common_to_x86_64/tuple_test.cc",
-                "riscv64_to_x86_64/intrinsics_impl_test.cc",
             ],
         },
     },
