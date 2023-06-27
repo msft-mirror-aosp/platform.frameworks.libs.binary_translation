@@ -55,7 +55,10 @@ cc_library_static {
 cc_test_library {
     name: "libberberis_lite_translator_riscv64_to_x86_64_unit_tests",
     defaults: ["berberis_test_library_defaults_64"],
-    srcs: ["riscv64_to_x86_64/lite_translate_insn_exec_tests.cc"],
+    srcs: [
+        "riscv64_to_x86_64/lite_translate_insn_exec_tests.cc",
+        "riscv64_to_x86_64/lite_translate_region_exec_tests.cc",
+    ],
     header_libs: [
         "libberberis_base_headers",
         "libberberis_decoder_riscv64_headers",
