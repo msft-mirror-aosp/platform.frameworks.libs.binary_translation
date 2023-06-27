@@ -16,15 +16,44 @@
 
 #include "berberis/runtime/execute_guest.h"
 
+#include "berberis/base/checks.h"
+#include "berberis/base/tracing.h"
+#include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
-#include "berberis/interpreter/riscv64/interpreter.h"
+#include "berberis/runtime_primitives/runtime_library.h"
+#include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
 
-void ExecuteGuest(ThreadState* state, GuestAddr stop_pc) {
-  while (GetInsnAddr(GetCPUState(state)) != stop_pc) {
-    InterpretInsn(state);
+void ExecuteGuest(ThreadState* state) {
+  GuestThread* thread = GetGuestThread(state);
+  CHECK(thread);
+  CHECK_EQ(state, thread->state());
+
+  TranslationCache* cache = TranslationCache::GetInstance();
+
+  for (;;) {
+    auto pc = GetInsnAddr(GetCPUState(state));
+
+    if (ArePendingSignalsPresent(state)) {
+      thread->ProcessPendingSignals();
+      // Signal handler can modify control flow, e.g. to recover from segfault.
+      if (pc != GetInsnAddr(GetCPUState(state))) {
+        TRACE("PC modified by signal handler: old=%p new=%p",
+              ToHostAddr<void>(pc),
+              ToHostAddr<void>(GetInsnAddr(GetCPUState(state))));
+        pc = GetInsnAddr(GetCPUState(state));
+      }
+    }
+
+    auto code = cache->GetHostCodePtr(pc)->load();
+    if (code == kEntryStop) {
+      break;
+    }
+
+    // ATTENTION: this should be the only place to run translated code!
+    berberis_RunGeneratedCode(state, code);
   }
 }
 
