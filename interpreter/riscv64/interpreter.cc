@@ -315,122 +315,6 @@ class Interpreter {
     }
   }
 
-  template <typename TargetOperandType, typename SourceOperandType>
-  auto Fcvt(uint8_t rm, SourceOperandType arg) {
-    // TODO(265372622): handle rm properly in integer-to-float and float-to-integer cases.
-    if constexpr (std::is_integral_v<TargetOperandType>) {
-      TargetOperandType result = static_cast<TargetOperandType>(arg);
-      return static_cast<std::make_signed_t<TargetOperandType>>(result);
-    } else if constexpr (std::is_integral_v<SourceOperandType>) {
-      TargetOperandType result = static_cast<TargetOperandType>(arg);
-      return result;
-    } else if constexpr (sizeof(TargetOperandType) > sizeof(SourceOperandType)) {
-      // Conversion from narrow type to wide one ignores rm because all possible values from narrow
-      // type fit in the wide type.
-      return TargetOperandType(arg);
-    } else {
-      return intrinsics::ExecuteFloatOperation<TargetOperandType>(
-          rm,
-          state_->cpu.frm,
-          [](auto x) { return typename TypeTraits<decltype(x)>::Narrow(x); },
-          arg);
-    }
-  }
-
-  FpRegister Fcvt(Decoder::FloatOperandType target_operand_size,
-                  Decoder::FloatOperandType source_operand_size,
-                  uint8_t rm,
-                  FpRegister arg) {
-    if (target_operand_size == Decoder::FloatOperandType::kFloat &&
-        source_operand_size == Decoder::FloatOperandType::kDouble) {
-      return FloatToFPReg(Fcvt<Float32, Float64>(rm, FPRegToFloat<Float64>(arg)));
-    }
-    if (target_operand_size == Decoder::FloatOperandType::kDouble &&
-        source_operand_size == Decoder::FloatOperandType::kFloat) {
-      return FloatToFPReg(Fcvt<Float64, Float32>(rm, FPRegToFloat<Float32>(arg)));
-    }
-    Unimplemented();
-    return {};
-  }
-
-  Register Fcvt(Decoder::FcvtOperandType target_operand_size,
-                Decoder::FloatOperandType source_operand_size,
-                uint8_t rm,
-                FpRegister arg) {
-    switch (source_operand_size) {
-      case Decoder::FloatOperandType::kFloat:
-        switch (target_operand_size) {
-          case Decoder::FcvtOperandType::k32bitSigned:
-            return Fcvt<int32_t, Float32>(rm, FPRegToFloat<Float32>(arg));
-          case Decoder::FcvtOperandType::k32bitUnsigned:
-            return Fcvt<uint32_t, Float32>(rm, FPRegToFloat<Float32>(arg));
-          case Decoder::FcvtOperandType::k64bitSigned:
-            return Fcvt<int64_t, Float32>(rm, FPRegToFloat<Float32>(arg));
-          case Decoder::FcvtOperandType::k64bitUnsigned:
-            return Fcvt<uint64_t, Float32>(rm, FPRegToFloat<Float32>(arg));
-          default:
-            Unimplemented();
-            return {};
-        }
-      case Decoder::FloatOperandType::kDouble:
-        switch (target_operand_size) {
-          case Decoder::FcvtOperandType::k32bitSigned:
-            return Fcvt<int32_t, Float64>(rm, FPRegToFloat<Float64>(arg));
-          case Decoder::FcvtOperandType::k32bitUnsigned:
-            return Fcvt<uint32_t, Float64>(rm, FPRegToFloat<Float64>(arg));
-          case Decoder::FcvtOperandType::k64bitSigned:
-            return Fcvt<int64_t, Float64>(rm, FPRegToFloat<Float64>(arg));
-          case Decoder::FcvtOperandType::k64bitUnsigned:
-            return Fcvt<uint64_t, Float64>(rm, FPRegToFloat<Float64>(arg));
-          default:
-            Unimplemented();
-            return {};
-        }
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  FpRegister Fcvt(Decoder::FloatOperandType target_operand_size,
-                  Decoder::FcvtOperandType source_operand_size,
-                  uint8_t rm,
-                  Register arg) {
-    switch (target_operand_size) {
-      case Decoder::FloatOperandType::kFloat:
-        switch (source_operand_size) {
-          case Decoder::FcvtOperandType::k32bitSigned:
-            return FloatToFPReg(Fcvt<Float32, int32_t>(rm, arg));
-          case Decoder::FcvtOperandType::k32bitUnsigned:
-            return FloatToFPReg(Fcvt<Float32, uint32_t>(rm, arg));
-          case Decoder::FcvtOperandType::k64bitSigned:
-            return FloatToFPReg(Fcvt<Float32, int64_t>(rm, arg));
-          case Decoder::FcvtOperandType::k64bitUnsigned:
-            return FloatToFPReg(Fcvt<Float32, uint64_t>(rm, arg));
-          default:
-            Unimplemented();
-            return {};
-        }
-      case Decoder::FloatOperandType::kDouble:
-        switch (source_operand_size) {
-          case Decoder::FcvtOperandType::k32bitSigned:
-            return FloatToFPReg(Fcvt<Float64, int32_t>(rm, arg));
-          case Decoder::FcvtOperandType::k32bitUnsigned:
-            return FloatToFPReg(Fcvt<Float64, uint32_t>(rm, arg));
-          case Decoder::FcvtOperandType::k64bitSigned:
-            return FloatToFPReg(Fcvt<Float64, int64_t>(rm, arg));
-          case Decoder::FcvtOperandType::k64bitUnsigned:
-            return FloatToFPReg(Fcvt<Float64, uint64_t>(rm, arg));
-          default:
-            Unimplemented();
-            return {};
-        }
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   FpRegister Fma(Decoder::FmaOpcode opcode,
                  Decoder::FloatOperandType float_size,
                  uint8_t rm,
@@ -906,9 +790,11 @@ class Interpreter {
   // Various helper methods.
   //
 
-  uint64_t GetImm(uint64_t imm) const { return imm; }
+  [[nodiscard]] uint8_t GetFrm() const { return state_->cpu.frm; }
 
-  GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
+  [[nodiscard]] uint64_t GetImm(uint64_t imm) const { return imm; }
+
+  [[nodiscard]] GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
 
   void FinalizeInsn(uint8_t insn_len) {
     if (!branch_taken_) {
