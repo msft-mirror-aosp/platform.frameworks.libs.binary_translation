@@ -192,8 +192,9 @@ def _get_template_arguments(variants,
       counter += 1
       return counter
     new_template = ', '.join([
-      'bool' if param.strip() in ('true', 'false') else
-      'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else 'int'
+      'bool kBool%s' % get_counter() if param.strip() in ('true', 'false') else
+      'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
+      'int kInt%s' % get_counter()
       for param in variant.split(',')] + extra)
     assert template is None or template == new_template
     template = new_template
@@ -206,8 +207,8 @@ def _is_vector_class(intr):
                                'vector_8/single', 'vector_16/single')
 
 
-def _is_simd128_conversion_required(t):
-  return (_get_semantic_player_type(t, None) == 'SimdRegister' and
+def _is_simd128_conversion_required(t, type_map=None):
+  return (_get_semantic_player_type(t, type_map) == 'SimdRegister' and
           _get_c_type(t) != 'SIMD128Register')
 
 
@@ -264,6 +265,7 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
     arg = 'arg%d' % (num)
     semantic_player_type = _get_semantic_player_type(
         op, intr.get('sem-player-types'))
+    print(op, semantic_player_type, intr.get('sem-player-types'))
     if semantic_player_type == 'FpRegister':
       call_params.append('FPRegToFloat<%s>(%s)' % (op, arg))
     elif semantic_player_type == 'SimdRegister':
@@ -284,8 +286,9 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
       call_expr = 'FloatToFPReg(std::get<0>(%s))' % call_expr
     else:
       assert out_type == "Register"
-      assert not _is_simd128_conversion_required(outs[0])
-      call_expr = 'std::make_signed<%s>(std::get<0>(%s))' % (outs[0], call_expr)
+      assert not _is_simd128_conversion_required(
+        outs[0], intr.get('sem-player-types'))
+      call_expr = 'std::make_signed_t<%s>(std::get<0>(%s))' % (outs[0], call_expr)
   elif len(outs) == 1:
     # Unwrap tuple for single result.
     call_expr = 'std::get<0>(%s)' % call_expr
@@ -574,7 +577,9 @@ def _get_cast_from_simd128(var, target_type, ptr_bits):
 
 
 def _get_desc_specializations(intr, desc=None):
-  if hasattr(desc, 'c_type'):
+  if intr.get('class') == 'template':
+    spec = _get_template_spec_arguments(intr.get('variants'))
+  elif hasattr(desc, 'c_type'):
     spec = [desc.c_type, str(desc.num_elements)]
   elif hasattr(desc, 'num_elements'):
     spec = [str(desc.num_elements)]
@@ -585,6 +590,24 @@ def _get_desc_specializations(intr, desc=None):
   if not len(spec):
     return ''
   return '<%s>' % ', '.join(spec)
+
+
+def _get_template_spec_arguments(variants):
+  spec = None
+  for variant in variants:
+    counter = -1
+    def get_counter():
+      nonlocal counter
+      counter += 1
+      return counter
+    new_spec = [
+      'kBool%s' % get_counter() if param.strip() in ('true', 'false') else
+      'Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
+      'kInt%s' % get_counter()
+      for param in variant.split(',')]
+    assert spec is None or spec == new_spec
+    spec = new_spec
+  return spec
 
 
 def _intr_has_side_effects(intr, fmt=None):
@@ -627,7 +650,7 @@ def _gen_semantic_player_types(intrs):
                             re.search('[_a-zA-Z]', param),
             variant.split(',')):
           new_map['Type%d' % get_counter()] = (
-              'FpRegister' if type in ('Float32', 'Float64') else
+              'FpRegister' if type.strip() in ('Float32', 'Float64') else
               _get_semantic_player_type(type, None))
         assert map is None or map == new_map
         map = new_map
