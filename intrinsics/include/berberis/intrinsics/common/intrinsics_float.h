@@ -209,9 +209,4 @@ class numeric_limits<berberis::intrinsics::WrappedFloatType<BaseType>> {
 
 }  // namespace std
 
-// Export arch-specific definitions as well.
-#if defined(__i386__) || defined(__x86_64__)
-#include "berberis/intrinsics/intrinsics_float_x86.h"
-#endif
-
 #endif  // BERBERIS_INTRINSICS_COMMON_INTRINSICS_FLOAT_H_

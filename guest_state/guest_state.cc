@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 
 #include "berberis/base/checks.h"
 #include "berberis/base/mmap.h"
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state.h"
 
 #include <atomic>   // std::memory_order_relaxed
 #include <cstddef>  // size_t
@@ -91,6 +93,14 @@ bool ArePendingSignalsPresent(const ThreadState* state) {
 
 CPUState* GetCPUState(ThreadState* state) {
   return &state->cpu;
+}
+
+void SetStackRegister(CPUState* cpu, GuestAddr val) {
+  SetXReg<SP>(*cpu, val);
+}
+
+GuestAddr GetStackRegister(CPUState* cpu) {
+  return GetXReg<SP>(*cpu);
 }
 
 void SetLinkRegister(CPUState* cpu, GuestAddr val) {

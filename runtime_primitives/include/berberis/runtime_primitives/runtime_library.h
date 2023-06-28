@@ -40,6 +40,8 @@ void berberis_entry_Wrapping();
 static_assert(berberis_entry_NotTranslated != berberis_entry_Translating,
               "code to distinguish entry status got optimized");
 
+__attribute__((__visibility__("hidden"))) void berberis_HandleNoExec(ThreadState* state);
+
 }  // extern "C"
 
 // Inline const since we cannot use constexpr because of reinterpret_cast.

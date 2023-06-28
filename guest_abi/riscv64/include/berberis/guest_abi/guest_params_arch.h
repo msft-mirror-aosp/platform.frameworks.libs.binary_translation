@@ -31,7 +31,6 @@
 
 namespace berberis {
 
-template <GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestVAListParams;
 
 class GuestParamsAndReturnHelper : protected GuestAbi {
@@ -49,7 +48,7 @@ class GuestParamsAndReturnHelper : protected GuestAbi {
     } else if (loc.kind == riscv64::kArgLocationInt) {
       address = x + loc.offset + A0;
     } else if (loc.kind == riscv64::kArgLocationFp) {
-      address = f + loc.offset + A0;
+      address = f + loc.offset + FA0;
     } else {
       FATAL("Unknown ArgumentKind");
     }
@@ -96,7 +95,7 @@ class GuestParamsAndReturn<ReturnType(ParamType...) noexcept(kNoexcept), kCallin
   }
 
  private:
-  friend class GuestVAListParams<kCallingConventionsVariant>;
+  friend class GuestVAListParams;
   friend class GuestParamsAndReturn<ReturnType(ParamType..., ...) noexcept(kNoexcept),
                                     kCallingConventionsVariant>;
 
@@ -196,7 +195,7 @@ class GuestParamsAndReturn<ReturnType(ParamType..., ...) noexcept(kNoexcept),
                              kCallingConventionsVariant>(state) {}
 
  private:
-  friend class GuestVAListParams<kCallingConventionsVariant>;
+  friend class GuestVAListParams;
 
   constexpr static riscv64::CallingConventions kVaStartBase =
       std::get<0>(GuestParamsAndReturn<ReturnType(ParamType...) noexcept(kNoexcept),
@@ -223,10 +222,10 @@ template <typename FunctionType,
           GuestAbi::CallingConventionsVariant kCallingConventionsVariant = GuestAbi::kDefaultAbi>
 class GuestParamsValues;
 
-template <GuestAbi::CallingConventionsVariant kCallingConventionsVariant>
 class GuestVAListParams : GuestParamsAndReturnHelper {
  public:
-  template <typename Func>
+  template <typename Func,
+            GuestAbi::CallingConventionsVariant kCallingConventionsVariant = GuestAbi::kDefaultAbi>
   GuestVAListParams(const GuestParamsValues<Func, kCallingConventionsVariant>&& named_parameters)
       : calling_conventions_(named_parameters.kVaStartBase),
         x_(named_parameters.x_),
@@ -238,7 +237,8 @@ class GuestVAListParams : GuestParamsAndReturnHelper {
       : calling_conventions_(riscv64::CallingConventions::kStackOnly),
         s_(ToHostAddr<uint8_t>(va_ptr)) {}
 
-  template <typename T>
+  template <typename T,
+            GuestAbi::CallingConventionsVariant kCallingConventionsVariant = GuestAbi::kDefaultAbi>
   typename GuestArgumentInfo<T, kCallingConventionsVariant>::GuestType& GetParam() {
     using ArgumentInfo = GuestArgumentInfo<T, kCallingConventionsVariant>;
     // All argument types (integer, floating point, and aggregate) are passed in integer registers

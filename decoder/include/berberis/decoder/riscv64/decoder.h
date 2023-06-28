@@ -834,7 +834,7 @@ class Decoder {
         .src2 = 0,
         .offset = int16_t(SignExtend<9>(kBHigh[high_imm] + kBLow[low_imm])),
     };
-    insn_consumer_->Branch(args);
+    insn_consumer_->CompareAndBranch(args);
   }
 
   void DecodeCompressedJ() {
@@ -1234,7 +1234,7 @@ class Decoder {
         // The offset is encoded as 2-byte units, we need to multiply by 2.
         .offset = SignExtend<13>(int16_t(offset * 2)),
     };
-    insn_consumer_->Branch(args);
+    insn_consumer_->CompareAndBranch(args);
   }
 
   void DecodeJumpAndLink() {

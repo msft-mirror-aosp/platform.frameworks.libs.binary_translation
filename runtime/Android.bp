@@ -29,18 +29,25 @@ cc_library_static {
     defaults: ["berberis_defaults_64"],
     host_supported: true,
     srcs: [
+        "execute_guest.cc",
         "runtime_library_x86_64.cc",
         "run_guest_call_riscv64.cc",
         "translator_riscv64.cc",
     ],
+    whole_static_libs: ["libberberis_runtime"],
     header_libs: [
         "libberberis_base_headers",
+        "libberberis_calling_conventions_headers",
         "libberberis_guest_abi_riscv64_headers",
         "libberberis_guest_os_primitives_headers",
-        "libberberis_guest_state_headers",
+        "libberberis_guest_state_riscv64_headers",
+        "libberberis_instrument_headers",
         "libberberis_interpreter_riscv64_headers",
         "libberberis_runtime_headers",
         "libberberis_runtime_primitives_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_runtime_headers",
     ],
 }
 
@@ -52,7 +59,6 @@ cc_library_static {
         "libberberis_base_headers",
         "libberberis_guest_state_headers",
         "libberberis_guest_os_primitives_headers",
-        "libberberis_interpreter_riscv64_headers",
         "libberberis_runtime_headers",
         "libberberis_runtime_primitives_headers",
     ],
@@ -60,7 +66,7 @@ cc_library_static {
         "libberberis_runtime_headers",
     ],
     srcs: [
-        "execute_guest.cc",
+        "berberis.cc",
         "execute_guest_call.cc",
         "runtime_library.cc",
         "translator.cc",
@@ -68,12 +74,14 @@ cc_library_static {
 }
 
 cc_test_library {
-    name: "libberberis_runtime_unit_tests",
+    name: "libberberis_runtime_riscv64_unit_tests",
     defaults: ["berberis_test_library_defaults_64"],
     srcs: ["execute_guest_test.cc"],
     header_libs: [
         "libberberis_base_headers",
-        "libberberis_guest_state_headers",
+        "libberberis_guest_state_riscv64_headers",
         "libberberis_runtime_headers",
+        "libberberis_guest_os_primitives_headers",
+        "libberberis_runtime_primitives_headers",
     ],
 }

@@ -58,6 +58,11 @@ void InitGuestThreadManager() {
   CHECK_EQ(0, pthread_key_create(&g_guest_thread_key, GuestThreadDtor));
 }
 
+GuestThread* GetCurrentGuestThread() {
+  bool attached;
+  return AttachCurrentThread(true, &attached);
+}
+
 // Common guest thread function attaches GuestThread lazily on first call and detaches in pthread
 // key destructor (register_dtor = true).
 //
