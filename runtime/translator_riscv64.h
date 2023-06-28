@@ -14,28 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
-#define BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
+#ifndef BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
+#define BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
 
+#include <cstddef>
 #include <tuple>
 
-#include "berberis/assembler/machine_code.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/lite_translator/lite_translate_region.h"
+#include "berberis/runtime_primitives/host_code.h"
+#include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
 
-struct LiteTranslateParams {
-  bool allow_dispatch = true;
-};
-
-bool LiteTranslateRange(GuestAddr start_pc,
-                        GuestAddr end_pc,
-                        MachineCode* machine_code,
-                        LiteTranslateParams params);
-std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc,
-                                                   MachineCode* machine_code,
-                                                   LiteTranslateParams params);
+std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAndInstallRegion(
+    GuestAddr pc,
+    const LiteTranslateParams& params = LiteTranslateParams());
 
 }  // namespace berberis
 
-#endif  // BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
+#endif  // BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
