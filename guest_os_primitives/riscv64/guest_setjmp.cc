@@ -144,7 +144,7 @@ void RestoreRegsFromJumpBuf(ThreadState* state, void* guest_jmp_buf, int retval)
 
   // Function return
   CPUState* cpu = &state->cpu;
-  SetInsnAddr(cpu, GetLinkRegister(cpu));
+  SetInsnAddr(cpu, GetLinkRegister(*cpu));
   SetXReg<A0>(*cpu, retval);
 }
 
