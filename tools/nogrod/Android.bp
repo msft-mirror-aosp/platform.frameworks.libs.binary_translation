@@ -17,17 +17,15 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-// TODO(b/265372622): remove berberis prefixes after the internal copy is removed.
-
 cc_defaults {
-    name: "berberis_nogrod_defaults",
+    name: "nogrod_defaults",
     defaults: ["berberis_defaults_64"],
     cpp_std: "experimental",
 }
 
 cc_library {
-    name: "libberberis_nogrod",
-    defaults: ["berberis_nogrod_defaults"],
+    name: "libnogrod",
+    defaults: ["nogrod_defaults"],
     host_supported: true,
     srcs: [
         "byte_input_stream.cc",
@@ -47,8 +45,8 @@ cc_library {
 }
 
 cc_test_host {
-    name: "berberis_nogrod_unit_tests",
-    defaults: ["berberis_nogrod_defaults"],
+    name: "nogrod_unit_tests",
+    defaults: ["nogrod_defaults"],
     srcs: [
         "byte_input_stream_tests.cc",
         "leb128_tests.cc",
@@ -57,7 +55,7 @@ cc_test_host {
 
     static_libs: [
         "libberberis_base",
-        "libberberis_nogrod",
+        "libnogrod",
         "libbase",
         "liblog",
     ],
@@ -68,10 +66,10 @@ cc_test_host {
 }
 
 cc_binary_host {
-    name: "berberis_dwarf_reader",
-    defaults: ["berberis_nogrod_defaults"],
+    name: "dwarf_reader",
+    defaults: ["nogrod_defaults"],
     srcs: ["main.cc"],
-    shared_libs: ["libberberis_nogrod"],
+    shared_libs: ["libnogrod"],
     static_libs: [
         "libberberis_base",
         "libjsoncpp",
