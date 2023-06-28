@@ -107,8 +107,8 @@ void SetLinkRegister(CPUState* cpu, GuestAddr val) {
   SetXReg<RA>(*cpu, val);
 }
 
-GuestAddr GetLinkRegister(const CPUState* cpu) {
-  return GetXReg<RA>(*cpu);
+GuestAddr GetLinkRegister(const CPUState& cpu) {
+  return GetXReg<RA>(cpu);
 }
 
 void SetInsnAddr(CPUState* cpu, GuestAddr addr) {
