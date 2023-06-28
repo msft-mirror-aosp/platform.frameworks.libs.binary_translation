@@ -161,17 +161,6 @@ class LiteTranslator {
     return {};
   }
 
-  FpRegister Fma(Decoder::FmaOpcode opcode,
-                 Decoder::FloatOperandType float_size,
-                 uint8_t rm,
-                 FpRegister arg1,
-                 FpRegister arg2,
-                 FpRegister arg3) {
-    UNUSED(opcode, float_size, rm, arg1, arg2, arg3);
-    Unimplemented();
-    return {};
-  }
-
   FpRegister LoadFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset) {
     UNUSED(opcode, arg, offset);
     Unimplemented();
