@@ -67,6 +67,13 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "FMAddDyn": {
+    "comment": "Fused multiply-addition",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FMax": {
     "comment": "Maximum from two floats",
     "class": "template",
@@ -88,11 +95,39 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "FMSub": {
+    "comment": "Fused multiply-subtraction",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FMSubDyn": {
+    "comment": "Fused multiply-subtraction",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FNMAddDyn": {
+    "comment": "Fused negated multiply-addition",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FNMSub": {
     "comment": "Fused negated multiply-subtraction",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FNMSubDyn": {
+    "comment": "Fused negated multiply-subtraction",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FSgnj": {
@@ -114,13 +149,6 @@
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
-  },
-  "FMSub": {
-    "comment": "Fused multiply-subtraction",
-    "class": "template",
-    "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   }
 }
