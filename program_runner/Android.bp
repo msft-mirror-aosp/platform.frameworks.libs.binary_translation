@@ -35,6 +35,7 @@ cc_binary {
         "libberberis_guest_state_riscv64",
         "libberberis_interpreter_riscv64",
         "libberberis_kernel_api_riscv64",
+        "libberberis_lite_translator_riscv64_to_x86_64",
         "libberberis_runtime_riscv64_to_x86_64",
         "libberberis_runtime_primitives_riscv64",
         "libberberis_tinyloader",
