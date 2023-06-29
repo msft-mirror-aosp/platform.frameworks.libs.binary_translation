@@ -63,7 +63,7 @@ GuestAddr GetStackRegister(CPUState* cpu);
 
 void SetLinkRegister(CPUState* cpu, GuestAddr val);
 
-GuestAddr GetLinkRegister(const CPUState* cpu);
+GuestAddr GetLinkRegister(const CPUState& cpu);
 
 void SetInsnAddr(CPUState* cpu, GuestAddr addr);
 
