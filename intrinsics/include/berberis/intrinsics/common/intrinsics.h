@@ -52,6 +52,28 @@ enum PreferredIntrinsicsImplementation {
 
 #include "berberis/intrinsics/intrinsics-inl.h"  // NOLINT: generated file!
 
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
+std::tuple<uint64_t> FClass(FloatType arg) {
+  using IntType = std::make_unsigned_t<typename TypeTraits<FloatType>::Int>;
+  constexpr IntType quiet_bit =
+      __builtin_bit_cast(IntType, std::numeric_limits<FloatType>::quiet_NaN()) &
+      ~__builtin_bit_cast(IntType, std::numeric_limits<FloatType>::signaling_NaN());
+  const IntType raw_bits = bit_cast<IntType>(arg);
+
+  switch (FPClassify(arg)) {
+    case intrinsics::FPInfo::kNaN:
+      return (raw_bits & quiet_bit) ? 0b10'0000'0000 : 0b01'0000'0000;
+    case intrinsics::FPInfo::kInfinite:
+      return intrinsics::SignBit(arg) ? 0b00'0000'0001 : 0b00'1000'0000;
+    case intrinsics::FPInfo::kNormal:
+      return intrinsics::SignBit(arg) ? 0b00'0000'0010 : 0b00'0100'0000;
+    case intrinsics::FPInfo::kSubnormal:
+      return intrinsics::SignBit(arg) ? 0b00'0000'0100 : 0b00'0010'0000;
+    case intrinsics::FPInfo::kZero:
+      return intrinsics::SignBit(arg) ? 0b00'0000'1000 : 0b00'0001'0000;
+  }
+}
+
 template <typename TargetOperandType,
           typename SourceOperandType,
           enum PreferredIntrinsicsImplementation>
