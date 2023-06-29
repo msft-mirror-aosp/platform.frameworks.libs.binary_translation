@@ -26,6 +26,9 @@ BERBERIS_PRODUCT_PACKAGES := \
     libberberis_exec_region \
     libberberis_riscv64
 
+BERBERIS_PRODUCT_PACKAGES += \
+    berberis_prebuilt_riscv64
+
 # TODO(b/277625560): Include $(NATIVE_BRIDGE_PRODUCT_PACKAGES) instead
 # when all its bits are ready for riscv64.
 BERBERIS_PRODUCT_PACKAGES += $(NATIVE_BRIDGE_PRODUCT_PACKAGES_RISCV64_READY)
