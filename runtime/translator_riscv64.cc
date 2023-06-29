@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+#include "translator_riscv64.h"
 #include "berberis/runtime/translator.h"
 
 #include <cstdlib>
 #include <tuple>
 
+#include "berberis/assembler/machine_code.h"
 #include "berberis/base/config_globals.h"
 #include "berberis/base/logging.h"
 #include "berberis/base/tracing.h"
@@ -26,8 +28,11 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
+#include "berberis/lite_translator/lite_translate_region.h"
+#include "berberis/runtime_primitives/code_pool.h"
 #include "berberis/runtime_primitives/host_call_frame.h"
 #include "berberis/runtime_primitives/host_code.h"
+#include "berberis/runtime_primitives/profiler_interface.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 #include "berberis/runtime_primitives/translation_cache.h"
 
@@ -38,16 +43,15 @@ namespace {
 // Syntax sugar.
 GuestCodeEntry::Kind kSpecialHandler = GuestCodeEntry::Kind::kSpecialHandler;
 GuestCodeEntry::Kind kInterpreted = GuestCodeEntry::Kind::kInterpreted;
+GuestCodeEntry::Kind kLightTranslated = GuestCodeEntry::Kind::kLightTranslated;
 
-enum class TranslationMode { kInterpretOnly, kNumModes };
+enum class TranslationMode { kInterpretOnly, kLiteTranslateOrFallbackToInterpret, kNumModes };
 
 TranslationMode g_translation_mode = TranslationMode::kInterpretOnly;
 
 void UpdateTranslationMode() {
   // Indices must match TranslationMode enum.
-  constexpr const char* kTranslationModeNames[] = {
-      "interpret-only",
-  };
+  constexpr const char* kTranslationModeNames[] = {"interpret-only", "lite-translate-or-interpret"};
   static_assert(static_cast<int>(TranslationMode::kNumModes) ==
                 sizeof(kTranslationModeNames) / sizeof(char*));
 
@@ -79,11 +83,49 @@ alignas(4) uint32_t g_native_bridge_call_guest[] = {
 
 }  // namespace
 
+HostCodePiece InstallTranslated(MachineCode* machine_code,
+                                GuestAddr pc,
+                                size_t size,
+                                const char* prefix) {
+  HostCode host_code = GetDefaultCodePoolInstance()->Add(machine_code);
+  ProfilerLogGeneratedCode(host_code, machine_code->install_size(), pc, size, prefix);
+  return {host_code, machine_code->install_size()};
+}
+
 void InitTranslator() {
   UpdateTranslationMode();
   InitHostCallFrameGuestPC(ToGuestAddr(g_native_bridge_call_guest + 1));
   // TODO(b/232598137) Setup recovery for interpreter then init here.
   // InitInterpreter();
+}
+
+// Exported for testing only.
+std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAndInstallRegion(
+    GuestAddr pc,
+    const LiteTranslateParams& params) {
+  MachineCode machine_code;
+
+  auto [success, stop_pc] = TryLiteTranslateRegion(pc, &machine_code, params);
+
+  size_t size = stop_pc - pc;
+
+  if (success) {
+    return {true, InstallTranslated(&machine_code, pc, size, "lite"), size, kLightTranslated};
+  }
+
+  if (size == 0) {
+    // Cannot translate even single instruction - the attempt failed.
+    return {false, {}, 0, {}};
+  }
+
+  MachineCode another_machine_code;
+  success = LiteTranslateRange(pc, stop_pc, &another_machine_code, params);
+  CHECK(success);
+
+  return {true,
+          InstallTranslated(&another_machine_code, pc, size, "lite_range"),
+          size,
+          kLightTranslated};
 }
 
 void TranslateRegion(GuestAddr pc) {
@@ -104,12 +146,19 @@ void TranslateRegion(GuestAddr pc) {
     return;
   }
 
+  bool success;
   HostCodePiece host_code_piece;
   size_t size;
   GuestCodeEntry::Kind kind;
   if (g_translation_mode == TranslationMode::kInterpretOnly) {
     std::tie(host_code_piece, size, kind) =
         std::make_tuple(HostCodePiece{kEntryInterpret, 0}, 4, kInterpreted);
+  } else if (g_translation_mode == TranslationMode::kLiteTranslateOrFallbackToInterpret) {
+    std::tie(success, host_code_piece, size, kind) = TryLiteTranslateAndInstallRegion(pc);
+    if (!success) {
+      std::tie(host_code_piece, size, kind) =
+          std::make_tuple(HostCodePiece{kEntryInterpret, 0}, 4, kInterpreted);
+    }
   } else {
     LOG_ALWAYS_FATAL("Unsupported translation mode %u", g_translation_mode);
   }
