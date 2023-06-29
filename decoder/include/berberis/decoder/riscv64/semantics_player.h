@@ -192,11 +192,55 @@ class SemanticsPlayer {
     FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
     FpRegister arg3 = GetFRegAndUnboxNaN(args.src3, args.operand_type);
-    FpRegister result = listener_->Fma(args.opcode, args.operand_type, args.rm, arg1, arg2, arg3);
+    FpRegister result;
+    auto rm = listener_->GetImm(args.rm);
+    auto frm = listener_->GetFrm();
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        result = Fma<Float32>(args.opcode, rm, frm, arg1, arg2, arg3);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        result = Fma<Float64>(args.opcode, rm, frm, arg1, arg2, arg3);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     result = CanonicalizeNan(result, args.operand_type);
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
 
+  template <typename FloatType>
+  FpRegister Fma(typename Decoder::FmaOpcode opcode,
+                 Register rm,
+                 Register frm,
+                 FpRegister arg1,
+                 FpRegister arg2,
+                 FpRegister arg3) {
+    switch (opcode) {
+      case Decoder::FmaOpcode::kFmadd:
+        return listener_->template FMAdd<FloatType>(rm, frm, arg1, arg2, arg3);
+      case Decoder::FmaOpcode::kFmsub:
+        return listener_->template FMSub<FloatType>(rm, frm, arg1, arg2, arg3);
+      // Note (from RISC-V manual): The FNMSUB and FNMADD instructions are counterintuitively named,
+      // owing to the naming of the corresponding instructions in MIPS-IV. The MIPS instructions
+      // were defined to negate the sum, rather than negating the product as the RISC-V instructions
+      // do, so the naming scheme was more rational at the time. The two definitions differ with
+      // respect to signed-zero results. The RISC-V definition matches the behavior of the x86 and
+      // ARM fused multiply-add instructions, but unfortunately the RISC-V FNMSUB and FNMADD
+      // instruction names are swapped compared to x86 and ARM.
+      //
+      // Since even official documentation calls the names “counterintuitive” it's better to use x86
+      // ones for intrinsics.
+      case Decoder::FmaOpcode::kFnmsub:
+        return listener_->template FNMAdd<FloatType>(rm, frm, arg1, arg2, arg3);
+      case Decoder::FmaOpcode::kFnmadd:
+        return listener_->template FNMSub<FloatType>(rm, frm, arg1, arg2, arg3);
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
   void Fence(const typename Decoder::FenceArgs& args) {
     listener_->Fence(args.opcode,
                      // args.src is currently unused - read below.
