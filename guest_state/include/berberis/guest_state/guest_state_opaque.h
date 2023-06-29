@@ -72,6 +72,12 @@ GuestAddr GetInsnAddr(const CPUState* cpu);
 // TODO(b/28058920): Refactor into GuestThread.
 bool ArePendingSignalsPresent(const ThreadState* state);
 
+void SetTlsAddr(ThreadState*, GuestAddr addr);
+
+GuestAddr GetTlsAddr(const ThreadState& cpu);
+
+void InitFloatingPointState();
+
 }  // namespace berberis
 
 #endif  // BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
