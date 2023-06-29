@@ -32,6 +32,7 @@ BERBERIS_PRODUCT_PACKAGES += $(NATIVE_BRIDGE_PRODUCT_PACKAGES_RISCV64_READY)
 
 BERBERIS_DEV_PRODUCT_PACKAGES := \
     berberis_guest_loader_riscv64_tests \
+    berberis_hello_world_static.native_bridge \
     berberis_host_tests \
     dwarf_reader \
     nogrod_unit_tests \
