@@ -38,7 +38,7 @@ extern "C" __attribute__((__visibility__("hidden"))) void berberis_HandleNoExec(
   CPUState* cpu = GetCPUState(state);
   TRACE("Trying to execute non-executable code at %p called from %p",
         ToHostAddr<void>(GetInsnAddr(cpu)),
-        ToHostAddr<void>(GetLinkRegister(cpu)));
+        ToHostAddr<void>(GetLinkRegister(*cpu)));
   siginfo_t info{};
   info.si_signo = SIGSEGV;
   info.si_code = SEGV_ACCERR;

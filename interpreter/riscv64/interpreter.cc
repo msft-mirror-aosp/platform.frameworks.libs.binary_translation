@@ -315,84 +315,6 @@ class Interpreter {
     }
   }
 
-  FpRegister Fma(Decoder::FmaOpcode opcode,
-                 Decoder::FloatOperandType float_size,
-                 uint8_t rm,
-                 FpRegister arg1,
-                 FpRegister arg2,
-                 FpRegister arg3) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return FloatToFPReg(Fma<Float32>(opcode,
-                                         rm,
-                                         FPRegToFloat<Float32>(arg1),
-                                         FPRegToFloat<Float32>(arg2),
-                                         FPRegToFloat<Float32>(arg3)));
-      case Decoder::FloatOperandType::kDouble:
-        return FloatToFPReg(Fma<Float64>(opcode,
-                                         rm,
-                                         FPRegToFloat<Float64>(arg1),
-                                         FPRegToFloat<Float64>(arg2),
-                                         FPRegToFloat<Float64>(arg3)));
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  // TODO(b/278812060): switch to intrinsics when they would become available and stop using
-  // ExecuteFloatOperation directly.
-  template <typename FloatType>
-  FloatType Fma(Decoder::FmaOpcode opcode,
-                uint8_t rm,
-                FloatType arg1,
-                FloatType arg2,
-                FloatType arg3) {
-    switch (opcode) {
-      case Decoder::FmaOpcode::kFmadd:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm,
-            state_->cpu.frm,
-            [](auto x, auto y, auto z) { return intrinsics::MulAdd(x, y, z); },
-            arg1,
-            arg2,
-            arg3);
-      case Decoder::FmaOpcode::kFmsub:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm,
-            state_->cpu.frm,
-            [](auto x, auto y, auto z) {
-              return intrinsics::MulAdd(x, y, intrinsics::Negative(z));
-            },
-            arg1,
-            arg2,
-            arg3);
-      case Decoder::FmaOpcode::kFnmsub:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm,
-            state_->cpu.frm,
-            [](auto x, auto y, auto z) {
-              return intrinsics::MulAdd(intrinsics::Negative(x), y, z);
-            },
-            arg1,
-            arg2,
-            arg3);
-      case Decoder::FmaOpcode::kFnmadd:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm,
-            state_->cpu.frm,
-            [](auto x, auto y, auto z) {
-              return intrinsics::MulAdd(intrinsics::Negative(x), y, intrinsics::Negative(z));
-            },
-            arg1,
-            arg2,
-            arg3);
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
     switch (opcode) {
       case Decoder::OpImmOpcode::kAddi:
@@ -485,23 +407,6 @@ class Interpreter {
     }
   }
 
-  Register OpFpGpRegisterTargetSingleInputNoRounding(
-      Decoder::OpFpGpRegisterTargetSingleInputNoRoundingOpcode opcode,
-      Decoder::FloatOperandType float_size,
-      FpRegister arg) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return OpFpGpRegisterTargetSingleInputNoRounding<Float32>(opcode,
-                                                                  FPRegToFloat<Float32>(arg));
-      case Decoder::FloatOperandType::kDouble:
-        return OpFpGpRegisterTargetSingleInputNoRounding<Float64>(opcode,
-                                                                  FPRegToFloat<Float64>(arg));
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   FpRegister OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode,
                              Decoder::FloatOperandType float_size,
                              uint8_t rm,
@@ -551,37 +456,6 @@ class Interpreter {
         return arg1 < arg2;
       case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFeq:
         return arg1 == arg2;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  template <typename FloatType>
-  Register OpFpGpRegisterTargetSingleInputNoRounding(
-      Decoder::OpFpGpRegisterTargetSingleInputNoRoundingOpcode opcode,
-      FloatType arg) {
-    using IntType = std::make_unsigned_t<typename TypeTraits<FloatType>::Int>;
-    // TODO(b/284735067): make it constexpr when C++20 would be available.
-    IntType quiet_bit = bit_cast<IntType>(std::numeric_limits<FloatType>::quiet_NaN()) &
-                        ~bit_cast<IntType>(std::numeric_limits<FloatType>::signaling_NaN());
-    IntType raw_bits = bit_cast<IntType>(arg);
-
-    switch (opcode) {
-      case Decoder::OpFpGpRegisterTargetSingleInputNoRoundingOpcode::kFclass:
-        switch (FPClassify(arg)) {
-          case intrinsics::FPInfo::kNaN:
-            return (raw_bits & quiet_bit) ? 0b10'0000'0000 : 0b01'0000'0000;
-          case intrinsics::FPInfo::kInfinite:
-            return intrinsics::SignBit(arg) ? 0b00'0000'0001 : 0b00'1000'0000;
-          case intrinsics::FPInfo::kNormal:
-            return intrinsics::SignBit(arg) ? 0b00'0000'0010 : 0b00'0100'0000;
-          case intrinsics::FPInfo::kSubnormal:
-            return intrinsics::SignBit(arg) ? 0b00'0000'0100 : 0b00'0010'0000;
-          case intrinsics::FPInfo::kZero:
-            return intrinsics::SignBit(arg) ? 0b00'0000'1000 : 0b00'0001'0000;
-        }
-        [[fallthrough]];
       default:
         Unimplemented();
         return {};

@@ -26,12 +26,16 @@ BERBERIS_PRODUCT_PACKAGES := \
     libberberis_exec_region \
     libberberis_riscv64
 
+BERBERIS_PRODUCT_PACKAGES += \
+    berberis_prebuilt_riscv64
+
 # TODO(b/277625560): Include $(NATIVE_BRIDGE_PRODUCT_PACKAGES) instead
 # when all its bits are ready for riscv64.
 BERBERIS_PRODUCT_PACKAGES += $(NATIVE_BRIDGE_PRODUCT_PACKAGES_RISCV64_READY)
 
 BERBERIS_DEV_PRODUCT_PACKAGES := \
     berberis_guest_loader_riscv64_tests \
+    berberis_hello_world_static.native_bridge \
     berberis_host_tests \
     dwarf_reader \
     nogrod_unit_tests \
