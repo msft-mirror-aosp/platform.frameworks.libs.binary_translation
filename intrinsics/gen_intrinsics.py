@@ -265,7 +265,6 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
     arg = 'arg%d' % (num)
     semantic_player_type = _get_semantic_player_type(
         op, intr.get('sem-player-types'))
-    print(op, semantic_player_type, intr.get('sem-player-types'))
     if semantic_player_type == 'FpRegister':
       call_params.append('FPRegToFloat<%s>(%s)' % (op, arg))
     elif semantic_player_type == 'SimdRegister':
