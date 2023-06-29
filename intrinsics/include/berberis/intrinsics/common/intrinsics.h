@@ -99,6 +99,21 @@ std::tuple<TargetOperandType> FCvtIntegerToFloat(uint8_t /*rm*/,
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
+std::tuple<FloatType> FMAdd(uint8_t rm,
+                            uint8_t frm,
+                            FloatType arg1,
+                            FloatType arg2,
+                            FloatType arg3) {
+  return intrinsics::ExecuteFloatOperation<FloatType>(
+      rm,
+      frm,
+      [](auto x, auto y, auto z) { return intrinsics::MulAdd(x, y, z); },
+      arg1,
+      arg2,
+      arg3);
+}
+
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FMax(FloatType x, FloatType y) {
   return {Max(x, y)};
 }
@@ -106,6 +121,38 @@ std::tuple<FloatType> FMax(FloatType x, FloatType y) {
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FMin(FloatType x, FloatType y) {
   return {Min(x, y)};
+}
+
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
+std::tuple<FloatType> FNMAdd(uint8_t rm,
+                             uint8_t frm,
+                             FloatType arg1,
+                             FloatType arg2,
+                             FloatType arg3) {
+  return intrinsics::ExecuteFloatOperation<FloatType>(
+      rm,
+      frm,
+      [](auto x, auto y, auto z) { return intrinsics::MulAdd(intrinsics::Negative(x), y, z); },
+      arg1,
+      arg2,
+      arg3);
+}
+
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
+std::tuple<FloatType> FNMSub(uint8_t rm,
+                             uint8_t frm,
+                             FloatType arg1,
+                             FloatType arg2,
+                             FloatType arg3) {
+  return intrinsics::ExecuteFloatOperation<FloatType>(
+      rm,
+      frm,
+      [](auto x, auto y, auto z) {
+        return intrinsics::MulAdd(intrinsics::Negative(x), y, intrinsics::Negative(z));
+      },
+      arg1,
+      arg2,
+      arg3);
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
@@ -128,6 +175,21 @@ std::tuple<FloatType> FSgnjx(FloatType x, FloatType y) {
   using UInt = std::make_unsigned_t<Int>;
   constexpr UInt sign_bit = std::numeric_limits<Int>::min();
   return {bit_cast<FloatType>(bit_cast<UInt>(x) ^ (bit_cast<UInt>(y) & sign_bit))};
+}
+
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
+std::tuple<FloatType> FMSub(uint8_t rm,
+                            uint8_t frm,
+                            FloatType arg1,
+                            FloatType arg2,
+                            FloatType arg3) {
+  return intrinsics::ExecuteFloatOperation<FloatType>(
+      rm,
+      frm,
+      [](auto x, auto y, auto z) { return intrinsics::MulAdd(x, y, intrinsics::Negative(z)); },
+      arg1,
+      arg2,
+      arg3);
 }
 
 }  // namespace intrinsics
