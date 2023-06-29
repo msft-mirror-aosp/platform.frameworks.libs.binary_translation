@@ -131,15 +131,6 @@ class LiteTranslator {
     return {};
   }
 
-  Register OpFpGpRegisterTargetSingleInputNoRounding(
-      Decoder::OpFpGpRegisterTargetSingleInputNoRoundingOpcode opcode,
-      Decoder::FloatOperandType float_size,
-      FpRegister arg) {
-    UNUSED(opcode, float_size, arg);
-    Unimplemented();
-    return {};
-  }
-
   FpRegister OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode,
                              Decoder::FloatOperandType float_size,
                              uint8_t rm,
