@@ -27,7 +27,8 @@
 namespace berberis {
 
 void ExecuteGuest(ThreadState* state) {
-  GuestThread* thread = GetGuestThread(state);
+  CHECK(state);
+  GuestThread* thread = GetGuestThread(*state);
   CHECK(thread);
   CHECK_EQ(state, thread->state());
 
@@ -36,7 +37,7 @@ void ExecuteGuest(ThreadState* state) {
   for (;;) {
     auto pc = GetInsnAddr(GetCPUState(state));
 
-    if (ArePendingSignalsPresent(state)) {
+    if (ArePendingSignalsPresent(*state)) {
       thread->ProcessPendingSignals();
       // Signal handler can modify control flow, e.g. to recover from segfault.
       if (pc != GetInsnAddr(GetCPUState(state))) {
