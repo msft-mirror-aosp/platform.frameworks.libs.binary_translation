@@ -193,6 +193,20 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "FSqrt": {
+    "comment": "Square root",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "uint8_t", "uint8_t", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FSqrtDyn": {
+    "comment": "Square root (uses host dynamic rounding)",
+    "class": "template",
+    "variants": [ "Float32" ],
+    "in": [ "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FSub": {
     "comment": "Floating point subtraction",
     "class": "template",
