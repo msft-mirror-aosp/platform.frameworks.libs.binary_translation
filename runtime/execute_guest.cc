@@ -35,16 +35,16 @@ void ExecuteGuest(ThreadState* state) {
   TranslationCache* cache = TranslationCache::GetInstance();
 
   for (;;) {
-    auto pc = GetInsnAddr(GetCPUState(state));
+    auto pc = GetInsnAddr(GetCPUState(*state));
 
     if (ArePendingSignalsPresent(*state)) {
       thread->ProcessPendingSignals();
       // Signal handler can modify control flow, e.g. to recover from segfault.
-      if (pc != GetInsnAddr(GetCPUState(state))) {
+      if (pc != GetInsnAddr(GetCPUState(*state))) {
         TRACE("PC modified by signal handler: old=%p new=%p",
               ToHostAddr<void>(pc),
-              ToHostAddr<void>(GetInsnAddr(GetCPUState(state))));
-        pc = GetInsnAddr(GetCPUState(state));
+              ToHostAddr<void>(GetInsnAddr(GetCPUState(*state))));
+        pc = GetInsnAddr(GetCPUState(*state));
       }
     }
 

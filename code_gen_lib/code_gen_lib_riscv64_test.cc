@@ -58,7 +58,7 @@ TEST(CodeGenLib, GenTrampolineAdaptor) {
 
   g_called = false;
   g_state.cpu.insn_addr = 0;
-  SetLinkRegister(&g_state.cpu, ToGuestAddr(&g_ret_insn));
+  SetLinkRegister(g_state.cpu, ToGuestAddr(&g_ret_insn));
 
   TestingRunGeneratedCode(&g_state, exec.get(), ToGuestAddr(&g_ret_insn));
 
@@ -108,7 +108,7 @@ TEST(CodeGenLib, GenTrampolineAdaptorResidence) {
                         {generated_code_exec.get(), generated_code.install_size()});
 
   g_state.cpu.insn_addr = 0;
-  SetLinkRegister(&g_state.cpu, ToGuestAddr(&g_ret_insn));
+  SetLinkRegister(g_state.cpu, ToGuestAddr(&g_ret_insn));
   EXPECT_EQ(g_state.residence, kOutsideGeneratedCode);
 
   berberis_RunGeneratedCode(&g_state, trampoline_exec.get());
