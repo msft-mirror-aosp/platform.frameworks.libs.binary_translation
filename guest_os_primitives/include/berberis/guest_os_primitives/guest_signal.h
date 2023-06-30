@@ -82,6 +82,8 @@ CHECK_FIELD_LAYOUT(Guest_sigaction, sa_mask, 128, 64);
 #endif
 // TODO(b/283352810): Add checks for ILP32 guest data model.
 
+size_t GetGuest_MINSIGSTKSZ();
+
 struct Guest_sigaction;
 bool SetGuestSignalHandler(int signal,
                            const Guest_sigaction* act,
