@@ -451,9 +451,36 @@ class SemanticsPlayer {
 
   void OpFpSingleInput(const typename Decoder::OpFpSingleInputArgs& args) {
     FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
-    FpRegister result = listener_->OpFpSingleInput(args.opcode, args.operand_type, args.rm, arg);
+    FpRegister result;
+    auto rm = listener_->GetImm(args.rm);
+    auto frm = listener_->GetFrm();
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        result = OpFpSingleInput<Float32>(args.opcode, rm, frm, arg);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        result = OpFpSingleInput<Float64>(args.opcode, rm, frm, arg);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     result = CanonicalizeNan(result, args.operand_type);
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
+  template <typename FloatType>
+  FpRegister OpFpSingleInput(typename Decoder::OpFpSingleInputOpcode opcode,
+                             Register rm,
+                             Register frm,
+                             FpRegister arg) {
+    switch (opcode) {
+      case Decoder::OpFpSingleInputOpcode::kFSqrt:
+        return listener_->template FSqrt<FloatType>(rm, frm, arg);
+      default:
+        Unimplemented();
+        return {};
+    }
   }
 
   template <typename OpImmArgs>
