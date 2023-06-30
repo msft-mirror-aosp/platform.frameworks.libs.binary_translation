@@ -121,15 +121,6 @@ class LiteTranslator {
     return {};
   }
 
-  FpRegister OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode,
-                             Decoder::FloatOperandType float_size,
-                             uint8_t rm,
-                             FpRegister arg) {
-    UNUSED(opcode, float_size, rm, arg);
-    Unimplemented();
-    return {};
-  }
-
   FpRegister Fmv(Register arg) {
     UNUSED(arg);
     Unimplemented();
