@@ -22,6 +22,7 @@
 #include "private/bionic_constants.h"
 #endif
 
+#include "berberis/base/checks.h"
 #include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
 #include "berberis/base/tracing.h"
@@ -64,7 +65,7 @@ GuestThread* GuestThread::Create() {
     Destroy(thread);
     return nullptr;
   }
-  SetGuestThread(thread->state_, thread);
+  SetGuestThread(*thread->state_, thread);
 
   return thread;
 }
@@ -100,8 +101,9 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
 
 // static
 void GuestThread::Destroy(GuestThread* thread) {
+  CHECK(thread);
   // ATTENTION: Don't run guest code from here!
-  if (ArePendingSignalsPresent(thread->state_)) {
+  if (ArePendingSignalsPresent(*thread->state_)) {
     TRACE("thread destroyed with pending signals, signals ignored!");
   }
 
