@@ -241,6 +241,7 @@ class SemanticsPlayer {
         return {};
     }
   }
+
   void Fence(const typename Decoder::FenceArgs& args) {
     listener_->Fence(args.opcode,
                      // args.src is currently unused - read below.
@@ -317,9 +318,43 @@ class SemanticsPlayer {
   void OpFp(const typename Decoder::OpFpArgs& args) {
     FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
-    FpRegister result = listener_->OpFp(args.opcode, args.operand_type, args.rm, arg1, arg2);
+    FpRegister result;
+    auto rm = listener_->GetImm(args.rm);
+    auto frm = listener_->GetFrm();
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        result = OpFp<Float32>(args.opcode, rm, frm, arg1, arg2);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        result = OpFp<Float64>(args.opcode, rm, frm, arg1, arg2);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     result = CanonicalizeNan(result, args.operand_type);
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
+  template <typename FloatType>
+  FpRegister OpFp(typename Decoder::OpFpOpcode opcode,
+                  Register rm,
+                  Register frm,
+                  FpRegister arg1,
+                  FpRegister arg2) {
+    switch (opcode) {
+      case Decoder::OpFpOpcode::kFAdd:
+        return listener_->template FAdd<FloatType>(rm, frm, arg1, arg2);
+      case Decoder::OpFpOpcode::kFSub:
+        return listener_->template FSub<FloatType>(rm, frm, arg1, arg2);
+      case Decoder::OpFpOpcode::kFMul:
+        return listener_->template FMul<FloatType>(rm, frm, arg1, arg2);
+      case Decoder::OpFpOpcode::kFDiv:
+        return listener_->template FDiv<FloatType>(rm, frm, arg1, arg2);
+      default:
+        Unimplemented();
+        return {};
+    }
   }
 
   void OpFpGpRegisterTargetNoRounding(
