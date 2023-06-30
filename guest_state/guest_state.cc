@@ -91,16 +91,20 @@ bool ArePendingSignalsPresent(const ThreadState& state) {
   return state.pending_signals_status.load(std::memory_order_relaxed) == kPendingSignalsPresent;
 }
 
-CPUState* GetCPUState(ThreadState* state) {
-  return &state->cpu;
+const CPUState& GetCPUState(const ThreadState& state) {
+  return state.cpu;
 }
 
-void SetInsnAddr(CPUState* cpu, GuestAddr addr) {
-  cpu->insn_addr = addr;
+CPUState& GetCPUState(ThreadState& state) {
+  return state.cpu;
 }
 
-GuestAddr GetInsnAddr(const CPUState* cpu) {
-  return cpu->insn_addr;
+void SetInsnAddr(CPUState& cpu, GuestAddr addr) {
+  cpu.insn_addr = addr;
+}
+
+GuestAddr GetInsnAddr(const CPUState& cpu) {
+  return cpu.insn_addr;
 }
 
 }  // namespace berberis

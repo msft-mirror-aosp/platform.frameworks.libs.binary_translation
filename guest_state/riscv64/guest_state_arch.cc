@@ -18,16 +18,16 @@
 
 namespace berberis {
 
-void SetStackRegister(CPUState* cpu, GuestAddr val) {
-  SetXReg<SP>(*cpu, val);
+void SetStackRegister(CPUState& cpu, GuestAddr val) {
+  SetXReg<SP>(cpu, val);
 }
 
-GuestAddr GetStackRegister(CPUState* cpu) {
-  return GetXReg<SP>(*cpu);
+GuestAddr GetStackRegister(const CPUState& cpu) {
+  return GetXReg<SP>(cpu);
 }
 
-void SetLinkRegister(CPUState* cpu, GuestAddr val) {
-  SetXReg<RA>(*cpu, val);
+void SetLinkRegister(CPUState& cpu, GuestAddr val) {
+  SetXReg<RA>(cpu, val);
 }
 
 GuestAddr GetLinkRegister(const CPUState& cpu) {
