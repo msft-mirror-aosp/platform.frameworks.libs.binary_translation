@@ -300,6 +300,23 @@ std::tuple<FloatType> FSgnjx(FloatType x, FloatType y) {
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
+std::tuple<FloatType> FSqrt(uint8_t rm, uint8_t frm, FloatType arg) {
+  return intrinsics::ExecuteFloatOperation<FloatType>(
+      rm,
+      frm,
+      [](auto x) {
+        return std::get<0>(FSqrtDyn<decltype(x), kPreferredIntrinsicsImplementation>(x));
+      },
+      arg);
+}
+
+template <typename FloatType, enum PreferredIntrinsicsImplementation>
+std::tuple<FloatType> FSqrtDyn(FloatType arg) {
+  return {Sqrt(arg)};
+}
+
+template <typename FloatType,
+          enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
 std::tuple<FloatType> FSub(uint8_t rm, uint8_t frm, FloatType arg1, FloatType arg2) {
   return intrinsics::ExecuteFloatOperation<FloatType>(
       rm,
