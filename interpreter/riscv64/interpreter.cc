@@ -389,21 +389,6 @@ class Interpreter {
     }
   }
 
-  FpRegister OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode,
-                             Decoder::FloatOperandType float_size,
-                             uint8_t rm,
-                             FpRegister arg) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return FloatToFPReg(OpFpSingleInput<Float32>(opcode, rm, FPRegToFloat<Float32>(arg)));
-      case Decoder::FloatOperandType::kDouble:
-        return FloatToFPReg(OpFpSingleInput<Float64>(opcode, rm, FPRegToFloat<Float64>(arg)));
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   template <typename FloatType>
   Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
                                           FloatType arg1,
@@ -415,18 +400,6 @@ class Interpreter {
         return arg1 < arg2;
       case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFeq:
         return arg1 == arg2;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  template <typename FloatType>
-  FloatType OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode, uint8_t rm, FloatType arg) {
-    switch (opcode) {
-      case Decoder::OpFpSingleInputOpcode::kFSqrt:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm, state_->cpu.frm, [](auto x) { return intrinsics::Sqrt(x); }, arg);
       default:
         Unimplemented();
         return {};
