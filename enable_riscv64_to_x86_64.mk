@@ -19,9 +19,11 @@
 #   BERBERIS_DEV_PRODUCT_PACKAGES - list of development packages
 #
 
-include frameworks/libs/binary_translation/riscv64_to_x86_64_config.mk
+include frameworks/libs/binary_translation/berberis_config.mk
 
-PRODUCT_PACKAGES += $(BERBERIS_PRODUCT_PACKAGES)
+PRODUCT_PACKAGES += \
+    $(BERBERIS_PRODUCT_PACKAGES) \
+    $(BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64)
 
 # ATTENTION: we are overriding
 # PRODUCT_SYSTEM_PROPERTIES += ro.dalvik.vm.native.bridge?=0
@@ -36,3 +38,4 @@ PRODUCT_SYSTEM_PROPERTIES += \
 PRODUCT_SOONG_NAMESPACES += frameworks/libs/native_bridge_support/libc
 
 BUILD_BERBERIS := true
+BUILD_BERBERIS_RISCV64_TO_X86_64 := true
