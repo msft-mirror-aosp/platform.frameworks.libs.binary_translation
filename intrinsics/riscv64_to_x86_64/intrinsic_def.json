@@ -21,7 +21,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FAddDyn": {
+  "FAddHostRounding": {
     "comment": "Fused multiply-addition (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
@@ -81,7 +81,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FDivDyn": {
+  "FDivHostRounding": {
     "comment": "Floating point division (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
@@ -95,7 +95,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FMAddDyn": {
+  "FMAddHostRounding": {
     "comment": "Fused multiply-addition (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
@@ -109,7 +109,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FMSubDyn": {
+  "FMSubHostRounding": {
     "comment": "Fused multiply-subtraction (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
@@ -137,7 +137,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FMulDyn": {
+  "FMulHostRounding": {
     "comment": "Floating point multiplication (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
@@ -151,7 +151,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FNMAddDyn": {
+  "FNMAddHostRounding": {
     "comment": "Fused negated multiply-addition (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
@@ -165,7 +165,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FNMSubDyn": {
+  "FNMSubHostRounding": {
     "comment": "Fused negated multiply-subtraction (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
@@ -200,7 +200,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FSqrtDyn": {
+  "FSqrtHostRounding": {
     "comment": "Square root (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32" ],
@@ -214,7 +214,7 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FSubDyn": {
+  "FSubHostRounding": {
     "comment": "Floating point subtraction (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
