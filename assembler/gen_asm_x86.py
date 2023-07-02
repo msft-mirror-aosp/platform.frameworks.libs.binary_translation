@@ -425,14 +425,16 @@ def main(argv):
   # Usage: gen_asm.py --binary-assembler|--text_assembler
   #                   <assembler_common-inl.h>
   #                   <assembler_<arch>-inl.h>
+  #                   ...
   #                   <def_common>
   #                   <def_arch>
+  #                   ...
 
   mode = argv[1]
-  assembler_common_name = argv[2]
-  assembler_arch_name = argv[3]
-  common_defs = argv[4]
-  arch_defs = argv[5]
+  assert len(argv) % 2 == 0
+  filenames = argv[2:]
+  filename_pairs = ((filenames[i], filenames[len(filenames)//2 + i])
+                    for i in range(0, len(filenames)//2))
 
   if mode == '--binary-assembler':
     binary_assembler = True
@@ -441,8 +443,7 @@ def main(argv):
   else:
     assert False, 'unknown option %s' % (mode)
 
-  for out_filename, input_filename in ((assembler_common_name, common_defs),
-                                       (assembler_arch_name, arch_defs)):
+  for out_filename, input_filename in filename_pairs:
     loaded_defs = _load_asm_defs(input_filename)
     with open(out_filename, 'w') as out_file:
       _gen_generic_functions_h(out_file, loaded_defs, binary_assembler)
