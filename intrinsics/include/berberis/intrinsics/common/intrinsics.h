@@ -59,14 +59,14 @@ std::tuple<FloatType> FAdd(uint8_t rm, uint8_t frm, FloatType arg1, FloatType ar
       rm,
       frm,
       [](auto x, auto y) {
-        return std::get<0>(FAddDyn<decltype(x), kPreferredIntrinsicsImplementation>(x, y));
+        return std::get<0>(FAddHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x, y));
       },
       arg1,
       arg2);
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FAddDyn(FloatType arg1, FloatType arg2) {
+std::tuple<FloatType> FAddHostRounding(FloatType arg1, FloatType arg2) {
   return {arg1 + arg2};
 }
 
@@ -145,14 +145,14 @@ std::tuple<FloatType> FDiv(uint8_t rm, uint8_t frm, FloatType arg1, FloatType ar
       rm,
       frm,
       [](auto x, auto y) {
-        return std::get<0>(FDivDyn<decltype(x), kPreferredIntrinsicsImplementation>(x, y));
+        return std::get<0>(FDivHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x, y));
       },
       arg1,
       arg2);
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FDivDyn(FloatType arg1, FloatType arg2) {
+std::tuple<FloatType> FDivHostRounding(FloatType arg1, FloatType arg2) {
   return {arg1 / arg2};
 }
 
@@ -167,7 +167,8 @@ std::tuple<FloatType> FMAdd(uint8_t rm,
       rm,
       frm,
       [](auto x, auto y, auto z) {
-        return std::get<0>(FMAddDyn<decltype(x), kPreferredIntrinsicsImplementation>(x, y, z));
+        return std::get<0>(
+            FMAddHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x, y, z));
       },
       arg1,
       arg2,
@@ -175,7 +176,7 @@ std::tuple<FloatType> FMAdd(uint8_t rm,
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FMAddDyn(FloatType arg1, FloatType arg2, FloatType arg3) {
+std::tuple<FloatType> FMAddHostRounding(FloatType arg1, FloatType arg2, FloatType arg3) {
   return {intrinsics::MulAdd(arg1, arg2, arg3)};
 }
 
@@ -200,7 +201,8 @@ std::tuple<FloatType> FMSub(uint8_t rm,
       rm,
       frm,
       [](auto x, auto y, auto z) {
-        return std::get<0>(FMSubDyn<decltype(x), kPreferredIntrinsicsImplementation>(x, y, z));
+        return std::get<0>(
+            FMSubHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x, y, z));
       },
       arg1,
       arg2,
@@ -208,7 +210,7 @@ std::tuple<FloatType> FMSub(uint8_t rm,
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FMSubDyn(FloatType arg1, FloatType arg2, FloatType arg3) {
+std::tuple<FloatType> FMSubHostRounding(FloatType arg1, FloatType arg2, FloatType arg3) {
   return {intrinsics::MulAdd(arg1, arg2, intrinsics::Negative(arg3))};
 }
 
@@ -219,14 +221,14 @@ std::tuple<FloatType> FMul(uint8_t rm, uint8_t frm, FloatType arg1, FloatType ar
       rm,
       frm,
       [](auto x, auto y) {
-        return std::get<0>(FMulDyn<decltype(x), kPreferredIntrinsicsImplementation>(x, y));
+        return std::get<0>(FMulHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x, y));
       },
       arg1,
       arg2);
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FMulDyn(FloatType arg1, FloatType arg2) {
+std::tuple<FloatType> FMulHostRounding(FloatType arg1, FloatType arg2) {
   return {arg1 * arg2};
 }
 
@@ -241,7 +243,8 @@ std::tuple<FloatType> FNMAdd(uint8_t rm,
       rm,
       frm,
       [](auto x, auto y, auto z) {
-        return std::get<0>(FNMAddDyn<decltype(x), kPreferredIntrinsicsImplementation>(x, y, z));
+        return std::get<0>(
+            FNMAddHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x, y, z));
       },
       arg1,
       arg2,
@@ -249,7 +252,7 @@ std::tuple<FloatType> FNMAdd(uint8_t rm,
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FNMAddDyn(FloatType arg1, FloatType arg2, FloatType arg3) {
+std::tuple<FloatType> FNMAddHostRounding(FloatType arg1, FloatType arg2, FloatType arg3) {
   return {intrinsics::MulAdd(intrinsics::Negative(arg1), arg2, arg3)};
 }
 
@@ -264,7 +267,8 @@ std::tuple<FloatType> FNMSub(uint8_t rm,
       rm,
       frm,
       [](auto x, auto y, auto z) {
-        return std::get<0>(FNMSubDyn<decltype(x), kPreferredIntrinsicsImplementation>(x, y, z));
+        return std::get<0>(
+            FNMSubHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x, y, z));
       },
       arg1,
       arg2,
@@ -272,7 +276,7 @@ std::tuple<FloatType> FNMSub(uint8_t rm,
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FNMSubDyn(FloatType arg1, FloatType arg2, FloatType arg3) {
+std::tuple<FloatType> FNMSubHostRounding(FloatType arg1, FloatType arg2, FloatType arg3) {
   return {intrinsics::MulAdd(intrinsics::Negative(arg1), arg2, intrinsics::Negative(arg3))};
 }
 
@@ -305,13 +309,13 @@ std::tuple<FloatType> FSqrt(uint8_t rm, uint8_t frm, FloatType arg) {
       rm,
       frm,
       [](auto x) {
-        return std::get<0>(FSqrtDyn<decltype(x), kPreferredIntrinsicsImplementation>(x));
+        return std::get<0>(FSqrtHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x));
       },
       arg);
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FSqrtDyn(FloatType arg) {
+std::tuple<FloatType> FSqrtHostRounding(FloatType arg) {
   return {Sqrt(arg)};
 }
 
@@ -322,14 +326,14 @@ std::tuple<FloatType> FSub(uint8_t rm, uint8_t frm, FloatType arg1, FloatType ar
       rm,
       frm,
       [](auto x, auto y) {
-        return std::get<0>(FSubDyn<decltype(x), kPreferredIntrinsicsImplementation>(x, y));
+        return std::get<0>(FSubHostRounding<decltype(x), kPreferredIntrinsicsImplementation>(x, y));
       },
       arg1,
       arg2);
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
-std::tuple<FloatType> FSubDyn(FloatType arg1, FloatType arg2) {
+std::tuple<FloatType> FSubHostRounding(FloatType arg1, FloatType arg2) {
   return {arg1 - arg2};
 }
 
