@@ -153,7 +153,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "precise_nans": True,
         })
     self.assertEqual(
-        out, "intrinsics::Foo<Config::kPreciseNaNOperationsHandling>(arg0)")
+        out, "intrinsics::Foo<config::kPreciseNaNOperationsHandling>(arg0)")
 
   def test_gen_interpreter_hook_return_stmt(self):
     out = gen_intrinsics._get_interpreter_hook_return_stmt(
