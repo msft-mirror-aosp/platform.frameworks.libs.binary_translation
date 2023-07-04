@@ -17,7 +17,8 @@
 #ifndef BERBERIS_GUEST_OS_PRIMITIVES_GUEST_THREAD_H_
 #define BERBERIS_GUEST_OS_PRIMITIVES_GUEST_THREAD_H_
 
-#include <setjmp.h>  // jmp_buf
+#include <csetjmp>  // jmp_buf
+#include <csignal>  // stack_t
 
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
@@ -58,6 +59,10 @@ class GuestThread {
   void set_guest_call_execution(GuestCallExecution* guest_call_execution) {
     guest_call_execution_ = guest_call_execution;
   }
+
+  bool SigAltStack(const stack_t* ss, stack_t* old_ss, int* error);
+  void SwitchToSigAltStack();
+  bool IsOnSigAltStack() const;
 
   void DisallowStackUnmap() { mmap_size_ = 0; }
 
