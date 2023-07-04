@@ -37,6 +37,62 @@
     "out": [ 0 ]
   },
   {
+    "name": "FMAddHostRounding<Float32>",
+    "insn": "Vfmadd231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMAddHostRounding<Float64>",
+    "insn": "Vfmadd231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMAddHostRounding<Float32>",
+    "insn": "Vfnmadd231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMAddHostRounding<Float64>",
+    "insn": "Vfnmadd231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMSubHostRounding<Float32>",
+    "insn": "Vfnmsub231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMSubHostRounding<Float64>",
+    "insn": "Vfnmsub231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMSubHostRounding<Float32>",
+    "insn": "Vfmsub231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMSubHostRounding<Float64>",
+    "insn": "Vfmsub231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FMulHostRounding<Float32>",
     "insn": "MulssXRegXReg",
     "in": [ 0, 1 ],
