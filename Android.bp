@@ -90,23 +90,19 @@ cc_library_shared {
     name: "libberberis_riscv64",
     defaults: ["berberis_defaults_64"],
     host_supported: true,
-    whole_static_libs: [
-        // Proxy libraries reference symbols from guest_os_primitives, so
-        // we need to keep them all.
-        "libberberis_guest_os_primitives",
-        "libberberis_proxy_loader",
-        "libberberis_runtime",
-    ],
     static_libs: [
         "libbase",
+        "libberberis_assembler",
         "libberberis_base",
         "libberberis_config_globals",
-        "libberberis_runtime_primitives",
-        "libberberis_tinyloader",
-        "libberberis_assembler",
         "libberberis_instrument",
         "libberberis_intrinsics",
         "libberberis_runtime_primitives",
+        "libberberis_tinyloader",
+    ],
+    whole_static_libs: [
+        "libberberis_proxy_loader",
+        "libberberis_runtime",
     ],
     export_static_lib_headers: [
         "libberberis_proxy_loader",
@@ -128,6 +124,9 @@ cc_library_shared {
             ],
             whole_static_libs: [
                 "libberberis_guest_loader_riscv64",
+                // Proxy libraries reference symbols from guest_os_primitives,
+                // so we need to keep them all.
+                "libberberis_guest_os_primitives_riscv64",
             ],
             export_static_lib_headers: [
                 "libberberis_guest_loader_riscv64",

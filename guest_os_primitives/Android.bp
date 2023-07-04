@@ -71,6 +71,7 @@ cc_library_static {
     ],
     srcs: [
         "riscv64/guest_setjmp.cc",
+        "riscv64/guest_signal.cc",
     ],
     header_libs: [
         "libberberis_guest_os_primitives_headers",
