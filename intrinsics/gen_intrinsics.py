@@ -585,7 +585,7 @@ def _get_desc_specializations(intr, desc=None):
   else:
     spec = []
   if intr.get('precise_nans', False):
-    spec = ['Config::kPreciseNaNOperationsHandling'] + spec
+    spec = ['config::kPreciseNaNOperationsHandling'] + spec
   if not len(spec):
     return ''
   return '<%s>' % ', '.join(spec)
@@ -851,7 +851,7 @@ def _is_interpreter_compatible_assembler(intr_asm):
 
 
 def _add_asm_insn(intrs, arch_intr, insn):
-  name = arch_intr['name']
+  name = ','.join(name_part.strip() for name_part in arch_intr['name'].split(','))
   # Sanity checks: MacroInstruction could implement few different intrinsics but
   # number of arguments in arch intrinsic and arch-independent intrinsic
   # should match.
@@ -899,13 +899,35 @@ def _add_asm_insn(intrs, arch_intr, insn):
 
 
 def _open_asm_def_files(def_files, arch_def_files, asm_def_files):
-  intrs = _load_intrs_def_files(def_files)
+  intrs = _expand_template_intrinsics(_load_intrs_def_files(def_files))
   arch_intrs = _load_intrs_arch_def(arch_def_files)
   for macro_def in asm_def_files:
     arch_intrs = _load_macro_def(intrs, arch_intrs, macro_def)
   # Make sure that all intrinsics were found during processing of arch_intrs.
   assert arch_intrs == []
   return sorted(intrs.items())
+
+
+def _expand_template_intrinsics(intrs):
+  expanded_intrs = {}
+  for name, intr in intrs.items():
+    if intr.get('class') != 'template':
+      expanded_intrs[name] = intr
+    else:
+     for variant in intr.get('variants'):
+       types = {}
+       params = [param.strip() for param in variant.split(',')]
+       for param in params:
+         if param in ('true', 'false'):
+           continue
+         if re.search('[_a-zA-Z]', param):
+           types['Type'+str(len(types))] = param
+       new_intr = intr.copy()
+       del new_intr['variants']
+       new_intr['in'] = [types.get(param, param) for param in new_intr.get('in')]
+       new_intr['out'] = [types.get(param, param) for param in new_intr.get('out')]
+       expanded_intrs[name+'<'+','.join(params)+'>'] = new_intr
+  return expanded_intrs
 
 
 def main(argv):
