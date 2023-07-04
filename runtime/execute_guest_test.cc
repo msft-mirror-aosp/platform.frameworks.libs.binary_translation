@@ -20,9 +20,11 @@
 
 #include <cstdint>
 
+#include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
+#include "berberis/runtime/berberis.h"
 #include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
@@ -33,21 +35,27 @@ TEST(ExecuteGuestRiscv64, Basic) {
   const uint32_t code[] = {
       0x003100b3,  // add x1, x2, x3
       0x004090b3,  // sll x1, x1, x4
+      0x008002ef,  // jal x5, 8
   };
 
-  InitGuestThreadManager();
+  InitBerberis();
+
+  GuestMapShadow::GetInstance()->SetExecutable(ToGuestAddr(&code[0]), sizeof(code));
+
   GuestThread* thread = GetCurrentGuestThread();
   auto& cpu_state = thread->state()->cpu;
   cpu_state.insn_addr = ToGuestAddr(&code[0]);
   SetXReg<2>(cpu_state, 10);
   SetXReg<3>(cpu_state, 11);
   SetXReg<4>(cpu_state, 1);
-  GuestAddr stop_pc = ToGuestAddr(&code[0]) + 8;
+  GuestAddr stop_pc = ToGuestAddr(&code[0]) + 16;
   auto cache = TranslationCache::GetInstance();
   cache->SetStop(stop_pc);
   ExecuteGuest(thread->state());
   cache->TestingClearStop(stop_pc);
   EXPECT_EQ(GetXReg<1>(cpu_state), 42u);
+
+  GuestMapShadow::GetInstance()->ClearExecutable(ToGuestAddr(&code[0]), sizeof(code));
 }
 
 }  // namespace
