@@ -31,7 +31,7 @@ cc_binary {
         "libberberis_base",
         "libberberis_code_gen_lib_riscv64",
         "libberberis_config_globals",
-        "libberberis_guest_os_primitives",
+        "libberberis_guest_os_primitives_riscv64",
         "libberberis_guest_state_riscv64",
         "libberberis_instrument",
         "libberberis_interpreter_riscv64",
