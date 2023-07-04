@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef RISCV64_TO_X86_64_BERBERIS_INTRINSICS_INTRINSICS_H_
-#define RISCV64_TO_X86_64_BERBERIS_INTRINSICS_INTRINSICS_H_
+#ifndef RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_IMPL_H_
+#define RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_IMPL_H_
 
-#include "berberis/intrinsics/common/intrinsics.h"
+#include "berberis/base/bit_util.h"
+#include "berberis/intrinsics/macro_assembler.h"
 
-#endif /* RISCV64_TO_X86_64_BERBERIS_INTRINSICS_INTRINSICS_H_ */
+namespace berberis {
+
+namespace x86 {
+
+// Constant suitable for NaNBoxing of RISC-V 32bit float with PXor.
+extern const int32_t kNanBoxFloat32;
+
+}  // namespace x86
+
+}  // namespace berberis
+
+#endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_IMPL_H_
