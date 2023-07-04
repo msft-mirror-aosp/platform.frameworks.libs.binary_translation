@@ -29,6 +29,7 @@
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
+#include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/lite_translator/lite_translate_region.h"
 
 namespace berberis {
@@ -37,10 +38,11 @@ class MachindeCode;
 
 class LiteTranslator {
  public:
+  using Assembler = MacroAssembler<x86_64::Assembler>;
   using Decoder = Decoder<SemanticsPlayer<LiteTranslator>>;
-  using Register = x86_64::Assembler::Register;
-  using FpRegister = x86_64::Assembler::XMMRegister;
-  using Condition = x86_64::Assembler::Condition;
+  using Register = Assembler::Register;
+  using FpRegister = Assembler::XMMRegister;
+  using Condition = Assembler::Condition;
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
@@ -224,7 +226,7 @@ class LiteTranslator {
 
   void Unimplemented() { success_ = false; }
 
-  [[nodiscard]] x86_64::Assembler* as() { return &as_; }
+  [[nodiscard]] Assembler* as() { return &as_; }
   [[nodiscard]] bool success() const { return success_; }
 
 #include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
@@ -245,23 +247,23 @@ class LiteTranslator {
   Register AllocTempReg() {
     // TODO(286261771): Add rdx to registers, push it on stack in all instances that are clobbering
     // it.
-    static constexpr x86_64::Assembler::Register kRegs[] = {x86_64::Assembler::rbx,
-                                                            x86_64::Assembler::rsi,
-                                                            x86_64::Assembler::rdi,
-                                                            x86_64::Assembler::r8,
-                                                            x86_64::Assembler::r9,
-                                                            x86_64::Assembler::r10,
-                                                            x86_64::Assembler::r11,
-                                                            x86_64::Assembler::r12,
-                                                            x86_64::Assembler::r13,
-                                                            x86_64::Assembler::r14,
-                                                            x86_64::Assembler::r15};
+    static constexpr Assembler::Register kRegs[] = {Assembler::rbx,
+                                                    Assembler::rsi,
+                                                    Assembler::rdi,
+                                                    Assembler::r8,
+                                                    Assembler::r9,
+                                                    Assembler::r10,
+                                                    Assembler::r11,
+                                                    Assembler::r12,
+                                                    Assembler::r13,
+                                                    Assembler::r14,
+                                                    Assembler::r15};
     CHECK_LT(next_gp_reg_for_alloc_, arraysize(kRegs));
 
     return kRegs[next_gp_reg_for_alloc_++];
   }
 
-  x86_64::Assembler as_;
+  Assembler as_;
   bool success_;
   uint8_t next_gp_reg_for_alloc_;
   GuestAddr pc_;

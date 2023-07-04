@@ -18,8 +18,6 @@
 
 #include "lite_translator.h"
 
-#include "berberis/assembler/common.h"
-#include "berberis/assembler/x86_64.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/macros.h"
 #include "berberis/code_gen_lib/code_gen_lib.h"
@@ -295,7 +293,7 @@ void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
                                       Register arg1,
                                       Register arg2,
                                       int16_t offset) {
-  AssemblerBase::Label* cont = as_.MakeLabel();
+  Assembler::Label* cont = as_.MakeLabel();
   as_.Cmpq(arg1, arg2);
   switch (opcode) {
     case Decoder::BranchOpcode::kBeq:
@@ -358,7 +356,7 @@ void LiteTranslator::BranchRegister(Register base, int16_t offset) {
 
 Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
   Register res = AllocTempReg();
-  x86_64::Assembler::Operand asm_memop{.base = arg, .disp = offset};
+  Assembler::Operand asm_memop{.base = arg, .disp = offset};
   switch (operand_type) {
     case Decoder::LoadOperandType::k8bitUnsigned:
       as_.Movzxbl(res, asm_memop);
@@ -392,7 +390,7 @@ void LiteTranslator::Store(Decoder::StoreOperandType operand_type,
                            Register arg,
                            int16_t offset,
                            Register data) {
-  x86_64::Assembler::Operand asm_memop{.base = arg, .disp = offset};
+  Assembler::Operand asm_memop{.base = arg, .disp = offset};
   switch (operand_type) {
     case Decoder::StoreOperandType::k8bit:
       as_.Movb(asm_memop, data);
