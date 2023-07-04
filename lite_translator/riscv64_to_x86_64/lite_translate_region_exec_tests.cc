@@ -33,8 +33,10 @@ class Riscv64LiteTranslateRegionTest : public ::testing::Test {
  public:
   void Reset(const uint32_t code[]) { state_.cpu.insn_addr = ToGuestAddr(code); }
 
+  // Attention: it's important to pass code array by reference for sizeof(code) to return the size
+  // of the whole array rather than a pointer size when it's passed by value.
   template <typename T>
-  bool Run(T code, GuestAddr expected_stop_addr) {
+  bool Run(T& code, GuestAddr expected_stop_addr) {
     Reset(code);
     GuestAddr code_end = ToGuestAddr(bit_cast<char*>(&code[0]) + sizeof(code));
     MachineCode machine_code;
@@ -81,7 +83,7 @@ TEST_F(Riscv64LiteTranslateRegionTest, RegionEnd) {
   SetXReg<1>(state_.cpu, 0);
   SetXReg<2>(state_.cpu, 1);
   SetXReg<3>(state_.cpu, 1);
-  EXPECT_TRUE(Run(code, ToGuestAddr(code) + 8));
+  EXPECT_TRUE(Run(code, ToGuestAddr(code) + 16));
   EXPECT_EQ(GetXReg<3>(state_.cpu), 3ULL);
 }
 
