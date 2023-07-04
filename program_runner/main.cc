@@ -26,13 +26,12 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
-#include "berberis/base/macros.h"
-#include "berberis/base/tracing.h"
 #include "berberis/calling_conventions/calling_conventions_riscv64.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/kernel_api/exec_emulation.h"
+#include "berberis/runtime/berberis.h"
 #include "berberis/runtime/execute_guest.h"
 #include "berberis/tiny_loader/loaded_elf_file.h"
 #include "berberis/tiny_loader/tiny_loader.h"
@@ -189,9 +188,7 @@ int main(int argc, char* argv[], char* envp[]) {
     return -1;
   }
 
-  // TODO(b/276786584): define InitBerberis instead.
-  berberis::InitGuestThreadManager();
-  berberis::Tracing::Init();
+  berberis::InitBerberis();
 
   auto* thread = berberis::GetCurrentGuestThread();
   auto& cpu_state = thread->state()->cpu;
