@@ -80,12 +80,10 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
 
   SetStackRegister(GetCPUState(thread->state()), thread->stack_top_);
 
-#if defined(__BIONIC__)
   if (!thread->AllocShadowCallStack()) {
     Destroy(thread);
     return nullptr;
   }
-#endif  // defined(__BIONIC__)
 
   // Static TLS must be in an independent mapping, because on creation of main thread its config
   // is yet unknown. Loader sets main thread's static TLS explicitly later.
@@ -167,7 +165,7 @@ bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) 
 }
 
 bool GuestThread::AllocShadowCallStack() {
-#if defined(__BIONIC__)
+#if defined(__BIONIC__) && defined(BERBERIS_GUEST_LP64) && !defined(BERBERIS_GUEST_ARCH_X86_64)
   CHECK(IsAlignedPageSize(SCS_GUARD_REGION_SIZE));
   CHECK(IsAlignedPageSize(SCS_SIZE));
 
@@ -190,7 +188,8 @@ bool GuestThread::AllocShadowCallStack() {
     TRACE("failed to protect shadow call stack!");
     return false;
   }
-#endif  // defined(__BIONIC__)
+#endif  // defined(__BIONIC__) && defined(BERBERIS_GUEST_LP64) &&
+        // !defined(BERBERIS_GUEST_ARCH_X86_64)
   return true;
 }
 
