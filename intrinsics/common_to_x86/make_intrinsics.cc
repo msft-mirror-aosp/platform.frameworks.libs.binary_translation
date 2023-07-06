@@ -220,6 +220,7 @@ class GenerateAsmCallBase {
     kHasSSSE3,
     kHasSSE4_1,
     kHasSSE4_2,
+    kHasAVX,
     kHasFMA,
     kHasFMA4,
     kIsAuthenticAMD
@@ -539,6 +540,7 @@ class GenerateAsmCall<kSideEffects,
     bool expect_ssse3 = false;
     bool expect_sse4_1 = false;
     bool expect_sse4_2 = false;
+    bool expect_avx = false;
     bool expect_fma = false;
     bool expect_fma4 = false;
     switch (sse_restriction) {
@@ -549,6 +551,9 @@ class GenerateAsmCall<kSideEffects,
         } else {
           expect_fma4 = true;
         }
+        [[fallthrough]];
+      case GenerateAsmCallBase::kHasAVX:
+        expect_avx = true;
         [[fallthrough]];
       case GenerateAsmCallBase::kHasSSE4_2:
         expect_sse4_2 = true;
@@ -569,6 +574,7 @@ class GenerateAsmCall<kSideEffects,
     CHECK_EQ(expect_ssse3, as.need_ssse3);
     CHECK_EQ(expect_sse4_1, as.need_sse4_1);
     CHECK_EQ(expect_sse4_2, as.need_sse4_2);
+    CHECK_EQ(expect_avx, as.need_avx);
     CHECK_EQ(expect_fma, as.need_fma);
     CHECK_EQ(expect_fma4, as.need_fma4);
     return std::tuple{as.need_gpr_macroassembler_mxcsr_scratch(),
@@ -818,6 +824,9 @@ void GenerateAsmCalls(FILE* out,
             break;
           case GenerateAsmCallBase::kHasSSE4_2:
             fprintf(out, "host_platform::kHasSSE4_2");
+            break;
+          case GenerateAsmCallBase::kHasAVX:
+            fprintf(out, "host_platform::kHasAVX");
             break;
           case GenerateAsmCallBase::kHasFMA:
             fprintf(out, "host_platform::kHasFMA");
