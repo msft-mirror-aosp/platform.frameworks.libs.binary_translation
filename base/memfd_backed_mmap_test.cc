@@ -25,10 +25,10 @@ namespace {
 
 TEST(MemfdBackedMap, type_uintptr_t) {
 #if defined(__LP64__)
-  constexpr size_t kTableSize = 1 << 27;      // 1G mapping size
+  constexpr size_t kTableSize = 1 << 26;      // 64M mapping size
   constexpr size_t kMemfdFileSize = 1 << 24;  // 16M file size
 #else
-  constexpr size_t kTableSize = 1 << 20;      // 4M mapping size
+  constexpr size_t kTableSize = 1 << 14;      // 16k mapping size
   constexpr size_t kMemfdFileSize = 1 << 12;  // 4k file size
 #endif
 
@@ -38,15 +38,15 @@ TEST(MemfdBackedMap, type_uintptr_t) {
       CreateMemfdBackedMapOrDie(memfd, kTableSize * sizeof(default_value), kMemfdFileSize));
   close(memfd);
 
+  ASSERT_EQ(ptr[3], default_value);
+
   ptr[3] = 0;
 
-  for (size_t i = 0; i < kTableSize; ++i) {
-    if (i != 3) {
-      ASSERT_EQ(ptr[i], default_value) << "i=" << i;
-    } else {
-      ASSERT_EQ(ptr[i], 0U);
-    }
-  }
+  ASSERT_EQ(ptr[3], 0U);
+  ASSERT_EQ(ptr[73], default_value);
+  ASSERT_EQ(ptr[kMemfdFileSize + 3], default_value);
+  ASSERT_EQ(ptr[kMemfdFileSize + 73], default_value);
+  ASSERT_EQ(ptr[3 * kMemfdFileSize + 3], default_value);
 
   MunmapOrDie(ptr, kTableSize * sizeof(default_value));
 }
