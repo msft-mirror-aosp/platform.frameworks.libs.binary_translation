@@ -460,7 +460,7 @@
     {
       "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "7E" ], "reg_to_rm": true },
-        "Vmovq": { "opcodes": [ "C4", "01", "81", "7E" ], "reg_to_rm": true }
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "7E" ], "reg_to_rm": true }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -470,7 +470,7 @@
     {
       "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "6E" ] },
-        "Vmovq": { "opcodes": [ "C4", "01", "81", "6E" ] }
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "6E" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -542,7 +542,7 @@
     {
       "encodings": {
         "Pextrq": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "16" ], "reg_to_rm": true },
-        "Vpextrq": { "opcodes": [ "C4", "03", "81", "16" ], "reg_to_rm": true }
+        "Vpextrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "16" ], "reg_to_rm": true }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -639,6 +639,7 @@
     },
     {
       "stems": [ "Vmovapd", "Vmovaps", "Vmovdqa", "Vmovdqu" ],
+      "feature": "AVX",
       "args": [
         { "class": "XmmReg", "usage": "def" },
         { "class": "XmmReg", "usage": "use" }
@@ -654,7 +655,7 @@
     },
     {
       "encodings": {
-        "Vpinsrq": { "opcodes": [ "C4", "03", "81", "22" ], "vex_rm_to_reg": true }
+        "Vpinsrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "22" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
