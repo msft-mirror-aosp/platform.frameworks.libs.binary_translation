@@ -32,6 +32,8 @@
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/lite_translator/lite_translate_region.h"
 
+#include "allocator.h"
+
 namespace berberis {
 
 class MachindeCode;
@@ -49,7 +51,6 @@ class LiteTranslator {
   explicit LiteTranslator(MachineCode* machine_code, GuestAddr pc, LiteTranslateParams& params)
       : as_(machine_code),
         success_(true),
-        next_gp_reg_for_alloc_(0),
         pc_(pc),
         params_(params),
         is_region_end_reached_(false){};
@@ -235,7 +236,7 @@ class LiteTranslator {
 
   void IncrementInsnAddr(uint8_t insn_size) { pc_ += insn_size; }
 
-  void FreeTempRegs() { next_gp_reg_for_alloc_ = 0; }
+  void FreeTempRegs() { gp_allocator_.FreeTemps(); }
 
  private:
   template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
@@ -245,28 +246,17 @@ class LiteTranslator {
   }
 
   Register AllocTempReg() {
-    // TODO(286261771): Add rdx to registers, push it on stack in all instances that are clobbering
-    // it.
-    static constexpr Assembler::Register kRegs[] = {Assembler::rbx,
-                                                    Assembler::rsi,
-                                                    Assembler::rdi,
-                                                    Assembler::r8,
-                                                    Assembler::r9,
-                                                    Assembler::r10,
-                                                    Assembler::r11,
-                                                    Assembler::r12,
-                                                    Assembler::r13,
-                                                    Assembler::r14,
-                                                    Assembler::r15};
-    CHECK_LT(next_gp_reg_for_alloc_, arraysize(kRegs));
-
-    return kRegs[next_gp_reg_for_alloc_++];
+    if (auto reg_option = gp_allocator_.AllocTemp()) {
+      return reg_option.value();
+    }
+    success_ = false;
+    return {};
   }
 
   Assembler as_;
   bool success_;
-  uint8_t next_gp_reg_for_alloc_;
   GuestAddr pc_;
+  Allocator<Register> gp_allocator_;
   const LiteTranslateParams& params_;
   bool is_region_end_reached_;
 };
