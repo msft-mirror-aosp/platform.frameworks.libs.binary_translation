@@ -43,9 +43,55 @@ class MacroAssembler : public Assembler {
 
 #include "berberis/intrinsics/macro_assembler_interface-inl.h"  // NOLINT generated file
 
+  using Assembler::Pand;
+  using Assembler::Pandn;
+  using Assembler::Pmov;
+  using Assembler::Por;
+  using Assembler::Pshufd;
+  using Assembler::Vpand;
+  using Assembler::Vpandn;
+  using Assembler::Vpor;
+  using Assembler::Vpshufd;
+
   using Assembler::gpr_a;
   using Assembler::gpr_c;
   using Assembler::gpr_d;
+
+ private:
+
+  template <typename format, typename... allowed_formats>
+  static constexpr bool FormatIs = (std::is_same_v<format, allowed_formats> || ...);
+
+#define PCMPEQ_INSTRUCTION(insn_name, parameters, arguments)                               \
+  template <typename format>                                                               \
+  void insn_name parameters {                                                              \
+    if constexpr (FormatIs<format, int8_t, uint8_t>) {                                     \
+      Assembler::insn_name##b arguments;                                                   \
+    } else if constexpr (FormatIs<format, int16_t, uint16_t>) {                            \
+      Assembler::insn_name##w arguments;                                                   \
+    } else if constexpr (FormatIs<format, int32_t, uint32_t>) {                            \
+      Assembler::insn_name##d arguments;                                                   \
+    } else {                                                                               \
+      static_assert(FormatIs<format, int64_t, uint64_t>,                                   \
+                    "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported"); \
+      Assembler::insn_name##q arguments;                                                   \
+    }                                                                                      \
+  }
+  PCMPEQ_INSTRUCTION(Pcmpeq, (XMMRegister dest, Operand src), (dest, src))
+  PCMPEQ_INSTRUCTION(Pcmpeq, (XMMRegister dest, XMMRegister src), (dest, src))
+  PCMPEQ_INSTRUCTION(Vpcmpeq,
+                     (XMMRegister dest, XMMRegister src1, Operand src2),
+                     (dest, src1, src2))
+  PCMPEQ_INSTRUCTION(Vpcmpeq,
+                     (XMMRegister dest, XMMRegister src1, XMMRegister src2),
+                     (dest, src1, src2))
+#undef PCMPEQ_INSTRUCTION
+
+  // Useful constants for PshufXXX instructions.
+  enum {
+    kShuffleDDBB = 0b11110101
+  };
+
 };
 
 }  // namespace berberis
