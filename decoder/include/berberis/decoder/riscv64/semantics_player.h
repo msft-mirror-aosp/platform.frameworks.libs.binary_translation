@@ -69,7 +69,7 @@ class SemanticsPlayer {
   }
 
   void Fcvt(const typename Decoder::FcvtFloatToFloatArgs& args) {
-    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
+    FpRegister arg = GetFRegAndUnboxNan(args.src, args.src_type);
     auto rm = listener_->GetImm(args.rm);
     auto frm = listener_->GetFrm();
     FpRegister result;
@@ -87,7 +87,7 @@ class SemanticsPlayer {
   }
 
   void Fcvt(const typename Decoder::FcvtFloatToIntegerArgs& args) {
-    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.src_type);
+    FpRegister arg = GetFRegAndUnboxNan(args.src, args.src_type);
     auto rm = listener_->GetImm(args.rm);
     auto frm = listener_->GetFrm();
     Register result;
@@ -189,9 +189,9 @@ class SemanticsPlayer {
   }
 
   void Fma(const typename Decoder::FmaArgs& args) {
-    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
-    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
-    FpRegister arg3 = GetFRegAndUnboxNaN(args.src3, args.operand_type);
+    FpRegister arg1 = GetFRegAndUnboxNan(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNan(args.src2, args.operand_type);
+    FpRegister arg3 = GetFRegAndUnboxNan(args.src3, args.operand_type);
     FpRegister result;
     auto rm = listener_->GetImm(args.rm);
     auto frm = listener_->GetFrm();
@@ -316,8 +316,8 @@ class SemanticsPlayer {
   };
 
   void OpFp(const typename Decoder::OpFpArgs& args) {
-    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
-    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
+    FpRegister arg1 = GetFRegAndUnboxNan(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNan(args.src2, args.operand_type);
     FpRegister result;
     auto rm = listener_->GetImm(args.rm);
     auto frm = listener_->GetFrm();
@@ -359,8 +359,8 @@ class SemanticsPlayer {
 
   void OpFpGpRegisterTargetNoRounding(
       const typename Decoder::OpFpGpRegisterTargetNoRoundingArgs& args) {
-    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
-    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
+    FpRegister arg1 = GetFRegAndUnboxNan(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNan(args.src2, args.operand_type);
     Register result =
         listener_->OpFpGpRegisterTargetNoRounding(args.opcode, args.operand_type, arg1, arg2);
     SetRegOrIgnore(args.dst, result);
@@ -368,7 +368,7 @@ class SemanticsPlayer {
 
   void OpFpGpRegisterTargetSingleInputNoRounding(
       const typename Decoder::OpFpGpRegisterTargetSingleInputNoRoundingArgs& args) {
-    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
+    FpRegister arg = GetFRegAndUnboxNan(args.src, args.operand_type);
     Register result;
     switch (args.operand_type) {
       case Decoder::FloatOperandType::kFloat:
@@ -398,8 +398,8 @@ class SemanticsPlayer {
   }
 
   void OpFpNoRounding(const typename Decoder::OpFpNoRoundingArgs& args) {
-    FpRegister arg1 = GetFRegAndUnboxNaN(args.src1, args.operand_type);
-    FpRegister arg2 = GetFRegAndUnboxNaN(args.src2, args.operand_type);
+    FpRegister arg1 = GetFRegAndUnboxNan(args.src1, args.operand_type);
+    FpRegister arg2 = GetFRegAndUnboxNan(args.src2, args.operand_type);
     FpRegister result;
     switch (args.operand_type) {
       case Decoder::FloatOperandType::kFloat:
@@ -450,7 +450,7 @@ class SemanticsPlayer {
   }
 
   void OpFpSingleInput(const typename Decoder::OpFpSingleInputArgs& args) {
-    FpRegister arg = GetFRegAndUnboxNaN(args.src, args.operand_type);
+    FpRegister arg = GetFRegAndUnboxNan(args.src, args.operand_type);
     FpRegister result;
     auto rm = listener_->GetImm(args.rm);
     auto frm = listener_->GetFrm();
@@ -553,25 +553,25 @@ class SemanticsPlayer {
   // This allows us to split instruction handling in four steps:
   //   1. Load operands from register and convert it into a form suitable for host.
   //   2. Execute operations specified by opcode.
-  //   3. Normalize Nans if host and guest architctures handled them differently.
+  //   3. Normalize NaNs if host and guest architctures handled them differently.
   //   4. Encode results as required by RISC-V (if host doesn't do that).
   //
   // Note that in case of execution of RISC-V on RISC-V all steps except #2 are not doing anything.
 
   // Step #1:
   //  • GetFpReg — for instructions like fsw or fmv.x.w use GetFpReg which doesn't change value.
-  //  • GetFRegAndBoxNaN — for most instructions (improperly boxed narrow float is turned into NaN).
+  //  • GetFRegAndBoxNan — for most instructions (improperly boxed narrow float is turned into NaN).
   FpRegister GetFpReg(uint8_t reg) { return listener_->GetFpReg(reg); }
-  FpRegister GetFRegAndUnboxNaN(uint8_t reg, typename Decoder::FloatOperandType operand_type) {
-    return listener_->GetFRegAndUnboxNaN(reg, operand_type);
+  FpRegister GetFRegAndUnboxNan(uint8_t reg, typename Decoder::FloatOperandType operand_type) {
+    return listener_->GetFRegAndUnboxNan(reg, operand_type);
   }
 
   // Step #3.
   FpRegister CanonicalizeNan(FpRegister value, typename Decoder::FloatOperandType operand_type) {
-    return listener_->CanonicalizeNans(value, operand_type);
+    return listener_->CanonicalizeNan(value, operand_type);
   }
 
-  // Step #4. Note the assymetry: step #1 may skip the Nan unboxing (would use GetFpReg if so),
+  // Step #4. Note the assymetry: step #1 may skip the NaN unboxing (would use GetFpReg if so),
   // but step #4 boxes uncoditionally (if actual instruction doesn't do that on host).
   void NanBoxAndSetFpReg(uint8_t reg,
                          FpRegister value,

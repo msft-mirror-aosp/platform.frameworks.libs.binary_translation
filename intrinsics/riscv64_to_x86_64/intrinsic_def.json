@@ -221,7 +221,7 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "UnboxNaN": {
+  "UnboxNan": {
     "comment": "Unbox small floating-point value from NaN",
     "class": "template",
     "variants": [ "Float32" ],

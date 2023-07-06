@@ -186,19 +186,13 @@ class LiteTranslator {
     return {};
   }
 
-  FpRegister GetFRegAndUnboxNaN(uint8_t reg, Decoder::FloatOperandType operand_type) {
+  FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
     UNUSED(reg, operand_type);
     Unimplemented();
     return {};
   }
 
-  FpRegister CanonicalizeNans(FpRegister value, Decoder::FloatOperandType operand_type) {
-    UNUSED(value, operand_type);
-    Unimplemented();
-    return {};
-  }
-
-  Register CanonicalizeGpNans(Register value, Decoder::FloatOperandType operand_type) {
+  FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
     UNUSED(value, operand_type);
     Unimplemented();
     return {};
