@@ -191,6 +191,7 @@ class TextAssemblerX86 {
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
   bool need_sse4_2 = false;
+  bool need_avx = false;
   bool need_fma = false;
   bool need_fma4 = false;
 
@@ -260,14 +261,19 @@ class TextAssemblerX86 {
     SetRequiredFeatureSSE4_1();
   }
 
+  void SetRequiredFeatureAVX() {
+    need_avx = true;
+    SetRequiredFeatureSSE4_2();
+  }
+
   void SetRequiredFeatureFMA() {
     need_fma = true;
-    SetRequiredFeatureSSE4_2();
+    SetRequiredFeatureAVX();
   }
 
   void SetRequiredFeatureFMA4() {
     need_fma4 = true;
-    SetRequiredFeatureSSE4_2();
+    SetRequiredFeatureAVX();
   }
 
   template <typename... Args>
