@@ -143,6 +143,19 @@
     "out": [ 0 ]
   },
   {
+    "name": "NanBox<Float32>",
+    "insn": "MacroNanBoxFloat32",
+    "in": [ 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "NanBox<Float32>",
+    "insn": "MacroNanBoxFloat32AVX",
+    "feature": "AVX",
+    "in": [ 0 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "UnboxNan<Float32>",
     "insn": "MacroUnboxNanFloat32",
     "in": [ 1 ],

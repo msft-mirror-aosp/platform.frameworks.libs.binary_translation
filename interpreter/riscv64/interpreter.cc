@@ -570,7 +570,7 @@ class Interpreter {
     CheckFpRegIsValid(reg);
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat:
-        state_->cpu.f[reg] = value | 0xffff'ffff'0000'0000;
+        state_->cpu.f[reg] = NanBox<Float32>(value);
         break;
       case Decoder::FloatOperandType::kDouble:
         state_->cpu.f[reg] = value;

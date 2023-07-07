@@ -228,6 +228,17 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "NanBox": {
+    "comment": [
+      "NaN-box small floating-point value into NaN.",
+      "Note: we pass input value as Float64 but top half may contain garbage.",
+      "This is needed because otherwise FPRegToFloat would be used to check it."
+    ],
+    "class": "template",
+    "variants": [ "Float32" ],
+    "in": [ "Float64" ],
+    "out": [ "Float64" ]
+  },
   "UnboxNan": {
     "comment": "Unbox small floating-point value from NaN",
     "class": "template",
