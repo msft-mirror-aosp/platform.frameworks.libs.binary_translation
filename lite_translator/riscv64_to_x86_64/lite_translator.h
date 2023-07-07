@@ -43,7 +43,10 @@ class LiteTranslator {
   using Assembler = MacroAssembler<x86_64::Assembler>;
   using Decoder = Decoder<SemanticsPlayer<LiteTranslator>>;
   using Register = Assembler::Register;
+  // Note: on RISC-V architecture FP register and SIMD registers are disjoint, but on x86 they are
+  // the same.
   using FpRegister = Assembler::XMMRegister;
+  using SimdRegister = Assembler::XMMRegister;
   using Condition = Assembler::Condition;
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
@@ -230,13 +233,16 @@ class LiteTranslator {
   [[nodiscard]] Assembler* as() { return &as_; }
   [[nodiscard]] bool success() const { return success_; }
 
+  void FreeTempRegs() {
+    gp_allocator_.FreeTemps();
+    simd_allocator_.FreeTemps();
+  }
+
 #include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
 
   bool is_region_end_reached() const { return is_region_end_reached_; }
 
   void IncrementInsnAddr(uint8_t insn_size) { pc_ += insn_size; }
-
-  void FreeTempRegs() { gp_allocator_.FreeTemps(); }
 
  private:
   template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
@@ -251,12 +257,21 @@ class LiteTranslator {
     }
     success_ = false;
     return {};
-  }
+  };
+
+  SimdRegister AllocTempSimdReg() {
+    if (auto reg_option = simd_allocator_.AllocTemp()) {
+       return reg_option.value();
+    }
+    success_ = false;
+    return {};
+  };
 
   Assembler as_;
   bool success_;
   GuestAddr pc_;
   Allocator<Register> gp_allocator_;
+  Allocator<SimdRegister> simd_allocator_;
   const LiteTranslateParams& params_;
   bool is_region_end_reached_;
 };
