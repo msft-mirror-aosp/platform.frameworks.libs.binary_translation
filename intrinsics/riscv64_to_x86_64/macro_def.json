@@ -16,21 +16,21 @@
   ],
   "insns": [
     {
-      "name": "MacroUnboxNaNFloat32",
+      "name": "MacroUnboxNanFloat32",
       "args": [
         { "class": "FpReg32", "usage": "def_early_clobber" },
         { "class": "FpReg64", "usage": "use_def" }
       ],
-      "asm": "MacroUnboxNaN<intrinsics::Float32>",
+      "asm": "MacroUnboxNan<intrinsics::Float32>",
       "mnemo": "MACRO_UNBOX_F32"
     },
     {
-      "name": "MacroUnboxNaNFloat32AVX",
+      "name": "MacroUnboxNanFloat32AVX",
       "args": [
         { "class": "FpReg32", "usage": "def_early_clobber" },
         { "class": "FpReg64", "usage": "use_def" }
       ],
-      "asm": "MacroUnboxNaNAVX<intrinsics::Float32>",
+      "asm": "MacroUnboxNanAVX<intrinsics::Float32>",
       "mnemo": "MACRO_UNBOX_F32"
     }
   ]
