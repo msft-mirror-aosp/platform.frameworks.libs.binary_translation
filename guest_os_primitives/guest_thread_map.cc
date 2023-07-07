@@ -24,7 +24,7 @@
 
 namespace berberis {
 
-[[maybe_unused]] void GuestThreadMap::ResetThreadTable(pid_t tid, GuestThread* thread) {
+void GuestThreadMap::ResetThreadTable(pid_t tid, GuestThread* thread) {
   std::lock_guard<std::mutex> lock(mutex_);
   map_.clear();
   map_[tid] = thread;
