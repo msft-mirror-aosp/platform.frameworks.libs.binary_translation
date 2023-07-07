@@ -554,18 +554,10 @@ class Interpreter {
   FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat: {
-        intrinsics::Float32 result = FPRegToFloat<intrinsics::Float32>(value);
-        if (IsNan(result)) {
-          return 0x0ffff'ffff'7fc0'0000;
-        }
-        return value;
+        return CanonicalizeNan<Float32>(value);
       }
       case Decoder::FloatOperandType::kDouble: {
-        intrinsics::Float64 result = FPRegToFloat<intrinsics::Float64>(value);
-        if (IsNan(result)) {
-          return 0x7ff8'0000'0000'0000;
-        }
-        return value;
+        return CanonicalizeNan<Float64>(value);
       }
       // No support for half-precision and quad-precision operands.
       default:
