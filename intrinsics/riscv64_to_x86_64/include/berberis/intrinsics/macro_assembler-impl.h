@@ -22,12 +22,38 @@
 
 namespace berberis {
 
-namespace x86 {
+namespace constants_pool {
 
 // Constant suitable for NaNBoxing of RISC-V 32bit float with PXor.
 extern const int32_t kNanBoxFloat32;
+extern const int32_t kNanBoxedNaNsFloat32;
 
-}  // namespace x86
+}  // namespace constants_pool
+
+template <typename Assembler>
+template <typename FloatType>
+void MacroAssembler<Assembler>::MacroUnboxNaN(XMMRegister result, XMMRegister src) {
+  static_assert(std::is_same_v<FloatType, intrinsics::Float32>);
+
+  Pmov(result, src);
+  Pcmpeq<typename TypeTraits<FloatType>::Int>(result, {.disp = constants_pool::kNanBoxFloat32});
+  Pshufd(result, result, kShuffleDDBB);
+  Pand(src, result);
+  Pandn(result, {.disp = constants_pool::kNanBoxedNaNsFloat32});
+  Por(result, src);
+}
+
+template <typename Assembler>
+template <typename FloatType>
+void MacroAssembler<Assembler>::MacroUnboxNaNAVX(XMMRegister result, XMMRegister src) {
+  static_assert(std::is_same_v<FloatType, intrinsics::Float32>);
+
+  Vpcmpeq<typename TypeTraits<FloatType>::Int>(result, src, {.disp = constants_pool::kNanBoxFloat32});
+  Vpshufd(result, result, kShuffleDDBB);
+  Vpand(src, src, result);
+  Vpandn(result, result, {.disp = constants_pool::kNanBoxedNaNsFloat32});
+  Vpor(result, result, src);
+}
 
 }  // namespace berberis
 
