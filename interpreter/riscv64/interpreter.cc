@@ -357,7 +357,7 @@ class Interpreter {
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   }
 
-  // In 32-bit case we don't care about the upper 32-bits because nan-boxing will clobber them.
+  // In 32-bit case we don't care about the upper 32-bits because NaN-boxing will clobber them.
   FpRegister Fmv(Register arg) { return arg; }
 
   Register Fmv(Decoder::FloatOperandType float_size, FpRegister arg) {
@@ -535,12 +535,12 @@ class Interpreter {
     return state_->cpu.f[reg];
   }
 
-  FpRegister GetFRegAndUnboxNaN(uint8_t reg, Decoder::FloatOperandType operand_type) {
+  FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
     CheckFpRegIsValid(reg);
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat: {
         FpRegister value = state_->cpu.f[reg];
-        return UnboxNaN<Float32>(value);
+        return UnboxNan<Float32>(value);
       }
       case Decoder::FloatOperandType::kDouble:
         return state_->cpu.f[reg];
@@ -551,7 +551,7 @@ class Interpreter {
     }
   }
 
-  FpRegister CanonicalizeNans(FpRegister value, Decoder::FloatOperandType operand_type) {
+  FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat: {
         intrinsics::Float32 result = FPRegToFloat<intrinsics::Float32>(value);
