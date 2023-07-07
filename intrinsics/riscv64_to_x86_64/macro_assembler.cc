@@ -23,7 +23,7 @@
 
 #include "berberis/intrinsics/macro_assembler.h"
 
-namespace berberis::x86 {
+namespace berberis::constants_pool {
 
 // All constants we refer in macroinstructions are collected in MacroAssemblerConstants.
 // This allows us:
@@ -31,11 +31,17 @@ namespace berberis::x86 {
 //   2. Make it possible to access in text assembler without complex dance with hash-tables.
 //   3. Allocate below-2GB-copy in x86_64 mode easily.
 struct MacroAssemblerConstants {
-  alignas(16) const uint32_t kNanBoxFloat32[4] = {0xffffffff, 0x00000000, 0xffffffff, 0x00000000};
+  alignas(16) const uint32_t kNanBoxFloat32[4] = {0x00000000, 0xffffffff, 0x00000000, 0xffffffff};
+  alignas(16) const uint32_t kNanBoxedNaNsFloat32[4] = {0x7fc00000,
+                                                        0x0ffffffff,
+                                                        0x7fc00000,
+                                                        0x0ffffffff};
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 128, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 256, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNaNsFloat32, 128, 128);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -44,7 +50,7 @@ CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 128, 128);
 // Also assembler intrinsics for interpreter use kMacroAssemblerConstants
 // directly (they couldn't use consts below because these addresses are only
 // known during runtime)
-extern "C" const MacroAssemblerConstants kBerberisMacroAssemblerConstants
+extern const MacroAssemblerConstants kBerberisMacroAssemblerConstants
     __attribute__((visibility("hidden")));
 const MacroAssemblerConstants kBerberisMacroAssemblerConstants;
 
@@ -68,5 +74,7 @@ int32_t GetConstants() {
 extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
 const int32_t kBerberisMacroAssemblerConstantsRelocated = GetConstants();
 const int32_t kNanBoxFloat32 = GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxFloat32);
+const int32_t kNanBoxedNaNsFloat32 =
+    GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxedNaNsFloat32);
 
-}  // namespace berberis::x86
+}  // namespace berberis::constant_pool
