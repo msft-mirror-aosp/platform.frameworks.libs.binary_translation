@@ -13,6 +13,32 @@
   "See the License for the specific language governing permissions and",
   "limitations under the License.",
   {
+    "name": "CanonicalizeNan<Float32>",
+    "insn": "CanonicalizeNanFloat32",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "CanonicalizeNan<Float32>",
+    "insn": "CanonicalizeNanFloat32AVX",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "CanonicalizeNan<Float64>",
+    "insn": "CanonicalizeNanFloat64",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "CanonicalizeNan<Float64>",
+    "insn": "CanonicalizeNanFloat64AVX",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float32>",
     "insn": "AddssXRegXReg",
     "in": [ 0, 1 ],

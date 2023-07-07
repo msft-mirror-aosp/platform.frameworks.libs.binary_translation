@@ -36,12 +36,19 @@ struct MacroAssemblerConstants {
                                                         0x0ffffffff,
                                                         0x7fc00000,
                                                         0x0ffffffff};
+  alignas(16) const uint32_t kCanonicalNansFloat32[4] = {0x7fc00000,
+                                                         0x7fc00000,
+                                                         0x7fc00000,
+                                                         0x7fc00000};
+  alignas(16) const uint64_t kCanonicalNansFloat64[2] = {0x7ff8000000000000, 0x7ff8000000000000};
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 256, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 512, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat64, 384, 128);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -73,8 +80,17 @@ int32_t GetConstants() {
 
 extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
 const int32_t kBerberisMacroAssemblerConstantsRelocated = GetConstants();
-const int32_t kNanBoxFloat32 = GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxFloat32);
-const int32_t kNanBoxedNansFloat32 =
+template <>
+const int32_t kNanBox<intrinsics::Float32> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxFloat32);
+template <>
+const int32_t kNanBoxedNans<intrinsics::Float32> =
     GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxedNansFloat32);
+template <>
+const int32_t kCanonicalNans<intrinsics::Float32> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kCanonicalNansFloat32);
+template <>
+const int32_t kCanonicalNans<intrinsics::Float64> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kCanonicalNansFloat64);
 
 }  // namespace berberis::constant_pool
