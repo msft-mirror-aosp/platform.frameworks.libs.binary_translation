@@ -52,6 +52,22 @@
       "mnemo": "MACRO_CANONICALIZE_F64"
     },
     {
+      "name": "MacroNanBoxFloat32",
+      "args": [
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroNanBox<intrinsics::Float32>",
+      "mnemo": "MACRO_BOX_F32"
+    },
+    {
+      "name": "MacroNanBoxFloat32AVX",
+      "args": [
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroNanBoxAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_BOX_F32"
+    },
+    {
       "name": "MacroUnboxNanFloat32",
       "args": [
         { "class": "FpReg32", "usage": "def_early_clobber" },
