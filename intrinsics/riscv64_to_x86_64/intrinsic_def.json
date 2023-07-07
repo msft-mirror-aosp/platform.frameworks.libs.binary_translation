@@ -14,6 +14,13 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
+  "CanonicalizeNan": {
+    "comment": "Unbox small floating-point value from NaN",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FAdd": {
     "comment": "Floating point addition",
     "class": "template",
