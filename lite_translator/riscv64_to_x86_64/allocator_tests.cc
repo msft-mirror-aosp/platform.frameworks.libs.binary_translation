@@ -71,6 +71,70 @@ TEST(AllocatorTest, SeparateMappedRegsAndTempRegs) {
   EXPECT_EQ(allocator.AllocTemp().value(), x86_64::Assembler::r12);
   EXPECT_EQ(allocator.AllocTemp().value(), x86_64::Assembler::r11);
   EXPECT_EQ(allocator.AllocTemp().value(), x86_64::Assembler::r10);
+}
+
+TEST(AllocatorTest, SimdAllocator) {
+  Allocator<x86_64::Assembler::XMMRegister> allocator;
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm0);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm1);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm2);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm3);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm4);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm5);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm6);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm7);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm8);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm9);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm10);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm11);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm12);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm13);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm14);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm15);
+  EXPECT_EQ(allocator.Alloc(), std::nullopt);
+}
+
+TEST(AllocatorTest, AllocSimdTemp) {
+  Allocator<x86_64::Assembler::XMMRegister> allocator;
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm0);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm1);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm2);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm3);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm4);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm5);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm6);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm7);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm8);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm9);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm10);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm11);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm12);
+  EXPECT_EQ(allocator.AllocTemp().value(), x86_64::Assembler::xmm15);
+  EXPECT_EQ(allocator.AllocTemp().value(), x86_64::Assembler::xmm14);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm13);
+  EXPECT_EQ(allocator.Alloc(), std::nullopt);
+  allocator.FreeTemps();
+  EXPECT_EQ(allocator.AllocTemp().value(), x86_64::Assembler::xmm15);
+}
+
+TEST(ALlocatorTest, SeparateMappedSimdRegsAndTempSimdRegs) {
+  Allocator<x86_64::Assembler::XMMRegister> allocator;
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm0);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm1);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm2);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm3);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm4);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm5);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm6);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm7);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm8);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm9);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm10);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm11);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm12);
+  EXPECT_EQ(allocator.AllocTemp().value(), x86_64::Assembler::xmm15);
+  EXPECT_EQ(allocator.AllocTemp().value(), x86_64::Assembler::xmm14);
+  EXPECT_EQ(allocator.Alloc().value(), x86_64::Assembler::xmm13);
   allocator.FreeTemps();
   EXPECT_EQ(allocator.Alloc(), std::nullopt);
 }
