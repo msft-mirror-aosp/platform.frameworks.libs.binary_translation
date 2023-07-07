@@ -1,5 +1,18 @@
-// Copyright 2019 Google Inc. All Rights Reserved.
-//
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include <stdio.h>
 #include <xmmintrin.h>
@@ -24,7 +37,7 @@
 
 namespace berberis {
 
-namespace x86 {
+namespace constants_pool {
 
 // Note: kBerberisMacroAssemblerConstantsRelocated is the same as original,
 // unrelocated version in 32-bit world.  But in 64-bit world it's copy on the first 2GiB.
@@ -37,8 +50,12 @@ namespace x86 {
 extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
 
 int32_t GetOffset(int32_t address) {
-  return address - x86::kBerberisMacroAssemblerConstantsRelocated;
+  return address - constants_pool::kBerberisMacroAssemblerConstantsRelocated;
 }
+
+}  // namespace constants_pool
+
+namespace x86 {
 
 namespace {
 
@@ -630,7 +647,7 @@ class GenerateAsmCall<kSideEffects,
     }
     if (need_gpr_macroassembler_constants) {
       ins.push_back(
-          "\"m\"(*reinterpret_cast<const char*>(&x86::kBerberisMacroAssemblerConstants))");
+          "\"m\"(*reinterpret_cast<const char*>(&constants_pool::kBerberisMacroAssemblerConstants))");
     }
     int arg_counter = 0;
     (
@@ -869,16 +886,22 @@ int main(int argc, char* argv[]) {
 #include "%2$s/intrinsics/common/intrinsics.h"
 #include "%2$s/intrinsics/vector_intrinsics.h"
 
-namespace %2$s {
-
-namespace x86 {
+namespace berberis::constants_pool {
 
 struct MacroAssemblerConstants;
 
-extern "C" const MacroAssemblerConstants kBerberisMacroAssemblerConstants
+extern const MacroAssemblerConstants kBerberisMacroAssemblerConstants
     __attribute__((visibility("hidden")));
 
-}  // namespace x86
+}  // namespace berberis::constants_pool
+
+namespace %2$s {
+
+namespace constants_pool {
+
+%3$s
+
+}  // namespace constants_pool
 
 namespace intrinsics {
 
@@ -890,7 +913,10 @@ class MxcsrStorage {
   uint32_t storage_;
 )STRING",
           berberis::TextAssembler::kArchName,
-          berberis::TextAssembler::kNamespaceName);
+          berberis::TextAssembler::kNamespaceName,
+          strcmp(berberis::TextAssembler::kNamespaceName, "berberis")
+              ? "using berberis::constants_pool::kBerberisMacroAssemblerConstants;"
+              : "");
 
   berberis::MakeIntrinsics(out);
   berberis::MakeExtraGuestFunctions(out);

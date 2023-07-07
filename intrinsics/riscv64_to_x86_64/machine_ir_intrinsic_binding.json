@@ -115,5 +115,18 @@
     "insn": "SubsdXRegXReg",
     "in": [ 0, 1 ],
     "out": [ 0 ]
+  },
+  {
+    "name": "UnboxNaN<Float32>",
+    "insn": "MacroUnboxNaNFloat32",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "UnboxNaN<Float32>",
+    "insn": "MacroUnboxNaNFloat32AVX",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
   }
 ]

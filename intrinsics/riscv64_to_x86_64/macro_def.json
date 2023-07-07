@@ -14,5 +14,24 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
-  "insns": []
+  "insns": [
+    {
+      "name": "MacroUnboxNaNFloat32",
+      "args": [
+        { "class": "FpReg32", "usage": "def_early_clobber" },
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroUnboxNaN<intrinsics::Float32>",
+      "mnemo": "MACRO_UNBOX_F32"
+    },
+    {
+      "name": "MacroUnboxNaNFloat32AVX",
+      "args": [
+        { "class": "FpReg32", "usage": "def_early_clobber" },
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroUnboxNaNAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_UNBOX_F32"
+    }
+  ]
 }
