@@ -220,5 +220,12 @@
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
+  },
+  "UnboxNaN": {
+    "comment": "Unbox small floating-point value from NaN",
+    "class": "template",
+    "variants": [ "Float32" ],
+    "in": [ "Float64" ],
+    "out": [ "Type0" ]
   }
 }

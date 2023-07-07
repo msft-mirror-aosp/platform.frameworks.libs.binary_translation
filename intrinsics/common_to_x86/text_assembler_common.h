@@ -1,5 +1,19 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
-//
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #ifndef BERBERIS_INTRINSICS_TEXT_ASSEMBLER_COMMON_H_
 #define BERBERIS_INTRINSICS_TEXT_ASSEMBLER_COMMON_H_
 
@@ -14,7 +28,7 @@
 
 namespace berberis {
 
-namespace x86 {
+namespace constants_pool {
 
 int32_t GetOffset(int32_t address);
 
@@ -151,7 +165,7 @@ class TextAssemblerX86 {
       std::string result{};
       if (op.base.arg_no_ == Register::kNoRegister and op.index.arg_no_ == Register::kNoRegister) {
         as->need_gpr_macroassembler_constants_ = true;
-        result = std::to_string(x86::GetOffset(op.disp)) + " + " +
+        result = std::to_string(constants_pool::GetOffset(op.disp)) + " + " +
                  ToGasArgument(
                      typename Assembler::RegisterDefaultBit(as->gpr_macroassembler_constants), as);
       } else {

@@ -540,10 +540,7 @@ class Interpreter {
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat: {
         FpRegister value = state_->cpu.f[reg];
-        if ((value & 0xffff'ffff'0000'0000) != 0xffff'ffff'0000'0000) {
-          return 0x0ffff'ffff'7fc0'0000;
-        }
-        return value;
+        return UnboxNaN<Float32>(value);
       }
       case Decoder::FloatOperandType::kDouble:
         return state_->cpu.f[reg];
