@@ -140,7 +140,7 @@ def _get_c_type(arg_type):
 
 
 def _get_semantic_player_type(arg_type, type_map):
-  if _is_template_type(arg_type):
+  if type_map is not None and arg_type in type_map:
     return type_map[arg_type]
   if arg_type in ('Float32', 'Float64', 'vec'):
     return 'SimdRegister'
@@ -643,7 +643,10 @@ def _gen_semantic_player_types(intrs):
           nonlocal counter
           counter += 1
           return counter
-        new_map = {}
+        new_map = {
+          'Float32': 'FpRegister',
+          'Float64': 'FpRegister',
+        }
         for type in filter(
               lambda param: param.strip() not in ('true', 'false') and
                             re.search('[_a-zA-Z]', param),
