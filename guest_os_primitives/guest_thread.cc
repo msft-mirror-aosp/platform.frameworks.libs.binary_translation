@@ -22,12 +22,15 @@
 #include "private/bionic_constants.h"
 #endif
 
+#include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_addr.h"  // ToGuestAddr
 #include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/host_stack.h"
 #include "native_bridge_support/linker/static_tls_config.h"
+
+extern "C" void berberis_UnmapAndExit(void* ptr, size_t size, int status);
 
 namespace berberis {
 
@@ -123,6 +126,21 @@ void GuestThread::Destroy(GuestThread* thread) {
     DestroyThreadState(thread->state_);
   }
   MunmapOrDie(thread, kGuestThreadPageAlignedSize);
+}
+
+// static
+void GuestThread::Exit(GuestThread* thread, int status) {
+  // Destroy the thread without unmapping the host stack.
+  void* host_stack = thread->host_stack_;
+  thread->host_stack_ = nullptr;
+  Destroy(thread);
+
+  if (host_stack) {
+    berberis_UnmapAndExit(host_stack, GetStackSizeForTranslation(), status);
+  } else {
+    syscall(__NR_exit, status);
+  }
+  LOG_ALWAYS_FATAL("thread didn't exit");
 }
 
 bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) {

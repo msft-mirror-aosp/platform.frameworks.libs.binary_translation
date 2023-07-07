@@ -28,6 +28,24 @@ struct NativeBridgeStaticTlsConfig;
 
 namespace berberis {
 
+int CreateNewGuestThread(pthread_t* thread_id,
+                         const pthread_attr_t* attr,
+                         void* guest_stack,
+                         size_t guest_stack_size,
+                         size_t guest_guard_size,
+                         GuestAddr func,
+                         GuestAddr arg);
+
+pid_t CloneGuestThread(GuestThread* thread,
+                       int flags,
+                       GuestAddr guest_stack_top,
+                       GuestAddr parent_tid,
+                       GuestAddr new_tls,
+                       GuestAddr child_tid);
+
+struct GuestArgumentBuffer;
+void RunGuestPthreadKeyDtor(GuestAddr pc, GuestArgumentBuffer* buf);
+
 struct GuestCallExecution {
   GuestCallExecution* parent = nullptr;
   GuestAddr sp = 0;
@@ -38,7 +56,9 @@ struct GuestCallExecution {
 class GuestThread {
  public:
   static GuestThread* CreatePthread(void* stack, size_t stack_size, size_t guard_size);
+  static GuestThread* CreateClone(const GuestThread* parent);
   static void Destroy(GuestThread* thread);
+  static void Exit(GuestThread* thread, int status);
 
   // Initialize *current* guest thread.
   void InitStaticTls();
@@ -51,6 +71,12 @@ class GuestThread {
   // Both return *previous* pending signals status (false: disabled, true: enabled).
   bool ProcessAndDisablePendingSignals();
   bool TestAndEnablePendingSignals();
+
+  void GetAttr(GuestAddr* stack_base, size_t* stack_size, size_t* guard_size) const {
+    *stack_base = ToGuestAddr(stack_);
+    *stack_size = stack_size_;
+    *guard_size = guard_size_;
+  }
 
   const ThreadState* state() const { return state_; }
   ThreadState* state() { return state_; }
