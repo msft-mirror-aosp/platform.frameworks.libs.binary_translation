@@ -32,7 +32,7 @@ namespace berberis::constants_pool {
 //   3. Allocate below-2GB-copy in x86_64 mode easily.
 struct MacroAssemblerConstants {
   alignas(16) const uint32_t kNanBoxFloat32[4] = {0x00000000, 0xffffffff, 0x00000000, 0xffffffff};
-  alignas(16) const uint32_t kNanBoxedNaNsFloat32[4] = {0x7fc00000,
+  alignas(16) const uint32_t kNanBoxedNansFloat32[4] = {0x7fc00000,
                                                         0x0ffffffff,
                                                         0x7fc00000,
                                                         0x0ffffffff};
@@ -41,7 +41,7 @@ struct MacroAssemblerConstants {
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
 CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 256, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNaNsFloat32, 128, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -74,7 +74,7 @@ int32_t GetConstants() {
 extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
 const int32_t kBerberisMacroAssemblerConstantsRelocated = GetConstants();
 const int32_t kNanBoxFloat32 = GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxFloat32);
-const int32_t kNanBoxedNaNsFloat32 =
-    GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxedNaNsFloat32);
+const int32_t kNanBoxedNansFloat32 =
+    GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxedNansFloat32);
 
 }  // namespace berberis::constant_pool
