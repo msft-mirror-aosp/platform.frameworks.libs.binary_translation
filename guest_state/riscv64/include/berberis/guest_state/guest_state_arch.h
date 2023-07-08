@@ -49,7 +49,10 @@ struct CPUState {
   //
   // Exceptions, on the other hand, couldn't be stored here efficiently, instead we rely on the fact
   // that x86-64 implements all five exceptions that RISC-V needs (and more).
-  uint8_t frm : 3;
+  union {
+    uint8_t csr_data;
+    uint8_t frm : 3;
+  };
   GuestAddr insn_addr;
 
   GuestAddr reservation_address;
