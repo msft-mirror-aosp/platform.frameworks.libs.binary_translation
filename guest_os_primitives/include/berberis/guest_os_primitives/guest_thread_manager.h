@@ -25,6 +25,19 @@ void InitGuestThreadManager();
 
 GuestThread* GetCurrentGuestThread();
 
+void ResetCurrentGuestThreadAfterFork(GuestThread* thread);
+
+bool GetGuestThreadAttr(pid_t tid,
+                        GuestAddr* stack_base,
+                        size_t* stack_size,
+                        size_t* guard_size,
+                        int* error);
+
+void ExitCurrentThread(int status);
+
+// Ensure guest threads don't run obsolete code.
+void FlushGuestCodeCache();
+
 }  // namespace berberis
 
 #endif  // BERBERIS_GUEST_OS_PRIMITIVES_GUEST_THREAD_MANAGER_H_

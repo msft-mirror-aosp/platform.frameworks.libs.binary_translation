@@ -47,6 +47,14 @@ cc_library_static {
         "guest_thread_manager.cc",
         "guest_thread_map.cc",
     ],
+    arch: {
+        x86: {
+            srcs: ["unmap_and_exit_x86_32.S"],
+        },
+        x86_64: {
+            srcs: ["unmap_and_exit_x86_64.S"],
+        },
+    },
     header_libs: [
         "libberberis_base_headers",
         "libberberis_guest_os_primitives_headers",
