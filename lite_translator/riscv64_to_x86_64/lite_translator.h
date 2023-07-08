@@ -185,26 +185,83 @@ class LiteTranslator {
   }
 
   FpRegister GetFpReg(uint8_t reg) {
-    UNUSED(reg);
-    Unimplemented();
-    return {};
+    CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+    SimdRegister result = AllocTempSimdReg();
+    int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
+    as_.Movsd(result, {.base = Assembler::rbp, .disp = offset});
+    return result;
   }
 
   FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
-    UNUSED(reg, operand_type);
-    Unimplemented();
-    return {};
+    SimdRegister result = GetFpReg(reg);
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat: {
+        SimdRegister unboxed_result = AllocTempSimdReg();
+        if (host_platform::kHasAVX) {
+          as_.MacroUnboxNanAVX<Float32>(unboxed_result, result);
+        } else {
+          as_.MacroUnboxNan<Float32>(unboxed_result, result);
+        }
+        return unboxed_result;
+      }
+      case Decoder::FloatOperandType::kDouble:
+        return result;
+      // No support for half-precision and quad-precision operands.
+      default:
+        Unimplemented();
+        return {};
+    }
   }
 
   FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
-    UNUSED(value, operand_type);
-    Unimplemented();
-    return {};
+    SimdRegister canonical_result = AllocTempSimdReg();
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat: {
+        if (host_platform::kHasAVX) {
+          as_.CanonicalizeNanAVX<Float32>(canonical_result, value);
+        } else {
+          as_.CanonicalizeNan<Float32>(canonical_result, value);
+        }
+        return canonical_result;
+      }
+      case Decoder::FloatOperandType::kDouble: {
+        if (host_platform::kHasAVX) {
+          as_.CanonicalizeNanAVX<Float64>(canonical_result, value);
+        } else {
+          as_.CanonicalizeNan<Float64>(canonical_result, value);
+        }
+        return canonical_result;
+      }
+      // No support for half-precision and quad-precision operands.
+      default:
+        Unimplemented();
+        return {};
+    }
   }
 
   void NanBoxAndSetFpReg(uint8_t reg, FpRegister value, Decoder::FloatOperandType operand_type) {
-    UNUSED(reg, value, operand_type);
-    Unimplemented();
+    CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+    int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        if (host_platform::kHasAVX) {
+          as_.MacroNanBoxAVX<Float32>(value);
+          as_.Vmovsd({.base = Assembler::rbp, .disp = offset}, value);
+        } else {
+          as_.Movsd({.base = Assembler::rbp, .disp = offset}, value);
+        }
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        if (host_platform::kHasAVX) {
+          as_.Vmovsd({.base = Assembler::rbp, .disp = offset}, value);
+        } else {
+          as_.Movsd({.base = Assembler::rbp, .disp = offset}, value);
+        }
+        break;
+      // No support for half-precision and quad-precision operands.
+      default:
+        return Unimplemented();
+    }
   }
 
   //
@@ -212,8 +269,10 @@ class LiteTranslator {
   //
 
   [[nodiscard]] Register GetFrm() {
-    Unimplemented();
-    return {};
+    Register frm_reg = AllocTempReg();
+    as_.Movb(frm_reg, {.base = Assembler::rbp, .disp = offsetof(ThreadState, cpu.csr_data)});
+    as_.Andb(frm_reg, int8_t{0b111});
+    return frm_reg;
   }
 
   [[nodiscard]] Register GetImm(uint64_t imm) {
