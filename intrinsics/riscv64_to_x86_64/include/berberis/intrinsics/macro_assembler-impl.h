@@ -66,6 +66,22 @@ void MacroAssembler<Assembler>::CanonicalizeNanAVX(XMMRegister result, XMMRegist
 
 template <typename Assembler>
 template <typename FloatType>
+void MacroAssembler<Assembler>::MacroNanBox(XMMRegister arg) {
+  static_assert(std::is_same_v<FloatType, Float32>);
+
+  Por(arg, {.disp = constants_pool::kNanBox<Float32>});
+}
+
+template <typename Assembler>
+template <typename FloatType>
+void MacroAssembler<Assembler>::MacroNanBoxAVX(XMMRegister arg) {
+  static_assert(std::is_same_v<FloatType, Float32>);
+
+  Vpor(arg, arg, {.disp = constants_pool::kNanBox<Float32>});
+}
+
+template <typename Assembler>
+template <typename FloatType>
 void MacroAssembler<Assembler>::MacroUnboxNan(XMMRegister result, XMMRegister src) {
   static_assert(std::is_same_v<FloatType, Float32>);
 
