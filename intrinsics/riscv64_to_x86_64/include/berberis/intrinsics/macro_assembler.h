@@ -63,10 +63,11 @@ class MacroAssembler : public Assembler {
   template <typename format, typename... allowed_formats>
   static constexpr bool FormatIs = (std::is_same_v<format, allowed_formats> || ...);
 
-#define DEFINE_MOV_INSTRUCTION(insn_name, parameters, arguments)                                   \
-  template <typename format_out, typename format_in = format_out>                                  \
-  void insn_name parameters {                                                                      \
+#define DEFINE_EXPAND_INSTRUCTION(opt_check, parameters, arguments)                                \
+  template <typename format_out, typename format_in>                                               \
+  void Expand parameters {                                                                         \
     if constexpr (FormatIs<format_out, int8_t, uint8_t> && FormatIs<format_in, int8_t, uint8_t>) { \
+      opt_check;                                                                                   \
       Assembler::Movb arguments;                                                                   \
     } else if constexpr (FormatIs<format_out, int16_t, uint16_t> && FormatIs<format_in, int8_t>) { \
       Assembler::Movsxbw arguments;                                                                \
@@ -75,6 +76,7 @@ class MacroAssembler : public Assembler {
       Assembler::Movzxbw arguments;                                                                \
     } else if constexpr (FormatIs<format_out, int16_t, uint16_t> &&                                \
                          FormatIs<format_in, int16_t, uint16_t>) {                                 \
+      opt_check;                                                                                   \
       Assembler::Movw arguments;                                                                   \
     } else if constexpr (FormatIs<format_out, int32_t, uint32_t> && FormatIs<format_in, int8_t>) { \
       Assembler::Movsxbl arguments;                                                                \
@@ -89,6 +91,7 @@ class MacroAssembler : public Assembler {
       Assembler::Movzxwl arguments;                                                                \
     } else if constexpr (FormatIs<format_out, int32_t, uint32_t> &&                                \
                          FormatIs<format_in, int32_t, uint32_t>) {                                 \
+      opt_check;                                                                                   \
       Assembler::Movl arguments;                                                                   \
     } else if constexpr (FormatIs<format_out, int64_t, uint64_t> && FormatIs<format_in, int8_t>) { \
       Assembler::Movsxbq arguments;                                                                \
@@ -103,40 +106,44 @@ class MacroAssembler : public Assembler {
       Assembler::Movzxwq arguments;                                                                \
     } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
                          FormatIs<format_in, int32_t>) {                                           \
-      Assembler::Movsxwq arguments;                                                                \
+      Assembler::Movsxlq arguments;                                                                \
     } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
                          FormatIs<format_in, uint32_t>) {                                          \
-      Assembler::Movzxwq arguments;                                                                \
-    } else {                                                                                       \
-      static_assert(                                                                               \
-          FormatIs<format_out, int64_t, uint64_t> && FormatIs<format_in, int64_t, uint64_t>,       \
-          "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported");                   \
-      Assembler::Movq arguments;                                                                   \
-    }                                                                                              \
-  }
-  DEFINE_MOV_INSTRUCTION(Mov, (Register dest, Operand src), (dest, src))
-  DEFINE_MOV_INSTRUCTION(Mov, (Register dest, Register src), (dest, src))
-#undef DEFINE_MOV_INSTRUCTION
-
-#define DEFINE_MOV_INSTRUCTION(insn_name, parameters, arguments)                                   \
-  template <typename format_out, typename format_in = format_out>                                  \
-  void insn_name parameters {                                                                      \
-    if constexpr (FormatIs<format_out, int8_t, uint8_t> && FormatIs<format_in, int8_t, uint8_t>) { \
-      Assembler::Movb arguments;                                                                   \
-    } else if constexpr (FormatIs<format_out, int16_t, uint16_t> &&                                \
-                         FormatIs<format_in, int16_t, uint16_t>) {                                 \
-      Assembler::Movw arguments;                                                                   \
-    } else if constexpr (FormatIs<format_out, int32_t, uint32_t> &&                                \
-                         FormatIs<format_in, int32_t, uint32_t>) {                                 \
       Assembler::Movl arguments;                                                                   \
     } else {                                                                                       \
       static_assert(                                                                               \
           FormatIs<format_out, int64_t, uint64_t> && FormatIs<format_in, int64_t, uint64_t>,       \
           "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported");                   \
+      opt_check;                                                                                   \
       Assembler::Movq arguments;                                                                   \
     }                                                                                              \
   }
-  DEFINE_MOV_INSTRUCTION(Mov, (Operand dest, Register src), (dest, src))
+  DEFINE_EXPAND_INSTRUCTION(, (Register dest, Operand src), (dest, src))
+  DEFINE_EXPAND_INSTRUCTION(if (dest == src) return, (Register dest, Register src), (dest, src))
+#undef DEFINE_EXPAND_INSTRUCTION
+
+#define DEFINE_MOV_INSTRUCTION(opt_check, parameters, arguments)                           \
+  template <typename format>                                                               \
+  void Mov parameters {                                                                    \
+    if constexpr (FormatIs<format, int8_t, uint8_t>) {                                     \
+      opt_check;                                                                           \
+      Assembler::Movb arguments;                                                           \
+    } else if constexpr (FormatIs<format, int16_t, uint16_t>) {                            \
+      opt_check;                                                                           \
+      Assembler::Movw arguments;                                                           \
+    } else if constexpr (FormatIs<format, int32_t, uint32_t>) {                            \
+      opt_check;                                                                           \
+      Assembler::Movl arguments;                                                           \
+    } else {                                                                               \
+      static_assert(FormatIs<format, int64_t, uint64_t>,                                   \
+                    "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported"); \
+      opt_check;                                                                           \
+      Assembler::Movq arguments;                                                           \
+    }                                                                                      \
+  }
+  DEFINE_MOV_INSTRUCTION(, (Operand dest, Register src), (dest, src))
+  DEFINE_MOV_INSTRUCTION(, (Register dest, Operand src), (dest, src))
+  DEFINE_MOV_INSTRUCTION(if (dest == src) return, (Register dest, Register src), (dest, src))
 #undef DEFINE_MOV_INSTRUCTION
 
 #define DEFINE_XMM_INT_INSTRUCTION(insn_name, parameters, arguments)                       \
@@ -167,6 +174,33 @@ class MacroAssembler : public Assembler {
 #undef DEFINE_PCMP_INSTRUCTION
 #undef DEFINE_XMM_INT_INSTRUCTION
 
+#define DEFINE_MOVS_INSTRUCTION(insn_name, opt_check, parameters, arguments)       \
+  template <typename format>                                                       \
+  void insn_name parameters {                                                      \
+    if constexpr (FormatIs<format, float, Float32>) {                              \
+      opt_check;                                                                   \
+      Assembler::insn_name##s arguments;                                           \
+    } else {                                                                       \
+      static_assert(FormatIs<format, double, Float64>,                             \
+                    "Only float/Float32 or double/Float64 formats are supported"); \
+      opt_check;                                                                   \
+      Assembler::insn_name##d arguments;                                           \
+    }                                                                              \
+  }
+  DEFINE_MOVS_INSTRUCTION(Movs, , (XMMRegister dest, Operand src), (dest, src))
+  DEFINE_MOVS_INSTRUCTION(Movs, , (Operand dest, XMMRegister src), (dest, src))
+  DEFINE_MOVS_INSTRUCTION(Movs,
+                          if (dest == src) return,
+                          (XMMRegister dest, XMMRegister src),
+                          (dest, src))
+  DEFINE_MOVS_INSTRUCTION(Vmovs, , (XMMRegister dest, Operand src), (dest, src))
+  DEFINE_MOVS_INSTRUCTION(Vmovs, , (Operand dest, XMMRegister src), (dest, src))
+  DEFINE_MOVS_INSTRUCTION(Vmovs,
+                          if ((dest == src1) && (dest == src2)) return,
+                          (XMMRegister dest, XMMRegister src1, XMMRegister src2),
+                          (dest, src1, src2))
+#undef DEFINE_MOVS_INSTRUCTION
+
 #define DEFINE_XMM_FLOAT_INSTRUCTION(insn_name, parameters, arguments)             \
   template <typename format>                                                       \
   void insn_name parameters {                                                      \
@@ -178,12 +212,6 @@ class MacroAssembler : public Assembler {
       Assembler::insn_name##d arguments;                                           \
     }                                                                              \
   }
-  DEFINE_XMM_FLOAT_INSTRUCTION(Movs, (XMMRegister dest, Operand src), (dest, src))
-  DEFINE_XMM_FLOAT_INSTRUCTION(Movs, (XMMRegister dest, XMMRegister src), (dest, src))
-  DEFINE_XMM_FLOAT_INSTRUCTION(Vmovs, (XMMRegister dest, Operand src), (dest, src))
-  DEFINE_XMM_FLOAT_INSTRUCTION(Vmovs,
-                               (XMMRegister dest, XMMRegister src1, XMMRegister src2),
-                               (dest, src1, src2))
 #define CMP_INSTRUCTION(insn_name)                                                                \
   DEFINE_XMM_FLOAT_INSTRUCTION(Cmp##insn_name##p, (XMMRegister dest, Operand src), (dest, src))   \
   DEFINE_XMM_FLOAT_INSTRUCTION(Cmp##insn_name##s, (XMMRegister dest, Operand src), (dest, src))   \
