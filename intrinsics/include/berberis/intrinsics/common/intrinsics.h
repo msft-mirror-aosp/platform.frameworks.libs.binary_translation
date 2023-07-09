@@ -54,7 +54,7 @@ enum PreferredIntrinsicsImplementation {
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FAdd(uint8_t rm, uint8_t frm, FloatType arg1, FloatType arg2) {
+std::tuple<FloatType> FAdd(int8_t rm, int8_t frm, FloatType arg1, FloatType arg2) {
   return intrinsics::ExecuteFloatOperation<FloatType>(
       rm,
       frm,
@@ -95,7 +95,7 @@ std::tuple<uint64_t> FClass(FloatType arg) {
 template <typename TargetOperandType,
           typename SourceOperandType,
           enum PreferredIntrinsicsImplementation>
-std::tuple<TargetOperandType> FCvtFloatToFloat(uint8_t rm, uint8_t frm, SourceOperandType arg) {
+std::tuple<TargetOperandType> FCvtFloatToFloat(int8_t rm, int8_t frm, SourceOperandType arg) {
   static_assert(std::is_same_v<Float32, SourceOperandType> ||
                 std::is_same_v<Float64, SourceOperandType>);
   static_assert(std::is_same_v<Float32, TargetOperandType> ||
@@ -113,8 +113,8 @@ std::tuple<TargetOperandType> FCvtFloatToFloat(uint8_t rm, uint8_t frm, SourceOp
 template <typename TargetOperandType,
           typename SourceOperandType,
           enum PreferredIntrinsicsImplementation>
-std::tuple<TargetOperandType> FCvtFloatToInteger(uint8_t /*rm*/,
-                                                 uint8_t /*frm*/,
+std::tuple<TargetOperandType> FCvtFloatToInteger(int8_t /*rm*/,
+                                                 int8_t /*frm*/,
                                                  SourceOperandType arg) {
   static_assert(std::is_same_v<Float32, SourceOperandType> ||
                 std::is_same_v<Float64, SourceOperandType>);
@@ -127,8 +127,8 @@ std::tuple<TargetOperandType> FCvtFloatToInteger(uint8_t /*rm*/,
 template <typename TargetOperandType,
           typename SourceOperandType,
           enum PreferredIntrinsicsImplementation>
-std::tuple<TargetOperandType> FCvtIntegerToFloat(uint8_t /*rm*/,
-                                                 uint8_t /*frm*/,
+std::tuple<TargetOperandType> FCvtIntegerToFloat(int8_t /*rm*/,
+                                                 int8_t /*frm*/,
                                                  SourceOperandType arg) {
   static_assert(std::is_integral_v<SourceOperandType>);
   static_assert(std::is_same_v<Float32, TargetOperandType> ||
@@ -140,7 +140,7 @@ std::tuple<TargetOperandType> FCvtIntegerToFloat(uint8_t /*rm*/,
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FDiv(uint8_t rm, uint8_t frm, FloatType arg1, FloatType arg2) {
+std::tuple<FloatType> FDiv(int8_t rm, int8_t frm, FloatType arg1, FloatType arg2) {
   return intrinsics::ExecuteFloatOperation<FloatType>(
       rm,
       frm,
@@ -158,11 +158,7 @@ std::tuple<FloatType> FDivHostRounding(FloatType arg1, FloatType arg2) {
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FMAdd(uint8_t rm,
-                            uint8_t frm,
-                            FloatType arg1,
-                            FloatType arg2,
-                            FloatType arg3) {
+std::tuple<FloatType> FMAdd(int8_t rm, int8_t frm, FloatType arg1, FloatType arg2, FloatType arg3) {
   return intrinsics::ExecuteFloatOperation<FloatType>(
       rm,
       frm,
@@ -192,11 +188,7 @@ std::tuple<FloatType> FMin(FloatType x, FloatType y) {
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FMSub(uint8_t rm,
-                            uint8_t frm,
-                            FloatType arg1,
-                            FloatType arg2,
-                            FloatType arg3) {
+std::tuple<FloatType> FMSub(int8_t rm, int8_t frm, FloatType arg1, FloatType arg2, FloatType arg3) {
   return intrinsics::ExecuteFloatOperation<FloatType>(
       rm,
       frm,
@@ -216,7 +208,7 @@ std::tuple<FloatType> FMSubHostRounding(FloatType arg1, FloatType arg2, FloatTyp
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FMul(uint8_t rm, uint8_t frm, FloatType arg1, FloatType arg2) {
+std::tuple<FloatType> FMul(int8_t rm, int8_t frm, FloatType arg1, FloatType arg2) {
   return intrinsics::ExecuteFloatOperation<FloatType>(
       rm,
       frm,
@@ -234,8 +226,8 @@ std::tuple<FloatType> FMulHostRounding(FloatType arg1, FloatType arg2) {
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FNMAdd(uint8_t rm,
-                             uint8_t frm,
+std::tuple<FloatType> FNMAdd(int8_t rm,
+                             int8_t frm,
                              FloatType arg1,
                              FloatType arg2,
                              FloatType arg3) {
@@ -258,8 +250,8 @@ std::tuple<FloatType> FNMAddHostRounding(FloatType arg1, FloatType arg2, FloatTy
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FNMSub(uint8_t rm,
-                             uint8_t frm,
+std::tuple<FloatType> FNMSub(int8_t rm,
+                             int8_t frm,
                              FloatType arg1,
                              FloatType arg2,
                              FloatType arg3) {
@@ -304,7 +296,7 @@ std::tuple<FloatType> FSgnjx(FloatType x, FloatType y) {
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FSqrt(uint8_t rm, uint8_t frm, FloatType arg) {
+std::tuple<FloatType> FSqrt(int8_t rm, int8_t frm, FloatType arg) {
   return intrinsics::ExecuteFloatOperation<FloatType>(
       rm,
       frm,
@@ -321,7 +313,7 @@ std::tuple<FloatType> FSqrtHostRounding(FloatType arg) {
 
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
-std::tuple<FloatType> FSub(uint8_t rm, uint8_t frm, FloatType arg1, FloatType arg2) {
+std::tuple<FloatType> FSub(int8_t rm, int8_t frm, FloatType arg1, FloatType arg2) {
   return intrinsics::ExecuteFloatOperation<FloatType>(
       rm,
       frm,
