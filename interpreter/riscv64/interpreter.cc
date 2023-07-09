@@ -368,40 +368,6 @@ class Interpreter {
     }
   }
 
-  Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
-                                          Decoder::FloatOperandType float_size,
-                                          FpRegister arg1,
-                                          FpRegister arg2) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return OpFpGpRegisterTargetNoRounding<Float32>(
-            opcode, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2));
-      case Decoder::FloatOperandType::kDouble:
-        return OpFpGpRegisterTargetNoRounding<Float64>(
-            opcode, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2));
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  template <typename FloatType>
-  Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
-                                          FloatType arg1,
-                                          FloatType arg2) {
-    switch (opcode) {
-      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFle:
-        return arg1 <= arg2;
-      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFlt:
-        return arg1 < arg2;
-      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFeq:
-        return arg1 == arg2;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
     switch (opcode) {
       case Decoder::ShiftImmOpcode::kSlli:

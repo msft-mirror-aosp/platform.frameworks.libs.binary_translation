@@ -95,6 +95,27 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "Feq": {
+    "comment": "Floating point comparison for “equal” (quiet comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Fle": {
+    "comment": "Floating point comparison for “less of equal” (signaling comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Flt": {
+    "comment": "Floating point comparison for “less” (quiet comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
   "FMAdd": {
     "comment": "Fused multiply-addition",
     "class": "template",

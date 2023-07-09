@@ -121,15 +121,6 @@ class LiteTranslator {
   // F and D extensions.
   //
 
-  Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
-                                          Decoder::FloatOperandType float_size,
-                                          FpRegister arg1,
-                                          FpRegister arg2) {
-    UNUSED(opcode, float_size, arg1, arg2);
-    Unimplemented();
-    return {};
-  }
-
   FpRegister Fmv(Register arg) {
     UNUSED(arg);
     Unimplemented();
