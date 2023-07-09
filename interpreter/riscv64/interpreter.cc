@@ -302,17 +302,13 @@ class Interpreter {
     }
   }
 
-  FpRegister LoadFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset) {
-    void* ptr = ToHostAddr<void>(arg + offset);
-    switch (opcode) {
-      case Decoder::FloatOperandType::kFloat:
-        return LoadFp<float>(ptr);
-      case Decoder::FloatOperandType::kDouble:
-        return LoadFp<double>(ptr);
-      default:
-        Unimplemented();
-        return {};
-    }
+  template <typename DataType>
+  FpRegister LoadFp(Register arg, int16_t offset) {
+    static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
+    DataType* ptr = ToHostAddr<DataType>(arg + offset);
+    FpRegister reg = 0;
+    memcpy(&reg, ptr, sizeof(DataType));
+    return reg;
   }
 
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
@@ -454,18 +450,11 @@ class Interpreter {
     }
   }
 
-  void StoreFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset, FpRegister data) {
-    void* ptr = ToHostAddr<void>(arg + offset);
-    switch (opcode) {
-      case Decoder::FloatOperandType::kFloat:
-        StoreFp<float>(ptr, data);
-        break;
-      case Decoder::FloatOperandType::kDouble:
-        StoreFp<double>(ptr, data);
-        break;
-      default:
-        return Unimplemented();
-    }
+  template <typename DataType>
+  void StoreFp(Register arg, int16_t offset, FpRegister data) {
+    static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
+    DataType* ptr = ToHostAddr<DataType>(arg + offset);
+    memcpy(ptr, &data, sizeof(DataType));
   }
 
   void CompareAndBranch(Decoder::BranchOpcode opcode,
@@ -607,14 +596,6 @@ class Interpreter {
     memcpy(&data, ptr, sizeof(data));
     // Signed types automatically sign-extend to int64_t.
     return static_cast<uint64_t>(data);
-  }
-
-  template <typename DataType>
-  FpRegister LoadFp(const void* ptr) const {
-    static_assert(std::is_floating_point_v<DataType>);
-    FpRegister reg = 0;
-    memcpy(&reg, ptr, sizeof(DataType));
-    return reg;
   }
 
   template <typename DataType>

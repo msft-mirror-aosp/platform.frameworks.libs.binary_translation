@@ -142,15 +142,16 @@ class LiteTranslator {
     return {};
   }
 
-  FpRegister LoadFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset) {
-    UNUSED(opcode, arg, offset);
-    Unimplemented();
-    return {};
+  template <typename DataType>
+  FpRegister LoadFp(Register arg, int16_t offset) {
+    FpRegister res = AllocTempSimdReg();
+    as_.Movs<DataType>(res, {.base = arg, .disp = offset});
+    return res;
   }
 
-  void StoreFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset, FpRegister data) {
-    UNUSED(opcode, arg, offset, data);
-    Unimplemented();
+  template <typename DataType>
+  void StoreFp(Register arg, int16_t offset, FpRegister data) {
+    as_.Movs<DataType>({.base = arg, .disp = offset}, data);
   }
 
   Register Csr(Decoder::CsrOpcode opcode, Register arg, Decoder::CsrRegister csr) {
