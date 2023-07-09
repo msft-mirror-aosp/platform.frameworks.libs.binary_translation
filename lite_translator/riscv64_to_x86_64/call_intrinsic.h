@@ -148,11 +148,16 @@ class ConstExprCheckAssembler {
 
   constexpr ConstExprCheckAssembler() = default;
 
-  template <typename U, typename V = U>
+  template <typename U, typename V>
+  constexpr void Expand(Register, Operand) const {}
+  template <typename U, typename V>
+  constexpr void Expand(Register, Register) const {}
+
+  template <typename U>
   constexpr void Mov(Operand, Register) const {}
-  template <typename U, typename V>
+  template <typename U>
   constexpr void Mov(Register, Operand) const {}
-  template <typename U, typename V>
+  template <typename U>
   constexpr void Mov(Register, Register) const {}
 
   template <typename U>
@@ -237,31 +242,33 @@ constexpr bool InitArgs(MacroAssembler&& as, bool has_avx, AssemblerArgType... a
     // Note, ABI mandates extension up to 32-bit and zero-filling the upper half.
     if constexpr (std::is_integral_v<IntrinsicType> && sizeof(IntrinsicType) <= sizeof(int32_t) &&
                   std::is_integral_v<AssemblerType> && sizeof(AssemblerType) <= sizeof(int32_t)) {
-      as.template Mov<int32_t, IntrinsicType>(kAbiArgs[gp_index++],
-                                              static_cast<int32_t>(arg.value));
+      as.template Expand<int32_t, IntrinsicType>(kAbiArgs[gp_index++],
+                                                 static_cast<int32_t>(arg.value));
     } else if constexpr (std::is_integral_v<IntrinsicType> &&
                          sizeof(IntrinsicType) == sizeof(int64_t) &&
                          std::is_integral_v<AssemblerType> &&
                          sizeof(AssemblerType) == sizeof(int64_t)) {
-      as.template Mov<int64_t, IntrinsicType>(kAbiArgs[gp_index++],
-                                              static_cast<int64_t>(arg.value));
+      as.template Expand<int64_t, IntrinsicType>(kAbiArgs[gp_index++],
+                                                 static_cast<int64_t>(arg.value));
     } else if constexpr (std::is_integral_v<IntrinsicType> &&
                          sizeof(IntrinsicType) <= sizeof(int32_t) &&
                          std::is_same_v<AssemblerType, Register>) {
       if (kRegOffsetsOnStack[arg.value.num] == kRegIsNotOnStack) {
-        as.template Mov<int32_t, IntrinsicType>(kAbiArgs[gp_index++], arg.value);
+        as.template Expand<int32_t, IntrinsicType>(kAbiArgs[gp_index++], arg.value);
       } else {
-        as.template Mov<int32_t, IntrinsicType>(
-            kAbiArgs[gp_index++], {.base = as.rsp, .disp = kRegOffsetsOnStack[arg.value.num] * 8});
+        as.template Expand<int32_t, IntrinsicType>(
+            kAbiArgs[gp_index++],
+            {.base = Assembler::rsp, .disp = kRegOffsetsOnStack[arg.value.num] * 8});
       }
     } else if constexpr (std::is_integral_v<IntrinsicType> &&
                          sizeof(IntrinsicType) == sizeof(int64_t) &&
                          std::is_same_v<AssemblerType, Register>) {
       if (kRegOffsetsOnStack[arg.value.num] == kRegIsNotOnStack) {
-        as.template Mov<int64_t, IntrinsicType>(kAbiArgs[gp_index++], arg.value);
+        as.template Expand<int64_t, IntrinsicType>(kAbiArgs[gp_index++], arg.value);
       } else {
-        as.template Mov<int64_t, IntrinsicType>(
-            kAbiArgs[gp_index++], {.base = as.rsp, .disp = kRegOffsetsOnStack[arg.value.num] * 8});
+        as.template Expand<int64_t, IntrinsicType>(
+            kAbiArgs[gp_index++],
+            {.base = Assembler::rsp, .disp = kRegOffsetsOnStack[arg.value.num] * 8});
       }
     } else if constexpr ((std::is_same_v<IntrinsicType, Float32> ||
                           std::is_same_v<IntrinsicType, Float64>) && std::is_same_v<AssemblerType,
@@ -311,7 +318,7 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
                 std::is_same_v<AssemblerResType, Register>) {
     // Note: even unsigned 32-bit results are sign-extended to 64bit register on RV64.
     regs_info.regs_on_stack[result.num] = kRegIsNotOnStack;
-    as.Mov<int64_t, int32_t>(result, Assembler::rax);
+    as.Expand<int64_t, int32_t>(result, Assembler::rax);
   } else if constexpr (Assembler::
                            FormatIs<IntrinsicResType, std::tuple<int64_t>, std::tuple<uint64_t>> &&
                        std::is_same_v<AssemblerResType, Register>) {
