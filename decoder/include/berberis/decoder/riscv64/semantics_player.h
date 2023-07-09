@@ -291,7 +291,18 @@ class SemanticsPlayer {
 
   void Load(const typename Decoder::LoadFpArgs& args) {
     Register arg = GetRegOrZero(args.src);
-    FpRegister result = listener_->LoadFp(args.operand_type, arg, args.offset);
+    FpRegister result;
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        result = listener_->template LoadFp<Float32>(arg, args.offset);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        result = listener_->template LoadFp<Float64>(arg, args.offset);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   };
 
@@ -510,7 +521,17 @@ class SemanticsPlayer {
   void Store(const typename Decoder::StoreFpArgs& args) {
     Register arg = GetRegOrZero(args.src);
     FpRegister data = GetFpReg(args.data);
-    listener_->StoreFp(args.operand_type, arg, args.offset, data);
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        listener_->template StoreFp<Float32>(arg, args.offset, data);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        listener_->template StoreFp<Float64>(arg, args.offset, data);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
   };
 
   // We may have executed a signal handler just after the syscall. If that handler changed x10, then
