@@ -1,0 +1,49 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
+#define RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
+
+#include "berberis/base/bit_util.h"
+#include "berberis/intrinsics/macro_assembler.h"
+
+namespace berberis::constants_pool {
+
+// Constant suitable for NaN boxing of RISC-V 32bit float with PXor.
+// Note: technically we only need to Nan-box Float32 since we don't support Float16 yet.
+template <typename FloatType>
+extern const int32_t kNanBox;
+template <>
+extern const int32_t kNanBox<intrinsics::Float32>;
+
+// Canonically Nan boxed canonical NaN.
+// Note: technically we only need to Nan-box Float32 since we don't support Float16 yet.
+template <typename FloatType>
+extern const int32_t kNanBoxedNans;
+template <>
+extern const int32_t kNanBoxedNans<intrinsics::Float32>;
+
+// Canonical NaNs. Float32 and Float64 are supported.
+template <typename FloatType>
+extern const int32_t kCanonicalNans;
+template <>
+extern const int32_t kCanonicalNans<intrinsics::Float32>;
+template <>
+extern const int32_t kCanonicalNans<intrinsics::Float64>;
+
+}  // namespace berberis::constants_pool
+
+#endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
