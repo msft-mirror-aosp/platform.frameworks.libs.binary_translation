@@ -160,6 +160,8 @@ class ConstExprCheckAssembler {
   template <typename U>
   constexpr void Mov(Register, Register) const {}
 
+  constexpr void Movl(Register, int32_t) const {}
+
   template <typename U>
   constexpr void Movs(Operand, XMMRegister) const {}
   template <typename U>
@@ -242,8 +244,7 @@ constexpr bool InitArgs(MacroAssembler&& as, bool has_avx, AssemblerArgType... a
     // Note, ABI mandates extension up to 32-bit and zero-filling the upper half.
     if constexpr (std::is_integral_v<IntrinsicType> && sizeof(IntrinsicType) <= sizeof(int32_t) &&
                   std::is_integral_v<AssemblerType> && sizeof(AssemblerType) <= sizeof(int32_t)) {
-      as.template Expand<int32_t, IntrinsicType>(kAbiArgs[gp_index++],
-                                                 static_cast<int32_t>(arg.value));
+      as.Movl(kAbiArgs[gp_index++], static_cast<int32_t>(arg.value));
     } else if constexpr (std::is_integral_v<IntrinsicType> &&
                          sizeof(IntrinsicType) == sizeof(int64_t) &&
                          std::is_integral_v<AssemblerType> &&
