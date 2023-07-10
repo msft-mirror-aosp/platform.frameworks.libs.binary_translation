@@ -282,6 +282,7 @@ class MacroAssembler : public Assembler {
 }  // namespace berberis
 
 // Macro specializations.
-#include "berberis/intrinsics/macro_assembler-impl.h"
+#include "berberis/intrinsics/macro_assembler_constants_pool.h"
+#include "berberis/intrinsics/macro_assembler_floating_point_impl.h"
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_H_
