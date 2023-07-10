@@ -70,15 +70,14 @@ class SemanticsPlayer {
 
   void Fcvt(const typename Decoder::FcvtFloatToFloatArgs& args) {
     FpRegister arg = GetFRegAndUnboxNan(args.src, args.src_type);
-    auto rm = listener_->GetImm(args.rm);
-    auto frm = listener_->GetFrm();
+    Register frm = listener_->GetFrm();
     FpRegister result;
     if (args.dst_type == Decoder::FloatOperandType::kFloat &&
         args.src_type == Decoder::FloatOperandType::kDouble) {
-      result = listener_->template FCvtFloatToFloat<Float32, Float64>(rm, frm, arg);
+      result = listener_->template FCvtFloatToFloat<Float32, Float64>(args.rm, frm, arg);
     } else if (args.dst_type == Decoder::FloatOperandType::kDouble &&
                args.src_type == Decoder::FloatOperandType::kFloat) {
-      result = listener_->template FCvtFloatToFloat<Float64, Float32>(rm, frm, arg);
+      result = listener_->template FCvtFloatToFloat<Float64, Float32>(args.rm, frm, arg);
     } else {
       Unimplemented();
       return;
@@ -88,23 +87,22 @@ class SemanticsPlayer {
 
   void Fcvt(const typename Decoder::FcvtFloatToIntegerArgs& args) {
     FpRegister arg = GetFRegAndUnboxNan(args.src, args.src_type);
-    auto rm = listener_->GetImm(args.rm);
-    auto frm = listener_->GetFrm();
+    Register frm = listener_->GetFrm();
     Register result;
     switch (args.src_type) {
       case Decoder::FloatOperandType::kFloat:
         switch (args.dst_type) {
           case Decoder::FcvtOperandType::k32bitSigned:
-            result = listener_->template FCvtFloatToInteger<int32_t, Float32>(rm, frm, arg);
+            result = listener_->template FCvtFloatToInteger<int32_t, Float32>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k32bitUnsigned:
-            result = listener_->template FCvtFloatToInteger<uint32_t, Float32>(rm, frm, arg);
+            result = listener_->template FCvtFloatToInteger<uint32_t, Float32>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k64bitSigned:
-            result = listener_->template FCvtFloatToInteger<int64_t, Float32>(rm, frm, arg);
+            result = listener_->template FCvtFloatToInteger<int64_t, Float32>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k64bitUnsigned:
-            result = listener_->template FCvtFloatToInteger<uint64_t, Float32>(rm, frm, arg);
+            result = listener_->template FCvtFloatToInteger<uint64_t, Float32>(args.rm, frm, arg);
             break;
           default:
             Unimplemented();
@@ -114,16 +112,16 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         switch (args.dst_type) {
           case Decoder::FcvtOperandType::k32bitSigned:
-            result = listener_->template FCvtFloatToInteger<int32_t, Float64>(rm, frm, arg);
+            result = listener_->template FCvtFloatToInteger<int32_t, Float64>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k32bitUnsigned:
-            result = listener_->template FCvtFloatToInteger<uint32_t, Float64>(rm, frm, arg);
+            result = listener_->template FCvtFloatToInteger<uint32_t, Float64>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k64bitSigned:
-            result = listener_->template FCvtFloatToInteger<int64_t, Float64>(rm, frm, arg);
+            result = listener_->template FCvtFloatToInteger<int64_t, Float64>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k64bitUnsigned:
-            result = listener_->template FCvtFloatToInteger<uint64_t, Float64>(rm, frm, arg);
+            result = listener_->template FCvtFloatToInteger<uint64_t, Float64>(args.rm, frm, arg);
             break;
           default:
             Unimplemented();
@@ -139,23 +137,22 @@ class SemanticsPlayer {
 
   void Fcvt(const typename Decoder::FcvtIntegerToFloatArgs& args) {
     Register arg = GetRegOrZero(args.src);
-    auto rm = listener_->GetImm(args.rm);
-    auto frm = listener_->GetFrm();
+    Register frm = listener_->GetFrm();
     FpRegister result;
     switch (args.dst_type) {
       case Decoder::FloatOperandType::kFloat:
         switch (args.src_type) {
           case Decoder::FcvtOperandType::k32bitSigned:
-            result = listener_->template FCvtIntegerToFloat<Float32, int32_t>(rm, frm, arg);
+            result = listener_->template FCvtIntegerToFloat<Float32, int32_t>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k32bitUnsigned:
-            result = listener_->template FCvtIntegerToFloat<Float32, uint32_t>(rm, frm, arg);
+            result = listener_->template FCvtIntegerToFloat<Float32, uint32_t>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k64bitSigned:
-            result = listener_->template FCvtIntegerToFloat<Float32, int64_t>(rm, frm, arg);
+            result = listener_->template FCvtIntegerToFloat<Float32, int64_t>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k64bitUnsigned:
-            result = listener_->template FCvtIntegerToFloat<Float32, uint64_t>(rm, frm, arg);
+            result = listener_->template FCvtIntegerToFloat<Float32, uint64_t>(args.rm, frm, arg);
             break;
           default:
             Unimplemented();
@@ -165,16 +162,16 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         switch (args.src_type) {
           case Decoder::FcvtOperandType::k32bitSigned:
-            result = listener_->template FCvtIntegerToFloat<Float64, int32_t>(rm, frm, arg);
+            result = listener_->template FCvtIntegerToFloat<Float64, int32_t>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k32bitUnsigned:
-            result = listener_->template FCvtIntegerToFloat<Float64, uint32_t>(rm, frm, arg);
+            result = listener_->template FCvtIntegerToFloat<Float64, uint32_t>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k64bitSigned:
-            result = listener_->template FCvtIntegerToFloat<Float64, int64_t>(rm, frm, arg);
+            result = listener_->template FCvtIntegerToFloat<Float64, int64_t>(args.rm, frm, arg);
             break;
           case Decoder::FcvtOperandType::k64bitUnsigned:
-            result = listener_->template FCvtIntegerToFloat<Float64, uint64_t>(rm, frm, arg);
+            result = listener_->template FCvtIntegerToFloat<Float64, uint64_t>(args.rm, frm, arg);
             break;
           default:
             Unimplemented();
@@ -193,14 +190,13 @@ class SemanticsPlayer {
     FpRegister arg2 = GetFRegAndUnboxNan(args.src2, args.operand_type);
     FpRegister arg3 = GetFRegAndUnboxNan(args.src3, args.operand_type);
     FpRegister result;
-    auto rm = listener_->GetImm(args.rm);
-    auto frm = listener_->GetFrm();
+    Register frm = listener_->GetFrm();
     switch (args.operand_type) {
       case Decoder::FloatOperandType::kFloat:
-        result = Fma<Float32>(args.opcode, rm, frm, arg1, arg2, arg3);
+        result = Fma<Float32>(args.opcode, args.rm, frm, arg1, arg2, arg3);
         break;
       case Decoder::FloatOperandType::kDouble:
-        result = Fma<Float64>(args.opcode, rm, frm, arg1, arg2, arg3);
+        result = Fma<Float64>(args.opcode, args.rm, frm, arg1, arg2, arg3);
         break;
       default:
         Unimplemented();
@@ -212,7 +208,7 @@ class SemanticsPlayer {
 
   template <typename FloatType>
   FpRegister Fma(typename Decoder::FmaOpcode opcode,
-                 Register rm,
+                 int8_t rm,
                  Register frm,
                  FpRegister arg1,
                  FpRegister arg2,
@@ -330,14 +326,13 @@ class SemanticsPlayer {
     FpRegister arg1 = GetFRegAndUnboxNan(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNan(args.src2, args.operand_type);
     FpRegister result;
-    auto rm = listener_->GetImm(args.rm);
-    auto frm = listener_->GetFrm();
+    Register frm = listener_->GetFrm();
     switch (args.operand_type) {
       case Decoder::FloatOperandType::kFloat:
-        result = OpFp<Float32>(args.opcode, rm, frm, arg1, arg2);
+        result = OpFp<Float32>(args.opcode, args.rm, frm, arg1, arg2);
         break;
       case Decoder::FloatOperandType::kDouble:
-        result = OpFp<Float64>(args.opcode, rm, frm, arg1, arg2);
+        result = OpFp<Float64>(args.opcode, args.rm, frm, arg1, arg2);
         break;
       default:
         Unimplemented();
@@ -349,7 +344,7 @@ class SemanticsPlayer {
 
   template <typename FloatType>
   FpRegister OpFp(typename Decoder::OpFpOpcode opcode,
-                  Register rm,
+                  int8_t rm,
                   Register frm,
                   FpRegister arg1,
                   FpRegister arg2) {
@@ -463,14 +458,13 @@ class SemanticsPlayer {
   void OpFpSingleInput(const typename Decoder::OpFpSingleInputArgs& args) {
     FpRegister arg = GetFRegAndUnboxNan(args.src, args.operand_type);
     FpRegister result;
-    auto rm = listener_->GetImm(args.rm);
-    auto frm = listener_->GetFrm();
+    Register frm = listener_->GetFrm();
     switch (args.operand_type) {
       case Decoder::FloatOperandType::kFloat:
-        result = OpFpSingleInput<Float32>(args.opcode, rm, frm, arg);
+        result = OpFpSingleInput<Float32>(args.opcode, args.rm, frm, arg);
         break;
       case Decoder::FloatOperandType::kDouble:
-        result = OpFpSingleInput<Float64>(args.opcode, rm, frm, arg);
+        result = OpFpSingleInput<Float64>(args.opcode, args.rm, frm, arg);
         break;
       default:
         Unimplemented();
@@ -482,7 +476,7 @@ class SemanticsPlayer {
 
   template <typename FloatType>
   FpRegister OpFpSingleInput(typename Decoder::OpFpSingleInputOpcode opcode,
-                             Register rm,
+                             int8_t rm,
                              Register frm,
                              FpRegister arg) {
     switch (opcode) {
