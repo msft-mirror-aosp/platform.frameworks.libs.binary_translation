@@ -353,21 +353,6 @@ class Interpreter {
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   }
 
-  // In 32-bit case we don't care about the upper 32-bits because NaN-boxing will clobber them.
-  FpRegister Fmv(Register arg) { return arg; }
-
-  Register Fmv(Decoder::FloatOperandType float_size, FpRegister arg) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return static_cast<int64_t>(static_cast<int32_t>(arg));
-      case Decoder::FloatOperandType::kDouble:
-        return arg;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
     switch (opcode) {
       case Decoder::ShiftImmOpcode::kSlli:

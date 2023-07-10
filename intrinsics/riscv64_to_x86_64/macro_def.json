@@ -122,7 +122,7 @@
         { "class": "FpReg64", "usage": "use" }
       ],
       "asm": "MacroFle<intrinsics::Float64>",
-      "mnemo": "MACRO_FLR_F64"
+      "mnemo": "MACRO_FLE_F64"
     },
     {
       "name": "MacroFleFloat64AVX",
@@ -163,8 +163,8 @@
         { "class": "FpReg64", "usage": "use_def" },
         { "class": "FpReg64", "usage": "use" }
       ],
-      "asm": "MacroFeq<intrinsics::Float64>",
-      "mnemo": "MACRO_FEQ_F64"
+      "asm": "MacroFlt<intrinsics::Float64>",
+      "mnemo": "MACRO_FLT_F64"
     },
     {
       "name": "MacroFltFloat64AVX",
