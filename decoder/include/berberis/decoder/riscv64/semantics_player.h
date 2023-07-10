@@ -367,9 +367,37 @@ class SemanticsPlayer {
       const typename Decoder::OpFpGpRegisterTargetNoRoundingArgs& args) {
     FpRegister arg1 = GetFRegAndUnboxNan(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNan(args.src2, args.operand_type);
-    Register result =
-        listener_->OpFpGpRegisterTargetNoRounding(args.opcode, args.operand_type, arg1, arg2);
+    Register result;
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        result = OpFpGpRegisterTargetNoRounding<Float32>(args.opcode, arg1, arg2);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        result = OpFpGpRegisterTargetNoRounding<Float64>(args.opcode, arg1, arg2);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     SetRegOrIgnore(args.dst, result);
+  }
+
+  template <typename FloatType>
+  Register OpFpGpRegisterTargetNoRounding(
+      typename Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
+      FpRegister arg1,
+      FpRegister arg2) {
+    switch (opcode) {
+      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFle:
+        return listener_->template Fle<FloatType>(arg1, arg2);
+      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFlt:
+        return listener_->template Flt<FloatType>(arg1, arg2);
+      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFeq:
+        return listener_->template Feq<FloatType>(arg1, arg2);
+      default:
+        Unimplemented();
+        return {};
+    }
   }
 
   void OpFpGpRegisterTargetSingleInputNoRounding(

@@ -46,6 +46,7 @@ class MacroAssembler : public Assembler {
 
 #include "berberis/intrinsics/macro_assembler_interface-inl.h"  // NOLINT generated file
 
+  using Assembler::Andl;
   using Assembler::Pand;
   using Assembler::Pandn;
   using Assembler::Pmov;
@@ -201,6 +202,27 @@ class MacroAssembler : public Assembler {
                           (dest, src1, src2))
 #undef DEFINE_MOVS_INSTRUCTION
 
+#define DEFINE_XMM_MOV_INSTRUCTION(insn_name, parameters, arguments)               \
+  template <typename format>                                                       \
+  void insn_name parameters {                                                      \
+    if constexpr (FormatIs<format, float, Float32>) {                              \
+      Assembler::insn_name##d arguments;                                           \
+    } else {                                                                       \
+      static_assert(FormatIs<format, double, Float64>,                             \
+                    "Only float/Float32 or double/Float64 formats are supported"); \
+      Assembler::insn_name##q arguments;                                           \
+    }                                                                              \
+  }
+  DEFINE_XMM_MOV_INSTRUCTION(Mov, (XMMRegister dest, Operand src), (dest, src))
+  DEFINE_XMM_MOV_INSTRUCTION(Mov, (Operand dest, XMMRegister src), (dest, src))
+  DEFINE_XMM_MOV_INSTRUCTION(Mov, (XMMRegister dest, Register src), (dest, src))
+  DEFINE_XMM_MOV_INSTRUCTION(Mov, (Register dest, XMMRegister src), (dest, src))
+  DEFINE_XMM_MOV_INSTRUCTION(Vmov, (XMMRegister dest, Operand src), (dest, src))
+  DEFINE_XMM_MOV_INSTRUCTION(Vmov, (Operand dest, XMMRegister src), (dest, src))
+  DEFINE_XMM_MOV_INSTRUCTION(Vmov, (XMMRegister dest, Register src), (dest, src))
+  DEFINE_XMM_MOV_INSTRUCTION(Vmov, (Register dest, XMMRegister src), (dest, src))
+#undef DEFINE_XMM_MOV_INSTRUCTION
+
 #define DEFINE_XMM_FLOAT_INSTRUCTION(insn_name, parameters, arguments)             \
   template <typename format>                                                       \
   void insn_name parameters {                                                      \
@@ -212,7 +234,15 @@ class MacroAssembler : public Assembler {
       Assembler::insn_name##d arguments;                                           \
     }                                                                              \
   }
-#define CMP_INSTRUCTION(insn_name)                                                                \
+  DEFINE_XMM_FLOAT_INSTRUCTION(Comis, (XMMRegister dest, Operand src), (dest, src))
+  DEFINE_XMM_FLOAT_INSTRUCTION(Comis, (XMMRegister dest, XMMRegister src), (dest, src))
+  DEFINE_XMM_FLOAT_INSTRUCTION(Ucomis, (XMMRegister dest, Operand src), (dest, src))
+  DEFINE_XMM_FLOAT_INSTRUCTION(Ucomis, (XMMRegister dest, XMMRegister src), (dest, src))
+  DEFINE_XMM_FLOAT_INSTRUCTION(Vcomis, (XMMRegister dest, Operand src), (dest, src))
+  DEFINE_XMM_FLOAT_INSTRUCTION(Vcomis, (XMMRegister dest, XMMRegister src), (dest, src))
+  DEFINE_XMM_FLOAT_INSTRUCTION(Vucomis, (XMMRegister dest, Operand src), (dest, src))
+  DEFINE_XMM_FLOAT_INSTRUCTION(Vucomis, (XMMRegister dest, XMMRegister src), (dest, src))
+#define DEFINE_CMP_INSTRUCTION(insn_name)                                                         \
   DEFINE_XMM_FLOAT_INSTRUCTION(Cmp##insn_name##p, (XMMRegister dest, Operand src), (dest, src))   \
   DEFINE_XMM_FLOAT_INSTRUCTION(Cmp##insn_name##s, (XMMRegister dest, Operand src), (dest, src))   \
   DEFINE_XMM_FLOAT_INSTRUCTION(                                                                   \
@@ -229,15 +259,15 @@ class MacroAssembler : public Assembler {
   DEFINE_XMM_FLOAT_INSTRUCTION(Vcmp##insn_name##s,                                                \
                                (XMMRegister dest, XMMRegister src1, XMMRegister src2),            \
                                (dest, src1, src2))
-  CMP_INSTRUCTION(eq)
-  CMP_INSTRUCTION(le)
-  CMP_INSTRUCTION(lt)
-  CMP_INSTRUCTION(ord)
-  CMP_INSTRUCTION(neq)
-  CMP_INSTRUCTION(nle)
-  CMP_INSTRUCTION(nlt)
-  CMP_INSTRUCTION(unord)
-#undef CMP_INSTRUCTION
+  DEFINE_CMP_INSTRUCTION(eq)
+  DEFINE_CMP_INSTRUCTION(le)
+  DEFINE_CMP_INSTRUCTION(lt)
+  DEFINE_CMP_INSTRUCTION(ord)
+  DEFINE_CMP_INSTRUCTION(neq)
+  DEFINE_CMP_INSTRUCTION(nle)
+  DEFINE_CMP_INSTRUCTION(nlt)
+  DEFINE_CMP_INSTRUCTION(unord)
+#undef DEFINE_CMP_INSTRUCTION
 #undef DEFINE_XMM_FLOAT_INSTRUCTION
 
  private:
