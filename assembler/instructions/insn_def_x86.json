@@ -1562,12 +1562,34 @@
     },
     {
       "encodings": {
+        "LockCmpXchgb": { "opcodes": [ "F0", "0F", "B0" ], "reg_to_rm": true }
+      },
+      "args": [
+        { "class": "AL", "usage": "use_def" },
+        { "class": "Mem8", "usage": "use_def" },
+        { "class": "GeneralReg8", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
         "LockCmpXchgl": { "opcodes": [ "F0", "0F", "B1" ], "reg_to_rm": true }
       },
       "args": [
         { "class": "EAX", "usage": "use_def" },
         { "class": "Mem32", "usage": "use_def" },
         { "class": "GeneralReg32", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "LockCmpXchgw": { "opcodes": [ "F0", "66", "0F", "B1" ], "reg_to_rm": true }
+      },
+      "args": [
+        { "class": "AX", "usage": "use_def" },
+        { "class": "Mem16", "usage": "use_def" },
+        { "class": "GeneralReg16", "usage": "use" },
         { "class": "FLAGS", "usage": "def" }
       ]
     },
