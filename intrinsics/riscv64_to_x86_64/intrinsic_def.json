@@ -25,7 +25,7 @@
     "comment": "Floating point addition",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FAddHostRounding": {
@@ -46,7 +46,7 @@
     "comment": "Convert float to float",
     "class": "template",
     "variants": [ "Float32, Float64", "Float64, Float32" ],
-    "in": [ "uint8_t", "uint8_t", "Type1" ],
+    "in": [ "imm8", "int8_t", "Type1" ],
     "out": [ "Type0" ]
   },
   "FCvtFloatToInteger": {
@@ -62,7 +62,7 @@
       "uint64_t, Float32",
       "uint64_t, Float64"
     ],
-    "in": [ "uint8_t", "uint8_t", "Type1" ],
+    "in": [ "imm8", "int8_t", "Type1" ],
     "out": [ "Type0" ]
   },
   "FCvtIntegerToFloat": {
@@ -78,14 +78,14 @@
       "Float64, uint32_t",
       "Float64, uint64_t"
     ],
-    "in": [ "uint8_t", "uint8_t", "Type1" ],
+    "in": [ "imm8", "int8_t", "Type1" ],
     "out": [ "Type0" ]
   },
   "FDiv": {
     "comment": "Floating point division",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FDivHostRounding": {
@@ -99,7 +99,7 @@
     "comment": "Fused multiply-addition",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FMAddHostRounding": {
@@ -113,7 +113,7 @@
     "comment": "Fused multiply-subtraction",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FMSubHostRounding": {
@@ -141,7 +141,7 @@
     "comment": "Floating point multiplication",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FMulHostRounding": {
@@ -155,7 +155,7 @@
     "comment": "Fused negated multiply-addition",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FNMAddHostRounding": {
@@ -169,7 +169,7 @@
     "comment": "Fused negated multiply-subtraction",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FNMSubHostRounding": {
@@ -204,7 +204,7 @@
     "comment": "Square root",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0" ],
     "out": [ "Type0" ]
   },
   "FSqrtHostRounding": {
@@ -218,7 +218,7 @@
     "comment": "Floating point subtraction",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FSubHostRounding": {
