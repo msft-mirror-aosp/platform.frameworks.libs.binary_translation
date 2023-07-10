@@ -27,7 +27,7 @@ namespace berberis {
 
 template <typename RegType>
 inline constexpr auto kAllocatableRegisters = []() {
-  static_aasert(kDependentTypeFalse<RegType>,
+  static_assert(kDependentTypeFalse<RegType>,
                 "kAllocatableRegisters is only usable with x86_64::Assembler::Register or "
                 "x86_64::Assembler::XMMRegister");
   return true;
