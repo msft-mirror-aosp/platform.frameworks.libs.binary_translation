@@ -204,6 +204,13 @@ class GeneralReg32 {
   [[maybe_unused]] static constexpr char kAsRegister = 'r';
 };
 
+class GeneralReg64 {
+ public:
+  using Type = uint64_t;
+  [[maybe_unused]] static constexpr bool kIsImplicitReg = false;
+  [[maybe_unused]] static constexpr char kAsRegister = 'r';
+};
+
 class VecReg128 {
  public:
   using Type = __m128;
