@@ -473,13 +473,35 @@ class SemanticsPlayer {
 
   void FmvFloatToInteger(const typename Decoder::FmvFloatToIntegerArgs& args) {
     FpRegister arg = GetFpReg(args.src);
-    Register result = listener_->Fmv(args.operand_type, arg);
+    Register result;
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        result = listener_->template FmvFloatToInteger<int32_t, Float32>(arg);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        result = listener_->template FmvFloatToInteger<int64_t, Float64>(arg);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     SetRegOrIgnore(args.dst, result);
   }
 
   void FmvIntegerToFloat(const typename Decoder::FmvIntegerToFloatArgs& args) {
     Register arg = GetRegOrZero(args.src);
-    FpRegister result = listener_->Fmv(arg);
+    FpRegister result;
+    switch (args.operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        result = listener_->template FmvIntegerToFloat<Float32, int32_t>(arg);
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        result = listener_->template FmvIntegerToFloat<Float64, int64_t>(arg);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
   }
 
