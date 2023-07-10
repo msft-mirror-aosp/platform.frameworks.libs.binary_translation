@@ -63,6 +63,84 @@
     "out": [ 0 ]
   },
   {
+    "name": "Feq<Float32>",
+    "insn": "MacroFeqFloat32",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Feq<Float32>",
+    "insn": "MacroFeqFloat32AVX",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Feq<Float64>",
+    "insn": "MacroFeqFloat64",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Feq<Float64>",
+    "insn": "MacroFeqFloat64AVX",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Fle<Float32>",
+    "insn": "MacroFleFloat32",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Fle<Float32>",
+    "insn": "MacroFleFloat32AVX",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Fle<Float64>",
+    "insn": "MacroFleFloat64",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Fle<Float64>",
+    "insn": "MacroFleFloat64AVX",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Flt<Float32>",
+    "insn": "MacroFltFloat32",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Flt<Float32>",
+    "insn": "MacroFltFloat32AVX",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Flt<Float64>",
+    "insn": "MacroFltFloat64",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Flt<Float64>",
+    "insn": "MacroFltFloat64AVX",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FMAddHostRounding<Float32>",
     "insn": "Vfmadd231ssXRegXRegXReg",
     "feature": "FMA",
