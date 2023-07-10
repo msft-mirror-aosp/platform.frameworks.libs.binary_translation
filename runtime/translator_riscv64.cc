@@ -189,10 +189,6 @@ void TranslateRegionAtFirstGear(GuestAddr pc) {
 // TODO(b/232598137): may be set default visibility to protected instead?
 extern "C" __attribute__((__visibility__("hidden"))) void berberis_HandleNotTranslated(
     ThreadState* state) {
-  if (g_translation_mode == TranslationMode::kInterpretOnly) {
-    InterpretInsn(state);
-    return;
-  }
   TranslateRegion(state->cpu.insn_addr);
 }
 
