@@ -20,13 +20,18 @@
 #include <algorithm>  // std::max
 #include <optional>
 
-#include "berberis/base/dependent_false.h"
 #include "berberis/assembler/x86_64.h"
+#include "berberis/base/dependent_false.h"
 
 namespace berberis {
 
 template <typename RegType>
-inline constexpr auto kAllocatableRegisters = kDependentTypeFalse<RegType>;
+inline constexpr auto kAllocatableRegisters = []() {
+  static_aasert(kDependentTypeFalse<RegType>,
+                "kAllocatableRegisters is only usable with x86_64::Assembler::Register or "
+                "x86_64::Assembler::XMMRegister");
+  return true;
+};
 
 // TODO(286261771): Add rdx to registers, push it on stack in all instances that are clobbering it.
 template <>
