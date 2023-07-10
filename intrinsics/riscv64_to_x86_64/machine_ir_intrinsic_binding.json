@@ -155,6 +155,58 @@
     "out": [ 0 ]
   },
   {
+    "name": "FmvFloatToInteger<int32_t, Float32>",
+    "insn": "MovdRegXReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FmvFloatToInteger<int32_t, Float32>",
+    "insn": "VmovdRegXReg",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FmvFloatToInteger<int64_t, Float64>",
+    "insn": "MovqRegXReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FmvFloatToInteger<int64_t, Float64>",
+    "insn": "VmovqRegXReg",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FmvIntegerToFloat<Float32, int32_t>",
+    "insn": "MovdXRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FmvIntegerToFloat<Float32, int32_t>",
+    "insn": "VmovdXRegReg",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FmvIntegerToFloat<Float64, int64_t>",
+    "insn": "MovqXRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FmvIntegerToFloat<Float64, int64_t>",
+    "insn": "VmovqXRegReg",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FNMAddHostRounding<Float32>",
     "insn": "Vfnmadd231ssXRegXRegXReg",
     "feature": "FMA",

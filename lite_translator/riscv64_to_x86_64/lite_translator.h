@@ -121,18 +121,6 @@ class LiteTranslator {
   // F and D extensions.
   //
 
-  FpRegister Fmv(Register arg) {
-    UNUSED(arg);
-    Unimplemented();
-    return {};
-  }
-
-  Register Fmv(Decoder::FloatOperandType float_size, FpRegister arg) {
-    UNUSED(float_size, arg);
-    Unimplemented();
-    return {};
-  }
-
   template <typename DataType>
   FpRegister LoadFp(Register arg, int16_t offset) {
     FpRegister res = AllocTempSimdReg();
