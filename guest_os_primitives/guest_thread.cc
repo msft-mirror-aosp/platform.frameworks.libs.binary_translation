@@ -82,7 +82,7 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
     return nullptr;
   }
 
-  SetStackRegister(GetCPUState(thread->state()), thread->stack_top_);
+  SetStackRegister(GetCPUState(*thread->state()), thread->stack_top_);
 
   if (!thread->AllocShadowCallStack()) {
     Destroy(thread);

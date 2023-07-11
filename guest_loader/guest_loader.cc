@@ -84,8 +84,8 @@ const char* FindPtInterp(const LoadedElfFile* loaded_executable) {
 
   ScopedPendingSignalsEnabler scoped_pending_signals_enabler(main_thread);
 
-  CPUState* cpu = &state->cpu;
-  ScopedHostCallFrame host_call_frame(cpu, entry_point);
+  CPUState& cpu = state->cpu;
+  ScopedHostCallFrame host_call_frame(&cpu, entry_point);
 
   GuestAddr updated_stack = InitKernelArgs(GetStackRegister(cpu),
                                            argc,
