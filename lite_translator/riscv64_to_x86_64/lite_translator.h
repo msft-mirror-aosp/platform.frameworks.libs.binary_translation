@@ -81,12 +81,6 @@ class LiteTranslator {
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
 
-  Register Amo(Decoder::AmoOpcode opcode, Register arg1, Register arg2, bool aq, bool rl) {
-    UNUSED(opcode, arg1, arg2, aq, rl);
-    Unimplemented();
-    return {};
-  }
-
   Register Ecall(Register syscall_nr,
                  Register arg0,
                  Register arg1,
