@@ -131,7 +131,7 @@ bool GuestThread::IsOnSigAltStack() const {
 void GuestThread::ProcessPendingSignals() {
   for (;;) {
     // Process pending signals while present.
-    uint8_t status = GetPendingSignalsStatusAtomic(state_)->load(std::memory_order_acquire);
+    uint8_t status = GetPendingSignalsStatusAtomic(*state_).load(std::memory_order_acquire);
     CHECK_NE(kPendingSignalsDisabled, status);
     if (status == kPendingSignalsEnabled) {
       return;
@@ -145,7 +145,7 @@ bool GuestThread::ProcessAndDisablePendingSignals() {
     // If pending signals are not present, cas should disable them.
     // Otherwise, process pending signals and try again.
     uint8_t old_status = kPendingSignalsEnabled;
-    if (GetPendingSignalsStatusAtomic(state_)->compare_exchange_weak(
+    if (GetPendingSignalsStatusAtomic(*state_).compare_exchange_weak(
             old_status, kPendingSignalsDisabled, std::memory_order_acq_rel)) {
       return true;
     }
@@ -160,7 +160,7 @@ bool GuestThread::TestAndEnablePendingSignals() {
   // If pending signals are disabled, cas should mark them enabled.
   // Otherwise, pending signals are already enabled.
   uint8_t old_status = kPendingSignalsDisabled;
-  return !GetPendingSignalsStatusAtomic(state_)->compare_exchange_strong(
+  return !GetPendingSignalsStatusAtomic(*state_).compare_exchange_strong(
       old_status, kPendingSignalsEnabled, std::memory_order_acq_rel);
 }
 
@@ -171,7 +171,7 @@ void GuestThread::ProcessPendingSignalsImpl() {
   // ATTENTION: It is important to change status before the queue!
   // Otherwise if interrupted by SetSignal, we might end up with
   // no pending signals status but with non-empty queue!
-  GetPendingSignalsStatusAtomic(state_)->store(kPendingSignalsEnabled, std::memory_order_relaxed);
+  GetPendingSignalsStatusAtomic(*state_).store(kPendingSignalsEnabled, std::memory_order_relaxed);
 
   siginfo_t* signal_info;
   while ((signal_info = pending_signals_.DequeueSignalUnsafe())) {

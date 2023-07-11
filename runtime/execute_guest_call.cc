@@ -28,7 +28,8 @@
 namespace berberis {
 
 void ExecuteGuestCall(ThreadState* state) {
-  auto* thread = GetGuestThread(state);
+  CHECK(state);
+  auto* thread = GetGuestThread(*state);
   GuestCallExecution guest_call_execution{.parent = thread->guest_call_execution(),
                                           .sp = GetStackRegister(GetCPUState(state))};
 
