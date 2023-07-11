@@ -52,29 +52,18 @@ class Decoder {
   // yet known to decoder RISC-V instructions robust.
 
   enum class AmoOpcode {
-    kLrW = 0b00010'010,
-    kScW = 0b00011'010,
-    kAmoswapW = 0b00001'010,
-    kAmoaddW = 0b00000'010,
-    kAmoxorW = 0b00100'010,
-    kAmoandW = 0b01100'010,
-    kAmoorW = 0b01000'010,
-    kAmominW = 0b10000'010,
-    kAmomaxW = 0b10100'010,
-    kAmominuW = 0b11000'010,
-    kAmomaxuW = 0b11100'010,
-    kLrD = 0b00010'011,
-    kScD = 0b00011'011,
-    kAmoswapD = 0b00001'011,
-    kAmoaddD = 0b00000'011,
-    kAmoxorD = 0b00100'011,
-    kAmoandD = 0b01100'011,
-    kAmoorD = 0b01000'011,
-    kAmominD = 0b10000'011,
-    kAmomaxD = 0b10100'011,
-    kAmominuD = 0b11000'011,
-    kAmomaxuD = 0b11100'011,
-    kMaxValue = 0b11111'111,
+    kLr = 0b00010,
+    kSc = 0b00011,
+    kAmoswap = 0b00001,
+    kAmoadd = 0b00000,
+    kAmoxor = 0b00100,
+    kAmoand = 0b01100,
+    kAmoor = 0b01000,
+    kAmomin = 0b10000,
+    kAmomax = 0b10100,
+    kAmominu = 0b11000,
+    kAmomaxu = 0b11100,
+    kMaxValue = 0b11111,
   };
 
   enum class BranchOpcode {
@@ -284,6 +273,7 @@ class Decoder {
 
   struct AmoArgs {
     AmoOpcode opcode;
+    StoreOperandType operand_type;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
@@ -1096,9 +1086,11 @@ class Decoder {
     if (high_opcode == 0b00010 && GetBits<uint8_t, 20, 5>() != 0) {
       return Undefined();
     }
-    AmoOpcode opcode = AmoOpcode{low_opcode | (high_opcode << 3)};
+    AmoOpcode opcode = AmoOpcode{high_opcode};
+    StoreOperandType operand_type = StoreOperandType{low_opcode};
     const AmoArgs args = {
         .opcode = opcode,
+        .operand_type = operand_type,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
