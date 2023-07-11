@@ -18,28 +18,28 @@
 
 namespace berberis {
 
-void SetStackRegister(CPUState* cpu, GuestAddr val) {
-  SetXReg<SP>(*cpu, val);
+void SetStackRegister(CPUState& cpu, GuestAddr val) {
+  SetXReg<SP>(cpu, val);
 }
 
-GuestAddr GetStackRegister(CPUState* cpu) {
-  return GetXReg<SP>(*cpu);
+GuestAddr GetStackRegister(const CPUState& cpu) {
+  return GetXReg<SP>(cpu);
 }
 
-void SetLinkRegister(CPUState* cpu, GuestAddr val) {
-  SetXReg<RA>(*cpu, val);
+void SetLinkRegister(CPUState& cpu, GuestAddr val) {
+  SetXReg<RA>(cpu, val);
 }
 
 GuestAddr GetLinkRegister(const CPUState& cpu) {
   return GetXReg<RA>(cpu);
 }
 
-void SetTlsAddr(ThreadState* state, GuestAddr addr) {
-  SetXReg<TP>(state->cpu, addr);
+void SetTlsAddr(ThreadState& state, GuestAddr addr) {
+  SetXReg<TP>(state.cpu, addr);
 }
 
-GuestAddr GetTlsAddr(const ThreadState* state) {
-  return GetXReg<TP>(state->cpu);
+GuestAddr GetTlsAddr(const ThreadState& state) {
+  return GetXReg<TP>(state.cpu);
 }
 
 void InitFloatingPointState() {

@@ -121,8 +121,8 @@ void FlushGuestCodeCache() {
       // ATTENTION! this is the only place we access pending_signals_status
       // from other thread!
       uint8_t old_status = kPendingSignalsEnabled;
-      GetPendingSignalsStatusAtomic(thread->state())
-          ->compare_exchange_strong(old_status, kPendingSignalsPresent, std::memory_order_acq_rel);
+      GetPendingSignalsStatusAtomic(*thread->state())
+          .compare_exchange_strong(old_status, kPendingSignalsPresent, std::memory_order_acq_rel);
     }
   });
 }
@@ -172,9 +172,9 @@ GuestThread* AttachCurrentThread(bool register_dtor, bool* attached) {
   // If thread is attached in HandleHostSignal we must run guest handler
   // immediately because we detach guest thread before exit from HandleHostSignal.
   // All non-reentrant code in runtime must be protected with ScopedPendingSignalsEnabler.
-  *GetPendingSignalsStatusAtomic(thread->state()) = kPendingSignalsDisabled;
+  GetPendingSignalsStatusAtomic(*thread->state()) = kPendingSignalsDisabled;
   // AttachCurrentThread is never called from generated code.
-  SetResidence(thread->state(), kOutsideGeneratedCode);
+  SetResidence(*thread->state(), kOutsideGeneratedCode);
 
   *attached = true;
   return thread;
