@@ -95,6 +95,9 @@ class TextAssemblerX86 {
       return arg_no_;
     }
 
+    constexpr bool operator==(const Register& other) const { return arg_no() == other.arg_no(); }
+    constexpr bool operator!=(const Register& other) const { return arg_no() != other.arg_no(); }
+
     static constexpr int kNoRegister = -1;
     static constexpr int kStackPointer = -2;
 
@@ -116,6 +119,9 @@ class TextAssemblerX86 {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
+
+    constexpr bool operator==(const X87Register& other) const { return arg_no_ == other.arg_no_; }
+    constexpr bool operator!=(const X87Register& other) const { return arg_no_ != other.arg_no_; }
 
     template <typename MacroAssembler>
     friend const std::string ToGasArgument(const X87Register& reg, MacroAssembler*) {
@@ -139,6 +145,9 @@ class TextAssemblerX86 {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
+
+    constexpr bool operator==(const XMMRegister& other) const { return arg_no() == other.arg_no(); }
+    constexpr bool operator!=(const XMMRegister& other) const { return arg_no() != other.arg_no(); }
 
     template <typename MacroAssembler>
     friend const std::string ToGasArgument(const XMMRegister& reg, MacroAssembler*) {
@@ -325,7 +334,7 @@ template <typename Assembler>
 template <typename... Args>
 inline void TextAssemblerX86<Assembler>::Instruction(const char* name, Condition cond, const Args&... args) {
   char name_with_condition[8] = {};
-  if (strcmp(name, "Cmovl") == 0) {
+  if (strcmp(name, "Cmovl") == 0 || strcmp(name, "Cmovq") == 0) {
     strcpy(name_with_condition, "Cmov");
   } else if (strcmp(name, "Jcc") == 0) {
     strcpy(name_with_condition, "J");
@@ -389,11 +398,18 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, Condition
 template <typename Assembler>
 template <typename... Args>
 inline void TextAssemblerX86<Assembler>::Instruction(const char* name, const Args&... args) {
-  for (auto it : std::array<std::tuple<const char*, const char*>, 12>{
+  for (auto it : std::array<std::tuple<const char*, const char*>, 18>{
            {// Note: SSE doesn't include simple register-to-register move instruction.
             // You are supposed to use one of half-dozen variants depending on what you
             // are doing.
             //
+            // Pseudoinstructions with embedded "lock" prefix.
+            {"LockCmpXchg8b", "Lock; CmppXchg8b"},
+            {"LockCmpXchg16b", "Lock; CmppXchg16b"},
+            {"LockCmpXchgb", "Lock; CmppXchgb"},
+            {"LockCmpXchgl", "Lock; CmppXchgl"},
+            {"LockCmpXchgq", "Lock; CmppXchgq"},
+            {"LockCmpXchgw", "Lock; CmppXchgq"},
             // Our assembler has Pmov instruction which is supposed to pick the best
             // option - but currently we just map Pmov to Movaps.
             {"Pmov", "Movaps"},
