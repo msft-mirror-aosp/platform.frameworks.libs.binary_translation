@@ -47,7 +47,7 @@ template <typename FloatType>
 void MacroAssembler<Assembler>::MacroFeq(Register result, XMMRegister src1, XMMRegister src2) {
   Cmpeqs<FloatType>(src1, src2);
   Mov<FloatType>(result, src1);
-  Andl(result, 1);
+  And<int32_t>(result, 1);
 }
 
 template <typename Assembler>
@@ -58,7 +58,7 @@ void MacroAssembler<Assembler>::MacroFeqAVX(Register result,
                                             XMMRegister tmp) {
   Vcmpeqs<FloatType>(tmp, src1, src2);
   Mov<FloatType>(result, tmp);
-  Andl(result, 1);
+  And<int32_t>(result, 1);
 }
 
 template <typename Assembler>
@@ -66,7 +66,7 @@ template <typename FloatType>
 void MacroAssembler<Assembler>::MacroFle(Register result, XMMRegister src1, XMMRegister src2) {
   Cmples<FloatType>(src1, src2);
   Mov<FloatType>(result, src1);
-  Andl(result, 1);
+  And<int32_t>(result, 1);
 }
 
 template <typename Assembler>
@@ -77,7 +77,7 @@ void MacroAssembler<Assembler>::MacroFleAVX(Register result,
                                             XMMRegister tmp) {
   Vcmples<FloatType>(tmp, src1, src2);
   Mov<FloatType>(result, tmp);
-  Andl(result, 1);
+  And<int32_t>(result, 1);
 }
 
 template <typename Assembler>
@@ -85,7 +85,7 @@ template <typename FloatType>
 void MacroAssembler<Assembler>::MacroFlt(Register result, XMMRegister src1, XMMRegister src2) {
   Cmplts<FloatType>(src1, src2);
   Mov<FloatType>(result, src1);
-  Andl(result, 1);
+  And<int32_t>(result, 1);
 }
 
 template <typename Assembler>
@@ -96,7 +96,7 @@ void MacroAssembler<Assembler>::MacroFltAVX(Register result,
                                             XMMRegister tmp) {
   Vcmplts<FloatType>(tmp, src1, src2);
   Mov<FloatType>(result, tmp);
-  Andl(result, 1);
+  And<int32_t>(result, 1);
 }
 
 template <typename Assembler>

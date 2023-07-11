@@ -459,6 +459,17 @@
     },
     {
       "encodings": {
+        "LockCmpXchgq": { "opcodes": [ "F0", "0F", "B1" ], "reg_to_rm": true }
+      },
+      "args": [
+        { "class": "RAX", "usage": "use_def" },
+        { "class": "Mem64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "7E" ], "reg_to_rm": true },
         "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "7E" ], "reg_to_rm": true }
       },
