@@ -71,7 +71,7 @@ Options ParseArgs(int argc, char* argv[]) {
   Options opts{.start_addr = kNullGuestAddr};
 
   while (true) {
-    int c = getopt(argc, argv, "ha:");
+    int c = getopt(argc, argv, "+ha:");
     if (c < 0) {
       break;
     }
