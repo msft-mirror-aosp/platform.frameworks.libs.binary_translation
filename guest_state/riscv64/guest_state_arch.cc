@@ -34,12 +34,12 @@ GuestAddr GetLinkRegister(const CPUState& cpu) {
   return GetXReg<RA>(cpu);
 }
 
-void SetTlsAddr(ThreadState* state, GuestAddr addr) {
-  SetXReg<TP>(state->cpu, addr);
+void SetTlsAddr(ThreadState& state, GuestAddr addr) {
+  SetXReg<TP>(state.cpu, addr);
 }
 
-GuestAddr GetTlsAddr(const ThreadState* state) {
-  return GetXReg<TP>(state->cpu);
+GuestAddr GetTlsAddr(const ThreadState& state) {
+  return GetXReg<TP>(state.cpu);
 }
 
 void InitFloatingPointState() {
