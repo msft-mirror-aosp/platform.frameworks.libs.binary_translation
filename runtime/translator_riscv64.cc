@@ -22,6 +22,7 @@
 #include <tuple>
 
 #include "berberis/assembler/machine_code.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/config_globals.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_map_shadow.h"
@@ -209,7 +210,8 @@ extern "C" __attribute__((__visibility__("hidden"))) void berberis_HandleInterpr
 
 extern "C" __attribute__((__visibility__("hidden"))) const void* berberis_GetDispatchAddress(
     ThreadState* state) {
-  if (ArePendingSignalsPresent(state)) {
+  CHECK(state);
+  if (ArePendingSignalsPresent(*state)) {
     return kEntryExitGeneratedCode;
   }
   return TranslationCache::GetInstance()->GetHostCodePtr(state->cpu.insn_addr)->load();
