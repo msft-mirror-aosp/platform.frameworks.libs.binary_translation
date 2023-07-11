@@ -34,7 +34,6 @@
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 
-#include "atomics.h"
 #include "fp_regs.h"
 
 namespace berberis {
@@ -208,71 +207,6 @@ class Interpreter {
         return int32_t(arg1) % int32_t(arg2);
       case Decoder::Op32Opcode::kRemuw:
         return static_cast<int32_t>(uint32_t(arg1) % uint32_t(arg2));
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  Register Amo(Decoder::AmoOpcode opcode, Register arg1, Register arg2, bool aq, bool rl) {
-    switch (opcode) {
-      // TODO(b/287347834): Implement reservation semantics when it's added to runtime_primitives.
-      case Decoder::AmoOpcode::kLrW:
-        return Load<int32_t>(ToHostAddr<void>(arg1));
-      case Decoder::AmoOpcode::kLrD:
-        return Load<uint64_t>(ToHostAddr<void>(arg1));
-      case Decoder::AmoOpcode::kScW:
-        Store<uint32_t>(ToHostAddr<void>(arg1), arg2);
-        return 0;
-      case Decoder::AmoOpcode::kScD:
-        Store<uint64_t>(ToHostAddr<void>(arg1), arg2);
-        return 0;
-
-      case Decoder::AmoOpcode::kAmoswapW:
-        return AtomicExchange<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoswapD:
-        return AtomicExchange<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmoaddW:
-        return AtomicAdd<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoaddD:
-        return AtomicAdd<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmoxorW:
-        return AtomicXor<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoxorD:
-        return AtomicXor<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmoandW:
-        return AtomicAnd<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoandD:
-        return AtomicAnd<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmoorW:
-        return AtomicOr<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoorD:
-        return AtomicOr<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmominW:
-        return AtomicMin<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmominD:
-        return AtomicMin<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmomaxW:
-        return AtomicMax<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmomaxD:
-        return AtomicMax<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmominuW:
-        return AtomicMinu<uint32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmominuD:
-        return AtomicMinu<uint64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmomaxuW:
-        return AtomicMaxu<uint32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmomaxuD:
-        return AtomicMaxu<uint64_t>(arg1, arg2, aq, rl);
-
       default:
         Unimplemented();
         return {};
