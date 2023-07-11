@@ -40,9 +40,68 @@ class SemanticsPlayer {
   void Amo(const typename Decoder::AmoArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
-    Register result = listener_->Amo(args.opcode, arg1, arg2, args.aq, args.rl);
+    Register result;
+    switch (args.operand_type) {
+      case Decoder::StoreOperandType::k32bit:
+        result = Amo<int32_t>(args.opcode, arg1, arg2, args.aq, args.rl);
+        break;
+      case Decoder::StoreOperandType::k64bit:
+        result = Amo<int64_t>(args.opcode, arg1, arg2, args.aq, args.rl);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
     SetRegOrIgnore(args.dst, result);
   };
+
+  template <typename IntType>
+  Register Amo(typename Decoder::AmoOpcode opcode, Register arg1, Register arg2, bool aq, bool rl) {
+    if (aq) {
+      if (rl) {
+        return Amo<IntType, true, true>(opcode, arg1, arg2);
+      } else {
+        return Amo<IntType, true, false>(opcode, arg1, arg2);
+      }
+    } else {
+      if (rl) {
+        return Amo<IntType, false, true>(opcode, arg1, arg2);
+      } else {
+        return Amo<IntType, false, false>(opcode, arg1, arg2);
+      }
+    }
+  }
+
+  template <typename IntType, bool aq, bool rl>
+  Register Amo(typename Decoder::AmoOpcode opcode, Register arg1, Register arg2) {
+    switch (opcode) {
+      case Decoder::AmoOpcode::kLr:
+        return listener_->template Lr<IntType, aq, rl>(arg1);
+      case Decoder::AmoOpcode::kSc:
+        return listener_->template Sc<IntType, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmoswap:
+        return listener_->template AmoSwap<IntType, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmoadd:
+        return listener_->template AmoAdd<IntType, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmoxor:
+        return listener_->template AmoXor<IntType, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmoand:
+        return listener_->template AmoAnd<IntType, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmoor:
+        return listener_->template AmoOr<IntType, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmomin:
+        return listener_->template AmoMin<std::make_signed_t<IntType>, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmomax:
+        return listener_->template AmoMax<std::make_signed_t<IntType>, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmominu:
+        return listener_->template AmoMin<std::make_unsigned_t<IntType>, aq, rl>(arg1, arg2);
+      case Decoder::AmoOpcode::kAmomaxu:
+        return listener_->template AmoMax<std::make_unsigned_t<IntType>, aq, rl>(arg1, arg2);
+      default:
+        Unimplemented();
+        return {};
+    }
+  }
 
   void Auipc(const typename Decoder::UpperImmArgs& args) {
     Register result = listener_->Auipc(args.imm);

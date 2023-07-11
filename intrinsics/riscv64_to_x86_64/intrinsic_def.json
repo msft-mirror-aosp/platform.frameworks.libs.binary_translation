@@ -14,6 +14,148 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
+  "AmoAdd": {
+    "comment": "Atomic add, like __atomic_fetch_add. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
+  },
+  "AmoAnd": {
+    "comment": "Atomic and, like __atomic_fetch_and. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
+  },
+  "AmoMax": {
+    "comment": "Atomic maximum, like __atomic_fetch_max. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true",
+      "uint32_t, false, false",
+      "uint32_t, false, true",
+      "uint32_t, true, false",
+      "uint32_t, true, true",
+      "uint64_t, false, false",
+      "uint64_t, false, true",
+      "uint64_t, true, false",
+      "uint64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
+  },
+  "AmoMin": {
+    "comment": "Atomic minimum, like __atomic_fetch_min. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true",
+      "uint32_t, false, false",
+      "uint32_t, false, true",
+      "uint32_t, true, false",
+      "uint32_t, true, true",
+      "uint64_t, false, false",
+      "uint64_t, false, true",
+      "uint64_t, true, false",
+      "uint64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
+  },
+  "AmoOr": {
+    "comment": "Atomic or, like __atomic_fetch_or. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
+  },
+  "AmoSwap": {
+    "comment": "Atomic exchange, like __atomic_exchange_n. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
+  },
+  "AmoXor": {
+    "comment": "Atomic exclusive or, like __atomic_fetch_xor. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
+  },
   "CanonicalizeNan": {
     "comment": "Unbox small floating-point value from NaN",
     "class": "template",
@@ -263,6 +405,24 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "Lr": {
+    "comment": "Atomic load+reserve (see RISC-V manual). Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
+  },
   "NanBox": {
     "comment": [
       "NaN-box small floating-point value into NaN.",
@@ -273,6 +433,24 @@
     "variants": [ "Float32" ],
     "in": [ "Float64" ],
     "out": [ "Float64" ]
+  },
+  "Sc": {
+    "comment": "Store conditional (see RISC-V manual). Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": 1
   },
   "UnboxNan": {
     "comment": "Unbox small floating-point value from NaN",
