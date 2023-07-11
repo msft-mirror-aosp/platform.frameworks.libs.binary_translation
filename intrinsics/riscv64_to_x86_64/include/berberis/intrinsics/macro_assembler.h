@@ -30,6 +30,10 @@ namespace berberis {
 
 template <typename Assembler>
 class MacroAssembler : public Assembler {
+  template <typename IntType>
+  using ImmFormat =
+      std::conditional_t<sizeof(IntType) <= sizeof(int32_t), std::make_signed_t<IntType>, int32_t>;
+
  public:
   template <typename... Args>
   explicit MacroAssembler(Args&&... args) : Assembler(std::forward<Args>(args)...) {
@@ -46,7 +50,9 @@ class MacroAssembler : public Assembler {
 
 #include "berberis/intrinsics/macro_assembler_interface-inl.h"  // NOLINT generated file
 
-  using Assembler::Andl;
+  using Assembler::Bind;
+  using Assembler::Jcc;
+  using Assembler::MakeLabel;
   using Assembler::Pand;
   using Assembler::Pandn;
   using Assembler::Pmov;
@@ -123,29 +129,80 @@ class MacroAssembler : public Assembler {
   DEFINE_EXPAND_INSTRUCTION(if (dest == src) return, (Register dest, Register src), (dest, src))
 #undef DEFINE_EXPAND_INSTRUCTION
 
-#define DEFINE_MOV_INSTRUCTION(opt_check, parameters, arguments)                           \
+#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)                           \
   template <typename format>                                                               \
-  void Mov parameters {                                                                    \
+  std::enable_if_t<std::is_integral_v<format>, void> insn_name parameters {                \
     if constexpr (FormatIs<format, int8_t, uint8_t>) {                                     \
-      opt_check;                                                                           \
-      Assembler::Movb arguments;                                                           \
+      Assembler::insn_name##b arguments;                                                   \
     } else if constexpr (FormatIs<format, int16_t, uint16_t>) {                            \
-      opt_check;                                                                           \
-      Assembler::Movw arguments;                                                           \
+      Assembler::insn_name##w arguments;                                                   \
     } else if constexpr (FormatIs<format, int32_t, uint32_t>) {                            \
-      opt_check;                                                                           \
-      Assembler::Movl arguments;                                                           \
+      Assembler::insn_name##l arguments;                                                   \
     } else {                                                                               \
       static_assert(FormatIs<format, int64_t, uint64_t>,                                   \
                     "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported"); \
-      opt_check;                                                                           \
-      Assembler::Movq arguments;                                                           \
+      Assembler::insn_name##q arguments;                                                   \
     }                                                                                      \
   }
-  DEFINE_MOV_INSTRUCTION(, (Operand dest, Register src), (dest, src))
-  DEFINE_MOV_INSTRUCTION(, (Register dest, Operand src), (dest, src))
-  DEFINE_MOV_INSTRUCTION(if (dest == src) return, (Register dest, Register src), (dest, src))
-#undef DEFINE_MOV_INSTRUCTION
+  DEFINE_INT_INSTRUCTION(CmpXchg, (Operand dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(CmpXchg, (Register dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(LockCmpXchg, (Operand dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(Mov, (Operand dest, ImmFormat<format> imm), (dest, imm))
+  DEFINE_INT_INSTRUCTION(Mov, (Operand dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(Mov, (Register dest, std::make_signed_t<format> imm), (dest, imm))
+  DEFINE_INT_INSTRUCTION(Mov, (Register dest, Operand src), (dest, src))
+#define DEFINE_ARITH_INSTRUCTION(insn_name)                                              \
+  DEFINE_INT_INSTRUCTION(insn_name, (Operand dest, ImmFormat<format> imm), (dest, imm))  \
+  DEFINE_INT_INSTRUCTION(insn_name, (Operand dest, Register src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, ImmFormat<format> imm), (dest, imm)) \
+  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, Operand src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, Register src), (dest, src))
+  DEFINE_ARITH_INSTRUCTION(Adc)
+  DEFINE_ARITH_INSTRUCTION(Add)
+  DEFINE_ARITH_INSTRUCTION(And)
+  DEFINE_ARITH_INSTRUCTION(Cmp)
+  DEFINE_ARITH_INSTRUCTION(Or)
+  DEFINE_ARITH_INSTRUCTION(Sbb)
+  DEFINE_ARITH_INSTRUCTION(Sub)
+  DEFINE_ARITH_INSTRUCTION(Xor)
+#undef DEFINE_INT_INSTRUCTION
+
+#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)                       \
+  template <typename format>                                                           \
+  std::enable_if_t<std::is_integral_v<format>, void> insn_name parameters {            \
+    if constexpr (FormatIs<format, int16_t, uint16_t>) {                               \
+      Assembler::insn_name##w arguments;                                               \
+    } else if constexpr (FormatIs<format, int32_t, uint32_t>) {                        \
+      Assembler::insn_name##l arguments;                                               \
+    } else {                                                                           \
+      static_assert(FormatIs<format, int64_t, uint64_t>,                               \
+                    "Only int{16,32,64}_t or uint{16,32,64}_t formats are supported"); \
+      Assembler::insn_name##q arguments;                                               \
+    }                                                                                  \
+  }
+  DEFINE_INT_INSTRUCTION(Cmov, (Condition cond, Register dest, Operand src), (cond, dest, src))
+  DEFINE_INT_INSTRUCTION(Cmov, (Condition cond, Register dest, Register src), (cond, dest, src))
+#undef DEFINE_INT_INSTRUCTION
+
+  // Note: Mov<int32_t> from one register to that same register doesn't zero-out top 32bits,
+  // like real Movq would! If you want that effect then use Expand<tnt32_t, int32_t> instead!
+  template <typename format>
+  std::enable_if_t<std::is_integral_v<format>, void> Mov(Register dest, Register src) {
+    if (dest == src) {
+      return;
+    }
+    if constexpr (FormatIs<format, int8_t, uint8_t>) {
+      Assembler::Movb(dest, src);
+    } else if constexpr (FormatIs<format, int16_t, uint16_t>) {
+      Assembler::Movw(dest, src);
+    } else if constexpr (FormatIs<format, int32_t, uint32_t>) {
+      Assembler::Movl(dest, src);
+    } else {
+      static_assert(FormatIs<format, int64_t, uint64_t>,
+                    "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported");
+      Assembler::Movq(dest, src);
+    }
+  }
 
 #define DEFINE_XMM_INT_INSTRUCTION(insn_name, parameters, arguments)                       \
   template <typename format>                                                               \
