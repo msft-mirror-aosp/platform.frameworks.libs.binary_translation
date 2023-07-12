@@ -287,19 +287,11 @@ class Interpreter {
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   }
 
-  Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
-    switch (opcode) {
-      case Decoder::ShiftImmOpcode::kSlli:
-        return arg << imm;
-      case Decoder::ShiftImmOpcode::kSrli:
-        return arg >> imm;
-      case Decoder::ShiftImmOpcode::kSrai:
-        return bit_cast<int64_t>(arg) >> imm;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
+  Register Slli(Register arg, int8_t imm) { return arg << imm; }
+
+  Register Srli(Register arg, int8_t imm) { return arg >> imm; }
+
+  Register Srai(Register arg, int8_t imm) { return bit_cast<int64_t>(arg) >> imm; }
 
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
     switch (opcode) {
