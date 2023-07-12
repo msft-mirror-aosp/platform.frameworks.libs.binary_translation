@@ -40,7 +40,7 @@ void InitThreadState(ThreadState* state) {
 
   // ATTENTION: Set fields specific for current thread when actually attaching to host thread!
   state->thread = nullptr;
-  SetTlsAddr(state, 0);
+  SetTlsAddr(*state, 0);
 
   state->pending_signals_status.store(kPendingSignalsDisabled, std::memory_order_relaxed);
   state->residence = kOutsideGeneratedCode;
@@ -67,28 +67,28 @@ void DestroyThreadState(ThreadState* state) {
 }
 
 class GuestThread;
-void SetGuestThread(ThreadState* state, GuestThread* thread) {
-  state->thread = thread;
+void SetGuestThread(ThreadState& state, GuestThread* thread) {
+  state.thread = thread;
 }
 
-GuestThread* GetGuestThread(const ThreadState* state) {
-  return state->thread;
+GuestThread* GetGuestThread(const ThreadState& state) {
+  return state.thread;
 }
 
-GuestThreadResidence GetResidence(ThreadState* state) {
-  return state->residence;
+GuestThreadResidence GetResidence(const ThreadState& state) {
+  return state.residence;
 }
 
-void SetResidence(ThreadState* state, GuestThreadResidence residence) {
-  state->residence = residence;
+void SetResidence(ThreadState& state, GuestThreadResidence residence) {
+  state.residence = residence;
 }
 
-std::atomic<uint_least8_t>* GetPendingSignalsStatusAtomic(ThreadState* state) {
-  return &state->pending_signals_status;
+std::atomic<uint_least8_t>& GetPendingSignalsStatusAtomic(ThreadState& state) {
+  return state.pending_signals_status;
 }
 
-bool ArePendingSignalsPresent(const ThreadState* state) {
-  return state->pending_signals_status.load(std::memory_order_relaxed) == kPendingSignalsPresent;
+bool ArePendingSignalsPresent(const ThreadState& state) {
+  return state.pending_signals_status.load(std::memory_order_relaxed) == kPendingSignalsPresent;
 }
 
 CPUState* GetCPUState(ThreadState* state) {
