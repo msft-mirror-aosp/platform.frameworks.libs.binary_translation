@@ -236,21 +236,24 @@ Register LiteTranslator::OpImm32(Decoder::OpImm32Opcode opcode, Register arg, in
   return res;
 }
 
-Register LiteTranslator::ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
-  using ShiftImmOpcode = Decoder::ShiftImmOpcode;
+Register LiteTranslator::Slli(Register arg, int8_t imm) {
   Register res = AllocTempReg();
   as_.Movq(res, arg);
-  as_.Movq(as_.rcx, imm);
-  if (opcode == ShiftImmOpcode::kSrli) {
-    as_.ShrqByCl(res);
-  } else if (opcode == ShiftImmOpcode::kSlli) {
-    as_.ShlqByCl(res);
-  } else if (opcode == ShiftImmOpcode::kSrai) {
-    as_.SarqByCl(res);
-  } else {
-    Unimplemented();
-    return {};
-  }
+  as_.Shlq(res, imm);
+  return res;
+}
+
+Register LiteTranslator::Srli(Register arg, int8_t imm) {
+  Register res = AllocTempReg();
+  as_.Movq(res, arg);
+  as_.Shrq(res, imm);
+  return res;
+}
+
+Register LiteTranslator::Srai(Register arg, int8_t imm) {
+  Register res = AllocTempReg();
+  as_.Movq(res, arg);
+  as_.Sarq(res, imm);
   return res;
 }
 
