@@ -143,9 +143,9 @@ void RestoreRegsFromJumpBuf(ThreadState* state, void* guest_jmp_buf, int retval)
   memcpy(state->cpu.f + S2, buf + kJmpBufFloatingPointBaseWord + 2, 10 * kFRegSize);
 
   // Function return
-  CPUState* cpu = &state->cpu;
-  SetInsnAddr(cpu, GetLinkRegister(*cpu));
-  SetXReg<A0>(*cpu, retval);
+  CPUState& cpu = state->cpu;
+  SetInsnAddr(cpu, GetLinkRegister(cpu));
+  SetXReg<A0>(cpu, retval);
 }
 
 jmp_buf** GetHostJmpBufPtr(void* guest_jmp_buf) {

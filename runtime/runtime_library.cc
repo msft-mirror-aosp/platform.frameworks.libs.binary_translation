@@ -37,10 +37,10 @@ extern "C" __attribute__((__visibility__("hidden"))) void berberis_HandleNoExec(
   ScopedPendingSignalsDisabler disable_pending_signals(GetGuestThread(*state));
   // LR register is usually useful even if we came here via jump instead of
   // call because compilers rarely use LR for general-purpose calculations.
-  CPUState* cpu = GetCPUState(state);
+  CPUState& cpu = GetCPUState(*state);
   TRACE("Trying to execute non-executable code at %p called from %p",
         ToHostAddr<void>(GetInsnAddr(cpu)),
-        ToHostAddr<void>(GetLinkRegister(*cpu)));
+        ToHostAddr<void>(GetLinkRegister(cpu)));
   siginfo_t info{};
   info.si_signo = SIGSEGV;
   info.si_code = SEGV_ACCERR;

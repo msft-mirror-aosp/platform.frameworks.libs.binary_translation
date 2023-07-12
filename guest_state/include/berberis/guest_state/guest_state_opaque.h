@@ -55,19 +55,17 @@ enum PendingSignalsStatus : uint_least8_t {
 // Values are interpreted as PendingSignalsStatus.
 std::atomic<uint_least8_t>& GetPendingSignalsStatusAtomic(ThreadState& state);
 
-CPUState* GetCPUState(ThreadState* state);
+const CPUState& GetCPUState(const ThreadState& state);
+CPUState& GetCPUState(ThreadState& state);
 
-void SetStackRegister(CPUState* cpu, GuestAddr val);
+void SetStackRegister(CPUState& cpu, GuestAddr val);
+GuestAddr GetStackRegister(const CPUState& cpu);
 
-GuestAddr GetStackRegister(CPUState* cpu);
-
-void SetLinkRegister(CPUState* cpu, GuestAddr val);
-
+void SetLinkRegister(CPUState& cpu, GuestAddr val);
 GuestAddr GetLinkRegister(const CPUState& cpu);
 
-void SetInsnAddr(CPUState* cpu, GuestAddr addr);
-
-GuestAddr GetInsnAddr(const CPUState* cpu);
+void SetInsnAddr(CPUState& cpu, GuestAddr addr);
+GuestAddr GetInsnAddr(const CPUState& cpu);
 
 // TODO(b/28058920): Refactor into GuestThread.
 bool ArePendingSignalsPresent(const ThreadState& state);
