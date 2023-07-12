@@ -800,6 +800,13 @@ TEST_F(Riscv64InterpreterTest, StoreFpInstructions) {
   InterpretStoreFp(0x0020b427, kDataToStore);
 }
 
+TEST_F(Riscv64InterpreterTest, AtomicStoreInstructions) {
+  // Scw
+  InterpretAtomicStore(0x1820a1af, kDataToStore & 0xffff'ffffULL);
+  // Scd
+  InterpretAtomicStore(0x1820b1af, kDataToStore);
+}
+
 TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   const char message[] = "Hello";
   // Prepare a pipe to write to.
