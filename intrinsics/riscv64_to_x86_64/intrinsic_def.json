@@ -448,7 +448,7 @@
       "int64_t, true, true"
     ],
     "in": [ "int64_t", "Type0" ],
-    "out": [ "Type0" ],
+    "out": [ "int64_t" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
     "has_side_effects": 1
   },
