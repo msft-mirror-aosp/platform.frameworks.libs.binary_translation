@@ -31,8 +31,8 @@ ThreadState* CreateThreadState();
 void DestroyThreadState(ThreadState* state);
 
 class GuestThread;
-void SetGuestThread(ThreadState* state, GuestThread* thread);
-GuestThread* GetGuestThread(const ThreadState* state);
+void SetGuestThread(ThreadState& state, GuestThread* thread);
+GuestThread* GetGuestThread(const ThreadState& state);
 
 // Track whether we are in generated code or not.
 enum GuestThreadResidence : uint8_t {
@@ -40,8 +40,8 @@ enum GuestThreadResidence : uint8_t {
   kInsideGeneratedCode = 1,
 };
 
-GuestThreadResidence GetResidence(ThreadState* state);
-void SetResidence(ThreadState* state, GuestThreadResidence residence);
+GuestThreadResidence GetResidence(const ThreadState& state);
+void SetResidence(ThreadState& state, GuestThreadResidence residence);
 
 // TODO(b/28058920): Refactor into GuestThread.
 // Pending signals status state machine:
@@ -53,7 +53,7 @@ enum PendingSignalsStatus : uint_least8_t {
 };
 
 // Values are interpreted as PendingSignalsStatus.
-std::atomic<uint_least8_t>* GetPendingSignalsStatusAtomic(ThreadState* state);
+std::atomic<uint_least8_t>& GetPendingSignalsStatusAtomic(ThreadState& state);
 
 CPUState* GetCPUState(ThreadState* state);
 
@@ -70,10 +70,9 @@ void SetInsnAddr(CPUState* cpu, GuestAddr addr);
 GuestAddr GetInsnAddr(const CPUState* cpu);
 
 // TODO(b/28058920): Refactor into GuestThread.
-bool ArePendingSignalsPresent(const ThreadState* state);
+bool ArePendingSignalsPresent(const ThreadState& state);
 
-void SetTlsAddr(ThreadState*, GuestAddr addr);
-
+void SetTlsAddr(ThreadState& state, GuestAddr addr);
 GuestAddr GetTlsAddr(const ThreadState& cpu);
 
 void InitFloatingPointState();
