@@ -607,7 +607,17 @@ class SemanticsPlayer {
                                    return listener_->OpImm32(args.opcode, arg, args.imm);
                                  },
                                  [&](const typename Decoder::ShiftImmArgs& args) {
-                                   return listener_->ShiftImm(args.opcode, arg, args.imm);
+                                   switch (args.opcode) {
+                                     case Decoder::ShiftImmOpcode::kSlli:
+                                       return listener_->Slli(arg, args.imm);
+                                     case Decoder::ShiftImmOpcode::kSrli:
+                                       return listener_->Srli(arg, args.imm);
+                                     case Decoder::ShiftImmOpcode::kSrai:
+                                       return listener_->Srai(arg, args.imm);
+                                     default:
+                                       Unimplemented();
+                                       return Register{};
+                                   }
                                  },
                                  [&](const typename Decoder::ShiftImm32Args& args) {
                                    return listener_->ShiftImm32(args.opcode, arg, args.imm);
