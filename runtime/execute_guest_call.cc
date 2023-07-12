@@ -31,7 +31,7 @@ void ExecuteGuestCall(ThreadState* state) {
   CHECK(state);
   auto* thread = GetGuestThread(*state);
   GuestCallExecution guest_call_execution{.parent = thread->guest_call_execution(),
-                                          .sp = GetStackRegister(GetCPUState(state))};
+                                          .sp = GetStackRegister(GetCPUState(*state))};
 
   // ATTENTION: don't save/restore signal mask, this is done by guest!
   sigsetjmp(guest_call_execution.buf, 0);
@@ -42,7 +42,7 @@ void ExecuteGuestCall(ThreadState* state) {
 
   thread->set_guest_call_execution(guest_call_execution.parent);
 
-  if (guest_call_execution.sp == GetStackRegister(GetCPUState(state))) {
+  if (guest_call_execution.sp == GetStackRegister(GetCPUState(*state))) {
     return;
   }
 
@@ -52,7 +52,7 @@ void ExecuteGuestCall(ThreadState* state) {
     // TODO(b/232598137): It'd be more reliable to also check (stop_pc ==
     // insn_addr) for the matching execution, but currently stop_pc is always the
     // same for all executions.
-    if (curr->sp == GetStackRegister(GetCPUState(state))) {
+    if (curr->sp == GetStackRegister(GetCPUState(*state))) {
       TRACE("Detected statically linked longjmp");
       siglongjmp(curr->buf, 1);
     }
@@ -60,7 +60,7 @@ void ExecuteGuestCall(ThreadState* state) {
 
   LOG_ALWAYS_FATAL("Guest call didn't restore sp: expected %p, actual %p",
                    ToHostAddr<void>(guest_call_execution.sp),
-                   ToHostAddr<void>(GetStackRegister(GetCPUState(state))));
+                   ToHostAddr<void>(GetStackRegister(GetCPUState(*state))));
 }
 
 }  // namespace berberis

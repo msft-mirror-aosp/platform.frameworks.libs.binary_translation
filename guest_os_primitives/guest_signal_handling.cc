@@ -117,14 +117,14 @@ void GuestThread::SwitchToSigAltStack() {
   if (sig_alt_stack_ && !IsOnSigAltStack()) {
     // TODO(b/289563835): Try removing `- 16` while ensuring app compatibility.
     // Reliable context on why we use `- 16` here seems to be lost.
-    SetStackRegister(GetCPUState(state_), ToGuestAddr(sig_alt_stack_) + sig_alt_stack_size_ - 16);
+    SetStackRegister(GetCPUState(*state_), ToGuestAddr(sig_alt_stack_) + sig_alt_stack_size_ - 16);
   }
 }
 
 bool GuestThread::IsOnSigAltStack() const {
   CHECK_NE(sig_alt_stack_, nullptr);
   const char* ss_start = static_cast<const char*>(sig_alt_stack_);
-  const char* ss_curr = ToHostAddr<const char>(GetStackRegister(GetCPUState(state_)));
+  const char* ss_curr = ToHostAddr<const char>(GetStackRegister(GetCPUState(*state_)));
   return ss_curr >= ss_start && ss_curr < ss_start + sig_alt_stack_size_;
 }
 
