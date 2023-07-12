@@ -29,7 +29,7 @@ namespace berberis {
 // ATTENTION: this symbol gets called directly, without PLT. To keep text
 // sharable we should prevent preemption of this symbol, so do not export it!
 // TODO(b/232598137): may be set default visibility to protected instead?
-extern "C" __attribute__((__visibility__("hidden"))) void berberis_HandleNoExec(
+extern "C" __attribute__((used, __visibility__("hidden"))) void berberis_HandleNoExec(
     ThreadState* state) {
   CHECK(state);
   // We are about to raise SIGSEGV. Let guest handler (if any) run immediately.
