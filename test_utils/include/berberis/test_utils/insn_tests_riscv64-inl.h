@@ -26,7 +26,9 @@
 // #include <cstdint>
 // #include <initializer_list>
 // #include <tuple>
+// #include <vector>
 //
+// #include "berberis/base/bit_util.h"
 // #include "berberis/guest_state/guest_addr.h"
 // #include "berberis/guest_state/guest_state_riscv64.h"
 //
@@ -37,6 +39,44 @@
 #ifndef TESTSUITE
 #error "TESTSUITE is undefined"
 #endif
+
+// TODO(b/276787675): remove these files from interpreter when they are no longer needed there.
+// Maybe extract FPvalueToFPReg and TupleMap to a separate header?
+inline constexpr class FPValueToFPReg {
+ public:
+  uint64_t operator()(uint64_t value) const { return value; }
+  uint64_t operator()(float value) const {
+    return bit_cast<uint32_t>(value) | 0xffff'ffff'0000'0000;
+  }
+  uint64_t operator()(double value) const { return bit_cast<uint64_t>(value); }
+} kFPValueToFPReg;
+
+// Helper function for the unit tests. Can be used to normalize values before processing.
+//
+// “container” is supposed to be container of tuples, e.g. std::initializer_list<std::tuple<…>>.
+// “transformer” would be applied to the individual elements of tuples in the following loop:
+//
+//   for (auto& [value1, value2, value3] : TupleMap(container, [](auto value){ return …; })) {
+//     …
+//   }
+//
+// Returns vector of tuples where each tuple element is processed by transformer.
+template <typename ContainerType, typename Transformer>
+decltype(auto) TupleMap(const ContainerType& container, const Transformer& transformer) {
+  using std::begin;
+
+  auto transform_tuple_func = [&transformer](auto&&... value) {
+    return std::tuple{transformer(value)...};
+  };
+
+  std::vector<decltype(std::apply(transform_tuple_func, *begin(container)))> result;
+
+  for (const auto& tuple : container) {
+    result.push_back(std::apply(transform_tuple_func, tuple));
+  }
+
+  return result;
+}
 
 class TESTSUITE : public ::testing::Test {
  public:
@@ -148,6 +188,17 @@ class TESTSUITE : public ::testing::Test {
       SetXReg<3>(state_.cpu, arg2);
       EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
+  void TestOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg1);
+      SetFReg<3>(state_.cpu, arg2);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
 
@@ -970,6 +1021,104 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   TestOpImm(0x0001509b, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
   // Sraiw
   TestOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
+}
+
+TEST_F(TESTSUITE, OpFpInstructions) {
+  // FAdd.S
+  TestOpFp(0x003100d3, {std::tuple{1.0f, 2.0f, 3.0f}});
+  // FAdd.D
+  TestOpFp(0x023100d3, {std::tuple{1.0, 2.0, 3.0}});
+  // FSub.S
+  TestOpFp(0x083100d3, {std::tuple{3.0f, 2.0f, 1.0f}});
+  // FSub.D
+  TestOpFp(0x0a3100d3, {std::tuple{3.0, 2.0, 1.0}});
+  // FMul.S
+  TestOpFp(0x103100d3, {std::tuple{3.0f, 2.0f, 6.0f}});
+  // FMul.D
+  TestOpFp(0x123100d3, {std::tuple{3.0, 2.0, 6.0}});
+  // FDiv.S
+  TestOpFp(0x183100d3, {std::tuple{6.0f, 2.0f, 3.0f}});
+  // FDiv.D
+  TestOpFp(0x1a3100d3, {std::tuple{6.0, 2.0, 3.0}});
+
+  // FSgnj.S
+  TestOpFp(0x203100d3,
+           {std::tuple{1.0f, 2.0f, 1.0f},
+            {-1.0f, 2.0f, 1.0f},
+            {1.0f, -2.0f, -1.0f},
+            {-1.0f, -2.0f, -1.0f}});
+  // FSgnj.D
+  TestOpFp(0x223100d3,
+           {
+               std::tuple{1.0, 2.0, 1.0},
+               {-1.0, 2.0, 1.0},
+               {1.0, -2.0, -1.0},
+               {-1.0, -2.0, -1.0},
+           });
+  // FSgnjn.S
+  TestOpFp(0x203110d3,
+           {
+               std::tuple{1.0f, 2.0f, -1.0f},
+               {1.0f, 2.0f, -1.0f},
+               {1.0f, -2.0f, 1.0f},
+               {-1.0f, -2.0f, 1.0f},
+           });
+  // FSgnjn.D
+  TestOpFp(0x223110d3,
+           {
+               std::tuple{1.0, 2.0, -1.0},
+               {1.0, 2.0, -1.0},
+               {1.0, -2.0, 1.0},
+               {-1.0, -2.0, 1.0},
+           });
+  // FSgnjx.S
+  TestOpFp(0x203120d3,
+           {
+               std::tuple{1.0f, 2.0f, 1.0f},
+               {-1.0f, 2.0f, -1.0f},
+               {1.0f, -2.0f, -1.0f},
+               {-1.0f, -2.0f, 1.0f},
+           });
+  // FSgnjx.D
+  TestOpFp(0x223120d3,
+           {
+               std::tuple{1.0, 2.0, 1.0},
+               {-1.0, 2.0, -1.0},
+               {1.0, -2.0, -1.0},
+               {-1.0, -2.0, 1.0},
+           });
+  // FMin.S
+  TestOpFp(0x283100d3,
+           {std::tuple{+0.f, +0.f, +0.f},
+            {+0.f, -0.f, -0.f},
+            {-0.f, +0.f, -0.f},
+            {-0.f, -0.f, -0.f},
+            {+0.f, 1.f, +0.f},
+            {-0.f, 1.f, -0.f}});
+  // FMin.D
+  TestOpFp(0x2a3100d3,
+           {std::tuple{+0.0, +0.0, +0.0},
+            {+0.0, -0.0, -0.0},
+            {-0.0, +0.0, -0.0},
+            {-0.0, -0.0, -0.0},
+            {+0.0, 1.0, +0.0},
+            {-0.0, 1.0, -0.0}});
+  // FMax.S
+  TestOpFp(0x283110d3,
+           {std::tuple{+0.f, +0.f, +0.f},
+            {+0.f, -0.f, +0.f},
+            {-0.f, +0.f, +0.f},
+            {-0.f, -0.f, -0.f},
+            {+0.f, 1.f, 1.f},
+            {-0.f, 1.f, 1.f}});
+  // FMax.D
+  TestOpFp(0x2a3110d3,
+           {std::tuple{+0.0, +0.0, +0.0},
+            {+0.0, -0.0, +0.0},
+            {-0.0, +0.0, +0.0},
+            {-0.0, -0.0, -0.0},
+            {+0.0, 1.0, 1.0},
+            {-0.0, 1.0, 1.0}});
 }
 
 TEST_F(TESTSUITE, UpperImmInstructions) {
