@@ -57,7 +57,7 @@ std::tuple<IntType> AmoAdd(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoAdd: IntType must be integral");
   static_assert(std::is_signed_v<IntType>, "AmoAdd: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return __atomic_fetch_add(ptr, arg2, AqRlToMemoryOrder(aq, rl));
+  return {__atomic_fetch_add(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
@@ -65,21 +65,21 @@ std::tuple<IntType> AmoAnd(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoAnd: IntType must be integral");
   static_assert(std::is_signed_v<IntType>, "AmoAnd: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return __atomic_fetch_and(ptr, arg2, AqRlToMemoryOrder(aq, rl));
+  return {__atomic_fetch_and(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
 std::tuple<IntType> AmoMax(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoMax: IntType must be integral");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return __atomic_fetch_max(ptr, arg2, AqRlToMemoryOrder(aq, rl));
+  return {__atomic_fetch_max(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
 std::tuple<IntType> AmoMin(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoMin: IntType must be integral");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return __atomic_fetch_min(ptr, arg2, AqRlToMemoryOrder(aq, rl));
+  return {__atomic_fetch_min(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
@@ -87,7 +87,7 @@ std::tuple<IntType> AmoOr(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoOr: IntType must be integral");
   static_assert(std::is_signed_v<IntType>, "AmoOr: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return __atomic_fetch_or(ptr, arg2, AqRlToMemoryOrder(aq, rl));
+  return {__atomic_fetch_or(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
@@ -95,7 +95,7 @@ std::tuple<IntType> AmoSwap(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoSwap: IntType must be integral");
   static_assert(std::is_signed_v<IntType>, "AmoSwap: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return __atomic_exchange_n(ptr, arg2, AqRlToMemoryOrder(aq, rl));
+  return {__atomic_exchange_n(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
@@ -103,25 +103,25 @@ std::tuple<IntType> AmoXor(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoXor: IntType must be integral");
   static_assert(std::is_signed_v<IntType>, "AmoXor: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return __atomic_fetch_xor(ptr, arg2, AqRlToMemoryOrder(aq, rl));
+  return {__atomic_fetch_xor(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
 // TODO(b/287347834): Implement reservation semantics when it's added to runtime_primitives.
 template <typename IntType, bool qa, bool rl, enum PreferredIntrinsicsImplementation>
 std::tuple<IntType> Lr(int64_t arg1) {
-  static_assert(std::is_integral_v<IntType>, "AmoXor: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "AmoXor: IntType must be signed");
+  static_assert(std::is_integral_v<IntType>, "Lr: IntType must be integral");
+  static_assert(std::is_signed_v<IntType>, "Lr: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return *ptr;
+  return {*ptr};
 }
 
 template <typename IntType, bool qa, bool rl, enum PreferredIntrinsicsImplementation>
-std::tuple<IntType> Sc(int64_t arg1, IntType arg2) {
-  static_assert(std::is_integral_v<IntType>, "AmoXor: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "AmoXor: IntType must be signed");
+std::tuple<int64_t> Sc(int64_t arg1, IntType arg2) {
+  static_assert(std::is_integral_v<IntType>, "Sc: IntType must be integral");
+  static_assert(std::is_signed_v<IntType>, "Sc: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
-  return *ptr = arg2;
-  return 0;
+  *ptr = arg2;
+  return {0};
 }
 
 }  // namespace berberis::intrinsics
