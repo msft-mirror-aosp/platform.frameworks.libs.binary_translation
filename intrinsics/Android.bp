@@ -177,10 +177,6 @@ cc_defaults {
     defaults: ["berberis_defaults_64"],
     host_supported: true,
     header_libs: ["libberberis_intrinsics_headers"],
-    local_include_dirs: [
-        "common_to_x86",
-        ".",
-    ],
     // Note: since this tool is used in genrule, it has to be buildable and
     // available on all platforms unconditionally.
     //
