@@ -52,6 +52,24 @@
       "mnemo": "MACRO_CANONICALIZE_F64"
     },
     {
+      "name": "ClzInt32",
+      "args": [
+        { "class": "GeneralReg32", "usage": "def" },
+        { "class": "GeneralReg32", "usage": "use" }
+      ],
+      "asm": "MacroClz<int32_t>",
+      "mnemo": "CLZ_I32"
+    },
+    {
+      "name": "ClzInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroClz<int64_t>",
+      "mnemo": "CLZ_I64"
+    },
+    {
       "name": "MacroFeqFloat32",
       "args": [
         { "class": "GeneralReg8", "usage": "def" },

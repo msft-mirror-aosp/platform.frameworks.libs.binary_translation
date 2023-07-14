@@ -210,6 +210,7 @@ class TextAssemblerX86 {
   Register gpr_macroassembler_constants{};
   bool need_gpr_macroassembler_constants() const { return need_gpr_macroassembler_constants_; }
 
+  bool need_lzcnt = false;
   bool need_sse3 = false;
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
@@ -262,6 +263,10 @@ class TextAssemblerX86 {
   typedef RegisterTemplate<kEsp, 'k'> Register32Bit;
   constexpr static char kRsp[] = "%%rsp";
   typedef RegisterTemplate<kRsp, 'q'> Register64Bit;
+
+  void SetRequiredFeatureLZCNT() {
+    need_lzcnt = true;
+  }
 
   void SetRequiredFeatureSSE3() {
     need_sse3 = true;

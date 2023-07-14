@@ -557,7 +557,8 @@
     {
       "encodings": {
         "Bsfl": { "opcodes": [ "0F", "BC" ] },
-        "Bsrl": { "opcodes": [ "0F", "BD" ] }
+        "Bsrl": { "opcodes": [ "0F", "BD" ] },
+        "Lzcntl": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -568,7 +569,8 @@
     {
       "encodings": {
         "Bsfw": { "opcodes": [ "66", "0F", "BC" ] },
-        "Bsrw": { "opcodes": [ "66", "0F", "BD" ] }
+        "Bsrw": { "opcodes": [ "66", "0F", "BD" ] },
+        "Lzcntw": { "opcodes": [ "66", "F3", "0F", "BD" ] }
       },
       "args": [
         { "class": "GeneralReg16", "usage": "def" },
@@ -662,7 +664,18 @@
       "args": [
         { "class": "Cond" },
         { "class": "GeneralReg32", "usage": "use_def" },
-        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "GeneralReg32/Mem32", "usage": "use" },
+        { "class": "FLAGS", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Cmovw": { "opcodes": [ "66", "0F", "40" ] }
+      },
+      "args": [
+        { "class": "Cond" },
+        { "class": "GeneralReg16", "usage": "use_def" },
+        { "class": "GeneralReg16/Mem16", "usage": "use" },
         { "class": "FLAGS", "usage": "use" }
       ]
     },
