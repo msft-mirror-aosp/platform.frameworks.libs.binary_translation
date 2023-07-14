@@ -48,7 +48,7 @@ GuestCodeEntry::Kind kLightTranslated = GuestCodeEntry::Kind::kLightTranslated;
 
 enum class TranslationMode { kInterpretOnly, kLiteTranslateOrFallbackToInterpret, kNumModes };
 
-TranslationMode g_translation_mode = TranslationMode::kInterpretOnly;
+TranslationMode g_translation_mode = TranslationMode::kLiteTranslateOrFallbackToInterpret;
 
 void UpdateTranslationMode() {
   // Indices must match TranslationMode enum.
