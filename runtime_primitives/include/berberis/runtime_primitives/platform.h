@@ -35,6 +35,7 @@ inline constexpr bool kIsX86 = (kIsX86_32 || kIsX86_64);
 
 #if defined(__i386__) || defined(__x86_64__)
 extern const struct PlatformCapabilities {
+  bool kHasLZCNT;
   bool kHasSSE3;
   bool kHasSSSE3;
   bool kHasSSE4a;
@@ -51,6 +52,7 @@ extern const struct PlatformCapabilities {
 // These are "runtime constants": they can not be determined at compile
 // time but each particular CPU has them set to true or false and that
 // value can not ever change in the lifetime of a program.
+inline const bool& kHasLZCNT = kPlatformCapabilities.kHasLZCNT;
 inline const bool& kHasSSE3 = kPlatformCapabilities.kHasSSE3;
 inline const bool& kHasSSSE3 = kPlatformCapabilities.kHasSSSE3;
 inline const bool& kHasSSE4a = kPlatformCapabilities.kHasSSE4a;
