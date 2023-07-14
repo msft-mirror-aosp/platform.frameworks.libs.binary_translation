@@ -45,6 +45,32 @@
     "out": [ 0 ]
   },
   {
+    "name": "Clz<int32_t>",
+    "insn": "ClzInt32",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Clz<int32_t>",
+    "insn": "LzcntlRegReg",
+    "feature": "LZCNT",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Clz<int64_t>",
+    "insn": "ClzInt64",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Clz<int64_t>",
+    "insn": "LzcntqRegReg",
+    "feature": "LZCNT",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float64>",
     "insn": "AddsdXRegXReg",
     "in": [ 0, 1 ],
