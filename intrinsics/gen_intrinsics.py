@@ -718,10 +718,12 @@ def _get_reg_operand_info(arg, info_prefix=None):
 
 def _gen_make_intrinsics(f, intrs):
   print("""%s
-template <typename MacroAssembler, typename OperandClass>
-void ProcessAllBindings(FILE* out) {
+template <typename MacroAssembler,
+          typename OperandClass,
+          typename... Args>
+void ProcessAllBindings(Args&&... args) {
   ProcessBindings(
-      out""" % AUTOGEN, end="", file=f)
+      std::forward<Args>(args)...""" % AUTOGEN, end="", file=f)
   for line in _gen_c_intrinsics_generator(intrs):
     if line.startswith(','):
       print(',\n'+line[1:], end='', file=f)
@@ -827,7 +829,7 @@ def _gen_c_intrinsic(name, intr, asm):
         [_get_reg_operand_info(arg, 'typename OperandClass')
          for arg in asm['args']]))
 
-  one_line = '              out, &MacroAssembler::%s%s, %s))' % (
+  one_line = '              &MacroAssembler::%s%s, %s))' % (
       'template ' if '<' in asm['asm'] else '',
       asm['asm'],
       ', '.join(['INTRINSIC_FUNCTION_NAME((%s))' % name] + restriction))
@@ -835,7 +837,6 @@ def _gen_c_intrinsic(name, intr, asm):
     yield one_line
     return
 
-  yield '              out,'
   yield '              &MacroAssembler::%s%s,' % (
       'template ' if '<' in asm['asm'] else '',
       asm['asm'])
