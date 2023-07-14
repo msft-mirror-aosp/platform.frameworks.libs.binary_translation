@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_TEXT_ASSEMBLER_COMMON_H_
-#define BERBERIS_INTRINSICS_TEXT_ASSEMBLER_COMMON_H_
+#ifndef BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
+#define BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
 
 #include <stdint.h>
 #include <stdio.h>
@@ -445,4 +445,4 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, const Arg
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INTRINSICS_TEXT_ASSEMBLER_COMMON_H_
+#endif  // BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
