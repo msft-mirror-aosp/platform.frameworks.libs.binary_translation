@@ -746,7 +746,8 @@ def _gen_c_intrinsics_generator(intrs):
       # Note: not all variants are guaranteed to have asm version!
       # If that happens list of intr_asms for that variant would be empty.
       variants = [(desc, [
-          intr_asm for intr_asm in intr['asm'] if fmt in intr_asm['variants']
+          intr_asm for intr_asm in _gen_sorted_asms(intr)
+          if fmt in intr_asm['variants']
       ]) for fmt, desc in variants]
       # Print intrinsic generator
       for desc, intr_asms in variants:
@@ -759,9 +760,34 @@ def _gen_c_intrinsics_generator(intrs):
             for line in _gen_c_intrinsic('%s<%s>' % (name, spec), intr, intr_asm):
               yield line
     else:
-      for intr_asm in intr['asm']:
+      for intr_asm in _gen_sorted_asms(intr):
         for line in _gen_c_intrinsic(name, intr, intr_asm):
           yield line
+
+
+def _gen_sorted_asms(intr):
+  return sorted(intr['asm'],
+    key = lambda intr:
+        intr.get('nan', '') +
+      _KNOWN_FEATURES_KEYS.get(
+        intr.get('feature', ''), intr.get('feature', '')), reverse = True)
+
+_KNOWN_FEATURES_KEYS = {
+  'LZCNT': '001',
+  'BMI': '002',
+  'BMI2': '003',
+  'SSE': '010',
+  'SSE2': '011',
+  'SSE3': '012',
+  'SSSE3': '013',
+  'SSE4a': '014',
+  'SSE4_1': '015',
+  'SSE4_2': '016',
+  'AVX': '017',
+  'AVX2': '018',
+  'FMA': '019',
+  'FMA4': '020'
+}
 
 
 MAX_GENERATED_LINE_LENGTH = 100
