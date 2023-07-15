@@ -771,18 +771,18 @@ def _gen_c_intrinsic(name, intr, asm):
   if not _is_interpreter_compatible_assembler(asm):
     return
 
-  sse_restriction = 'GenerateAsmCallBase::kNoSSERestriction'
+  cpuid_restriction = 'GenerateAsmCallBase::kNoCPUIDRestriction'
   if 'feature' in asm:
     if asm['feature'] == 'AuthenticAMD':
-      sse_restriction = 'GenerateAsmCallBase::kIsAuthenticAMD'
+      cpuid_restriction = 'GenerateAsmCallBase::kIsAuthenticAMD'
     else:
-      sse_restriction = 'GenerateAsmCallBase::kHas%s' % asm['feature']
+      cpuid_restriction = 'GenerateAsmCallBase::kHas%s' % asm['feature']
 
   nan_restriction = 'GenerateAsmCallBase::kNoNansOperation'
   if 'nan' in asm:
     nan_restriction = 'GenerateAsmCallBase::k%sNanOperationsHandling' % asm['nan']
 
-  restriction = [sse_restriction, nan_restriction]
+  restriction = [cpuid_restriction, nan_restriction]
 
   yield '      std::unique_ptr<GenerateAsmCallBase>('
 

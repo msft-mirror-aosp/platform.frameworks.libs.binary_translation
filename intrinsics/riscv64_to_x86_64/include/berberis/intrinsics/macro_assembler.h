@@ -182,6 +182,23 @@ class MacroAssembler : public Assembler {
   }
   DEFINE_INT_INSTRUCTION(Cmov, (Condition cond, Register dest, Operand src), (cond, dest, src))
   DEFINE_INT_INSTRUCTION(Cmov, (Condition cond, Register dest, Register src), (cond, dest, src))
+#define DEFINE_BIT_INSTRUCTION(insn_name)                                                \
+  DEFINE_INT_INSTRUCTION(insn_name, (Operand dest, ImmFormat<format> imm), (dest, imm))  \
+  DEFINE_INT_INSTRUCTION(insn_name, (Operand dest, Register src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, ImmFormat<format> imm), (dest, imm)) \
+  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, Register src), (dest, src))
+  DEFINE_BIT_INSTRUCTION(Bt)
+  DEFINE_BIT_INSTRUCTION(Btc)
+  DEFINE_BIT_INSTRUCTION(Btr)
+  DEFINE_BIT_INSTRUCTION(Bts)
+#undef DEFINE_BIT_INSTRUCTION
+#define DEFINE_BIT_INSTRUCTION(insn_name)                                                \
+  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, Operand src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, Register src), (dest, src))
+  DEFINE_BIT_INSTRUCTION(Bsf)
+  DEFINE_BIT_INSTRUCTION(Bsr)
+  DEFINE_BIT_INSTRUCTION(Lzcnt)
+  DEFINE_BIT_INSTRUCTION(Tzcnt)
 #undef DEFINE_INT_INSTRUCTION
 
   // Note: Mov<int32_t> from one register to that same register doesn't zero-out top 32bits,
@@ -339,7 +356,7 @@ class MacroAssembler : public Assembler {
 }  // namespace berberis
 
 // Macro specializations.
-#include "berberis/intrinsics/macro_assembler_constants_pool.h"
+#include "berberis/intrinsics/macro_assembler_bitmanip_impl.h"
 #include "berberis/intrinsics/macro_assembler_floating_point_impl.h"
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_H_

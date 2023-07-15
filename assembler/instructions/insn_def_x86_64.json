@@ -155,7 +155,8 @@
     {
       "encodings": {
         "Bsfq": { "opcodes": [ "0F", "BC" ] },
-        "Bsrq": { "opcodes": [ "0F", "BD" ] }
+        "Bsrq": { "opcodes": [ "0F", "BD" ] },
+        "Lzcntq": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
