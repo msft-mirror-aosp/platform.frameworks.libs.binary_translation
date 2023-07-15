@@ -287,8 +287,8 @@ class GenerateAsmCallBase {
     }
   }
   virtual size_t GetArgumentsCount() = 0;
-  virtual void GenerateFunctionHeader(int indent) = 0;
-  virtual void GenerateFunctionBody(int indent) = 0;
+  virtual void GenerateFunctionHeader(FILE* out, int indent) = 0;
+  virtual void GenerateFunctionBody(FILE* out, int indent) = 0;
   virtual ~GenerateAsmCallBase() {}
 };
 
@@ -338,18 +338,16 @@ class GenerateAsmCall<kSideEffects,
   using EmitFunctionType = typename decltype(EmitFunctionTypeHelper())::value_type;
 
  public:
-  GenerateAsmCall(FILE* out,
-                  EmitFunctionType emit,
+  GenerateAsmCall(EmitFunctionType emit,
                   const char* name_,
                   SSERestrictionEnum cpuid_restriction_,
                   PreciseNanOperationsHandlingEnum precise_nan_operations_handling_)
       : GenerateAsmCallBase(cpuid_restriction_, precise_nan_operations_handling_, name_),
-        out_{out},
         emit_{emit} {}
   size_t GetArgumentsCount() { return sizeof...(InputArguments); }
-  void GenerateFunctionHeader(int indent) final {
+  void GenerateFunctionHeader(FILE* out, int indent) final {
     if (strchr(name.c_str(), '<')) {
-      fprintf(out_, "template <>\n");
+      fprintf(out, "template <>\n");
     }
     std::string prefix;
     if constexpr (sizeof...(InputArguments) == 0) {
@@ -366,17 +364,17 @@ class GenerateAsmCall<kSideEffects,
     (ins.push_back(std::string(x86::TypeTraits<InputArguments>::kName) + " in" +
                    std::to_string(id++)),
      ...);
-    GenerateElementsList(indent, prefix, ") {", ins);
+    GenerateElementsList(out, indent, prefix, ") {", ins);
   }
-  void GenerateFunctionBody(int indent) final {
+  void GenerateFunctionBody(FILE* out, int indent) final {
     // Declare out variables.
-    GenerateOutputVariables(indent);
+    GenerateOutputVariables(out, indent);
     // Declare temporary variables.
-    GenerateTemporaries(indent);
+    GenerateTemporaries(out, indent);
     // We need "shadow variables" for ins of types: Float32, Float64 and SIMD128Register.
     // This is because assembler does not accept these arguments for XMMRegisters and
     // we couldn't use "float"/"double" function arguments because if ABI issues.
-    GenerateInShadows(indent);
+    GenerateInShadows(out, indent);
     // Even if we don't pass any registers we need to allocate at least one element.
     int register_numbers[sizeof...(Bindings) == 0 ? 1 : sizeof...(Bindings)];
     // Assign numbers to registers - we need to pass them to assembler and then, later,
@@ -384,45 +382,46 @@ class GenerateAsmCall<kSideEffects,
     AssignRegisterNumbers(register_numbers);
     // Print opening line for asm call.
     if constexpr (kSideEffects) {
-      fprintf(out_, "%*s__asm__ __volatile__(\n", indent, "");
+      fprintf(out, "%*s__asm__ __volatile__(\n", indent, "");
     } else {
-      fprintf(out_, "%*s__asm__(\n", indent, "");
+      fprintf(out, "%*s__asm__(\n", indent, "");
     }
     // Call text assembler to produce the body of an asm call.
     auto [need_gpr_macroassembler_mxcsr_scratch, need_gpr_macroassembler_constants] =
-        CallTextAssembler(indent, register_numbers);
+        CallTextAssembler(out, indent, register_numbers);
     // Assembler instruction outs.
-    GenerateAssemblerOuts(indent);
+    GenerateAssemblerOuts(out, indent);
     // Assembler instruction ins.
-    GenerateAssemblerIns(indent,
+    GenerateAssemblerIns(out,
+                         indent,
                          register_numbers,
                          need_gpr_macroassembler_mxcsr_scratch,
                          need_gpr_macroassembler_constants);
     // Close asm call.
-    fprintf(out_, "%*s);\n", indent, "");
+    fprintf(out, "%*s);\n", indent, "");
     // Generate copies from shadows to outputs.
-    GenerateOutShadows(indent);
+    GenerateOutShadows(out, indent);
     // Return value from function.
     if constexpr (sizeof...(OutputArguments) > 0) {
       std::vector<std::string> outs;
       for (std::size_t id = 0; id < sizeof...(OutputArguments); ++id) {
         outs.push_back("out" + std::to_string(id));
       }
-      GenerateElementsList(indent, "return {", "};", outs);
+      GenerateElementsList(out, indent, "return {", "};", outs);
     }
   }
   ~GenerateAsmCall() final {}
 
  private:
-  void GenerateOutputVariables(int indent) {
+  void GenerateOutputVariables(FILE* out, int indent) {
     std::size_t id = 0;
-    (fprintf(out_, "%*s%s out%zd;\n", indent, "", x86::TypeTraits<OutputArguments>::kName, id++),
+    (fprintf(out, "%*s%s out%zd;\n", indent, "", x86::TypeTraits<OutputArguments>::kName, id++),
      ...);
   }
-  void GenerateTemporaries(int indent) {
+  void GenerateTemporaries(FILE* out, int indent) {
     std::size_t id = 0;
     (
-        [out = out_, &id, indent](auto arg) {
+        [out, &id, indent](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
             if constexpr (!HaveInput(arg.arg_info) && !HaveOutput(arg.arg_info)) {
@@ -440,9 +439,9 @@ class GenerateAsmCall<kSideEffects,
         }(ArgTraits<Bindings>()),
         ...);
   }
-  void GenerateInShadows(int indent) {
+  void GenerateInShadows(FILE* out, int indent) {
     (
-        [out = out_, indent](auto arg) {
+        [out, indent](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (RegisterClass::kAsRegister == 'r') {
             // TODO(b/138439904): remove when clang handling of 'r' constraint would be fixed.
@@ -529,8 +528,8 @@ class GenerateAsmCall<kSideEffects,
         }(ArgTraits<Bindings>()),
         ...);
   }
-  auto CallTextAssembler(int indent, int* register_numbers) {
-    MacroAssembler<TextAssembler> as(indent, out_);
+  auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
+    MacroAssembler<TextAssembler> as(indent, out);
     int arg_counter = 0;
     (
         [&arg_counter, &as, register_numbers](auto arg) {
@@ -618,7 +617,7 @@ class GenerateAsmCall<kSideEffects,
     return std::tuple{as.need_gpr_macroassembler_mxcsr_scratch(),
                       as.need_gpr_macroassembler_constants()};
   }
-  void GenerateAssemblerOuts(int indent) {
+  void GenerateAssemblerOuts(FILE* out, int indent) {
     std::vector<std::string> outs;
     int tmp_id = 0;
     (
@@ -645,9 +644,10 @@ class GenerateAsmCall<kSideEffects,
           }
         }(ArgTraits<Bindings>()),
         ...);
-    GenerateElementsList(indent, "  : ", "", outs);
+    GenerateElementsList(out, indent, "  : ", "", outs);
   }
-  void GenerateAssemblerIns(int indent,
+  void GenerateAssemblerIns(FILE* out,
+                            int indent,
                             int* register_numbers,
                             bool need_gpr_macroassembler_mxcsr_scratch,
                             bool need_gpr_macroassembler_constants) {
@@ -685,11 +685,11 @@ class GenerateAsmCall<kSideEffects,
           }
         }(ArgTraits<Bindings>()),
         ...);
-    GenerateElementsList(indent, "  : ", "", ins);
+    GenerateElementsList(out, indent, "  : ", "", ins);
   }
-  void GenerateOutShadows(int indent) {
+  void GenerateOutShadows(FILE* out, int indent) {
     (
-        [out = out_, indent](auto arg) {
+        [out, indent](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (RegisterClass::kAsRegister == 'r') {
             // TODO(b/138439904): remove when clang handling of 'r' constraint would be fixed.
@@ -725,13 +725,14 @@ class GenerateAsmCall<kSideEffects,
         }(ArgTraits<Bindings>()),
         ...);
   }
-  void GenerateElementsList(int indent,
+  void GenerateElementsList(FILE* out,
+                            int indent,
                             const std::string& prefix,
                             const std::string& suffix,
                             const std::vector<std::string>& elements) {
     std::size_t length = prefix.length() + suffix.length();
     if (elements.size() == 0) {
-      fprintf(out_, "%*s%s%s\n", indent, "", prefix.c_str(), suffix.c_str());
+      fprintf(out, "%*s%s%s\n", indent, "", prefix.c_str(), suffix.c_str());
       return;
     }
     for (const auto& element : elements) {
@@ -739,17 +740,17 @@ class GenerateAsmCall<kSideEffects,
     }
     for (const auto& element : elements) {
       if (&element == &elements[0]) {
-        fprintf(out_, "%*s%s%s", indent, "", prefix.c_str(), element.c_str());
+        fprintf(out, "%*s%s%s", indent, "", prefix.c_str(), element.c_str());
       } else {
         if (length <= 102) {
-          fprintf(out_, ", %s", element.c_str());
+          fprintf(out, ", %s", element.c_str());
         } else {
           fprintf(
-              out_, ",\n%*s%s", static_cast<int>(prefix.length()) + indent, "", element.c_str());
+              out, ",\n%*s%s", static_cast<int>(prefix.length()) + indent, "", element.c_str());
         }
       }
     }
-    fprintf(out_, "%s\n", suffix.c_str());
+    fprintf(out, "%s\n", suffix.c_str());
   }
   template <typename Arg>
   static constexpr bool NeedInputShadow(Arg arg) {
@@ -791,7 +792,6 @@ class GenerateAsmCall<kSideEffects,
     return false;
   }
 
-  FILE* out_;
   EmitFunctionType emit_;
 };
 
@@ -825,7 +825,7 @@ void ProcessBindings(FILE* out, AsmCallGenerator... asm_call_generator) {
           }
           // Final line of function.
           fprintf(out, "};\n\n");
-          asm_call_generator->GenerateFunctionHeader(0);
+          asm_call_generator->GenerateFunctionHeader(out, 0);
           running_name = full_name;
         }
         if (asm_call_generator->cpuid_restriction != cpuid_restriction) {
@@ -872,7 +872,7 @@ void ProcessBindings(FILE* out, AsmCallGenerator... asm_call_generator) {
           }
           cpuid_restriction = asm_call_generator->cpuid_restriction;
         }
-        asm_call_generator->GenerateFunctionBody(2 + 2 * if_opened);
+        asm_call_generator->GenerateFunctionBody(out, 2 + 2 * if_opened);
       }(asm_call_generator),
       ...);
   if (if_opened) {
