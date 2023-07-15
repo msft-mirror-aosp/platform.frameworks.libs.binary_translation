@@ -22,6 +22,7 @@
 #include <type_traits>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/intrinsics/guest_fp_flags.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64/ProcessNans
 #include "berberis/intrinsics/type_traits.h"
@@ -89,14 +90,13 @@ std::tuple<TargetOperandType> FCvtFloatToFloat(int8_t rm, int8_t frm, SourceOper
 template <typename TargetOperandType,
           typename SourceOperandType,
           enum PreferredIntrinsicsImplementation>
-std::tuple<TargetOperandType> FCvtFloatToInteger(int8_t /*rm*/,
-                                                 int8_t /*frm*/,
-                                                 SourceOperandType arg) {
+std::tuple<TargetOperandType> FCvtFloatToInteger(int8_t rm, int8_t frm, SourceOperandType arg) {
   static_assert(std::is_same_v<Float32, SourceOperandType> ||
                 std::is_same_v<Float64, SourceOperandType>);
   static_assert(std::is_integral_v<TargetOperandType>);
-  // TODO(265372622): handle rm properly in integer-to-float and float-to-integer cases.
-  TargetOperandType result = static_cast<TargetOperandType>(arg);
+  int8_t actual_rm = rm == FPFlags::DYN ? frm : rm;
+  TargetOperandType result =
+      static_cast<TargetOperandType>(FPRound(arg, ToIntrinsicRoundingMode(actual_rm)));
   return static_cast<std::make_signed_t<TargetOperandType>>(result);
 }
 
