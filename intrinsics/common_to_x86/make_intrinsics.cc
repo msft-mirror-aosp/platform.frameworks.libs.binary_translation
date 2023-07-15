@@ -797,15 +797,6 @@ class GenerateAsmCall<kSideEffects,
 template <std::size_t kArraySize>
 void GenerateAsmCalls(FILE* out,
                       std::unique_ptr<GenerateAsmCallBase> (&&asm_call_generators)[kArraySize]) {
-  std::sort(std::begin(asm_call_generators),
-            std::end(asm_call_generators),
-            [](const auto& x, const auto& y) {
-              return x->name < y->name ||
-                     (x->name == y->name &&
-                      (x->precise_nan_operations_handling < y->precise_nan_operations_handling ||
-                       (x->precise_nan_operations_handling == y->precise_nan_operations_handling &&
-                        (x->cpuid_restriction > y->cpuid_restriction))));
-            });
   GenerateAsmCallBase::SSERestrictionEnum cpuid_restriction = GenerateAsmCallBase::kNoCPUIDRestriction;
   bool if_opened = false;
   std::string running_name;
