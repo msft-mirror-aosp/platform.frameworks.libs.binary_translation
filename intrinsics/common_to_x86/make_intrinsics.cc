@@ -246,7 +246,8 @@ class UseDef;
 class GenerateAsmCallBase {
  public:
   const enum SSERestrictionEnum : int {
-    kNoSSERestriction = 0,
+    kNoCPUIDRestriction = 0,
+    kHasLZCNT,
     kHasSSE3,
     kHasSSSE3,
     kHasSSE4_1,
@@ -255,17 +256,17 @@ class GenerateAsmCallBase {
     kHasFMA,
     kHasFMA4,
     kIsAuthenticAMD
-  } sse_restriction;
+  } cpuid_restriction;
   const enum PreciseNanOperationsHandlingEnum : int {
     kNoNansOperation = 0,
     kPreciseNanOperationsHandling,
     kImpreciseNanOperationsHandling
   } precise_nan_operations_handling;
   const std::string name;
-  GenerateAsmCallBase(const SSERestrictionEnum sse_restriction_,
+  GenerateAsmCallBase(const SSERestrictionEnum cpuid_restriction_,
                       const PreciseNanOperationsHandlingEnum precise_nan_operations_handling_,
                       const char* name_)
-      : sse_restriction(sse_restriction_),
+      : cpuid_restriction(cpuid_restriction_),
         precise_nan_operations_handling(precise_nan_operations_handling_),
         name(CreateName(precise_nan_operations_handling_, name_)) {}
   static std::string CreateName(PreciseNanOperationsHandlingEnum precise_nan_operations_handling,
@@ -339,9 +340,9 @@ class GenerateAsmCall<kSideEffects,
   GenerateAsmCall(FILE* out,
                   EmitFunctionType emit,
                   const char* name_,
-                  SSERestrictionEnum sse_restriction_,
+                  SSERestrictionEnum cpuid_restriction_,
                   PreciseNanOperationsHandlingEnum precise_nan_operations_handling_)
-      : GenerateAsmCallBase(sse_restriction_, precise_nan_operations_handling_, name_),
+      : GenerateAsmCallBase(cpuid_restriction_, precise_nan_operations_handling_, name_),
         out_{out},
         emit_{emit} {}
   size_t GetArgumentsCount() { return sizeof...(InputArguments); }
@@ -567,6 +568,7 @@ class GenerateAsmCall<kSideEffects,
                          }
                        }(ArgTraits<Bindings>())...));
     // Verify CPU vendor and SSE restrictions.
+    bool expect_lzcnt = false;
     bool expect_sse3 = false;
     bool expect_ssse3 = false;
     bool expect_sse4_1 = false;
@@ -574,10 +576,13 @@ class GenerateAsmCall<kSideEffects,
     bool expect_avx = false;
     bool expect_fma = false;
     bool expect_fma4 = false;
-    switch (sse_restriction) {
+    switch (cpuid_restriction) {
+      case GenerateAsmCallBase::kHasLZCNT:
+        expect_lzcnt = true;
+        break;
       case GenerateAsmCallBase::kHasFMA:
       case GenerateAsmCallBase::kHasFMA4:
-        if (sse_restriction == GenerateAsmCallBase::kHasFMA) {
+        if (cpuid_restriction == GenerateAsmCallBase::kHasFMA) {
           expect_fma = true;
         } else {
           expect_fma4 = true;
@@ -599,8 +604,9 @@ class GenerateAsmCall<kSideEffects,
         expect_sse3 = true;
         [[fallthrough]];
       case GenerateAsmCallBase::kIsAuthenticAMD:
-      case GenerateAsmCallBase::kNoSSERestriction:; /* Do nothing - make compiler happy */
+      case GenerateAsmCallBase::kNoCPUIDRestriction:; /* Do nothing - make compiler happy */
     }
+    CHECK_EQ(expect_lzcnt, as.need_lzcnt);
     CHECK_EQ(expect_sse3, as.need_sse3);
     CHECK_EQ(expect_ssse3, as.need_ssse3);
     CHECK_EQ(expect_sse4_1, as.need_sse4_1);
@@ -798,9 +804,9 @@ void GenerateAsmCalls(FILE* out,
                      (x->name == y->name &&
                       (x->precise_nan_operations_handling < y->precise_nan_operations_handling ||
                        (x->precise_nan_operations_handling == y->precise_nan_operations_handling &&
-                        (x->sse_restriction > y->sse_restriction))));
+                        (x->cpuid_restriction > y->cpuid_restriction))));
             });
-  GenerateAsmCallBase::SSERestrictionEnum sse_restriction = GenerateAsmCallBase::kNoSSERestriction;
+  GenerateAsmCallBase::SSERestrictionEnum cpuid_restriction = GenerateAsmCallBase::kNoCPUIDRestriction;
   bool if_opened = false;
   std::string running_name;
   for (auto& asm_call_generator : asm_call_generators) {
@@ -818,9 +824,9 @@ void GenerateAsmCalls(FILE* out,
     }
     if (full_name != running_name) {
       if (if_opened) {
-        if (sse_restriction != GenerateAsmCallBase::kNoSSERestriction) {
+        if (cpuid_restriction != GenerateAsmCallBase::kNoCPUIDRestriction) {
           fprintf(out, "  } else {\n    return %s;\n", running_name.c_str());
-          sse_restriction = GenerateAsmCallBase::kNoSSERestriction;
+          cpuid_restriction = GenerateAsmCallBase::kNoCPUIDRestriction;
         }
         if_opened = false;
         fprintf(out, "  }\n");
@@ -830,8 +836,8 @@ void GenerateAsmCalls(FILE* out,
       asm_call_generator->GenerateFunctionHeader(0);
       running_name = full_name;
     }
-    if (asm_call_generator->sse_restriction != sse_restriction) {
-      if (asm_call_generator->sse_restriction == GenerateAsmCallBase::kNoSSERestriction) {
+    if (asm_call_generator->cpuid_restriction != cpuid_restriction) {
+      if (asm_call_generator->cpuid_restriction == GenerateAsmCallBase::kNoCPUIDRestriction) {
         fprintf(out, "  } else {\n");
       } else {
         if (if_opened) {
@@ -840,9 +846,12 @@ void GenerateAsmCalls(FILE* out,
           fprintf(out, "  if (");
           if_opened = true;
         }
-        switch (asm_call_generator->sse_restriction) {
+        switch (asm_call_generator->cpuid_restriction) {
           case GenerateAsmCallBase::kIsAuthenticAMD:
             fprintf(out, "host_platform::kIsAuthenticAMD");
+            break;
+          case GenerateAsmCallBase::kHasLZCNT:
+            fprintf(out, "host_platform::kHasLZCNT");
             break;
           case GenerateAsmCallBase::kHasSSE3:
             fprintf(out, "host_platform::kHasSSE3");
@@ -865,11 +874,11 @@ void GenerateAsmCalls(FILE* out,
           case GenerateAsmCallBase::kHasFMA4:
             fprintf(out, "host_platform::kHasFMA4");
             break;
-          case GenerateAsmCallBase::kNoSSERestriction:; /* Do nothing - make compiler happy */
+          case GenerateAsmCallBase::kNoCPUIDRestriction:; /* Do nothing - make compiler happy */
         }
         fprintf(out, ") {\n");
       }
-      sse_restriction = asm_call_generator->sse_restriction;
+      cpuid_restriction = asm_call_generator->cpuid_restriction;
     }
     asm_call_generator->GenerateFunctionBody(2 + 2 * if_opened);
   }
