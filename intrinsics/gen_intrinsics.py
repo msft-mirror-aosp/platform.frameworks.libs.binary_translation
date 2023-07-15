@@ -718,14 +718,17 @@ def _get_reg_operand_info(arg, info_prefix=None):
 
 def _gen_make_intrinsics(f, intrs):
   print("""%s
-void MakeIntrinsics(FILE* out) {
-  using MacroAssembler = MacroAssembler<TextAssembler>;
-  namespace OperandClass = x86::OperandClass;
-  std::unique_ptr<GenerateAsmCallBase> asm_call_generators[] = {""" % AUTOGEN, file=f)
+template <typename MacroAssembler, typename OperandClass>
+void ProcessAllBindings(FILE* out) {
+  ProcessBindings(
+      out""" % AUTOGEN, end="", file=f)
   for line in _gen_c_intrinsics_generator(intrs):
-    print(line, file=f)
-  print("""  };
-  GenerateAsmCalls(out, std::forward<decltype(asm_call_generators)>(asm_call_generators));
+    if line.startswith(','):
+      print(',\n'+line[1:], end='', file=f)
+    else:
+      print('\n'+line, end='', file=f)
+  print("""
+  );
 }""", file=f)
 
 
@@ -810,7 +813,7 @@ def _gen_c_intrinsic(name, intr, asm):
 
   restriction = [cpuid_restriction, nan_restriction]
 
-  yield '      std::unique_ptr<GenerateAsmCallBase>('
+  yield ',      std::unique_ptr<GenerateAsmCallBase>('
 
   def get_c_type_tuple(arguments):
     return 'std::tuple<%s>' % ', '.join(
@@ -821,21 +824,25 @@ def _gen_c_intrinsic(name, intr, asm):
     ',\n                              '.join(
         ['true' if _intr_has_side_effects(intr) else 'false'] +
         [get_c_type_tuple(intr['in'])] + [get_c_type_tuple(intr['out'])] +
-        [_get_reg_operand_info(arg, 'OperandClass')
+        [_get_reg_operand_info(arg, 'typename OperandClass')
          for arg in asm['args']]))
 
-  one_line = '              out, &MacroAssembler::%s, %s)),' % (
-      asm['asm'], ', '.join(['"%s"' % name] + restriction))
+  one_line = '              out, &MacroAssembler::%s%s, %s))' % (
+      'template ' if '<' in asm['asm'] else '',
+      asm['asm'],
+      ', '.join(['INTRINSIC_FUNCTION_NAME((%s))' % name] + restriction))
   if len(one_line) <= MAX_GENERATED_LINE_LENGTH:
     yield one_line
     return
 
   yield '              out,'
-  yield '              &MacroAssembler::%s,' % asm['asm']
-  values = ['"%s"' % name] + restriction
+  yield '              &MacroAssembler::%s%s,' % (
+      'template ' if '<' in asm['asm'] else '',
+      asm['asm'])
+  values = ['INTRINSIC_FUNCTION_NAME((%s))' % name] + restriction
   for index, value in enumerate(values):
     if index + 1 == len(values):
-      yield '              %s)),' % value
+      yield '              %s))' % value
     else:
       yield '              %s,' % value
 
