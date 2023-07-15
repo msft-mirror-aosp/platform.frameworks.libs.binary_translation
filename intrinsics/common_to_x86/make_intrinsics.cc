@@ -795,17 +795,20 @@ class GenerateAsmCall<kSideEffects,
   EmitFunctionType emit_;
 };
 
-template <typename... AsmCallGenerator>
-void ProcessBindings(FILE* out, AsmCallGenerator... asm_call_generator) {
+#define INTRINSIC_FUNCTION_NAME(func_name) #func_name
+#include "make_intrinsics-inl.h"
+#undef INTRINSIC_FUNCTION_NAME
+
+void GenerateAsmCalls(FILE* out) {
   GenerateAsmCallBase::SSERestrictionEnum cpuid_restriction = GenerateAsmCallBase::kNoCPUIDRestriction;
   bool if_opened = false;
   std::string running_name;
-  (
+  ProcessBindings<MacroAssembler<berberis::TextAssembler>, x86::OperandClass>(
       [&running_name, &if_opened, &cpuid_restriction, out](auto&& asm_call_generator) {
         std::string full_name =
-            asm_call_generator->name.substr(0, asm_call_generator->name.length() - 1) +
+            asm_call_generator.name.substr(0, asm_call_generator.name.length() - 1) +
             ", kUseCppImplementation>";
-        if (size_t arguments_count = asm_call_generator->GetArgumentsCount()) {
+        if (size_t arguments_count = asm_call_generator.GetArgumentsCount()) {
           full_name += "(in0";
           for (size_t i = 1; i < arguments_count; ++i) {
             full_name += ", in" + std::to_string(i);
@@ -825,11 +828,11 @@ void ProcessBindings(FILE* out, AsmCallGenerator... asm_call_generator) {
           }
           // Final line of function.
           fprintf(out, "};\n\n");
-          asm_call_generator->GenerateFunctionHeader(out, 0);
+          asm_call_generator.GenerateFunctionHeader(out, 0);
           running_name = full_name;
         }
-        if (asm_call_generator->cpuid_restriction != cpuid_restriction) {
-          if (asm_call_generator->cpuid_restriction == GenerateAsmCallBase::kNoCPUIDRestriction) {
+        if (asm_call_generator.cpuid_restriction != cpuid_restriction) {
+          if (asm_call_generator.cpuid_restriction == GenerateAsmCallBase::kNoCPUIDRestriction) {
             fprintf(out, "  } else {\n");
           } else {
             if (if_opened) {
@@ -838,7 +841,7 @@ void ProcessBindings(FILE* out, AsmCallGenerator... asm_call_generator) {
               fprintf(out, "  if (");
               if_opened = true;
             }
-            switch (asm_call_generator->cpuid_restriction) {
+            switch (asm_call_generator.cpuid_restriction) {
               case GenerateAsmCallBase::kIsAuthenticAMD:
                 fprintf(out, "host_platform::kIsAuthenticAMD");
                 break;
@@ -870,21 +873,16 @@ void ProcessBindings(FILE* out, AsmCallGenerator... asm_call_generator) {
             }
             fprintf(out, ") {\n");
           }
-          cpuid_restriction = asm_call_generator->cpuid_restriction;
+          cpuid_restriction = asm_call_generator.cpuid_restriction;
         }
-        asm_call_generator->GenerateFunctionBody(out, 2 + 2 * if_opened);
-      }(asm_call_generator),
-      ...);
+        asm_call_generator.GenerateFunctionBody(out, 2 + 2 * if_opened);
+      });
   if (if_opened) {
     fprintf(out, "  }\n");
   }
   // Final line of function.
   fprintf(out, "};\n\n");
 }
-
-#define INTRINSIC_FUNCTION_NAME(func_name) #func_name
-#include "make_intrinsics-inl.h"
-#undef INTRINSIC_FUNCTION_NAME
 
 }  // namespace berberis
 
@@ -936,8 +934,7 @@ class MxcsrStorage {
               ? "using berberis::constants_pool::kBerberisMacroAssemblerConstants;"
               : "");
 
-  berberis::ProcessAllBindings<berberis::MacroAssembler<berberis::TextAssembler>,
-                               berberis::x86::OperandClass>(out);
+  berberis::GenerateAsmCalls(out);
   berberis::MakeExtraGuestFunctions(out);
 
   fprintf(out,
