@@ -44,6 +44,14 @@ extern const int32_t kCanonicalNans<intrinsics::Float32>;
 template <>
 extern const int32_t kCanonicalNans<intrinsics::Float64>;
 
+// Helper constant for BsrToClz conversion. 63 for int32_t, 127 for int64_t.
+template <typename IntType>
+extern const int32_t BsrToClz;
+template <>
+extern const int32_t BsrToClz<int32_t>;
+template <>
+extern const int32_t BsrToClz<int64_t>;
+
 }  // namespace berberis::constants_pool
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
