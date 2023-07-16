@@ -729,6 +729,7 @@ void ProcessBindings(Callback callback, Args&&... args) {""" % AUTOGEN, file=f)
 
 
 def _gen_c_intrinsics_generator(intrs):
+  string_labels = {}
   for name, intr in intrs:
     ins = intr.get('in')
     outs = intr.get('out')
@@ -756,11 +757,12 @@ def _gen_c_intrinsics_generator(intrs):
           else:
             spec = '%s, %d' % (desc.c_type, desc.num_elements)
           for intr_asm in intr_asms:
-            for line in _gen_c_intrinsic('%s<%s>' % (name, spec), intr, intr_asm):
+            for line in _gen_c_intrinsic(
+                '%s<%s>' % (name, spec), intr, intr_asm, string_labels):
               yield line
     else:
       for intr_asm in _gen_sorted_asms(intr):
-        for line in _gen_c_intrinsic(name, intr, intr_asm):
+        for line in _gen_c_intrinsic(name, intr, intr_asm, string_labels):
           yield line
 
 
@@ -792,7 +794,7 @@ _KNOWN_FEATURES_KEYS = {
 MAX_GENERATED_LINE_LENGTH = 100
 
 
-def _gen_c_intrinsic(name, intr, asm):
+def _gen_c_intrinsic(name, intr, asm, string_labels):
   if not _is_interpreter_compatible_assembler(asm):
     return
 
@@ -806,6 +808,20 @@ def _gen_c_intrinsic(name, intr, asm):
   nan_restriction = 'GenerateAsmCallBase::kNoNansOperation'
   if 'nan' in asm:
     nan_restriction = 'GenerateAsmCallBase::k%sNanOperationsHandling' % asm['nan']
+    template_arg = 'true' if asm['nan'] == "Precise" else "false"
+    if '<' in name:
+      template_pos = name.index('<')
+      name = name[0:template_pos+1] + template_arg + ", " + name[template_pos+1:]
+    else:
+      name += '<' + template_arg + '>'
+
+  if name not in string_labels:
+    name_label = 'kName%d' % len(string_labels)
+    yield '  [[maybe_unused]] static constexpr const char %s[] = "%s";' % (
+      name_label, name)
+    string_labels[name] = name_label
+  else:
+    name_label = string_labels[name]
 
   restriction = [cpuid_restriction, nan_restriction]
 
@@ -823,10 +839,11 @@ def _gen_c_intrinsic(name, intr, asm):
         [_get_reg_operand_info(arg, 'typename OperandClass')
          for arg in asm['args']]))
 
+  name = 'INTRINSIC_FUNCTION_NAME((%s), %s)' % (name, name_label)
+
   one_line = '              &MacroAssembler::%s%s, %s),' % (
       'template ' if '<' in asm['asm'] else '',
-      asm['asm'],
-      ', '.join(['INTRINSIC_FUNCTION_NAME((%s))' % name] + restriction))
+      asm['asm'], ', '.join([name] + restriction))
   if len(one_line) <= MAX_GENERATED_LINE_LENGTH:
     yield one_line
     return
@@ -834,7 +851,7 @@ def _gen_c_intrinsic(name, intr, asm):
   yield '              &MacroAssembler::%s%s,' % (
       'template ' if '<' in asm['asm'] else '',
       asm['asm'])
-  values = ['INTRINSIC_FUNCTION_NAME((%s))' % name] + restriction
+  values = [name] + restriction
   for index, value in enumerate(values):
     if index + 1 == len(values):
       yield '              %s),' % value
