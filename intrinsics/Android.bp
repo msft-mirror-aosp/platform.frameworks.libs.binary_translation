@@ -191,6 +191,10 @@ cc_defaults {
             srcs: [":dummy_make_intrinsics_srcs"],
         },
         linux: {
+            // We are only ever executing that binary once, it's faster to build it without
+            // optimizations and spend half-second more running it, than spend tens of seconds
+            // optimizing the code to save that half-second.
+            cflags: ["-O0"],
             srcs: [":make_intrinsics_srcs"],
             header_libs: [
                 "libberberis_base_headers",
