@@ -261,31 +261,13 @@ class GenerateAsmCallBase {
     kPreciseNanOperationsHandling,
     kImpreciseNanOperationsHandling
   } precise_nan_operations_handling;
-  const std::string name;
+  const char* name;
   GenerateAsmCallBase(const SSERestrictionEnum cpuid_restriction_,
                       const PreciseNanOperationsHandlingEnum precise_nan_operations_handling_,
                       const char* name_)
       : cpuid_restriction(cpuid_restriction_),
         precise_nan_operations_handling(precise_nan_operations_handling_),
-        name(CreateName(precise_nan_operations_handling_, name_)) {}
-  static std::string CreateName(PreciseNanOperationsHandlingEnum precise_nan_operations_handling,
-                                const char* wrapped_name) {
-    // Strip out brackets added to make C preprocessor happy.
-    std::string unwrapped_name{wrapped_name + 1, std::strlen(wrapped_name) - 2};
-    if (precise_nan_operations_handling == kNoNansOperation) {
-      return unwrapped_name;
-    }
-    if (auto template_pos = unwrapped_name.find('<'); template_pos != std::string::npos) {
-      return unwrapped_name.substr(0, template_pos + 1) +
-             (precise_nan_operations_handling == kPreciseNanOperationsHandling ? "true, "
-                                                                               : "false, ") +
-             unwrapped_name.substr(template_pos + 1);
-    } else {
-      return unwrapped_name + (precise_nan_operations_handling == kPreciseNanOperationsHandling
-                                   ? "<true>"
-                                   : "<false>");
-    }
-  }
+        name(name_) {}
   virtual size_t GetArgumentsCount() = 0;
   virtual void GenerateFunctionHeader(FILE* out, int indent) = 0;
   virtual void GenerateFunctionBody(FILE* out, int indent) = 0;
@@ -346,18 +328,18 @@ class GenerateAsmCall<kSideEffects,
         emit_{emit} {}
   size_t GetArgumentsCount() { return sizeof...(InputArguments); }
   void GenerateFunctionHeader(FILE* out, int indent) final {
-    if (strchr(name.c_str(), '<')) {
+    if (strchr(name, '<')) {
       fprintf(out, "template <>\n");
     }
     std::string prefix;
     if constexpr (sizeof...(InputArguments) == 0) {
-      prefix = "inline void " + name + "(";
+      prefix = "inline void " + std::string(name) + "(";
     } else {
       const char* prefix_of_prefix = "inline std::tuple<";
       ((prefix += prefix_of_prefix + std::string(x86::TypeTraits<OutputArguments>::kName),
         prefix_of_prefix = ", "),
        ...);
-      prefix += "> " + name + "(";
+      prefix += "> " + std::string(name) + "(";
     }
     std::size_t id = 0;
     std::vector<std::string> ins;
@@ -745,8 +727,7 @@ class GenerateAsmCall<kSideEffects,
         if (length <= 102) {
           fprintf(out, ", %s", element.c_str());
         } else {
-          fprintf(
-              out, ",\n%*s%s", static_cast<int>(prefix.length()) + indent, "", element.c_str());
+          fprintf(out, ",\n%*s%s", static_cast<int>(prefix.length()) + indent, "", element.c_str());
         }
       }
     }
@@ -795,7 +776,7 @@ class GenerateAsmCall<kSideEffects,
   EmitFunctionType emit_;
 };
 
-#define INTRINSIC_FUNCTION_NAME(func_name) #func_name
+#define INTRINSIC_FUNCTION_NAME(func, func_name) func_name
 #include "make_intrinsics-inl.h"
 #undef INTRINSIC_FUNCTION_NAME
 
@@ -806,7 +787,7 @@ void GenerateAsmCalls(FILE* out) {
   ProcessBindings<MacroAssembler<berberis::TextAssembler>, x86::OperandClass>(
       [&running_name, &if_opened, &cpuid_restriction, out](auto&& asm_call_generator) {
         std::string full_name =
-            asm_call_generator.name.substr(0, asm_call_generator.name.length() - 1) +
+            std::string(asm_call_generator.name, std::strlen(asm_call_generator.name) - 1) +
             ", kUseCppImplementation>";
         if (size_t arguments_count = asm_call_generator.GetArgumentsCount()) {
           full_name += "(in0";
