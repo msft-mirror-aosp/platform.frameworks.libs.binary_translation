@@ -798,16 +798,16 @@ def _gen_c_intrinsic(name, intr, asm, string_labels):
   if not _is_interpreter_compatible_assembler(asm):
     return
 
-  cpuid_restriction = 'GenerateAsmCallBase::kNoCPUIDRestriction'
+  cpuid_restriction = 'intrinsics::bindings::kNoCPUIDRestriction'
   if 'feature' in asm:
     if asm['feature'] == 'AuthenticAMD':
-      cpuid_restriction = 'GenerateAsmCallBase::kIsAuthenticAMD'
+      cpuid_restriction = 'intrinsics::bindings::kIsAuthenticAMD'
     else:
-      cpuid_restriction = 'GenerateAsmCallBase::kHas%s' % asm['feature']
+      cpuid_restriction = 'intrinsics::bindings::kHas%s' % asm['feature']
 
-  nan_restriction = 'GenerateAsmCallBase::kNoNansOperation'
+  nan_restriction = 'intrinsics::bindings::kNoNansOperation'
   if 'nan' in asm:
-    nan_restriction = 'GenerateAsmCallBase::k%sNanOperationsHandling' % asm['nan']
+    nan_restriction = 'intrinsics::bindings::k%sNanOperationsHandling' % asm['nan']
     template_arg = 'true' if asm['nan'] == "Precise" else "false"
     if '<' in name:
       template_pos = name.index('<')
