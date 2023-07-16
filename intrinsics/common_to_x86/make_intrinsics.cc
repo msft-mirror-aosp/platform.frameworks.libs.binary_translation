@@ -790,7 +790,9 @@ void GenerateAsmCalls(FILE* out) {
   //
   // But we want to unconditionally process all bindings, thus our callback always returns false
   // and thus ProcessBindings also returns false which subsequently ignore.
-  ProcessBindings<MacroAssembler<berberis::TextAssembler>,
+  ProcessBindings<TextAssemblerX86<TextAssembler>,
+                  TextAssembler,
+                  MacroAssembler<TextAssembler>,
                   x86::OperandClass>([&running_name, &if_opened, &cpuid_restriction, out](
                                          auto&& asm_call_generator) {
     std::string full_name =
