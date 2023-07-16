@@ -722,10 +722,11 @@ template <typename MacroAssembler,
           typename OperandClass,
           typename Callback,
           typename... Args>
-void ProcessBindings(Callback callback, Args&&... args) {""" % AUTOGEN, file=f)
+bool ProcessBindings(Callback callback, Args&&... args) {""" % AUTOGEN, file=f)
   for line in _gen_c_intrinsics_generator(intrs):
       print(line, file=f)
-  print("}", file=f)
+  print("""  return false;
+}""", file=f)
 
 
 def _gen_c_intrinsics_generator(intrs):
@@ -825,15 +826,15 @@ def _gen_c_intrinsic(name, intr, asm, string_labels):
 
   restriction = [cpuid_restriction, nan_restriction]
 
-  yield '  callback('
-
   def get_c_type_tuple(arguments):
     return 'std::tuple<%s>' % ', '.join(
         _get_c_type(argument) for argument in arguments).replace(
             'Float', 'intrinsics::Float')
 
-  yield '          GenerateAsmCall<%s>(' % (
-    ',\n                          '.join(
+  yield '  if (callback('
+  yield '          GenerateAsmCall<'
+  yield '              %s>(' % (
+    ',\n              '.join(
         ['true' if _intr_has_side_effects(intr) else 'false'] +
         [get_c_type_tuple(intr['in'])] + [get_c_type_tuple(intr['out'])] +
         [_get_reg_operand_info(arg, 'typename OperandClass')
@@ -857,7 +858,9 @@ def _gen_c_intrinsic(name, intr, asm, string_labels):
       yield '              %s),' % value
     else:
       yield '              %s,' % value
-  yield '              std::forward<Args>(args)...);'
+  yield '          std::forward<Args>(args)...)) {'
+  yield '    return true;'
+  yield '  }'
 
 
 def _load_intrs_def_files(intrs_def_files):
