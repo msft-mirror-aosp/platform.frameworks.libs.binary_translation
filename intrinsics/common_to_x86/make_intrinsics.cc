@@ -246,7 +246,7 @@ namespace intrinsics::bindings {
 
 namespace {
 
-enum SSERestrictionEnum : int {
+enum CPUIDRestriction : int {
   kNoCPUIDRestriction = 0,
   kHasLZCNT,
   kHasSSE3,
@@ -258,7 +258,7 @@ enum SSERestrictionEnum : int {
   kHasFMA4,
   kIsAuthenticAMD
 };
-enum PreciseNanOperationsHandlingEnum : int {
+enum PreciseNanOperationsHandling : int {
   kNoNansOperation = 0,
   kPreciseNanOperationsHandling,
   kImpreciseNanOperationsHandling
@@ -268,82 +268,63 @@ enum PreciseNanOperationsHandlingEnum : int {
 
 }  // namespace intrinsics::bindings
 
-template <bool kSideEffects, typename... Types>
+template <
+    auto kIntrinsicTemplateName,
+    auto kMacroInstructionTemplateName,
+    intrinsics::bindings::CPUIDRestriction kCPUIDRestrictionTemplateValue,
+    intrinsics::bindings::PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
+    bool kSideEffectsTemplateValue,
+    typename... Types>
 class GenerateAsmCall;
 
-template <bool kSideEffects,
-          typename... InputArguments,
-          typename... OutputArguments,
-          typename... Bindings>
-class GenerateAsmCall<kSideEffects,
-                      std::tuple<InputArguments...>,
-                      std::tuple<OutputArguments...>,
-                      Bindings...>
+template <
+    auto kIntrinsicTemplateName,
+    auto kMacroInstructionTemplateName,
+    intrinsics::bindings::CPUIDRestriction kCPUIDRestrictionTemplateValue,
+    intrinsics::bindings::PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
+    bool kSideEffectsTemplateValue,
+    typename... InputArgumentsTypes,
+    typename... OutputArgumentsTypes,
+    typename... BindingsTypes>
+class GenerateAsmCall<kIntrinsicTemplateName,
+                      kMacroInstructionTemplateName,
+                      kCPUIDRestrictionTemplateValue,
+                      kPreciseNanOperationsHandlingTemplateValue,
+                      kSideEffectsTemplateValue,
+                      std::tuple<InputArgumentsTypes...>,
+                      std::tuple<OutputArgumentsTypes...>,
+                      BindingsTypes...>
     final {
- private:
-  // Note: we couldn't just make constructor which accepts random function because there are
-  // certain functions which have many prototypes (e.g. Movd, naturally, could move from an
-  // XMM register to a GP register or from GP register to XMM register).
-  //
-  // Bindings argument pack have all the required information needed to calculate EmitFunctionType,
-  // but we need this dummy function to circumvent C++ restriction "lambda expressions are not
-  // allowed in an unevaluated operand".
-  //
-  // EmitFunctionTypeHelper calculates and returns empty std::optional<EmitFunctionType> - where
-  // EmitFunctionType is correct type of member function used to generate intrinsics with a given
-  // Bindings...
-  constexpr auto static EmitFunctionTypeHelper() {
-    return std::apply(
-        [](auto... args) {
-          using EmitFunctionType = void (MacroAssembler<TextAssembler>::*)(decltype(args)...);
-          return std::optional<EmitFunctionType>{};
-        },
-        std::tuple_cat([](auto arg) {
-          using RegisterClass = typename decltype(arg)::RegisterClass;
-          if constexpr (std::is_same_v<RegisterClass, x86::OperandClass::FLAGS> ||
-                        RegisterClass::kIsImplicitReg) {
-            return std::tuple{};
-          } else if constexpr (RegisterClass::kAsRegister == 'x') {
-            return std::tuple{TextAssembler::XMMRegister{}};
-          } else {
-            return std::tuple{TextAssembler::Register{}};
-          }
-        }(ArgTraits<Bindings>())...));
-  }
-
-  using EmitFunctionType = typename decltype(EmitFunctionTypeHelper())::value_type;
-
  public:
-  GenerateAsmCall(
-      EmitFunctionType emit,
-      const char* name_,
-      intrinsics::bindings::SSERestrictionEnum cpuid_restriction_,
-      intrinsics::bindings::PreciseNanOperationsHandlingEnum precise_nan_operations_handling_)
-      : cpuid_restriction(cpuid_restriction_),
-        precise_nan_operations_handling(precise_nan_operations_handling_),
-        name(name_),
-        emit_{emit} {}
-  const intrinsics::bindings::SSERestrictionEnum cpuid_restriction;
-  const intrinsics::bindings::PreciseNanOperationsHandlingEnum precise_nan_operations_handling;
-  const char* name;
-  size_t GetArgumentsCount() { return sizeof...(InputArguments); }
+  static constexpr auto kIntrinsic = kIntrinsicTemplateName;
+  static constexpr auto kMacroInstruction = kMacroInstructionTemplateName;
+  static constexpr intrinsics::bindings::CPUIDRestriction kCPUIDRestriction =
+      kCPUIDRestrictionTemplateValue;
+  static constexpr intrinsics::bindings::PreciseNanOperationsHandling
+      kPreciseNanOperationsHandling = kPreciseNanOperationsHandlingTemplateValue;
+  static constexpr bool kSideEffects = kSideEffectsTemplateValue;
+  using InputArguments = std::tuple<InputArgumentsTypes...>;
+  using OutputArguments = std::tuple<OutputArgumentsTypes...>;
+  using Bindings = std::tuple<BindingsTypes...>;
+
+  size_t GetArgumentsCount() { return std::tuple_size_v<InputArguments>; }
   void GenerateFunctionHeader(FILE* out, int indent) {
-    if (strchr(name, '<')) {
+    if (strchr(kIntrinsic, '<')) {
       fprintf(out, "template <>\n");
     }
     std::string prefix;
-    if constexpr (sizeof...(InputArguments) == 0) {
-      prefix = "inline void " + std::string(name) + "(";
+    if constexpr (std::tuple_size_v<InputArguments> == 0) {
+      prefix = "inline void " + std::string(kIntrinsic) + "(";
     } else {
       const char* prefix_of_prefix = "inline std::tuple<";
-      ((prefix += prefix_of_prefix + std::string(x86::TypeTraits<OutputArguments>::kName),
+      ((prefix += prefix_of_prefix + std::string(x86::TypeTraits<OutputArgumentsTypes>::kName),
         prefix_of_prefix = ", "),
        ...);
-      prefix += "> " + std::string(name) + "(";
+      prefix += "> " + std::string(kIntrinsic) + "(";
     }
     std::size_t id = 0;
     std::vector<std::string> ins;
-    (ins.push_back(std::string(x86::TypeTraits<InputArguments>::kName) + " in" +
+    (ins.push_back(std::string(x86::TypeTraits<InputArgumentsTypes>::kName) + " in" +
                    std::to_string(id++)),
      ...);
     GenerateElementsList(out, indent, prefix, ") {", ins);
@@ -358,7 +339,7 @@ class GenerateAsmCall<kSideEffects,
     // we couldn't use "float"/"double" function arguments because if ABI issues.
     GenerateInShadows(out, indent);
     // Even if we don't pass any registers we need to allocate at least one element.
-    int register_numbers[sizeof...(Bindings) == 0 ? 1 : sizeof...(Bindings)];
+    int register_numbers[std::tuple_size_v<Bindings> == 0 ? 1 : std::tuple_size_v<Bindings>];
     // Assign numbers to registers - we need to pass them to assembler and then, later,
     // to Generator of Input Variable line.
     AssignRegisterNumbers(register_numbers);
@@ -384,9 +365,9 @@ class GenerateAsmCall<kSideEffects,
     // Generate copies from shadows to outputs.
     GenerateOutShadows(out, indent);
     // Return value from function.
-    if constexpr (sizeof...(OutputArguments) > 0) {
+    if constexpr (std::tuple_size_v<OutputArguments> > 0) {
       std::vector<std::string> outs;
-      for (std::size_t id = 0; id < sizeof...(OutputArguments); ++id) {
+      for (std::size_t id = 0; id < std::tuple_size_v<OutputArguments>; ++id) {
         outs.push_back("out" + std::to_string(id));
       }
       GenerateElementsList(out, indent, "return {", "};", outs);
@@ -397,7 +378,8 @@ class GenerateAsmCall<kSideEffects,
  private:
   void GenerateOutputVariables(FILE* out, int indent) {
     std::size_t id = 0;
-    (fprintf(out, "%*s%s out%zd;\n", indent, "", x86::TypeTraits<OutputArguments>::kName, id++),
+    (fprintf(
+         out, "%*s%s out%zd;\n", indent, "", x86::TypeTraits<OutputArgumentsTypes>::kName, id++),
      ...);
   }
   void GenerateTemporaries(FILE* out, int indent) {
@@ -418,7 +400,7 @@ class GenerateAsmCall<kSideEffects,
                       id++);
             }
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
   }
   void GenerateInShadows(FILE* out, int indent) {
@@ -436,7 +418,7 @@ class GenerateAsmCall<kSideEffects,
             }
           } else if constexpr (RegisterClass::kAsRegister == 'x') {
             if constexpr (HaveInput(arg.arg_info)) {
-              using Type = std::tuple_element_t<arg.arg_info.from, std::tuple<InputArguments...>>;
+              using Type = std::tuple_element_t<arg.arg_info.from, InputArguments>;
               const char* type_name;
               const char* xmm_type_name;
               const char* expanded = "";
@@ -472,13 +454,13 @@ class GenerateAsmCall<kSideEffects,
                       xmm_type_name);
             }
             if constexpr (HaveOutput(arg.arg_info)) {
-              using Type = std::tuple_element_t<arg.arg_info.to, std::tuple<OutputArguments...>>;
+              using Type = std::tuple_element_t<arg.arg_info.to, OutputArguments>;
               const char* xmm_type_name =
                   x86::TypeTraits<typename x86::TypeTraits<Type>::XMMType>::kName;
               fprintf(out, "%*s%s out%d_shadow;\n", indent, "", xmm_type_name, arg.arg_info.to);
             }
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
   }
   static void AssignRegisterNumbers(int* register_numbers) {
@@ -494,7 +476,7 @@ class GenerateAsmCall<kSideEffects,
             }
             ++arg_counter;
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
     // Assign numbers for input arguments.
     arg_counter = 0;
@@ -507,7 +489,7 @@ class GenerateAsmCall<kSideEffects,
             }
             ++arg_counter;
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
   }
   auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
@@ -529,12 +511,12 @@ class GenerateAsmCall<kSideEffects,
             }
             ++arg_counter;
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
     as.gpr_macroassembler_constants = TextAssembler::Register(arg_counter);
     arg_counter = 0;
     std::apply(
-        emit_,
+        kMacroInstruction,
         std::tuple_cat(std::tuple<MacroAssembler<TextAssembler>&>(as),
                        [&arg_counter, register_numbers](auto arg) {
                          using RegisterClass = typename decltype(arg)::RegisterClass;
@@ -548,7 +530,7 @@ class GenerateAsmCall<kSideEffects,
                          } else {
                            return std::tuple{};
                          }
-                       }(ArgTraits<Bindings>())...));
+                       }(ArgTraits<BindingsTypes>())...));
     // Verify CPU vendor and SSE restrictions.
     bool expect_lzcnt = false;
     bool expect_sse3 = false;
@@ -558,13 +540,13 @@ class GenerateAsmCall<kSideEffects,
     bool expect_avx = false;
     bool expect_fma = false;
     bool expect_fma4 = false;
-    switch (cpuid_restriction) {
+    switch (kCPUIDRestriction) {
       case intrinsics::bindings::kHasLZCNT:
         expect_lzcnt = true;
         break;
       case intrinsics::bindings::kHasFMA:
       case intrinsics::bindings::kHasFMA4:
-        if (cpuid_restriction == intrinsics::bindings::kHasFMA) {
+        if (kCPUIDRestriction == intrinsics::bindings::kHasFMA) {
           expect_fma = true;
         } else {
           expect_fma4 = true;
@@ -624,7 +606,7 @@ class GenerateAsmCall<kSideEffects,
             }
             outs.push_back(out);
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
     GenerateElementsList(out, indent, "  : ", "", outs);
   }
@@ -643,7 +625,7 @@ class GenerateAsmCall<kSideEffects,
                           std::to_string(arg.arg_info.from) +
                           (NeedInputShadow(arg) ? "_shadow)" : ")"));
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
     if (need_gpr_macroassembler_mxcsr_scratch) {
       ins.push_back("\"m\"(*&MxcsrStorage()), \"m\"(*&MxcsrStorage())");
@@ -665,7 +647,7 @@ class GenerateAsmCall<kSideEffects,
             }
             ++arg_counter;
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
     GenerateElementsList(out, indent, "  : ", "", ins);
   }
@@ -676,14 +658,14 @@ class GenerateAsmCall<kSideEffects,
           if constexpr (RegisterClass::kAsRegister == 'r') {
             // TODO(b/138439904): remove when clang handling of 'r' constraint would be fixed.
             if constexpr (HaveOutput(arg.arg_info)) {
-              using Type = std::tuple_element_t<arg.arg_info.to, std::tuple<OutputArguments...>>;
+              using Type = std::tuple_element_t<arg.arg_info.to, OutputArguments>;
               if constexpr (sizeof(Type) == sizeof(uint8_t)) {
                 fprintf(out, "%2$*1$sout%3$d = out%3$d_shadow;\n", indent, "", arg.arg_info.to);
               }
             }
           } else if constexpr (RegisterClass::kAsRegister == 'x') {
             if constexpr (HaveOutput(arg.arg_info)) {
-              using Type = std::tuple_element_t<arg.arg_info.to, std::tuple<OutputArguments...>>;
+              using Type = std::tuple_element_t<arg.arg_info.to, OutputArguments>;
               const char* type_name = x86::TypeTraits<Type>::kName;
               const char* xmm_type_name =
                   x86::TypeTraits<typename x86::TypeTraits<Type>::XMMType>::kName;
@@ -704,7 +686,7 @@ class GenerateAsmCall<kSideEffects,
                       xmm_type_name);
             }
           }
-        }(ArgTraits<Bindings>()),
+        }(ArgTraits<BindingsTypes>()),
         ...);
   }
   void GenerateElementsList(FILE* out,
@@ -743,8 +725,7 @@ class GenerateAsmCall<kSideEffects,
       // Only 8-bit registers are special because each 16-bit registers include two of them
       // (%al/%ah, %cl/%ch, %dl/%dh, %bl/%bh).
       // Mix of 16-bit and 64-bit registers doesn't trigger bug in Clang.
-      if constexpr (sizeof(
-                        std::tuple_element_t<arg.arg_info.from, std::tuple<InputArguments...>>) ==
+      if constexpr (sizeof(std::tuple_element_t<arg.arg_info.from, InputArguments>) ==
                     sizeof(uint8_t)) {
         return true;
       }
@@ -763,7 +744,7 @@ class GenerateAsmCall<kSideEffects,
       // Only 8-bit registers are special because each some 16-bit registers include two of
       // them (%al/%ah, %cl/%ch, %dl/%dh, %bl/%bh).
       // Mix of 16-bit and 64-bit registers don't trigger bug in Clang.
-      if constexpr (sizeof(std::tuple_element_t<arg.arg_info.to, std::tuple<OutputArguments...>>) ==
+      if constexpr (sizeof(std::tuple_element_t<arg.arg_info.to, OutputArguments>) ==
                     sizeof(uint8_t)) {
         return true;
       }
@@ -772,8 +753,6 @@ class GenerateAsmCall<kSideEffects,
     }
     return false;
   }
-
-  EmitFunctionType emit_;
 };
 
 #define INTRINSIC_FUNCTION_NAME(func, func_name) func_name
@@ -781,7 +760,7 @@ class GenerateAsmCall<kSideEffects,
 #undef INTRINSIC_FUNCTION_NAME
 
 void GenerateAsmCalls(FILE* out) {
-  intrinsics::bindings::SSERestrictionEnum cpuid_restriction =
+  intrinsics::bindings::CPUIDRestriction cpuid_restriction =
       intrinsics::bindings::kNoCPUIDRestriction;
   bool if_opened = false;
   std::string running_name;
@@ -796,7 +775,7 @@ void GenerateAsmCalls(FILE* out) {
                   x86::OperandClass>([&running_name, &if_opened, &cpuid_restriction, out](
                                          auto&& asm_call_generator) {
     std::string full_name =
-        std::string(asm_call_generator.name, std::strlen(asm_call_generator.name) - 1) +
+        std::string(asm_call_generator.kIntrinsic, std::strlen(asm_call_generator.kIntrinsic) - 1) +
         ", kUseCppImplementation>";
     if (size_t arguments_count = asm_call_generator.GetArgumentsCount()) {
       full_name += "(in0";
@@ -821,8 +800,8 @@ void GenerateAsmCalls(FILE* out) {
       asm_call_generator.GenerateFunctionHeader(out, 0);
       running_name = full_name;
     }
-    if (asm_call_generator.cpuid_restriction != cpuid_restriction) {
-      if (asm_call_generator.cpuid_restriction == intrinsics::bindings::kNoCPUIDRestriction) {
+    if (asm_call_generator.kCPUIDRestriction != cpuid_restriction) {
+      if (asm_call_generator.kCPUIDRestriction == intrinsics::bindings::kNoCPUIDRestriction) {
         fprintf(out, "  } else {\n");
       } else {
         if (if_opened) {
@@ -831,7 +810,7 @@ void GenerateAsmCalls(FILE* out) {
           fprintf(out, "  if (");
           if_opened = true;
         }
-        switch (asm_call_generator.cpuid_restriction) {
+        switch (asm_call_generator.kCPUIDRestriction) {
           case intrinsics::bindings::kIsAuthenticAMD:
             fprintf(out, "host_platform::kIsAuthenticAMD");
             break;
@@ -863,7 +842,7 @@ void GenerateAsmCalls(FILE* out) {
         }
         fprintf(out, ") {\n");
       }
-      cpuid_restriction = asm_call_generator.cpuid_restriction;
+      cpuid_restriction = asm_call_generator.kCPUIDRestriction;
     }
     asm_call_generator.GenerateFunctionBody(out, 2 + 2 * if_opened);
     return false;  // Returning true would mean that we finished processing bindings.
