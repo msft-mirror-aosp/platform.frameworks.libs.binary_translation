@@ -864,7 +864,7 @@ def _gen_c_intrinsic(name, intr, asm, string_labels):
         asm['asm'])
 
   yield '  if (callback('
-  yield '          GenerateAsmCall<'
+  yield '          intrinsics::bindings::AsmCallInfo<'
   yield '              %s>(),' % (
     ',\n              '.join(
         ['INTRINSIC_FUNCTION_NAME((%s), %s)' % (name, name_label),

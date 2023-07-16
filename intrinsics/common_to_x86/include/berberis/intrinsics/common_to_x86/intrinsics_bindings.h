@@ -21,6 +21,9 @@
 
 #include <cstdint>
 
+#include "berberis/intrinsics/intrinsics_args.h"
+#include "berberis/intrinsics/type_traits.h"
+
 namespace berberis::intrinsics::bindings {
 
 class Imm2 {
@@ -286,6 +289,55 @@ enum PreciseNanOperationsHandling : int {
   kNoNansOperation = 0,
   kPreciseNanOperationsHandling,
   kImpreciseNanOperationsHandling
+};
+
+template <auto kIntrinsicTemplateName,
+          auto kMacroInstructionTemplateName,
+          CPUIDRestriction kCPUIDRestrictionTemplateValue,
+          PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
+          bool kSideEffectsTemplateValue,
+          typename... Types>
+class AsmCallInfo;
+
+template <auto kIntrinsicTemplateName,
+          auto kMacroInstructionTemplateName,
+          CPUIDRestriction kCPUIDRestrictionTemplateValue,
+          PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
+          bool kSideEffectsTemplateValue,
+          typename... InputArgumentsTypes,
+          typename... OutputArgumentsTypes,
+          typename... BindingsTypes>
+class AsmCallInfo<kIntrinsicTemplateName,
+                  kMacroInstructionTemplateName,
+                  kCPUIDRestrictionTemplateValue,
+                  kPreciseNanOperationsHandlingTemplateValue,
+                  kSideEffectsTemplateValue,
+                  std::tuple<InputArgumentsTypes...>,
+                  std::tuple<OutputArgumentsTypes...>,
+                  BindingsTypes...>
+    final {
+ public:
+  static constexpr auto kIntrinsic = kIntrinsicTemplateName;
+  static constexpr auto kMacroInstruction = kMacroInstructionTemplateName;
+  static constexpr CPUIDRestriction kCPUIDRestriction = kCPUIDRestrictionTemplateValue;
+  static constexpr PreciseNanOperationsHandling kPreciseNanOperationsHandling =
+      kPreciseNanOperationsHandlingTemplateValue;
+  static constexpr bool kSideEffects = kSideEffectsTemplateValue;
+  static constexpr const char* InputArgumentsTypeNames[] = {
+      TypeTraits<InputArgumentsTypes>::kName...};
+  static constexpr const char* OutputArgumentsTypeNames[] = {
+      TypeTraits<OutputArgumentsTypes>::kName...};
+  template <typename Callback>
+  constexpr static void ProcessBindings(Callback&& callback) {
+    (callback(ArgTraits<BindingsTypes>()), ...);
+  }
+  template <typename Callback>
+  constexpr static auto MakeTuplefromBindings(Callback&& callback) {
+    return std::tuple_cat(callback(ArgTraits<BindingsTypes>())...);
+  }
+  using InputArguments = std::tuple<InputArgumentsTypes...>;
+  using OutputArguments = std::tuple<OutputArgumentsTypes...>;
+  using Bindings = std::tuple<BindingsTypes...>;
 };
 
 }  // namespace berberis::intrinsics::bindings
