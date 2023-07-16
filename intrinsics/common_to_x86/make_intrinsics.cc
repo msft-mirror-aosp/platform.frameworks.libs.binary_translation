@@ -785,6 +785,11 @@ void GenerateAsmCalls(FILE* out) {
       intrinsics::bindings::kNoCPUIDRestriction;
   bool if_opened = false;
   std::string running_name;
+  // Note: ProcessBindings is designed for TryInlineIntrinsic thus it processes bindings till
+  // callback supplied returns “true” and then ProcessBindings returns success.
+  //
+  // But we want to unconditionally process all bindings, thus our callback always returns false
+  // and thus ProcessBindings also returns false which subsequently ignore.
   ProcessBindings<MacroAssembler<berberis::TextAssembler>,
                   x86::OperandClass>([&running_name, &if_opened, &cpuid_restriction, out](
                                          auto&& asm_call_generator) {
@@ -859,6 +864,7 @@ void GenerateAsmCalls(FILE* out) {
       cpuid_restriction = asm_call_generator.cpuid_restriction;
     }
     asm_call_generator.GenerateFunctionBody(out, 2 + 2 * if_opened);
+    return false;  // Returning true would mean that we finished processing bindings.
   });
   if (if_opened) {
     fprintf(out, "  }\n");
