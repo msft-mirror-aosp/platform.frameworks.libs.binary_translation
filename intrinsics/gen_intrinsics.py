@@ -993,17 +993,18 @@ def _add_asm_insn(intrs, arch_intr, insn):
 
 
 def _open_asm_def_files(def_files, arch_def_files, asm_def_files, need_archs=False):
-  intrs = _expand_template_intrinsics(_load_intrs_def_files(def_files))
+  intrs = _load_intrs_def_files(def_files)
+  expanded_intrs = _expand_template_intrinsics(intrs)
   arch_intrs = _load_intrs_arch_def(arch_def_files)
   archs = []
   for macro_def in asm_def_files:
-    arch, arch_intrs = _load_macro_def(intrs, arch_intrs, macro_def)
+    arch, arch_intrs = _load_macro_def(expanded_intrs, arch_intrs, macro_def)
     if arch is not None:
       archs.append(arch)
   # Make sure that all intrinsics were found during processing of arch_intrs.
   assert arch_intrs == []
   if need_archs:
-    return archs, sorted(intrs.items())
+    return archs, sorted(intrs.items()), sorted(expanded_intrs.items())
   else:
     return sorted(intrs.items())
 
@@ -1038,6 +1039,17 @@ def main(argv):
   #                                      <mock_semantics_listener_intrinsics_hooks-inl.h>
   #                                      <riscv64_to_x86_64/intrinsic_def.json",
   #                                      ...
+  #   gen_intrinsics.py --public_headersx <intrinsics-inl.h>
+  #                                       <intrinsics_process_bindings-inl.h>
+  #                                       <interpreter_intrinsics_hooks-inl.h>
+  #                                       <translator_intrinsics_hooks-inl.h>
+  #                                       <mock_semantics_listener_intrinsics_hooks-inl.h>
+  #                                       <riscv64_to_x86_64/intrinsic_def.json",
+  #                                       ...
+  #                                       <riscv64_to_x86_64/machine_ir_intrinsic_binding.json>,
+  #                                       ...
+  #                                       <riscv64_to_x86_64/macro_def.json>,
+  #                                       ...
   #   gen_intrinsics.py --make_intrinsics_inl_h <make_intrinsics-inl.h>
   #                                             <riscv64_to_x86_64/intrinsic_def.json",
   #                                             ...
@@ -1063,19 +1075,30 @@ def main(argv):
         open_out_file(argv[4]), intrs)
     _gen_mock_semantics_listener_intrinsics_hooks_impl_inl_h(
         open_out_file(argv[5]), intrs)
-  elif mode == '--make_intrinsics_inl_h':
-    def_files_end = 3
+  elif mode == '--make_intrinsics_inl_h' or mode == "--public_headersx":
+    out_files_end = 3 if mode == '--make_intrinsics_inl_h' else 7
+    def_files_end = out_files_end
     while argv[def_files_end].endswith('intrinsic_def.json'):
       def_files_end += 1
     arch_def_files_end = def_files_end
     while argv[arch_def_files_end].endswith('machine_ir_intrinsic_binding.json'):
       arch_def_files_end += 1
-    archs, intrs = _open_asm_def_files(
-      argv[3:def_files_end],
+    archs, intrs, expanded_intrs = _open_asm_def_files(
+      argv[out_files_end:def_files_end],
       argv[def_files_end:arch_def_files_end],
       argv[arch_def_files_end:],
       True)
-    _gen_make_intrinsics(open_out_file(argv[2]), intrs, archs)
+    if mode == '--make_intrinsics_inl_h':
+      _gen_make_intrinsics(open_out_file(argv[2]), expanded_intrs, archs)
+    else:
+      _gen_intrinsics_inl_h(open_out_file(argv[2]), intrs)
+      _gen_make_intrinsics(open_out_file(argv[3]), expanded_intrs, archs)
+      _gen_semantic_player_types(intrs)
+      _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs)
+      _gen_translator_intrinsics_hooks_impl_inl_h(
+          open_out_file(argv[5]), intrs)
+      _gen_mock_semantics_listener_intrinsics_hooks_impl_inl_h(
+          open_out_file(argv[6]), intrs)
   else:
     assert False, 'unknown option %s' % (mode)
 
