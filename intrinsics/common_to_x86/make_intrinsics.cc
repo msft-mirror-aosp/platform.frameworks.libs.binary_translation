@@ -318,55 +318,90 @@ class GenerateAsmCall<kIntrinsicTemplateName,
   using InputArguments = std::tuple<InputArgumentsTypes...>;
   using OutputArguments = std::tuple<OutputArgumentsTypes...>;
   using Bindings = std::tuple<BindingsTypes...>;
+};
 
+template <typename AsmCallInfo>
+void GenerateOutputVariables(FILE* out, int indent);
+template <typename AsmCallInfo>
+void GenerateTemporaries(FILE* out, int indent);
+template <typename AsmCallInfo>
+void GenerateInShadows(FILE* out, int indent);
+template <typename AsmCallInfo>
+void AssignRegisterNumbers(int* register_numbers);
+template <typename AsmCallInfo>
+auto CallTextAssembler(FILE* out, int indent, int* register_numbers);
+template <typename AsmCallInfo>
+void GenerateAssemblerOuts(FILE* out, int indent);
+template <typename AsmCallInfo>
+void GenerateAssemblerIns(FILE* out,
+                          int indent,
+                          int* register_numbers,
+                          bool need_gpr_macroassembler_mxcsr_scratch,
+                          bool need_gpr_macroassembler_constants);
+template <typename AsmCallInfo>
+void GenerateOutShadows(FILE* out, int indent);
+template <typename AsmCallInfo>
+void GenerateElementsList(FILE* out,
+                          int indent,
+                          const std::string& prefix,
+                          const std::string& suffix,
+                          const std::vector<std::string>& elements);
+template <typename AsmCallInfo, typename Arg>
+constexpr bool NeedInputShadow(Arg arg);
+template <typename AsmCallInfo, typename Arg>
+constexpr bool NeedOutputShadow(Arg arg);
+
+  template <typename AsmCallInfo>
   void GenerateFunctionHeader(FILE* out, int indent) {
-    if (strchr(kIntrinsic, '<')) {
+    if (strchr(AsmCallInfo::kIntrinsic, '<')) {
       fprintf(out, "template <>\n");
     }
     std::string prefix;
-    if constexpr (std::tuple_size_v<InputArguments> == 0) {
-      prefix = "inline void " + std::string(kIntrinsic) + "(";
+    if constexpr (std::tuple_size_v<typename AsmCallInfo::InputArguments> == 0) {
+      prefix = "inline void " + std::string(AsmCallInfo::kIntrinsic) + "(";
     } else {
       const char* prefix_of_prefix = "inline std::tuple<";
-      for (const char* type_name : OutputArgumentsTypeNames) {
+      for (const char* type_name : AsmCallInfo::OutputArgumentsTypeNames) {
         prefix += prefix_of_prefix + std::string(type_name);
         prefix_of_prefix = ", ";
       }
-      prefix += "> " + std::string(kIntrinsic) + "(";
+      prefix += "> " + std::string(AsmCallInfo::kIntrinsic) + "(";
     }
     std::vector<std::string> ins;
-    for (const char* type_name : InputArgumentsTypeNames) {
+    for (const char* type_name : AsmCallInfo::InputArgumentsTypeNames) {
       ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
     }
-    GenerateElementsList(out, indent, prefix, ") {", ins);
+    GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
   }
+
+  template <typename AsmCallInfo>
   void GenerateFunctionBody(FILE* out, int indent) {
     // Declare out variables.
-    GenerateOutputVariables(out, indent);
+    GenerateOutputVariables<AsmCallInfo>(out, indent);
     // Declare temporary variables.
-    GenerateTemporaries(out, indent);
+    GenerateTemporaries<AsmCallInfo>(out, indent);
     // We need "shadow variables" for ins of types: Float32, Float64 and SIMD128Register.
     // This is because assembler does not accept these arguments for XMMRegisters and
     // we couldn't use "float"/"double" function arguments because if ABI issues.
-    GenerateInShadows(out, indent);
+    GenerateInShadows<AsmCallInfo>(out, indent);
     // Even if we don't pass any registers we need to allocate at least one element.
-    int register_numbers[std::tuple_size_v<Bindings> == 0 ? 1 : std::tuple_size_v<Bindings>];
+    int register_numbers[std::tuple_size_v<typename AsmCallInfo::Bindings> == 0 ? 1 : std::tuple_size_v<typename AsmCallInfo::Bindings>];
     // Assign numbers to registers - we need to pass them to assembler and then, later,
     // to Generator of Input Variable line.
-    AssignRegisterNumbers(register_numbers);
+    AssignRegisterNumbers<AsmCallInfo>(register_numbers);
     // Print opening line for asm call.
-    if constexpr (kSideEffects) {
+    if constexpr (AsmCallInfo::kSideEffects) {
       fprintf(out, "%*s__asm__ __volatile__(\n", indent, "");
     } else {
       fprintf(out, "%*s__asm__(\n", indent, "");
     }
     // Call text assembler to produce the body of an asm call.
     auto [need_gpr_macroassembler_mxcsr_scratch, need_gpr_macroassembler_constants] =
-        CallTextAssembler(out, indent, register_numbers);
+        CallTextAssembler<AsmCallInfo>(out, indent, register_numbers);
     // Assembler instruction outs.
-    GenerateAssemblerOuts(out, indent);
+    GenerateAssemblerOuts<AsmCallInfo>(out, indent);
     // Assembler instruction ins.
-    GenerateAssemblerIns(out,
+    GenerateAssemblerIns<AsmCallInfo>(out,
                          indent,
                          register_numbers,
                          need_gpr_macroassembler_mxcsr_scratch,
@@ -374,28 +409,29 @@ class GenerateAsmCall<kIntrinsicTemplateName,
     // Close asm call.
     fprintf(out, "%*s);\n", indent, "");
     // Generate copies from shadows to outputs.
-    GenerateOutShadows(out, indent);
+    GenerateOutShadows<AsmCallInfo>(out, indent);
     // Return value from function.
-    if constexpr (std::tuple_size_v<OutputArguments> > 0) {
+    if constexpr (std::tuple_size_v<typename AsmCallInfo::OutputArguments> > 0) {
       std::vector<std::string> outs;
-      for (std::size_t id = 0; id < std::tuple_size_v<OutputArguments>; ++id) {
+      for (std::size_t id = 0; id < std::tuple_size_v<typename AsmCallInfo::OutputArguments>; ++id) {
         outs.push_back("out" + std::to_string(id));
       }
-      GenerateElementsList(out, indent, "return {", "};", outs);
+      GenerateElementsList<AsmCallInfo>(out, indent, "return {", "};", outs);
     }
   }
-  ~GenerateAsmCall() {}
 
- private:
+  template <typename AsmCallInfo>
   void GenerateOutputVariables(FILE* out, int indent) {
     std::size_t id = 0;
-    for (const char* type_name : OutputArgumentsTypeNames) {
+    for (const char* type_name : AsmCallInfo::OutputArgumentsTypeNames) {
       fprintf(out, "%*s%s out%zd;\n", indent, "", type_name, id++);
     }
   }
+
+  template <typename AsmCallInfo>
   void GenerateTemporaries(FILE* out, int indent) {
     std::size_t id = 0;
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [out, &id, indent](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
@@ -413,22 +449,24 @@ class GenerateAsmCall<kIntrinsicTemplateName,
           }
         });
   }
+
+  template <typename AsmCallInfo>
   void GenerateInShadows(FILE* out, int indent) {
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [out, indent](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (RegisterClass::kAsRegister == 'r') {
             // TODO(b/138439904): remove when clang handling of 'r' constraint would be fixed.
-            if constexpr (NeedInputShadow(arg)) {
+            if constexpr (NeedInputShadow<AsmCallInfo>(arg)) {
               fprintf(
                   out, "%2$*1$suint32_t in%3$d_shadow = in%3$d;\n", indent, "", arg.arg_info.from);
             }
-            if constexpr (NeedOutputShadow(arg)) {
+            if constexpr (NeedOutputShadow<AsmCallInfo>(arg)) {
               fprintf(out, "%*suint32_t out%d_shadow;\n", indent, "", arg.arg_info.to);
             }
           } else if constexpr (RegisterClass::kAsRegister == 'x') {
             if constexpr (HaveInput(arg.arg_info)) {
-              using Type = std::tuple_element_t<arg.arg_info.from, InputArguments>;
+              using Type = std::tuple_element_t<arg.arg_info.from, typename AsmCallInfo::InputArguments>;
               const char* type_name;
               const char* xmm_type_name;
               const char* expanded = "";
@@ -464,7 +502,7 @@ class GenerateAsmCall<kIntrinsicTemplateName,
                       xmm_type_name);
             }
             if constexpr (HaveOutput(arg.arg_info)) {
-              using Type = std::tuple_element_t<arg.arg_info.to, OutputArguments>;
+              using Type = std::tuple_element_t<arg.arg_info.to, typename AsmCallInfo::OutputArguments>;
               const char* xmm_type_name =
                   x86::TypeTraits<typename x86::TypeTraits<Type>::XMMType>::kName;
               fprintf(out, "%*s%s out%d_shadow;\n", indent, "", xmm_type_name, arg.arg_info.to);
@@ -472,11 +510,13 @@ class GenerateAsmCall<kIntrinsicTemplateName,
           }
         });
   }
-  static void AssignRegisterNumbers(int* register_numbers) {
+
+  template <typename AsmCallInfo>
+  void AssignRegisterNumbers(int* register_numbers) {
     // Assign number for output (and temporary) arguments.
     std::size_t id = 0;
     int arg_counter = 0;
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [&id, &arg_counter, &register_numbers](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
@@ -488,7 +528,7 @@ class GenerateAsmCall<kIntrinsicTemplateName,
         });
     // Assign numbers for input arguments.
     arg_counter = 0;
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [&id, &arg_counter, &register_numbers](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
@@ -499,10 +539,12 @@ class GenerateAsmCall<kIntrinsicTemplateName,
           }
         });
   }
+
+  template <typename AsmCallInfo>
   auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
     MacroAssembler<TextAssembler> as(indent, out);
     int arg_counter = 0;
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [&arg_counter, &as, register_numbers](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
@@ -522,9 +564,9 @@ class GenerateAsmCall<kIntrinsicTemplateName,
     as.gpr_macroassembler_constants = TextAssembler::Register(arg_counter);
     arg_counter = 0;
     std::apply(
-        kMacroInstruction,
+        AsmCallInfo::kMacroInstruction,
         std::tuple_cat(std::tuple<MacroAssembler<TextAssembler>&>{as},
-                       MakeTuplefromBindings([&arg_counter, register_numbers](auto arg) {
+                       AsmCallInfo::MakeTuplefromBindings([&arg_counter, register_numbers](auto arg) {
                          using RegisterClass = typename decltype(arg)::RegisterClass;
                          if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
                            if constexpr (RegisterClass::kIsImplicitReg) {
@@ -546,13 +588,13 @@ class GenerateAsmCall<kIntrinsicTemplateName,
     bool expect_avx = false;
     bool expect_fma = false;
     bool expect_fma4 = false;
-    switch (kCPUIDRestriction) {
+    switch (AsmCallInfo::kCPUIDRestriction) {
       case intrinsics::bindings::kHasLZCNT:
         expect_lzcnt = true;
         break;
       case intrinsics::bindings::kHasFMA:
       case intrinsics::bindings::kHasFMA4:
-        if (kCPUIDRestriction == intrinsics::bindings::kHasFMA) {
+        if (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasFMA) {
           expect_fma = true;
         } else {
           expect_fma4 = true;
@@ -587,10 +629,12 @@ class GenerateAsmCall<kIntrinsicTemplateName,
     return std::tuple{as.need_gpr_macroassembler_mxcsr_scratch(),
                       as.need_gpr_macroassembler_constants()};
   }
+
+  template <typename AsmCallInfo>
   void GenerateAssemblerOuts(FILE* out, int indent) {
     std::vector<std::string> outs;
     int tmp_id = 0;
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [&outs, &tmp_id](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS> &&
@@ -602,10 +646,10 @@ class GenerateAsmCall<kIntrinsicTemplateName,
             }
             out += RegisterClass::kAsRegister;
             if constexpr (HaveOutput(arg.arg_info)) {
-              bool need_shadow = NeedOutputShadow(arg);
+              bool need_shadow = NeedOutputShadow<AsmCallInfo>(arg);
               out += "\"(out" + std::to_string(arg.arg_info.to) + (need_shadow ? "_shadow)" : ")");
             } else if constexpr (HaveInput(arg.arg_info)) {
-              bool need_shadow = NeedInputShadow(arg);
+              bool need_shadow = NeedInputShadow<AsmCallInfo>(arg);
               out += "\"(in" + std::to_string(arg.arg_info.from) + (need_shadow ? "_shadow)" : ")");
             } else {
               out += "\"(tmp" + std::to_string(tmp_id++) + ")";
@@ -613,22 +657,24 @@ class GenerateAsmCall<kIntrinsicTemplateName,
             outs.push_back(out);
           }
         });
-    GenerateElementsList(out, indent, "  : ", "", outs);
+    GenerateElementsList<AsmCallInfo>(out, indent, "  : ", "", outs);
   }
+
+  template <typename AsmCallInfo>
   void GenerateAssemblerIns(FILE* out,
                             int indent,
                             int* register_numbers,
                             bool need_gpr_macroassembler_mxcsr_scratch,
                             bool need_gpr_macroassembler_constants) {
     std::vector<std::string> ins;
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [&ins](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS> &&
                         std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::Use>) {
             ins.push_back("\"" + std::string(1, RegisterClass::kAsRegister) + "\"(in" +
                           std::to_string(arg.arg_info.from) +
-                          (NeedInputShadow(arg) ? "_shadow)" : ")"));
+                          (NeedInputShadow<AsmCallInfo>(arg) ? "_shadow)" : ")"));
           }
         });
     if (need_gpr_macroassembler_mxcsr_scratch) {
@@ -639,7 +685,7 @@ class GenerateAsmCall<kIntrinsicTemplateName,
           "\"m\"(*reinterpret_cast<const char*>(&constants_pool::kBerberisMacroAssemblerConstants))");
     }
     int arg_counter = 0;
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [&ins, &arg_counter, register_numbers](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
@@ -647,28 +693,30 @@ class GenerateAsmCall<kIntrinsicTemplateName,
                           !std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::Use>) {
               ins.push_back("\"" + std::to_string(register_numbers[arg_counter]) + "\"(in" +
                             std::to_string(arg.arg_info.from) +
-                            (NeedInputShadow(arg) ? "_shadow)" : ")"));
+                            (NeedInputShadow<AsmCallInfo>(arg) ? "_shadow)" : ")"));
             }
             ++arg_counter;
           }
         });
-    GenerateElementsList(out, indent, "  : ", "", ins);
+    GenerateElementsList<AsmCallInfo>(out, indent, "  : ", "", ins);
   }
+
+  template <typename AsmCallInfo>
   void GenerateOutShadows(FILE* out, int indent) {
-    ProcessBindings(
+    AsmCallInfo::ProcessBindings(
         [out, indent](auto arg) {
           using RegisterClass = typename decltype(arg)::RegisterClass;
           if constexpr (RegisterClass::kAsRegister == 'r') {
             // TODO(b/138439904): remove when clang handling of 'r' constraint would be fixed.
             if constexpr (HaveOutput(arg.arg_info)) {
-              using Type = std::tuple_element_t<arg.arg_info.to, OutputArguments>;
+              using Type = std::tuple_element_t<arg.arg_info.to, typename AsmCallInfo::OutputArguments>;
               if constexpr (sizeof(Type) == sizeof(uint8_t)) {
                 fprintf(out, "%2$*1$sout%3$d = out%3$d_shadow;\n", indent, "", arg.arg_info.to);
               }
             }
           } else if constexpr (RegisterClass::kAsRegister == 'x') {
             if constexpr (HaveOutput(arg.arg_info)) {
-              using Type = std::tuple_element_t<arg.arg_info.to, OutputArguments>;
+              using Type = std::tuple_element_t<arg.arg_info.to, typename AsmCallInfo::OutputArguments>;
               const char* type_name = x86::TypeTraits<Type>::kName;
               const char* xmm_type_name =
                   x86::TypeTraits<typename x86::TypeTraits<Type>::XMMType>::kName;
@@ -691,6 +739,8 @@ class GenerateAsmCall<kIntrinsicTemplateName,
           }
         });
   }
+
+  template <typename AsmCallInfo>
   void GenerateElementsList(FILE* out,
                             int indent,
                             const std::string& prefix,
@@ -717,8 +767,9 @@ class GenerateAsmCall<kIntrinsicTemplateName,
     }
     fprintf(out, "%s\n", suffix.c_str());
   }
-  template <typename Arg>
-  static constexpr bool NeedInputShadow(Arg arg) {
+
+  template <typename AsmCallInfo, typename Arg>
+  constexpr bool NeedInputShadow(Arg arg) {
     using RegisterClass = typename Arg::RegisterClass;
     // Without shadow clang silently converts 'r' restriction into 'q' restriction which
     // is wrong: if %ah or %bh is picked we would produce incorrect result here.
@@ -727,7 +778,7 @@ class GenerateAsmCall<kIntrinsicTemplateName,
       // Only 8-bit registers are special because each 16-bit registers include two of them
       // (%al/%ah, %cl/%ch, %dl/%dh, %bl/%bh).
       // Mix of 16-bit and 64-bit registers doesn't trigger bug in Clang.
-      if constexpr (sizeof(std::tuple_element_t<arg.arg_info.from, InputArguments>) ==
+      if constexpr (sizeof(std::tuple_element_t<arg.arg_info.from, typename AsmCallInfo::InputArguments>) ==
                     sizeof(uint8_t)) {
         return true;
       }
@@ -736,8 +787,9 @@ class GenerateAsmCall<kIntrinsicTemplateName,
     }
     return false;
   }
-  template <typename Arg>
-  static constexpr bool NeedOutputShadow(Arg arg) {
+
+  template <typename AsmCallInfo, typename Arg>
+  constexpr bool NeedOutputShadow(Arg arg) {
     using RegisterClass = typename Arg::RegisterClass;
     // Without shadow clang silently converts 'r' restriction into 'q' restriction which
     // is wrong: if %ah or %bh is picked we would produce incorrect result here.
@@ -746,7 +798,7 @@ class GenerateAsmCall<kIntrinsicTemplateName,
       // Only 8-bit registers are special because each some 16-bit registers include two of
       // them (%al/%ah, %cl/%ch, %dl/%dh, %bl/%bh).
       // Mix of 16-bit and 64-bit registers don't trigger bug in Clang.
-      if constexpr (sizeof(std::tuple_element_t<arg.arg_info.to, OutputArguments>) ==
+      if constexpr (sizeof(std::tuple_element_t<arg.arg_info.to, typename AsmCallInfo::OutputArguments>) ==
                     sizeof(uint8_t)) {
         return true;
       }
@@ -755,7 +807,6 @@ class GenerateAsmCall<kIntrinsicTemplateName,
     }
     return false;
   }
-};
 
 #define INTRINSIC_FUNCTION_NAME(func, func_name) func_name
 #include "make_intrinsics-inl.h"
@@ -776,11 +827,11 @@ void GenerateAsmCalls(FILE* out) {
                   MacroAssembler<TextAssembler>,
                   x86::OperandClass>([&running_name, &if_opened, &cpuid_restriction, out](
                                          auto&& asm_call_generator) {
-    using GenerateAsmCall = std::decay_t<decltype(asm_call_generator)>;
+    using AsmCallInfo = std::decay_t<decltype(asm_call_generator)>;
     std::string full_name =
         std::string(asm_call_generator.kIntrinsic, std::strlen(asm_call_generator.kIntrinsic) - 1) +
         ", kUseCppImplementation>";
-    if (size_t arguments_count = std::tuple_size_v<typename GenerateAsmCall::InputArguments>) {
+    if (size_t arguments_count = std::tuple_size_v<typename AsmCallInfo::InputArguments>) {
       full_name += "(in0";
       for (size_t i = 1; i < arguments_count; ++i) {
         full_name += ", in" + std::to_string(i);
@@ -800,7 +851,7 @@ void GenerateAsmCalls(FILE* out) {
       }
       // Final line of function.
       fprintf(out, "};\n\n");
-      asm_call_generator.GenerateFunctionHeader(out, 0);
+      GenerateFunctionHeader<AsmCallInfo>(out, 0);
       running_name = full_name;
     }
     if (asm_call_generator.kCPUIDRestriction != cpuid_restriction) {
@@ -847,7 +898,7 @@ void GenerateAsmCalls(FILE* out) {
       }
       cpuid_restriction = asm_call_generator.kCPUIDRestriction;
     }
-    asm_call_generator.GenerateFunctionBody(out, 2 + 2 * if_opened);
+    GenerateFunctionBody<AsmCallInfo>(out, 2 + 2 * if_opened);
     return false;  // Returning true would mean that we finished processing bindings.
   });
   if (if_opened) {
