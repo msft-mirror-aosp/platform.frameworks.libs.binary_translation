@@ -242,37 +242,31 @@ class OperandClass {
 
 }  // namespace x86
 
-class GenerateAsmCallBase {
- public:
-  const enum SSERestrictionEnum : int {
-    kNoCPUIDRestriction = 0,
-    kHasLZCNT,
-    kHasSSE3,
-    kHasSSSE3,
-    kHasSSE4_1,
-    kHasSSE4_2,
-    kHasAVX,
-    kHasFMA,
-    kHasFMA4,
-    kIsAuthenticAMD
-  } cpuid_restriction;
-  const enum PreciseNanOperationsHandlingEnum : int {
-    kNoNansOperation = 0,
-    kPreciseNanOperationsHandling,
-    kImpreciseNanOperationsHandling
-  } precise_nan_operations_handling;
-  const char* name;
-  GenerateAsmCallBase(const SSERestrictionEnum cpuid_restriction_,
-                      const PreciseNanOperationsHandlingEnum precise_nan_operations_handling_,
-                      const char* name_)
-      : cpuid_restriction(cpuid_restriction_),
-        precise_nan_operations_handling(precise_nan_operations_handling_),
-        name(name_) {}
-  virtual size_t GetArgumentsCount() = 0;
-  virtual void GenerateFunctionHeader(FILE* out, int indent) = 0;
-  virtual void GenerateFunctionBody(FILE* out, int indent) = 0;
-  virtual ~GenerateAsmCallBase() {}
+namespace intrinsics::bindings {
+
+namespace {
+
+enum SSERestrictionEnum : int {
+  kNoCPUIDRestriction = 0,
+  kHasLZCNT,
+  kHasSSE3,
+  kHasSSSE3,
+  kHasSSE4_1,
+  kHasSSE4_2,
+  kHasAVX,
+  kHasFMA,
+  kHasFMA4,
+  kIsAuthenticAMD
 };
+enum PreciseNanOperationsHandlingEnum : int {
+  kNoNansOperation = 0,
+  kPreciseNanOperationsHandling,
+  kImpreciseNanOperationsHandling
+};
+
+}  // namespace
+
+}  // namespace intrinsics::bindings
 
 template <bool kSideEffects, typename... Types>
 class GenerateAsmCall;
@@ -285,7 +279,7 @@ class GenerateAsmCall<kSideEffects,
                       std::tuple<InputArguments...>,
                       std::tuple<OutputArguments...>,
                       Bindings...>
-    final : public GenerateAsmCallBase {
+    final {
  private:
   // Note: we couldn't just make constructor which accepts random function because there are
   // certain functions which have many prototypes (e.g. Movd, naturally, could move from an
@@ -320,14 +314,20 @@ class GenerateAsmCall<kSideEffects,
   using EmitFunctionType = typename decltype(EmitFunctionTypeHelper())::value_type;
 
  public:
-  GenerateAsmCall(EmitFunctionType emit,
-                  const char* name_,
-                  SSERestrictionEnum cpuid_restriction_,
-                  PreciseNanOperationsHandlingEnum precise_nan_operations_handling_)
-      : GenerateAsmCallBase(cpuid_restriction_, precise_nan_operations_handling_, name_),
+  GenerateAsmCall(
+      EmitFunctionType emit,
+      const char* name_,
+      intrinsics::bindings::SSERestrictionEnum cpuid_restriction_,
+      intrinsics::bindings::PreciseNanOperationsHandlingEnum precise_nan_operations_handling_)
+      : cpuid_restriction(cpuid_restriction_),
+        precise_nan_operations_handling(precise_nan_operations_handling_),
+        name(name_),
         emit_{emit} {}
+  const intrinsics::bindings::SSERestrictionEnum cpuid_restriction;
+  const intrinsics::bindings::PreciseNanOperationsHandlingEnum precise_nan_operations_handling;
+  const char* name;
   size_t GetArgumentsCount() { return sizeof...(InputArguments); }
-  void GenerateFunctionHeader(FILE* out, int indent) final {
+  void GenerateFunctionHeader(FILE* out, int indent) {
     if (strchr(name, '<')) {
       fprintf(out, "template <>\n");
     }
@@ -348,7 +348,7 @@ class GenerateAsmCall<kSideEffects,
      ...);
     GenerateElementsList(out, indent, prefix, ") {", ins);
   }
-  void GenerateFunctionBody(FILE* out, int indent) final {
+  void GenerateFunctionBody(FILE* out, int indent) {
     // Declare out variables.
     GenerateOutputVariables(out, indent);
     // Declare temporary variables.
@@ -392,7 +392,7 @@ class GenerateAsmCall<kSideEffects,
       GenerateElementsList(out, indent, "return {", "};", outs);
     }
   }
-  ~GenerateAsmCall() final {}
+  ~GenerateAsmCall() {}
 
  private:
   void GenerateOutputVariables(FILE* out, int indent) {
@@ -559,34 +559,34 @@ class GenerateAsmCall<kSideEffects,
     bool expect_fma = false;
     bool expect_fma4 = false;
     switch (cpuid_restriction) {
-      case GenerateAsmCallBase::kHasLZCNT:
+      case intrinsics::bindings::kHasLZCNT:
         expect_lzcnt = true;
         break;
-      case GenerateAsmCallBase::kHasFMA:
-      case GenerateAsmCallBase::kHasFMA4:
-        if (cpuid_restriction == GenerateAsmCallBase::kHasFMA) {
+      case intrinsics::bindings::kHasFMA:
+      case intrinsics::bindings::kHasFMA4:
+        if (cpuid_restriction == intrinsics::bindings::kHasFMA) {
           expect_fma = true;
         } else {
           expect_fma4 = true;
         }
         [[fallthrough]];
-      case GenerateAsmCallBase::kHasAVX:
+      case intrinsics::bindings::kHasAVX:
         expect_avx = true;
         [[fallthrough]];
-      case GenerateAsmCallBase::kHasSSE4_2:
+      case intrinsics::bindings::kHasSSE4_2:
         expect_sse4_2 = true;
         [[fallthrough]];
-      case GenerateAsmCallBase::kHasSSE4_1:
+      case intrinsics::bindings::kHasSSE4_1:
         expect_sse4_1 = true;
         [[fallthrough]];
-      case GenerateAsmCallBase::kHasSSSE3:
+      case intrinsics::bindings::kHasSSSE3:
         expect_ssse3 = true;
         [[fallthrough]];
-      case GenerateAsmCallBase::kHasSSE3:
+      case intrinsics::bindings::kHasSSE3:
         expect_sse3 = true;
         [[fallthrough]];
-      case GenerateAsmCallBase::kIsAuthenticAMD:
-      case GenerateAsmCallBase::kNoCPUIDRestriction:; /* Do nothing - make compiler happy */
+      case intrinsics::bindings::kIsAuthenticAMD:
+      case intrinsics::bindings::kNoCPUIDRestriction:; /* Do nothing - make compiler happy */
     }
     CHECK_EQ(expect_lzcnt, as.need_lzcnt);
     CHECK_EQ(expect_sse3, as.need_sse3);
@@ -781,83 +781,85 @@ class GenerateAsmCall<kSideEffects,
 #undef INTRINSIC_FUNCTION_NAME
 
 void GenerateAsmCalls(FILE* out) {
-  GenerateAsmCallBase::SSERestrictionEnum cpuid_restriction = GenerateAsmCallBase::kNoCPUIDRestriction;
+  intrinsics::bindings::SSERestrictionEnum cpuid_restriction =
+      intrinsics::bindings::kNoCPUIDRestriction;
   bool if_opened = false;
   std::string running_name;
-  ProcessBindings<MacroAssembler<berberis::TextAssembler>, x86::OperandClass>(
-      [&running_name, &if_opened, &cpuid_restriction, out](auto&& asm_call_generator) {
-        std::string full_name =
-            std::string(asm_call_generator.name, std::strlen(asm_call_generator.name) - 1) +
-            ", kUseCppImplementation>";
-        if (size_t arguments_count = asm_call_generator.GetArgumentsCount()) {
-          full_name += "(in0";
-          for (size_t i = 1; i < arguments_count; ++i) {
-            full_name += ", in" + std::to_string(i);
-          }
-          full_name += ")";
+  ProcessBindings<MacroAssembler<berberis::TextAssembler>,
+                  x86::OperandClass>([&running_name, &if_opened, &cpuid_restriction, out](
+                                         auto&& asm_call_generator) {
+    std::string full_name =
+        std::string(asm_call_generator.name, std::strlen(asm_call_generator.name) - 1) +
+        ", kUseCppImplementation>";
+    if (size_t arguments_count = asm_call_generator.GetArgumentsCount()) {
+      full_name += "(in0";
+      for (size_t i = 1; i < arguments_count; ++i) {
+        full_name += ", in" + std::to_string(i);
+      }
+      full_name += ")";
+    } else {
+      full_name += "()";
+    }
+    if (full_name != running_name) {
+      if (if_opened) {
+        if (cpuid_restriction != intrinsics::bindings::kNoCPUIDRestriction) {
+          fprintf(out, "  } else {\n    return %s;\n", running_name.c_str());
+          cpuid_restriction = intrinsics::bindings::kNoCPUIDRestriction;
+        }
+        if_opened = false;
+        fprintf(out, "  }\n");
+      }
+      // Final line of function.
+      fprintf(out, "};\n\n");
+      asm_call_generator.GenerateFunctionHeader(out, 0);
+      running_name = full_name;
+    }
+    if (asm_call_generator.cpuid_restriction != cpuid_restriction) {
+      if (asm_call_generator.cpuid_restriction == intrinsics::bindings::kNoCPUIDRestriction) {
+        fprintf(out, "  } else {\n");
+      } else {
+        if (if_opened) {
+          fprintf(out, "  } else if (");
         } else {
-          full_name += "()";
+          fprintf(out, "  if (");
+          if_opened = true;
         }
-        if (full_name != running_name) {
-          if (if_opened) {
-            if (cpuid_restriction != GenerateAsmCallBase::kNoCPUIDRestriction) {
-              fprintf(out, "  } else {\n    return %s;\n", running_name.c_str());
-              cpuid_restriction = GenerateAsmCallBase::kNoCPUIDRestriction;
-            }
-            if_opened = false;
-            fprintf(out, "  }\n");
-          }
-          // Final line of function.
-          fprintf(out, "};\n\n");
-          asm_call_generator.GenerateFunctionHeader(out, 0);
-          running_name = full_name;
+        switch (asm_call_generator.cpuid_restriction) {
+          case intrinsics::bindings::kIsAuthenticAMD:
+            fprintf(out, "host_platform::kIsAuthenticAMD");
+            break;
+          case intrinsics::bindings::kHasLZCNT:
+            fprintf(out, "host_platform::kHasLZCNT");
+            break;
+          case intrinsics::bindings::kHasSSE3:
+            fprintf(out, "host_platform::kHasSSE3");
+            break;
+          case intrinsics::bindings::kHasSSSE3:
+            fprintf(out, "host_platform::kHasSSSE3");
+            break;
+          case intrinsics::bindings::kHasSSE4_1:
+            fprintf(out, "host_platform::kHasSSE4_1");
+            break;
+          case intrinsics::bindings::kHasSSE4_2:
+            fprintf(out, "host_platform::kHasSSE4_2");
+            break;
+          case intrinsics::bindings::kHasAVX:
+            fprintf(out, "host_platform::kHasAVX");
+            break;
+          case intrinsics::bindings::kHasFMA:
+            fprintf(out, "host_platform::kHasFMA");
+            break;
+          case intrinsics::bindings::kHasFMA4:
+            fprintf(out, "host_platform::kHasFMA4");
+            break;
+          case intrinsics::bindings::kNoCPUIDRestriction:; /* Do nothing - make compiler happy */
         }
-        if (asm_call_generator.cpuid_restriction != cpuid_restriction) {
-          if (asm_call_generator.cpuid_restriction == GenerateAsmCallBase::kNoCPUIDRestriction) {
-            fprintf(out, "  } else {\n");
-          } else {
-            if (if_opened) {
-              fprintf(out, "  } else if (");
-            } else {
-              fprintf(out, "  if (");
-              if_opened = true;
-            }
-            switch (asm_call_generator.cpuid_restriction) {
-              case GenerateAsmCallBase::kIsAuthenticAMD:
-                fprintf(out, "host_platform::kIsAuthenticAMD");
-                break;
-              case GenerateAsmCallBase::kHasLZCNT:
-                fprintf(out, "host_platform::kHasLZCNT");
-                break;
-              case GenerateAsmCallBase::kHasSSE3:
-                fprintf(out, "host_platform::kHasSSE3");
-                break;
-              case GenerateAsmCallBase::kHasSSSE3:
-                fprintf(out, "host_platform::kHasSSSE3");
-                break;
-              case GenerateAsmCallBase::kHasSSE4_1:
-                fprintf(out, "host_platform::kHasSSE4_1");
-                break;
-              case GenerateAsmCallBase::kHasSSE4_2:
-                fprintf(out, "host_platform::kHasSSE4_2");
-                break;
-              case GenerateAsmCallBase::kHasAVX:
-                fprintf(out, "host_platform::kHasAVX");
-                break;
-              case GenerateAsmCallBase::kHasFMA:
-                fprintf(out, "host_platform::kHasFMA");
-                break;
-              case GenerateAsmCallBase::kHasFMA4:
-                fprintf(out, "host_platform::kHasFMA4");
-                break;
-              case GenerateAsmCallBase::kNoCPUIDRestriction:; /* Do nothing - make compiler happy */
-            }
-            fprintf(out, ") {\n");
-          }
-          cpuid_restriction = asm_call_generator.cpuid_restriction;
-        }
-        asm_call_generator.GenerateFunctionBody(out, 2 + 2 * if_opened);
-      });
+        fprintf(out, ") {\n");
+      }
+      cpuid_restriction = asm_call_generator.cpuid_restriction;
+    }
+    asm_call_generator.GenerateFunctionBody(out, 2 + 2 * if_opened);
+  });
   if (if_opened) {
     fprintf(out, "  }\n");
   }
