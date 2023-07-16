@@ -720,18 +720,12 @@ def _gen_make_intrinsics(f, intrs):
   print("""%s
 template <typename MacroAssembler,
           typename OperandClass,
+          typename Callback,
           typename... Args>
-void ProcessAllBindings(Args&&... args) {
-  ProcessBindings(
-      std::forward<Args>(args)...""" % AUTOGEN, end="", file=f)
+void ProcessBindings(Callback callback, Args&&... args) {""" % AUTOGEN, file=f)
   for line in _gen_c_intrinsics_generator(intrs):
-    if line.startswith(','):
-      print(',\n'+line[1:], end='', file=f)
-    else:
-      print('\n'+line, end='', file=f)
-  print("""
-  );
-}""", file=f)
+      print(line, file=f)
+  print("}", file=f)
 
 
 def _gen_c_intrinsics_generator(intrs):
@@ -815,21 +809,21 @@ def _gen_c_intrinsic(name, intr, asm):
 
   restriction = [cpuid_restriction, nan_restriction]
 
-  yield ',      std::unique_ptr<GenerateAsmCallBase>('
+  yield '  callback('
 
   def get_c_type_tuple(arguments):
     return 'std::tuple<%s>' % ', '.join(
         _get_c_type(argument) for argument in arguments).replace(
             'Float', 'intrinsics::Float')
 
-  yield '          new GenerateAsmCall<%s>(' % (
-    ',\n                              '.join(
+  yield '          GenerateAsmCall<%s>(' % (
+    ',\n                          '.join(
         ['true' if _intr_has_side_effects(intr) else 'false'] +
         [get_c_type_tuple(intr['in'])] + [get_c_type_tuple(intr['out'])] +
         [_get_reg_operand_info(arg, 'typename OperandClass')
          for arg in asm['args']]))
 
-  one_line = '              &MacroAssembler::%s%s, %s))' % (
+  one_line = '              &MacroAssembler::%s%s, %s),' % (
       'template ' if '<' in asm['asm'] else '',
       asm['asm'],
       ', '.join(['INTRINSIC_FUNCTION_NAME((%s))' % name] + restriction))
@@ -843,9 +837,10 @@ def _gen_c_intrinsic(name, intr, asm):
   values = ['INTRINSIC_FUNCTION_NAME((%s))' % name] + restriction
   for index, value in enumerate(values):
     if index + 1 == len(values):
-      yield '              %s))' % value
+      yield '              %s),' % value
     else:
       yield '              %s,' % value
+  yield '              std::forward<Args>(args)...);'
 
 
 def _load_intrs_def_files(intrs_def_files):
