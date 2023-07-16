@@ -866,28 +866,17 @@ def _gen_c_intrinsic(name, intr, asm, string_labels):
 
   yield '  if (callback('
   yield '          GenerateAsmCall<'
-  yield '              %s>(' % (
+  yield '              %s>(),' % (
     ',\n              '.join(
-        ['true' if _intr_has_side_effects(intr) else 'false'] +
-        [get_c_type_tuple(intr['in'])] + [get_c_type_tuple(intr['out'])] +
+        ['INTRINSIC_FUNCTION_NAME((%s), %s)' % (name, name_label),
+         instruction,
+         cpuid_restriction,
+         nan_restriction,
+         'true' if _intr_has_side_effects(intr) else 'false',
+         get_c_type_tuple(intr['in']),
+         get_c_type_tuple(intr['out'])] +
         [_get_reg_operand_info(arg, 'typename OperandClass')
          for arg in asm['args']]))
-
-  name = 'INTRINSIC_FUNCTION_NAME((%s), %s)' % (name, name_label)
-
-  one_line = '              %s, %s),' % (
-      instruction, ', '.join([name] + restriction))
-  if len(one_line) <= MAX_GENERATED_LINE_LENGTH:
-    yield one_line
-    return
-
-  yield '              %s,' % instruction
-  values = [name] + restriction
-  for index, value in enumerate(values):
-    if index + 1 == len(values):
-      yield '              %s),' % value
-    else:
-      yield '              %s,' % value
   yield '          std::forward<Args>(args)...)) {'
   yield '    return true;'
   yield '  }'
