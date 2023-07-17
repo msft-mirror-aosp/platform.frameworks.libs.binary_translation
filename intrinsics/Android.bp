@@ -115,13 +115,19 @@ genrule {
     name: "libberberis_intrinsics_gen_public_headers_riscv64_to_x86_64",
     out: [
         "berberis/intrinsics/intrinsics-inl.h",
+        "berberis/intrinsics/intrinsics_process_bindings-inl.h",
         "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h",
         "berberis/intrinsics/translator_intrinsics_hooks-inl.h",
         "berberis/intrinsics/mock_semantics_listener_intrinsics_hooks-inl.h",
     ],
-    srcs: [":libberberis_intrinsics_gen_inputs_riscv64_to_x86_64"],
+    srcs: [
+        ":libberberis_intrinsics_gen_inputs_riscv64_to_x86_64",
+        ":libberberis_machine_ir_intrinsic_binding_riscv64_to_x86_64",
+        ":libberberis_macro_assembler_gen_inputs_riscv64_to_x86_64",
+        ":libberberis_assembler_gen_inputs_x86_64",
+    ],
     tools: ["gen_intrinsics"],
-    cmd: "$(location gen_intrinsics) --public_headers $(out) $(in)",
+    cmd: "$(location gen_intrinsics) --public_headersx $(out) $(in)",
 }
 
 genrule {
