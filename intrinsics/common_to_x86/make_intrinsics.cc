@@ -59,87 +59,6 @@ namespace x86 {
 
 namespace {
 
-// "Addendum to" global TypeTraits - we only need that information here.
-template <typename T>
-struct TypeTraits;
-
-template <>
-struct TypeTraits<uint8_t> {
-  [[maybe_unused]] static constexpr char kName[] = "uint8_t";
-};
-
-template <>
-struct TypeTraits<uint16_t> {
-  [[maybe_unused]] static constexpr char kName[] = "uint16_t";
-};
-
-template <>
-struct TypeTraits<uint32_t> {
-  using XMMType = float;
-  [[maybe_unused]] static constexpr char kName[] = "uint32_t";
-};
-
-template <>
-struct TypeTraits<uint64_t> {
-  using XMMType = double;
-  [[maybe_unused]] static constexpr char kName[] = "uint64_t";
-};
-
-template <>
-struct TypeTraits<int8_t> {
-  [[maybe_unused]] static constexpr char kName[] = "int8_t";
-};
-
-template <>
-struct TypeTraits<int16_t> {
-  [[maybe_unused]] static constexpr char kName[] = "int16_t";
-};
-
-template <>
-struct TypeTraits<int32_t> {
-  using XMMType = float;
-  [[maybe_unused]] static constexpr char kName[] = "int32_t";
-};
-
-template <>
-struct TypeTraits<int64_t> {
-  using XMMType = double;
-  [[maybe_unused]] static constexpr char kName[] = "int64_t";
-};
-
-template <>
-struct TypeTraits<intrinsics::Float32> {
-  using XMMType = float;
-  [[maybe_unused]] static constexpr char kName[] = "Float32";
-};
-
-template <>
-struct TypeTraits<intrinsics::Float64> {
-  using XMMType = double;
-  [[maybe_unused]] static constexpr char kName[] = "Float64";
-};
-
-template <>
-struct TypeTraits<SIMD128Register> {
-  using XMMType = __m128;
-  [[maybe_unused]] static constexpr char kName[] = "SIMD128Register";
-};
-
-template <>
-struct TypeTraits<float> {
-  [[maybe_unused]] static constexpr char kName[] = "float";
-};
-
-template <>
-struct TypeTraits<double> {
-  [[maybe_unused]] static constexpr char kName[] = "double";
-};
-
-template <>
-struct TypeTraits<__m128> {
-  [[maybe_unused]] static constexpr char kName[] = "__m128";
-};
-
 class OperandClass {
  public:
   class CL {
@@ -304,9 +223,9 @@ class GenerateAsmCall<kIntrinsicTemplateName,
       kPreciseNanOperationsHandling = kPreciseNanOperationsHandlingTemplateValue;
   static constexpr bool kSideEffects = kSideEffectsTemplateValue;
   static constexpr const char* InputArgumentsTypeNames[] = {
-      x86::TypeTraits<InputArgumentsTypes>::kName...};
+      TypeTraits<InputArgumentsTypes>::kName...};
   static constexpr const char* OutputArgumentsTypeNames[] = {
-      x86::TypeTraits<OutputArgumentsTypes>::kName...};
+      TypeTraits<OutputArgumentsTypes>::kName...};
   template <typename Callback>
   constexpr static void ProcessBindings(Callback&& callback) {
     (callback(ArgTraits<BindingsTypes>()), ...);
@@ -444,7 +363,7 @@ void GenerateTemporaries(FILE* out, int indent) {
                 "%*s%s tmp%zd;\n",
                 indent,
                 "",
-                x86::TypeTraits<typename RegisterClass::Type>::kName,
+                TypeTraits<typename RegisterClass::Type>::kName,
                 id++);
       }
     }
@@ -466,18 +385,25 @@ void GenerateInShadows(FILE* out, int indent) {
     } else if constexpr (RegisterClass::kAsRegister == 'x') {
       if constexpr (HaveInput(arg.arg_info)) {
         using Type = std::tuple_element_t<arg.arg_info.from, typename AsmCallInfo::InputArguments>;
-        const char* type_name;
+        const char* type_name = TypeTraits<Type>::kName;
         const char* xmm_type_name;
         const char* expanded = "";
-        if constexpr (std::is_same_v<Type, uint8_t>) {
+        // Types allowed for 'x' restriction are float, double and __m128/__m128i/__m128d
+        // First two work for {,u}int32_t and {,u}int64_t, but small integer types must be expanded.
+        if constexpr (std::is_integral_v<Type> && sizeof(Type) < sizeof(int32_t)) {
           fprintf(
-              out, "%2$*1$suint64_t in%3$d_expanded = in%3$d;\n", indent, "", arg.arg_info.from);
-          type_name = x86::TypeTraits<uint64_t>::kName;
-          xmm_type_name = x86::TypeTraits<typename x86::TypeTraits<uint64_t>::XMMType>::kName;
+              out, "%2$*1$suint32_t in%3$d_expanded = in%3$d;\n", indent, "", arg.arg_info.from);
+          type_name = TypeTraits<uint64_t>::kName;
+          xmm_type_name =
+              TypeTraits<typename TypeTraits<typename TypeTraits<uint32_t>::Float>::Raw>::kName;
           expanded = "_expanded";
+        } else if constexpr (std::is_integral_v<Type>) {
+          // {,u}int32_t and {,u}int64_t have to be converted to float/double.
+          xmm_type_name =
+              TypeTraits<typename TypeTraits<typename TypeTraits<Type>::Float>::Raw>::kName;
         } else {
-          type_name = x86::TypeTraits<Type>::kName;
-          xmm_type_name = x86::TypeTraits<typename x86::TypeTraits<Type>::XMMType>::kName;
+          // Float32/Float64 can not be used, we need to use raw float/double.
+          xmm_type_name = TypeTraits<typename TypeTraits<Type>::Raw>::kName;
         }
         fprintf(out, "%*s%s in%d_shadow;\n", indent, "", xmm_type_name, arg.arg_info.from);
         fprintf(out,
@@ -499,7 +425,15 @@ void GenerateInShadows(FILE* out, int indent) {
       }
       if constexpr (HaveOutput(arg.arg_info)) {
         using Type = std::tuple_element_t<arg.arg_info.to, typename AsmCallInfo::OutputArguments>;
-        const char* xmm_type_name = x86::TypeTraits<typename x86::TypeTraits<Type>::XMMType>::kName;
+        const char* xmm_type_name;
+        // {,u}int32_t and {,u}int64_t have to be converted to float/double.
+        if constexpr (std::is_integral_v<Type>) {
+          xmm_type_name =
+              TypeTraits<typename TypeTraits<typename TypeTraits<Type>::Float>::Raw>::kName;
+        } else {
+          // Float32/Float64 can not be used, we need to use raw float/double.
+          xmm_type_name = TypeTraits<typename TypeTraits<Type>::Raw>::kName;
+        }
         fprintf(out, "%*s%s out%d_shadow;\n", indent, "", xmm_type_name, arg.arg_info.to);
       }
     }
@@ -705,8 +639,16 @@ void GenerateOutShadows(FILE* out, int indent) {
     } else if constexpr (RegisterClass::kAsRegister == 'x') {
       if constexpr (HaveOutput(arg.arg_info)) {
         using Type = std::tuple_element_t<arg.arg_info.to, typename AsmCallInfo::OutputArguments>;
-        const char* type_name = x86::TypeTraits<Type>::kName;
-        const char* xmm_type_name = x86::TypeTraits<typename x86::TypeTraits<Type>::XMMType>::kName;
+        const char* type_name = TypeTraits<Type>::kName;
+        const char* xmm_type_name;
+        // {,u}int32_t and {,u}int64_t have to be converted to float/double.
+        if constexpr (std::is_integral_v<Type>) {
+          xmm_type_name =
+              TypeTraits<typename TypeTraits<typename TypeTraits<Type>::Float>::Raw>::kName;
+        } else {
+          // Float32/Float64 can not be used, we need to use raw float/double.
+          xmm_type_name = TypeTraits<typename TypeTraits<Type>::Raw>::kName;
+        }
         fprintf(out,
                 "%*sstatic_assert(sizeof(%s) == sizeof(%s));\n",
                 indent,
