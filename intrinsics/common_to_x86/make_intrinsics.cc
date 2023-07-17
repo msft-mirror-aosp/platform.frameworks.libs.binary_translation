@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "berberis/base/checks.h"
+#include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
 #include "berberis/intrinsics/intrinsics_args.h"
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/macro_assembler.h"
@@ -54,138 +55,6 @@ int32_t GetOffset(int32_t address) {
 }
 
 }  // namespace constants_pool
-
-namespace x86 {
-
-namespace {
-
-class OperandClass {
- public:
-  class CL {
-   public:
-    using Type = uint8_t;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = true;
-    [[maybe_unused]] static constexpr char kAsRegister = 'c';
-  };
-
-  class FLAGS {
-   public:
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = true;
-    [[maybe_unused]] static constexpr char kAsRegister = 0;
-  };
-
-  class EAX {
-   public:
-    using Type = uint32_t;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = true;
-    [[maybe_unused]] static constexpr char kAsRegister = 'a';
-  };
-
-  class RAX {
-   public:
-    using Type = uint64_t;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = true;
-    [[maybe_unused]] static constexpr char kAsRegister = 'a';
-  };
-
-  class ECX {
-   public:
-    using Type = uint32_t;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = true;
-    [[maybe_unused]] static constexpr char kAsRegister = 'c';
-  };
-
-  class EDX {
-   public:
-    using Type = uint32_t;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = true;
-    [[maybe_unused]] static constexpr char kAsRegister = 'd';
-  };
-
-  class FpReg32 {
-   public:
-    using Type = __m128;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = false;
-    [[maybe_unused]] static constexpr char kAsRegister = 'x';
-  };
-
-  class FpReg64 {
-   public:
-    using Type = __m128;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = false;
-    [[maybe_unused]] static constexpr char kAsRegister = 'x';
-  };
-
-  class GeneralReg8 {
-   public:
-    using Type = uint8_t;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = false;
-    [[maybe_unused]] static constexpr char kAsRegister = 'q';
-  };
-
-  class GeneralReg32 {
-   public:
-    using Type = uint32_t;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = false;
-    [[maybe_unused]] static constexpr char kAsRegister = 'r';
-  };
-
-  class GeneralReg64 {
-   public:
-    using Type = uint64_t;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = false;
-    [[maybe_unused]] static constexpr char kAsRegister = 'r';
-  };
-
-  class VecReg128 {
-   public:
-    using Type = __m128;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = false;
-    [[maybe_unused]] static constexpr char kAsRegister = 'x';
-  };
-
-  class XmmReg {
-   public:
-    using Type = __m128;
-    [[maybe_unused]] static constexpr bool kIsImplicitReg = false;
-    [[maybe_unused]] static constexpr char kAsRegister = 'x';
-  };
-
-  class Def;
-  class DefEarlyClobber;
-  class Use;
-  class UseDef;
-};
-
-}  // namespace
-
-}  // namespace x86
-
-namespace intrinsics::bindings {
-
-namespace {
-
-enum CPUIDRestriction : int {
-  kNoCPUIDRestriction = 0,
-  kHasLZCNT,
-  kHasSSE3,
-  kHasSSSE3,
-  kHasSSE4_1,
-  kHasSSE4_2,
-  kHasAVX,
-  kHasFMA,
-  kHasFMA4,
-  kIsAuthenticAMD
-};
-enum PreciseNanOperationsHandling : int {
-  kNoNansOperation = 0,
-  kPreciseNanOperationsHandling,
-  kImpreciseNanOperationsHandling
-};
-
-}  // namespace
-
-}  // namespace intrinsics::bindings
 
 template <
     auto kIntrinsicTemplateName,
@@ -354,11 +223,11 @@ void GenerateTemporaries(FILE* out, int indent) {
   std::size_t id = 0;
   AsmCallInfo::ProcessBindings([out, &id, indent](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
+    if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
       if constexpr (!HaveInput(arg.arg_info) && !HaveOutput(arg.arg_info)) {
         static_assert(
-            std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::Def> ||
-            std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::DefEarlyClobber>);
+            std::is_same_v<typename decltype(arg)::Usage, intrinsics::bindings::Def> ||
+            std::is_same_v<typename decltype(arg)::Usage, intrinsics::bindings::DefEarlyClobber>);
         fprintf(out,
                 "%*s%s tmp%zd;\n",
                 indent,
@@ -447,8 +316,8 @@ void AssignRegisterNumbers(int* register_numbers) {
   int arg_counter = 0;
   AsmCallInfo::ProcessBindings([&id, &arg_counter, &register_numbers](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
-      if constexpr (!std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::Use>) {
+    if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
+      if constexpr (!std::is_same_v<typename decltype(arg)::Usage, intrinsics::bindings::Use>) {
         register_numbers[arg_counter] = id++;
       }
       ++arg_counter;
@@ -458,8 +327,8 @@ void AssignRegisterNumbers(int* register_numbers) {
   arg_counter = 0;
   AsmCallInfo::ProcessBindings([&id, &arg_counter, &register_numbers](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
-      if constexpr (std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::Use>) {
+    if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
+      if constexpr (std::is_same_v<typename decltype(arg)::Usage, intrinsics::bindings::Use>) {
         register_numbers[arg_counter] = id++;
       }
       ++arg_counter;
@@ -473,7 +342,7 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
   int arg_counter = 0;
   AsmCallInfo::ProcessBindings([&arg_counter, &as, register_numbers](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
+    if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
       if constexpr (RegisterClass::kIsImplicitReg) {
         if constexpr (RegisterClass::kAsRegister == 'a') {
           as.gpr_a = TextAssembler::Register(register_numbers[arg_counter]);
@@ -494,7 +363,7 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
       std::tuple_cat(std::tuple<MacroAssembler<TextAssembler>&>{as},
                      AsmCallInfo::MakeTuplefromBindings([&arg_counter, register_numbers](auto arg) {
                        using RegisterClass = typename decltype(arg)::RegisterClass;
-                       if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
+                       if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
                          if constexpr (RegisterClass::kIsImplicitReg) {
                            ++arg_counter;
                            return std::tuple{};
@@ -562,11 +431,11 @@ void GenerateAssemblerOuts(FILE* out, int indent) {
   int tmp_id = 0;
   AsmCallInfo::ProcessBindings([&outs, &tmp_id](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS> &&
-                  !std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::Use>) {
+    if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS> &&
+                  !std::is_same_v<typename decltype(arg)::Usage, intrinsics::bindings::Use>) {
       std::string out = "\"=";
       if constexpr (std::is_same_v<typename decltype(arg)::Usage,
-                                   x86::OperandClass::DefEarlyClobber>) {
+                                   intrinsics::bindings::DefEarlyClobber>) {
         out += "&";
       }
       out += RegisterClass::kAsRegister;
@@ -594,8 +463,8 @@ void GenerateAssemblerIns(FILE* out,
   std::vector<std::string> ins;
   AsmCallInfo::ProcessBindings([&ins](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS> &&
-                  std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::Use>) {
+    if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS> &&
+                  std::is_same_v<typename decltype(arg)::Usage, intrinsics::bindings::Use>) {
       ins.push_back("\"" + std::string(1, RegisterClass::kAsRegister) + "\"(in" +
                     std::to_string(arg.arg_info.from) +
                     (NeedInputShadow<AsmCallInfo>(arg) ? "_shadow)" : ")"));
@@ -611,9 +480,9 @@ void GenerateAssemblerIns(FILE* out,
   int arg_counter = 0;
   AsmCallInfo::ProcessBindings([&ins, &arg_counter, register_numbers](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (!std::is_same_v<RegisterClass, x86::OperandClass::FLAGS>) {
+    if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
       if constexpr (HaveInput(arg.arg_info) &&
-                    !std::is_same_v<typename decltype(arg)::Usage, x86::OperandClass::Use>) {
+                    !std::is_same_v<typename decltype(arg)::Usage, intrinsics::bindings::Use>) {
         ins.push_back("\"" + std::to_string(register_numbers[arg_counter]) + "\"(in" +
                       std::to_string(arg.arg_info.from) +
                       (NeedInputShadow<AsmCallInfo>(arg) ? "_shadow)" : ")"));
@@ -755,8 +624,7 @@ void GenerateAsmCalls(FILE* out) {
   // and thus ProcessBindings also returns false which subsequently ignore.
   ProcessBindings<TextAssemblerX86<TextAssembler>,
                   TextAssembler,
-                  MacroAssembler<TextAssembler>,
-                  x86::OperandClass>([&running_name, &if_opened, &cpuid_restriction, out](
+                  MacroAssembler<TextAssembler>>([&running_name, &if_opened, &cpuid_restriction, out](
                                          auto&& asm_call_generator) {
     using AsmCallInfo = std::decay_t<decltype(asm_call_generator)>;
     std::string full_name =
@@ -796,6 +664,9 @@ void GenerateAsmCalls(FILE* out) {
           if_opened = true;
         }
         switch (asm_call_generator.kCPUIDRestriction) {
+          default:
+            // Unsupported CPUID value.
+            CHECK(false);
           case intrinsics::bindings::kIsAuthenticAMD:
             fprintf(out, "host_platform::kIsAuthenticAMD");
             break;
