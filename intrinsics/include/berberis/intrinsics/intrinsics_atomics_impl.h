@@ -20,6 +20,8 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "berberis/guest_state/guest_addr.h"
+
 namespace berberis::intrinsics {
 
 namespace {
