@@ -56,58 +56,6 @@ int32_t GetOffset(int32_t address) {
 
 }  // namespace constants_pool
 
-template <
-    auto kIntrinsicTemplateName,
-    auto kMacroInstructionTemplateName,
-    intrinsics::bindings::CPUIDRestriction kCPUIDRestrictionTemplateValue,
-    intrinsics::bindings::PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
-    bool kSideEffectsTemplateValue,
-    typename... Types>
-class GenerateAsmCall;
-
-template <
-    auto kIntrinsicTemplateName,
-    auto kMacroInstructionTemplateName,
-    intrinsics::bindings::CPUIDRestriction kCPUIDRestrictionTemplateValue,
-    intrinsics::bindings::PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
-    bool kSideEffectsTemplateValue,
-    typename... InputArgumentsTypes,
-    typename... OutputArgumentsTypes,
-    typename... BindingsTypes>
-class GenerateAsmCall<kIntrinsicTemplateName,
-                      kMacroInstructionTemplateName,
-                      kCPUIDRestrictionTemplateValue,
-                      kPreciseNanOperationsHandlingTemplateValue,
-                      kSideEffectsTemplateValue,
-                      std::tuple<InputArgumentsTypes...>,
-                      std::tuple<OutputArgumentsTypes...>,
-                      BindingsTypes...>
-    final {
- public:
-  static constexpr auto kIntrinsic = kIntrinsicTemplateName;
-  static constexpr auto kMacroInstruction = kMacroInstructionTemplateName;
-  static constexpr intrinsics::bindings::CPUIDRestriction kCPUIDRestriction =
-      kCPUIDRestrictionTemplateValue;
-  static constexpr intrinsics::bindings::PreciseNanOperationsHandling
-      kPreciseNanOperationsHandling = kPreciseNanOperationsHandlingTemplateValue;
-  static constexpr bool kSideEffects = kSideEffectsTemplateValue;
-  static constexpr const char* InputArgumentsTypeNames[] = {
-      TypeTraits<InputArgumentsTypes>::kName...};
-  static constexpr const char* OutputArgumentsTypeNames[] = {
-      TypeTraits<OutputArgumentsTypes>::kName...};
-  template <typename Callback>
-  constexpr static void ProcessBindings(Callback&& callback) {
-    (callback(ArgTraits<BindingsTypes>()), ...);
-  }
-  template <typename Callback>
-  constexpr static auto MakeTuplefromBindings(Callback&& callback) {
-    return std::tuple_cat(callback(ArgTraits<BindingsTypes>())...);
-  }
-  using InputArguments = std::tuple<InputArgumentsTypes...>;
-  using OutputArguments = std::tuple<OutputArgumentsTypes...>;
-  using Bindings = std::tuple<BindingsTypes...>;
-};
-
 template <typename AsmCallInfo>
 void GenerateOutputVariables(FILE* out, int indent);
 template <typename AsmCallInfo>
