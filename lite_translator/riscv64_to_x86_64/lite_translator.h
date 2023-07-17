@@ -36,6 +36,7 @@
 
 #include "allocator.h"
 #include "call_intrinsic.h"
+#include "inline_intrinsic.h"
 
 namespace berberis {
 
@@ -276,6 +277,22 @@ class LiteTranslator {
 
   void IncrementInsnAddr(uint8_t insn_size) { pc_ += insn_size; }
 
+  Register AllocTempReg() {
+    if (auto reg_option = gp_allocator_.AllocTemp()) {
+      return reg_option.value();
+    }
+    success_ = false;
+    return {};
+  };
+
+  SimdRegister AllocTempSimdReg() {
+    if (auto reg_option = simd_allocator_.AllocTemp()) {
+      return reg_option.value();
+    }
+    success_ = false;
+    return {};
+  };
+
  private:
   template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
   AssemblerResType CallIntrinsic(AssemblerArgType... args) {
@@ -290,26 +307,14 @@ class LiteTranslator {
       static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
     }
 
+    if (TryInlineIntrinsic<kFunction>(&as_, this, result, args...)) {
+      return result;
+    }
+
     call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, result, args...);
 
     return result;
   }
-
-  Register AllocTempReg() {
-    if (auto reg_option = gp_allocator_.AllocTemp()) {
-      return reg_option.value();
-    }
-    success_ = false;
-    return {};
-  };
-
-  SimdRegister AllocTempSimdReg() {
-    if (auto reg_option = simd_allocator_.AllocTemp()) {
-       return reg_option.value();
-    }
-    success_ = false;
-    return {};
-  };
 
   Assembler as_;
   bool success_;
