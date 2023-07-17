@@ -719,7 +719,6 @@ def _get_reg_operand_info(arg, info_prefix=None):
 def _gen_make_intrinsics(f, intrs, archs):
   print("""%s
 template <%s,
-          typename OperandClass,
           typename Callback,
           typename... Args>
 bool ProcessBindings(Callback callback, Args&&... args) {""" % (
@@ -875,7 +874,7 @@ def _gen_c_intrinsic(name, intr, asm, string_labels):
          'true' if _intr_has_side_effects(intr) else 'false',
          get_c_type_tuple(intr['in']),
          get_c_type_tuple(intr['out'])] +
-        [_get_reg_operand_info(arg, 'typename OperandClass')
+        [_get_reg_operand_info(arg, 'intrinsics::bindings')
          for arg in asm['args']]))
   yield '          std::forward<Args>(args)...)) {'
   yield '    return true;'
