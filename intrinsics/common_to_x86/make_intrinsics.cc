@@ -556,24 +556,17 @@ constexpr bool NeedOutputShadow(Arg arg) {
   return false;
 }
 
-#define INTRINSIC_FUNCTION_NAME(func, func_name) func_name
 #include "make_intrinsics-inl.h"
-#undef INTRINSIC_FUNCTION_NAME
 
 void GenerateAsmCalls(FILE* out) {
   intrinsics::bindings::CPUIDRestriction cpuid_restriction =
       intrinsics::bindings::kNoCPUIDRestriction;
   bool if_opened = false;
   std::string running_name;
-  // Note: ProcessBindings is designed for TryInlineIntrinsic thus it processes bindings till
-  // callback supplied returns “true” and then ProcessBindings returns success.
-  //
-  // But we want to unconditionally process all bindings, thus our callback always returns false
-  // and thus ProcessBindings also returns false which subsequently ignore.
-  ProcessBindings<TextAssemblerX86<TextAssembler>,
-                  TextAssembler,
-                  MacroAssembler<TextAssembler>>([&running_name, &if_opened, &cpuid_restriction, out](
-                                         auto&& asm_call_generator) {
+  ProcessAllBindings<TextAssemblerX86<TextAssembler>,
+                     TextAssembler,
+                     MacroAssembler<TextAssembler>>([&running_name, &if_opened, &cpuid_restriction, out](
+                                                    auto&& asm_call_generator) {
     using AsmCallInfo = std::decay_t<decltype(asm_call_generator)>;
     std::string full_name =
         std::string(asm_call_generator.kIntrinsic, std::strlen(asm_call_generator.kIntrinsic) - 1) +
@@ -649,7 +642,6 @@ void GenerateAsmCalls(FILE* out) {
       cpuid_restriction = asm_call_generator.kCPUIDRestriction;
     }
     GenerateFunctionBody<AsmCallInfo>(out, 2 + 2 * if_opened);
-    return false;  // Returning true would mean that we finished processing bindings.
   });
   if (if_opened) {
     fprintf(out, "  }\n");
