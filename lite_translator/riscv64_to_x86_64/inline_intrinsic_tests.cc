@@ -51,7 +51,12 @@ class TryInlineIntrinsicWithTestParams<Result (*)(Args...)> {
   template <auto kFunction>
   static bool Call(MacroAssembler<x86_64::Assembler>* as) {
     RegAlloc reg_alloc;
-    return TryInlineIntrinsic<kFunction>(as, &reg_alloc, AllocResult(), AllocArg<Args>()...);
+    return inline_intrinsic::TryInlineIntrinsic<kFunction>(
+        *as,
+        [&reg_alloc]() { return reg_alloc.AllocTempReg(); },
+        [&reg_alloc]() { return reg_alloc.AllocTempSimdReg(); },
+        AllocResult(),
+        AllocArg<Args>()...);
   }
 
  private:
@@ -99,6 +104,7 @@ TEST(InlineIntrinsicRiscv64Test, SupportedInstructions) {
   MachineCode machine_code;
   MacroAssembler<x86_64::Assembler> as(&machine_code);
   TEST_SUPPORTED((intrinsics::FMul<intrinsics::Float64>));
+  TEST_SUPPORTED((intrinsics::FMulHostRounding<intrinsics::Float64>));
 }
 
 #undef TEST_SUPPORTED
