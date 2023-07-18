@@ -338,6 +338,7 @@ class AsmCallInfo<kIntrinsicTemplateName,
   using InputArguments = std::tuple<InputArgumentsTypes...>;
   using OutputArguments = std::tuple<OutputArgumentsTypes...>;
   using Bindings = std::tuple<BindingsTypes...>;
+  using IntrinsicType = OutputArguments (*)(InputArgumentsTypes...);
 };
 
 }  // namespace berberis::intrinsics::bindings

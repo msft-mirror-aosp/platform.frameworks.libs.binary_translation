@@ -307,7 +307,12 @@ class LiteTranslator {
       static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
     }
 
-    if (TryInlineIntrinsic<kFunction>(&as_, this, result, args...)) {
+    if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
+            as_,
+            [this]() { return AllocTempReg(); },
+            [this]() { return AllocTempSimdReg(); },
+            result,
+            args...)) {
       return result;
     }
 
