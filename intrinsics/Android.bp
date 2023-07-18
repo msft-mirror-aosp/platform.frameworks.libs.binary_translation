@@ -127,7 +127,7 @@ genrule {
         ":libberberis_assembler_gen_inputs_x86_64",
     ],
     tools: ["gen_intrinsics"],
-    cmd: "$(location gen_intrinsics) --public_headersx $(out) $(in)",
+    cmd: "$(location gen_intrinsics) --public_headers $(out) $(in)",
 }
 
 genrule {
