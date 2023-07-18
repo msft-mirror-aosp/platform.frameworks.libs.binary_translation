@@ -359,7 +359,7 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
       expect_sse3 = true;
       [[fallthrough]];
     case intrinsics::bindings::kIsAuthenticAMD:
-    case intrinsics::bindings::kNoCPUIDRestriction:; /* Do nothing - make compiler happy */
+    case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
   }
   CHECK_EQ(expect_lzcnt, as.need_lzcnt);
   CHECK_EQ(expect_sse3, as.need_sse3);
@@ -556,9 +556,9 @@ constexpr bool NeedOutputShadow(Arg arg) {
   return false;
 }
 
-#include "make_intrinsics-inl.h"
+#include "text_asm_intrinsics_process_bindings-inl.h"
 
-void GenerateAsmCalls(FILE* out) {
+void GenerateTextAsmIntrinsics(FILE* out) {
   intrinsics::bindings::CPUIDRestriction cpuid_restriction =
       intrinsics::bindings::kNoCPUIDRestriction;
   bool if_opened = false;
@@ -633,7 +633,7 @@ void GenerateAsmCalls(FILE* out) {
               case intrinsics::bindings::kHasFMA4:
                 fprintf(out, "host_platform::kHasFMA4");
                 break;
-              case intrinsics::bindings::kNoCPUIDRestriction:; // Do nothing - make compiler happy.
+              case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
             }
             fprintf(out, ") {\n");
           }
@@ -698,7 +698,7 @@ class MxcsrStorage {
               ? "using berberis::constants_pool::kBerberisMacroAssemblerConstants;"
               : "");
 
-  berberis::GenerateAsmCalls(out);
+  berberis::GenerateTextAsmIntrinsics(out);
   berberis::MakeExtraGuestFunctions(out);
 
   fprintf(out,
