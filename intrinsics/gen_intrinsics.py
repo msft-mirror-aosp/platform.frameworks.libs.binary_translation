@@ -721,18 +721,38 @@ def _gen_make_intrinsics(f, intrs, archs):
 template <%s,
           typename Callback,
           typename... Args>
-bool ProcessBindings(Callback callback, Args&&... args) {""" % (
+void ProcessAllBindings(Callback callback, Args&&... args) {""" % (
     AUTOGEN,
     ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
                          ['typename MacroAssembler'])),
     file=f)
-  for line in _gen_c_intrinsics_generator(intrs):
+  for line in _gen_c_intrinsics_generator(
+          intrs, _is_interpreter_compatible_assembler):
       print(line, file=f)
-  print("""  return false;
+  print('}', file=f)
+
+
+def _gen_process_bindings(f, intrs, archs):
+  print("""%s
+template <auto kFunc,
+          %s,
+          typename Result,
+          typename Callback,
+          typename... Args>
+auto ProcessBindings(Callback callback, Result def_result, Args&&... args) {""" % (
+    AUTOGEN,
+    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
+                         ['typename MacroAssembler'])),
+    file=f)
+  for line in _gen_c_intrinsics_generator(
+          intrs, _is_translator_compatible_assembler):
+      print(line, file=f)
+  print("""  }
+  return std::forward<Result>(def_result);
 }""", file=f)
 
 
-def _gen_c_intrinsics_generator(intrs):
+def _gen_c_intrinsics_generator(intrs, check_compatible_assembler):
   string_labels = {}
   for name, intr in intrs:
     ins = intr.get('in')
@@ -761,12 +781,16 @@ def _gen_c_intrinsics_generator(intrs):
           else:
             spec = '%s, %d' % (desc.c_type, desc.num_elements)
           for intr_asm in intr_asms:
-            for line in _gen_c_intrinsic(
-                '%s<%s>' % (name, spec), intr, intr_asm, string_labels):
+            for line in _gen_c_intrinsic('%s<%s>' % (name, spec),
+                                         intr,
+                                         intr_asm,
+                                         string_labels,
+                                         check_compatible_assembler):
               yield line
     else:
       for intr_asm in _gen_sorted_asms(intr):
-        for line in _gen_c_intrinsic(name, intr, intr_asm, string_labels):
+        for line in _gen_c_intrinsic(
+          name, intr, intr_asm, string_labels, check_compatible_assembler):
           yield line
 
 
@@ -795,11 +819,8 @@ _KNOWN_FEATURES_KEYS = {
 }
 
 
-MAX_GENERATED_LINE_LENGTH = 100
-
-
-def _gen_c_intrinsic(name, intr, asm, string_labels):
-  if not _is_interpreter_compatible_assembler(asm):
+def _gen_c_intrinsic(name, intr, asm, string_labels, check_compatible_assembler):
+  if not check_compatible_assembler(asm):
     return
 
   cpuid_restriction = 'intrinsics::bindings::kNoCPUIDRestriction'
@@ -821,64 +842,47 @@ def _gen_c_intrinsic(name, intr, asm, string_labels):
 
   if name not in string_labels:
     name_label = 'kName%d' % len(string_labels)
-    yield '  [[maybe_unused]] static constexpr const char %s[] = "%s";' % (
-      name_label, name)
     string_labels[name] = name_label
+    if check_compatible_assembler == _is_translator_compatible_assembler:
+      yield ' %s if constexpr (std::is_same_v<FunctionCompareTag<kFunc>,' % (
+        '' if name_label == 'kName0' else ' } else'
+      )
+      yield '                                      FunctionCompareTag<%s>>) {' % name
+    yield '    static constexpr const char %s[] = "%s";' % (
+        name_label, name)
   else:
     name_label = string_labels[name]
 
   restriction = [cpuid_restriction, nan_restriction]
 
-  def get_c_type_tuple(arguments):
-    return 'std::tuple<%s>' % ', '.join(
-        _get_c_type(argument) for argument in arguments).replace(
-            'Float', 'intrinsics::Float')
-
-  # Because of misfeature of Itanium C++ ABI we couldn't just use MacroAssembler
-  # to static cast these references if we want to use them as template argument:
-  # https://ibob.bg/blog/2018/08/18/a-bug-in-the-cpp-standard/
-
-  # Thankfully there are no need to use the same name for MacroInstructions
-  # since we may always rename these.
-
-  # But for assembler we need to use actual type from where these
-  # instructions come from!
-  #
-  # E.g. LZCNT have to be processed like this:
-  #   static_cast<void (Assembler_common_x86::*)(
-  #     typename Assembler_common_x86::Register,
-  #     typename Assembler_common_x86::Register)>(
-  #       &Assembler_common_x86::Lzcntl)
-  if 'arch' in asm:
-    assembler = 'Assembler_%s' % asm['arch']
-    instruction = 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
-        assembler,
-        _get_asm_type(asm, 'typename %s::' % assembler),
-        '\n                  ',
-        assembler,
-        'template ' if '<' in asm['asm'] else '',
-        asm['asm'])
+  if check_compatible_assembler == _is_translator_compatible_assembler:
+    yield '    if (auto result = callback('
   else:
-    instruction = '&MacroAssembler::%s%s' % (
-        'template ' if '<' in asm['asm'] else '',
-        asm['asm'])
-
-  yield '  if (callback('
+    yield '    callback('
   yield '          intrinsics::bindings::AsmCallInfo<'
   yield '              %s>(),' % (
     ',\n              '.join(
-        ['INTRINSIC_FUNCTION_NAME((%s), %s)' % (name, name_label),
-         instruction,
+        [name_label,
+         _get_asm_reference(asm),
          cpuid_restriction,
          nan_restriction,
          'true' if _intr_has_side_effects(intr) else 'false',
-         get_c_type_tuple(intr['in']),
-         get_c_type_tuple(intr['out'])] +
+         _get_c_type_tuple(intr['in']),
+         _get_c_type_tuple(intr['out'])] +
         [_get_reg_operand_info(arg, 'intrinsics::bindings')
          for arg in asm['args']]))
-  yield '          std::forward<Args>(args)...)) {'
-  yield '    return true;'
-  yield '  }'
+  if check_compatible_assembler == _is_translator_compatible_assembler:
+    yield '          std::forward<Args>(args)...); result.has_value()) {'
+    yield '      return *std::move(result);'
+    yield '    }'
+  else:
+    yield '          std::forward<Args>(args)...);'
+
+
+def _get_c_type_tuple(arguments):
+    return 'std::tuple<%s>' % ', '.join(
+        _get_c_type(argument) for argument in arguments).replace(
+            'Float', 'intrinsics::Float')
 
 
 def _get_asm_type(asm, prefix=''):
@@ -901,6 +905,36 @@ def _get_asm_operand_type(arg, prefix=''):
     return 'int' + cls[3:] + '_t'
   assert False
 
+
+def _get_asm_reference(asm):
+  # Because of misfeature of Itanium C++ ABI we couldn't just use MacroAssembler
+  # to static cast these references if we want to use them as template argument:
+  # https://ibob.bg/blog/2018/08/18/a-bug-in-the-cpp-standard/
+
+  # Thankfully there are no need to use the same name for MacroInstructions
+  # since we may always rename these.
+
+  # But for assembler we need to use actual type from where these
+  # instructions come from!
+  #
+  # E.g. LZCNT have to be processed like this:
+  #   static_cast<void (Assembler_common_x86::*)(
+  #     typename Assembler_common_x86::Register,
+  #     typename Assembler_common_x86::Register)>(
+  #       &Assembler_common_x86::Lzcntl)
+  if 'arch' in asm:
+    assembler = 'Assembler_%s' % asm['arch']
+    return 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
+        assembler,
+        _get_asm_type(asm, 'typename %s::' % assembler),
+        '\n                  ',
+        assembler,
+        'template ' if '<' in asm['asm'] else '',
+        asm['asm'])
+  else:
+    return '&MacroAssembler::%s%s' % (
+        'template ' if '<' in asm['asm'] else '',
+        asm['asm'])
 
 def _load_intrs_def_files(intrs_def_files):
   result = {}
@@ -942,6 +976,13 @@ def _is_interpreter_compatible_assembler(intr_asm):
   if intr_asm.get('usage', '') == 'translate-only':
     return False
   return True
+
+
+def _is_translator_compatible_assembler(intr_asm):
+  if intr_asm.get('usage', '') == 'interpret-only':
+    return False
+  return True
+
 
 
 def _add_asm_insn(intrs, arch_intr, insn):
@@ -1092,7 +1133,7 @@ def main(argv):
       _gen_make_intrinsics(open_out_file(argv[2]), expanded_intrs, archs)
     else:
       _gen_intrinsics_inl_h(open_out_file(argv[2]), intrs)
-      _gen_make_intrinsics(open_out_file(argv[3]), expanded_intrs, archs)
+      _gen_process_bindings(open_out_file(argv[3]), expanded_intrs, archs)
       _gen_semantic_player_types(intrs)
       _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs)
       _gen_translator_intrinsics_hooks_impl_inl_h(
