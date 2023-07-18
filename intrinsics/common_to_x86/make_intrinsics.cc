@@ -563,86 +563,84 @@ void GenerateAsmCalls(FILE* out) {
       intrinsics::bindings::kNoCPUIDRestriction;
   bool if_opened = false;
   std::string running_name;
-  ProcessAllBindings<TextAssemblerX86<TextAssembler>,
-                     TextAssembler,
-                     MacroAssembler<TextAssembler>>([&running_name, &if_opened, &cpuid_restriction, out](
-                                                    auto&& asm_call_generator) {
-    using AsmCallInfo = std::decay_t<decltype(asm_call_generator)>;
-    std::string full_name =
-        std::string(asm_call_generator.kIntrinsic, std::strlen(asm_call_generator.kIntrinsic) - 1) +
-        ", kUseCppImplementation>";
-    if (size_t arguments_count = std::tuple_size_v<typename AsmCallInfo::InputArguments>) {
-      full_name += "(in0";
-      for (size_t i = 1; i < arguments_count; ++i) {
-        full_name += ", in" + std::to_string(i);
-      }
-      full_name += ")";
-    } else {
-      full_name += "()";
-    }
-    if (full_name != running_name) {
-      if (if_opened) {
-        if (cpuid_restriction != intrinsics::bindings::kNoCPUIDRestriction) {
-          fprintf(out, "  } else {\n    return %s;\n", running_name.c_str());
-          cpuid_restriction = intrinsics::bindings::kNoCPUIDRestriction;
-        }
-        if_opened = false;
-        fprintf(out, "  }\n");
-      }
-      // Final line of function.
-      fprintf(out, "};\n\n");
-      GenerateFunctionHeader<AsmCallInfo>(out, 0);
-      running_name = full_name;
-    }
-    if (asm_call_generator.kCPUIDRestriction != cpuid_restriction) {
-      if (asm_call_generator.kCPUIDRestriction == intrinsics::bindings::kNoCPUIDRestriction) {
-        fprintf(out, "  } else {\n");
-      } else {
-        if (if_opened) {
-          fprintf(out, "  } else if (");
+  ProcessAllBindings<TextAssemblerX86<TextAssembler>, TextAssembler, MacroAssembler<TextAssembler>>(
+      [&running_name, &if_opened, &cpuid_restriction, out](auto&& asm_call_generator) {
+        using AsmCallInfo = std::decay_t<decltype(asm_call_generator)>;
+        std::string full_name = std::string(asm_call_generator.kIntrinsic,
+                                            std::strlen(asm_call_generator.kIntrinsic) - 1) +
+                                ", kUseCppImplementation>";
+        if (size_t arguments_count = std::tuple_size_v<typename AsmCallInfo::InputArguments>) {
+          full_name += "(in0";
+          for (size_t i = 1; i < arguments_count; ++i) {
+            full_name += ", in" + std::to_string(i);
+          }
+          full_name += ")";
         } else {
-          fprintf(out, "  if (");
-          if_opened = true;
+          full_name += "()";
         }
-        switch (asm_call_generator.kCPUIDRestriction) {
-          default:
-            // Unsupported CPUID value.
-            CHECK(false);
-          case intrinsics::bindings::kIsAuthenticAMD:
-            fprintf(out, "host_platform::kIsAuthenticAMD");
-            break;
-          case intrinsics::bindings::kHasLZCNT:
-            fprintf(out, "host_platform::kHasLZCNT");
-            break;
-          case intrinsics::bindings::kHasSSE3:
-            fprintf(out, "host_platform::kHasSSE3");
-            break;
-          case intrinsics::bindings::kHasSSSE3:
-            fprintf(out, "host_platform::kHasSSSE3");
-            break;
-          case intrinsics::bindings::kHasSSE4_1:
-            fprintf(out, "host_platform::kHasSSE4_1");
-            break;
-          case intrinsics::bindings::kHasSSE4_2:
-            fprintf(out, "host_platform::kHasSSE4_2");
-            break;
-          case intrinsics::bindings::kHasAVX:
-            fprintf(out, "host_platform::kHasAVX");
-            break;
-          case intrinsics::bindings::kHasFMA:
-            fprintf(out, "host_platform::kHasFMA");
-            break;
-          case intrinsics::bindings::kHasFMA4:
-            fprintf(out, "host_platform::kHasFMA4");
-            break;
-          case intrinsics::bindings::kNoCPUIDRestriction:; /* Do nothing - make compiler happy */
+        if (full_name != running_name) {
+          if (if_opened) {
+            if (cpuid_restriction != intrinsics::bindings::kNoCPUIDRestriction) {
+              fprintf(out, "  } else {\n    return %s;\n", running_name.c_str());
+              cpuid_restriction = intrinsics::bindings::kNoCPUIDRestriction;
+            }
+            if_opened = false;
+            fprintf(out, "  }\n");
+          }
+          // Final line of function.
+          fprintf(out, "};\n\n");
+          GenerateFunctionHeader<AsmCallInfo>(out, 0);
+          running_name = full_name;
         }
-        fprintf(out, ") {\n");
-      }
-      cpuid_restriction = asm_call_generator.kCPUIDRestriction;
-    }
-    GenerateFunctionBody<AsmCallInfo>(out, 2 + 2 * if_opened);
-  });
+        if (asm_call_generator.kCPUIDRestriction != cpuid_restriction) {
+          if (asm_call_generator.kCPUIDRestriction == intrinsics::bindings::kNoCPUIDRestriction) {
+            fprintf(out, "  } else {\n");
+          } else {
+            if (if_opened) {
+              fprintf(out, "  } else if (");
+            } else {
+              fprintf(out, "  if (");
+              if_opened = true;
+            }
+            switch (asm_call_generator.kCPUIDRestriction) {
+              default:
+                // Unsupported CPUID value.
+                CHECK(false);
+              case intrinsics::bindings::kIsAuthenticAMD:
+                fprintf(out, "host_platform::kIsAuthenticAMD");
+                break;
+              case intrinsics::bindings::kHasLZCNT:
+                fprintf(out, "host_platform::kHasLZCNT");
+                break;
+              case intrinsics::bindings::kHasSSE3:
+                fprintf(out, "host_platform::kHasSSE3");
+                break;
+              case intrinsics::bindings::kHasSSSE3:
+                fprintf(out, "host_platform::kHasSSSE3");
+                break;
+              case intrinsics::bindings::kHasSSE4_1:
+                fprintf(out, "host_platform::kHasSSE4_1");
+                break;
+              case intrinsics::bindings::kHasSSE4_2:
+                fprintf(out, "host_platform::kHasSSE4_2");
+                break;
+              case intrinsics::bindings::kHasAVX:
+                fprintf(out, "host_platform::kHasAVX");
+                break;
+              case intrinsics::bindings::kHasFMA:
+                fprintf(out, "host_platform::kHasFMA");
+                break;
+              case intrinsics::bindings::kHasFMA4:
+                fprintf(out, "host_platform::kHasFMA4");
+                break;
+              case intrinsics::bindings::kNoCPUIDRestriction:; // Do nothing - make compiler happy.
+            }
+            fprintf(out, ") {\n");
+          }
+          cpuid_restriction = asm_call_generator.kCPUIDRestriction;
+        }
+        GenerateFunctionBody<AsmCallInfo>(out, 2 + 2 * if_opened);
+      });
   if (if_opened) {
     fprintf(out, "  }\n");
   }
