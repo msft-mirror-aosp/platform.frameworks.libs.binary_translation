@@ -739,7 +739,7 @@ template <auto kFunc,
           typename Result,
           typename Callback,
           typename... Args>
-auto ProcessBindings(Callback callback, Result def_result, Args&&... args) {""" % (
+Result ProcessBindings(Callback callback, Result def_result, Args&&... args) {""" % (
     AUTOGEN,
     ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
                          ['typename MacroAssembler'])),

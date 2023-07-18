@@ -327,13 +327,13 @@ class AsmCallInfo<kIntrinsicTemplateName,
       TypeTraits<InputArgumentsTypes>::kName...};
   static constexpr const char* OutputArgumentsTypeNames[] = {
       TypeTraits<OutputArgumentsTypes>::kName...};
-  template <typename Callback>
-  constexpr static void ProcessBindings(Callback&& callback) {
-    (callback(ArgTraits<BindingsTypes>()), ...);
+  template <typename Callback, typename... Args>
+  constexpr static void ProcessBindings(Callback&& callback, Args&&... args) {
+    (callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...), ...);
   }
-  template <typename Callback>
-  constexpr static auto MakeTuplefromBindings(Callback&& callback) {
-    return std::tuple_cat(callback(ArgTraits<BindingsTypes>())...);
+  template <typename Callback, typename... Args>
+  constexpr static auto MakeTuplefromBindings(Callback&& callback, Args&&... args) {
+    return std::tuple_cat(callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...)...);
   }
   using InputArguments = std::tuple<InputArgumentsTypes...>;
   using OutputArguments = std::tuple<OutputArgumentsTypes...>;
