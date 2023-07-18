@@ -39,12 +39,6 @@
     "out": [ 0 ]
   },
   {
-    "name": "FAddHostRounding<Float32>",
-    "insn": "AddssXRegXReg",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
     "name": "Clz<int32_t>",
     "insn": "ClzInt32",
     "in": [ 1 ],
@@ -71,9 +65,29 @@
     "out": [ 0 ]
   },
   {
+    "name": "FAddHostRounding<Float32>",
+    "insn": "AddssXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FAddHostRounding<Float32>",
+    "insn": "VaddssXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float64>",
     "insn": "AddsdXRegXReg",
     "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FAddHostRounding<Float64>",
+    "insn": "VaddsdXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
     "out": [ 0 ]
   },
   {
@@ -83,9 +97,23 @@
     "out": [ 0 ]
   },
   {
+    "name": "FDivHostRounding<Float32>",
+    "insn": "VdivssXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FDivHostRounding<Float64>",
     "insn": "DivsdXRegXReg",
     "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FDivHostRounding<Float64>",
+    "insn": "VdivsdXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
     "out": [ 0 ]
   },
   {
@@ -281,9 +309,23 @@
     "out": [ 0 ]
   },
   {
+    "name": "FMulHostRounding<Float32>",
+    "insn": "VmulssXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FMulHostRounding<Float64>",
     "insn": "MulsdXRegXReg",
     "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMulHostRounding<Float64>",
+    "insn": "VmulsdXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
     "out": [ 0 ]
   },
   {
@@ -293,9 +335,23 @@
     "out": [ 0 ]
   },
   {
+    "name": "FSubHostRounding<Float32>",
+    "insn": "VsubssXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FSubHostRounding<Float64>",
     "insn": "SubsdXRegXReg",
     "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FSubHostRounding<Float64>",
+    "insn": "VsubsdXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
     "out": [ 0 ]
   },
   {
