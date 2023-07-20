@@ -21,7 +21,7 @@
         { "class": "FpReg32", "usage": "def_early_clobber" },
         { "class": "FpReg32", "usage": "use_def" }
       ],
-      "asm": "CanonicalizeNan<intrinsics::Float32>",
+      "asm": "MacroCanonicalizeNan<intrinsics::Float32>",
       "mnemo": "MACRO_CANONICALIZE_F32"
     },
     {
@@ -30,7 +30,7 @@
         { "class": "FpReg32", "usage": "def_early_clobber" },
         { "class": "FpReg32", "usage": "use_def" }
       ],
-      "asm": "CanonicalizeNanAVX<intrinsics::Float32>",
+      "asm": "MacroCanonicalizeNanAVX<intrinsics::Float32>",
       "mnemo": "MACRO_CANONICALIZE_F32"
     },
     {
@@ -39,7 +39,7 @@
         { "class": "FpReg64", "usage": "def_early_clobber" },
         { "class": "FpReg64", "usage": "use_def" }
       ],
-      "asm": "CanonicalizeNan<intrinsics::Float64>",
+      "asm": "MacroCanonicalizeNan<intrinsics::Float64>",
       "mnemo": "MACRO_CANONICALIZE_F64"
     },
     {
@@ -48,7 +48,7 @@
         { "class": "FpReg64", "usage": "def_early_clobber" },
         { "class": "FpReg64", "usage": "use_def" }
       ],
-      "asm": "CanonicalizeNanAVX<intrinsics::Float64>",
+      "asm": "MacroCanonicalizeNanAVX<intrinsics::Float64>",
       "mnemo": "MACRO_CANONICALIZE_F64"
     },
     {
