@@ -120,6 +120,21 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Divq(arg2);
       as_.Movq(res, opcode == OpOpcode::kDivu ? as_.rax : as_.rdx);
       break;
+    case Decoder::OpOpcode::kAndn:
+      as_.Movq(res, arg2);
+      as_.Notq(res);
+      as_.Andq(res, arg1);
+      break;
+    case Decoder::OpOpcode::kOrn:
+      as_.Movq(res, arg2);
+      as_.Notq(res);
+      as_.Orq(res, arg1);
+      break;
+    case Decoder::OpOpcode::kXnor:
+      as_.Movq(res, arg2);
+      as_.Xorq(res, arg1);
+      as_.Notq(res);
+      break;
     default:
       Unimplemented();
       return {};
@@ -273,6 +288,20 @@ Register LiteTranslator::ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register a
     return {};
   }
   as_.Movsxlq(res, res);
+  return res;
+}
+
+Register LiteTranslator::Rori(Register arg, int8_t shamt) {
+  Register res = AllocTempReg();
+  as_.Movq(res, arg);
+  as_.Rorq(res, shamt);
+  return res;
+}
+
+Register LiteTranslator::Roriw(Register arg, int8_t shamt) {
+  Register res = AllocTempReg();
+  as_.Movq(res, arg);
+  as_.Rorl(res, shamt);
   return res;
 }
 
