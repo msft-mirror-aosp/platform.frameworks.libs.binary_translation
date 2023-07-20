@@ -228,7 +228,7 @@ class TextAssemblerX86 {
   Label* MakeLabel() { return new Label{labels_allocated_++}; }
 
 // Instructions.
-#include "gen_text_assembler_x86_common-inl.h"  // NOLINT generated file
+#include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
 
  protected:
   bool need_gpr_macroassembler_constants_ = false;
