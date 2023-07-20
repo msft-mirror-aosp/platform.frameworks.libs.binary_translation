@@ -22,6 +22,7 @@
 #include "berberis/assembler/machine_code.h"
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/dependent_false.h"
+#include "berberis/intrinsics/guest_fp_flags.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/intrinsics/simd_register.h"
@@ -82,7 +83,8 @@ class TryInlineIntrinsicWithTestParams<Result (*)(Args...)> {
   template <typename Arg>
   static auto AllocArg() {
     if constexpr (std::is_integral_v<Arg>) {
-      Arg value = '\0';
+      // TODO(b/290970051) to provide it on the caller side.
+      Arg value = FPFlags::DYN;
       return value;
     } else if constexpr (std::is_same_v<Arg, SIMD128Register> || std::is_same_v<Arg, Float32> ||
                          std::is_same_v<Arg, Float64>) {
