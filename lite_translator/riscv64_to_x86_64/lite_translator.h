@@ -200,17 +200,17 @@ class LiteTranslator {
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat: {
         if (host_platform::kHasAVX) {
-          as_.CanonicalizeNanAVX<Float32>(canonical_result, value);
+          as_.MacroCanonicalizeNanAVX<Float32>(canonical_result, value);
         } else {
-          as_.CanonicalizeNan<Float32>(canonical_result, value);
+          as_.MacroCanonicalizeNan<Float32>(canonical_result, value);
         }
         return canonical_result;
       }
       case Decoder::FloatOperandType::kDouble: {
         if (host_platform::kHasAVX) {
-          as_.CanonicalizeNanAVX<Float64>(canonical_result, value);
+          as_.MacroCanonicalizeNanAVX<Float64>(canonical_result, value);
         } else {
-          as_.CanonicalizeNan<Float64>(canonical_result, value);
+          as_.MacroCanonicalizeNan<Float64>(canonical_result, value);
         }
         return canonical_result;
       }
