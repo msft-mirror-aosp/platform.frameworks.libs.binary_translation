@@ -41,14 +41,9 @@ class InlineIntrinsic {
                         ResType result,
                         ArgType... args) {
     std::tuple args_tuple = std::make_tuple(args...);
-    if constexpr (IsTagEq<&intrinsics::FMul<intrinsics::Float64>>) {
+    if constexpr (IsTagEq<&intrinsics::FMulHostRounding<intrinsics::Float64>>) {
       auto dst = result;
-      auto [rm, frm, src1, src2] = args_tuple;
-
-      if (rm == FPFlags::DYN) {
-        return false;
-      }
-
+      auto [src1, src2] = args_tuple;
       as->Movdqa(dst, src1);
       as->Mulsd(dst, src2);
       return true;
@@ -56,6 +51,24 @@ class InlineIntrinsic {
     // reg_alloc does nothing for now, is used for later implemented instructions
     UNUSED(reg_alloc);
     UNUSED(simd_reg_alloc);
+    return false;
+  }
+
+  template <typename RegAlloc, typename SIMDRegAlloc, typename ResType, typename... ArgType>
+  static bool TryInlineWithHostRounding(MacroAssembler<x86_64::Assembler>* as,
+                                        RegAlloc&& reg_alloc,
+                                        SIMDRegAlloc&& simd_reg_alloc,
+                                        ResType result,
+                                        ArgType... args) {
+    std::tuple args_tuple = std::make_tuple(args...);
+    if constexpr (IsTagEq<&intrinsics::FMul<intrinsics::Float64>>) {
+      auto [rm, frm, src1, src2] = args_tuple;
+      if (rm != FPFlags::DYN) {
+        return false;
+      }
+      return InlineIntrinsic<&intrinsics::FMulHostRounding<intrinsics::Float64>>::TryInline(
+          as, reg_alloc, simd_reg_alloc, result, src1, src2);
+    }
     return false;
   }
 
@@ -277,7 +290,8 @@ bool TryInlineIntrinsic(MacroAssembler<x86_64::Assembler>& as,
                         SIMDRegAlloc&& simd_reg_alloc,
                         AssemblerResType result,
                         AssemblerArgType... args) {
-  if (InlineIntrinsic<kFunction>::TryInline(&as, reg_alloc, simd_reg_alloc, result, args...)) {
+  if (InlineIntrinsic<kFunction>::TryInlineWithHostRounding(
+          &as, reg_alloc, simd_reg_alloc, result, args...)) {
     return true;
   }
 
