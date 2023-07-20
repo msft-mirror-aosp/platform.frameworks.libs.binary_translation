@@ -25,7 +25,7 @@ namespace berberis {
 
 template <typename Assembler>
 template <typename FloatType>
-void MacroAssembler<Assembler>::CanonicalizeNan(XMMRegister result, XMMRegister src) {
+void MacroAssembler<Assembler>::MacroCanonicalizeNan(XMMRegister result, XMMRegister src) {
   Pmov(result, src);
   Cmpords<FloatType>(result, src);
   Pand(src, result);
@@ -35,7 +35,7 @@ void MacroAssembler<Assembler>::CanonicalizeNan(XMMRegister result, XMMRegister 
 
 template <typename Assembler>
 template <typename FloatType>
-void MacroAssembler<Assembler>::CanonicalizeNanAVX(XMMRegister result, XMMRegister src) {
+void MacroAssembler<Assembler>::MacroCanonicalizeNanAVX(XMMRegister result, XMMRegister src) {
   Vcmpords<FloatType>(result, src, src);
   Vpand(src, src, result);
   Vpandn(result, result, {.disp = constants_pool::kCanonicalNans<FloatType>});
