@@ -952,6 +952,12 @@ TEST_F(TESTSUITE, OpInstructions) {
   TestOp(0x23160b3, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
   // Remu
   TestOp(0x23170b3, {{0x9999'9999'9999'9999, 0x3333, 0}});
+  // Andn
+  TestOp(0x403170b3, {{0b0101, 0b0011, 0b0100}});
+  // Orn
+  TestOp(0x403160b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fffd}});
+  // Xnor
+  TestOp(0x403140b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fff9}});
 }
 
 TEST_F(TESTSUITE, Op32Instructions) {
@@ -1010,6 +1016,11 @@ TEST_F(TESTSUITE, OpImmInstructions) {
   TestOpImm(0x00015093, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
   // Srai
   TestOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
+  // Rori
+  TestOpImm(0x60015093, {{0xf000'0000'0000'000fULL, 4, 0xff00'0000'0000'0000ULL}});
+  // Clz
+  TestOpImm(0x60011093, {{0, 0, 64}});
+  TestOpImm(0x60011093, {{123, 0, 57}});
 }
 
 TEST_F(TESTSUITE, OpImm32Instructions) {
@@ -1021,6 +1032,11 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   TestOpImm(0x0001509b, {{0x0000'0000'f000'0000ULL, 12, 0x0000'0000'000f'0000ULL}});
   // Sraiw
   TestOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
+  // Roriw
+  TestOpImm(0x6001509b, {{0x0000'0000'f000'000fULL, 4, 0x0000'0000'0000'0000'ff00'0000}});
+  // Clzw
+  TestOpImm(0x6001109b, {{0, 0, 32}});
+  TestOpImm(0x60011093, {{123, 0, 57}});
 }
 
 TEST_F(TESTSUITE, OpFpInstructions) {
