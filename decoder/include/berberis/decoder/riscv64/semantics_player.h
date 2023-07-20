@@ -621,6 +621,28 @@ class SemanticsPlayer {
                                  },
                                  [&](const typename Decoder::ShiftImm32Args& args) {
                                    return listener_->ShiftImm32(args.opcode, arg, args.imm);
+                                 },
+                                 [&](const typename Decoder::BitmanipImmArgs& args) {
+                                   switch (args.opcode) {
+                                     case Decoder::BitmanipImmOpcode::kClz:
+                                       return listener_->template Clz<int64_t>(arg);
+                                     case Decoder::BitmanipImmOpcode::kRori:
+                                       return listener_->Rori(arg, args.shamt);
+                                     default:
+                                       Unimplemented();
+                                       return Register{};
+                                   }
+                                 },
+                                 [&](const typename Decoder::BitmanipImm32Args& args) {
+                                   switch (args.opcode) {
+                                     case Decoder::BitmanipImm32Opcode::kClzw:
+                                       return listener_->template Clz<int32_t>(arg);
+                                     case Decoder::BitmanipImm32Opcode::kRoriw:
+                                       return listener_->Roriw(arg, args.shamt);
+                                     default:
+                                       Unimplemented();
+                                       return Register{};
+                                   }
                                  }}(args);
     SetRegOrIgnore(args.dst, result);
   };

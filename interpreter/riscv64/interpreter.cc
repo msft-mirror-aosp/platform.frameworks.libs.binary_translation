@@ -179,6 +179,12 @@ class Interpreter {
         return bit_cast<int64_t>(arg1) % bit_cast<int64_t>(arg2);
       case Decoder::OpOpcode::kRemu:
         return arg1 % arg2;
+      case Decoder::OpOpcode::kAndn:
+        return arg1 & (~arg2);
+      case Decoder::OpOpcode::kOrn:
+        return arg1 | (~arg2);
+      case Decoder::OpOpcode::kXnor:
+        return ~(arg1 ^ arg2);
       default:
         Unimplemented();
         return {};
@@ -305,6 +311,16 @@ class Interpreter {
         Unimplemented();
         return {};
     }
+  }
+
+  Register Rori(Register arg, int8_t shamt) {
+    CheckShamtIsValid(shamt);
+    return (((uint64_t(arg) >> shamt)) | (uint64_t(arg) << (64 - shamt)));
+  }
+
+  Register Roriw(Register arg, int8_t shamt) {
+    CheckShamt32IsValid(shamt);
+    return (((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
   }
 
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data) {
@@ -485,6 +501,16 @@ class Interpreter {
   void StoreFp(void* ptr, uint64_t data) const {
     static_assert(std::is_floating_point_v<DataType>);
     memcpy(ptr, &data, sizeof(DataType));
+  }
+
+  void CheckShamtIsValid(int8_t shamt) const {
+    CHECK_GE(shamt, 0);
+    CHECK_LT(shamt, 64);
+  }
+
+  void CheckShamt32IsValid(int8_t shamt) const {
+    CHECK_GE(shamt, 0);
+    CHECK_LT(shamt, 32);
   }
 
   void CheckRegIsValid(uint8_t reg) const {
