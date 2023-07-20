@@ -210,7 +210,7 @@ void GenerateInShadows(FILE* out, int indent) {
         if constexpr (std::is_integral_v<Type> && sizeof(Type) < sizeof(int32_t)) {
           fprintf(
               out, "%2$*1$suint32_t in%3$d_expanded = in%3$d;\n", indent, "", arg.arg_info.from);
-          type_name = TypeTraits<uint64_t>::kName;
+          type_name = TypeTraits<uint32_t>::kName;
           xmm_type_name =
               TypeTraits<typename TypeTraits<typename TypeTraits<uint32_t>::Float>::Raw>::kName;
           expanded = "_expanded";
