@@ -118,7 +118,14 @@ TEST(InlineIntrinsicRiscv64Test, SupportedInstructions) {
   MacroAssembler<x86_64::Assembler> as(&machine_code);
   TEST_SUPPORTED((intrinsics::FMul<intrinsics::Float64>), int8_t{FPFlags::DYN});
   TEST_UNSUPPORTED((intrinsics::FMul<intrinsics::Float64>), int8_t{FPFlags::RNE});
+  TEST_SUPPORTED((intrinsics::FMul<intrinsics::Float32>), int8_t{FPFlags::DYN});
+  TEST_UNSUPPORTED((intrinsics::FMul<intrinsics::Float32>), int8_t{FPFlags::RNE});
   TEST_SUPPORTED((intrinsics::FMulHostRounding<intrinsics::Float64>));
+  TEST_SUPPORTED((intrinsics::FAdd<intrinsics::Float64>), int8_t{FPFlags::DYN});
+  TEST_UNSUPPORTED((intrinsics::FAdd<intrinsics::Float64>), int8_t{FPFlags::RNE});
+  TEST_SUPPORTED((intrinsics::FAdd<intrinsics::Float32>), int8_t{FPFlags::DYN});
+  TEST_UNSUPPORTED((intrinsics::FAdd<intrinsics::Float32>), int8_t{FPFlags::RNE});
+  TEST_SUPPORTED((intrinsics::FAddHostRounding<intrinsics::Float64>));
 }
 
 #undef TEST_SUPPORTED
