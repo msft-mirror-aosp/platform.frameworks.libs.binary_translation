@@ -46,7 +46,7 @@ python_test_host {
 genrule {
     name: "libberberis_text_assembler_gen_headers_x86_32",
     out: [
-        "gen_text_assembler_x86_common-inl.h",
+        "gen_text_assembler_common_x86-inl.h",
         "gen_text_assembler_x86_32-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_32"],
@@ -57,7 +57,7 @@ genrule {
 genrule {
     name: "libberberis_text_assembler_gen_headers_x86_64",
     out: [
-        "gen_text_assembler_x86_common-inl.h",
+        "gen_text_assembler_common_x86-inl.h",
         "gen_text_assembler_x86_64-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_64"],
@@ -81,13 +81,13 @@ filegroup {
 }
 
 filegroup {
-    name: "dummy_make_intrinsics_srcs",
-    srcs: ["dummy_make_intrinsics.cc"],
+    name: "dummy_gen_text_asm_intrinsics_srcs",
+    srcs: ["dummy_gen_text_asm_intrinsics.cc"],
 }
 
 filegroup {
-    name: "make_intrinsics_srcs",
-    srcs: ["common_to_x86/make_intrinsics.cc"],
+    name: "gen_text_asm_intrinsics_srcs",
+    srcs: ["common_to_x86/gen_text_asm_intrinsics.cc"],
 }
 
 genrule {
@@ -100,7 +100,7 @@ genrule {
 
 genrule {
     name: "libberberis_macro_assembler_gen_intrinsics_headers_riscv64_to_x86_64",
-    out: ["make_intrinsics-inl.h"],
+    out: ["text_asm_intrinsics_process_bindings-inl.h"],
     srcs: [
         ":libberberis_intrinsics_gen_inputs_riscv64_to_x86_64",
         ":libberberis_machine_ir_intrinsic_binding_riscv64_to_x86_64",
@@ -108,7 +108,7 @@ genrule {
         ":libberberis_assembler_gen_inputs_x86_64",
     ],
     tools: ["gen_intrinsics"],
-    cmd: "$(location gen_intrinsics) --make_intrinsics_inl_h $(out) $(in)",
+    cmd: "$(location gen_intrinsics) --text_asm_intrinsics_bindings $(out) $(in)",
 }
 
 genrule {
@@ -149,7 +149,7 @@ genrule {
 // So with 64-bit RISC V headers we have two-step operation:
 //
 //   gen_intrinsics
-//   -> make_intrinsics-inl.h
+//   -> text_asm_intrinsics_process_bindings-inl.h
 //      -> gen_riscv64_to_x86_64_intrinsics
 //         -> libberberis_intrinsics_gen_asm_impl_headers_riscv64_to_x86_64
 //
@@ -160,7 +160,7 @@ genrule {
 
 cc_binary_host {
     name: "gen_riscv64_to_x86_64_intrinsics",
-    defaults: ["make_intrinsics_defaults"],
+    defaults: ["gen_text_asm_intrinsics_defaults"],
     local_include_dirs: ["riscv64_to_x86_64"],
     target: {
         linux: {
@@ -176,7 +176,7 @@ cc_binary_host {
 }
 
 cc_defaults {
-    name: "make_intrinsics_defaults",
+    name: "gen_text_asm_intrinsics_defaults",
     // Note: build system would pick the build OS variant.
     // Usually that's 64-bit version thus we can only support 64bit version here.
     // Currently none of Android builds that we care about used 32bit version of host tools.
@@ -194,14 +194,14 @@ cc_defaults {
     target: {
         darwin: {
             enabled: true,
-            srcs: [":dummy_make_intrinsics_srcs"],
+            srcs: [":dummy_gen_text_asm_intrinsics_srcs"],
         },
         linux: {
             // We are only ever executing that binary once, it's faster to build it without
             // optimizations and spend half-second more running it, than spend tens of seconds
             // optimizing the code to save that half-second.
             cflags: ["-O0"],
-            srcs: [":make_intrinsics_srcs"],
+            srcs: [":gen_text_asm_intrinsics_srcs"],
             header_libs: [
                 "libberberis_base_headers",
                 "libberberis_runtime_primitives_headers",

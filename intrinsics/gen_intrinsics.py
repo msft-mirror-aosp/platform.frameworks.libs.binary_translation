@@ -1085,13 +1085,13 @@ def main(argv):
   #                                      ...
   #                                      <riscv64_to_x86_64/macro_def.json>,
   #                                      ...
-  #   gen_intrinsics.py --make_intrinsics_inl_h <make_intrinsics-inl.h>
-  #                                             <riscv64_to_x86_64/intrinsic_def.json",
-  #                                             ...
-  #                                             <riscv64_to_x86_64/machine_ir_intrinsic_binding.json>,
-  #                                             ...
-  #                                             <riscv64_to_x86_64/macro_def.json>,
-  #                                             ...
+  #   gen_intrinsics.py --text_asm_intrinsics_bindings <make_intrinsics-inl.h>
+  #                                                    <riscv64_to_x86_64/intrinsic_def.json",
+  #                                                    ...
+  #                                                    <riscv64_to_x86_64/machine_ir_intrinsic_binding.json>,
+  #                                                    ...
+  #                                                    <riscv64_to_x86_64/macro_def.json>,
+  #                                                    ...
 
   def open_out_file(name):
     try:
@@ -1101,8 +1101,8 @@ def main(argv):
     return open(name, 'w')
 
   mode = argv[1]
-  if mode in ('--make_intrinsics_inl_h', '--public_headers', '--public_headersx'):
-    out_files_end = 3 if mode == '--make_intrinsics_inl_h' else 7
+  if mode in ('--text_asm_intrinsics_bindings', '--public_headers'):
+    out_files_end = 3 if mode == '--text_asm_intrinsics_bindings' else 7
     def_files_end = out_files_end
     while argv[def_files_end].endswith('intrinsic_def.json'):
       def_files_end += 1
@@ -1114,7 +1114,7 @@ def main(argv):
       argv[def_files_end:arch_def_files_end],
       argv[arch_def_files_end:],
       True)
-    if mode == '--make_intrinsics_inl_h':
+    if mode == '--text_asm_intrinsics_bindings':
       _gen_make_intrinsics(open_out_file(argv[2]), expanded_intrs, archs)
     else:
       _gen_intrinsics_inl_h(open_out_file(argv[2]), intrs)
