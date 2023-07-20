@@ -136,7 +136,7 @@ struct TypeTraits<float> {
 
 template <>
 struct TypeTraits<double> {
-  using Int = int32_t;
+  using Int = int64_t;
   using Wrapped = intrinsics::Float64;
 #if defined(__x86_64__)
   static_assert(sizeof(long double) > sizeof(intrinsics::Float64));
