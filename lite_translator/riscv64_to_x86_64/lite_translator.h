@@ -74,6 +74,8 @@ class LiteTranslator {
   Register Srli(Register arg, int8_t imm);
   Register Srai(Register arg, int8_t imm);
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm);
+  Register Rori(Register arg, int8_t shamt);
+  Register Roriw(Register arg, int8_t shamt);
   Register Lui(int32_t imm);
   Register Auipc(int32_t imm);
   void CompareAndBranch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset);
