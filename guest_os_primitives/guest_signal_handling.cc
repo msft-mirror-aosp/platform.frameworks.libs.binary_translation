@@ -28,6 +28,7 @@
 #include "berberis/guest_state/guest_state_opaque.h"
 
 #include "guest_signal_action.h"
+#include "scoped_signal_blocker.h"
 
 namespace berberis {
 
@@ -72,6 +73,72 @@ void ProcessGuestSignal(GuestThread* thread, const Guest_sigaction* sa, siginfo_
 }
 
 }  // namespace
+
+bool GuestThread::SigAltStack(const stack_t* ss, stack_t* old_ss, int* error) {
+  // The following code is not reentrant!
+  ScopedSignalBlocker signal_blocker;
+
+  if (old_ss) {
+    if (sig_alt_stack_) {
+      old_ss->ss_sp = sig_alt_stack_;
+      old_ss->ss_size = sig_alt_stack_size_;
+      old_ss->ss_flags = IsOnSigAltStack() ? SS_ONSTACK : 0;
+    } else {
+      old_ss->ss_sp = nullptr;
+      old_ss->ss_size = 0;
+      old_ss->ss_flags = SS_DISABLE;
+    }
+  }
+  if (ss) {
+    if (sig_alt_stack_ && IsOnSigAltStack()) {
+      *error = EPERM;
+      return false;
+    }
+    if (ss->ss_flags == SS_DISABLE) {
+      sig_alt_stack_ = nullptr;
+      sig_alt_stack_size_ = 0;
+      return true;
+    }
+    if (ss->ss_flags != 0) {
+      *error = EINVAL;
+      return false;
+    }
+    if (ss->ss_size < GetGuest_MINSIGSTKSZ()) {
+      *error = ENOMEM;
+      return false;
+    }
+    sig_alt_stack_ = ss->ss_sp;
+    sig_alt_stack_size_ = ss->ss_size;
+  }
+  return true;
+}
+
+void GuestThread::SwitchToSigAltStack() {
+  if (sig_alt_stack_ && !IsOnSigAltStack()) {
+    // TODO(b/289563835): Try removing `- 16` while ensuring app compatibility.
+    // Reliable context on why we use `- 16` here seems to be lost.
+    SetStackRegister(GetCPUState(state_), ToGuestAddr(sig_alt_stack_) + sig_alt_stack_size_ - 16);
+  }
+}
+
+bool GuestThread::IsOnSigAltStack() const {
+  CHECK_NE(sig_alt_stack_, nullptr);
+  const char* ss_start = static_cast<const char*>(sig_alt_stack_);
+  const char* ss_curr = ToHostAddr<const char>(GetStackRegister(GetCPUState(state_)));
+  return ss_curr >= ss_start && ss_curr < ss_start + sig_alt_stack_size_;
+}
+
+void GuestThread::ProcessPendingSignals() {
+  for (;;) {
+    // Process pending signals while present.
+    uint8_t status = GetPendingSignalsStatusAtomic(state_)->load(std::memory_order_acquire);
+    CHECK_NE(kPendingSignalsDisabled, status);
+    if (status == kPendingSignalsEnabled) {
+      return;
+    }
+    ProcessPendingSignalsImpl();
+  }
+}
 
 bool GuestThread::ProcessAndDisablePendingSignals() {
   for (;;) {

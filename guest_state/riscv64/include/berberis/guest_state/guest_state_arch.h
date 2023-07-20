@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
-#define BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
+#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_ARCH_H_
+#define BERBERIS_GUEST_STATE_GUEST_STATE_ARCH_H_
 
 #include <atomic>
 #include <cstdint>
@@ -26,6 +26,8 @@
 #include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis {
+
+using Reservation = uint64_t;
 
 struct CPUState {
   // x0 to x31.
@@ -49,6 +51,9 @@ struct CPUState {
   // that x86-64 implements all five exceptions that RISC-V needs (and more).
   uint8_t frm : 3;
   GuestAddr insn_addr;
+
+  GuestAddr reservation_address;
+  Reservation reservation_value;
 };
 
 template <uint8_t kIndex>
@@ -198,4 +203,4 @@ constexpr uint8_t FT11 = 31;  // FP Temporary register 11 - caller saved.
 
 }  // namespace berberis
 
-#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_RISCV64_H_
+#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_ARCH_H_

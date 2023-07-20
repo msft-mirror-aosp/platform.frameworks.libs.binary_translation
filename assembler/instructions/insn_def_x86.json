@@ -1,4 +1,19 @@
 {
+  "License": [
+    "Copyright (C) 2023 The Android Open Source Project",
+    "",
+    "Licensed under the Apache License, Version 2.0 (the “License”);",
+    "you may not use this file except in compliance with the License.",
+    "You may obtain a copy of the License at",
+    "",
+    "     http://www.apache.org/licenses/LICENSE-2.0",
+    "",
+    "Unless required by applicable law or agreed to in writing, software",
+    "distributed under the License is distributed on an “AS IS” BASIS,",
+    "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+    "See the License for the specific language governing permissions and",
+    "limitations under the License."
+  ],
   "arch": "common_x86",
   "insns": [
     {
@@ -412,7 +427,7 @@
         "Rsqrtps": { "opcodes": [ "0F", "52" ] },
         "Subpd": { "opcodes": [ "66", "0F", "5C" ] },
         "Subps": { "opcodes": [ "0F", "5C" ] },
-        "Vrsqrtps": { "opcodes": [ "C4", "01", "00", "52" ] },
+        "Vrsqrtps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "52" ] },
         "Xorpd": { "opcodes": [ "66", "0F", "57" ] },
         "Xorps": { "opcodes": [ "0F", "57" ] }
       },
@@ -813,14 +828,14 @@
         "Cvtps2pd": { "opcodes": [ "0F", "5A" ] },
         "Cvttpd2dq": { "opcodes": [ "66", "0F", "E6" ] },
         "Cvttps2dq": { "opcodes": [ "F3", "0F", "5B" ] },
-        "Vcvtdq2pd": { "opcodes": [ "C4", "01", "02", "E6" ] },
-        "Vcvtdq2ps": { "opcodes": [ "C4", "01", "00", "5B" ] },
-        "Vcvtpd2dq": { "opcodes": [ "C4", "01", "03", "E6" ] },
-        "Vcvtpd2ps": { "opcodes": [ "C4", "01", "01", "5A" ] },
-        "Vcvtps2dq": { "opcodes": [ "C4", "01", "01", "5B" ] },
-        "Vcvtps2pd": { "opcodes": [ "C4", "01", "00", "5A" ] },
-        "Vcvttpd2dq": { "opcodes": [ "C4", "01", "01", "E6" ] },
-        "Vcvttps2dq": { "opcodes": [ "C4", "01", "02", "5B" ] }
+        "Vcvtdq2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "E6" ] },
+        "Vcvtdq2ps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5B" ] },
+        "Vcvtpd2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "E6" ] },
+        "Vcvtpd2ps": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5A" ] },
+        "Vcvtps2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5B" ] },
+        "Vcvtps2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5A" ] },
+        "Vcvttpd2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E6" ] },
+        "Vcvttps2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "5B" ] }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
@@ -831,8 +846,8 @@
       "encodings": {
         "Cvtsd2sil": { "opcodes": [ "F2", "0F", "2D" ] },
         "Cvttsd2sil": { "opcodes": [ "F2", "0F", "2C" ] },
-        "Vcvtsd2sil": { "opcodes": [ "C4", "01", "03", "2D" ] },
-        "Vcvttsd2sil": { "opcodes": [ "C4", "01", "03", "2C" ] }
+        "Vcvtsd2sil": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "2D" ] },
+        "Vcvttsd2sil": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "2C" ] }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -879,8 +894,8 @@
       "encodings": {
         "Cvtss2sil": { "opcodes": [ "F3", "0F", "2D" ] },
         "Cvttss2sil": { "opcodes": [ "F3", "0F", "2C" ] },
-        "Vcvtss2sil": { "opcodes": [ "C4", "01", "02", "2D" ] },
-        "Vcvttss2sil": { "opcodes": [ "C4", "01", "02", "2C" ] }
+        "Vcvtss2sil": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "2D" ] },
+        "Vcvttss2sil": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "2C" ] }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -957,38 +972,441 @@
     },
     {
       "encodings": {
+        "F2xm1": { "opcodes": [ "D9", "F0" ] },
+        "Fabs": { "opcodes": [ "D9", "E1" ] },
+        "Fchs": { "opcodes": [ "D9", "E0" ] },
+        "Fcos": { "opcodes": [ "D9", "FF" ] },
+        "Frndint": { "opcodes": [ "D9", "FC" ] },
+        "Fscale": { "opcodes": [ "D9", "FD" ] },
+        "Fsin": { "opcodes": [ "D9", "FE" ] },
+        "Fsqrt": { "opcodes": [ "D9", "FA" ] },
+        "Ftst": { "opcodes": [ "D9", "E4" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
+        "FaddFromSt": { "opcodes": [ "DC", "0" ] },
+        "FaddpFromSt": { "opcodes": [ "DE", "0" ] },
+        "FdivFromSt": { "opcodes": [ "DC", "6" ] },
+        "FdivpFromSt": { "opcodes": [ "DE", "6" ] },
+        "FdivrFromSt": { "opcodes": [ "DC", "7" ] },
+        "FdivrpFromSt": { "opcodes": [ "DE", "7" ] },
+        "FmulFromSt": { "opcodes": [ "DC", "1" ] },
+        "FmulpFromSt": { "opcodes": [ "DE", "1" ] },
+        "FsubFromSt": { "opcodes": [ "DC", "4" ] },
+        "FsubpFromSt": { "opcodes": [ "DE", "4" ] },
+        "FsubrFromSt": { "opcodes": [ "DC", "5" ] },
+        "FsubrpFromSt": { "opcodes": [ "DE", "5" ] }
+      },
+      "args": [
+        { "class": "RegX87", "usage": "use_def" },
+        { "class": "ST", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "FaddToSt": { "opcodes": [ "D8", "0" ] },
+        "FdivToSt": { "opcodes": [ "D8", "6" ] },
+        "FdivrToSt": { "opcodes": [ "D8", "7" ] },
+        "FmulToSt": { "opcodes": [ "D8", "1" ] },
+        "FsubToSt": { "opcodes": [ "D8", "4" ] },
+        "FsubrToSt": { "opcodes": [ "D8", "5" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" },
+        { "class": "RegX87", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Faddl": { "opcodes": [ "DC", "0" ] },
+        "Fdivl": { "opcodes": [ "DC", "6" ] },
+        "Fdivrl": { "opcodes": [ "DC", "7" ] },
+        "Fmull": { "opcodes": [ "DC", "1" ] },
+        "Fsubl": { "opcodes": [ "DC", "4" ] },
+        "Fsubrl": { "opcodes": [ "DC", "5" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" },
+        { "class": "MemX8764", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fadds": { "opcodes": [ "D8", "0" ] },
+        "Fdivrs": { "opcodes": [ "D8", "7" ] },
+        "Fdivs": { "opcodes": [ "D8", "6" ] },
+        "Fiaddl": { "opcodes": [ "DA", "0" ] },
+        "Fidivl": { "opcodes": [ "DA", "6" ] },
+        "Fidivrl": { "opcodes": [ "DA", "7" ] },
+        "Fimull": { "opcodes": [ "DA", "1" ] },
+        "Fisubl": { "opcodes": [ "DA", "4" ] },
+        "Fisubrl": { "opcodes": [ "DA", "5" ] },
+        "Fmuls": { "opcodes": [ "D8", "1" ] },
+        "Fsubrs": { "opcodes": [ "D8", "5" ] },
+        "Fsubs": { "opcodes": [ "D8", "4" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" },
+        { "class": "MemX8732", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fbld": { "opcodes": [ "DF", "4" ] },
+        "Fldt": { "opcodes": [ "DB", "5" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "def" },
+        { "class": "MemX8780", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fbstp": { "opcodes": [ "DF", "6" ] },
+        "Fstpt": { "opcodes": [ "DB", "7" ] }
+      },
+      "args": [
+        { "class": "MemX8780", "usage": "def" },
+        { "class": "ST", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "FcmovbToSt": { "opcodes": [ "DA", "0" ] },
+        "FcmovbeToSt": { "opcodes": [ "DA", "2" ] },
+        "FcmoveToSt": { "opcodes": [ "DA", "1" ] },
+        "FcmovnbToSt": { "opcodes": [ "DB", "0" ] },
+        "FcmovnbeToSt": { "opcodes": [ "DB", "2" ] },
+        "FcmovneToSt": { "opcodes": [ "DB", "1" ] },
+        "FcmovnuToSt": { "opcodes": [ "DB", "3" ] },
+        "FcmovuToSt": { "opcodes": [ "DA", "3" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" },
+        { "class": "RegX87", "usage": "use" },
+        { "class": "FLAGS", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fcom": { "opcodes": [ "D8", "2" ] },
+        "Fcomp": { "opcodes": [ "D8", "3" ] },
+        "Fucom": { "opcodes": [ "DD", "4" ] },
+        "Fucomp": { "opcodes": [ "DD", "5" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use" },
+        { "class": "RegX87", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fcomi": { "opcodes": [ "DB", "6" ] },
+        "Fcomip": { "opcodes": [ "DF", "6" ] },
+        "Fucomi": { "opcodes": [ "DB", "5" ] },
+        "Fucomip": { "opcodes": [ "DF", "5" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use" },
+        { "class": "RegX87", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fcoml": { "opcodes": [ "DC", "2" ] },
+        "Fcompl": { "opcodes": [ "DC", "3" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use" },
+        { "class": "MemX8764", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fcompp": { "opcodes": [ "DE", "D9" ] },
+        "Fucompp": { "opcodes": [ "DA", "E9" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use" },
+        { "class": "ST1", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fcomps": { "opcodes": [ "D8", "3" ] },
+        "Fcoms": { "opcodes": [ "D8", "2" ] },
+        "Ficoml": { "opcodes": [ "DA", "2" ] },
+        "Ficompl": { "opcodes": [ "DA", "3" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use" },
+        { "class": "MemX8732", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fdecstp": { "opcodes": [ "D9", "F6" ] },
+        "Fincstp": { "opcodes": [ "D9", "F7" ] },
+        "Fnop": { "opcodes": [ "D9", "D0" ] },
+        "Fwait": { "opcodes": [ "9B" ] },
+        "Int3": { "opcodes": [ "CC" ] },
+        "Mfence": { "opcodes": [ "0F", "AE", "F0" ] },
+        "Nop": { "opcodes": [ "90" ] },
+        "UD2": { "opcodes": [ "0F", "0B" ] },
+        "Wait": { "opcodes": [ "9B" ] }
+      },
+      "args": []
+    },
+    {
+      "encodings": {
+        "Ffree": { "opcodes": [ "DD", "0" ] }
+      },
+      "args": [
+        { "class": "RegX87", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fiadds": { "opcodes": [ "DE", "0" ] },
+        "Fidivrs": { "opcodes": [ "DE", "7" ] },
+        "Fidivs": { "opcodes": [ "DE", "6" ] },
+        "Fimuls": { "opcodes": [ "DE", "1" ] },
+        "Fisubrs": { "opcodes": [ "DE", "5" ] },
+        "Fisubs": { "opcodes": [ "DE", "4" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" },
+        { "class": "MemX8716", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Ficomps": { "opcodes": [ "DE", "3" ] },
+        "Ficoms": { "opcodes": [ "DE", "2" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use" },
+        { "class": "MemX8716", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fildl": { "opcodes": [ "DB", "0" ] },
+        "Flds": { "opcodes": [ "D9", "0" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "def" },
+        { "class": "MemX8732", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fildll": { "opcodes": [ "DF", "5" ] },
         "Fldl": { "opcodes": [ "DD", "0" ] }
       },
       "args": [
-        { "class": "Mem64", "usage": "use" }
+        { "class": "ST", "usage": "def" },
+        { "class": "MemX8764", "usage": "use" }
       ]
     },
     {
       "encodings": {
-        "Flds": { "opcodes": [ "D9", "0" ] },
-        "Ldmxcsr": { "opcodes": [ "0F", "AE", "2" ] },
-        "Vldmxcsr": { "opcodes": [ "C4", "01", "00", "AE", "2" ] }
+        "Filds": { "opcodes": [ "DF", "0" ] }
       },
       "args": [
-        { "class": "Mem32", "usage": "use" }
+        { "class": "ST", "usage": "def" },
+        { "class": "MemX8716", "usage": "use" }
       ]
     },
     {
       "encodings": {
+        "Fistl": { "opcodes": [ "DB", "2" ] },
+        "Fistpl": { "opcodes": [ "DB", "3" ] },
+        "Fisttpl": { "feature": "SSE3", "opcodes": [ "DB", "1" ] },
+        "Fstps": { "opcodes": [ "D9", "3" ] },
+        "Fsts": { "opcodes": [ "D9", "2" ] }
+      },
+      "args": [
+        { "class": "MemX8732", "usage": "def" },
+        { "class": "ST", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fistpll": { "opcodes": [ "DF", "7" ] },
+        "Fisttpll": { "feature": "SSE3", "opcodes": [ "DD", "1" ] },
+        "Fstl": { "opcodes": [ "DD", "2" ] },
         "Fstpl": { "opcodes": [ "DD", "3" ] }
       },
       "args": [
-        { "class": "Mem64", "usage": "def" }
+        { "class": "MemX8764", "usage": "def" },
+        { "class": "ST", "usage": "use" }
       ]
     },
     {
       "encodings": {
-        "Fstps": { "opcodes": [ "D9", "3" ] },
-        "Stmxcsr": { "opcodes": [ "0F", "AE", "3" ] },
-        "Vstmxcsr": { "opcodes": [ "C4", "01", "00", "AE", "3" ] }
+        "Fistps": { "opcodes": [ "DF", "3" ] },
+        "Fists": { "opcodes": [ "DF", "2" ] },
+        "Fisttps": { "feature": "SSE3", "opcodes": [ "DF", "1" ] }
       },
       "args": [
-        { "class": "Mem32", "usage": "def" }
+        { "class": "MemX8716", "usage": "def" },
+        { "class": "ST", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fld1": { "opcodes": [ "D9", "E8" ] },
+        "Fldl2e": { "opcodes": [ "D9", "EA" ] },
+        "Fldl2t": { "opcodes": [ "D9", "E9" ] },
+        "Fldlg2": { "opcodes": [ "D9", "EC" ] },
+        "Fldln2": { "opcodes": [ "D9", "ED" ] },
+        "Fldpi": { "opcodes": [ "D9", "EB" ] },
+        "Fldz": { "opcodes": [ "D9", "EE" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fld": { "opcodes": [ "D9", "0" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "def" },
+        { "class": "RegX87", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fldcw": { "opcodes": [ "D9", "5" ] }
+      },
+      "args": [
+        { "class": "CC", "usage": "def" },
+        { "class": "MemX8732", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fldenv": { "opcodes": [ "D9", "4" ] },
+        "Frstor": { "opcodes": [ "DD", "4" ] },
+        "Fxrstor": { "opcodes": [ "0F", "AE", "1" ] }
+      },
+      "args": [
+        { "class": "MemX87", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fnclex": { "opcodes": [ "DB", "E2" ] },
+        "Fndisi": { "opcodes": [ "DB", "E1" ] },
+        "Fneni": { "opcodes": [ "DB", "E0" ] },
+        "Fninit": { "opcodes": [ "DB", "E3" ] },
+        "Fnsetpm": { "opcodes": [ "DB", "E4" ] }
+      },
+      "args": [
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fnsave": { "opcodes": [ "DD", "6" ] },
+        "Fnstenv": { "opcodes": [ "D9", "6" ] },
+        "Fxsave": { "opcodes": [ "0F", "AE", "0" ] }
+      },
+      "args": [
+        { "class": "CC", "usage": "def" },
+        { "class": "MemX87", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fnstcw": { "opcodes": [ "D9", "7" ] }
+      },
+      "args": [
+        { "class": "MemX8732", "usage": "def" },
+        { "class": "CC", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fnstsw": { "opcodes": [ "DF", "E0" ] }
+      },
+      "args": [
+        { "class": "AX", "usage": "def" },
+        { "class": "SW", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fnstsw": { "opcodes": [ "DD", "7" ] }
+      },
+      "args": [
+        { "class": "MemX8732", "usage": "def" },
+        { "class": "SW", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fpatan": { "opcodes": [ "D9", "F3" ] },
+        "Fprem": { "opcodes": [ "D9", "F8" ] },
+        "Fprem1": { "opcodes": [ "D9", "F5" ] },
+        "Fyl2x": { "opcodes": [ "D9", "F1" ] },
+        "Fyl2xp1": { "opcodes": [ "D9", "F9" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" },
+        { "class": "ST1", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fptan": { "opcodes": [ "D9", "F2" ] },
+        "Fsincos": { "opcodes": [ "D9", "FB" ] },
+        "Fxtract": { "opcodes": [ "D9", "F4" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use_def" },
+        { "class": "ST1", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fst": { "opcodes": [ "DD", "2" ] },
+        "Fstp": { "opcodes": [ "DD", "3" ] }
+      },
+      "args": [
+        { "class": "RegX87", "usage": "def" },
+        { "class": "ST", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fxam": { "opcodes": [ "D9", "E5" ] }
+      },
+      "args": [
+        { "class": "ST", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fxch": { "opcodes": [ "D9", "1" ] }
+      },
+      "args": [
+        { "class": "RegX87", "usage": "use_def" },
+        { "class": "ST", "usage": "use_def" }
       ]
     },
     {
@@ -1092,15 +1510,6 @@
       ]
     },
     {
-      "encodings": {
-        "Int3": { "opcodes": [ "CC" ] },
-        "Mfence": { "opcodes": [ "0F", "AE", "F0" ] },
-        "Nop": { "opcodes": [ "90" ] },
-        "UD2": { "opcodes": [ "0F", "0B" ] }
-      },
-      "args": []
-    },
-    {
       "stems": [ "Jcc" ],
       "args": [
         { "class": "Cond" },
@@ -1134,6 +1543,15 @@
     },
     {
       "encodings": {
+        "Ldmxcsr": { "opcodes": [ "0F", "AE", "2" ] },
+        "Vldmxcsr": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "AE", "2" ] }
+      },
+      "args": [
+        { "class": "Mem32", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Leal": { "opcodes": [ "8D" ] },
         "Movl": { "opcodes": [ "8B" ] }
       },
@@ -1157,8 +1575,8 @@
       "encodings": {
         "Movapd": { "opcodes": [ "66", "0F", "29" ] },
         "Movaps": { "opcodes": [ "0F", "29" ] },
-        "Vmovapd": { "opcodes": [ "C4", "01", "01", "29" ] },
-        "Vmovaps": { "opcodes": [ "C4", "01", "00", "29" ] }
+        "Vmovapd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "29" ] },
+        "Vmovaps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "29" ] }
       },
       "args": [
         { "class": "VecMem128", "usage": "def" },
@@ -1214,7 +1632,7 @@
     {
       "encodings": {
         "Movd": { "opcodes": [ "66", "0F", "7E" ], "reg_to_rm": true },
-        "Vmovd": { "opcodes": [ "C4", "01", "01", "7E" ], "reg_to_rm": true }
+        "Vmovd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "7E" ], "reg_to_rm": true }
       },
       "args": [
         { "class": "GeneralReg32/Mem32", "usage": "def" },
@@ -1224,7 +1642,7 @@
     {
       "encodings": {
         "Movd": { "opcodes": [ "66", "0F", "6E" ] },
-        "Vmovd": { "opcodes": [ "C4", "01", "01", "6E" ] }
+        "Vmovd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "6E" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -1244,8 +1662,8 @@
       "encodings": {
         "Movdqa": { "opcodes": [ "66", "0F", "7F" ] },
         "Movdqu": { "opcodes": [ "F3", "0F", "7F" ] },
-        "Vmovdqa": { "opcodes": [ "C4", "01", "01", "7F" ] },
-        "Vmovdqu": { "opcodes": [ "C4", "01", "02", "7F" ] }
+        "Vmovdqa": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "7F" ] },
+        "Vmovdqu": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "7F" ] }
       },
       "args": [
         { "class": "VecMem128", "usage": "def" },
@@ -1281,10 +1699,10 @@
         "Movhps": { "opcodes": [ "0F", "17" ] },
         "Movlpd": { "opcodes": [ "66", "0F", "13" ] },
         "Movlps": { "opcodes": [ "0F", "13" ] },
-        "Vmovhpd": { "opcodes": [ "C4", "01", "01", "17" ] },
-        "Vmovhps": { "opcodes": [ "C4", "01", "00", "17" ] },
-        "Vmovlpd": { "opcodes": [ "C4", "01", "01", "13" ] },
-        "Vmovlps": { "opcodes": [ "C4", "01", "00", "13" ] }
+        "Vmovhpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "17" ] },
+        "Vmovhps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "17" ] },
+        "Vmovlpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "13" ] },
+        "Vmovlps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "13" ] }
       },
       "args": [
         { "class": "VecMem64", "usage": "use_def" },
@@ -1334,8 +1752,8 @@
       "encodings": {
         "Movmskpd": { "opcodes": [ "66", "0F", "50" ] },
         "Movmskps": { "opcodes": [ "0F", "50" ] },
-        "Vmovmskpd": { "opcodes": [ "C4", "01", "01", "50" ] },
-        "Vmovmskps": { "opcodes": [ "C4", "01", "00", "50" ] }
+        "Vmovmskpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "50" ] },
+        "Vmovmskps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "50" ] }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -1346,8 +1764,8 @@
       "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "D6" ] },
         "Movsd": { "opcodes": [ "F2", "0F", "11" ] },
-        "Vmovq": { "opcodes": [ "C4", "01", "01", "D6" ] },
-        "Vmovsd": { "opcodes": [ "C4", "01", "03", "11" ] }
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D6" ] },
+        "Vmovsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "11" ] }
       },
       "args": [
         { "class": "VecMem64", "usage": "def" },
@@ -1363,7 +1781,7 @@
         "Pmovzxbw": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "38", "30" ] },
         "Pmovzxdq": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "38", "35" ] },
         "Pmovzxwd": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "38", "33" ] },
-        "Vmovq": { "opcodes": [ "C4", "01", "02", "7E" ] }
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "7E" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -1374,7 +1792,7 @@
     {
       "encodings": {
         "Movsd": { "opcodes": [ "F2", "0F", "10" ] },
-        "Vmovsd": { "opcodes": [ "C4", "01", "03", "10" ] }
+        "Vmovsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "10" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -1385,7 +1803,7 @@
     {
       "encodings": {
         "Movss": { "opcodes": [ "F3", "0F", "10" ] },
-        "Vmovss": { "opcodes": [ "C4", "01", "02", "10" ] }
+        "Vmovss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "10" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -1515,9 +1933,9 @@
         "Pextrb": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "14" ], "reg_to_rm": true },
         "Pextrd": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "16" ], "reg_to_rm": true },
         "Pextrw": { "opcodes": [ "66", "0F", "C5" ] },
-        "Vpextrb": { "opcodes": [ "C4", "03", "01", "14" ], "reg_to_rm": true },
-        "Vpextrd": { "opcodes": [ "C4", "03", "01", "16" ], "reg_to_rm": true },
-        "Vpextrw": { "opcodes": [ "C4", "01", "01", "C5" ] }
+        "Vpextrb": { "feature": "AVX", "opcodes": [ "C4", "03", "01", "14" ], "reg_to_rm": true },
+        "Vpextrd": { "feature": "AVX", "opcodes": [ "C4", "03", "01", "16" ], "reg_to_rm": true },
+        "Vpextrw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C5" ] }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -1540,7 +1958,7 @@
     {
       "encodings": {
         "Pmovmskb": { "opcodes": [ "66", "0F", "D7" ] },
-        "Vpmovmskb": { "opcodes": [ "C4", "01", "01", "D7" ] }
+        "Vpmovmskb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D7" ] }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -1575,9 +1993,9 @@
         "Pshuflw": { "opcodes": [ "F2", "0F", "70" ] },
         "Roundpd": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "09" ] },
         "Roundps": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "08" ] },
-        "Vpshufd": { "opcodes": [ "C4", "01", "01", "70" ] },
-        "Vpshufhw": { "opcodes": [ "C4", "01", "02", "70" ] },
-        "Vpshuflw": { "opcodes": [ "C4", "01", "03", "70" ] }
+        "Vpshufd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "70" ] },
+        "Vpshufhw": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "70" ] },
+        "Vpshuflw": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "70" ] }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
@@ -1828,6 +2246,15 @@
     },
     {
       "encodings": {
+        "Stmxcsr": { "opcodes": [ "0F", "AE", "3" ] },
+        "Vstmxcsr": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "AE", "3" ] }
+      },
+      "args": [
+        { "class": "Mem32", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
         "Ucomisd": { "opcodes": [ "66", "0F", "2E" ] }
       },
       "args": [
@@ -1848,111 +2275,111 @@
     },
     {
       "encodings": {
-        "Vaddpd": { "opcodes": [ "C4", "01", "01", "58" ], "vex_rm_to_reg": true },
-        "Vaddps": { "opcodes": [ "C4", "01", "00", "58" ], "vex_rm_to_reg": true },
-        "Vandpd": { "opcodes": [ "C4", "01", "01", "54" ], "vex_rm_to_reg": true },
-        "Vandps": { "opcodes": [ "C4", "01", "00", "54" ], "vex_rm_to_reg": true },
-        "Vcmpeqpd": { "opcodes": [ "C4", "01", "01", "C2", "00" ], "vex_rm_to_reg": true },
-        "Vcmpeqps": { "opcodes": [ "C4", "01", "00", "C2", "00" ], "vex_rm_to_reg": true },
-        "Vcmplepd": { "opcodes": [ "C4", "01", "01", "C2", "02" ], "vex_rm_to_reg": true },
-        "Vcmpleps": { "opcodes": [ "C4", "01", "00", "C2", "02" ], "vex_rm_to_reg": true },
-        "Vcmpltpd": { "opcodes": [ "C4", "01", "01", "C2", "01" ], "vex_rm_to_reg": true },
-        "Vcmpltps": { "opcodes": [ "C4", "01", "00", "C2", "01" ], "vex_rm_to_reg": true },
-        "Vcmpneqpd": { "opcodes": [ "C4", "01", "01", "C2", "04" ], "vex_rm_to_reg": true },
-        "Vcmpneqps": { "opcodes": [ "C4", "01", "00", "C2", "04" ], "vex_rm_to_reg": true },
-        "Vcmpnlepd": { "opcodes": [ "C4", "01", "01", "C2", "06" ], "vex_rm_to_reg": true },
-        "Vcmpnleps": { "opcodes": [ "C4", "01", "00", "C2", "06" ], "vex_rm_to_reg": true },
-        "Vcmpnltpd": { "opcodes": [ "C4", "01", "01", "C2", "05" ], "vex_rm_to_reg": true },
-        "Vcmpnltps": { "opcodes": [ "C4", "01", "00", "C2", "05" ], "vex_rm_to_reg": true },
-        "Vcmpordpd": { "opcodes": [ "C4", "01", "01", "C2", "07" ], "vex_rm_to_reg": true },
-        "Vcmpordps": { "opcodes": [ "C4", "01", "00", "C2", "07" ], "vex_rm_to_reg": true },
-        "Vcmpunordpd": { "opcodes": [ "C4", "01", "01", "C2", "03" ], "vex_rm_to_reg": true },
-        "Vcmpunordps": { "opcodes": [ "C4", "01", "00", "C2", "03" ], "vex_rm_to_reg": true },
-        "Vdivpd": { "opcodes": [ "C4", "01", "01", "5E" ], "vex_rm_to_reg": true },
-        "Vdivps": { "opcodes": [ "C4", "01", "00", "5E" ], "vex_rm_to_reg": true },
-        "Vhaddpd": { "opcodes": [ "C4", "01", "01", "7C" ], "vex_rm_to_reg": true },
-        "Vhaddps": { "opcodes": [ "C4", "01", "03", "7C" ], "vex_rm_to_reg": true },
-        "Vmaxpd": { "opcodes": [ "C4", "01", "01", "5F" ], "vex_rm_to_reg": true },
-        "Vmaxps": { "opcodes": [ "C4", "01", "00", "5F" ], "vex_rm_to_reg": true },
-        "Vminpd": { "opcodes": [ "C4", "01", "01", "5D" ], "vex_rm_to_reg": true },
-        "Vminps": { "opcodes": [ "C4", "01", "00", "5D" ], "vex_rm_to_reg": true },
-        "Vmulpd": { "opcodes": [ "C4", "01", "01", "59" ], "vex_rm_to_reg": true },
-        "Vmulps": { "opcodes": [ "C4", "01", "00", "59" ], "vex_rm_to_reg": true },
-        "Vorpd": { "opcodes": [ "C4", "01", "01", "56" ], "vex_rm_to_reg": true },
-        "Vorps": { "opcodes": [ "C4", "01", "00", "56" ], "vex_rm_to_reg": true },
-        "Vpackssdw": { "opcodes": [ "C4", "01", "01", "6B" ], "vex_rm_to_reg": true },
-        "Vpacksswb": { "opcodes": [ "C4", "01", "01", "63" ], "vex_rm_to_reg": true },
-        "Vpackusdw": { "opcodes": [ "C4", "02", "01", "2B" ], "vex_rm_to_reg": true },
-        "Vpackuswb": { "opcodes": [ "C4", "01", "01", "67" ], "vex_rm_to_reg": true },
-        "Vpaddb": { "opcodes": [ "C4", "01", "01", "FC" ], "vex_rm_to_reg": true },
-        "Vpaddd": { "opcodes": [ "C4", "01", "01", "FE" ], "vex_rm_to_reg": true },
-        "Vpaddq": { "opcodes": [ "C4", "01", "01", "D4" ], "vex_rm_to_reg": true },
-        "Vpaddsb": { "opcodes": [ "C4", "01", "01", "EC" ], "vex_rm_to_reg": true },
-        "Vpaddsw": { "opcodes": [ "C4", "01", "01", "ED" ], "vex_rm_to_reg": true },
-        "Vpaddusb": { "opcodes": [ "C4", "01", "01", "DC" ], "vex_rm_to_reg": true },
-        "Vpaddusw": { "opcodes": [ "C4", "01", "01", "DD" ], "vex_rm_to_reg": true },
-        "Vpaddw": { "opcodes": [ "C4", "01", "01", "FD" ], "vex_rm_to_reg": true },
-        "Vpand": { "opcodes": [ "C4", "01", "01", "DB" ], "vex_rm_to_reg": true },
-        "Vpandn": { "opcodes": [ "C4", "01", "01", "DF" ], "vex_rm_to_reg": true },
-        "Vpavgb": { "opcodes": [ "C4", "01", "01", "E0" ], "vex_rm_to_reg": true },
-        "Vpavgw": { "opcodes": [ "C4", "01", "01", "E3" ], "vex_rm_to_reg": true },
-        "Vpcmpeqb": { "opcodes": [ "C4", "01", "01", "74" ], "vex_rm_to_reg": true },
-        "Vpcmpeqd": { "opcodes": [ "C4", "01", "01", "76" ], "vex_rm_to_reg": true },
-        "Vpcmpeqq": { "opcodes": [ "C4", "02", "01", "29" ], "vex_rm_to_reg": true },
-        "Vpcmpeqw": { "opcodes": [ "C4", "01", "01", "75" ], "vex_rm_to_reg": true },
-        "Vpcmpgtb": { "opcodes": [ "C4", "01", "01", "64" ], "vex_rm_to_reg": true },
-        "Vpcmpgtd": { "opcodes": [ "C4", "01", "01", "66" ], "vex_rm_to_reg": true },
-        "Vpcmpgtq": { "opcodes": [ "C4", "02", "01", "37" ], "vex_rm_to_reg": true },
-        "Vpcmpgtw": { "opcodes": [ "C4", "01", "01", "65" ], "vex_rm_to_reg": true },
-        "Vpmaxsb": { "opcodes": [ "C4", "02", "01", "3C" ], "vex_rm_to_reg": true },
-        "Vpmaxsd": { "opcodes": [ "C4", "02", "01", "3D" ], "vex_rm_to_reg": true },
-        "Vpmaxsw": { "opcodes": [ "C4", "01", "01", "EE" ], "vex_rm_to_reg": true },
-        "Vpmaxub": { "opcodes": [ "C4", "01", "01", "DE" ], "vex_rm_to_reg": true },
-        "Vpmaxud": { "opcodes": [ "C4", "02", "01", "3F" ], "vex_rm_to_reg": true },
-        "Vpmaxuw": { "opcodes": [ "C4", "02", "01", "3E" ], "vex_rm_to_reg": true },
-        "Vpminsb": { "opcodes": [ "C4", "02", "01", "38" ], "vex_rm_to_reg": true },
-        "Vpminsd": { "opcodes": [ "C4", "02", "01", "39" ], "vex_rm_to_reg": true },
-        "Vpminsw": { "opcodes": [ "C4", "01", "01", "EA" ], "vex_rm_to_reg": true },
-        "Vpminub": { "opcodes": [ "C4", "01", "01", "DA" ], "vex_rm_to_reg": true },
-        "Vpminud": { "opcodes": [ "C4", "02", "01", "3B" ], "vex_rm_to_reg": true },
-        "Vpminuw": { "opcodes": [ "C4", "02", "01", "3A" ], "vex_rm_to_reg": true },
-        "Vpmulhrsw": { "opcodes": [ "C4", "02", "01", "0B" ], "vex_rm_to_reg": true },
-        "Vpmulhw": { "opcodes": [ "C4", "01", "01", "E5" ], "vex_rm_to_reg": true },
-        "Vpmulld": { "opcodes": [ "C4", "02", "01", "40" ], "vex_rm_to_reg": true },
-        "Vpmullw": { "opcodes": [ "C4", "01", "01", "D5" ], "vex_rm_to_reg": true },
-        "Vpmuludq": { "opcodes": [ "C4", "01", "01", "F4" ], "vex_rm_to_reg": true },
-        "Vpor": { "opcodes": [ "C4", "01", "01", "EB" ], "vex_rm_to_reg": true },
-        "Vpsadbw": { "opcodes": [ "C4", "01", "01", "F6" ], "vex_rm_to_reg": true },
-        "Vpshufb": { "opcodes": [ "C4", "02", "01", "00" ], "vex_rm_to_reg": true },
-        "Vpslld": { "opcodes": [ "C4", "01", "01", "F2" ], "vex_rm_to_reg": true },
-        "Vpsllq": { "opcodes": [ "C4", "01", "01", "F3" ], "vex_rm_to_reg": true },
-        "Vpsllw": { "opcodes": [ "C4", "01", "01", "F1" ], "vex_rm_to_reg": true },
-        "Vpsrad": { "opcodes": [ "C4", "01", "01", "E2" ], "vex_rm_to_reg": true },
-        "Vpsraw": { "opcodes": [ "C4", "01", "01", "E1" ], "vex_rm_to_reg": true },
-        "Vpsrld": { "opcodes": [ "C4", "01", "01", "D2" ], "vex_rm_to_reg": true },
-        "Vpsrlq": { "opcodes": [ "C4", "01", "01", "D3" ], "vex_rm_to_reg": true },
-        "Vpsrlw": { "opcodes": [ "C4", "01", "01", "D1" ], "vex_rm_to_reg": true },
-        "Vpsubb": { "opcodes": [ "C4", "01", "01", "F8" ], "vex_rm_to_reg": true },
-        "Vpsubd": { "opcodes": [ "C4", "01", "01", "FA" ], "vex_rm_to_reg": true },
-        "Vpsubq": { "opcodes": [ "C4", "01", "01", "FB" ], "vex_rm_to_reg": true },
-        "Vpsubsb": { "opcodes": [ "C4", "01", "01", "E8" ], "vex_rm_to_reg": true },
-        "Vpsubsw": { "opcodes": [ "C4", "01", "01", "E9" ], "vex_rm_to_reg": true },
-        "Vpsubusb": { "opcodes": [ "C4", "01", "01", "D8" ], "vex_rm_to_reg": true },
-        "Vpsubusw": { "opcodes": [ "C4", "01", "01", "D9" ], "vex_rm_to_reg": true },
-        "Vpsubw": { "opcodes": [ "C4", "01", "01", "F9" ], "vex_rm_to_reg": true },
-        "Vpunpckhbw": { "opcodes": [ "C4", "01", "01", "68" ], "vex_rm_to_reg": true },
-        "Vpunpckhdq": { "opcodes": [ "C4", "01", "01", "6A" ], "vex_rm_to_reg": true },
-        "Vpunpckhqdq": { "opcodes": [ "C4", "01", "01", "6D" ], "vex_rm_to_reg": true },
-        "Vpunpckhwd": { "opcodes": [ "C4", "01", "01", "69" ], "vex_rm_to_reg": true },
-        "Vpunpcklbw": { "opcodes": [ "C4", "01", "01", "60" ], "vex_rm_to_reg": true },
-        "Vpunpckldq": { "opcodes": [ "C4", "01", "01", "62" ], "vex_rm_to_reg": true },
-        "Vpunpcklqdq": { "opcodes": [ "C4", "01", "01", "6C" ], "vex_rm_to_reg": true },
-        "Vpunpcklwd": { "opcodes": [ "C4", "01", "01", "61" ], "vex_rm_to_reg": true },
-        "Vpxor": { "opcodes": [ "C4", "01", "01", "EF" ], "vex_rm_to_reg": true },
-        "Vsubpd": { "opcodes": [ "C4", "01", "01", "5C" ], "vex_rm_to_reg": true },
-        "Vsubps": { "opcodes": [ "C4", "01", "00", "5C" ], "vex_rm_to_reg": true },
-        "Vxorpd": { "opcodes": [ "C4", "01", "01", "57" ], "vex_rm_to_reg": true },
-        "Vxorps": { "opcodes": [ "C4", "01", "00", "57" ], "vex_rm_to_reg": true }
+        "Vaddpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "58" ], "vex_rm_to_reg": true },
+        "Vaddps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "58" ], "vex_rm_to_reg": true },
+        "Vandpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "54" ], "vex_rm_to_reg": true },
+        "Vandps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "54" ], "vex_rm_to_reg": true },
+        "Vcmpeqpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C2", "00" ], "vex_rm_to_reg": true },
+        "Vcmpeqps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C2", "00" ], "vex_rm_to_reg": true },
+        "Vcmplepd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C2", "02" ], "vex_rm_to_reg": true },
+        "Vcmpleps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C2", "02" ], "vex_rm_to_reg": true },
+        "Vcmpltpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C2", "01" ], "vex_rm_to_reg": true },
+        "Vcmpltps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C2", "01" ], "vex_rm_to_reg": true },
+        "Vcmpneqpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C2", "04" ], "vex_rm_to_reg": true },
+        "Vcmpneqps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C2", "04" ], "vex_rm_to_reg": true },
+        "Vcmpnlepd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C2", "06" ], "vex_rm_to_reg": true },
+        "Vcmpnleps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C2", "06" ], "vex_rm_to_reg": true },
+        "Vcmpnltpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C2", "05" ], "vex_rm_to_reg": true },
+        "Vcmpnltps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C2", "05" ], "vex_rm_to_reg": true },
+        "Vcmpordpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C2", "07" ], "vex_rm_to_reg": true },
+        "Vcmpordps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C2", "07" ], "vex_rm_to_reg": true },
+        "Vcmpunordpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C2", "03" ], "vex_rm_to_reg": true },
+        "Vcmpunordps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C2", "03" ], "vex_rm_to_reg": true },
+        "Vdivpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5E" ], "vex_rm_to_reg": true },
+        "Vdivps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5E" ], "vex_rm_to_reg": true },
+        "Vhaddpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "7C" ], "vex_rm_to_reg": true },
+        "Vhaddps": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "7C" ], "vex_rm_to_reg": true },
+        "Vmaxpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5F" ], "vex_rm_to_reg": true },
+        "Vmaxps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5F" ], "vex_rm_to_reg": true },
+        "Vminpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5D" ], "vex_rm_to_reg": true },
+        "Vminps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5D" ], "vex_rm_to_reg": true },
+        "Vmulpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "59" ], "vex_rm_to_reg": true },
+        "Vmulps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "59" ], "vex_rm_to_reg": true },
+        "Vorpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "56" ], "vex_rm_to_reg": true },
+        "Vorps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "56" ], "vex_rm_to_reg": true },
+        "Vpackssdw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "6B" ], "vex_rm_to_reg": true },
+        "Vpacksswb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "63" ], "vex_rm_to_reg": true },
+        "Vpackusdw": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "2B" ], "vex_rm_to_reg": true },
+        "Vpackuswb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "67" ], "vex_rm_to_reg": true },
+        "Vpaddb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "FC" ], "vex_rm_to_reg": true },
+        "Vpaddd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "FE" ], "vex_rm_to_reg": true },
+        "Vpaddq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D4" ], "vex_rm_to_reg": true },
+        "Vpaddsb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "EC" ], "vex_rm_to_reg": true },
+        "Vpaddsw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "ED" ], "vex_rm_to_reg": true },
+        "Vpaddusb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "DC" ], "vex_rm_to_reg": true },
+        "Vpaddusw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "DD" ], "vex_rm_to_reg": true },
+        "Vpaddw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "FD" ], "vex_rm_to_reg": true },
+        "Vpand": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "DB" ], "vex_rm_to_reg": true },
+        "Vpandn": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "DF" ], "vex_rm_to_reg": true },
+        "Vpavgb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E0" ], "vex_rm_to_reg": true },
+        "Vpavgw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E3" ], "vex_rm_to_reg": true },
+        "Vpcmpeqb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "74" ], "vex_rm_to_reg": true },
+        "Vpcmpeqd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "76" ], "vex_rm_to_reg": true },
+        "Vpcmpeqq": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "29" ], "vex_rm_to_reg": true },
+        "Vpcmpeqw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "75" ], "vex_rm_to_reg": true },
+        "Vpcmpgtb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "64" ], "vex_rm_to_reg": true },
+        "Vpcmpgtd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "66" ], "vex_rm_to_reg": true },
+        "Vpcmpgtq": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "37" ], "vex_rm_to_reg": true },
+        "Vpcmpgtw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "65" ], "vex_rm_to_reg": true },
+        "Vpmaxsb": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "3C" ], "vex_rm_to_reg": true },
+        "Vpmaxsd": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "3D" ], "vex_rm_to_reg": true },
+        "Vpmaxsw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "EE" ], "vex_rm_to_reg": true },
+        "Vpmaxub": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "DE" ], "vex_rm_to_reg": true },
+        "Vpmaxud": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "3F" ], "vex_rm_to_reg": true },
+        "Vpmaxuw": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "3E" ], "vex_rm_to_reg": true },
+        "Vpminsb": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "38" ], "vex_rm_to_reg": true },
+        "Vpminsd": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "39" ], "vex_rm_to_reg": true },
+        "Vpminsw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "EA" ], "vex_rm_to_reg": true },
+        "Vpminub": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "DA" ], "vex_rm_to_reg": true },
+        "Vpminud": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "3B" ], "vex_rm_to_reg": true },
+        "Vpminuw": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "3A" ], "vex_rm_to_reg": true },
+        "Vpmulhrsw": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "0B" ], "vex_rm_to_reg": true },
+        "Vpmulhw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E5" ], "vex_rm_to_reg": true },
+        "Vpmulld": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "40" ], "vex_rm_to_reg": true },
+        "Vpmullw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D5" ], "vex_rm_to_reg": true },
+        "Vpmuludq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "F4" ], "vex_rm_to_reg": true },
+        "Vpor": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "EB" ], "vex_rm_to_reg": true },
+        "Vpsadbw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "F6" ], "vex_rm_to_reg": true },
+        "Vpshufb": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "00" ], "vex_rm_to_reg": true },
+        "Vpslld": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "F2" ], "vex_rm_to_reg": true },
+        "Vpsllq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "F3" ], "vex_rm_to_reg": true },
+        "Vpsllw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "F1" ], "vex_rm_to_reg": true },
+        "Vpsrad": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E2" ], "vex_rm_to_reg": true },
+        "Vpsraw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E1" ], "vex_rm_to_reg": true },
+        "Vpsrld": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D2" ], "vex_rm_to_reg": true },
+        "Vpsrlq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D3" ], "vex_rm_to_reg": true },
+        "Vpsrlw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D1" ], "vex_rm_to_reg": true },
+        "Vpsubb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "F8" ], "vex_rm_to_reg": true },
+        "Vpsubd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "FA" ], "vex_rm_to_reg": true },
+        "Vpsubq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "FB" ], "vex_rm_to_reg": true },
+        "Vpsubsb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E8" ], "vex_rm_to_reg": true },
+        "Vpsubsw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E9" ], "vex_rm_to_reg": true },
+        "Vpsubusb": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D8" ], "vex_rm_to_reg": true },
+        "Vpsubusw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "D9" ], "vex_rm_to_reg": true },
+        "Vpsubw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "F9" ], "vex_rm_to_reg": true },
+        "Vpunpckhbw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "68" ], "vex_rm_to_reg": true },
+        "Vpunpckhdq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "6A" ], "vex_rm_to_reg": true },
+        "Vpunpckhqdq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "6D" ], "vex_rm_to_reg": true },
+        "Vpunpckhwd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "69" ], "vex_rm_to_reg": true },
+        "Vpunpcklbw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "60" ], "vex_rm_to_reg": true },
+        "Vpunpckldq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "62" ], "vex_rm_to_reg": true },
+        "Vpunpcklqdq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "6C" ], "vex_rm_to_reg": true },
+        "Vpunpcklwd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "61" ], "vex_rm_to_reg": true },
+        "Vpxor": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "EF" ], "vex_rm_to_reg": true },
+        "Vsubpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5C" ], "vex_rm_to_reg": true },
+        "Vsubps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5C" ], "vex_rm_to_reg": true },
+        "Vxorpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "57" ], "vex_rm_to_reg": true },
+        "Vxorps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "57" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
@@ -1962,18 +2389,18 @@
     },
     {
       "encodings": {
-        "Vaddsd": { "opcodes": [ "C4", "01", "03", "58" ], "vex_rm_to_reg": true },
-        "Vcmpeqsd": { "opcodes": [ "C4", "01", "03", "C2", "00" ], "vex_rm_to_reg": true },
-        "Vcmplesd": { "opcodes": [ "C4", "01", "03", "C2", "02" ], "vex_rm_to_reg": true },
-        "Vcmpltsd": { "opcodes": [ "C4", "01", "03", "C2", "01" ], "vex_rm_to_reg": true },
-        "Vcmpneqsd": { "opcodes": [ "C4", "01", "03", "C2", "04" ], "vex_rm_to_reg": true },
-        "Vcmpnlesd": { "opcodes": [ "C4", "01", "03", "C2", "06" ], "vex_rm_to_reg": true },
-        "Vcmpnltsd": { "opcodes": [ "C4", "01", "03", "C2", "05" ], "vex_rm_to_reg": true },
-        "Vcmpordsd": { "opcodes": [ "C4", "01", "03", "C2", "07" ], "vex_rm_to_reg": true },
-        "Vcmpunordsd": { "opcodes": [ "C4", "01", "03", "C2", "03" ], "vex_rm_to_reg": true },
-        "Vdivsd": { "opcodes": [ "C4", "01", "03", "5E" ], "vex_rm_to_reg": true },
-        "Vmulsd": { "opcodes": [ "C4", "01", "03", "59" ], "vex_rm_to_reg": true },
-        "Vsubsd": { "opcodes": [ "C4", "01", "03", "5C" ], "vex_rm_to_reg": true }
+        "Vaddsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "58" ], "vex_rm_to_reg": true },
+        "Vcmpeqsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "C2", "00" ], "vex_rm_to_reg": true },
+        "Vcmplesd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "C2", "02" ], "vex_rm_to_reg": true },
+        "Vcmpltsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "C2", "01" ], "vex_rm_to_reg": true },
+        "Vcmpneqsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "C2", "04" ], "vex_rm_to_reg": true },
+        "Vcmpnlesd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "C2", "06" ], "vex_rm_to_reg": true },
+        "Vcmpnltsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "C2", "05" ], "vex_rm_to_reg": true },
+        "Vcmpordsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "C2", "07" ], "vex_rm_to_reg": true },
+        "Vcmpunordsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "C2", "03" ], "vex_rm_to_reg": true },
+        "Vdivsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "5E" ], "vex_rm_to_reg": true },
+        "Vmulsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "59" ], "vex_rm_to_reg": true },
+        "Vsubsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "5C" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "FpReg64", "usage": "def" },
@@ -1983,18 +2410,18 @@
     },
     {
       "encodings": {
-        "Vaddss": { "opcodes": [ "C4", "01", "02", "58" ], "vex_rm_to_reg": true },
-        "Vcmpeqss": { "opcodes": [ "C4", "01", "02", "C2", "00" ], "vex_rm_to_reg": true },
-        "Vcmpless": { "opcodes": [ "C4", "01", "02", "C2", "02" ], "vex_rm_to_reg": true },
-        "Vcmpltss": { "opcodes": [ "C4", "01", "02", "C2", "01" ], "vex_rm_to_reg": true },
-        "Vcmpneqss": { "opcodes": [ "C4", "01", "02", "C2", "04" ], "vex_rm_to_reg": true },
-        "Vcmpnless": { "opcodes": [ "C4", "01", "02", "C2", "06" ], "vex_rm_to_reg": true },
-        "Vcmpnltss": { "opcodes": [ "C4", "01", "02", "C2", "05" ], "vex_rm_to_reg": true },
-        "Vcmpordss": { "opcodes": [ "C4", "01", "02", "C2", "07" ], "vex_rm_to_reg": true },
-        "Vcmpunordss": { "opcodes": [ "C4", "01", "02", "C2", "03" ], "vex_rm_to_reg": true },
-        "Vdivss": { "opcodes": [ "C4", "01", "02", "5E" ], "vex_rm_to_reg": true },
-        "Vmulss": { "opcodes": [ "C4", "01", "02", "59" ], "vex_rm_to_reg": true },
-        "Vsubss": { "opcodes": [ "C4", "01", "02", "5C" ], "vex_rm_to_reg": true }
+        "Vaddss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "58" ], "vex_rm_to_reg": true },
+        "Vcmpeqss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "C2", "00" ], "vex_rm_to_reg": true },
+        "Vcmpless": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "C2", "02" ], "vex_rm_to_reg": true },
+        "Vcmpltss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "C2", "01" ], "vex_rm_to_reg": true },
+        "Vcmpneqss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "C2", "04" ], "vex_rm_to_reg": true },
+        "Vcmpnless": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "C2", "06" ], "vex_rm_to_reg": true },
+        "Vcmpnltss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "C2", "05" ], "vex_rm_to_reg": true },
+        "Vcmpordss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "C2", "07" ], "vex_rm_to_reg": true },
+        "Vcmpunordss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "C2", "03" ], "vex_rm_to_reg": true },
+        "Vdivss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "5E" ], "vex_rm_to_reg": true },
+        "Vmulss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "59" ], "vex_rm_to_reg": true },
+        "Vsubss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "5C" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "FpReg32", "usage": "def" },
@@ -2004,7 +2431,7 @@
     },
     {
       "encodings": {
-        "Vcvtsd2ss": { "opcodes": [ "C4", "01", "03", "5A" ], "vex_rm_to_reg": true }
+        "Vcvtsd2ss": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "5A" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "FpReg32", "usage": "def" },
@@ -2014,7 +2441,7 @@
     },
     {
       "encodings": {
-        "Vcvtsi2sdl": { "opcodes": [ "C4", "01", "03", "2A" ], "vex_rm_to_reg": true }
+        "Vcvtsi2sdl": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "2A" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "FpReg64", "usage": "def" },
@@ -2024,7 +2451,7 @@
     },
     {
       "encodings": {
-        "Vcvtsi2ssl": { "opcodes": [ "C4", "01", "02", "2A" ], "vex_rm_to_reg": true }
+        "Vcvtsi2ssl": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "2A" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "FpReg32", "usage": "def" },
@@ -2034,7 +2461,7 @@
     },
     {
       "encodings": {
-        "Vcvtss2sd": { "opcodes": [ "C4", "01", "02", "5A" ], "vex_rm_to_reg": true }
+        "Vcvtss2sd": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "5A" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "FpReg64", "usage": "def" },
@@ -2231,8 +2658,8 @@
     },
     {
       "encodings": {
-        "Vmovapd": { "opcodes": [ "C4", "01", "01", "28" ] },
-        "Vmovaps": { "opcodes": [ "C4", "01", "00", "28" ] }
+        "Vmovapd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "28" ] },
+        "Vmovaps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "28" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -2241,8 +2668,8 @@
     },
     {
       "encodings": {
-        "Vmovdqa": { "opcodes": [ "C4", "01", "01", "6F" ] },
-        "Vmovdqu": { "opcodes": [ "C4", "01", "02", "6F" ] }
+        "Vmovdqa": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "6F" ] },
+        "Vmovdqu": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "6F" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -2251,8 +2678,8 @@
     },
     {
       "encodings": {
-        "Vmovhlps": { "opcodes": [ "C4", "01", "00", "12" ], "vex_rm_to_reg": true },
-        "Vmovlhps": { "opcodes": [ "C4", "01", "00", "16" ], "vex_rm_to_reg": true }
+        "Vmovhlps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "12" ], "vex_rm_to_reg": true },
+        "Vmovlhps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "16" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -2262,10 +2689,10 @@
     },
     {
       "encodings": {
-        "Vmovhpd": { "opcodes": [ "C4", "01", "01", "16" ] },
-        "Vmovhps": { "opcodes": [ "C4", "01", "00", "16" ] },
-        "Vmovlpd": { "opcodes": [ "C4", "01", "01", "12" ] },
-        "Vmovlps": { "opcodes": [ "C4", "01", "00", "12" ] }
+        "Vmovhpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "16" ] },
+        "Vmovhps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "16" ] },
+        "Vmovlpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "12" ] },
+        "Vmovlps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "12" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -2275,8 +2702,8 @@
     },
     {
       "encodings": {
-        "Vpermil2pd": { "opcodes": [ "C4", "03", "81", "49" ], "vex_imm_rm_to_reg": true },
-        "Vpermil2ps": { "opcodes": [ "C4", "03", "81", "48" ], "vex_imm_rm_to_reg": true }
+        "Vpermil2pd": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "49" ], "vex_imm_rm_to_reg": true },
+        "Vpermil2ps": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "48" ], "vex_imm_rm_to_reg": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
@@ -2288,8 +2715,8 @@
     },
     {
       "encodings": {
-        "Vpermil2pd": { "opcodes": [ "C4", "03", "01", "49" ], "vex_rm_imm_to_reg": true },
-        "Vpermil2ps": { "opcodes": [ "C4", "03", "01", "48" ], "vex_rm_imm_to_reg": true }
+        "Vpermil2pd": { "feature": "AVX", "opcodes": [ "C4", "03", "01", "49" ], "vex_rm_imm_to_reg": true },
+        "Vpermil2ps": { "feature": "AVX", "opcodes": [ "C4", "03", "01", "48" ], "vex_rm_imm_to_reg": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
@@ -2301,9 +2728,9 @@
     },
     {
       "encodings": {
-        "Vpinsrb": { "opcodes": [ "C4", "03", "01", "20" ], "vex_rm_to_reg": true },
-        "Vpinsrd": { "opcodes": [ "C4", "03", "01", "22" ], "vex_rm_to_reg": true },
-        "Vpinsrw": { "opcodes": [ "C4", "01", "01", "C4" ], "vex_rm_to_reg": true }
+        "Vpinsrb": { "feature": "AVX", "opcodes": [ "C4", "03", "01", "20" ], "vex_rm_to_reg": true },
+        "Vpinsrd": { "feature": "AVX", "opcodes": [ "C4", "03", "01", "22" ], "vex_rm_to_reg": true },
+        "Vpinsrw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C4" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "use_def" },
@@ -2314,16 +2741,16 @@
     },
     {
       "encodings": {
-        "Vpslld": { "opcodes": [ "C4", "01", "01", "72", "6" ], "rm_to_vex": true },
-        "Vpslldq": { "opcodes": [ "C4", "01", "01", "73", "7" ], "rm_to_vex": true },
-        "Vpsllq": { "opcodes": [ "C4", "01", "01", "73", "6" ], "rm_to_vex": true },
-        "Vpsllw": { "opcodes": [ "C4", "01", "01", "71", "6" ], "rm_to_vex": true },
-        "Vpsrad": { "opcodes": [ "C4", "01", "01", "72", "4" ], "rm_to_vex": true },
-        "Vpsraw": { "opcodes": [ "C4", "01", "01", "71", "4" ], "rm_to_vex": true },
-        "Vpsrld": { "opcodes": [ "C4", "01", "01", "72", "2" ], "rm_to_vex": true },
-        "Vpsrldq": { "opcodes": [ "C4", "01", "01", "73", "3" ], "rm_to_vex": true },
-        "Vpsrlq": { "opcodes": [ "C4", "01", "01", "73", "2" ], "rm_to_vex": true },
-        "Vpsrlw": { "opcodes": [ "C4", "01", "01", "71", "2" ], "rm_to_vex": true }
+        "Vpslld": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "72", "6" ], "rm_to_vex": true },
+        "Vpslldq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "73", "7" ], "rm_to_vex": true },
+        "Vpsllq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "73", "6" ], "rm_to_vex": true },
+        "Vpsllw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "71", "6" ], "rm_to_vex": true },
+        "Vpsrad": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "72", "4" ], "rm_to_vex": true },
+        "Vpsraw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "71", "4" ], "rm_to_vex": true },
+        "Vpsrld": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "72", "2" ], "rm_to_vex": true },
+        "Vpsrldq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "73", "3" ], "rm_to_vex": true },
+        "Vpsrlq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "73", "2" ], "rm_to_vex": true },
+        "Vpsrlw": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "71", "2" ], "rm_to_vex": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
@@ -2333,8 +2760,8 @@
     },
     {
       "encodings": {
-        "Vshufpd": { "opcodes": [ "C4", "01", "01", "C6" ], "vex_rm_to_reg": true },
-        "Vshufps": { "opcodes": [ "C4", "01", "00", "C6" ], "vex_rm_to_reg": true }
+        "Vshufpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "C6" ], "vex_rm_to_reg": true },
+        "Vshufps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "C6" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },

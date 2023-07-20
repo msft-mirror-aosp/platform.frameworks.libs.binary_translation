@@ -20,11 +20,19 @@ LOCAL_PATH := $(call my-dir)
 # Only build it when requested explicitly.
 ifeq ($(BUILD_BERBERIS),true)
 
-include $(LOCAL_PATH)/riscv64_to_x86_64_config.mk
+include $(LOCAL_PATH)/berberis_config.mk
 
 .PHONY: berberis_all
 berberis_all: \
     $(BERBERIS_PRODUCT_PACKAGES) \
     $(BERBERIS_DEV_PRODUCT_PACKAGES)
+
+ifeq ($(BUILD_BERBERIS_RISCV64_TO_X86_64),true)
+
+berberis_all: \
+    $(BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64) \
+    $(BERBERIS_DEV_PRODUCT_PACKAGES_RISCV64_TO_X86_64)
+
+endif  # BUILD_BERBERIS_RISCV64_TO_X86_64
 
 endif  # BUILD_BERBERIS

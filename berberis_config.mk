@@ -22,15 +22,23 @@
 include frameworks/libs/native_bridge_support/native_bridge_support.mk
 
 BERBERIS_PRODUCT_PACKAGES := \
-    berberis_program_runner_riscv64 \
     libberberis_exec_region
+
+BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
+    berberis_prebuilt_riscv64 \
+    berberis_program_runner_riscv64 \
+    libberberis_riscv64
 
 # TODO(b/277625560): Include $(NATIVE_BRIDGE_PRODUCT_PACKAGES) instead
 # when all its bits are ready for riscv64.
-BERBERIS_PRODUCT_PACKAGES += $(NATIVE_BRIDGE_PRODUCT_PACKAGES_RISCV64_READY)
-
+BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 += $(NATIVE_BRIDGE_PRODUCT_PACKAGES_RISCV64_READY)
 
 BERBERIS_DEV_PRODUCT_PACKAGES := \
-    berberis_dwarf_reader \
+    berberis_hello_world_static.native_bridge \
     berberis_host_tests \
-    berberis_nogrod_unit_tests
+    dwarf_reader \
+    nogrod_unit_tests \
+    gen_intrinsics_tests
+
+BERBERIS_DEV_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
+    berberis_guest_loader_riscv64_tests

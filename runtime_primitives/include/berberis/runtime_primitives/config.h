@@ -17,6 +17,7 @@
 #ifndef BERBERIS_RUNTIME_PRIMITIVES_CONFIG_H_
 #define BERBERIS_RUNTIME_PRIMITIVES_CONFIG_H_
 
+#include <cstddef>
 #include <cstdint>
 
 #include "berberis/runtime_primitives/platform.h"
@@ -34,13 +35,15 @@ namespace berberis::config {
 // kStackMisalignAtTranslatedCode config variable.
 // TODO(b/232598137): 12 is what we get on x86-32 after stack alignment, update
 // with, say, 90-percentile of (dynamic) frame size.
-static constexpr uint32_t kFrameSizeAtTranslatedCode = host_platform::kIsX86_32 ? 12u : 8u;
+inline constexpr uint32_t kFrameSizeAtTranslatedCode = host_platform::kIsX86_32 ? 12u : 8u;
 // Setting this to true enables instrumentation of every executed region in the
 // main execution loop (ExecuteGuest).
-static constexpr bool kAllJumpsExitGeneratedCode = false;
+inline constexpr bool kAllJumpsExitGeneratedCode = false;
 // Eliminate overhead of exiting/reentering generated code by searching in
 // the translation cache directly from the generated code.
-static constexpr bool kLinkJumpsBetweenRegions = !kAllJumpsExitGeneratedCode;
+inline constexpr bool kLinkJumpsBetweenRegions = !kAllJumpsExitGeneratedCode;
+// Guest page size. Always 4K for now.
+inline constexpr size_t kGuestPageSize = 4096;
 
 }  // namespace berberis::config
 

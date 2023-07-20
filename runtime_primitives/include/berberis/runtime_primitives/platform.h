@@ -20,14 +20,48 @@
 namespace berberis::host_platform {
 
 #if defined(__i386__) && !defined(__x32__)
-static const bool kIsX86_32 = true;
-static const bool kIsX86_64 = false;
+inline constexpr bool kIsX86_32 = true;
+inline constexpr bool kIsX86_64 = false;
 #endif
 #if defined(__x86_64__) || defined(__x32__)
-static const bool kIsX86_32 = false;
-static const bool kIsX86_64 = true;
+inline constexpr bool kIsX86_32 = false;
+inline constexpr bool kIsX86_64 = true;
 #endif
-static const bool kIsX86 = (kIsX86_32 || kIsX86_64);
+#if !defined(__i386__) && !defined(__x86_64__)
+inline constexpr bool kIsX86_32 = false;
+inline constexpr bool kIsX86_64 = false;
+#endif
+inline constexpr bool kIsX86 = (kIsX86_32 || kIsX86_64);
+
+#if defined(__i386__) || defined(__x86_64__)
+extern const struct PlatformCapabilities {
+  bool kHasSSE3;
+  bool kHasSSSE3;
+  bool kHasSSE4a;
+  bool kHasSSE4_1;
+  bool kHasSSE4_2;
+  bool kHasF16C;
+  bool kHasFMA;
+  bool kHasFMA4;
+  bool kHasAES;
+  bool kHasCLMUL;
+  bool kHasSHA;
+} kPlatformCapabilities;
+// These are "runtime constants": they can not be determined at compile
+// time but each particular CPU has them set to true or false and that
+// value can not ever change in the lifetime of a program.
+inline const bool& kHasSSE3 = kPlatformCapabilities.kHasSSE3;
+inline const bool& kHasSSSE3 = kPlatformCapabilities.kHasSSSE3;
+inline const bool& kHasSSE4a = kPlatformCapabilities.kHasSSE4a;
+inline const bool& kHasSSE4_1 = kPlatformCapabilities.kHasSSE4_1;
+inline const bool& kHasSSE4_2 = kPlatformCapabilities.kHasSSE4_2;
+inline const bool& kHasF16C = kPlatformCapabilities.kHasF16C;
+inline const bool& kHasFMA = kPlatformCapabilities.kHasFMA;
+inline const bool& kHasFMA4 = kPlatformCapabilities.kHasFMA4;
+inline const bool& kHasAES = kPlatformCapabilities.kHasAES;
+inline const bool& kHasCLMUL = kPlatformCapabilities.kHasCLMUL;
+inline const bool& kHasSHA = kPlatformCapabilities.kHasSHA;
+#endif
 
 }  // namespace berberis::host_platform
 

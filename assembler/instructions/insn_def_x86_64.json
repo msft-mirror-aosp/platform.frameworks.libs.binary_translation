@@ -1,4 +1,19 @@
 {
+  "License": [
+    "Copyright (C) 2023 The Android Open Source Project",
+    "",
+    "Licensed under the Apache License, Version 2.0 (the “License”);",
+    "you may not use this file except in compliance with the License.",
+    "You may obtain a copy of the License at",
+    "",
+    "     http://www.apache.org/licenses/LICENSE-2.0",
+    "",
+    "Unless required by applicable law or agreed to in writing, software",
+    "distributed under the License is distributed on an “AS IS” BASIS,",
+    "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+    "See the License for the specific language governing permissions and",
+    "limitations under the License."
+  ],
   "arch": "x86_64",
   "insns": [
     {
@@ -364,6 +379,24 @@
     },
     {
       "encodings": {
+        "Fxrstor64": { "opcodes": [ "0F", "AE", "1" ] }
+      },
+      "args": [
+        { "class": "Mem64", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fxsave64": { "opcodes": [ "0F", "AE", "0" ] }
+      },
+      "args": [
+        { "class": "CC", "usage": "def" },
+        { "class": "Mem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Imulq": { "opcodes": [ "F7", "5" ] },
         "Mulq": { "opcodes": [ "F7", "4" ] }
       },
@@ -427,7 +460,7 @@
     {
       "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "7E" ], "reg_to_rm": true },
-        "Vmovq": { "opcodes": [ "C4", "01", "81", "7E" ], "reg_to_rm": true }
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "7E" ], "reg_to_rm": true }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -437,7 +470,7 @@
     {
       "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "6E" ] },
-        "Vmovq": { "opcodes": [ "C4", "01", "81", "6E" ] }
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "6E" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -509,7 +542,7 @@
     {
       "encodings": {
         "Pextrq": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "16" ], "reg_to_rm": true },
-        "Vpextrq": { "opcodes": [ "C4", "03", "81", "16" ], "reg_to_rm": true }
+        "Vpextrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "16" ], "reg_to_rm": true }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -606,6 +639,7 @@
     },
     {
       "stems": [ "Vmovapd", "Vmovaps", "Vmovdqa", "Vmovdqu" ],
+      "feature": "AVX",
       "args": [
         { "class": "XmmReg", "usage": "def" },
         { "class": "XmmReg", "usage": "use" }
@@ -621,7 +655,7 @@
     },
     {
       "encodings": {
-        "Vpinsrq": { "opcodes": [ "C4", "03", "81", "22" ], "vex_rm_to_reg": true }
+        "Vpinsrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "22" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },

@@ -18,10 +18,9 @@
 
 #include "lite_translator.h"
 
-#include "berberis/assembler/common.h"
-#include "berberis/assembler/x86_64.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/macros.h"
+#include "berberis/code_gen_lib/code_gen_lib.h"
 #include "berberis/decoder/riscv64/decoder.h"
 
 namespace berberis {
@@ -272,6 +271,142 @@ Register LiteTranslator::ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register a
   }
   as_.Movsxlq(res, res);
   return res;
+}
+
+Register LiteTranslator::Lui(int32_t imm) {
+  Register res = AllocTempReg();
+  as_.Movl(res, imm);
+  as_.Movsxlq(res, res);
+  return res;
+}
+
+Register LiteTranslator::Auipc(int32_t imm) {
+  Register res = AllocTempReg();
+  Register pc = GetImm(GetInsnAddr());
+  as_.Movl(res, imm);
+  as_.Movsxlq(res, res);
+  as_.Addq(res, pc);
+  return res;
+}
+
+void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
+                                      Register arg1,
+                                      Register arg2,
+                                      int16_t offset) {
+  Assembler::Label* cont = as_.MakeLabel();
+  as_.Cmpq(arg1, arg2);
+  switch (opcode) {
+    case Decoder::BranchOpcode::kBeq:
+      as_.Jcc(Condition::kNotEqual, *cont);
+      break;
+    case Decoder::BranchOpcode::kBne:
+      as_.Jcc(Condition::kEqual, *cont);
+      break;
+    case Decoder::BranchOpcode::kBltu:
+      as_.Jcc(Condition::kAboveEqual, *cont);
+      break;
+    case Decoder::BranchOpcode::kBgeu:
+      as_.Jcc(Condition::kBelow, *cont);
+      break;
+    case Decoder::BranchOpcode::kBlt:
+      as_.Jcc(Condition::kGreaterEqual, *cont);
+      break;
+    case Decoder::BranchOpcode::kBge:
+      as_.Jcc(Condition::kLess, *cont);
+      break;
+    default:
+      return Unimplemented();
+  }
+  ExitRegion(GetInsnAddr() + offset);
+  as_.Bind(cont);
+}
+
+void LiteTranslator::ExitRegion(GuestAddr target) {
+  if (params_.allow_dispatch) {
+    EmitDirectDispatch(&as_, target, /* check_pending_signals */ true);
+  } else {
+    // EmitExitGeneratedCode is more efficient if receives target in rax.
+    as_.Movq(as_.rax, target);
+    EmitExitGeneratedCode(&as_, as_.rax);
+  }
+}
+
+void LiteTranslator::ExitRegionIndirect(Register target) {
+  if (params_.allow_dispatch) {
+    EmitIndirectDispatch(&as_, target);
+  } else {
+    EmitExitGeneratedCode(&as_, target);
+  }
+}
+
+void LiteTranslator::Branch(int32_t offset) {
+  is_region_end_reached_ = true;
+  ExitRegion(GetInsnAddr() + offset);
+}
+
+void LiteTranslator::BranchRegister(Register base, int16_t offset) {
+  Register res = AllocTempReg();
+  as_.Movq(res, base);
+  as_.Addq(res, offset);
+  // Zeroing out the last bit.
+  as_.Andq(res, ~int32_t{1});
+  is_region_end_reached_ = true;
+  ExitRegionIndirect(res);
+}
+
+Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
+  Register res = AllocTempReg();
+  Assembler::Operand asm_memop{.base = arg, .disp = offset};
+  switch (operand_type) {
+    case Decoder::LoadOperandType::k8bitUnsigned:
+      as_.Movzxbl(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k16bitUnsigned:
+      as_.Movzxwl(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k32bitUnsigned:
+      as_.Movl(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k64bit:
+      as_.Movq(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k8bitSigned:
+      as_.Movsxbq(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k16bitSigned:
+      as_.Movsxwq(res, asm_memop);
+      break;
+    case Decoder::LoadOperandType::k32bitSigned:
+      as_.Movsxlq(res, asm_memop);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
+void LiteTranslator::Store(Decoder::StoreOperandType operand_type,
+                           Register arg,
+                           int16_t offset,
+                           Register data) {
+  Assembler::Operand asm_memop{.base = arg, .disp = offset};
+  switch (operand_type) {
+    case Decoder::StoreOperandType::k8bit:
+      as_.Movb(asm_memop, data);
+      break;
+    case Decoder::StoreOperandType::k16bit:
+      as_.Movw(asm_memop, data);
+      break;
+    case Decoder::StoreOperandType::k32bit:
+      as_.Movl(asm_memop, data);
+      break;
+    case Decoder::StoreOperandType::k64bit:
+      as_.Movq(asm_memop, data);
+      break;
+    default:
+      return Unimplemented();
+  }
 }
 
 }  // namespace berberis

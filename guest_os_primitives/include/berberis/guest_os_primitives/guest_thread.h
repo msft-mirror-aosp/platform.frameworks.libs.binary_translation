@@ -17,7 +17,8 @@
 #ifndef BERBERIS_GUEST_OS_PRIMITIVES_GUEST_THREAD_H_
 #define BERBERIS_GUEST_OS_PRIMITIVES_GUEST_THREAD_H_
 
-#include <setjmp.h>  // jmp_buf
+#include <csetjmp>  // jmp_buf
+#include <csignal>  // stack_t
 
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
@@ -42,12 +43,28 @@ class GuestThread {
   // Initialize *current* guest thread.
   void InitStaticTls();
 
+  // Configure static tls for *current* *main* guest thread.
+  void ConfigStaticTls(const NativeBridgeStaticTlsConfig* config);
+
+  void ProcessPendingSignals();
+
   // Both return *previous* pending signals status (false: disabled, true: enabled).
   bool ProcessAndDisablePendingSignals();
   bool TestAndEnablePendingSignals();
 
   const ThreadState* state() const { return state_; }
   ThreadState* state() { return state_; }
+
+  GuestCallExecution* guest_call_execution() const { return guest_call_execution_; }
+  void set_guest_call_execution(GuestCallExecution* guest_call_execution) {
+    guest_call_execution_ = guest_call_execution;
+  }
+
+  bool SigAltStack(const stack_t* ss, stack_t* old_ss, int* error);
+  void SwitchToSigAltStack();
+  bool IsOnSigAltStack() const;
+
+  void DisallowStackUnmap() { mmap_size_ = 0; }
 
  private:
   GuestThread() = default;

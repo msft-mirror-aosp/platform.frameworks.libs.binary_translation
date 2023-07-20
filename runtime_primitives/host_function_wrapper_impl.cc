@@ -41,7 +41,7 @@ void MakeTrampolineCallable(GuestAddr pc,
   // the guest simply can't encode it to call by immediate. We are unlikely affected,
   // as calling an external symbol by immediate requires text relocation, but
   // we should still issue an error.
-  if (IsProgramCounterProperlyAlignedForArch(pc)) {
+  if (!IsProgramCounterProperlyAlignedForArch(pc)) {
     TRACE("address %p of wrapped host function '%s' is not aligned", ToHostAddr<void>(pc), name);
   }
   TranslationCache* cache = TranslationCache::GetInstance();

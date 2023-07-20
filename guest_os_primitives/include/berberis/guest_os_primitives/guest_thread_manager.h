@@ -17,9 +17,13 @@
 #ifndef BERBERIS_GUEST_OS_PRIMITIVES_GUEST_THREAD_MANAGER_H_
 #define BERBERIS_GUEST_OS_PRIMITIVES_GUEST_THREAD_MANAGER_H_
 
+#include "berberis/guest_os_primitives/guest_thread.h"
+
 namespace berberis {
 
 void InitGuestThreadManager();
+
+GuestThread* GetCurrentGuestThread();
 
 }  // namespace berberis
 

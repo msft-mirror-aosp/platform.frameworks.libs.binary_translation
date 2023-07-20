@@ -17,6 +17,7 @@
 #include "gtest/gtest.h"
 
 #include <cstddef>
+#include <thread>
 
 #include "berberis/base/mmap.h"
 #include "berberis/base/mmap_pool.h"
@@ -31,11 +32,9 @@ class MmapPoolTest : public ::testing::Test {
 
   MmapPoolTest() = default;
 
-  size_t Size() { return Pool::g_size_; }
-
   size_t ListLength() {
     size_t length = 0;
-    Pool::Node* node = Pool::g_free_list_.TopForTesting();
+    Pool::Node* node = Pool::g_nodes_with_available_blocks_.TopForTesting();
     while (node) {
       length++;
       node = node->next;
@@ -43,13 +42,9 @@ class MmapPoolTest : public ::testing::Test {
     return length;
   }
 
-  bool AcquireFreeListBlock() { return Pool::AcquireFreeListBlock(); }
-
-  void ReleaseFreeListBlock() { Pool::ReleaseFreeListBlock(); }
-
   virtual void SetUp() {
     // Empty the global pool, possibly populated by other tests.
-    while (Size() > 0) {
+    while (ListLength() > 0) {
       MunmapOrDie(Pool::Alloc(), kBlockSize);
     }
   }
@@ -62,13 +57,11 @@ TEST_F(MmapPoolTest, Smoke) {
   ASSERT_TRUE(p1);
   p1[kBlockSize - 1] = 'a';
   EXPECT_EQ(ListLength(), 0u);
-  EXPECT_EQ(Size(), 0u);
 
   char* p2 = static_cast<char*>(Pool::Alloc());
   ASSERT_TRUE(p2);
   p2[kBlockSize - 1] = 'b';
   EXPECT_EQ(ListLength(), 0u);
-  EXPECT_EQ(Size(), 0u);
 
   EXPECT_NE(p1, p2);
 
@@ -76,50 +69,42 @@ TEST_F(MmapPoolTest, Smoke) {
   ASSERT_TRUE(p3);
   p3[kBlockSize - 1] = 'c';
   EXPECT_EQ(ListLength(), 0u);
-  EXPECT_EQ(Size(), 0u);
 
   Pool::Free(p1);
-  EXPECT_EQ(Size(), kBlockSize);
   EXPECT_EQ(ListLength(), 1u);
   p1[kBlockSize - 1] = 'A';
 
   Pool::Free(p2);
-  EXPECT_EQ(Size(), 2 * kBlockSize);
   EXPECT_EQ(ListLength(), 2u);
   p2[kBlockSize - 1] = 'B';
 
   Pool::Free(p3);
-  // Size and Length don't change!
-  EXPECT_EQ(Size(), 2 * kBlockSize);
+  // Length doesn't change!
   EXPECT_EQ(ListLength(), 2u);
   // The block is unmapped.
   EXPECT_DEATH(p3[kBlockSize - 1] = 'C', "");
 }
 
-TEST_F(MmapPoolTest, AcquireReleaseFreeListBlock) {
-  ASSERT_TRUE(AcquireFreeListBlock());
-  EXPECT_EQ(Size(), kBlockSize);
-  EXPECT_EQ(ListLength(), 0u);
+TEST_F(MmapPoolTest, Stress) {
+  constexpr size_t kNumThreads = 4;
+  std::thread threads[kNumThreads];
 
-  ASSERT_TRUE(AcquireFreeListBlock());
-  EXPECT_EQ(Size(), 2 * kBlockSize);
-  EXPECT_EQ(ListLength(), 0u);
+  for (size_t i = 0; i < kNumThreads; i++) {
+    threads[i] = std::thread([]() {
+      for (int c = 0; c < 1024 * 1024; c++) {
+        char* block = static_cast<char*>(Pool::Alloc());
+        block[kBlockSize - 1] = 'a';
+        Pool::Free(block);
+        // ListLength isn't thread-safe, so we cannot use it here. So we just expect that
+        // Alloc/Free cycles do not result in a crash.
+      }
+    });
+  }
 
-  ASSERT_FALSE(AcquireFreeListBlock());
-  // Size doesn't change!
-  EXPECT_EQ(Size(), 2 * kBlockSize);
-  EXPECT_EQ(ListLength(), 0u);
-
-  ReleaseFreeListBlock();
-  EXPECT_EQ(Size(), kBlockSize);
-  EXPECT_EQ(ListLength(), 0u);
-
-  ReleaseFreeListBlock();
-  EXPECT_EQ(Size(), 0u);
-  EXPECT_EQ(ListLength(), 0u);
-
-  // Cannot release more than acquired.
-  EXPECT_DEATH(ReleaseFreeListBlock(), "");
+  for (auto& thread : threads) {
+    thread.join();
+  }
+  EXPECT_EQ(ListLength(), 2u);
 }
 
 }  // namespace

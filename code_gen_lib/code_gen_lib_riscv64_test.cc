@@ -45,7 +45,7 @@ void DummyTrampoline(void* arg, ThreadState* state) {
   ASSERT_EQ(&g_arg, arg);
   ASSERT_EQ(&g_state, state);
   ASSERT_EQ(g_state.cpu.insn_addr, ToGuestAddr(&g_insn));
-  ASSERT_EQ(GetLinkRegister(&g_state.cpu), ToGuestAddr(&g_ret_insn));
+  ASSERT_EQ(GetLinkRegister(g_state.cpu), ToGuestAddr(&g_ret_insn));
 }
 
 TEST(CodeGenLib, GenTrampolineAdaptor) {

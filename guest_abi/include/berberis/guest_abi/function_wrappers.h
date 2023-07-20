@@ -20,26 +20,13 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/guest_abi/guest_abi.h"
 #include "berberis/guest_abi/guest_arguments.h"
-#include "berberis/guest_abi/guest_function_wrapper_signature.h"
+#include "berberis/guest_abi/guest_function_wrapper.h"
+#include "berberis/guest_abi/guest_params.h"
 #include "berberis/guest_abi/guest_type.h"
-#include "berberis/guest_abi/params.h"
-#include "berberis/guest_state/guest_addr.h"
-#include "berberis/runtime_primitives/guest_function_wrapper_impl.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/host_function_wrapper_impl.h"
-#include "berberis/runtime_primitives/runtime_library.h"
 
 namespace berberis {
-
-template <typename ResultType, typename... ArgumentType>
-ResultType (*WrapGuestFunction(GuestType<ResultType (*)(ArgumentType...)> func,
-                               const char* name))(ArgumentType...) {
-  return AsFuncPtr<ResultType (*)(ArgumentType...)>(
-      WrapGuestFunctionImpl(ToGuestAddr(func),
-                            kGuestFunctionWrapperSignature<ResultType (*)(ArgumentType...)>,
-                            RunGuestCall,
-                            name));
-}
 
 // Setup and run trampoline function.
 template <typename Func,

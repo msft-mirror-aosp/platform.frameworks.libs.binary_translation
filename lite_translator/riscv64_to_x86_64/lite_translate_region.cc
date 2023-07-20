@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "berberis/lite_translator/lite_translate_region.h"
 
 #include <cstdint>
 #include <limits>
@@ -32,7 +33,7 @@ namespace berberis {
 namespace {
 
 void Finalize(LiteTranslator* translator, GuestAddr pc) {
-  EmitDirectDispatch(translator->as(), pc, /* check_pending_signals */ true);
+  translator->ExitRegion(pc);
   translator->as()->Finalize();
 }
 
@@ -42,30 +43,44 @@ void Finalize(LiteTranslator* translator, GuestAddr pc) {
 // Specifically, returnes input pc if we cannot translate even the first instruction.
 std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
                                                        GuestAddr end_pc,
-                                                       MachineCode* machine_code) {
+                                                       MachineCode* machine_code,
+                                                       LiteTranslateParams params) {
   CHECK_LT(start_pc, end_pc);
-  LiteTranslator translator(machine_code);
+  LiteTranslator translator(machine_code, start_pc, params);
   SemanticsPlayer sem_player(&translator);
   Decoder decoder(&sem_player);
 
-  uint8_t insn_size = decoder.Decode(ToHostAddr<const uint16_t>(start_pc));
+  while (translator.GetInsnAddr() != end_pc && !translator.is_region_end_reached()) {
+    uint8_t insn_size = decoder.Decode(ToHostAddr<const uint16_t>(translator.GetInsnAddr()));
+    if (!translator.success()) {
+      return {false, translator.GetInsnAddr()};
+    }
+    translator.FreeTempRegs();
+    translator.IncrementInsnAddr(insn_size);
+  }
 
-  Finalize(&translator, start_pc + insn_size);
+  Finalize(&translator, translator.GetInsnAddr());
 
-  return {translator.success(), start_pc + insn_size};
+  return {translator.success(), translator.GetInsnAddr()};
 }
 
 }  // namespace
 
-bool LiteTranslateRange(GuestAddr start_pc, GuestAddr end_pc, MachineCode* machine_code) {
-  auto [success, stop_pc] = TryLiteTranslateRegionImpl(start_pc, end_pc, machine_code);
+bool LiteTranslateRange(GuestAddr start_pc,
+                        GuestAddr end_pc,
+                        MachineCode* machine_code,
+                        LiteTranslateParams params) {
+  auto [success, stop_pc] = TryLiteTranslateRegionImpl(start_pc, end_pc, machine_code, params);
   return success;
 }
 
-std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc, MachineCode* machine_code) {
+std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc,
+                                                   MachineCode* machine_code,
+                                                   LiteTranslateParams params) {
   // This effectively makes translating code at max guest address impossible, but we
   // assume that it's not practically significant.
-  return TryLiteTranslateRegionImpl(start_pc, std::numeric_limits<GuestAddr>::max(), machine_code);
+  return TryLiteTranslateRegionImpl(
+      start_pc, std::numeric_limits<GuestAddr>::max(), machine_code, params);
 }
 
 }  // namespace berberis
