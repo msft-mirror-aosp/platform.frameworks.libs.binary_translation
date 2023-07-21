@@ -126,6 +126,16 @@ TEST(InlineIntrinsicRiscv64Test, SupportedInstructions) {
   TEST_SUPPORTED((intrinsics::FAdd<intrinsics::Float32>), int8_t{FPFlags::DYN});
   TEST_UNSUPPORTED((intrinsics::FAdd<intrinsics::Float32>), int8_t{FPFlags::RNE});
   TEST_SUPPORTED((intrinsics::FAddHostRounding<intrinsics::Float64>));
+  TEST_SUPPORTED((intrinsics::FSub<intrinsics::Float64>), int8_t{FPFlags::DYN});
+  TEST_UNSUPPORTED((intrinsics::FSub<intrinsics::Float64>), int8_t{FPFlags::RNE});
+  TEST_SUPPORTED((intrinsics::FSub<intrinsics::Float32>), int8_t{FPFlags::DYN});
+  TEST_UNSUPPORTED((intrinsics::FSub<intrinsics::Float32>), int8_t{FPFlags::RNE});
+  TEST_SUPPORTED((intrinsics::FSubHostRounding<intrinsics::Float64>));
+  TEST_SUPPORTED((intrinsics::FDiv<intrinsics::Float64>), int8_t{FPFlags::DYN});
+  TEST_UNSUPPORTED((intrinsics::FDiv<intrinsics::Float64>), int8_t{FPFlags::RNE});
+  TEST_SUPPORTED((intrinsics::FDiv<intrinsics::Float32>), int8_t{FPFlags::DYN});
+  TEST_UNSUPPORTED((intrinsics::FDiv<intrinsics::Float32>), int8_t{FPFlags::RNE});
+  TEST_SUPPORTED((intrinsics::FDivHostRounding<intrinsics::Float64>));
 }
 
 #undef TEST_SUPPORTED
