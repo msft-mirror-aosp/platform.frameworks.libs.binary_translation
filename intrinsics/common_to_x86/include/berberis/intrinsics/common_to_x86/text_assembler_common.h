@@ -211,6 +211,7 @@ class TextAssemblerX86 {
   bool need_gpr_macroassembler_constants() const { return need_gpr_macroassembler_constants_; }
 
   bool need_lzcnt = false;
+  bool need_bmi = false;
   bool need_sse3 = false;
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
@@ -267,6 +268,8 @@ class TextAssemblerX86 {
   void SetRequiredFeatureLZCNT() {
     need_lzcnt = true;
   }
+
+  void SetRequiredFeatureBMI() { need_bmi = true; }
 
   void SetRequiredFeatureSSE3() {
     need_sse3 = true;

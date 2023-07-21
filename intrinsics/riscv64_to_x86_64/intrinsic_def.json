@@ -170,6 +170,13 @@
     "in": [ "Type0" ],
     "out": [ "int64_t" ]
   },
+  "Ctz": {
+    "comment": "Count trailing zeros. Note: works like tzcnt, supports zero input!",
+    "class": "template",
+    "variants": [ "int32_t", "int64_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
   "FAdd": {
     "comment": "Floating point addition",
     "class": "template",
