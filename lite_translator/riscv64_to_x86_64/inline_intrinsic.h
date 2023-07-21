@@ -31,31 +31,22 @@
 
 namespace berberis::inline_intrinsic {
 
+template <auto kFunction,
+          typename RegAlloc,
+          typename SIMDRegAlloc,
+          typename AssemblerResType,
+          typename... AssemblerArgType>
+bool TryInlineIntrinsic(MacroAssembler<x86_64::Assembler>& as,
+                        RegAlloc&& reg_alloc,
+                        SIMDRegAlloc&& simd_reg_alloc,
+                        AssemblerResType result,
+                        AssemblerArgType... args);
+
 template <auto kFunc>
 class InlineIntrinsic {
  public:
   template <typename RegAlloc, typename SIMDRegAlloc, typename ResType, typename... ArgType>
-  static bool TryInline(MacroAssembler<x86_64::Assembler>* as,
-                        RegAlloc&& reg_alloc,
-                        SIMDRegAlloc&& simd_reg_alloc,
-                        ResType result,
-                        ArgType... args) {
-    std::tuple args_tuple = std::make_tuple(args...);
-    if constexpr (IsTagEq<&intrinsics::FMulHostRounding<intrinsics::Float64>>) {
-      auto dst = result;
-      auto [src1, src2] = args_tuple;
-      as->Movdqa(dst, src1);
-      as->Mulsd(dst, src2);
-      return true;
-    }
-    // reg_alloc does nothing for now, is used for later implemented instructions
-    UNUSED(reg_alloc);
-    UNUSED(simd_reg_alloc);
-    return false;
-  }
-
-  template <typename RegAlloc, typename SIMDRegAlloc, typename ResType, typename... ArgType>
-  static bool TryInlineWithHostRounding(MacroAssembler<x86_64::Assembler>* as,
+  static bool TryInlineWithHostRounding(MacroAssembler<x86_64::Assembler>& as,
                                         RegAlloc&& reg_alloc,
                                         SIMDRegAlloc&& simd_reg_alloc,
                                         ResType result,
@@ -66,7 +57,28 @@ class InlineIntrinsic {
       if (rm != FPFlags::DYN) {
         return false;
       }
-      return InlineIntrinsic<&intrinsics::FMulHostRounding<intrinsics::Float64>>::TryInline(
+      return TryInlineIntrinsic<&intrinsics::FMulHostRounding<intrinsics::Float64>>(
+          as, reg_alloc, simd_reg_alloc, result, src1, src2);
+    } else if constexpr (IsTagEq<&intrinsics::FMul<intrinsics::Float32>>) {
+      auto [rm, frm, src1, src2] = args_tuple;
+      if (rm != FPFlags::DYN) {
+        return false;
+      }
+      return TryInlineIntrinsic<&intrinsics::FMulHostRounding<intrinsics::Float32>>(
+          as, reg_alloc, simd_reg_alloc, result, src1, src2);
+    } else if constexpr (IsTagEq<&intrinsics::FAdd<intrinsics::Float64>>) {
+      auto [rm, frm, src1, src2] = args_tuple;
+      if (rm != FPFlags::DYN) {
+        return false;
+      }
+      return TryInlineIntrinsic<&intrinsics::FAddHostRounding<intrinsics::Float64>>(
+          as, reg_alloc, simd_reg_alloc, result, src1, src2);
+    } else if constexpr (IsTagEq<&intrinsics::FAdd<intrinsics::Float32>>) {
+      auto [rm, frm, src1, src2] = args_tuple;
+      if (rm != FPFlags::DYN) {
+        return false;
+      }
+      return TryInlineIntrinsic<&intrinsics::FAddHostRounding<intrinsics::Float32>>(
           as, reg_alloc, simd_reg_alloc, result, src1, src2);
     }
     return false;
@@ -291,7 +303,7 @@ bool TryInlineIntrinsic(MacroAssembler<x86_64::Assembler>& as,
                         AssemblerResType result,
                         AssemblerArgType... args) {
   if (InlineIntrinsic<kFunction>::TryInlineWithHostRounding(
-          &as, reg_alloc, simd_reg_alloc, result, args...)) {
+          as, reg_alloc, simd_reg_alloc, result, args...)) {
     return true;
   }
 
