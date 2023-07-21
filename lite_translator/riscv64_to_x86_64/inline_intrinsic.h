@@ -227,6 +227,10 @@ class TryBindingBasedInlineIntrinsic {
       if (!host_platform::kHasLZCNT) {
         return false;
       }
+    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasBMI) {
+      if (!host_platform::kHasBMI) {
+        return false;
+      }
     } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasAVX) {
       if (!host_platform::kHasAVX) {
         return false;
