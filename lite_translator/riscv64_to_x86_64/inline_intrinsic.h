@@ -80,6 +80,34 @@ class InlineIntrinsic {
       }
       return TryInlineIntrinsic<&intrinsics::FAddHostRounding<intrinsics::Float32>>(
           as, reg_alloc, simd_reg_alloc, result, src1, src2);
+    } else if constexpr (IsTagEq<&intrinsics::FSub<intrinsics::Float64>>) {
+      auto [rm, frm, src1, src2] = args_tuple;
+      if (rm != FPFlags::DYN) {
+        return false;
+      }
+      return TryInlineIntrinsic<&intrinsics::FSubHostRounding<intrinsics::Float64>>(
+          as, reg_alloc, simd_reg_alloc, result, src1, src2);
+    } else if constexpr (IsTagEq<&intrinsics::FSub<intrinsics::Float32>>) {
+      auto [rm, frm, src1, src2] = args_tuple;
+      if (rm != FPFlags::DYN) {
+        return false;
+      }
+      return TryInlineIntrinsic<&intrinsics::FSubHostRounding<intrinsics::Float32>>(
+          as, reg_alloc, simd_reg_alloc, result, src1, src2);
+    } else if constexpr (IsTagEq<&intrinsics::FDiv<intrinsics::Float64>>) {
+      auto [rm, frm, src1, src2] = args_tuple;
+      if (rm != FPFlags::DYN) {
+        return false;
+      }
+      return TryInlineIntrinsic<&intrinsics::FDivHostRounding<intrinsics::Float64>>(
+          as, reg_alloc, simd_reg_alloc, result, src1, src2);
+    } else if constexpr (IsTagEq<&intrinsics::FDiv<intrinsics::Float32>>) {
+      auto [rm, frm, src1, src2] = args_tuple;
+      if (rm != FPFlags::DYN) {
+        return false;
+      }
+      return TryInlineIntrinsic<&intrinsics::FDivHostRounding<intrinsics::Float32>>(
+          as, reg_alloc, simd_reg_alloc, result, src1, src2);
     }
     return false;
   }
