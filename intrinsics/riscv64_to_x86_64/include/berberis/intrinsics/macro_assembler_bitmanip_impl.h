@@ -33,6 +33,13 @@ void MacroAssembler<Assembler>::MacroClz(Register result, Register src) {
   Xor<IntType>(result, sizeof(IntType) * CHAR_BIT - 1);
 }
 
+template <typename Assembler>
+template <typename IntType>
+void MacroAssembler<Assembler>::MacroCtz(Register result, Register src) {
+  Bsf<IntType>(result, src);
+  Cmov<IntType>(Condition::kZero, result, {.disp = constants_pool::WidthInBits<IntType>});
+}
+
 }  // namespace berberis
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_BITMANIP_IMPL_H_
