@@ -40,6 +40,7 @@ auto Init() {
   platform_capabilities.kHasCLMUL = ecx & bit_PCLMUL;
   __cpuid(0x80000001, eax, ebx, ecx, edx);
   platform_capabilities.kHasLZCNT = ecx & bit_LZCNT;
+  platform_capabilities.kHasBMI = ebx & bit_BMI;
   platform_capabilities.kHasSSE4a = ecx & bit_SSE4a;
   platform_capabilities.kHasFMA4 = ecx & bit_FMA4;
   __cpuid(7, eax, ebx, ecx, edx);
