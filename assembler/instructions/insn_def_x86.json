@@ -558,7 +558,8 @@
       "encodings": {
         "Bsfl": { "opcodes": [ "0F", "BC" ] },
         "Bsrl": { "opcodes": [ "0F", "BD" ] },
-        "Lzcntl": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] }
+        "Lzcntl": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] },
+        "Tzcntl": { "feature": "BMI", "opcodes": [ "F3", "0F", "BC" ] }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -570,7 +571,8 @@
       "encodings": {
         "Bsfw": { "opcodes": [ "66", "0F", "BC" ] },
         "Bsrw": { "opcodes": [ "66", "0F", "BD" ] },
-        "Lzcntw": { "opcodes": [ "66", "F3", "0F", "BD" ] }
+        "Lzcntw": { "feature": "LZCNT", "opcodes": [ "66", "F3", "0F", "BD" ] },
+        "Tzcntw": { "feature": "BMI", "opcodes": [ "66", "F3", "0F", "BC" ] }
       },
       "args": [
         { "class": "GeneralReg16", "usage": "def" },
