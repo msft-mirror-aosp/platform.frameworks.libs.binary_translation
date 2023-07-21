@@ -65,6 +65,32 @@
     "out": [ 0 ]
   },
   {
+    "name": "Ctz<int32_t>",
+    "insn": "CtzInt32",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Ctz<int32_t>",
+    "insn": "TzcntlRegReg",
+    "feature": "BMI",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Ctz<int64_t>",
+    "insn": "CtzInt64",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Ctz<int64_t>",
+    "insn": "TzcntqRegReg",
+    "feature": "BMI",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float32>",
     "insn": "AddssXRegXReg",
     "in": [ 0, 1 ],
