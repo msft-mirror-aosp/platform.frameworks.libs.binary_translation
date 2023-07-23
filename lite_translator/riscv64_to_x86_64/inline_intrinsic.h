@@ -125,7 +125,13 @@ template <typename format, typename DestType, typename SrcType>
 auto Mov(MacroAssembler<x86_64::Assembler>& as, DestType dest, SrcType src)
     -> decltype(std::declval<MacroAssembler<x86_64::Assembler>>()
                     .Mov<format>(std::declval<DestType>(), std::declval<SrcType>())) {
-  return as.template Mov<format>(dest, src);
+  if constexpr (std::is_integral_v<format>) {
+    return as.template Mov<format>(dest, src);
+  } else if (host_platform::kHasAVX) {
+    return as.template Vmov<format>(dest, src);
+  } else {
+    return as.template Mov<format>(dest, src);
+  }
 }
 
 template <typename format, typename DestType, typename SrcType>
