@@ -48,24 +48,16 @@ class CodeEmitter : public CodeEmitterBase {
   CodeEmitter(MachineCode* mc, uint32_t frame_size)
       : CodeEmitterBase(mc),
         frame_size_{frame_size},
-        compiler_hooks_{nullptr},
         next_label_{nullptr},
         exit_label_for_testing_{nullptr},
         labels_(nullptr) {}
 
-  CodeEmitter(CompilerHooks* compiler_hooks,
-              MachineCode* mc,
-              uint32_t frame_size,
-              size_t max_ids,
-              Arena* arena)
+  CodeEmitter(MachineCode* mc, uint32_t frame_size, size_t max_ids, Arena* arena)
       : CodeEmitterBase(mc),
         frame_size_{frame_size},
-        compiler_hooks_{compiler_hooks},
         next_label_{nullptr},
         exit_label_for_testing_{nullptr},
         labels_(max_ids, nullptr, arena) {}
-
-  [[nodiscard]] const CompilerHooks* compiler_hooks() const { return compiler_hooks_; }
 
   void set_next_label(const Label* label) { next_label_ = label; }
 
@@ -87,10 +79,6 @@ class CodeEmitter : public CodeEmitterBase {
 
  private:
   const uint32_t frame_size_;
-
-  // Used by PseudoJump to find guest code entry for target pc.
-  // TODO(b/232598137): Maybe store hooks in PseudoJump instruction only?
-  CompilerHooks* compiler_hooks_;
 
   // Used by PseudoBranch and PseudoCondBranch to avoid emitting jumps
   // to the next instruction.
