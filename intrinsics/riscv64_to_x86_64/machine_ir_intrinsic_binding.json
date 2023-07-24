@@ -117,6 +117,30 @@
     "out": [ 0 ]
   },
   {
+    "name": "FCvtFloatToIntegerHostRounding<int64_t, Float64>",
+    "insn": "MacroFCvtFloat64ToInt64",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FCvtFloatToIntegerHostRounding<int64_t, Float32>",
+    "insn": "MacroFCvtFloat32ToInt64",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FCvtFloatToIntegerHostRounding<int32_t, Float64>",
+    "insn": "MacroFCvtFloat64ToInt32",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FCvtFloatToIntegerHostRounding<int32_t, Float32>",
+    "insn": "MacroFCvtFloat32ToInt32",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FDivHostRounding<Float32>",
     "insn": "DivssXRegXReg",
     "in": [ 0, 1 ],
