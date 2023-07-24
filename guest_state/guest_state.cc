@@ -87,6 +87,10 @@ std::atomic<uint_least8_t>& GetPendingSignalsStatusAtomic(ThreadState& state) {
   return state.pending_signals_status;
 }
 
+void SetPendingSignalsStatusAtomic(ThreadState& state, PendingSignalsStatus status) {
+  state.pending_signals_status = status;
+}
+
 bool ArePendingSignalsPresent(const ThreadState& state) {
   return state.pending_signals_status.load(std::memory_order_relaxed) == kPendingSignalsPresent;
 }
