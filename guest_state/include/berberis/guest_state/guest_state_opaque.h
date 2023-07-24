@@ -58,6 +58,7 @@ void SetPendingSignalsStatusAtomic(ThreadState& state, PendingSignalsStatus stat
 
 const CPUState& GetCPUState(const ThreadState& state);
 CPUState& GetCPUState(ThreadState& state);
+void SetCPUState(ThreadState& state, const CPUState& cpu);
 
 GuestAddr GetReturnValueRegister(const CPUState& cpu);
 void SetReturnValueRegister(CPUState& cpu, GuestAddr val);
