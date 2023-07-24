@@ -57,7 +57,7 @@ void MacroAssembler<Assembler>::MacroFeqAVX(Register result,
                                             XMMRegister src2,
                                             XMMRegister tmp) {
   Vcmpeqs<FloatType>(tmp, src1, src2);
-  Mov<FloatType>(result, tmp);
+  Vmov<FloatType>(result, tmp);
   And<int32_t>(result, 1);
 }
 
@@ -76,7 +76,7 @@ void MacroAssembler<Assembler>::MacroFleAVX(Register result,
                                             XMMRegister src2,
                                             XMMRegister tmp) {
   Vcmples<FloatType>(tmp, src1, src2);
-  Mov<FloatType>(result, tmp);
+  Vmov<FloatType>(result, tmp);
   And<int32_t>(result, 1);
 }
 
@@ -95,7 +95,7 @@ void MacroAssembler<Assembler>::MacroFltAVX(Register result,
                                             XMMRegister src2,
                                             XMMRegister tmp) {
   Vcmplts<FloatType>(tmp, src1, src2);
-  Mov<FloatType>(result, tmp);
+  Vmov<FloatType>(result, tmp);
   And<int32_t>(result, 1);
 }
 
