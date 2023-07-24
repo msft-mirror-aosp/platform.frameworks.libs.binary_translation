@@ -18,6 +18,14 @@
 
 namespace berberis {
 
+void SetReturnValueRegister(CPUState& cpu, GuestAddr val) {
+  SetXReg<A0>(cpu, val);
+}
+
+GuestAddr GetReturnValueRegister(const CPUState& cpu) {
+  return GetXReg<A0>(cpu);
+}
+
 void SetStackRegister(CPUState& cpu, GuestAddr val) {
   SetXReg<SP>(cpu, val);
 }
@@ -42,8 +50,18 @@ GuestAddr GetTlsAddr(const ThreadState& state) {
   return GetXReg<TP>(state.cpu);
 }
 
+void SetShadowCallStackPointer(CPUState& cpu, GuestAddr scs_sp) {
+  SetXReg<GP>(cpu, scs_sp);
+}
+
 void InitFloatingPointState() {
   // TODO(b/276787675): Initialize host MXCSR register once riscv64 intrinsics are supported.
+}
+
+void AdvanceInsnAddrBeyondSyscall(CPUState& cpu) {
+  // RV64I uses the same 4-byte ECALL instruction as RV32I.
+  // See ratified RISC-V unprivileged spec v2.1.
+  cpu.insn_addr += 4;
 }
 
 }  // namespace berberis
