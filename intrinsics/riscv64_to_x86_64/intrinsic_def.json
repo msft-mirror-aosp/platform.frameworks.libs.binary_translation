@@ -237,6 +237,18 @@
     "in": [ "imm8", "int8_t", "Type1" ],
     "out": [ "Type0" ]
   },
+  "FCvtFloatToIntegerHostRounding": {
+    "comment": "Convert float to integer",
+    "class": "template",
+    "variants": [
+      "int32_t, Float32",
+      "int32_t, Float64",
+      "int64_t, Float32",
+      "int64_t, Float64"
+    ],
+    "in": [ "Type1" ],
+    "out": [ "Type0" ]
+  },
   "FDiv": {
     "comment": "Floating point division",
     "class": "template",
