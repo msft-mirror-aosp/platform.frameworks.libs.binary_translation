@@ -217,4 +217,9 @@ extern "C" __attribute__((used, __visibility__("hidden"))) const void* berberis_
   return TranslationCache::GetInstance()->GetHostCodePtr(state->cpu.insn_addr)->load();
 }
 
+extern "C" __attribute__((used, __visibility__("hidden"))) void
+berberis_HandleLightCounterThresholdReached(ThreadState* /* state */) {
+  // no-op stub
+}
+
 }  // namespace berberis
