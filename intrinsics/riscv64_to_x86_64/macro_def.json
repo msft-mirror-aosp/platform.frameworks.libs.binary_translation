@@ -246,6 +246,42 @@
       ],
       "asm": "MacroUnboxNanAVX<intrinsics::Float32>",
       "mnemo": "MACRO_UNBOX_F32"
+    },
+    {
+      "name": "MacroFCvtFloat64ToInt64",
+      "args": [
+        {"class": "GeneralReg64", "usage": "def"},
+        {"class": "FpReg64", "usage": "use_def"}
+      ],
+      "asm": "MacroFCvtFloatToInteger<int64_t, intrinsics::Float64>",
+      "mnemo": "MACRO_FCvtFloatToInteger"
+    },
+    {
+      "name": "MacroFCvtFloat32ToInt64",
+      "args": [
+        {"class": "GeneralReg64", "usage": "def"},
+        {"class": "FpReg64", "usage": "use_def"}
+      ],
+      "asm": "MacroFCvtFloatToInteger<int64_t, intrinsics::Float32>",
+      "mnemo": "MACRO_FCvtFloatToInteger"
+    },
+    {
+      "name": "MacroFCvtFloat64ToInt32",
+      "args": [
+        {"class": "GeneralReg64", "usage": "def"},
+        {"class": "FpReg64", "usage": "use_def"}
+      ],
+      "asm": "MacroFCvtFloatToInteger<int32_t, intrinsics::Float64>",
+      "mnemo": "MACRO_FCvtFloatToInteger"
+    },
+    {
+      "name": "MacroFCvtFloat32ToInt32",
+      "args": [
+        {"class": "GeneralReg64", "usage": "def"},
+        {"class": "FpReg64", "usage": "use_def"}
+      ],
+      "asm": "MacroFCvtFloatToInteger<int32_t, intrinsics::Float32>",
+      "mnemo": "MACRO_FCvtFloatToInteger"
     }
   ]
 }
