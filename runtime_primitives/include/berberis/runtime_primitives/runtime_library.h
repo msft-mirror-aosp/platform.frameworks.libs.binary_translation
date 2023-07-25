@@ -30,6 +30,7 @@ void berberis_entry_Interpret();
 void berberis_entry_ExitGeneratedCode();
 void berberis_entry_Stop();
 void berberis_entry_NoExec();
+void berberis_entry_HandleLightCounterThresholdReached();
 
 // TODO(b/232598137): use status variable instead?
 void berberis_entry_NotTranslated();
