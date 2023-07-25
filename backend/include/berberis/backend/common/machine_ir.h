@@ -19,6 +19,7 @@
 #ifndef BERBERIS_BACKEND_COMMON_MACHINE_IR_H_
 #define BERBERIS_BACKEND_COMMON_MACHINE_IR_H_
 
+#include <climits>  // CHAR_BIT
 #include <cstdint>
 #include <limits>
 
@@ -95,6 +96,48 @@ class MachineReg {
 };
 
 constexpr MachineReg kInvalidMachineReg{0};
+
+// Set of registers, ordered by allocation preference.
+// This is a struct to avoid static initializers.
+// TODO(b/232598137) See if there's a way to use a class here. const array init
+// (regs member) in constexpr context is the main challenge.
+struct MachineRegClass {
+  const char* debug_name;
+  int reg_size;
+  uint64_t reg_mask;
+  int num_regs;
+  const MachineReg regs[sizeof(reg_mask) * CHAR_BIT];
+
+  [[nodiscard]] int RegSize() const { return reg_size; }
+
+  [[nodiscard]] bool HasReg(MachineReg r) const { return reg_mask & (uint64_t{1} << r.reg()); }
+
+  [[nodiscard]] bool IsSubsetOf(const MachineRegClass* other) const {
+    return (reg_mask & other->reg_mask) == reg_mask;
+  }
+
+  [[nodiscard]] const MachineRegClass* GetIntersection(const MachineRegClass* other) const {
+    // At the moment, only handle the case when one class is a subset of other.
+    // In most real-life cases reg classes form a tree, so this is good enough.
+    auto mask = reg_mask & other->reg_mask;
+    if (mask == reg_mask) {
+      return this;
+    }
+    if (mask == other->reg_mask) {
+      return other;
+    }
+    return nullptr;
+  }
+
+  [[nodiscard]] constexpr int NumRegs() const { return num_regs; }
+
+  [[nodiscard]] MachineReg RegAt(int i) const { return regs[i]; }
+
+  [[nodiscard]] const MachineReg* begin() const { return &regs[0]; }
+  [[nodiscard]] const MachineReg* end() const { return &regs[num_regs]; }
+
+  [[nodiscard]] const char* GetDebugName() const { return debug_name; }
+};
 
 }  // namespace berberis
 
