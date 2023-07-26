@@ -394,6 +394,8 @@ class Interpreter {
     branch_taken_ = true;
   }
 
+  FpRegister Fmv(FpRegister arg) { return arg; }
+
   void Nop() {}
 
   void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
