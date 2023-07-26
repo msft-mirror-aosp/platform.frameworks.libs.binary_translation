@@ -54,9 +54,13 @@ enum PendingSignalsStatus : uint_least8_t {
 
 // Values are interpreted as PendingSignalsStatus.
 std::atomic<uint_least8_t>& GetPendingSignalsStatusAtomic(ThreadState& state);
+void SetPendingSignalsStatusAtomic(ThreadState& state, PendingSignalsStatus status);
 
 const CPUState& GetCPUState(const ThreadState& state);
 CPUState& GetCPUState(ThreadState& state);
+
+GuestAddr GetReturnValueRegister(const CPUState& cpu);
+void SetReturnValueRegister(CPUState& cpu, GuestAddr val);
 
 void SetStackRegister(CPUState& cpu, GuestAddr val);
 GuestAddr GetStackRegister(const CPUState& cpu);
@@ -67,11 +71,18 @@ GuestAddr GetLinkRegister(const CPUState& cpu);
 void SetInsnAddr(CPUState& cpu, GuestAddr addr);
 GuestAddr GetInsnAddr(const CPUState& cpu);
 
+// Assuming PC currently points to a supervisor call instruction, advance PC to the next
+// instruction. Must be implemented according to the guest architecture.
+void AdvanceInsnAddrBeyondSyscall(CPUState& cpu);
+
 // TODO(b/28058920): Refactor into GuestThread.
 bool ArePendingSignalsPresent(const ThreadState& state);
 
 void SetTlsAddr(ThreadState& state, GuestAddr addr);
 GuestAddr GetTlsAddr(const ThreadState& cpu);
+
+// Set the appropriate stack pointer register, if it exists for a given guest architecture.
+void SetShadowCallStackPointer(CPUState& cpu, GuestAddr scs_sp);
 
 void InitFloatingPointState();
 
