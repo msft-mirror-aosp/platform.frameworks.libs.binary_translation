@@ -20,6 +20,7 @@
 
 #if defined(__BIONIC__)
 #include "private/bionic_constants.h"
+#include "private/bionic_tls.h"
 #endif
 
 #include "berberis/base/checks.h"
@@ -30,6 +31,8 @@
 #include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/host_stack.h"
 #include "native_bridge_support/linker/static_tls_config.h"
+
+#include "get_tls.h"
 
 extern "C" void berberis_UnmapAndExit(void* ptr, size_t size, int status);
 
@@ -255,7 +258,26 @@ bool GuestThread::AllocStaticTls() {
 }
 
 void GuestThread::InitStaticTls() {
-  // TODO(b/277625454): Implement.
+#if defined(__BIONIC__)
+  if (static_tls_ == nullptr) {
+    // Leave the thread pointer unset when starting the main thread.
+    return;
+  }
+  // First initialize static TLS using the initialization image, then update
+  // some of the TLS slots. Reuse the host's pthread_internal_t and
+  // bionic_tls objects. We verify that these structures are safe to use with
+  // checks in berberis/android_api/libc/pthread_translation.h.
+  memcpy(static_tls_, g_static_tls_config.init_img, g_static_tls_config.size);
+  void** tls =
+      reinterpret_cast<void**>(reinterpret_cast<char*>(static_tls_) + g_static_tls_config.tpoff);
+  tls[g_static_tls_config.tls_slot_thread_id] = GetTls()[TLS_SLOT_THREAD_ID];
+  tls[g_static_tls_config.tls_slot_bionic_tls] = GetTls()[TLS_SLOT_BIONIC_TLS];
+  SetTlsAddr(*state_, ToGuestAddr(tls));
+#else
+  // For Glibc we provide stub which is only usable to distinguish different threads.
+  // This is the only thing that many applications need.
+  SetTlsAddr(*state_, GettidSyscall());
+#endif
 }
 
 void GuestThread::ConfigStaticTls(const NativeBridgeStaticTlsConfig* config) {
