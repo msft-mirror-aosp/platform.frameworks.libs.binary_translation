@@ -103,6 +103,10 @@ CPUState& GetCPUState(ThreadState& state) {
   return state.cpu;
 }
 
+void SetCPUState(ThreadState& state, const CPUState& cpu) {
+  state.cpu = cpu;
+}
+
 void SetInsnAddr(CPUState& cpu, GuestAddr addr) {
   cpu.insn_addr = addr;
 }
