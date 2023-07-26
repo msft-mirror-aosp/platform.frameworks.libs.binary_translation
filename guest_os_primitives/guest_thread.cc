@@ -71,6 +71,28 @@ GuestThread* GuestThread::Create() {
 }
 
 // static
+GuestThread* GuestThread::CreateClone(const GuestThread* parent) {
+  GuestThread* thread = Create();
+  if (thread == nullptr) {
+    return nullptr;
+  }
+
+  // TODO(156271630): alloc host stack guard?
+  thread->host_stack_ = MmapOrDie(GetStackSizeForTranslation());
+  if (thread->host_stack_ == MAP_FAILED) {
+    TRACE("failed to allocate host stack!");
+    thread->host_stack_ = nullptr;
+    Destroy(thread);
+    return nullptr;
+  }
+
+  SetCPUState(*thread->state(), GetCPUState(*parent->state()));
+  SetTlsAddr(*thread->state(), GetTlsAddr(*parent->state()));
+
+  return thread;
+}
+
+// static
 GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t guard_size) {
   GuestThread* thread = Create();
   if (thread == nullptr) {
@@ -244,6 +266,12 @@ void GuestThread::ConfigStaticTls(const NativeBridgeStaticTlsConfig* config) {
   // Reinitialize the main thread's static TLS.
   CHECK_EQ(true, AllocStaticTls());
   InitStaticTls();
+}
+
+void* GuestThread::GetHostStackTop() const {
+  CHECK(host_stack_);
+  auto top = reinterpret_cast<uintptr_t>(host_stack_) + GetStackSizeForTranslation();
+  return reinterpret_cast<void*>(top);
 }
 
 }  // namespace berberis
