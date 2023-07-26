@@ -36,7 +36,7 @@ cc_library_headers {
 
 // Common sources to be shared across arch-specific libraries.
 cc_library_static {
-    name: "libberberis_guest_os_primitives",
+    name: "libberberis_guest_os_primitives_common",
     defaults: ["berberis_defaults"],
     host_supported: true,
     srcs: [
@@ -44,8 +44,11 @@ cc_library_static {
         "guest_signal_action.cc",
         "guest_signal_handling.cc",
         "guest_thread.cc",
+        "guest_thread_clone.cc",
+        "guest_thread_key.cc",
         "guest_thread_manager.cc",
         "guest_thread_map.cc",
+        "guest_thread_pthread_create.cc",
     ],
     arch: {
         x86: {
@@ -60,6 +63,7 @@ cc_library_static {
         "libberberis_guest_os_primitives_headers",
         "libberberis_guest_state_headers",
         "libberberis_instrument_headers",
+        "libberberis_runtime_headers",
         "libberberis_runtime_primitives_headers",
         "//frameworks/libs/native_bridge_support:native_bridge_guest_linker_headers",
     ],
@@ -70,18 +74,53 @@ cc_library_static {
     ],
 }
 
+// This hidden filegroup ensures valid file paths for modules depending on
+// libberberis_guest_os_primitives_common_arch_defaults.
+filegroup {
+    name: "_libberberis_guest_os_primitives_common_arch_srcs",
+    srcs: [
+        "guest_thread_pthread_create_arch.cc",
+    ],
+}
+
+// Similar to the filegroup above. Hidden header lib for modules depending on
+// libberberis_guest_os_primitives_common_arch_defaults.
+cc_library_headers {
+    name: "_libberberis_guest_os_primitives_local_headers",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    export_include_dirs: ["."],
+}
+
+// Contains sources that are textually common, but must be compiled with arch-
+// specific headers, which makes object code arch-specific. In other words,
+// only include this module in guest arch-specific libraries.
+cc_defaults {
+    name: "libberberis_guest_os_primitives_common_arch_defaults",
+    srcs: [":_libberberis_guest_os_primitives_common_arch_srcs"],
+    header_libs: [
+        "_libberberis_guest_os_primitives_local_headers",
+        "libberberis_base_headers",
+        "libberberis_guest_abi_headers",
+    ],
+}
+
 cc_library_static {
     name: "libberberis_guest_os_primitives_riscv64",
-    defaults: ["berberis_defaults_64"],
+    defaults: [
+        "berberis_defaults_64",
+        "libberberis_guest_os_primitives_common_arch_defaults",
+    ],
     host_supported: true,
     whole_static_libs: [
-        "libberberis_guest_os_primitives",
+        "libberberis_guest_os_primitives_common",
     ],
     srcs: [
         "riscv64/guest_setjmp.cc",
         "riscv64/guest_signal.cc",
     ],
     header_libs: [
+        "libberberis_guest_abi_riscv64_headers",
         "libberberis_guest_os_primitives_headers",
         "libberberis_guest_state_headers",
         "libberberis_guest_state_riscv64_headers",

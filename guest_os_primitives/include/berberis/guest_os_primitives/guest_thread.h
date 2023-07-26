@@ -92,6 +92,9 @@ class GuestThread {
 
   void DisallowStackUnmap() { mmap_size_ = 0; }
 
+  // TODO(b/156271630): Refactor to make this private.
+  void* GetHostStackTop() const;
+
  private:
   GuestThread() = default;
   static GuestThread* Create();
