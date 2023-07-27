@@ -45,7 +45,7 @@ const char* GetTranslationModeConfig();
 
 const char* GetProfilingConfig();
 
-enum ConfigFlag { kVerboseTranslation, kNumConfigFlags };
+enum ConfigFlag { kVerboseTranslation, kAccurateSigsegv, kNumConfigFlags };
 
 [[nodiscard]] bool IsConfigFlagSet(ConfigFlag flag);
 

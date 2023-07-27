@@ -16,11 +16,21 @@
 
 #include "berberis/guest_os_primitives/guest_signal.h"
 
+#include "berberis/base/tracing.h"
+
 namespace berberis {
 
 size_t GetGuest_MINSIGSTKSZ() {
   // See bionic/libc/kernel/uapi/asm-riscv/asm/signal.h
   return 2048;
+}
+
+void CheckSigactionRestorer(const Guest_sigaction* /*guest_sa*/) {
+  TRACE("Ignoring riscv sa_restorer in guest sigaction");
+}
+
+void ResetSigactionRestorer(Guest_sigaction* /*guest_sa*/) {
+  // sa_restorer is absent in sigaction for riscv.
 }
 
 }  // namespace berberis
