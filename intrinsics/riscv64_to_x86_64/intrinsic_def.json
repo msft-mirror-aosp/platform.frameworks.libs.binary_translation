@@ -196,14 +196,18 @@
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0" ],
-    "out": [ "uint64_t" ]
+    "out": [ "uint64_t" ],
+    "side_effects_comment": "Classification of value, doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FCvtFloatToFloat": {
     "comment": "Convert float to float",
     "class": "template",
     "variants": [ "Float32, Float64", "Float64, Float32" ],
     "in": [ "imm8", "int8_t", "Type1" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FCvtFloatToInteger": {
     "comment": "Convert float to integer",
@@ -219,7 +223,9 @@
       "uint64_t, Float64"
     ],
     "in": [ "imm8", "int8_t", "Type1" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FCvtIntegerToFloat": {
     "comment": "Convert integer to float",
@@ -235,7 +241,9 @@
       "Float64, uint64_t"
     ],
     "in": [ "imm8", "int8_t", "Type1" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FCvtFloatToIntegerHostRounding": {
     "comment": "Convert float to integer",
@@ -247,7 +255,9 @@
       "int64_t, Float64"
     ],
     "in": [ "Type1" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FDiv": {
     "comment": "Floating point division",
@@ -345,14 +355,18 @@
     "class": "template",
     "variants": [ "int32_t, Float32", "int64_t, Float64" ],
     "in": [ "Type1" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FmvIntegerToFloat": {
     "comment": "Move floating point register to integer register",
     "class": "template",
     "variants": [ "Float32, int32_t", "Float64, int64_t" ],
     "in": [ "Type1" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FNMAdd": {
     "comment": "Fused negated multiply-addition",
@@ -387,21 +401,27 @@
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FSgnjn": {
     "comment": "Copy negated sign of one float to another",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FSgnjx": {
     "comment": "Xor two sign bits of two floats and return",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
+    "has_side_effects": 0
   },
   "FSqrt": {
     "comment": "Square root",
