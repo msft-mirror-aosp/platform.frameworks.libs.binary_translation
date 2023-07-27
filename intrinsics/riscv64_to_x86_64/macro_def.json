@@ -90,7 +90,7 @@
     {
       "name": "MacroFeqFloat32",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg32", "usage": "use_def" },
         { "class": "FpReg32", "usage": "use" }
       ],
@@ -100,7 +100,7 @@
     {
       "name": "MacroFeqFloat32AVX",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg32", "usage": "use" },
         { "class": "FpReg32", "usage": "use" },
         { "class": "FpReg32", "usage": "def" }
@@ -111,7 +111,7 @@
     {
       "name": "MacroFeqFloat64",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg64", "usage": "use_def" },
         { "class": "FpReg64", "usage": "use" }
       ],
@@ -121,7 +121,7 @@
     {
       "name": "MacroFeqFloat64AVX",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg64", "usage": "use" },
         { "class": "FpReg64", "usage": "use" },
         { "class": "FpReg64", "usage": "def" }
@@ -132,7 +132,7 @@
     {
       "name": "MacroFleFloat32",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg32", "usage": "use_def" },
         { "class": "FpReg32", "usage": "use" }
       ],
@@ -142,7 +142,7 @@
     {
       "name": "MacroFleFloat32AVX",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg32", "usage": "use" },
         { "class": "FpReg32", "usage": "use" },
         { "class": "FpReg32", "usage": "def" }
@@ -153,7 +153,7 @@
     {
       "name": "MacroFleFloat64",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg64", "usage": "use_def" },
         { "class": "FpReg64", "usage": "use" }
       ],
@@ -163,7 +163,7 @@
     {
       "name": "MacroFleFloat64AVX",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg64", "usage": "use" },
         { "class": "FpReg64", "usage": "use" },
         { "class": "FpReg64", "usage": "def" }
@@ -174,7 +174,7 @@
     {
       "name": "MacroFltFloat32",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg32", "usage": "use_def" },
         { "class": "FpReg32", "usage": "use" }
       ],
@@ -184,7 +184,7 @@
     {
       "name": "MacroFltFloat32AVX",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg32", "usage": "use" },
         { "class": "FpReg32", "usage": "use" },
         { "class": "FpReg32", "usage": "def" }
@@ -195,7 +195,7 @@
     {
       "name": "MacroFltFloat64",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg64", "usage": "use_def" },
         { "class": "FpReg64", "usage": "use" }
       ],
@@ -205,7 +205,7 @@
     {
       "name": "MacroFltFloat64AVX",
       "args": [
-        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "FpReg64", "usage": "use" },
         { "class": "FpReg64", "usage": "use" },
         { "class": "FpReg64", "usage": "def" }
