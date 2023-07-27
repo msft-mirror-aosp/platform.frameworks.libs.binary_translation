@@ -1024,6 +1024,8 @@ TEST_F(TESTSUITE, OpImmInstructions) {
   // Ctz
   TestOpImm(0x60111093, {{0, 0, 64}});
   TestOpImm(0x60111093, {{0x01000000'0000, 0, 40}});
+  // Cpop
+  TestOpImm(0x60211093, {{0xf000'0000'0000'000fULL, 0, 8}});
 }
 
 TEST_F(TESTSUITE, OpImm32Instructions) {
@@ -1043,6 +1045,8 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   // Ctzw
   TestOpImm(0x6011109b, {{0, 0, 32}});
   TestOpImm(0x6011109b, {{0x0000'0000'0000'0010, 0, 4}});
+  // Cpopw
+  TestOpImm(0x6021109b, {{0xf000'0000'0000'000f, 0, 4}});
 }
 
 TEST_F(TESTSUITE, OpFpInstructions) {
