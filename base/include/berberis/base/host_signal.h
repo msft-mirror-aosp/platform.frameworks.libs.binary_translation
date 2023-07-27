@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_OS_PRIMITIVES_HOST_SIGNAL_H_
-#define BERBERIS_GUEST_OS_PRIMITIVES_HOST_SIGNAL_H_
+#ifndef BERBERIS_BASE_HOST_SIGNAL_H_
+#define BERBERIS_BASE_HOST_SIGNAL_H_
 
 #include <signal.h>
 #include <sys/syscall.h>
@@ -55,4 +55,4 @@ inline void RTSigprocmaskSyscallOrDie(int how, const HostSigset* new_set, HostSi
 
 }  // namespace berberis
 
-#endif  // BERBERIS_GUEST_OS_PRIMITIVES_HOST_SIGNAL_H_
+#endif  // BERBERIS_BASE_HOST_SIGNAL_H_
