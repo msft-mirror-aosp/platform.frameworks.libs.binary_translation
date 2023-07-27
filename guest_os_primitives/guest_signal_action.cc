@@ -16,10 +16,9 @@
 
 #include "guest_signal_action.h"
 
+#include "berberis/base/host_signal.h"
 #include "berberis/base/macros.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
-
-#include "host_signal.h"
 
 namespace berberis {
 
