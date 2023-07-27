@@ -20,9 +20,8 @@
 #include <cstdint>
 #include <cstring>  // memcpy
 
+#include "berberis/base/host_signal.h"
 #include "berberis/guest_state/guest_state.h"
-
-#include "host_signal.h"
 
 namespace berberis {
 

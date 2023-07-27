@@ -18,11 +18,11 @@
 #include <semaphore.h>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/host_signal.h"  // RTSigprocmaskSyscallOrDie
 #include "berberis/guest_abi/guest_call.h"
 
 #include "guest_thread_manager_impl.h"  // InsertCurrentThread
 #include "guest_thread_pthread_create.h"
-#include "host_signal.h"  // RTSigprocmaskSyscallOrDie
 
 namespace berberis {
 

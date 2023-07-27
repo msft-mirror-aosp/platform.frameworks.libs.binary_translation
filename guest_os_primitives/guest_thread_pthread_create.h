@@ -19,10 +19,9 @@
 
 #include <semaphore.h>
 
+#include "berberis/base/host_signal.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_state/guest_addr.h"
-
-#include "host_signal.h"
 
 namespace berberis {
 
