@@ -20,7 +20,9 @@
 #include <csignal>
 #include <cstring>
 
+#include "berberis/base/host_signal.h"  // HostStructSigaction
 #include "berberis/base/struct_check.h"
+#include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_state/guest_addr.h"
 
 namespace berberis {
@@ -89,6 +91,14 @@ bool SetGuestSignalHandler(int signal,
                            const Guest_sigaction* act,
                            Guest_sigaction* old_act,
                            int* error);
+
+// Recognize canonical (kernel-provided) handlers and log a fatal message otherwise.
+void CheckSigactionRestorer(const Guest_sigaction* guest_sa);
+void ResetSigactionRestorer(Guest_sigaction* guest_sa);
+
+GuestAddr WrapHostSigactionForGuest(const HostStructSigaction& host_sa);
+
+void ProcessGuestSignal(GuestThread* thread, const Guest_sigaction* sa, Guest_siginfo_t* info);
 
 }  // namespace berberis
 
