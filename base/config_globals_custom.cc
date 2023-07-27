@@ -30,6 +30,8 @@ std::string ToString(ConfigFlag flag) {
   switch (flag) {
     case kVerboseTranslation:
       return "verbose-translation";
+    case kAccurateSigsegv:
+      return "accurate-sigsegv";
     case kNumConfigFlags:
       break;
   }
