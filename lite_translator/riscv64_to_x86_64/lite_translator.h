@@ -144,6 +144,12 @@ class LiteTranslator {
     return {};
   }
 
+  FpRegister Fmv(FpRegister arg) {
+    UNUSED(arg);
+    Unimplemented();
+    return {};
+  }
+
   //
   // Guest state getters/setters.
   //
