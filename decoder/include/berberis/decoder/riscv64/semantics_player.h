@@ -597,6 +597,21 @@ class SemanticsPlayer {
     }
   }
 
+  void OpFpSingleInputNoRounding(const typename Decoder::OpFpSingleInputNoRoundingArgs& args) {
+    FpRegister arg = GetFRegAndUnboxNan(args.src, args.operand_type);
+    FpRegister result;
+    switch (args.opcode) {
+      case Decoder::OpFpSingleInputNoRoundingOpcode::kFmv:
+        result = listener_->Fmv(arg);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
+    result = CanonicalizeNan(result, args.operand_type);
+    NanBoxAndSetFpReg(args.dst, result, args.operand_type);
+  }
+
   template <typename OpImmArgs>
   void OpImm(OpImmArgs&& args) {
     Register arg = GetRegOrZero(args.src);
