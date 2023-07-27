@@ -79,6 +79,8 @@ cc_library_static {
 filegroup {
     name: "_libberberis_guest_os_primitives_common_arch_srcs",
     srcs: [
+        "guest_signal_action_arch.cc",
+        "guest_signal_handling_arch.cc",
         "guest_thread_pthread_create_arch.cc",
     ],
 }
@@ -102,6 +104,7 @@ cc_defaults {
         "_libberberis_guest_os_primitives_local_headers",
         "libberberis_base_headers",
         "libberberis_guest_abi_headers",
+        "libberberis_guest_state_headers",
     ],
 }
 
@@ -119,6 +122,7 @@ cc_library_static {
         "riscv64/guest_setjmp.cc",
         "riscv64/guest_signal.cc",
     ],
+    local_include_dirs: ["riscv64"],
     header_libs: [
         "libberberis_guest_abi_riscv64_headers",
         "libberberis_guest_os_primitives_headers",
