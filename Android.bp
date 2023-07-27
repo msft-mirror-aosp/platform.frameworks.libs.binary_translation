@@ -179,6 +179,7 @@ cc_test_host {
                 "base/raw_syscall_tests.cc",
             ],
             static_libs: [
+                "libberberis_guest_abi_riscv64",
                 "libberberis_guest_os_primitives_riscv64",
                 "libberberis_guest_state_riscv64",
                 "libberberis_interpreter_riscv64",
