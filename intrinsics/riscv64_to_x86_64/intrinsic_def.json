@@ -30,7 +30,7 @@
     "in": [ "int64_t", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "AmoAnd": {
     "comment": "Atomic and, like __atomic_fetch_and. Three template arguments: type, aq, rl.",
@@ -48,7 +48,7 @@
     "in": [ "int64_t", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "AmoMax": {
     "comment": "Atomic maximum, like __atomic_fetch_max. Three template arguments: type, aq, rl.",
@@ -74,7 +74,7 @@
     "in": [ "int64_t", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "AmoMin": {
     "comment": "Atomic minimum, like __atomic_fetch_min. Three template arguments: type, aq, rl.",
@@ -100,7 +100,7 @@
     "in": [ "int64_t", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "AmoOr": {
     "comment": "Atomic or, like __atomic_fetch_or. Three template arguments: type, aq, rl.",
@@ -118,7 +118,7 @@
     "in": [ "int64_t", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "AmoSwap": {
     "comment": "Atomic exchange, like __atomic_exchange_n. Three template arguments: type, aq, rl.",
@@ -136,7 +136,7 @@
     "in": [ "int64_t", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "AmoXor": {
     "comment": "Atomic exclusive or, like __atomic_fetch_xor. Three template arguments: type, aq, rl.",
@@ -154,7 +154,7 @@
     "in": [ "int64_t", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "CanonicalizeNan": {
     "comment": "Unbox small floating-point value from NaN",
@@ -198,7 +198,7 @@
     "in": [ "Type0" ],
     "out": [ "uint64_t" ],
     "side_effects_comment": "Classification of value, doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FCvtFloatToFloat": {
     "comment": "Convert float to float",
@@ -207,7 +207,7 @@
     "in": [ "imm8", "int8_t", "Type1" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FCvtFloatToInteger": {
     "comment": "Convert float to integer",
@@ -225,7 +225,7 @@
     "in": [ "imm8", "int8_t", "Type1" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FCvtIntegerToFloat": {
     "comment": "Convert integer to float",
@@ -243,7 +243,7 @@
     "in": [ "imm8", "int8_t", "Type1" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FCvtFloatToIntegerHostRounding": {
     "comment": "Convert float to integer",
@@ -257,7 +257,7 @@
     "in": [ "Type1" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FDiv": {
     "comment": "Floating point division",
@@ -357,7 +357,7 @@
     "in": [ "Type1" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FmvIntegerToFloat": {
     "comment": "Move floating point register to integer register",
@@ -366,7 +366,7 @@
     "in": [ "Type1" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FNMAdd": {
     "comment": "Fused negated multiply-addition",
@@ -403,7 +403,7 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FSgnjn": {
     "comment": "Copy negated sign of one float to another",
@@ -412,7 +412,7 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FSgnjx": {
     "comment": "Xor two sign bits of two floats and return",
@@ -421,7 +421,7 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
-    "has_side_effects": 0
+    "has_side_effects": false
   },
   "FSqrt": {
     "comment": "Square root",
@@ -467,7 +467,7 @@
     "in": [ "int64_t" ],
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "NanBox": {
     "comment": [
@@ -496,7 +496,7 @@
     "in": [ "int64_t", "Type0" ],
     "out": [ "int64_t" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": 1
+    "has_side_effects": true
   },
   "UnboxNan": {
     "comment": "Unbox small floating-point value from NaN",
