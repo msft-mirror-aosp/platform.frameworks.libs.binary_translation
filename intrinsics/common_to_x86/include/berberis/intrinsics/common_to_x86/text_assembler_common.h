@@ -17,10 +17,10 @@
 #ifndef BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
 #define BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
 
-#include <stdint.h>
-#include <stdio.h>
-
 #include <array>
+#include <cstdint>
+#include <cstdio>
+#include <deque>
 #include <string>
 
 #include "berberis/base/checks.h"
@@ -226,7 +226,10 @@ class TextAssemblerX86 {
     label->bound = true;
   }
 
-  Label* MakeLabel() { return new Label{labels_allocated_++}; }
+  Label* MakeLabel() {
+    labels_allocated_.push_back({labels_allocated_.size()});
+    return &labels_allocated_.back();
+  }
 
 // Instructions.
 #include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
@@ -328,7 +331,7 @@ class TextAssemblerX86 {
   FILE* out_;
 
  private:
-  size_t labels_allocated_ = 0;
+  std::deque<Label> labels_allocated_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TextAssemblerX86);
 };
