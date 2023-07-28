@@ -123,10 +123,14 @@ class Decoder {
     kDivu = 0b0000'001'101,
     kRem = 0b0000'001'110,
     kRemu = 0b0000'001'111,
-    kMaxValue = 0b1111'111'111,
     kAndn = 0b0100'000'111,
     kOrn = 0b0100'000'110,
     kXnor = 0b0100'000'100,
+    kMax = 0b0000'101'110,
+    kMaxu = 0b0000'101'111,
+    kMin = 0b0000'101'100,
+    kMinu = 0b0000'101'101,
+    kMaxValue = 0b1111'111'111,
   };
 
   enum class Op32Opcode {
