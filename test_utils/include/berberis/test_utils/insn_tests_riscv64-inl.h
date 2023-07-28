@@ -282,6 +282,148 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(store_area_, expected_result);
   }
 
+  template <typename... Types>
+  void TestFma(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg1, arg2, arg3, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg1);
+      SetFReg<3>(state_.cpu, arg2);
+      SetFReg<4>(state_.cpu, arg3);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  void TestAmo(uint32_t insn_bytes,
+               uint64_t arg1,
+               uint64_t arg2,
+               uint64_t expected_result,
+               uint64_t expected_memory) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    // Copy arg1 into store_area_
+    store_area_ = arg1;
+    SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_)));
+    SetXReg<3>(state_.cpu, arg2);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    EXPECT_EQ(store_area_, expected_memory);
+  }
+
+  void TestAmo(uint32_t insn_bytes32, uint32_t insn_bytes64, uint64_t expected_memory) {
+    TestAmo(insn_bytes32,
+            0xffff'eeee'dddd'ccccULL,
+            0xaaaa'bbbb'cccc'ddddULL,
+            0xffff'ffff'dddd'ccccULL,
+            0xffff'eeee'0000'0000 | uint32_t(expected_memory));
+    TestAmo(insn_bytes64,
+            0xffff'eeee'dddd'ccccULL,
+            0xaaaa'bbbb'cccc'ddddULL,
+            0xffff'eeee'dddd'ccccULL,
+            expected_memory);
+  }
+
+  template <typename... Types>
+  void TestFmvFloatToInteger(uint32_t insn_bytes,
+                             std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<1>(state_.cpu, arg);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
+  void TestFmvIntegerToFloat(uint32_t insn_bytes,
+                             std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<1>(state_.cpu, arg);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetFReg<1>(state_.cpu), kFPValueToFPReg(expected_result));
+    }
+  }
+
+  template <typename... Types>
+  void TestOpFpGpRegisterTarget(uint32_t insn_bytes,
+                                std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg1);
+      SetFReg<3>(state_.cpu, arg2);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
+  void TestOpFpGpRegisterTargetSingleInput(uint32_t insn_bytes,
+                                           std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
+  void TestOpFpGpRegisterSourceSingleInput(uint32_t insn_bytes,
+                                           std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetXReg<2>(state_.cpu, arg);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  template <typename... Types>
+  void TestOpFpSingleInput(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
+    for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      SetFReg<2>(state_.cpu, arg);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  void TestLoadFp(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    // Offset is always 8.
+    SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - 8));
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+  }
+
+  void TestAtomicLoad(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&kDataToLoad));
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
+  }
+
+  void TestStoreFp(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    // Offset is always 8.
+    SetXReg<1>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - 8));
+    SetFReg<2>(state_.cpu, kDataToStore);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, expected_result);
+  }
+
+  void TestAtomicStore(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, expected_result);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
+  }
+
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
@@ -385,6 +527,14 @@ TEST_F(TESTSUITE, CompressedLoadAndStores) {
   TestCompressedLoadOrStore64bit<
       0b111'000'000'00'000'00,
       &TESTSUITE::TestCompressedStore<RegisterType::kReg, kDataToLoad, 8>>(this);
+  // c.Fld
+  TestCompressedLoadOrStore64bit<
+      0b001'000'000'00'000'00,
+      &TESTSUITE::TestCompressedLoad<RegisterType::kFpReg, kDataToLoad, 8>>(this);
+  // c.Fsd
+  TestCompressedLoadOrStore64bit<
+      0b101'000'000'00'000'00,
+      &TESTSUITE::TestCompressedStore<RegisterType::kFpReg, kDataToLoad, 8>>(this);
 }
 
 TEST_F(TESTSUITE, TestCompressedStore32bitsp) {
@@ -456,6 +606,10 @@ TEST_F(TESTSUITE, TestCompressedStore64bitsp) {
   TestCompressedStore64bitsp<0b011'000'000'00'000'00,
                              &TESTSUITE::TestCompressedStore<RegisterType::kReg, kDataToStore, 2>>(
       this);
+  // c.Fsdsp
+  TestCompressedStore64bitsp<
+      0b001'000'000'00'000'00,
+      &TESTSUITE::TestCompressedStore<RegisterType::kFpReg, kDataToStore, 2>>(this);
 }
 
 TEST_F(TESTSUITE, TestCompressedLoad32bitsp) {
@@ -532,6 +686,10 @@ TEST_F(TESTSUITE, TestCompressedLoad64bitsp) {
   // c.Ldsp
   TestCompressedLoad64bitsp<0b011'000'000'00'000'00,
                             &TESTSUITE::TestCompressedLoad<RegisterType::kReg, kDataToLoad, 2>>(
+      this);
+  // c.Fldsp
+  TestCompressedLoad64bitsp<0b001'000'000'00'000'00,
+                            &TESTSUITE::TestCompressedLoad<RegisterType::kFpReg, kDataToLoad, 2>>(
       this);
 }
 
@@ -1262,4 +1420,298 @@ TEST_F(TESTSUITE, StoreInstructions) {
   TestStore(0x0020a423, kDataToStore & 0xffff'ffffULL);
   // Sd
   TestStore(0x0020b423, kDataToStore);
+}
+
+TEST_F(TESTSUITE, FmaInstructions) {
+  // Fmadd.S
+  TestFma(0x203170c3, {std::tuple{1.0f, 2.0f, 3.0f, 5.0f}});
+  // Fmadd.D
+  TestFma(0x223170c3, {std::tuple{1.0, 2.0, 3.0, 5.0}});
+  // Fmsub.S
+  TestFma(0x203170c7, {std::tuple{1.0f, 2.0f, 3.0f, -1.0f}});
+  // Fmsub.D
+  TestFma(0x223170c7, {std::tuple{1.0, 2.0, 3.0, -1.0}});
+  // Fnmsub.S
+  TestFma(0x203170cb, {std::tuple{1.0f, 2.0f, 3.0f, 1.0f}});
+  // Fnmsub.D
+  TestFma(0x223170cb, {std::tuple{1.0, 2.0, 3.0, 1.0}});
+  // Fnmadd.S
+  TestFma(0x203170cf, {std::tuple{1.0f, 2.0f, 3.0f, -5.0f}});
+  // Fnmadd.D
+  TestFma(0x223170cf, {std::tuple{1.0, 2.0, 3.0, -5.0}});
+}
+
+TEST_F(TESTSUITE, AmoInstructions) {
+  // Verifying that all aq and rl combinations work for Amoswap, but only test relaxed one for most
+  // other instructions for brevity.
+
+  // AmoswaoW/AmoswaoD
+  TestAmo(0x083120af, 0x083130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWAq/AmoswapDAq
+  TestAmo(0x0c3120af, 0x0c3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWRl/AmoswapDRl
+  TestAmo(0x0a3120af, 0x0a3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWAqrl/AmoswapDAqrl
+  TestAmo(0x0e3120af, 0x0e3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoaddW/AmoaddD
+  TestAmo(0x003120af, 0x003130af, 0xaaaa'aaaa'aaaa'aaa9);
+
+  // AmoxorW/AmoxorD
+  TestAmo(0x203120af, 0x203130af, 0x5555'5555'1111'1111);
+
+  // AmoandW/AmoandD
+  TestAmo(0x603120af, 0x603130af, 0xaaaa'aaaa'cccc'cccc);
+
+  // AmoorW/AmoorD
+  TestAmo(0x403120af, 0x403130af, 0xffff'ffff'dddd'dddd);
+
+  // AmominW/AmominD
+  TestAmo(0x803120af, 0x803130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmomaxW/AmomaxD
+  TestAmo(0xa03120af, 0xa03130af, 0xffff'eeee'dddd'ccccULL);
+
+  // AmominuW/AmominuD
+  TestAmo(0xc03120af, 0xc03130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmomaxuW/AmomaxuD
+  TestAmo(0xe03120af, 0xe03130af, 0xffff'eeee'dddd'ccccULL);
+}
+
+TEST_F(TESTSUITE, OpFpSingleInputInstructions) {
+  // FSqrt.S
+  TestOpFpSingleInput(0x580170d3, {std::tuple{4.0f, 2.0f}});
+  // FSqrt.D
+  TestOpFpSingleInput(0x5a0170d3, {std::tuple{16.0, 4.0}});
+}
+
+TEST_F(TESTSUITE, Fmv) {
+  // Fmv.X.W
+  TestFmvFloatToInteger(0xe00080d3,
+                        {std::tuple{1.0f, static_cast<uint64_t>(bit_cast<uint32_t>(1.0f))},
+                         {-1.0f, static_cast<int64_t>(bit_cast<int32_t>(-1.0f))}});
+  // Fmv.W.X
+  TestFmvIntegerToFloat(
+      0xf00080d3, {std::tuple{bit_cast<uint32_t>(1.0f), 1.0f}, {bit_cast<uint32_t>(-1.0f), -1.0f}});
+  // Fmv.X.D
+  TestFmvFloatToInteger(
+      0xe20080d3, {std::tuple{1.0, bit_cast<uint64_t>(1.0)}, {-1.0, bit_cast<uint64_t>(-1.0)}});
+  // Fmv.D.X
+  TestFmvIntegerToFloat(
+      0xf20080d3, {std::tuple{bit_cast<uint64_t>(1.0), 1.0}, {bit_cast<uint64_t>(-1.0), -1.0}});
+}
+
+TEST_F(TESTSUITE, OpFpFcvt) {
+  // Fcvt.S.D
+  TestOpFpSingleInput(0x401170d3, {std::tuple{1.0, 1.0f}});
+  // Fcvt.D.S
+  TestOpFpSingleInput(0x420100d3, {std::tuple{2.0f, 2.0}});
+  // Fcvt.W.S
+  TestOpFpGpRegisterTargetSingleInput(0xc00170d3, {std::tuple{3.0f, 3UL}});
+  // Fcvt.WU.S
+  TestOpFpGpRegisterTargetSingleInput(0xc01170d3, {std::tuple{3.0f, 3UL}});
+  // Fcvt.L.S
+  TestOpFpGpRegisterTargetSingleInput(0xc02170d3, {std::tuple{3.0f, 3UL}});
+  // Fcvt.LU.S
+  TestOpFpGpRegisterTargetSingleInput(0xc03170d3, {std::tuple{3.0f, 3UL}});
+  // Fcvt.W.D
+  TestOpFpGpRegisterTargetSingleInput(0xc20170d3, {std::tuple{3.0, 3UL}});
+  // Fcvt.WU.D
+  TestOpFpGpRegisterTargetSingleInput(0xc21170d3, {std::tuple{3.0, 3UL}});
+  // Fcvt.L.D
+  TestOpFpGpRegisterTargetSingleInput(0xc22170d3, {std::tuple{3.0, 3UL}});
+  // Fcvt.LU.D
+  TestOpFpGpRegisterTargetSingleInput(0xc23170d3, {std::tuple{3.0, 3UL}});
+  // Fcvt.S.W
+  TestOpFpGpRegisterSourceSingleInput(0xd00170d3, {std::tuple{3UL, 3.0f}});
+  // Fcvt.S.WU
+  TestOpFpGpRegisterSourceSingleInput(0xd01170d3, {std::tuple{3UL, 3.0f}});
+  // Fcvt.S.L
+  TestOpFpGpRegisterSourceSingleInput(0xd02170d3, {std::tuple{3UL, 3.0f}});
+  // Fcvt.S.LU
+  TestOpFpGpRegisterSourceSingleInput(0xd03170d3, {std::tuple{3UL, 3.0f}});
+  // Fcvt.D.W
+  TestOpFpGpRegisterSourceSingleInput(0xd20170d3, {std::tuple{3UL, 3.0}});
+  // Fcvt.D.Wu
+  TestOpFpGpRegisterSourceSingleInput(0xd21170d3, {std::tuple{3UL, 3.0}});
+  // Fcvt.D.L
+  TestOpFpGpRegisterSourceSingleInput(0xd22170d3, {std::tuple{3UL, 3.0}});
+  // Fcvt.D.LU
+  TestOpFpGpRegisterSourceSingleInput(0xd23170d3, {std::tuple{3UL, 3.0}});
+}
+
+TEST_F(TESTSUITE, OpFpGpRegisterTargetInstructions) {
+  // Fle.S
+  TestOpFpGpRegisterTarget(0xa03100d3,
+                           {std::tuple{1.0f, 2.0f, 1UL}, {2.0f, 1.0f, 0UL}, {0.0f, 0.0f, 1UL}});
+  // Fle.D
+  TestOpFpGpRegisterTarget(0xa23100d3,
+                           {std::tuple{1.0, 2.0, 1UL}, {2.0, 1.0, 0UL}, {0.0, 0.0, 1UL}});
+  // Flt.S
+  TestOpFpGpRegisterTarget(0xa03110d3,
+                           {std::tuple{1.0f, 2.0f, 1UL}, {2.0f, 1.0f, 0UL}, {0.0f, 0.0f, 0UL}});
+  // Flt.D
+  TestOpFpGpRegisterTarget(0xa23110d3,
+                           {std::tuple{1.0, 2.0, 1UL}, {2.0, 1.0, 0UL}, {0.0, 0.0, 0UL}});
+  // Feq.S
+  TestOpFpGpRegisterTarget(0xa03120d3,
+                           {std::tuple{1.0f, 2.0f, 0UL}, {2.0f, 1.0f, 0UL}, {0.0f, 0.0f, 1UL}});
+  // Feq.D
+  TestOpFpGpRegisterTarget(0xa23120d3,
+                           {std::tuple{1.0, 2.0, 0UL}, {2.0, 1.0, 0UL}, {0.0, 0.0, 1UL}});
+}
+
+TEST_F(TESTSUITE, TestOpFpGpRegisterTargetSingleInput) {
+  // Fclass.S
+  TestOpFpGpRegisterTargetSingleInput(
+      0xe00110d3,
+      {std::tuple{-std::numeric_limits<float>::infinity(), 0b00'0000'0001UL},
+       {-1.0f, 0b00'0000'0010UL},
+       {-std::numeric_limits<float>::denorm_min(), 0b00'0000'0100UL},
+       {-0.0f, 0b00'0000'1000UL},
+       {0.0f, 0b00'0001'0000UL},
+       {std::numeric_limits<float>::denorm_min(), 0b00'0010'0000UL},
+       {1.0f, 0b00'0100'0000UL},
+       {std::numeric_limits<float>::infinity(), 0b00'1000'0000UL},
+       {std::numeric_limits<float>::signaling_NaN(), 0b01'0000'0000UL},
+       {std::numeric_limits<float>::quiet_NaN(), 0b10'0000'0000UL}});
+  // Fclass.D
+  TestOpFpGpRegisterTargetSingleInput(
+      0xe20110d3,
+      {std::tuple{-std::numeric_limits<double>::infinity(), 0b00'0000'0001UL},
+       {-1.0, 0b00'0000'0010UL},
+       {-std::numeric_limits<double>::denorm_min(), 0b00'0000'0100UL},
+       {-0.0, 0b00'0000'1000UL},
+       {0.0, 0b00'0001'0000UL},
+       {std::numeric_limits<double>::denorm_min(), 0b00'0010'0000UL},
+       {1.0, 0b00'0100'0000UL},
+       {std::numeric_limits<double>::infinity(), 0b00'1000'0000UL},
+       {std::numeric_limits<double>::signaling_NaN(), 0b01'0000'0000UL},
+       {std::numeric_limits<double>::quiet_NaN(), 0b10'0000'0000UL}});
+}
+
+TEST_F(TESTSUITE, RoundingModeTest) {
+  // FAdd.S
+  TestOpFp(0x003100d3,
+           // Test RNE
+           {std::tuple{1.0000001f, 0.000000059604645f, 1.0000002f},
+            {1.0000002f, 0.000000059604645f, 1.0000002f},
+            {1.0000004f, 0.000000059604645f, 1.0000005f},
+            {-1.0000001f, -0.000000059604645f, -1.0000002f},
+            {-1.0000002f, -0.000000059604645f, -1.0000002f},
+            {-1.0000004f, -0.000000059604645f, -1.0000005f}});
+  // FAdd.S
+  TestOpFp(0x003110d3,
+           // Test RTZ
+           {std::tuple{1.0000001f, 0.000000059604645f, 1.0000001f},
+            {1.0000002f, 0.000000059604645f, 1.0000002f},
+            {1.0000004f, 0.000000059604645f, 1.0000004f},
+            {-1.0000001f, -0.000000059604645f, -1.0000001f},
+            {-1.0000002f, -0.000000059604645f, -1.0000002f},
+            {-1.0000004f, -0.000000059604645f, -1.0000004f}});
+  // FAdd.S
+  TestOpFp(0x003120d3,
+           // Test RDN
+           {std::tuple{1.0000001f, 0.000000059604645f, 1.0000001f},
+            {1.0000002f, 0.000000059604645f, 1.0000002f},
+            {1.0000004f, 0.000000059604645f, 1.0000004f},
+            {-1.0000001f, -0.000000059604645f, -1.0000002f},
+            {-1.0000002f, -0.000000059604645f, -1.0000004f},
+            {-1.0000004f, -0.000000059604645f, -1.0000005f}});
+  // FAdd.S
+  TestOpFp(0x003130d3,
+           // Test RUP
+           {std::tuple{1.0000001f, 0.000000059604645f, 1.0000002f},
+            {1.0000002f, 0.000000059604645f, 1.0000004f},
+            {1.0000004f, 0.000000059604645f, 1.0000005f},
+            {-1.0000001f, -0.000000059604645f, -1.0000001f},
+            {-1.0000002f, -0.000000059604645f, -1.0000002f},
+            {-1.0000004f, -0.000000059604645f, -1.0000004f}});
+  // FAdd.S
+  TestOpFp(0x003140d3,
+           // Test RMM
+           {std::tuple{1.0000001f, 0.000000059604645f, 1.0000002f},
+            {1.0000002f, 0.000000059604645f, 1.0000004f},
+            {1.0000004f, 0.000000059604645f, 1.0000005f},
+            {-1.0000001f, -0.000000059604645f, -1.0000002f},
+            {-1.0000002f, -0.000000059604645f, -1.0000004f},
+            {-1.0000004f, -0.000000059604645f, -1.0000005f}});
+
+  // FAdd.D
+  TestOpFp(0x023100d3,
+           // Test RNE
+           {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
+            {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000004},
+            {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000009},
+            {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000004},
+            {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000004},
+            {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000009}});
+  // FAdd.D
+  TestOpFp(0x023110d3,
+           // Test RTZ
+           {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000002},
+            {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000004},
+            {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000007},
+            {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000002},
+            {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000004},
+            {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000007}});
+  // FAdd.D
+  TestOpFp(0x023120d3,
+           // Test RDN
+           {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000002},
+            {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000004},
+            {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000007},
+            {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000004},
+            {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000007},
+            {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000009}});
+  // FAdd.D
+  TestOpFp(0x023130d3,
+           // Test RUP
+           {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
+            {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000007},
+            {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000009},
+            {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000002},
+            {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000004},
+            {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000007}});
+  // FAdd.D
+  TestOpFp(0x023140d3,
+           // Test RMM
+           {std::tuple{1.0000000000000002, 0.00000000000000011102230246251565, 1.0000000000000004},
+            {1.0000000000000004, 0.00000000000000011102230246251565, 1.0000000000000007},
+            {1.0000000000000007, 0.00000000000000011102230246251565, 1.0000000000000009},
+            {-1.0000000000000002, -0.00000000000000011102230246251565, -1.0000000000000004},
+            {-1.0000000000000004, -0.00000000000000011102230246251565, -1.0000000000000007},
+            {-1.0000000000000007, -0.00000000000000011102230246251565, -1.0000000000000009}});
+}
+
+TEST_F(TESTSUITE, LoadFpInstructions) {
+  // Offset is always 8.
+  TestLoadFp(0x00812087, kDataToLoad | 0xffffffff00000000ULL);
+  TestLoadFp(0x00813087, kDataToLoad);
+}
+
+TEST_F(TESTSUITE, AtomicLoadInstructions) {
+  // Lrw
+  TestAtomicLoad(0x1000a12f, int64_t{int32_t(kDataToLoad)});
+  // Lrd
+  TestAtomicLoad(0x1000b12f, kDataToLoad);
+}
+
+TEST_F(TESTSUITE, StoreFpInstructions) {
+  // Offset is always 8.
+  // Fsw
+  TestStoreFp(0x0020a427, kDataToStore & 0xffff'ffffULL);
+  // Fsd
+  TestStoreFp(0x0020b427, kDataToStore);
+}
+
+TEST_F(TESTSUITE, AtomicStoreInstructions) {
+  // Scw
+  TestAtomicStore(0x1820a1af, kDataToStore & 0xffff'ffffULL);
+  // Scd
+  TestAtomicStore(0x1820b1af, kDataToStore);
 }
