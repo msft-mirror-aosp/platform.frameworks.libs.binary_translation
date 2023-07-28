@@ -641,6 +641,8 @@ class SemanticsPlayer {
                                    switch (args.opcode) {
                                      case Decoder::BitmanipImmOpcode::kClz:
                                        return listener_->template Clz<int64_t>(arg);
+                                     case Decoder::BitmanipImmOpcode::kCpop:
+                                       return listener_->template Cpop<int64_t>(arg);
                                      case Decoder::BitmanipImmOpcode::kCtz:
                                        return listener_->template Ctz<int64_t>(arg);
                                      case Decoder::BitmanipImmOpcode::kRori:
@@ -654,6 +656,8 @@ class SemanticsPlayer {
                                    switch (args.opcode) {
                                      case Decoder::BitmanipImm32Opcode::kClzw:
                                        return listener_->template Clz<int32_t>(arg);
+                                     case Decoder::BitmanipImm32Opcode::kCpopw:
+                                       return listener_->template Cpop<int32_t>(arg);
                                      case Decoder::BitmanipImm32Opcode::kCtzw:
                                        return listener_->template Ctz<int32_t>(arg);
                                      case Decoder::BitmanipImm32Opcode::kRoriw:
