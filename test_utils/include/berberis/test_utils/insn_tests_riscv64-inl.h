@@ -1001,6 +1001,8 @@ TEST_F(TESTSUITE, Op32Instructions) {
   TestOp(0x23170bb,
          {{0x9999'9999'9999'9999, 0x3333, 0},
           {0xffff'ffff'8000'0000, 0xffff'ffff'8000'0001, 0xffff'ffff'8000'0000}});
+  // Zext.h
+  TestOp(0x080140bb, {{0xffff'ffff'ffff'fffeULL, 0, 0xfffe}});
 }
 
 TEST_F(TESTSUITE, OpImmInstructions) {
@@ -1042,6 +1044,11 @@ TEST_F(TESTSUITE, OpImmInstructions) {
   TestOpImm(0x60111093, {{0x01000000'0000, 0, 40}});
   // Cpop
   TestOpImm(0x60211093, {{0xf000'0000'0000'000fULL, 0, 8}});
+  // Sext.b
+  TestOpImm(0x60411093, {{0b1111'1110, 0, 0xffff'ffff'ffff'fffe}});  // -2
+  // Sext.h
+  TestOpImm(0x60511093, {{0b1111'1110, 0, 0xfe}});
+  TestOpImm(0x60511093, {{0b1111'1111'1111'1110, 0, 0xffff'ffff'ffff'fffe}});
 }
 
 TEST_F(TESTSUITE, OpImm32Instructions) {

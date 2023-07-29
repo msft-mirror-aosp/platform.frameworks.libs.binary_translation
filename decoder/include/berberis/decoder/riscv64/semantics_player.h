@@ -392,6 +392,20 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   };
 
+  void OpSingleInput(const typename Decoder::OpSingleInputArgs& args) {
+    Register arg = GetRegOrZero(args.src);
+    Register result;
+    switch (args.opcode) {
+      case Decoder::OpSingleInputOpcode::kZexth:
+        result = listener_->Zexth(arg);
+        break;
+      default:
+        Unimplemented();
+        return;
+    }
+    SetRegOrIgnore(args.dst, result);
+  }
+
   void OpFp(const typename Decoder::OpFpArgs& args) {
     FpRegister arg1 = GetFRegAndUnboxNan(args.src1, args.operand_type);
     FpRegister arg2 = GetFRegAndUnboxNan(args.src2, args.operand_type);
@@ -641,6 +655,10 @@ class SemanticsPlayer {
                                        return listener_->template Cpop<int64_t>(arg);
                                      case Decoder::BitmanipImmOpcode::kCtz:
                                        return listener_->template Ctz<int64_t>(arg);
+                                     case Decoder::BitmanipImmOpcode::kSextb:
+                                       return listener_->template Sext<int8_t>(arg);
+                                     case Decoder::BitmanipImmOpcode::kSexth:
+                                       return listener_->template Sext<int16_t>(arg);
                                      case Decoder::BitmanipImmOpcode::kRori:
                                        return listener_->Rori(arg, args.shamt);
                                      default:
