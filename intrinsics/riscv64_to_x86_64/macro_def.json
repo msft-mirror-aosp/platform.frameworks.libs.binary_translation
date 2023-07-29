@@ -87,6 +87,46 @@
       "asm": "MacroCtz<int64_t>",
       "mnemo": "CTZ_I64"
     },
+   {
+      "name": "MaxInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroMax<int64_t>",
+      "mnemo": "MACRO_MAX_I64"
+    },
+    {
+      "name": "MaxUInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroMax<uint64_t>",
+      "mnemo": "MACRO_MAX_U64"
+    },
+    {
+      "name": "MinInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroMin<int64_t>",
+      "mnemo": "MACRO_MIN_I64"
+    },
+    {
+      "name": "MinUInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroMin<uint64_t>",
+      "mnemo": "MACRO_MIN_U64"
+    },
     {
       "name": "MacroFeqFloat32",
       "args": [

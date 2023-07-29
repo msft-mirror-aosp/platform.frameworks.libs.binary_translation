@@ -184,6 +184,20 @@
     "in": [ "Type0" ],
     "out": [ "int64_t" ]
   },
+  "Max": {
+    "comment": "Returns the larger of two integers.",
+    "class": "template",
+    "variants": [ "int64_t", "uint64_t" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "Min": {
+    "comment": "Returns the smaller of two integers.",
+    "class": "template",
+    "variants": [ "int64_t", "uint64_t" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FAdd": {
     "comment": "Floating point addition",
     "class": "template",
