@@ -91,6 +91,30 @@
     "out": [ 0 ]
   },
   {
+    "name": "Max<int64_t>",
+    "insn": "MaxInt64",
+    "in": [ 1, 2],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Max<uint64_t>",
+    "insn": "MaxUInt64",
+    "in": [ 1, 2],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Min<int64_t>",
+    "insn": "MinInt64",
+    "in": [ 1, 2],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Min<uint64_t>",
+    "insn": "MinUInt64",
+    "in": [ 1, 2],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float32>",
     "insn": "AddssXRegXReg",
     "in": [ 0, 1 ],
