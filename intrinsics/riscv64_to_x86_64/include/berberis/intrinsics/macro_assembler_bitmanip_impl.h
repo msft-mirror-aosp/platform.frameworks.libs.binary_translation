@@ -40,6 +40,30 @@ void MacroAssembler<Assembler>::MacroCtz(Register result, Register src) {
   Cmov<IntType>(Condition::kZero, result, {.disp = constants_pool::WidthInBits<IntType>});
 }
 
+template <typename Assembler>
+template <typename IntType>
+void MacroAssembler<Assembler>::MacroMax(Register result, Register src1, Register src2) {
+  Mov<IntType>(result, src1);
+  Cmp<IntType>(src1, src2);
+  if constexpr (std::is_signed_v<IntType>) {
+    Cmov<IntType>(Condition::kLess, result, src2);
+  } else {
+    Cmov<IntType>(Condition::kBelow, result, src2);
+  }
+}
+
+template <typename Assembler>
+template <typename IntType>
+void MacroAssembler<Assembler>::MacroMin(Register result, Register src1, Register src2) {
+  Mov<IntType>(result, src1);
+  Cmp<IntType>(src1, src2);
+  if constexpr (std::is_signed_v<IntType>) {
+    Cmov<IntType>(Condition::kGreater, result, src2);
+  } else {
+    Cmov<IntType>(Condition::kAbove, result, src2);
+  }
+}
+
 }  // namespace berberis
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_BITMANIP_IMPL_H_

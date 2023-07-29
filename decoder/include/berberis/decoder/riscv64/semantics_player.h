@@ -373,7 +373,18 @@ class SemanticsPlayer {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
     Register result = Overloaded{[&](const typename Decoder::OpArgs& args) {
-                                   return listener_->Op(args.opcode, arg1, arg2);
+                                   switch (args.opcode) {
+                                     case Decoder::OpOpcode::kMax:
+                                       return listener_->template Max<int64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kMaxu:
+                                       return listener_->template Max<uint64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kMin:
+                                       return listener_->template Min<int64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kMinu:
+                                       return listener_->template Min<uint64_t>(arg1, arg2);
+                                     default:
+                                       return listener_->Op(args.opcode, arg1, arg2);
+                                   }
                                  },
                                  [&](const typename Decoder::Op32Args& args) {
                                    return listener_->Op32(args.opcode, arg1, arg2);

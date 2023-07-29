@@ -1116,6 +1116,22 @@ TEST_F(TESTSUITE, OpInstructions) {
   TestOp(0x403160b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fffd}});
   // Xnor
   TestOp(0x403140b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fff9}});
+  // Max
+  TestOp(0x0a3160b3, {{bit_cast<uint64_t>(int64_t{-5}), 4, 4}});
+  TestOp(0x0a3160b3,
+         {{bit_cast<uint64_t>(int64_t{-5}),
+           bit_cast<uint64_t>(int64_t{-10}),
+           bit_cast<uint64_t>(int64_t{-5})}});
+  // Maxu
+  TestOp(0x0a3170b3, {{50, 1, 50}});
+  // Min
+  TestOp(0x0a3140b3, {{bit_cast<uint64_t>(int64_t{-5}), 4, bit_cast<uint64_t>(int64_t{-5})}});
+  TestOp(0x0a3140b3,
+         {{bit_cast<uint64_t>(int64_t{-5}),
+           bit_cast<uint64_t>(int64_t{-10}),
+           bit_cast<uint64_t>(int64_t{-10})}});
+  // Minu
+  TestOp(0x0a3150b3, {{50, 1, 1}});
 }
 
 TEST_F(TESTSUITE, Op32Instructions) {
