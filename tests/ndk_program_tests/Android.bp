@@ -25,6 +25,7 @@ filegroup {
         "div_test.cc",
         "string_test.cc",
         "time_test.cc",
+        "zlib_test.cc",
     ],
 }
 
@@ -45,10 +46,12 @@ cc_defaults {
 cc_test {
     name: "berberis_ndk_program_tests",
     defaults: ["berberis_ndk_program_tests_defaults"],
+    shared_libs: ["libz"],
 }
 
 cc_test {
     name: "berberis_ndk_program_tests_static",
     defaults: ["berberis_ndk_program_tests_defaults"],
+    static_libs: ["libz"],
     static_executable: true,
 }
