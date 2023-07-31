@@ -22,6 +22,7 @@ filegroup {
     name: "berberis_ndk_program_tests_srcs",
     srcs: [
         "div_test.cc",
+        "string_test.cc",
     ],
 }
 
