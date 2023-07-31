@@ -21,6 +21,7 @@ package {
 filegroup {
     name: "berberis_ndk_program_tests_srcs",
     srcs: [
+        "ctype_test.cc",
         "div_test.cc",
         "string_test.cc",
     ],
