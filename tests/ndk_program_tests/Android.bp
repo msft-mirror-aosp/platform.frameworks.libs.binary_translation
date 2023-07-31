@@ -23,6 +23,7 @@ filegroup {
     srcs: [
         "ctype_test.cc",
         "div_test.cc",
+        "epoll_test.cc",
         "string_test.cc",
         "time_test.cc",
         "zlib_test.cc",
