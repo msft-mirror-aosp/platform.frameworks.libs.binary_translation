@@ -145,9 +145,13 @@ class LiteTranslator {
   }
 
   FpRegister Fmv(FpRegister arg) {
-    UNUSED(arg);
-    Unimplemented();
-    return {};
+    SimdRegister res = AllocTempSimdReg();
+    if (host_platform::kHasAVX) {
+      as_.Vmovapd(res, arg);
+    } else {
+      as_.Vmovaps(res, arg);
+    }
+    return res;
   }
 
   //
