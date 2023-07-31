@@ -1240,7 +1240,6 @@ TEST_F(TESTSUITE, OpFpInstructions) {
   TestOpFp(0x183100d3, {std::tuple{6.0f, 2.0f, 3.0f}});
   // FDiv.D
   TestOpFp(0x1a3100d3, {std::tuple{6.0, 2.0, 3.0}});
-
   // FSgnj.S
   TestOpFp(0x203100d3,
            {std::tuple{1.0f, 2.0f, 1.0f},
@@ -1519,6 +1518,11 @@ TEST_F(TESTSUITE, Fmv) {
   // Fmv.D.X
   TestFmvIntegerToFloat(
       0xf20080d3, {std::tuple{bit_cast<uint64_t>(1.0), 1.0}, {bit_cast<uint64_t>(-1.0), -1.0}});
+  // Fmv.S
+  TestOpFpSingleInput(0x202100d3, {std::tuple{1.0f, 1.0f}, {-1.0f, -1.0f}});
+  // Fmv.D
+  TestOpFpSingleInput(0x222100d3,
+                      {std::tuple{bit_cast<uint64_t>(1.0), 1.0}, {bit_cast<uint64_t>(-1.0), -1.0}});
 }
 
 TEST_F(TESTSUITE, OpFpFcvt) {
