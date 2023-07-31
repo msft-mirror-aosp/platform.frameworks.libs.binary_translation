@@ -24,6 +24,7 @@ filegroup {
         "ctype_test.cc",
         "div_test.cc",
         "string_test.cc",
+        "time_test.cc",
     ],
 }
 
