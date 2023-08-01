@@ -115,6 +115,24 @@
     "out": [ 0 ]
   },
   {
+    "name": "Sext<int8_t>",
+    "insn": "MovsxbqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sext<int16_t>",
+    "insn": "MovsxwqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Zexth",
+    "insn": "MovzxwqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float32>",
     "insn": "AddssXRegXReg",
     "in": [ 0, 1 ],
