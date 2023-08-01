@@ -147,6 +147,11 @@ class Decoder {
     kMaxValue = 0b1111'111'111,
   };
 
+  enum class OpSingleInputOpcode {
+    kZexth = 0b0000'100'100,
+    kMaxValue = 0b1111'111'111,
+  };
+
   enum class OpFpGpRegisterTargetNoRoundingOpcode {
     kFle = 0b00'000,
     kFlt = 0b00'001,
@@ -218,6 +223,8 @@ class Decoder {
     kClz = 0b0110000'00000'001,
     kCpop = 0b0110000'00010'001,
     kCtz = 0b0110000'00001'001,
+    kSextb = 0b0110000'00100'001,
+    kSexth = 0b0110000'00101'001,
     kRori = 0b011000'101,
     kMaxValue = 0b111111'111111'111,
   };
@@ -402,6 +409,12 @@ class Decoder {
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
+  };
+
+  struct OpSingleInputArgs {
+    OpSingleInputOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
   };
 
   using OpArgs = OpArgsTemplate<OpOpcode>;
@@ -1114,7 +1127,18 @@ class Decoder {
   void DecodeOp() {
     uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
     uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
-    OpcodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
+    uint16_t opcode_bits = int16_t(low_opcode | (high_opcode << 3));
+    OpcodeType opcode{opcode_bits};
+    OpSingleInputOpcode single_input_opcode{opcode_bits};
+
+    switch (single_input_opcode) {
+      case OpSingleInputOpcode::kZexth: {
+        DecodeSingleInputOp(single_input_opcode);
+        return;
+      }
+      default:
+        break;
+    }
     const OpArgsTemplate<OpcodeType> args = {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
@@ -1122,6 +1146,17 @@ class Decoder {
         .src2 = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Op(args);
+  }
+
+  void DecodeSingleInputOp(OpSingleInputOpcode opcode) {
+    uint8_t src1 = GetBits<uint8_t, 15, 5>();
+    uint8_t src2 = GetBits<uint8_t, 20, 5>();
+
+    if (src2 != 0) {
+      return Undefined();
+    }
+    const OpSingleInputArgs args = {.opcode = opcode, .dst = GetBits<uint8_t, 7, 5>(), .src = src1};
+    insn_consumer_->OpSingleInput(args);
   }
 
   void DecodeAmo() {
