@@ -66,6 +66,21 @@ GuestThread* GetCurrentGuestThread() {
 
 void ResetCurrentGuestThreadAfterFork(GuestThread* thread) {
   g_guest_thread_map_.ResetThreadTable(GettidSyscall(), thread);
+#if defined(__BIONIC__)
+  // Force (host) bionic to update cached tid if necessary
+  // 1. Bionic `clone` implementation resets cached `tid` before syscall
+  //    so that it does not get accidentally propagate to the child.
+  // 2. pthread_lock/unlock implementations do not call `gettid()` they
+  //    instead access cached value directly from TLS. Which leads to
+  //    a situation where cached `tid` is updated in the middle of
+  //    `dlopen` and it fails to unlock the mutex because the
+  //    ownership check fails. Subsequent `dlsym` (or any other
+  //    dl* call) stops on locked mutex.
+  //
+  // By calling `gettid()` here we force bionic to set the cached
+  // value to the correct one.
+  CHECK_NE(gettid(), -1);
+#endif
   ResetAllExecRegions();
 }
 
