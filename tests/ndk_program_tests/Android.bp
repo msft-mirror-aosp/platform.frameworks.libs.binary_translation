@@ -21,6 +21,7 @@ package {
 filegroup {
     name: "berberis_ndk_program_tests_srcs",
     srcs: [
+        "cpp_test.cc",
         "ctype_test.cc",
         "div_test.cc",
         "epoll_test.cc",
@@ -34,6 +35,7 @@ cc_defaults {
     name: "berberis_ndk_program_tests_defaults",
     native_bridge_supported: true,
     cflags: [
+        "-fexceptions",
         "-Wunused",
         "-Wextra",
         "-Wall",
