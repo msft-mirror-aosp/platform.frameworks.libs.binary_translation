@@ -320,7 +320,7 @@ class Interpreter {
 
   Register Roriw(Register arg, int8_t shamt) {
     CheckShamt32IsValid(shamt);
-    return (((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
+    return int32_t(((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
   }
 
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data) {

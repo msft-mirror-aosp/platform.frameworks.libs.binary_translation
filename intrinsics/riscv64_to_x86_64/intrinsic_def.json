@@ -198,6 +198,20 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "Rol": {
+    "comment": "Rotate left.",
+    "class": "template",
+    "variants": [ "int64_t", "int32_t" ],
+    "in": [ "Type0", "int8_t" ],
+    "out": [ "Type0" ]
+  },
+  "Ror": {
+    "comment": "Rotate right.",
+    "class": "template",
+    "variants": [ "int64_t", "int32_t" ],
+    "in": [ "Type0", "int8_t" ],
+    "out": [ "Type0" ]
+  },
   "Sext": {
     "comment": "Sign-extends to 64bit",
     "class": "template",
