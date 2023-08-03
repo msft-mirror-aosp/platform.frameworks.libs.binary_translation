@@ -1,14 +1,28 @@
-// Copyright 2014 Google Inc. All rights reserved.
-//
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // x86_64 machine IR insns debugging.
 
-#include "x86_64/code_debug.h"
+#include "berberis/backend/x86_64/code_debug.h"
 
 #include <cinttypes>
 #include <string>
 
-#include "ndk_translation/base/logging.h"
-#include "ndk_translation/base/stringprintf.h"
+#include "berberis/base/logging.h"
+#include "berberis/base/stringprintf.h"
 
 // TODO(b/179708579): share this code with 32-bit backend.
 
@@ -26,10 +40,6 @@ const char* GetMachineHardRegDebugName(MachineReg r) {
   CHECK_LT(static_cast<unsigned>(r.reg()), arraysize(kHardRegs));
   return kHardRegs[r.reg()];
 }
-
-}  // namespace berberis
-
-namespace ndk_translation {
 
 namespace x86_64 {
 
@@ -104,4 +114,4 @@ string CallImmArg::GetDebugString() const {
 
 }  // namespace x86_64
 
-}  // namespace ndk_translation
+}  // namespace berberis

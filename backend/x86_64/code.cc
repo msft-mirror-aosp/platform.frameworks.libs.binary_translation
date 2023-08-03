@@ -1,10 +1,24 @@
-// Copyright 2014 Google Inc. All rights reserved.
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#include "ndk_translation/backend/x86_64/machine_ir.h"
-#include "ndk_translation/base/logging.h"
-#include "ndk_translation/guest_state/guest_addr.h"
+#include "berberis/backend/x86_64/machine_ir.h"
+#include "berberis/base/logging.h"
+#include "berberis/guest_state/guest_addr.h"
 
-namespace ndk_translation {
+namespace berberis {
 
 namespace x86_64 {
 
@@ -135,12 +149,8 @@ CallImmArg::CallImmArg(MachineReg arg, CallImm::RegType reg_type)
 
 }  // namespace x86_64
 
-}  // namespace ndk_translation
-
-namespace berberis {
-
 const MachineOpcode PseudoBranch::kOpcode = kMachineOpPseudoBranch;
-using Assembler = ndk_translation::x86_64::Assembler;
+using Assembler = x86_64::Assembler;
 
 PseudoBranch::PseudoBranch(const MachineBasicBlock* then_bb)
     : MachineInsn(kMachineOpPseudoBranch, 0, nullptr, nullptr, kMachineInsnSideEffects),
@@ -154,7 +164,7 @@ PseudoCondBranch::PseudoCondBranch(Assembler::Condition cond,
                                    MachineReg eflags)
     : MachineInsn(kMachineOpPseudoCondBranch,
                   1,
-                  ndk_translation::x86_64::kPseudoCondBranchInfo,
+                  x86_64::kPseudoCondBranchInfo,
                   &eflags_,
                   kMachineInsnSideEffects),
       cond_(cond),
@@ -170,7 +180,7 @@ PseudoJump::PseudoJump(GuestAddr target, Kind kind)
 PseudoIndirectJump::PseudoIndirectJump(MachineReg src)
     : MachineInsn(kMachineOpPseudoIndirectJump,
                   1,
-                  ndk_translation::x86_64::kPseudoIndirectJumpInfo,
+                  x86_64::kPseudoIndirectJumpInfo,
                   &src_,
                   kMachineInsnSideEffects),
       src_(src) {}
@@ -181,9 +191,9 @@ const MachineOpcode PseudoCopy::kOpcode = kMachineOpPseudoCopy;
 PseudoCopy::PseudoCopy(MachineReg dst, MachineReg src, int size)
     : MachineInsn(kMachineOpPseudoCopy,
                   2,
-                  size > 8   ? ndk_translation::x86_64::kPseudoCopyXmmInfo
-                  : size > 4 ? ndk_translation::x86_64::kPseudoCopyReg64Info
-                             : ndk_translation::x86_64::kPseudoCopyReg32Info,
+                  size > 8   ? x86_64::kPseudoCopyXmmInfo
+                  : size > 4 ? x86_64::kPseudoCopyReg64Info
+                             : x86_64::kPseudoCopyReg32Info,
                   regs_,
                   kMachineInsnCopy),
       regs_{dst, src} {}
@@ -191,7 +201,7 @@ PseudoCopy::PseudoCopy(MachineReg dst, MachineReg src, int size)
 PseudoDefXReg::PseudoDefXReg(MachineReg reg)
     : MachineInsn(kMachineOpPseudoDefXReg,
                   1,
-                  ndk_translation::x86_64::kPseudoDefXmmInfo,
+                  x86_64::kPseudoDefXmmInfo,
                   &reg_,
                   kMachineInsnDefault),
       reg_{reg} {}
@@ -199,7 +209,7 @@ PseudoDefXReg::PseudoDefXReg(MachineReg reg)
 PseudoDefReg::PseudoDefReg(MachineReg reg)
     : MachineInsn(kMachineOpPseudoDefReg,
                   1,
-                  ndk_translation::x86_64::kPseudoDefReg64Info,
+                  x86_64::kPseudoDefReg64Info,
                   &reg_,
                   kMachineInsnDefault),
       reg_{reg} {}
@@ -209,7 +219,7 @@ const MachineOpcode PseudoReadFlags::kOpcode = kMachineOpPseudoReadFlags;
 PseudoReadFlags::PseudoReadFlags(WithOverflowEnum with_overflow, MachineReg dst, MachineReg flags)
     : MachineInsn(kMachineOpPseudoReadFlags,
                   2,
-                  ndk_translation::x86_64::kPseudoReadFlagsInfo,
+                  x86_64::kPseudoReadFlagsInfo,
                   regs_,
                   kMachineInsnDefault),
       regs_{dst, flags},
@@ -220,7 +230,7 @@ const MachineOpcode PseudoWriteFlags::kOpcode = kMachineOpPseudoWriteFlags;
 PseudoWriteFlags::PseudoWriteFlags(MachineReg src, MachineReg flags)
     : MachineInsn(kMachineOpPseudoWriteFlags,
                   2,
-                  ndk_translation::x86_64::kPseudoWriteFlagsInfo,
+                  x86_64::kPseudoWriteFlagsInfo,
                   regs_,
                   kMachineInsnDefault),
       regs_{src, flags} {}
