@@ -382,12 +382,23 @@ class SemanticsPlayer {
                                        return listener_->template Min<int64_t>(arg1, arg2);
                                      case Decoder::OpOpcode::kMinu:
                                        return listener_->template Min<uint64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kRol:
+                                       return listener_->template Rol<int64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kRor:
+                                       return listener_->template Ror<int64_t>(arg1, arg2);
                                      default:
                                        return listener_->Op(args.opcode, arg1, arg2);
                                    }
                                  },
                                  [&](const typename Decoder::Op32Args& args) {
-                                   return listener_->Op32(args.opcode, arg1, arg2);
+                                   switch (args.opcode) {
+                                     case Decoder::Op32Opcode::kRolw:
+                                       return listener_->template Rol<int32_t>(arg1, arg2);
+                                     case Decoder::Op32Opcode::kRorw:
+                                       return listener_->template Ror<int32_t>(arg1, arg2);
+                                     default:
+                                       return listener_->Op32(args.opcode, arg1, arg2);
+                                   }
                                  }}(args);
     SetRegOrIgnore(args.dst, result);
   };
