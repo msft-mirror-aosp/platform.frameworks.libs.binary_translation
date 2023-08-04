@@ -20,14 +20,21 @@
 
 #if defined(__BIONIC__)
 #include "private/bionic_constants.h"
+#include "private/bionic_tls.h"
 #endif
 
+#include "berberis/base/checks.h"
+#include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_addr.h"  // ToGuestAddr
 #include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/host_stack.h"
 #include "native_bridge_support/linker/static_tls_config.h"
+
+#include "get_tls.h"
+
+extern "C" void berberis_UnmapAndExit(void* ptr, size_t size, int status);
 
 namespace berberis {
 
@@ -61,7 +68,29 @@ GuestThread* GuestThread::Create() {
     Destroy(thread);
     return nullptr;
   }
-  SetGuestThread(thread->state_, thread);
+  SetGuestThread(*thread->state_, thread);
+
+  return thread;
+}
+
+// static
+GuestThread* GuestThread::CreateClone(const GuestThread* parent) {
+  GuestThread* thread = Create();
+  if (thread == nullptr) {
+    return nullptr;
+  }
+
+  // TODO(156271630): alloc host stack guard?
+  thread->host_stack_ = MmapOrDie(GetStackSizeForTranslation());
+  if (thread->host_stack_ == MAP_FAILED) {
+    TRACE("failed to allocate host stack!");
+    thread->host_stack_ = nullptr;
+    Destroy(thread);
+    return nullptr;
+  }
+
+  SetCPUState(*thread->state(), GetCPUState(*parent->state()));
+  SetTlsAddr(*thread->state(), GetTlsAddr(*parent->state()));
 
   return thread;
 }
@@ -78,14 +107,12 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
     return nullptr;
   }
 
-  SetStackRegister(GetCPUState(thread->state()), thread->stack_top_);
+  SetStackRegister(GetCPUState(*thread->state()), thread->stack_top_);
 
-#if defined(__BIONIC__)
   if (!thread->AllocShadowCallStack()) {
     Destroy(thread);
     return nullptr;
   }
-#endif  // defined(__BIONIC__)
 
   // Static TLS must be in an independent mapping, because on creation of main thread its config
   // is yet unknown. Loader sets main thread's static TLS explicitly later.
@@ -99,8 +126,9 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
 
 // static
 void GuestThread::Destroy(GuestThread* thread) {
+  CHECK(thread);
   // ATTENTION: Don't run guest code from here!
-  if (ArePendingSignalsPresent(thread->state_)) {
+  if (ArePendingSignalsPresent(*thread->state_)) {
     TRACE("thread destroyed with pending signals, signals ignored!");
   }
 
@@ -123,6 +151,21 @@ void GuestThread::Destroy(GuestThread* thread) {
     DestroyThreadState(thread->state_);
   }
   MunmapOrDie(thread, kGuestThreadPageAlignedSize);
+}
+
+// static
+void GuestThread::Exit(GuestThread* thread, int status) {
+  // Destroy the thread without unmapping the host stack.
+  void* host_stack = thread->host_stack_;
+  thread->host_stack_ = nullptr;
+  Destroy(thread);
+
+  if (host_stack) {
+    berberis_UnmapAndExit(host_stack, GetStackSizeForTranslation(), status);
+  } else {
+    syscall(__NR_exit, status);
+  }
+  LOG_ALWAYS_FATAL("thread didn't exit");
 }
 
 bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) {
@@ -167,7 +210,7 @@ bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) 
 }
 
 bool GuestThread::AllocShadowCallStack() {
-#if defined(__BIONIC__)
+#if defined(__BIONIC__) && defined(BERBERIS_GUEST_LP64) && !defined(BERBERIS_GUEST_ARCH_X86_64)
   CHECK(IsAlignedPageSize(SCS_GUARD_REGION_SIZE));
   CHECK(IsAlignedPageSize(SCS_SIZE));
 
@@ -190,7 +233,8 @@ bool GuestThread::AllocShadowCallStack() {
     TRACE("failed to protect shadow call stack!");
     return false;
   }
-#endif  // defined(__BIONIC__)
+#endif  // defined(__BIONIC__) && defined(BERBERIS_GUEST_LP64) &&
+        // !defined(BERBERIS_GUEST_ARCH_X86_64)
   return true;
 }
 
@@ -214,7 +258,26 @@ bool GuestThread::AllocStaticTls() {
 }
 
 void GuestThread::InitStaticTls() {
-  // TODO(b/277625454): Implement.
+#if defined(__BIONIC__)
+  if (static_tls_ == nullptr) {
+    // Leave the thread pointer unset when starting the main thread.
+    return;
+  }
+  // First initialize static TLS using the initialization image, then update
+  // some of the TLS slots. Reuse the host's pthread_internal_t and
+  // bionic_tls objects. We verify that these structures are safe to use with
+  // checks in berberis/android_api/libc/pthread_translation.h.
+  memcpy(static_tls_, g_static_tls_config.init_img, g_static_tls_config.size);
+  void** tls =
+      reinterpret_cast<void**>(reinterpret_cast<char*>(static_tls_) + g_static_tls_config.tpoff);
+  tls[g_static_tls_config.tls_slot_thread_id] = GetTls()[TLS_SLOT_THREAD_ID];
+  tls[g_static_tls_config.tls_slot_bionic_tls] = GetTls()[TLS_SLOT_BIONIC_TLS];
+  SetTlsAddr(*state_, ToGuestAddr(tls));
+#else
+  // For Glibc we provide stub which is only usable to distinguish different threads.
+  // This is the only thing that many applications need.
+  SetTlsAddr(*state_, GettidSyscall());
+#endif
 }
 
 void GuestThread::ConfigStaticTls(const NativeBridgeStaticTlsConfig* config) {
@@ -225,6 +288,12 @@ void GuestThread::ConfigStaticTls(const NativeBridgeStaticTlsConfig* config) {
   // Reinitialize the main thread's static TLS.
   CHECK_EQ(true, AllocStaticTls());
   InitStaticTls();
+}
+
+void* GuestThread::GetHostStackTop() const {
+  CHECK(host_stack_);
+  auto top = reinterpret_cast<uintptr_t>(host_stack_) + GetStackSizeForTranslation();
+  return reinterpret_cast<void*>(top);
 }
 
 }  // namespace berberis

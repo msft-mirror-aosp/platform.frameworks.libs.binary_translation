@@ -14,5 +14,314 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
-  "insns": []
+  "insns": [
+    {
+      "name": "CanonicalizeNanFloat32",
+      "args": [
+        { "class": "FpReg32", "usage": "def_early_clobber" },
+        { "class": "FpReg32", "usage": "use_def" }
+      ],
+      "asm": "MacroCanonicalizeNan<intrinsics::Float32>",
+      "mnemo": "MACRO_CANONICALIZE_F32"
+    },
+    {
+      "name": "CanonicalizeNanFloat32AVX",
+      "args": [
+        { "class": "FpReg32", "usage": "def_early_clobber" },
+        { "class": "FpReg32", "usage": "use_def" }
+      ],
+      "asm": "MacroCanonicalizeNanAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_CANONICALIZE_F32"
+    },
+    {
+      "name": "CanonicalizeNanFloat64",
+      "args": [
+        { "class": "FpReg64", "usage": "def_early_clobber" },
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroCanonicalizeNan<intrinsics::Float64>",
+      "mnemo": "MACRO_CANONICALIZE_F64"
+    },
+    {
+      "name": "CanonicalizeNanFloat64AVX",
+      "args": [
+        { "class": "FpReg64", "usage": "def_early_clobber" },
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroCanonicalizeNanAVX<intrinsics::Float64>",
+      "mnemo": "MACRO_CANONICALIZE_F64"
+    },
+    {
+      "name": "ClzInt32",
+      "args": [
+        { "class": "GeneralReg32", "usage": "def" },
+        { "class": "GeneralReg32", "usage": "use" }
+      ],
+      "asm": "MacroClz<int32_t>",
+      "mnemo": "CLZ_I32"
+    },
+    {
+      "name": "ClzInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroClz<int64_t>",
+      "mnemo": "CLZ_I64"
+    },
+    {
+      "name": "CtzInt32",
+      "args": [
+        { "class": "GeneralReg32", "usage": "def" },
+        { "class": "GeneralReg32", "usage": "use" }
+      ],
+      "asm": "MacroCtz<int32_t>",
+      "mnemo": "CTZ_I32"
+    },
+    {
+      "name": "CtzInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroCtz<int64_t>",
+      "mnemo": "CTZ_I64"
+    },
+   {
+      "name": "MaxInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroMax<int64_t>",
+      "mnemo": "MACRO_MAX_I64"
+    },
+    {
+      "name": "MaxUInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroMax<uint64_t>",
+      "mnemo": "MACRO_MAX_U64"
+    },
+    {
+      "name": "MinInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroMin<int64_t>",
+      "mnemo": "MACRO_MIN_I64"
+    },
+    {
+      "name": "MinUInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroMin<uint64_t>",
+      "mnemo": "MACRO_MIN_U64"
+    },
+    {
+      "name": "MacroFeqFloat32",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use_def" },
+        { "class": "FpReg32", "usage": "use" }
+      ],
+      "asm": "MacroFeq<intrinsics::Float32>",
+      "mnemo": "MACRO_FEQ_F32"
+    },
+    {
+      "name": "MacroFeqFloat32AVX",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use" },
+        { "class": "FpReg32", "usage": "use" },
+        { "class": "FpReg32", "usage": "def" }
+      ],
+      "asm": "MacroFeqAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_FEQ_F32"
+    },
+    {
+      "name": "MacroFeqFloat64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use_def" },
+        { "class": "FpReg64", "usage": "use" }
+      ],
+      "asm": "MacroFeq<intrinsics::Float64>",
+      "mnemo": "MACRO_FEQ_F64"
+    },
+    {
+      "name": "MacroFeqFloat64AVX",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FpReg64", "usage": "def" }
+      ],
+      "asm": "MacroFeqAVX<intrinsics::Float64>",
+      "mnemo": "MACRO_FEQ_F64"
+    },
+    {
+      "name": "MacroFleFloat32",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use_def" },
+        { "class": "FpReg32", "usage": "use" }
+      ],
+      "asm": "MacroFle<intrinsics::Float32>",
+      "mnemo": "MACRO_FLE_F32"
+    },
+    {
+      "name": "MacroFleFloat32AVX",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use" },
+        { "class": "FpReg32", "usage": "use" },
+        { "class": "FpReg32", "usage": "def" }
+      ],
+      "asm": "MacroFleAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_FLE_F32"
+    },
+    {
+      "name": "MacroFleFloat64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use_def" },
+        { "class": "FpReg64", "usage": "use" }
+      ],
+      "asm": "MacroFle<intrinsics::Float64>",
+      "mnemo": "MACRO_FLE_F64"
+    },
+    {
+      "name": "MacroFleFloat64AVX",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FpReg64", "usage": "def" }
+      ],
+      "asm": "MacroFleAVX<intrinsics::Float64>",
+      "mnemo": "MACRO_FLE_F64"
+    },
+    {
+      "name": "MacroFltFloat32",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use_def" },
+        { "class": "FpReg32", "usage": "use" }
+      ],
+      "asm": "MacroFlt<intrinsics::Float32>",
+      "mnemo": "MACRO_FLT_F32"
+    },
+    {
+      "name": "MacroFltFloat32AVX",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use" },
+        { "class": "FpReg32", "usage": "use" },
+        { "class": "FpReg32", "usage": "def" }
+      ],
+      "asm": "MacroFltAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_FLT_F32"
+    },
+    {
+      "name": "MacroFltFloat64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use_def" },
+        { "class": "FpReg64", "usage": "use" }
+      ],
+      "asm": "MacroFlt<intrinsics::Float64>",
+      "mnemo": "MACRO_FLT_F64"
+    },
+    {
+      "name": "MacroFltFloat64AVX",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FpReg64", "usage": "def" }
+      ],
+      "asm": "MacroFltAVX<intrinsics::Float64>",
+      "mnemo": "MACRO_FLT_F64"
+    },
+    {
+      "name": "MacroNanBoxFloat32",
+      "args": [
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroNanBox<intrinsics::Float32>",
+      "mnemo": "MACRO_BOX_F32"
+    },
+    {
+      "name": "MacroNanBoxFloat32AVX",
+      "args": [
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroNanBoxAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_BOX_F32"
+    },
+    {
+      "name": "MacroUnboxNanFloat32",
+      "args": [
+        { "class": "FpReg32", "usage": "def_early_clobber" },
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroUnboxNan<intrinsics::Float32>",
+      "mnemo": "MACRO_UNBOX_F32"
+    },
+    {
+      "name": "MacroUnboxNanFloat32AVX",
+      "args": [
+        { "class": "FpReg32", "usage": "def_early_clobber" },
+        { "class": "FpReg64", "usage": "use_def" }
+      ],
+      "asm": "MacroUnboxNanAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_UNBOX_F32"
+    },
+    {
+      "name": "MacroFCvtFloat64ToInt64",
+      "args": [
+        {"class": "GeneralReg64", "usage": "def"},
+        {"class": "FpReg64", "usage": "use_def"}
+      ],
+      "asm": "MacroFCvtFloatToInteger<int64_t, intrinsics::Float64>",
+      "mnemo": "MACRO_FCvtFloatToInteger"
+    },
+    {
+      "name": "MacroFCvtFloat32ToInt64",
+      "args": [
+        {"class": "GeneralReg64", "usage": "def"},
+        {"class": "FpReg64", "usage": "use_def"}
+      ],
+      "asm": "MacroFCvtFloatToInteger<int64_t, intrinsics::Float32>",
+      "mnemo": "MACRO_FCvtFloatToInteger"
+    },
+    {
+      "name": "MacroFCvtFloat64ToInt32",
+      "args": [
+        {"class": "GeneralReg64", "usage": "def"},
+        {"class": "FpReg64", "usage": "use_def"}
+      ],
+      "asm": "MacroFCvtFloatToInteger<int32_t, intrinsics::Float64>",
+      "mnemo": "MACRO_FCvtFloatToInteger"
+    },
+    {
+      "name": "MacroFCvtFloat32ToInt32",
+      "args": [
+        {"class": "GeneralReg64", "usage": "def"},
+        {"class": "FpReg64", "usage": "use_def"}
+      ],
+      "asm": "MacroFCvtFloatToInteger<int32_t, intrinsics::Float32>",
+      "mnemo": "MACRO_FCvtFloatToInteger"
+    }
+  ]
 }

@@ -19,7 +19,7 @@
 
 #include <signal.h>
 
-#include "host_signal.h"
+#include "berberis/base/host_signal.h"
 
 namespace berberis {
 

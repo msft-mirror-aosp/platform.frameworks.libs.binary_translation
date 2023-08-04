@@ -23,7 +23,7 @@
 
 #include "berberis/intrinsics/macro_assembler.h"
 
-namespace berberis::x86 {
+namespace berberis::constants_pool {
 
 // All constants we refer in macroinstructions are collected in MacroAssemblerConstants.
 // This allows us:
@@ -31,11 +31,32 @@ namespace berberis::x86 {
 //   2. Make it possible to access in text assembler without complex dance with hash-tables.
 //   3. Allocate below-2GB-copy in x86_64 mode easily.
 struct MacroAssemblerConstants {
-  alignas(16) const uint32_t kNanBoxFloat32[4] = {0xffffffff, 0x00000000, 0xffffffff, 0x00000000};
+  alignas(16) const uint32_t kNanBoxFloat32[4] = {0x00000000, 0xffffffff, 0x00000000, 0xffffffff};
+  alignas(16) const uint32_t kNanBoxedNansFloat32[4] = {0x7fc00000,
+                                                        0x0ffffffff,
+                                                        0x7fc00000,
+                                                        0x0ffffffff};
+  alignas(16) const uint32_t kCanonicalNansFloat32[4] = {0x7fc00000,
+                                                         0x7fc00000,
+                                                         0x7fc00000,
+                                                         0x7fc00000};
+  alignas(16) const uint64_t kCanonicalNansFloat64[2] = {0x7ff8000000000000, 0x7ff8000000000000};
+  int64_t BsrToClzInt64 = 127;
+  int64_t WidthInBits64 = 64;
+  int32_t BsrToClzInt32 = 63;
+  int32_t WidthInBits32 = 32;
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 128, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 768, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat64, 384, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, BsrToClzInt64, 512, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, WidthInBits64, 576, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, BsrToClzInt32, 640, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, WidthInBits32, 672, 32);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -44,7 +65,7 @@ CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 128, 128);
 // Also assembler intrinsics for interpreter use kMacroAssemblerConstants
 // directly (they couldn't use consts below because these addresses are only
 // known during runtime)
-extern "C" const MacroAssemblerConstants kBerberisMacroAssemblerConstants
+extern const MacroAssemblerConstants kBerberisMacroAssemblerConstants
     __attribute__((visibility("hidden")));
 const MacroAssemblerConstants kBerberisMacroAssemblerConstants;
 
@@ -67,6 +88,29 @@ int32_t GetConstants() {
 
 extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
 const int32_t kBerberisMacroAssemblerConstantsRelocated = GetConstants();
-const int32_t kNanBoxFloat32 = GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxFloat32);
+template <>
+const int32_t kNanBox<intrinsics::Float32> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxFloat32);
+template <>
+const int32_t kNanBoxedNans<intrinsics::Float32> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxedNansFloat32);
+template <>
+const int32_t kCanonicalNans<intrinsics::Float32> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kCanonicalNansFloat32);
+template <>
+const int32_t kCanonicalNans<intrinsics::Float64> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kCanonicalNansFloat64);
+template <>
+const int32_t BsrToClz<int32_t> =
+    GetConstants() + offsetof(MacroAssemblerConstants, BsrToClzInt32);
+template <>
+const int32_t BsrToClz<int64_t> =
+    GetConstants() + offsetof(MacroAssemblerConstants, BsrToClzInt64);
+template <>
+const int32_t WidthInBits<int32_t> =
+    GetConstants() + offsetof(MacroAssemblerConstants, WidthInBits32);
+template <>
+const int32_t WidthInBits<int64_t> =
+    GetConstants() + offsetof(MacroAssemblerConstants, WidthInBits64);
 
-}  // namespace berberis::x86
+}  // namespace berberis::constant_pool

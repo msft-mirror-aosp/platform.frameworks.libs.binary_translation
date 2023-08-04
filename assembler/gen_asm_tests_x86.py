@@ -288,7 +288,7 @@ def _gen_att_assembler(file, insns, fast_mode):
     arc_name = insn['asm']
     insn_name = insn['mnemo']
     if len(insn['args']) and insn['args'][0]['class'] == 'Cond':
-      if insn_name in ('CMOVL', 'CMOVQ'):
+      if insn_name in ('CMOVW', 'CMOVL', 'CMOVQ'):
         insn_name = 'CMOV'
       else:
         assert insn_name.endswith('CC')

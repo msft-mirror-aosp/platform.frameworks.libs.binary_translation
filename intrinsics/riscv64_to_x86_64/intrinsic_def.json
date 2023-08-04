@@ -14,11 +14,208 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
-  "FAdd": {
+  "AmoAdd": {
+    "comment": "Atomic add, like __atomic_fetch_add. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "AmoAnd": {
+    "comment": "Atomic and, like __atomic_fetch_and. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "AmoMax": {
+    "comment": "Atomic maximum, like __atomic_fetch_max. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true",
+      "uint32_t, false, false",
+      "uint32_t, false, true",
+      "uint32_t, true, false",
+      "uint32_t, true, true",
+      "uint64_t, false, false",
+      "uint64_t, false, true",
+      "uint64_t, true, false",
+      "uint64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "AmoMin": {
+    "comment": "Atomic minimum, like __atomic_fetch_min. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true",
+      "uint32_t, false, false",
+      "uint32_t, false, true",
+      "uint32_t, true, false",
+      "uint32_t, true, true",
+      "uint64_t, false, false",
+      "uint64_t, false, true",
+      "uint64_t, true, false",
+      "uint64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "AmoOr": {
+    "comment": "Atomic or, like __atomic_fetch_or. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "AmoSwap": {
+    "comment": "Atomic exchange, like __atomic_exchange_n. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "AmoXor": {
+    "comment": "Atomic exclusive or, like __atomic_fetch_xor. Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "CanonicalizeNan": {
+    "comment": "Unbox small floating-point value from NaN",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "Clz": {
+    "comment": "Count leading zeros. Note: works like lzcnt, supports zero input!",
+    "class": "template",
+    "variants": [ "int32_t", "int64_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Ctz": {
+    "comment": "Count trailing zeros. Note: works like tzcnt, supports zero input!",
+    "class": "template",
+    "variants": [ "int32_t", "int64_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Cpop": {
+    "comment": "Count set bits",
+    "class": "template",
+    "variants": [ "int32_t", "int64_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Max": {
+    "comment": "Returns the larger of two integers.",
+    "class": "template",
+    "variants": [ "int64_t", "uint64_t" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "Min": {
+    "comment": "Returns the smaller of two integers.",
+    "class": "template",
+    "variants": [ "int64_t", "uint64_t" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "Sext": {
+    "comment": "Sign-extends to 64bit",
+    "class": "template",
+    "variants": [ "int8_t", "int16_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Zexth": {
+    "comment": "Zero-extend half word",
+    "class": "scalar",
+    "in": [ "int16_t" ],
+    "out": [ "int64_t" ]
+  },
+    "FAdd": {
     "comment": "Floating point addition",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FAddHostRounding": {
@@ -33,14 +230,18 @@
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0" ],
-    "out": [ "uint64_t" ]
+    "out": [ "uint64_t" ],
+    "side_effects_comment": "Classification of value, doesn't set exceptions bits.",
+    "has_side_effects": false
   },
   "FCvtFloatToFloat": {
     "comment": "Convert float to float",
     "class": "template",
     "variants": [ "Float32, Float64", "Float64, Float32" ],
-    "in": [ "uint8_t", "uint8_t", "Type1" ],
-    "out": [ "Type0" ]
+    "in": [ "imm8", "int8_t", "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
   },
   "FCvtFloatToInteger": {
     "comment": "Convert float to integer",
@@ -55,8 +256,10 @@
       "uint64_t, Float32",
       "uint64_t, Float64"
     ],
-    "in": [ "uint8_t", "uint8_t", "Type1" ],
-    "out": [ "Type0" ]
+    "in": [ "imm8", "int8_t", "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
   },
   "FCvtIntegerToFloat": {
     "comment": "Convert integer to float",
@@ -71,14 +274,30 @@
       "Float64, uint32_t",
       "Float64, uint64_t"
     ],
-    "in": [ "uint8_t", "uint8_t", "Type1" ],
-    "out": [ "Type0" ]
+    "in": [ "imm8", "int8_t", "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
+  },
+  "FCvtFloatToIntegerHostRounding": {
+    "comment": "Convert float to integer",
+    "class": "template",
+    "variants": [
+      "int32_t, Float32",
+      "int32_t, Float64",
+      "int64_t, Float32",
+      "int64_t, Float64"
+    ],
+    "in": [ "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
   },
   "FDiv": {
     "comment": "Floating point division",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FDivHostRounding": {
@@ -88,11 +307,32 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "Feq": {
+    "comment": "Floating point comparison for “equal” (quiet comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Fle": {
+    "comment": "Floating point comparison for “less of equal” (signaling comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Flt": {
+    "comment": "Floating point comparison for “less” (quiet comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
   "FMAdd": {
     "comment": "Fused multiply-addition",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FMAddHostRounding": {
@@ -106,7 +346,7 @@
     "comment": "Fused multiply-subtraction",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FMSubHostRounding": {
@@ -134,7 +374,7 @@
     "comment": "Floating point multiplication",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FMulHostRounding": {
@@ -144,11 +384,29 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "FmvFloatToInteger": {
+    "comment": "Move floating point register to integer register",
+    "class": "template",
+    "variants": [ "int32_t, Float32", "int64_t, Float64" ],
+    "in": [ "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
+  },
+  "FmvIntegerToFloat": {
+    "comment": "Move floating point register to integer register",
+    "class": "template",
+    "variants": [ "Float32, int32_t", "Float64, int64_t" ],
+    "in": [ "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
+  },
   "FNMAdd": {
     "comment": "Fused negated multiply-addition",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FNMAddHostRounding": {
@@ -162,7 +420,7 @@
     "comment": "Fused negated multiply-subtraction",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FNMSubHostRounding": {
@@ -177,27 +435,33 @@
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
+    "has_side_effects": false
   },
   "FSgnjn": {
     "comment": "Copy negated sign of one float to another",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
+    "has_side_effects": false
   },
   "FSgnjx": {
     "comment": "Xor two sign bits of two floats and return",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
+    "out": [ "Type0" ],
+    "side_effects_comment": "Special conversion. Doesn't set exceptions bits.",
+    "has_side_effects": false
   },
   "FSqrt": {
     "comment": "Square root",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0" ],
     "out": [ "Type0" ]
   },
   "FSqrtHostRounding": {
@@ -211,7 +475,7 @@
     "comment": "Floating point subtraction",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "in": [ "imm8", "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "FSubHostRounding": {
@@ -219,6 +483,60 @@
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "Lr": {
+    "comment": "Atomic load+reserve (see RISC-V manual). Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "NanBox": {
+    "comment": [
+      "NaN-box small floating-point value into NaN.",
+      "Note: we pass input value as Float64 but top half may contain garbage.",
+      "This is needed because otherwise FPRegToFloat would be used to check it."
+    ],
+    "class": "template",
+    "variants": [ "Float32" ],
+    "in": [ "Float64" ],
+    "out": [ "Float64" ]
+  },
+  "Sc": {
+    "comment": "Store conditional (see RISC-V manual). Three template arguments: type, aq, rl.",
+    "class": "template",
+    "variants": [
+      "int32_t, false, false",
+      "int32_t, false, true",
+      "int32_t, true, false",
+      "int32_t, true, true",
+      "int64_t, false, false",
+      "int64_t, false, true",
+      "int64_t, true, false",
+      "int64_t, true, true"
+    ],
+    "in": [ "int64_t", "Type0" ],
+    "out": [ "int64_t" ],
+    "side_effects_comment": "Atomic instruction. Should be volatile.",
+    "has_side_effects": true
+  },
+  "UnboxNan": {
+    "comment": "Unbox small floating-point value from NaN",
+    "class": "template",
+    "variants": [ "Float32" ],
+    "in": [ "Float64" ],
     "out": [ "Type0" ]
   }
 }

@@ -22,6 +22,7 @@
 #include "berberis/assembler/common.h"
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/checks.h"
+#include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
@@ -31,8 +32,11 @@
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/lite_translator/lite_translate_region.h"
+#include "berberis/runtime_primitives/platform.h"
 
 #include "allocator.h"
+#include "call_intrinsic.h"
+#include "inline_intrinsic.h"
 
 namespace berberis {
 
@@ -43,7 +47,10 @@ class LiteTranslator {
   using Assembler = MacroAssembler<x86_64::Assembler>;
   using Decoder = Decoder<SemanticsPlayer<LiteTranslator>>;
   using Register = Assembler::Register;
+  // Note: on RISC-V architecture FP register and SIMD registers are disjoint, but on x86 they are
+  // the same.
   using FpRegister = Assembler::XMMRegister;
+  using SimdRegister = Assembler::XMMRegister;
   using Condition = Assembler::Condition;
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
@@ -63,8 +70,12 @@ class LiteTranslator {
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2);
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm);
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm);
-  Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm);
+  Register Slli(Register arg, int8_t imm);
+  Register Srli(Register arg, int8_t imm);
+  Register Srai(Register arg, int8_t imm);
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm);
+  Register Rori(Register arg, int8_t shamt);
+  Register Roriw(Register arg, int8_t shamt);
   Register Lui(int32_t imm);
   Register Auipc(int32_t imm);
   void CompareAndBranch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset);
@@ -74,12 +85,6 @@ class LiteTranslator {
   void ExitRegionIndirect(Register target);
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
-
-  Register Amo(Decoder::AmoOpcode opcode, Register arg1, Register arg2, bool aq, bool rl) {
-    UNUSED(opcode, arg1, arg2, aq, rl);
-    Unimplemented();
-    return {};
-  }
 
   Register Ecall(Register syscall_nr,
                  Register arg0,
@@ -115,36 +120,16 @@ class LiteTranslator {
   // F and D extensions.
   //
 
-  Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
-                                          Decoder::FloatOperandType float_size,
-                                          FpRegister arg1,
-                                          FpRegister arg2) {
-    UNUSED(opcode, float_size, arg1, arg2);
-    Unimplemented();
-    return {};
+  template <typename DataType>
+  FpRegister LoadFp(Register arg, int16_t offset) {
+    FpRegister res = AllocTempSimdReg();
+    as_.Movs<DataType>(res, {.base = arg, .disp = offset});
+    return res;
   }
 
-  FpRegister Fmv(Register arg) {
-    UNUSED(arg);
-    Unimplemented();
-    return {};
-  }
-
-  Register Fmv(Decoder::FloatOperandType float_size, FpRegister arg) {
-    UNUSED(float_size, arg);
-    Unimplemented();
-    return {};
-  }
-
-  FpRegister LoadFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset) {
-    UNUSED(opcode, arg, offset);
-    Unimplemented();
-    return {};
-  }
-
-  void StoreFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset, FpRegister data) {
-    UNUSED(opcode, arg, offset, data);
-    Unimplemented();
+  template <typename DataType>
+  void StoreFp(Register arg, int16_t offset, FpRegister data) {
+    as_.Movs<DataType>({.base = arg, .disp = offset}, data);
   }
 
   Register Csr(Decoder::CsrOpcode opcode, Register arg, Decoder::CsrRegister csr) {
@@ -157,6 +142,16 @@ class LiteTranslator {
     UNUSED(opcode, imm, csr);
     Unimplemented();
     return {};
+  }
+
+  FpRegister Fmv(FpRegister arg) {
+    SimdRegister res = AllocTempSimdReg();
+    if (host_platform::kHasAVX) {
+      as_.Vmovapd(res, arg);
+    } else {
+      as_.Vmovaps(res, arg);
+    }
+    return res;
   }
 
   //
@@ -182,32 +177,83 @@ class LiteTranslator {
   }
 
   FpRegister GetFpReg(uint8_t reg) {
-    UNUSED(reg);
-    Unimplemented();
-    return {};
+    CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+    SimdRegister result = AllocTempSimdReg();
+    int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
+    as_.Movsd(result, {.base = Assembler::rbp, .disp = offset});
+    return result;
   }
 
-  FpRegister GetFRegAndUnboxNaN(uint8_t reg, Decoder::FloatOperandType operand_type) {
-    UNUSED(reg, operand_type);
-    Unimplemented();
-    return {};
+  FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
+    SimdRegister result = GetFpReg(reg);
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat: {
+        SimdRegister unboxed_result = AllocTempSimdReg();
+        if (host_platform::kHasAVX) {
+          as_.MacroUnboxNanAVX<Float32>(unboxed_result, result);
+        } else {
+          as_.MacroUnboxNan<Float32>(unboxed_result, result);
+        }
+        return unboxed_result;
+      }
+      case Decoder::FloatOperandType::kDouble:
+        return result;
+      // No support for half-precision and quad-precision operands.
+      default:
+        Unimplemented();
+        return {};
+    }
   }
 
-  FpRegister CanonicalizeNans(FpRegister value, Decoder::FloatOperandType operand_type) {
-    UNUSED(value, operand_type);
-    Unimplemented();
-    return {};
-  }
-
-  Register CanonicalizeGpNans(Register value, Decoder::FloatOperandType operand_type) {
-    UNUSED(value, operand_type);
-    Unimplemented();
-    return {};
+  FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
+    SimdRegister canonical_result = AllocTempSimdReg();
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat: {
+        if (host_platform::kHasAVX) {
+          as_.MacroCanonicalizeNanAVX<Float32>(canonical_result, value);
+        } else {
+          as_.MacroCanonicalizeNan<Float32>(canonical_result, value);
+        }
+        return canonical_result;
+      }
+      case Decoder::FloatOperandType::kDouble: {
+        if (host_platform::kHasAVX) {
+          as_.MacroCanonicalizeNanAVX<Float64>(canonical_result, value);
+        } else {
+          as_.MacroCanonicalizeNan<Float64>(canonical_result, value);
+        }
+        return canonical_result;
+      }
+      // No support for half-precision and quad-precision operands.
+      default:
+        Unimplemented();
+        return {};
+    }
   }
 
   void NanBoxAndSetFpReg(uint8_t reg, FpRegister value, Decoder::FloatOperandType operand_type) {
-    UNUSED(reg, value, operand_type);
-    Unimplemented();
+    CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+    int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
+    switch (operand_type) {
+      case Decoder::FloatOperandType::kFloat:
+        if (host_platform::kHasAVX) {
+          as_.MacroNanBoxAVX<Float32>(value);
+          as_.Vmovsd({.base = Assembler::rbp, .disp = offset}, value);
+        } else {
+          as_.Movsd({.base = Assembler::rbp, .disp = offset}, value);
+        }
+        break;
+      case Decoder::FloatOperandType::kDouble:
+        if (host_platform::kHasAVX) {
+          as_.Vmovsd({.base = Assembler::rbp, .disp = offset}, value);
+        } else {
+          as_.Movsd({.base = Assembler::rbp, .disp = offset}, value);
+        }
+        break;
+      // No support for half-precision and quad-precision operands.
+      default:
+        return Unimplemented();
+    }
   }
 
   //
@@ -215,8 +261,10 @@ class LiteTranslator {
   //
 
   [[nodiscard]] Register GetFrm() {
-    Unimplemented();
-    return {};
+    Register frm_reg = AllocTempReg();
+    as_.Movb(frm_reg, {.base = Assembler::rbp, .disp = offsetof(ThreadState, cpu.csr_data)});
+    as_.Andb(frm_reg, int8_t{0b111});
+    return frm_reg;
   }
 
   [[nodiscard]] Register GetImm(uint64_t imm) {
@@ -230,20 +278,16 @@ class LiteTranslator {
   [[nodiscard]] Assembler* as() { return &as_; }
   [[nodiscard]] bool success() const { return success_; }
 
+  void FreeTempRegs() {
+    gp_allocator_.FreeTemps();
+    simd_allocator_.FreeTemps();
+  }
+
 #include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
 
   bool is_region_end_reached() const { return is_region_end_reached_; }
 
   void IncrementInsnAddr(uint8_t insn_size) { pc_ += insn_size; }
-
-  void FreeTempRegs() { gp_allocator_.FreeTemps(); }
-
- private:
-  template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
-  AssemblerResType CallIntrinsic(AssemblerArgType...) {
-    Unimplemented();
-    return {};
-  }
 
   Register AllocTempReg() {
     if (auto reg_option = gp_allocator_.AllocTemp()) {
@@ -251,12 +295,49 @@ class LiteTranslator {
     }
     success_ = false;
     return {};
+  };
+
+  SimdRegister AllocTempSimdReg() {
+    if (auto reg_option = simd_allocator_.AllocTemp()) {
+      return reg_option.value();
+    }
+    success_ = false;
+    return {};
+  };
+
+ private:
+  template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
+  AssemblerResType CallIntrinsic(AssemblerArgType... args) {
+    AssemblerResType result;
+    if constexpr (std::is_same_v<AssemblerResType, Register>) {
+      result = AllocTempReg();
+    } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
+      result = AllocTempSimdReg();
+    } else {
+      // This should not be reached by the compiler. If it is - there is a new result type that
+      // needs to be supported.
+      static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
+    }
+
+    if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
+            as_,
+            [this]() { return AllocTempReg(); },
+            [this]() { return AllocTempSimdReg(); },
+            result,
+            args...)) {
+      return result;
+    }
+
+    call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, result, args...);
+
+    return result;
   }
 
   Assembler as_;
   bool success_;
   GuestAddr pc_;
   Allocator<Register> gp_allocator_;
+  Allocator<SimdRegister> simd_allocator_;
   const LiteTranslateParams& params_;
   bool is_region_end_reached_;
 };

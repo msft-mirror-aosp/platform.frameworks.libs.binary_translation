@@ -34,7 +34,6 @@
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 
-#include "atomics.h"
 #include "fp_regs.h"
 
 namespace berberis {
@@ -180,6 +179,12 @@ class Interpreter {
         return bit_cast<int64_t>(arg1) % bit_cast<int64_t>(arg2);
       case Decoder::OpOpcode::kRemu:
         return arg1 % arg2;
+      case Decoder::OpOpcode::kAndn:
+        return arg1 & (~arg2);
+      case Decoder::OpOpcode::kOrn:
+        return arg1 | (~arg2);
+      case Decoder::OpOpcode::kXnor:
+        return ~(arg1 ^ arg2);
       default:
         Unimplemented();
         return {};
@@ -214,71 +219,6 @@ class Interpreter {
     }
   }
 
-  Register Amo(Decoder::AmoOpcode opcode, Register arg1, Register arg2, bool aq, bool rl) {
-    switch (opcode) {
-      // TODO(b/287347834): Implement reservation semantics when it's added to runtime_primitives.
-      case Decoder::AmoOpcode::kLrW:
-        return Load<int32_t>(ToHostAddr<void>(arg1));
-      case Decoder::AmoOpcode::kLrD:
-        return Load<uint64_t>(ToHostAddr<void>(arg1));
-      case Decoder::AmoOpcode::kScW:
-        Store<uint32_t>(ToHostAddr<void>(arg1), arg2);
-        return 0;
-      case Decoder::AmoOpcode::kScD:
-        Store<uint64_t>(ToHostAddr<void>(arg1), arg2);
-        return 0;
-
-      case Decoder::AmoOpcode::kAmoswapW:
-        return AtomicExchange<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoswapD:
-        return AtomicExchange<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmoaddW:
-        return AtomicAdd<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoaddD:
-        return AtomicAdd<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmoxorW:
-        return AtomicXor<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoxorD:
-        return AtomicXor<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmoandW:
-        return AtomicAnd<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoandD:
-        return AtomicAnd<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmoorW:
-        return AtomicOr<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmoorD:
-        return AtomicOr<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmominW:
-        return AtomicMin<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmominD:
-        return AtomicMin<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmomaxW:
-        return AtomicMax<int32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmomaxD:
-        return AtomicMax<int64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmominuW:
-        return AtomicMinu<uint32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmominuD:
-        return AtomicMinu<uint64_t>(arg1, arg2, aq, rl);
-
-      case Decoder::AmoOpcode::kAmomaxuW:
-        return AtomicMaxu<uint32_t>(arg1, arg2, aq, rl);
-      case Decoder::AmoOpcode::kAmomaxuD:
-        return AtomicMaxu<uint64_t>(arg1, arg2, aq, rl);
-
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (operand_type) {
@@ -302,17 +242,13 @@ class Interpreter {
     }
   }
 
-  FpRegister LoadFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset) {
-    void* ptr = ToHostAddr<void>(arg + offset);
-    switch (opcode) {
-      case Decoder::FloatOperandType::kFloat:
-        return LoadFp<float>(ptr);
-      case Decoder::FloatOperandType::kDouble:
-        return LoadFp<double>(ptr);
-      default:
-        Unimplemented();
-        return {};
-    }
+  template <typename DataType>
+  FpRegister LoadFp(Register arg, int16_t offset) {
+    static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
+    DataType* ptr = ToHostAddr<DataType>(arg + offset);
+    FpRegister reg = 0;
+    memcpy(&reg, ptr, sizeof(DataType));
+    return reg;
   }
 
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
@@ -357,68 +293,11 @@ class Interpreter {
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   }
 
-  // In 32-bit case we don't care about the upper 32-bits because nan-boxing will clobber them.
-  FpRegister Fmv(Register arg) { return arg; }
+  Register Slli(Register arg, int8_t imm) { return arg << imm; }
 
-  Register Fmv(Decoder::FloatOperandType float_size, FpRegister arg) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return static_cast<int64_t>(static_cast<int32_t>(arg));
-      case Decoder::FloatOperandType::kDouble:
-        return arg;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
+  Register Srli(Register arg, int8_t imm) { return arg >> imm; }
 
-  Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
-                                          Decoder::FloatOperandType float_size,
-                                          FpRegister arg1,
-                                          FpRegister arg2) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return OpFpGpRegisterTargetNoRounding<Float32>(
-            opcode, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2));
-      case Decoder::FloatOperandType::kDouble:
-        return OpFpGpRegisterTargetNoRounding<Float64>(
-            opcode, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2));
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  template <typename FloatType>
-  Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
-                                          FloatType arg1,
-                                          FloatType arg2) {
-    switch (opcode) {
-      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFle:
-        return arg1 <= arg2;
-      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFlt:
-        return arg1 < arg2;
-      case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFeq:
-        return arg1 == arg2;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  Register ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
-    switch (opcode) {
-      case Decoder::ShiftImmOpcode::kSlli:
-        return arg << imm;
-      case Decoder::ShiftImmOpcode::kSrli:
-        return arg >> imm;
-      case Decoder::ShiftImmOpcode::kSrai:
-        return bit_cast<int64_t>(arg) >> imm;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
+  Register Srai(Register arg, int8_t imm) { return bit_cast<int64_t>(arg) >> imm; }
 
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
     switch (opcode) {
@@ -432,6 +311,16 @@ class Interpreter {
         Unimplemented();
         return {};
     }
+  }
+
+  Register Rori(Register arg, int8_t shamt) {
+    CheckShamtIsValid(shamt);
+    return (((uint64_t(arg) >> shamt)) | (uint64_t(arg) << (64 - shamt)));
+  }
+
+  Register Roriw(Register arg, int8_t shamt) {
+    CheckShamt32IsValid(shamt);
+    return (((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
   }
 
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data) {
@@ -454,18 +343,11 @@ class Interpreter {
     }
   }
 
-  void StoreFp(Decoder::FloatOperandType opcode, Register arg, int16_t offset, FpRegister data) {
-    void* ptr = ToHostAddr<void>(arg + offset);
-    switch (opcode) {
-      case Decoder::FloatOperandType::kFloat:
-        StoreFp<float>(ptr, data);
-        break;
-      case Decoder::FloatOperandType::kDouble:
-        StoreFp<double>(ptr, data);
-        break;
-      default:
-        return Unimplemented();
-    }
+  template <typename DataType>
+  void StoreFp(Register arg, int16_t offset, FpRegister data) {
+    static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
+    DataType* ptr = ToHostAddr<DataType>(arg + offset);
+    memcpy(ptr, &data, sizeof(DataType));
   }
 
   void CompareAndBranch(Decoder::BranchOpcode opcode,
@@ -512,6 +394,8 @@ class Interpreter {
     branch_taken_ = true;
   }
 
+  FpRegister Fmv(FpRegister arg) { return arg; }
+
   void Nop() {}
 
   void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
@@ -535,15 +419,12 @@ class Interpreter {
     return state_->cpu.f[reg];
   }
 
-  FpRegister GetFRegAndUnboxNaN(uint8_t reg, Decoder::FloatOperandType operand_type) {
+  FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
     CheckFpRegIsValid(reg);
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat: {
         FpRegister value = state_->cpu.f[reg];
-        if ((value & 0xffff'ffff'0000'0000) != 0xffff'ffff'0000'0000) {
-          return 0x0ffff'ffff'7fc0'0000;
-        }
-        return value;
+        return UnboxNan<Float32>(value);
       }
       case Decoder::FloatOperandType::kDouble:
         return state_->cpu.f[reg];
@@ -554,21 +435,13 @@ class Interpreter {
     }
   }
 
-  FpRegister CanonicalizeNans(FpRegister value, Decoder::FloatOperandType operand_type) {
+  FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat: {
-        intrinsics::Float32 result = FPRegToFloat<intrinsics::Float32>(value);
-        if (IsNan(result)) {
-          return 0x0ffff'ffff'7fc0'0000;
-        }
-        return value;
+        return CanonicalizeNan<Float32>(value);
       }
       case Decoder::FloatOperandType::kDouble: {
-        intrinsics::Float64 result = FPRegToFloat<intrinsics::Float64>(value);
-        if (IsNan(result)) {
-          return 0x7ff8'0000'0000'0000;
-        }
-        return value;
+        return CanonicalizeNan<Float64>(value);
       }
       // No support for half-precision and quad-precision operands.
       default:
@@ -581,7 +454,7 @@ class Interpreter {
     CheckFpRegIsValid(reg);
     switch (operand_type) {
       case Decoder::FloatOperandType::kFloat:
-        state_->cpu.f[reg] = value | 0xffff'ffff'0000'0000;
+        state_->cpu.f[reg] = NanBox<Float32>(value);
         break;
       case Decoder::FloatOperandType::kDouble:
         state_->cpu.f[reg] = value;
@@ -621,14 +494,6 @@ class Interpreter {
   }
 
   template <typename DataType>
-  FpRegister LoadFp(const void* ptr) const {
-    static_assert(std::is_floating_point_v<DataType>);
-    FpRegister reg = 0;
-    memcpy(&reg, ptr, sizeof(DataType));
-    return reg;
-  }
-
-  template <typename DataType>
   void Store(void* ptr, uint64_t data) const {
     static_assert(std::is_integral_v<DataType>);
     memcpy(ptr, &data, sizeof(DataType));
@@ -638,6 +503,16 @@ class Interpreter {
   void StoreFp(void* ptr, uint64_t data) const {
     static_assert(std::is_floating_point_v<DataType>);
     memcpy(ptr, &data, sizeof(DataType));
+  }
+
+  void CheckShamtIsValid(int8_t shamt) const {
+    CHECK_GE(shamt, 0);
+    CHECK_LT(shamt, 64);
+  }
+
+  void CheckShamt32IsValid(int8_t shamt) const {
+    CHECK_GE(shamt, 0);
+    CHECK_LT(shamt, 32);
   }
 
   void CheckRegIsValid(uint8_t reg) const {

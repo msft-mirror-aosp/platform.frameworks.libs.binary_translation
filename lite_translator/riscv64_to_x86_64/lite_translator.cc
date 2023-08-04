@@ -120,6 +120,21 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Divq(arg2);
       as_.Movq(res, opcode == OpOpcode::kDivu ? as_.rax : as_.rdx);
       break;
+    case Decoder::OpOpcode::kAndn:
+      as_.Movq(res, arg2);
+      as_.Notq(res);
+      as_.Andq(res, arg1);
+      break;
+    case Decoder::OpOpcode::kOrn:
+      as_.Movq(res, arg2);
+      as_.Notq(res);
+      as_.Orq(res, arg1);
+      break;
+    case Decoder::OpOpcode::kXnor:
+      as_.Movq(res, arg2);
+      as_.Xorq(res, arg1);
+      as_.Notq(res);
+      break;
     default:
       Unimplemented();
       return {};
@@ -236,21 +251,24 @@ Register LiteTranslator::OpImm32(Decoder::OpImm32Opcode opcode, Register arg, in
   return res;
 }
 
-Register LiteTranslator::ShiftImm(Decoder::ShiftImmOpcode opcode, Register arg, uint16_t imm) {
-  using ShiftImmOpcode = Decoder::ShiftImmOpcode;
+Register LiteTranslator::Slli(Register arg, int8_t imm) {
   Register res = AllocTempReg();
   as_.Movq(res, arg);
-  as_.Movq(as_.rcx, imm);
-  if (opcode == ShiftImmOpcode::kSrli) {
-    as_.ShrqByCl(res);
-  } else if (opcode == ShiftImmOpcode::kSlli) {
-    as_.ShlqByCl(res);
-  } else if (opcode == ShiftImmOpcode::kSrai) {
-    as_.SarqByCl(res);
-  } else {
-    Unimplemented();
-    return {};
-  }
+  as_.Shlq(res, imm);
+  return res;
+}
+
+Register LiteTranslator::Srli(Register arg, int8_t imm) {
+  Register res = AllocTempReg();
+  as_.Movq(res, arg);
+  as_.Shrq(res, imm);
+  return res;
+}
+
+Register LiteTranslator::Srai(Register arg, int8_t imm) {
+  Register res = AllocTempReg();
+  as_.Movq(res, arg);
+  as_.Sarq(res, imm);
   return res;
 }
 
@@ -273,19 +291,29 @@ Register LiteTranslator::ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register a
   return res;
 }
 
+Register LiteTranslator::Rori(Register arg, int8_t shamt) {
+  Register res = AllocTempReg();
+  as_.Movq(res, arg);
+  as_.Rorq(res, shamt);
+  return res;
+}
+
+Register LiteTranslator::Roriw(Register arg, int8_t shamt) {
+  Register res = AllocTempReg();
+  as_.Movq(res, arg);
+  as_.Rorl(res, shamt);
+  return res;
+}
+
 Register LiteTranslator::Lui(int32_t imm) {
   Register res = AllocTempReg();
-  as_.Movl(res, imm);
-  as_.Movsxlq(res, res);
+  as_.Movq(res, imm);
   return res;
 }
 
 Register LiteTranslator::Auipc(int32_t imm) {
-  Register res = AllocTempReg();
-  Register pc = GetImm(GetInsnAddr());
-  as_.Movl(res, imm);
-  as_.Movsxlq(res, res);
-  as_.Addq(res, pc);
+  Register res = GetImm(GetInsnAddr());
+  as_.Addq(res, imm);
   return res;
 }
 

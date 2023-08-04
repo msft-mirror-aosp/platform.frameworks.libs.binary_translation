@@ -140,7 +140,7 @@ def _get_c_type(arg_type):
 
 
 def _get_semantic_player_type(arg_type, type_map):
-  if _is_template_type(arg_type):
+  if type_map is not None and arg_type in type_map:
     return type_map[arg_type]
   if arg_type in ('Float32', 'Float64', 'vec'):
     return 'SimdRegister'
@@ -643,7 +643,10 @@ def _gen_semantic_player_types(intrs):
           nonlocal counter
           counter += 1
           return counter
-        new_map = {}
+        new_map = {
+          'Float32': 'FpRegister',
+          'Float64': 'FpRegister',
+        }
         for type in filter(
               lambda param: param.strip() not in ('true', 'false') and
                             re.search('[_a-zA-Z]', param),
@@ -713,20 +716,44 @@ def _get_reg_operand_info(arg, info_prefix=None):
   assert False, 'unknown operand usage %s' % (arg['usage'])
 
 
-def _gen_make_intrinsics(f, intrs):
+def _gen_make_intrinsics(f, intrs, archs):
   print("""%s
-void MakeIntrinsics(FILE* out) {
-  using MacroAssembler = MacroAssembler<TextAssembler>;
-  namespace OperandClass = x86::OperandClass;
-  std::unique_ptr<GenerateAsmCallBase> asm_call_generators[] = {""" % AUTOGEN, file=f)
-  for line in _gen_c_intrinsics_generator(intrs):
-    print(line, file=f)
-  print("""  };
-  GenerateAsmCalls(out, std::forward<decltype(asm_call_generators)>(asm_call_generators));
+template <%s,
+          typename Callback,
+          typename... Args>
+void ProcessAllBindings(Callback callback, Args&&... args) {""" % (
+    AUTOGEN,
+    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
+                         ['typename MacroAssembler'])),
+    file=f)
+  for line in _gen_c_intrinsics_generator(
+          intrs, _is_interpreter_compatible_assembler):
+      print(line, file=f)
+  print('}', file=f)
+
+
+def _gen_process_bindings(f, intrs, archs):
+  print("""%s
+template <auto kFunc,
+          %s,
+          typename Result,
+          typename Callback,
+          typename... Args>
+Result ProcessBindings(Callback callback, Result def_result, Args&&... args) {""" % (
+    AUTOGEN,
+    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
+                         ['typename MacroAssembler'])),
+    file=f)
+  for line in _gen_c_intrinsics_generator(
+          intrs, _is_translator_compatible_assembler):
+      print(line, file=f)
+  print("""  }
+  return std::forward<Result>(def_result);
 }""", file=f)
 
 
-def _gen_c_intrinsics_generator(intrs):
+def _gen_c_intrinsics_generator(intrs, check_compatible_assembler):
+  string_labels = {}
   for name, intr in intrs:
     ins = intr.get('in')
     outs = intr.get('out')
@@ -743,7 +770,8 @@ def _gen_c_intrinsics_generator(intrs):
       # Note: not all variants are guaranteed to have asm version!
       # If that happens list of intr_asms for that variant would be empty.
       variants = [(desc, [
-          intr_asm for intr_asm in intr['asm'] if fmt in intr_asm['variants']
+          intr_asm for intr_asm in _gen_sorted_asms(intr)
+          if fmt in intr_asm['variants']
       ]) for fmt, desc in variants]
       # Print intrinsic generator
       for desc, intr_asms in variants:
@@ -753,63 +781,160 @@ def _gen_c_intrinsics_generator(intrs):
           else:
             spec = '%s, %d' % (desc.c_type, desc.num_elements)
           for intr_asm in intr_asms:
-            for line in _gen_c_intrinsic('%s<%s>' % (name, spec), intr, intr_asm):
+            for line in _gen_c_intrinsic('%s<%s>' % (name, spec),
+                                         intr,
+                                         intr_asm,
+                                         string_labels,
+                                         check_compatible_assembler):
               yield line
     else:
-      for intr_asm in intr['asm']:
-        for line in _gen_c_intrinsic(name, intr, intr_asm):
+      for intr_asm in _gen_sorted_asms(intr):
+        for line in _gen_c_intrinsic(
+          name, intr, intr_asm, string_labels, check_compatible_assembler):
           yield line
 
 
-MAX_GENERATED_LINE_LENGTH = 100
+def _gen_sorted_asms(intr):
+  return sorted(intr['asm'],
+    key = lambda intr:
+        intr.get('nan', '') +
+      _KNOWN_FEATURES_KEYS.get(
+        intr.get('feature', ''), intr.get('feature', '')), reverse = True)
+
+_KNOWN_FEATURES_KEYS = {
+  'LZCNT': '001',
+  'BMI': '002',
+  'BMI2': '003',
+  'SSE': '010',
+  'SSE2': '011',
+  'SSE3': '012',
+  'SSSE3': '013',
+  'SSE4a': '014',
+  'SSE4_1': '015',
+  'SSE4_2': '016',
+  'AVX': '017',
+  'AVX2': '018',
+  'FMA': '019',
+  'FMA4': '020'
+}
 
 
-def _gen_c_intrinsic(name, intr, asm):
-  if not _is_interpreter_compatible_assembler(asm):
+def _gen_c_intrinsic(name, intr, asm, string_labels, check_compatible_assembler):
+  if not check_compatible_assembler(asm):
     return
 
-  sse_restriction = 'GenerateAsmCallBase::kNoSSERestriction'
+  cpuid_restriction = 'intrinsics::bindings::kNoCPUIDRestriction'
   if 'feature' in asm:
     if asm['feature'] == 'AuthenticAMD':
-      sse_restriction = 'GenerateAsmCallBase::kIsAuthenticAMD'
+      cpuid_restriction = 'intrinsics::bindings::kIsAuthenticAMD'
     else:
-      sse_restriction = 'GenerateAsmCallBase::kHas%s' % asm['feature']
+      cpuid_restriction = 'intrinsics::bindings::kHas%s' % asm['feature']
 
-  nan_restriction = 'GenerateAsmCallBase::kNoNansOperation'
+  nan_restriction = 'intrinsics::bindings::kNoNansOperation'
   if 'nan' in asm:
-    nan_restriction = 'GenerateAsmCallBase::k%sNanOperationsHandling' % asm['nan']
+    nan_restriction = 'intrinsics::bindings::k%sNanOperationsHandling' % asm['nan']
+    template_arg = 'true' if asm['nan'] == "Precise" else "false"
+    if '<' in name:
+      template_pos = name.index('<')
+      name = name[0:template_pos+1] + template_arg + ", " + name[template_pos+1:]
+    else:
+      name += '<' + template_arg + '>'
 
-  restriction = [sse_restriction, nan_restriction]
+  if name not in string_labels:
+    name_label = 'kName%d' % len(string_labels)
+    string_labels[name] = name_label
+    if check_compatible_assembler == _is_translator_compatible_assembler:
+      yield ' %s if constexpr (std::is_same_v<FunctionCompareTag<kFunc>,' % (
+        '' if name_label == 'kName0' else ' } else'
+      )
+      yield '                                      FunctionCompareTag<%s>>) {' % name
+    yield '    static constexpr const char %s[] = "%s";' % (
+        name_label, name)
+  else:
+    name_label = string_labels[name]
 
-  yield '      std::unique_ptr<GenerateAsmCallBase>('
+  restriction = [cpuid_restriction, nan_restriction]
 
-  def get_c_type_tuple(arguments):
+  if check_compatible_assembler == _is_translator_compatible_assembler:
+    yield '    if (auto result = callback('
+  else:
+    yield '    callback('
+  yield '          intrinsics::bindings::AsmCallInfo<'
+  yield '              %s>(),' % (
+    ',\n              '.join(
+        [name_label,
+         _get_asm_reference(asm),
+         cpuid_restriction,
+         nan_restriction,
+         'true' if _intr_has_side_effects(intr) else 'false',
+         _get_c_type_tuple(intr['in']),
+         _get_c_type_tuple(intr['out'])] +
+        [_get_reg_operand_info(arg, 'intrinsics::bindings')
+         for arg in asm['args']]))
+  if check_compatible_assembler == _is_translator_compatible_assembler:
+    yield '          std::forward<Args>(args)...); result.has_value()) {'
+    yield '      return *std::move(result);'
+    yield '    }'
+  else:
+    yield '          std::forward<Args>(args)...);'
+
+
+def _get_c_type_tuple(arguments):
     return 'std::tuple<%s>' % ', '.join(
         _get_c_type(argument) for argument in arguments).replace(
             'Float', 'intrinsics::Float')
 
-  yield '          new GenerateAsmCall<%s>(' % (
-    ',\n                              '.join(
-        ['true' if _intr_has_side_effects(intr) else 'false'] +
-        [get_c_type_tuple(intr['in'])] + [get_c_type_tuple(intr['out'])] +
-        [_get_reg_operand_info(arg, 'OperandClass')
-         for arg in asm['args']]))
 
-  one_line = '              out, &MacroAssembler::%s, %s)),' % (
-      asm['asm'], ', '.join(['"%s"' % name] + restriction))
-  if len(one_line) <= MAX_GENERATED_LINE_LENGTH:
-    yield one_line
-    return
+def _get_asm_type(asm, prefix=''):
+  args = filter(
+    lambda arg: not asm_defs.is_implicit_reg(arg['class']), asm['args'])
+  return ', '.join(_get_asm_operand_type(arg, prefix) for arg in args)
 
-  yield '              out,'
-  yield '              &MacroAssembler::%s,' % asm['asm']
-  values = ['"%s"' % name] + restriction
-  for index, value in enumerate(values):
-    if index + 1 == len(values):
-      yield '              %s)),' % value
-    else:
-      yield '              %s,' % value
 
+def _get_asm_operand_type(arg, prefix=''):
+  cls = arg.get('class')
+  if asm_defs.is_x87reg(cls):
+    return prefix + 'X87Register'
+  if asm_defs.is_greg(cls):
+    return prefix + 'Register'
+  if asm_defs.is_xreg(cls):
+    return prefix + 'XMMRegister'
+  if asm_defs.is_imm(cls):
+    if cls == 'Imm2':
+      return 'int8_t'
+    return 'int' + cls[3:] + '_t'
+  assert False
+
+
+def _get_asm_reference(asm):
+  # Because of misfeature of Itanium C++ ABI we couldn't just use MacroAssembler
+  # to static cast these references if we want to use them as template argument:
+  # https://ibob.bg/blog/2018/08/18/a-bug-in-the-cpp-standard/
+
+  # Thankfully there are no need to use the same name for MacroInstructions
+  # since we may always rename these.
+
+  # But for assembler we need to use actual type from where these
+  # instructions come from!
+  #
+  # E.g. LZCNT have to be processed like this:
+  #   static_cast<void (Assembler_common_x86::*)(
+  #     typename Assembler_common_x86::Register,
+  #     typename Assembler_common_x86::Register)>(
+  #       &Assembler_common_x86::Lzcntl)
+  if 'arch' in asm:
+    assembler = 'Assembler_%s' % asm['arch']
+    return 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
+        assembler,
+        _get_asm_type(asm, 'typename %s::' % assembler),
+        '\n                  ',
+        assembler,
+        'template ' if '<' in asm['asm'] else '',
+        asm['asm'])
+  else:
+    return '&MacroAssembler::%s%s' % (
+        'template ' if '<' in asm['asm'] else '',
+        asm['asm'])
 
 def _load_intrs_def_files(intrs_def_files):
   result = {}
@@ -832,7 +957,10 @@ def _load_intrs_arch_def(intrs_defs):
 
 
 def _load_macro_def(intrs, arch_intrs, insns_def):
-  _, insns = asm_defs.load_asm_defs(insns_def)
+  arch, insns = asm_defs.load_asm_defs(insns_def)
+  if arch is not None:
+    for insn in insns:
+      insn['arch'] = arch
   insns_map = dict((insn['name'], insn) for insn in insns)
   unprocessed_intrs = []
   for arch_intr in arch_intrs:
@@ -841,13 +969,20 @@ def _load_macro_def(intrs, arch_intrs, insns_def):
       _add_asm_insn(intrs, arch_intr, insn)
     else:
       unprocessed_intrs.append(arch_intr)
-  return unprocessed_intrs
+  return arch, unprocessed_intrs
 
 
 def _is_interpreter_compatible_assembler(intr_asm):
   if intr_asm.get('usage', '') == 'translate-only':
     return False
   return True
+
+
+def _is_translator_compatible_assembler(intr_asm):
+  if intr_asm.get('usage', '') == 'interpret-only':
+    return False
+  return True
+
 
 
 def _add_asm_insn(intrs, arch_intr, insn):
@@ -898,14 +1033,21 @@ def _add_asm_insn(intrs, arch_intr, insn):
   intrs[name]['asm'].append(insn)
 
 
-def _open_asm_def_files(def_files, arch_def_files, asm_def_files):
-  intrs = _expand_template_intrinsics(_load_intrs_def_files(def_files))
+def _open_asm_def_files(def_files, arch_def_files, asm_def_files, need_archs=True):
+  intrs = _load_intrs_def_files(def_files)
+  expanded_intrs = _expand_template_intrinsics(intrs)
   arch_intrs = _load_intrs_arch_def(arch_def_files)
+  archs = []
   for macro_def in asm_def_files:
-    arch_intrs = _load_macro_def(intrs, arch_intrs, macro_def)
+    arch, arch_intrs = _load_macro_def(expanded_intrs, arch_intrs, macro_def)
+    if arch is not None:
+      archs.append(arch)
   # Make sure that all intrinsics were found during processing of arch_intrs.
   assert arch_intrs == []
-  return sorted(intrs.items())
+  if need_archs:
+    return archs, sorted(intrs.items()), sorted(expanded_intrs.items())
+  else:
+    return sorted(intrs.items())
 
 
 def _expand_template_intrinsics(intrs):
@@ -933,18 +1075,23 @@ def _expand_template_intrinsics(intrs):
 def main(argv):
   # Usage:
   #   gen_intrinsics.py --public_headers <intrinsics-inl.h>
+  #                                      <intrinsics_process_bindings-inl.h>
   #                                      <interpreter_intrinsics_hooks-inl.h>
   #                                      <translator_intrinsics_hooks-inl.h>
   #                                      <mock_semantics_listener_intrinsics_hooks-inl.h>
   #                                      <riscv64_to_x86_64/intrinsic_def.json",
   #                                      ...
-  #   gen_intrinsics.py --make_intrinsics_inl_h <make_intrinsics-inl.h>
-  #                                             <riscv64_to_x86_64/intrinsic_def.json",
-  #                                             ...
-  #                                             <riscv64_to_x86_64/machine_ir_intrinsic_binding.json>,
-  #                                             ...
-  #                                             <riscv64_to_x86_64/macro_def.json>,
-  #                                             ...
+  #                                      <riscv64_to_x86_64/machine_ir_intrinsic_binding.json>,
+  #                                      ...
+  #                                      <riscv64_to_x86_64/macro_def.json>,
+  #                                      ...
+  #   gen_intrinsics.py --text_asm_intrinsics_bindings <make_intrinsics-inl.h>
+  #                                                    <riscv64_to_x86_64/intrinsic_def.json",
+  #                                                    ...
+  #                                                    <riscv64_to_x86_64/machine_ir_intrinsic_binding.json>,
+  #                                                    ...
+  #                                                    <riscv64_to_x86_64/macro_def.json>,
+  #                                                    ...
 
   def open_out_file(name):
     try:
@@ -954,27 +1101,30 @@ def main(argv):
     return open(name, 'w')
 
   mode = argv[1]
-  if mode == '--public_headers':
-    intrs = sorted(_load_intrs_def_files(argv[6:]).items())
-    _gen_intrinsics_inl_h(open_out_file(argv[2]), intrs)
-    _gen_semantic_player_types(intrs)
-    _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[3]), intrs)
-    _gen_translator_intrinsics_hooks_impl_inl_h(
-        open_out_file(argv[4]), intrs)
-    _gen_mock_semantics_listener_intrinsics_hooks_impl_inl_h(
-        open_out_file(argv[5]), intrs)
-  elif mode == '--make_intrinsics_inl_h':
-    def_files_end = 3
+  if mode in ('--text_asm_intrinsics_bindings', '--public_headers'):
+    out_files_end = 3 if mode == '--text_asm_intrinsics_bindings' else 7
+    def_files_end = out_files_end
     while argv[def_files_end].endswith('intrinsic_def.json'):
       def_files_end += 1
     arch_def_files_end = def_files_end
     while argv[arch_def_files_end].endswith('machine_ir_intrinsic_binding.json'):
       arch_def_files_end += 1
-    intrs = _open_asm_def_files(
-      argv[3:def_files_end],
+    archs, intrs, expanded_intrs = _open_asm_def_files(
+      argv[out_files_end:def_files_end],
       argv[def_files_end:arch_def_files_end],
-      argv[arch_def_files_end:])
-    _gen_make_intrinsics(open_out_file(argv[2]), intrs)
+      argv[arch_def_files_end:],
+      True)
+    if mode == '--text_asm_intrinsics_bindings':
+      _gen_make_intrinsics(open_out_file(argv[2]), expanded_intrs, archs)
+    else:
+      _gen_intrinsics_inl_h(open_out_file(argv[2]), intrs)
+      _gen_process_bindings(open_out_file(argv[3]), expanded_intrs, archs)
+      _gen_semantic_player_types(intrs)
+      _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs)
+      _gen_translator_intrinsics_hooks_impl_inl_h(
+          open_out_file(argv[5]), intrs)
+      _gen_mock_semantics_listener_intrinsics_hooks_impl_inl_h(
+          open_out_file(argv[6]), intrs)
   else:
     assert False, 'unknown option %s' % (mode)
 

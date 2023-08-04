@@ -31,8 +31,8 @@ ThreadState* CreateThreadState();
 void DestroyThreadState(ThreadState* state);
 
 class GuestThread;
-void SetGuestThread(ThreadState* state, GuestThread* thread);
-GuestThread* GetGuestThread(const ThreadState* state);
+void SetGuestThread(ThreadState& state, GuestThread* thread);
+GuestThread* GetGuestThread(const ThreadState& state);
 
 // Track whether we are in generated code or not.
 enum GuestThreadResidence : uint8_t {
@@ -40,8 +40,8 @@ enum GuestThreadResidence : uint8_t {
   kInsideGeneratedCode = 1,
 };
 
-GuestThreadResidence GetResidence(ThreadState* state);
-void SetResidence(ThreadState* state, GuestThreadResidence residence);
+GuestThreadResidence GetResidence(const ThreadState& state);
+void SetResidence(ThreadState& state, GuestThreadResidence residence);
 
 // TODO(b/28058920): Refactor into GuestThread.
 // Pending signals status state machine:
@@ -53,28 +53,37 @@ enum PendingSignalsStatus : uint_least8_t {
 };
 
 // Values are interpreted as PendingSignalsStatus.
-std::atomic<uint_least8_t>* GetPendingSignalsStatusAtomic(ThreadState* state);
+std::atomic<uint_least8_t>& GetPendingSignalsStatusAtomic(ThreadState& state);
+void SetPendingSignalsStatusAtomic(ThreadState& state, PendingSignalsStatus status);
 
-CPUState* GetCPUState(ThreadState* state);
+const CPUState& GetCPUState(const ThreadState& state);
+CPUState& GetCPUState(ThreadState& state);
+void SetCPUState(ThreadState& state, const CPUState& cpu);
 
-void SetStackRegister(CPUState* cpu, GuestAddr val);
+GuestAddr GetReturnValueRegister(const CPUState& cpu);
+void SetReturnValueRegister(CPUState& cpu, GuestAddr val);
 
-GuestAddr GetStackRegister(CPUState* cpu);
+void SetStackRegister(CPUState& cpu, GuestAddr val);
+GuestAddr GetStackRegister(const CPUState& cpu);
 
-void SetLinkRegister(CPUState* cpu, GuestAddr val);
-
+void SetLinkRegister(CPUState& cpu, GuestAddr val);
 GuestAddr GetLinkRegister(const CPUState& cpu);
 
-void SetInsnAddr(CPUState* cpu, GuestAddr addr);
+void SetInsnAddr(CPUState& cpu, GuestAddr addr);
+GuestAddr GetInsnAddr(const CPUState& cpu);
 
-GuestAddr GetInsnAddr(const CPUState* cpu);
+// Assuming PC currently points to a supervisor call instruction, advance PC to the next
+// instruction. Must be implemented according to the guest architecture.
+void AdvanceInsnAddrBeyondSyscall(CPUState& cpu);
 
 // TODO(b/28058920): Refactor into GuestThread.
-bool ArePendingSignalsPresent(const ThreadState* state);
+bool ArePendingSignalsPresent(const ThreadState& state);
 
-void SetTlsAddr(ThreadState*, GuestAddr addr);
-
+void SetTlsAddr(ThreadState& state, GuestAddr addr);
 GuestAddr GetTlsAddr(const ThreadState& cpu);
+
+// Set the appropriate stack pointer register, if it exists for a given guest architecture.
+void SetShadowCallStackPointer(CPUState& cpu, GuestAddr scs_sp);
 
 void InitFloatingPointState();
 

@@ -20,6 +20,7 @@
 #include <initializer_list>
 #include <utility>
 
+#include "berberis/base/checks.h"
 #include "berberis/base/forever_map.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_state_opaque.h"
@@ -54,10 +55,11 @@ void InitExtraRecoveryCodeUnsafe(
 
 uintptr_t FindRecoveryCode(uintptr_t fault_addr, ThreadState* state) {
   uintptr_t recovery_addr;
+  CHECK(state);
   // Only look up in CodePool if we are inside generated code (interrupted by a
   // signal). If a signal interrupts CodePool::Add then calling FindRecoveryCode
   // in this state can cause deadlock.
-  if (GetResidence(state) == kInsideGeneratedCode) {
+  if (GetResidence(*state) == kInsideGeneratedCode) {
     // TODO(b/228188293): we might need to traverse all code pool instances.
     recovery_addr = GetDefaultCodePoolInstance()->FindRecoveryCode(fault_addr);
     if (recovery_addr) {

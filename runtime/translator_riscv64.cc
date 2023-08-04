@@ -17,12 +17,13 @@
 #include "translator_riscv64.h"
 #include "berberis/runtime/translator.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <tuple>
 
 #include "berberis/assembler/machine_code.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/config_globals.h"
-#include "berberis/base/logging.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -47,7 +48,7 @@ GuestCodeEntry::Kind kLightTranslated = GuestCodeEntry::Kind::kLightTranslated;
 
 enum class TranslationMode { kInterpretOnly, kLiteTranslateOrFallbackToInterpret, kNumModes };
 
-TranslationMode g_translation_mode = TranslationMode::kInterpretOnly;
+TranslationMode g_translation_mode = TranslationMode::kLiteTranslateOrFallbackToInterpret;
 
 void UpdateTranslationMode() {
   // Indices must match TranslationMode enum.
@@ -80,6 +81,14 @@ alignas(4) uint32_t g_native_bridge_call_guest[] = {
     0xd503201f,  // nop  <--
     0xd503201f,  // nop
 };
+
+uint8_t GetRiscv64InsnSize(GuestAddr pc) {
+  constexpr uint16_t kInsnLenMask = uint16_t{0b11};
+  if ((*ToHostAddr<uint16_t>(pc) & kInsnLenMask) != kInsnLenMask) {
+    return 2;
+  }
+  return 4;
+}
 
 }  // namespace
 
@@ -139,10 +148,12 @@ void TranslateRegion(GuestAddr pc) {
 
   GuestMapShadow* guest_map_shadow = GuestMapShadow::GetInstance();
 
-  // Check if 1st insn is in executable memory (we don't know yet how many instructions will be able
-  // to be translated).
-  if (!guest_map_shadow->IsExecutable(pc, 4)) {
-    cache->SetTranslatedAndUnlock(pc, entry, 4, kSpecialHandler, {kEntryNoExec, 0});
+  uint8_t first_insn_size = GetRiscv64InsnSize(pc);
+
+  // Check if 1st insn is in executable memory. We don't know yet
+  // how many instructions will be translated.
+  if (!guest_map_shadow->IsExecutable(pc, first_insn_size)) {
+    cache->SetTranslatedAndUnlock(pc, entry, first_insn_size, kSpecialHandler, {kEntryNoExec, 0});
     return;
   }
 
@@ -152,12 +163,12 @@ void TranslateRegion(GuestAddr pc) {
   GuestCodeEntry::Kind kind;
   if (g_translation_mode == TranslationMode::kInterpretOnly) {
     std::tie(host_code_piece, size, kind) =
-        std::make_tuple(HostCodePiece{kEntryInterpret, 0}, 4, kInterpreted);
+        std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
   } else if (g_translation_mode == TranslationMode::kLiteTranslateOrFallbackToInterpret) {
     std::tie(success, host_code_piece, size, kind) = TryLiteTranslateAndInstallRegion(pc);
     if (!success) {
       std::tie(host_code_piece, size, kind) =
-          std::make_tuple(HostCodePiece{kEntryInterpret, 0}, 4, kInterpreted);
+          std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
     }
   } else {
     LOG_ALWAYS_FATAL("Unsupported translation mode %u", g_translation_mode);
@@ -187,26 +198,28 @@ void TranslateRegionAtFirstGear(GuestAddr pc) {
 // ATTENTION: This symbol gets called directly, without PLT. To keep text
 // sharable we should prevent preemption of this symbol, so do not export it!
 // TODO(b/232598137): may be set default visibility to protected instead?
-extern "C" __attribute__((__visibility__("hidden"))) void berberis_HandleNotTranslated(
+extern "C" __attribute__((used, __visibility__("hidden"))) void berberis_HandleNotTranslated(
     ThreadState* state) {
-  if (g_translation_mode == TranslationMode::kInterpretOnly) {
-    InterpretInsn(state);
-    return;
-  }
   TranslateRegion(state->cpu.insn_addr);
 }
 
-extern "C" __attribute__((__visibility__("hidden"))) void berberis_HandleInterpret(
+extern "C" __attribute__((used, __visibility__("hidden"))) void berberis_HandleInterpret(
     ThreadState* state) {
   InterpretInsn(state);
 }
 
-extern "C" __attribute__((__visibility__("hidden"))) const void* berberis_GetDispatchAddress(
+extern "C" __attribute__((used, __visibility__("hidden"))) const void* berberis_GetDispatchAddress(
     ThreadState* state) {
-  if (ArePendingSignalsPresent(state)) {
+  CHECK(state);
+  if (ArePendingSignalsPresent(*state)) {
     return kEntryExitGeneratedCode;
   }
   return TranslationCache::GetInstance()->GetHostCodePtr(state->cpu.insn_addr)->load();
+}
+
+extern "C" __attribute__((used, __visibility__("hidden"))) void
+berberis_HandleLightCounterThresholdReached(ThreadState* /* state */) {
+  // no-op stub
 }
 
 }  // namespace berberis

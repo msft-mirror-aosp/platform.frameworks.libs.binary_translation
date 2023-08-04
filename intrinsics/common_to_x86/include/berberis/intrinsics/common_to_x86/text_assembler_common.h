@@ -1,12 +1,26 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
-//
-#ifndef BERBERIS_INTRINSICS_TEXT_ASSEMBLER_COMMON_H_
-#define BERBERIS_INTRINSICS_TEXT_ASSEMBLER_COMMON_H_
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#include <stdint.h>
-#include <stdio.h>
+#ifndef BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
+#define BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
 
 #include <array>
+#include <cstdint>
+#include <cstdio>
+#include <deque>
 #include <string>
 
 #include "berberis/base/checks.h"
@@ -14,7 +28,7 @@
 
 namespace berberis {
 
-namespace x86 {
+namespace constants_pool {
 
 int32_t GetOffset(int32_t address);
 
@@ -81,6 +95,9 @@ class TextAssemblerX86 {
       return arg_no_;
     }
 
+    constexpr bool operator==(const Register& other) const { return arg_no() == other.arg_no(); }
+    constexpr bool operator!=(const Register& other) const { return arg_no() != other.arg_no(); }
+
     static constexpr int kNoRegister = -1;
     static constexpr int kStackPointer = -2;
 
@@ -102,6 +119,9 @@ class TextAssemblerX86 {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
+
+    constexpr bool operator==(const X87Register& other) const { return arg_no_ == other.arg_no_; }
+    constexpr bool operator!=(const X87Register& other) const { return arg_no_ != other.arg_no_; }
 
     template <typename MacroAssembler>
     friend const std::string ToGasArgument(const X87Register& reg, MacroAssembler*) {
@@ -125,6 +145,9 @@ class TextAssemblerX86 {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
+
+    constexpr bool operator==(const XMMRegister& other) const { return arg_no() == other.arg_no(); }
+    constexpr bool operator!=(const XMMRegister& other) const { return arg_no() != other.arg_no(); }
 
     template <typename MacroAssembler>
     friend const std::string ToGasArgument(const XMMRegister& reg, MacroAssembler*) {
@@ -151,7 +174,7 @@ class TextAssemblerX86 {
       std::string result{};
       if (op.base.arg_no_ == Register::kNoRegister and op.index.arg_no_ == Register::kNoRegister) {
         as->need_gpr_macroassembler_constants_ = true;
-        result = std::to_string(x86::GetOffset(op.disp)) + " + " +
+        result = std::to_string(constants_pool::GetOffset(op.disp)) + " + " +
                  ToGasArgument(
                      typename Assembler::RegisterDefaultBit(as->gpr_macroassembler_constants), as);
       } else {
@@ -187,6 +210,8 @@ class TextAssemblerX86 {
   Register gpr_macroassembler_constants{};
   bool need_gpr_macroassembler_constants() const { return need_gpr_macroassembler_constants_; }
 
+  bool need_lzcnt = false;
+  bool need_bmi = false;
   bool need_sse3 = false;
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
@@ -201,10 +226,13 @@ class TextAssemblerX86 {
     label->bound = true;
   }
 
-  Label* MakeLabel() { return new Label{labels_allocated_++}; }
+  Label* MakeLabel() {
+    labels_allocated_.push_back({labels_allocated_.size()});
+    return &labels_allocated_.back();
+  }
 
 // Instructions.
-#include "gen_text_assembler_x86_common-inl.h"  // NOLINT generated file
+#include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
 
  protected:
   bool need_gpr_macroassembler_constants_ = false;
@@ -239,6 +267,12 @@ class TextAssemblerX86 {
   typedef RegisterTemplate<kEsp, 'k'> Register32Bit;
   constexpr static char kRsp[] = "%%rsp";
   typedef RegisterTemplate<kRsp, 'q'> Register64Bit;
+
+  void SetRequiredFeatureLZCNT() {
+    need_lzcnt = true;
+  }
+
+  void SetRequiredFeatureBMI() { need_bmi = true; }
 
   void SetRequiredFeatureSSE3() {
     need_sse3 = true;
@@ -297,7 +331,7 @@ class TextAssemblerX86 {
   FILE* out_;
 
  private:
-  size_t labels_allocated_ = 0;
+  std::deque<Label> labels_allocated_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TextAssemblerX86);
 };
@@ -311,7 +345,7 @@ template <typename Assembler>
 template <typename... Args>
 inline void TextAssemblerX86<Assembler>::Instruction(const char* name, Condition cond, const Args&... args) {
   char name_with_condition[8] = {};
-  if (strcmp(name, "Cmovl") == 0) {
+  if (strcmp(name, "Cmovl") == 0 || strcmp(name, "Cmovq") == 0) {
     strcpy(name_with_condition, "Cmov");
   } else if (strcmp(name, "Jcc") == 0) {
     strcpy(name_with_condition, "J");
@@ -375,11 +409,18 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, Condition
 template <typename Assembler>
 template <typename... Args>
 inline void TextAssemblerX86<Assembler>::Instruction(const char* name, const Args&... args) {
-  for (auto it : std::array<std::tuple<const char*, const char*>, 12>{
+  for (auto it : std::array<std::tuple<const char*, const char*>, 18>{
            {// Note: SSE doesn't include simple register-to-register move instruction.
             // You are supposed to use one of half-dozen variants depending on what you
             // are doing.
             //
+            // Pseudoinstructions with embedded "lock" prefix.
+            {"LockCmpXchg8b", "Lock; CmppXchg8b"},
+            {"LockCmpXchg16b", "Lock; CmppXchg16b"},
+            {"LockCmpXchgb", "Lock; CmppXchgb"},
+            {"LockCmpXchgl", "Lock; CmppXchgl"},
+            {"LockCmpXchgq", "Lock; CmppXchgq"},
+            {"LockCmpXchgw", "Lock; CmppXchgq"},
             // Our assembler has Pmov instruction which is supposed to pick the best
             // option - but currently we just map Pmov to Movaps.
             {"Pmov", "Movaps"},
@@ -415,4 +456,4 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, const Arg
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INTRINSICS_TEXT_ASSEMBLER_COMMON_H_
+#endif  // BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_

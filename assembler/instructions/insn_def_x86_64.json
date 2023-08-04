@@ -155,7 +155,9 @@
     {
       "encodings": {
         "Bsfq": { "opcodes": [ "0F", "BC" ] },
-        "Bsrq": { "opcodes": [ "0F", "BD" ] }
+        "Bsrq": { "opcodes": [ "0F", "BD" ] },
+        "Lzcntq": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] },
+        "Tzcntq": { "feature": "BMI", "opcodes": [ "F3", "0F", "BC" ] }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -455,6 +457,17 @@
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
         { "class": "Mem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "LockCmpXchgq": { "opcodes": [ "F0", "0F", "B1" ], "reg_to_rm": true }
+      },
+      "args": [
+        { "class": "RAX", "usage": "use_def" },
+        { "class": "Mem64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ]
     },
     {

@@ -52,29 +52,18 @@ class Decoder {
   // yet known to decoder RISC-V instructions robust.
 
   enum class AmoOpcode {
-    kLrW = 0b00010'010,
-    kScW = 0b00011'010,
-    kAmoswapW = 0b00001'010,
-    kAmoaddW = 0b00000'010,
-    kAmoxorW = 0b00100'010,
-    kAmoandW = 0b01100'010,
-    kAmoorW = 0b01000'010,
-    kAmominW = 0b10000'010,
-    kAmomaxW = 0b10100'010,
-    kAmominuW = 0b11000'010,
-    kAmomaxuW = 0b11100'010,
-    kLrD = 0b00010'011,
-    kScD = 0b00011'011,
-    kAmoswapD = 0b00001'011,
-    kAmoaddD = 0b00000'011,
-    kAmoxorD = 0b00100'011,
-    kAmoandD = 0b01100'011,
-    kAmoorD = 0b01000'011,
-    kAmominD = 0b10000'011,
-    kAmomaxD = 0b10100'011,
-    kAmominuD = 0b11000'011,
-    kAmomaxuD = 0b11100'011,
-    kMaxValue = 0b11111'111,
+    kLr = 0b00010,
+    kSc = 0b00011,
+    kAmoswap = 0b00001,
+    kAmoadd = 0b00000,
+    kAmoxor = 0b00100,
+    kAmoand = 0b01100,
+    kAmoor = 0b01000,
+    kAmomin = 0b10000,
+    kAmomax = 0b10100,
+    kAmominu = 0b11000,
+    kAmomaxu = 0b11100,
+    kMaxValue = 0b11111,
   };
 
   enum class BranchOpcode {
@@ -134,6 +123,13 @@ class Decoder {
     kDivu = 0b0000'001'101,
     kRem = 0b0000'001'110,
     kRemu = 0b0000'001'111,
+    kAndn = 0b0100'000'111,
+    kOrn = 0b0100'000'110,
+    kXnor = 0b0100'000'100,
+    kMax = 0b0000'101'110,
+    kMaxu = 0b0000'101'111,
+    kMin = 0b0000'101'100,
+    kMinu = 0b0000'101'101,
     kMaxValue = 0b1111'111'111,
   };
 
@@ -148,6 +144,11 @@ class Decoder {
     kDivuw = 0b0000'001'101,
     kRemw = 0b0000'001'110,
     kRemuw = 0b0000'001'111,
+    kMaxValue = 0b1111'111'111,
+  };
+
+  enum class OpSingleInputOpcode {
+    kZexth = 0b0000'100'100,
     kMaxValue = 0b1111'111'111,
   };
 
@@ -185,6 +186,10 @@ class Decoder {
     kMaxValue = 0b11'11111,
   };
 
+  enum class OpFpSingleInputNoRoundingOpcode {
+    kFmv,
+  };
+
   enum class OpImmOpcode {
     kAddi = 0b000,
     kSlti = 0b010,
@@ -212,6 +217,24 @@ class Decoder {
     kSrliw = 0b0000000'101,
     kSraiw = 0b0100000'101,
     kMaxValue = 0b111111'111,
+  };
+
+  enum class BitmanipImmOpcode {
+    kClz = 0b0110000'00000'001,
+    kCpop = 0b0110000'00010'001,
+    kCtz = 0b0110000'00001'001,
+    kSextb = 0b0110000'00100'001,
+    kSexth = 0b0110000'00101'001,
+    kRori = 0b011000'101,
+    kMaxValue = 0b111111'111111'111,
+  };
+
+  enum class BitmanipImm32Opcode {
+    kClzw = 0b0110000'00000'001,
+    kCpopw = 0b0110000'00010'001,
+    kCtzw = 0b0110000'00001'001,
+    kRoriw = 0b0110000'101,
+    kMaxValue = 0b1111111'111111'111,
   };
 
   enum class SystemOpcode {
@@ -284,6 +307,7 @@ class Decoder {
 
   struct AmoArgs {
     AmoOpcode opcode;
+    StoreOperandType operand_type;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
@@ -387,6 +411,12 @@ class Decoder {
     uint8_t src2;
   };
 
+  struct OpSingleInputArgs {
+    OpSingleInputOpcode opcode;
+    uint8_t dst;
+    uint8_t src;
+  };
+
   using OpArgs = OpArgsTemplate<OpOpcode>;
   using Op32Args = OpArgsTemplate<Op32Opcode>;
 
@@ -442,6 +472,13 @@ class Decoder {
     uint8_t rm;
   };
 
+  struct OpFpSingleInputNoRoundingArgs {
+    OpFpSingleInputNoRoundingOpcode opcode;
+    FloatOperandType operand_type;
+    uint8_t dst;
+    uint8_t src;
+  };
+
   template <typename OpcodeType>
   struct OpImmArgsTemplate {
     OpcodeType opcode;
@@ -474,6 +511,17 @@ class Decoder {
 
   using ShiftImmArgs = ShiftImmArgsTemplate<ShiftImmOpcode>;
   using ShiftImm32Args = ShiftImmArgsTemplate<ShiftImm32Opcode>;
+
+  template <typename OpcodeType>
+  struct BitmanipImmArgsTemplate {
+    OpcodeType opcode;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t shamt;
+  };
+
+  using BitmanipImmArgs = BitmanipImmArgsTemplate<BitmanipImmOpcode>;
+  using BitmanipImm32Args = BitmanipImmArgsTemplate<BitmanipImm32Opcode>;
 
   template <typename OperandTypeEnum>
   struct StoreArgsTemplate {
@@ -955,13 +1003,13 @@ class Decoder {
         DecodeMiscMem();
         break;
       case BaseOpcode::kOpImm:
-        DecodeOp<OpImmOpcode, ShiftImmOpcode, 6>();
+        DecodeOp<OpImmOpcode, ShiftImmOpcode, BitmanipImmOpcode, 6>();
         break;
       case BaseOpcode::kAuipc:
         DecodeAuipc();
         break;
       case BaseOpcode::kOpImm32:
-        DecodeOp<OpImm32Opcode, ShiftImm32Opcode, 5>();
+        DecodeOp<OpImm32Opcode, ShiftImm32Opcode, BitmanipImm32Opcode, 5>();
         break;
       case BaseOpcode::kStore:
         DecodeStore<StoreOperandType>();
@@ -1079,7 +1127,18 @@ class Decoder {
   void DecodeOp() {
     uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
     uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
-    OpcodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
+    uint16_t opcode_bits = int16_t(low_opcode | (high_opcode << 3));
+    OpcodeType opcode{opcode_bits};
+    OpSingleInputOpcode single_input_opcode{opcode_bits};
+
+    switch (single_input_opcode) {
+      case OpSingleInputOpcode::kZexth: {
+        DecodeSingleInputOp(single_input_opcode);
+        return;
+      }
+      default:
+        break;
+    }
     const OpArgsTemplate<OpcodeType> args = {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
@@ -1089,6 +1148,17 @@ class Decoder {
     insn_consumer_->Op(args);
   }
 
+  void DecodeSingleInputOp(OpSingleInputOpcode opcode) {
+    uint8_t src1 = GetBits<uint8_t, 15, 5>();
+    uint8_t src2 = GetBits<uint8_t, 20, 5>();
+
+    if (src2 != 0) {
+      return Undefined();
+    }
+    const OpSingleInputArgs args = {.opcode = opcode, .dst = GetBits<uint8_t, 7, 5>(), .src = src1};
+    insn_consumer_->OpSingleInput(args);
+  }
+
   void DecodeAmo() {
     uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
     uint16_t high_opcode = GetBits<uint16_t, 27, 5>();
@@ -1096,9 +1166,11 @@ class Decoder {
     if (high_opcode == 0b00010 && GetBits<uint8_t, 20, 5>() != 0) {
       return Undefined();
     }
-    AmoOpcode opcode = AmoOpcode{low_opcode | (high_opcode << 3)};
+    AmoOpcode opcode = AmoOpcode{high_opcode};
+    StoreOperandType operand_type = StoreOperandType{low_opcode};
     const AmoArgs args = {
         .opcode = opcode,
+        .operand_type = operand_type,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
@@ -1187,7 +1259,10 @@ class Decoder {
     insn_consumer_->Store(args);
   }
 
-  template <typename OpOpcodeType, typename ShiftOcodeType, uint32_t kShiftFieldSize>
+  template <typename OpOpcodeType,
+            typename ShiftOcodeType,
+            typename BitmanipOpCodeType,
+            uint32_t kShiftFieldSize>
   void DecodeOp() {
     uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
     if (low_opcode != 0b001 && low_opcode != 0b101) {
@@ -1202,7 +1277,10 @@ class Decoder {
           .imm = SignExtend<12>(imm),
       };
       insn_consumer_->OpImm(args);
-    } else {
+    } else if ((GetBits<uint16_t, 31, 1>() +
+                GetBits<uint16_t, 20 + kShiftFieldSize, 10 - kShiftFieldSize>()) ==
+               0) {  // For Canonical Shift Instructions from RV64G the opcode contains all
+                     // zeros except for the 30th (second highest) bit.
       uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
       ShiftOcodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
 
@@ -1211,6 +1289,41 @@ class Decoder {
           .dst = GetBits<uint8_t, 7, 5>(),
           .src = GetBits<uint8_t, 15, 5>(),
           .imm = GetBits<uint8_t, 20, kShiftFieldSize>(),
+      };
+      insn_consumer_->OpImm(args);
+    } else {
+      uint8_t shamt = GetBits<uint8_t, 20, kShiftFieldSize>();
+      uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
+      BitmanipOpCodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
+      bool is_shift = false;
+
+      switch ((BitmanipImmOpcode)opcode) {
+        case BitmanipImmOpcode::kRori:
+          is_shift = true;
+          break;
+        default:
+          break;
+      }
+
+      switch ((BitmanipImm32Opcode)opcode) {
+        case BitmanipImm32Opcode::kRoriw:
+          is_shift = true;
+          break;
+        default:
+          break;
+      }
+
+      // TODO(b/291851792): Refactor instructions with shamt into ShiftImmArgs
+      if (!is_shift) {
+        high_opcode = GetBits<uint16_t, 20, 12>();
+        opcode = {low_opcode | (high_opcode << 3)};
+        shamt = 0;
+      }
+      const BitmanipImmArgsTemplate<BitmanipOpCodeType> args = {
+          .opcode = opcode,
+          .dst = GetBits<uint8_t, 7, 5>(),
+          .src = GetBits<uint8_t, 15, 5>(),
+          .shamt = shamt,
       };
       insn_consumer_->OpImm(args);
     }
@@ -1278,9 +1391,18 @@ class Decoder {
         return insn_consumer_->OpFp(args);
       }
       case 0b001: {
-        uint8_t opcode = (opcode_bits << 3) + rm;
+        OpFpNoRoundingOpcode no_rounding_opcode = OpFpNoRoundingOpcode((opcode_bits << 3) + rm);
+        if (no_rounding_opcode == Decoder::OpFpNoRoundingOpcode::kFSgnj && rs1 == rs2) {
+          const OpFpSingleInputNoRoundingArgs args = {
+              .opcode = OpFpSingleInputNoRoundingOpcode::kFmv,
+              .operand_type = FloatOperandType(operand_type),
+              .dst = rd,
+              .src = rs1,
+          };
+          return insn_consumer_->OpFpSingleInputNoRounding(args);
+        }
         const OpFpNoRoundingArgs args = {
-            .opcode = OpFpNoRoundingOpcode(opcode),
+            .opcode = no_rounding_opcode,
             .operand_type = FloatOperandType(operand_type),
             .dst = rd,
             .src1 = rs1,
