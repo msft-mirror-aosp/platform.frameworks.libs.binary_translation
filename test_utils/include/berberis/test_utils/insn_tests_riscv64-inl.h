@@ -1132,6 +1132,13 @@ TEST_F(TESTSUITE, OpInstructions) {
            bit_cast<uint64_t>(int64_t{-10})}});
   // Minu
   TestOp(0x0a3150b3, {{50, 1, 1}});
+
+  // Ror
+  TestOp(0x603150b3, {{0xf000'0000'0000'000fULL, 4, 0xff00'0000'0000'0000ULL}});
+  TestOp(0x603150b3, {{0xf000'0000'0000'000fULL, 8, 0x0ff0'0000'0000'0000ULL}});
+  // Rol
+  TestOp(0x603110b3, {{0xff00'0000'0000'0000ULL, 4, 0xf000'0000'0000'000fULL}});
+  TestOp(0x603110b3, {{0x000f'ff00'0000'000fULL, 8, 0x0fff'0000'0000'0f00ULL}});
 }
 
 TEST_F(TESTSUITE, Op32Instructions) {
@@ -1161,6 +1168,13 @@ TEST_F(TESTSUITE, Op32Instructions) {
           {0xffff'ffff'8000'0000, 0xffff'ffff'8000'0001, 0xffff'ffff'8000'0000}});
   // Zext.h
   TestOp(0x080140bb, {{0xffff'ffff'ffff'fffeULL, 0, 0xfffe}});
+  // Rorw
+  TestOp(0x603150bb, {{0x0000'0000'f000'000fULL, 4, 0xffff'ffff'ff00'0000}});
+  TestOp(0x603150bb, {{0x0000'0000'f000'0000ULL, 4, 0x0000'0000'0f00'0000}});
+  TestOp(0x603150bb, {{0x0000'0000'0f00'000fULL, 4, 0xffff'ffff'f0f0'0000}});
+  // Rolw
+  TestOp(0x603110bb, {{0x0000'0000'f000'000fULL, 4, 0x0000'0000'0000'00ff}});
+  TestOp(0x603110bb, {{0x0000'0000'0ff0'0000ULL, 4, 0xffff'ffff'ff00'0000}});
 }
 
 TEST_F(TESTSUITE, OpImmInstructions) {
@@ -1219,7 +1233,9 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   // Sraiw
   TestOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
   // Roriw
-  TestOpImm(0x6001509b, {{0x0000'0000'f000'000fULL, 4, 0x0000'0000'0000'0000'ff00'0000}});
+  TestOpImm(0x6001509b, {{0x0000'0000'f000'000fULL, 4, 0xffff'ffff'ff00'0000}});
+  TestOpImm(0x6001509b, {{0x0000'0000'f000'0000ULL, 4, 0x0000'0000'0f00'0000}});
+  TestOpImm(0x6001509b, {{0x0000'0000'0f00'000fULL, 4, 0xffff'ffff'f0f0'0000}});
   // Clzw
   TestOpImm(0x6001109b, {{0, 0, 32}});
   TestOpImm(0x6001109b, {{123, 0, 25}});
