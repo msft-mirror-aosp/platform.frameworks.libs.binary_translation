@@ -130,6 +130,8 @@ class Decoder {
     kMaxu = 0b0000'101'111,
     kMin = 0b0000'101'100,
     kMinu = 0b0000'101'101,
+    kRol = 0b0110'000'001,
+    kRor = 0b0110'000'101,
     kMaxValue = 0b1111'111'111,
   };
 
@@ -144,6 +146,8 @@ class Decoder {
     kDivuw = 0b0000'001'101,
     kRemw = 0b0000'001'110,
     kRemuw = 0b0000'001'111,
+    kRolw = 0b0110'000'001,
+    kRorw = 0b0110'000'101,
     kMaxValue = 0b1111'111'111,
   };
 
