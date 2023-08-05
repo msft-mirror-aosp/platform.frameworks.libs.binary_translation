@@ -329,12 +329,19 @@ class TryBindingBasedInlineIntrinsic {
           as_, result_, std::get<arg_info.from>(input_args_));
       return std::tuple{result_};
     } else if constexpr (arg_info.arg_type == ArgInfo::IN_TMP_ARG) {
-      static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
-      static_assert(!RegisterClass::kIsImplicitReg);
-      auto reg = reg_alloc();
-      Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
-          as_, reg, std::get<arg_info.from>(input_args_));
-      return std::tuple{reg};
+      if constexpr (RegisterClass::kAsRegister == 'c') {
+        Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
+            as_, as_.rcx, std::get<arg_info.from>(input_args_));
+        return std::tuple{};
+      } else {
+        static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
+        static_assert(!RegisterClass::kIsImplicitReg);
+        auto reg = reg_alloc();
+        Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
+            as_, reg, std::get<arg_info.from>(input_args_));
+        return std::tuple{reg};
+      }
+
     } else if constexpr (arg_info.arg_type == ArgInfo::OUT_ARG) {
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                     std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
