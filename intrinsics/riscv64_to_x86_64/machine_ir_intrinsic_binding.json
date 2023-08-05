@@ -115,6 +115,30 @@
     "out": [ 0 ]
   },
   {
+    "name": "Rol<int64_t>",
+    "insn": "RolqRegReg",
+    "in": [0,1],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Rol<int32_t>",
+    "insn": "RollRegReg",
+    "in": [0,1],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Ror<int64_t>",
+    "insn": "RorqRegReg",
+    "in": [0,1],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Ror<int32_t>",
+    "insn": "RorlRegReg",
+    "in": [0,1],
+    "out": [ 0 ]
+  },
+  {
     "name": "Sext<int8_t>",
     "insn": "MovsxbqRegReg",
     "in": [ 1 ],

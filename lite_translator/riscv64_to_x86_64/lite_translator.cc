@@ -302,6 +302,7 @@ Register LiteTranslator::Roriw(Register arg, int8_t shamt) {
   Register res = AllocTempReg();
   as_.Movq(res, arg);
   as_.Rorl(res, shamt);
+  as_.Movsxlq(res, res);
   return res;
 }
 
