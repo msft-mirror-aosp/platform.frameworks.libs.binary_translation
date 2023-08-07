@@ -351,6 +351,7 @@ void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
 }
 
 void LiteTranslator::ExitRegion(GuestAddr target) {
+  StoreMappedRegs();
   if (params_.allow_dispatch) {
     EmitDirectDispatch(&as_, target, /* check_pending_signals */ true);
   } else {
@@ -361,6 +362,7 @@ void LiteTranslator::ExitRegion(GuestAddr target) {
 }
 
 void LiteTranslator::ExitRegionIndirect(Register target) {
+  StoreMappedRegs();
   if (params_.allow_dispatch) {
     EmitIndirectDispatch(&as_, target);
   } else {
