@@ -18,6 +18,12 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+cc_library_headers {
+    name: "libberberis_ndk_program_tests_headers",
+    native_bridge_supported: true,
+    export_include_dirs: ["include"],
+}
+
 filegroup {
     name: "berberis_ndk_program_tests_srcs",
     srcs: [
@@ -27,6 +33,7 @@ filegroup {
         "epoll_test.cc",
         "string_test.cc",
         "time_test.cc",
+        "wchar_test.cc",
         "zlib_test.cc",
     ],
 }
@@ -43,6 +50,7 @@ cc_defaults {
         "-Wno-deprecated-declarations",
     ],
     srcs: [":berberis_ndk_program_tests_srcs"],
+    header_libs: ["libberberis_ndk_program_tests_headers"],
     static_libs: ["libgtest"],
 }
 
