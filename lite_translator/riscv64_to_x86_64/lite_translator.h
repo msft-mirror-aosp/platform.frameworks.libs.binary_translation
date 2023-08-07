@@ -18,6 +18,7 @@
 #define BERBERIS_LITE_TRANSLATOR_RISCV64_TO_X86_64_H_
 
 #include <cstdint>
+#include <tuple>
 
 #include "berberis/assembler/common.h"
 #include "berberis/assembler/x86_64.h"
@@ -37,6 +38,7 @@
 #include "allocator.h"
 #include "call_intrinsic.h"
 #include "inline_intrinsic.h"
+#include "register_maintainer.h"
 
 namespace berberis {
 
@@ -55,7 +57,9 @@ class LiteTranslator {
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
-  explicit LiteTranslator(MachineCode* machine_code, GuestAddr pc, LiteTranslateParams& params)
+  explicit LiteTranslator(MachineCode* machine_code,
+                          GuestAddr pc,
+                          LiteTranslateParams params = LiteTranslateParams{})
       : as_(machine_code),
         success_(true),
         pc_(pc),
@@ -163,6 +167,14 @@ class LiteTranslator {
   Register GetReg(uint8_t reg) {
     CHECK_GT(reg, 0);
     CHECK_LT(reg, arraysize(ThreadState::cpu.x));
+    if (IsRegMappingEnabled()) {
+      auto [mapped_reg, is_new_mapping] = GetMappedRegisterOrMap(reg);
+      if (is_new_mapping) {
+        int32_t offset = offsetof(ThreadState, cpu.x[0]) + reg * 8;
+        as_.Movq(mapped_reg, {.base = as_.rbp, .disp = offset});
+      }
+      return mapped_reg;
+    }
     Register result = AllocTempReg();
     int32_t offset = offsetof(ThreadState, cpu.x[0]) + reg * 8;
     as_.Movq(result, {.base = as_.rbp, .disp = offset});
@@ -172,6 +184,10 @@ class LiteTranslator {
   void SetReg(uint8_t reg, Register value) {
     CHECK_GT(reg, 0);
     CHECK_LT(reg, arraysize(ThreadState::cpu.x));
+    CHECK_LE(reg, kNumGuestRegs);
+    if (IsRegMappingEnabled()) {
+      Unmap(reg);
+    }
     int32_t offset = offsetof(ThreadState, cpu.x[0]) + reg * 8;
     as_.Movq({.base = as_.rbp, .disp = offset}, value);
   }
@@ -275,6 +291,7 @@ class LiteTranslator {
 
   void Unimplemented() { success_ = false; }
 
+  RegisterFileMaintainer<Register, kNumGuestRegs>* gp_maintainer() { return &gp_maintainer_; }
   [[nodiscard]] Assembler* as() { return &as_; }
   [[nodiscard]] bool success() const { return success_; }
 
@@ -288,6 +305,23 @@ class LiteTranslator {
   bool is_region_end_reached() const { return is_region_end_reached_; }
 
   void IncrementInsnAddr(uint8_t insn_size) { pc_ += insn_size; }
+
+  bool IsRegMappingEnabled() { return params_.enable_reg_mapping; }
+
+  void Unmap(int reg) { gp_maintainer_.Unmap(reg); }
+
+  std::tuple<Register, bool> GetMappedRegisterOrMap(int reg) {
+    if (gp_maintainer_.IsMapped(reg)) {
+      return {gp_maintainer_.GetMapped(reg), false};
+    }
+
+    if (auto alloc_result = gp_allocator_.Alloc()) {
+      gp_maintainer_.Map(reg, alloc_result.value());
+      return {alloc_result.value(), true};
+    }
+    success_ = false;
+    return {{}, false};
+  }
 
   Register AllocTempReg() {
     if (auto reg_option = gp_allocator_.AllocTemp()) {
@@ -337,8 +371,9 @@ class LiteTranslator {
   bool success_;
   GuestAddr pc_;
   Allocator<Register> gp_allocator_;
+  RegisterFileMaintainer<Register, kNumGuestRegs> gp_maintainer_;
   Allocator<SimdRegister> simd_allocator_;
-  const LiteTranslateParams& params_;
+  const LiteTranslateParams params_;
   bool is_region_end_reached_;
 };
 
