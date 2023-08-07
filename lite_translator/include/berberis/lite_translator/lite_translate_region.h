@@ -26,6 +26,7 @@ namespace berberis {
 
 struct LiteTranslateParams {
   bool allow_dispatch = true;
+  bool enable_reg_mapping = true;
 };
 
 bool LiteTranslateRange(GuestAddr start_pc,
