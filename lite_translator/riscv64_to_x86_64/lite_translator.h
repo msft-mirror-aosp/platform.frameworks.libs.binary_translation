@@ -321,8 +321,6 @@ class LiteTranslator {
 
   bool IsRegMappingEnabled() { return params_.enable_reg_mapping; }
 
-  void Unmap(int reg) { gp_maintainer_.Unmap(reg); }
-
   std::tuple<Register, bool> GetMappedRegisterOrMap(int reg) {
     if (gp_maintainer_.IsMapped(reg)) {
       return {gp_maintainer_.GetMapped(reg), false};
