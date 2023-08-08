@@ -111,7 +111,8 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
 
   // Check the message was written to the pipe.
   char buf[sizeof(message)] = {};
-  read(pipefd[0], &buf, sizeof(buf));
+  ssize_t read_size = read(pipefd[0], &buf, sizeof(buf));
+  EXPECT_NE(read_size, -1);
   EXPECT_EQ(0, strcmp(message, buf));
   close(pipefd[0]);
   close(pipefd[1]);
