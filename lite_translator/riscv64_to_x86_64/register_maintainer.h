@@ -33,10 +33,6 @@ class RegMaintainer {
   bool IsMapped() const { return reg_.has_value(); }
   void NoticeModified() { modified_ = true; }
   bool IsModified() const { return modified_; }
-  void Unmap() {
-    reg_ = std::nullopt;
-    modified_ = false;
-  }
 
  private:
   std::optional<RegType> reg_;
@@ -69,11 +65,6 @@ class RegisterFileMaintainer {
   bool IsModified(unsigned i) const {
     CHECK_LT(i, size);
     return arr_[i].IsModified();
-  }
-
-  void Unmap(unsigned i) {
-    CHECK_LT(i, size);
-    arr_[i].Unmap();
   }
 
  private:
