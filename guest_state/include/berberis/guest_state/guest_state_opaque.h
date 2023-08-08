@@ -27,6 +27,9 @@ namespace berberis {
 struct CPUState;
 struct ThreadState;
 
+// TODO(b/294958305): remove this once android_api is migrated to ThreadState
+using ProcessState = ThreadState;
+
 ThreadState* CreateThreadState();
 void DestroyThreadState(ThreadState* state);
 
