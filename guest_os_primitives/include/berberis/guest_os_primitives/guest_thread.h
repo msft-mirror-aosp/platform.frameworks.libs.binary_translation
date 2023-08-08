@@ -93,6 +93,7 @@ class GuestThread {
   bool IsOnSigAltStack() const;
 
   void DisallowStackUnmap() { mmap_size_ = 0; }
+  [[nodiscard]] GuestAddr GetStackTop() const { return stack_top_; }
 
   // TODO(b/156271630): Refactor to make this private.
   void* GetHostStackTop() const;
