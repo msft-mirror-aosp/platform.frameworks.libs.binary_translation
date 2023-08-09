@@ -670,6 +670,8 @@ class SemanticsPlayer {
                                        return listener_->template Sext<int8_t>(arg);
                                      case Decoder::BitmanipImmOpcode::kSexth:
                                        return listener_->template Sext<int16_t>(arg);
+                                     case Decoder::BitmanipImmOpcode::kRev8:
+                                       return listener_->Rev8(arg);
                                      case Decoder::BitmanipImmOpcode::kRori:
                                        return listener_->Rori(arg, args.shamt);
                                      default:

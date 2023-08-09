@@ -198,6 +198,12 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "Rev8": {
+    "comment": "Byte reverse.",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
   "Rol": {
     "comment": "Rotate left.",
     "class": "template",
