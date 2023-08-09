@@ -187,9 +187,14 @@ class LiteTranslator {
     CHECK_LE(reg, kNumGuestRegs);
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, _] = GetMappedRegisterOrMap(reg);
-      as_.Movq(mapped_reg, value);
-      gp_maintainer_.NoticeModified(reg);
+      if (success()) {
+        as_.Movq(mapped_reg, value);
+        gp_maintainer_.NoticeModified(reg);
+      }
+      return;
     }
+    int32_t offset = offsetof(ThreadState, cpu.x[0]) + reg * 8;
+    as_.Movq({.base = as_.rbp, .disp = offset}, value);
   }
 
   void StoreMappedRegs() {
