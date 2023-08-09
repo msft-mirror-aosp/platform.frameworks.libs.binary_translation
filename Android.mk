@@ -16,6 +16,9 @@
 
 LOCAL_PATH := $(call my-dir)
 
+# Included makefiles change LOCAL_PATH, so make a copy to use in recipes.
+BERBERIS_DIR := $(LOCAL_PATH)
+
 # Berberis includes some components which may conflict with other packages.
 # Only build it when requested explicitly.
 ifeq ($(BUILD_BERBERIS),true)
@@ -34,5 +37,7 @@ berberis_all: \
     $(BERBERIS_DEV_PRODUCT_PACKAGES_RISCV64_TO_X86_64)
 
 endif  # BUILD_BERBERIS_RISCV64_TO_X86_64
+
+include $(LOCAL_PATH)/tests/run_host_tests.mk
 
 endif  # BUILD_BERBERIS
