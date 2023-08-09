@@ -1,19 +1,32 @@
-// Copyright 2014 Google Inc. All rights reserved.
-//
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // x86_64 machine IR interface.
 
-#ifndef NDK_TRANSLATION_BACKEND_X86_64_MACHINE_IR_H_
-#define NDK_TRANSLATION_BACKEND_X86_64_MACHINE_IR_H_
+#ifndef BERBERIS_BACKEND_X86_64_MACHINE_IR_H_
+#define BERBERIS_BACKEND_X86_64_MACHINE_IR_H_
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <string>
 
-#include "ndk_translation/assembler/x86_64.h"
-#include "ndk_translation/backend/code_emitter.h"
-#include "ndk_translation/backend/common/machine_ir.h"
-#include "ndk_translation/base/arena_alloc.h"
-#include "ndk_translation/guest_state/guest_state.h"
+#include "berberis/assembler/x86_64.h"
+#include "berberis/backend/code_emitter.h"
+#include "berberis/backend/common/machine_ir.h"
+#include "berberis/base/arena_alloc.h"
+#include "berberis/guest_state/guest_state_arch.h"
 
 namespace berberis {
 
@@ -32,25 +45,6 @@ enum MachineOpcode : int {
   kMachineOpPseudoWriteFlags,
 #include "machine_opcode_x86_64-inl.h"  // NOLINT generated file!
 };
-
-}  // namespace berberis
-
-namespace ndk_translation {
-
-using berberis::kMachineOpCallImm;
-using berberis::kMachineOpCallImmArg;
-using berberis::kMachineOpPseudoBranch;
-using berberis::kMachineOpPseudoCondBranch;
-using berberis::kMachineOpPseudoCopy;
-using berberis::kMachineOpPseudoDefReg;
-using berberis::kMachineOpPseudoDefXReg;
-using berberis::kMachineOpPseudoIndirectJump;
-using berberis::kMachineOpPseudoJump;
-using berberis::kMachineOpPseudoReadFlags;
-using berberis::kMachineOpPseudoWriteFlags;
-using berberis::kMachineOpUndefined;
-
-#include "machine_opcode_using-inl.h"
 
 namespace x86_64 {
 
@@ -136,7 +130,7 @@ class MachineInsnX86_64 : public MachineInsn {
       return false;
     }
 
-    // Check that it is not for ProcessState fields outside of CPUState.
+    // Check that it is not for ThreadState fields outside of CPUState.
     if (disp() >= sizeof(CPUState)) {
       return false;
     }
@@ -144,8 +138,9 @@ class MachineInsnX86_64 : public MachineInsn {
     // reservation_value is loaded in HeavyOptimizerFrontend::AtomicLoad and written
     // in HeavyOptimizerFrontend::AtomicStore partially (for performance
     // reasons), which is not supported by our context optimizer.
-    auto monitor_value_offset = offsetof(ProcessState, cpu.reservation_value);
-    if (disp() >= monitor_value_offset && disp() < monitor_value_offset + sizeof(Monitor)) {
+    auto reservation_value_offset = offsetof(ThreadState, cpu.reservation_value);
+    if (disp() >= reservation_value_offset &&
+        disp() < reservation_value_offset + sizeof(Reservation)) {
       return false;
     }
 
@@ -158,7 +153,7 @@ class MachineInsnX86_64 : public MachineInsn {
       return false;
     }
 
-    // Check that it is not for ProcessState fields outside of CPUState.
+    // Check that it is not for ThreadState fields outside of CPUState.
     if (disp() >= sizeof(CPUState)) {
       return false;
     }
@@ -166,8 +161,9 @@ class MachineInsnX86_64 : public MachineInsn {
     // reservation_value is loaded in HeavyOptimizerFrontend::AtomicLoad and written
     // in HeavyOptimizerFrontend::AtomicStore partially (for performance
     // reasons), which is not supported by our context optimizer.
-    auto monitor_value_offset = offsetof(ProcessState, cpu.reservation_value);
-    if (disp() >= monitor_value_offset && disp() < monitor_value_offset + sizeof(Monitor)) {
+    auto reservation_value_offset = offsetof(ThreadState, cpu.reservation_value);
+    if (disp() >= reservation_value_offset &&
+        disp() < reservation_value_offset + sizeof(Reservation)) {
       return false;
     }
 
@@ -205,7 +201,7 @@ inline MachineInsnX86_64* AsMachineInsnX86_64(MachineInsn* insn) {
 }
 
 // Clobbered registers are described as DEF'ed.
-// TODO(eaeltsin): implement simpler support for clobbered registers?
+// TODO(b/232598137): implement simpler support for clobbered registers?
 class CallImm : public MachineInsnX86_64 {
  public:
   enum class RegType {
@@ -271,7 +267,7 @@ class MachineInfo {
 #include "machine_info_x86_64-inl.h"  // NOLINT generated file!
 };
 
-class MachineIR : public ndk_translation::MachineIR {
+class MachineIR : public berberis::MachineIR {
  public:
   enum class BasicBlockOrder {
     kUnordered,
@@ -279,7 +275,7 @@ class MachineIR : public ndk_translation::MachineIR {
   };
 
   explicit MachineIR(Arena* arena, int num_vreg = 0)
-      : ndk_translation::MachineIR(arena, num_vreg, 0), bb_order_(BasicBlockOrder::kUnordered) {}
+      : berberis::MachineIR(arena, num_vreg, 0), bb_order_(BasicBlockOrder::kUnordered) {}
 
   void AddEdge(MachineBasicBlock* src, MachineBasicBlock* dst) {
     MachineEdge* edge = NewInArena<MachineEdge>(arena(), arena(), src, dst);
@@ -316,8 +312,7 @@ class MachineIR : public ndk_translation::MachineIR {
   [[nodiscard]] static bool IsControlTransfer(MachineInsn* insn) {
     return insn->opcode() == kMachineOpPseudoBranch ||
            insn->opcode() == kMachineOpPseudoCondBranch ||
-           insn->opcode() == kMachineOpPseudoIndirectJump ||
-           insn->opcode() == kMachineOpPseudoJump;
+           insn->opcode() == kMachineOpPseudoIndirectJump || insn->opcode() == kMachineOpPseudoJump;
   }
 
   [[nodiscard]] BasicBlockOrder bb_order() const { return bb_order_; }
@@ -330,6 +325,6 @@ class MachineIR : public ndk_translation::MachineIR {
 
 }  // namespace x86_64
 
-}  // namespace ndk_translation
+}  // namespace berberis
 
-#endif  // NDK_TRANSLATION_BACKEND_X86_64_MACHINE_IR_H_
+#endif  // BERBERIS_BACKEND_X86_64_MACHINE_IR_H_

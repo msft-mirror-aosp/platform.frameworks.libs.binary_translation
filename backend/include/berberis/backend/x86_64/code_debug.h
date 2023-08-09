@@ -1,31 +1,45 @@
-// Copyright 2014 Google Inc. All rights reserved.
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#ifndef NDK_TRANSLATION_BACKEND_X86_64_CODE_DEBUG_H_
-#define NDK_TRANSLATION_BACKEND_X86_64_CODE_DEBUG_H_
+// Do not import directly. Only intended to be used by generated code.
+
+#ifndef BERBERIS_BACKEND_X86_64_CODE_DEBUG_H_
+#define BERBERIS_BACKEND_X86_64_CODE_DEBUG_H_
 
 #include <string>
 
-#include "ndk_translation/backend/x86_64/machine_ir.h"
+#include "berberis/backend/x86_64/machine_ir.h"
 
-namespace ndk_translation {
+namespace berberis {
 
 namespace x86_64 {
 
-using std::string;
-
-string GetImplicitRegOperandDebugString(const MachineInsnX86_64* insn, int i);
-string GetAbsoluteMemOperandDebugString(const MachineInsnX86_64* insn);
-string GetBaseDispMemOperandDebugString(const MachineInsnX86_64* insn, int i);
-string GetIndexDispMemOperandDebugString(const MachineInsnX86_64* insn, int i);
+std::string GetImplicitRegOperandDebugString(const MachineInsnX86_64* insn, int i);
+std::string GetAbsoluteMemOperandDebugString(const MachineInsnX86_64* insn);
+std::string GetBaseDispMemOperandDebugString(const MachineInsnX86_64* insn, int i);
+std::string GetIndexDispMemOperandDebugString(const MachineInsnX86_64* insn, int i);
 
 // The index operand must immediately follow the base operand.
-string GetBaseIndexDispMemOperandDebugString(const MachineInsnX86_64* insn, int i);
-string GetImmOperandDebugString(const MachineInsnX86_64* insn);
-string GetCondOperandDebugString(const MachineInsnX86_64* insn);
-string GetLabelOperandDebugString(const MachineInsnX86_64* insn);
+std::string GetBaseIndexDispMemOperandDebugString(const MachineInsnX86_64* insn, int i);
+std::string GetImmOperandDebugString(const MachineInsnX86_64* insn);
+std::string GetCondOperandDebugString(const MachineInsnX86_64* insn);
+std::string GetLabelOperandDebugString(const MachineInsnX86_64* insn);
 
 }  // namespace x86_64
 
-}  // namespace ndk_translation
+}  // namespace berberis
 
-#endif  // NDK_TRANSLATION_BACKEND_X86_64_CODE_DEBUG_H_
+#endif  // BERBERIS_BACKEND_X86_64_CODE_DEBUG_H_

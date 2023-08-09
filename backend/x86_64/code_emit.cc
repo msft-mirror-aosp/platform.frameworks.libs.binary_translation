@@ -1,19 +1,34 @@
-// Copyright 2014 Google Inc. All rights reserved.
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#include "ndk_translation/base/logging.h"
+#include "berberis/backend/x86_64/code_emit.h"
 
 #include <iterator>  // std::next
 #include <utility>
 
-#include "ndk_translation/assembler/x86_64.h"
-#include "ndk_translation/backend/x86_64/machine_ir.h"
-#include "ndk_translation/base/arena_vector.h"
-#include "ndk_translation/code_gen_lib/code_gen_lib.h"
-#include "ndk_translation/runtime_primitives/host_code.h"  // AsHostCode
+#include "berberis/assembler/x86_64.h"
+#include "berberis/backend/code_emitter.h"
+#include "berberis/backend/x86_64/machine_ir.h"
+#include "berberis/base/arena_vector.h"
+#include "berberis/base/logging.h"
+#include "berberis/code_gen_lib/code_gen_lib.h"
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/runtime_primitives/host_code.h"  // AsHostCode
 
-#include "x86_64/code_emit.h"
-
-namespace ndk_translation {
+namespace berberis {
 
 using Assembler = x86_64::Assembler;
 
@@ -210,12 +225,6 @@ void CallImm::Emit(CodeEmitter* as) const {
 
 }  // namespace x86_64
 
-}  // namespace ndk_translation
-
-namespace berberis {
-
-using Assembler = ndk_translation::x86_64::Assembler;
-
 void PseudoBranch::Emit(CodeEmitter* as) const {
   const Assembler::Label* then_label = as->GetLabelAt(then_bb()->id());
 
@@ -278,11 +287,11 @@ void PseudoJump::Emit(CodeEmitter* as) const {
 void PseudoIndirectJump::Emit(CodeEmitter* as) const {
   EmitFreeStackFrame(as, as->frame_size());
   if (as->exit_label_for_testing()) {
-    as->Movq(as->rax, ndk_translation::x86_64::GetGReg(RegAt(0)));
+    as->Movq(as->rax, x86_64::GetGReg(RegAt(0)));
     as->Jmp(*as->exit_label_for_testing());
     return;
   }
-  EmitIndirectDispatch(as, ndk_translation::x86_64::GetGReg(RegAt(0)));
+  EmitIndirectDispatch(as, x86_64::GetGReg(RegAt(0)));
 }
 
 void PseudoCopy::Emit(CodeEmitter* as) const {
@@ -293,9 +302,9 @@ void PseudoCopy::Emit(CodeEmitter* as) const {
   }
   // Operands should have equal register classes!
   CHECK_EQ(RegKindAt(0).RegClass(), RegKindAt(1).RegClass());
-  // TODO(eaeltsin): why get size by class then pick insn by size instead of pick insn by class?
+  // TODO(b/232598137): Why get size by class then pick insn by size instead of pick insn by class?
   int size = RegKindAt(0).RegClass()->RegSize();
-  ndk_translation::x86_64::EmitCopy(as, dst, src, size);
+  x86_64::EmitCopy(as, dst, src, size);
 }
 
 void PseudoReadFlags::Emit(CodeEmitter* as) const {
@@ -344,7 +353,7 @@ void MachineIR::Emit(CodeEmitter* as) const {
     }
   }
 
-  ndk_translation::x86_64::EmitRecoveryLabels(as, recovery_labels);
+  x86_64::EmitRecoveryLabels(as, recovery_labels);
 }
 
 }  // namespace berberis
