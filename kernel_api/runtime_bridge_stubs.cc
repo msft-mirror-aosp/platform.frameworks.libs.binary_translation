@@ -25,6 +25,7 @@
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
+#include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/kernel_api/sys_mman_emulation.h"
 #include "berberis/runtime_primitives/config.h"
 
@@ -75,9 +76,10 @@ long RunGuestSyscall___NR_exit(long code) {
   return 0;
 }
 
-long RunGuestSyscall___NR_clone(long, long, long, long, long) {
-  FATAL("unimplemented syscall clone");
-  return -1;
+long RunGuestSyscall___NR_clone(long arg_1, long arg_2, long arg_3, long arg_4, long arg_5) {
+  // NOTE: clone syscall argument ordering is architecture dependent.  This implementation assumes
+  // CLONE_BACKWARDS is enabled (tls before child_tid), which is true for both x86 and RISC-V.
+  return CloneGuestThread(GetCurrentGuestThread(), arg_1, arg_2, arg_3, arg_4, arg_5);
 }
 
 long RunGuestSyscall___NR_mmap(long arg_1,
