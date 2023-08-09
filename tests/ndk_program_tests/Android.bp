@@ -33,6 +33,7 @@ filegroup {
         "ctype_test.cc",
         "div_test.cc",
         "epoll_test.cc",
+        "mutex_test.cc",
         "ptrace_test.cc",
         "sem_test.cc",
         "string_test.cc",
