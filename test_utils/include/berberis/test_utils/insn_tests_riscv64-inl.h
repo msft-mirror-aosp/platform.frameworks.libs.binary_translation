@@ -428,8 +428,6 @@ class TESTSUITE : public ::testing::Test {
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
   uint64_t store_area_;
-
- private:
   ThreadState state_;
 };
 
@@ -1413,6 +1411,20 @@ TEST_F(TESTSUITE, JumpAndLinkInstructions) {
   TestJumpAndLink(0x008000ef, 8);
   // Jal with negative offset.
   TestJumpAndLink(0xffdff0ef, -4);
+}
+
+TEST_F(TESTSUITE, JumpAndLinkWithReturnAddressRegisterAsTarget) {
+  uint32_t insn_bytes{// jalr   ra
+                      0x000080e7};
+  auto code_start = ToGuestAddr(&insn_bytes);
+  state_.cpu.insn_addr = code_start;
+  // Translation cache requires upper bits to be zero.
+  constexpr GuestAddr kJumpTargetAddr = 0x0000'f00d'cafe'b0baULL;
+  SetXReg<RA>(state_.cpu, kJumpTargetAddr);
+
+  EXPECT_TRUE(RunOneInstruction(&state_, kJumpTargetAddr));
+  EXPECT_EQ(state_.cpu.insn_addr, kJumpTargetAddr);
+  EXPECT_EQ(GetXReg<RA>(state_.cpu), code_start + 4);
 }
 
 TEST_F(TESTSUITE, JumpAndLinkRegisterInstructions) {

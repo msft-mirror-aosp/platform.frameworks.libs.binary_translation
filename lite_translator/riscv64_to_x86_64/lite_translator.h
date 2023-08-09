@@ -302,6 +302,12 @@ class LiteTranslator {
     return imm_reg;
   }
 
+  [[nodiscard]] Register Copy(Register value) {
+    Register result = AllocTempReg();
+    as_.Movq(result, value);
+    return result;
+  }
+
   void Unimplemented() { success_ = false; }
 
   RegisterFileMaintainer<Register, kNumGuestRegs>* gp_maintainer() { return &gp_maintainer_; }
