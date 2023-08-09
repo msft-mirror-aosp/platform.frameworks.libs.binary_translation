@@ -27,6 +27,7 @@ cc_library_headers {
 filegroup {
     name: "berberis_ndk_program_tests_srcs",
     srcs: [
+        "atomics_test.cc",
         "cpp_test.cc",
         "ctype_test.cc",
         "div_test.cc",
