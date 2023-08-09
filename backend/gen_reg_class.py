@@ -1,10 +1,20 @@
 #!/usr/bin/python3
 #
-# Copyright 2014 The Chromium Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+# Copyright (C) 2023 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-"""Generate machine IR register classes definition from data file."""
+"""Generate machine IR register class definitions from data file."""
 
 import json
 import sys
@@ -18,7 +28,7 @@ def _gen_machine_reg_class_inc(f, reg_classes):
     for r in regs[: -1]:
       print('    (1ULL << kMachineReg%s.reg()) |' % (r), file=f)
     print('    (1ULL << kMachineReg%s.reg());' % (regs[-1]), file=f)
-    print('inline constexpr ndk_translation::MachineRegClass k%s = {' % (name), file=f)
+    print('inline constexpr MachineRegClass k%s = {' % (name), file=f)
     print('    "%s",' % (name), file=f)
     print('    %d,' % (reg_class.get('size')), file=f)
     print('    k%sMask,' % (name), file=f)
@@ -30,7 +40,7 @@ def _gen_machine_reg_class_inc(f, reg_classes):
     print('};', file=f)
 
 
-def _expand_aliases(reg_classes):
+def expand_aliases(reg_classes):
   expanded = {}
   for reg_class in reg_classes:
     expanded_regs = []
@@ -47,13 +57,14 @@ def main(argv):
 
   reg_classes = []
   for d in defs:
-    f = open(d)
-    j = json.load(f)
-    reg_classes.extend(j.get('reg_classes'))
+    with open(d) as f:
+      j = json.load(f)
+      reg_classes.extend(j.get('reg_classes'))
 
-  _expand_aliases(reg_classes)
+  expand_aliases(reg_classes)
 
-  _gen_machine_reg_class_inc(open(machine_reg_class_inl_name, 'w'), reg_classes)
+  with open(machine_reg_class_inl_name, 'w') as f:
+    _gen_machine_reg_class_inc(f, reg_classes)
 
 
 if __name__ == '__main__':
