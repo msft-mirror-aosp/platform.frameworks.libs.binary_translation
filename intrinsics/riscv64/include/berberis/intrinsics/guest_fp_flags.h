@@ -67,6 +67,21 @@ inline int ToIntrinsicRoundingMode(int8_t rm) {
   return ToHostRoundingMode(rm);
 }
 
+inline uint8_t GuestModeFromHostRounding() {
+  switch (fegetround()) {
+    case FE_TONEAREST:
+      return FPFlags::RNE;
+    case FE_DOWNWARD:
+      return FPFlags::RDN;
+    case FE_UPWARD:
+      return FPFlags::RUP;
+    case FE_TOWARDZERO:
+      return FPFlags::RTZ;
+    default:
+      CHECK(false);
+  }
+}
+
 }  // namespace intrinsics
 
 }  // namespace berberis
