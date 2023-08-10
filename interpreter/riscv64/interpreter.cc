@@ -473,6 +473,8 @@ class Interpreter {
 
   [[nodiscard]] uint64_t GetImm(uint64_t imm) const { return imm; }
 
+  [[nodiscard]] Register Copy(Register value) const { return value; }
+
   [[nodiscard]] GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
 
   void FinalizeInsn(uint8_t insn_len) {
