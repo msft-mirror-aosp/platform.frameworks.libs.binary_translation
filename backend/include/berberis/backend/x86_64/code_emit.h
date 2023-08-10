@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
-#define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+// Do not import directly. Only intended to be used by generated code.
 
-#include "cstdint"
+#ifndef BERBERIS_BACKEND_X86_64_CODE_EMIT_H_
+#define BERBERIS_BACKEND_X86_64_CODE_EMIT_H_
 
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/assembler/x86_64.h"
+#include "berberis/backend/code_emitter.h"
+#include "berberis/backend/x86_64/machine_ir.h"
+#include "berberis/intrinsics/intrinsics_float.h"
 
-namespace berberis {
+namespace berberis::x86_64 {
 
-void InterpretInsn(ThreadState* state);
+Assembler::Register GetGReg(MachineReg r);
+Assembler::XMMRegister GetXReg(MachineReg r);
+Assembler::ScaleFactor ToScaleFactor(MachineMemOperandScale scale);
 
-}  // namespace berberis
+}  // namespace berberis::x86_64
 
-#endif  // BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#endif  // BERBERIS_BACKEND_X86_64_CODE_EMIT_H_

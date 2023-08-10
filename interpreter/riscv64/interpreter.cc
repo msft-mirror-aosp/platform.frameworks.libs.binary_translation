@@ -320,7 +320,7 @@ class Interpreter {
 
   Register Roriw(Register arg, int8_t shamt) {
     CheckShamt32IsValid(shamt);
-    return (((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
+    return int32_t(((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
   }
 
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data) {
@@ -472,6 +472,8 @@ class Interpreter {
   [[nodiscard]] uint8_t GetFrm() const { return state_->cpu.frm; }
 
   [[nodiscard]] uint64_t GetImm(uint64_t imm) const { return imm; }
+
+  [[nodiscard]] Register Copy(Register value) const { return value; }
 
   [[nodiscard]] GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
 

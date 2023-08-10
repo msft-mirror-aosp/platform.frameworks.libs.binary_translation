@@ -332,9 +332,16 @@ class SemanticsPlayer {
   };
 
   void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
-    Register result = listener_->GetImm(listener_->GetInsnAddr() + args.insn_len);
-    SetRegOrIgnore(args.dst, result);
     Register base = GetRegOrZero(args.base);
+    if (args.base == args.dst) {
+      // If base and dst are the same register and the listener implements register mapping
+      // SetRegOrIgnore below will overwrite the original base register and make it invalid for
+      // BranchRegister call. Note that this issue only exists for JumpAndLinkRegister since we
+      // need to write the result before consuming all the arguments.
+      base = listener_->Copy(base);
+    }
+    Register next_insn_addr = listener_->GetImm(listener_->GetInsnAddr() + args.insn_len);
+    SetRegOrIgnore(args.dst, next_insn_addr);
     listener_->BranchRegister(base, args.offset);
   };
 
@@ -382,12 +389,23 @@ class SemanticsPlayer {
                                        return listener_->template Min<int64_t>(arg1, arg2);
                                      case Decoder::OpOpcode::kMinu:
                                        return listener_->template Min<uint64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kRol:
+                                       return listener_->template Rol<int64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kRor:
+                                       return listener_->template Ror<int64_t>(arg1, arg2);
                                      default:
                                        return listener_->Op(args.opcode, arg1, arg2);
                                    }
                                  },
                                  [&](const typename Decoder::Op32Args& args) {
-                                   return listener_->Op32(args.opcode, arg1, arg2);
+                                   switch (args.opcode) {
+                                     case Decoder::Op32Opcode::kRolw:
+                                       return listener_->template Rol<int32_t>(arg1, arg2);
+                                     case Decoder::Op32Opcode::kRorw:
+                                       return listener_->template Ror<int32_t>(arg1, arg2);
+                                     default:
+                                       return listener_->Op32(args.opcode, arg1, arg2);
+                                   }
                                  }}(args);
     SetRegOrIgnore(args.dst, result);
   };

@@ -14,17 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
-#define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+#include "gtest/gtest.h"
 
-#include "cstdint"
+struct CppStaticInit {
+  CppStaticInit() : init_(true) {}
 
-#include "berberis/guest_state/guest_state.h"
+  bool init_;
+};
 
-namespace berberis {
+CppStaticInit gCppStaticInit;
 
-void InterpretInsn(ThreadState* state);
+TEST(Cpp, StaticInitializers) {
+  EXPECT_TRUE(gCppStaticInit.init_);
+}
 
-}  // namespace berberis
-
-#endif  // BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
+TEST(Cpp, Exception) {
+  bool res = false;
+  try {
+    throw true;
+  } catch (bool b) {
+    res = b;
+  }
+  ASSERT_TRUE(res);
+}

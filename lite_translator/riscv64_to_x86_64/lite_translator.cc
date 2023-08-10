@@ -302,6 +302,7 @@ Register LiteTranslator::Roriw(Register arg, int8_t shamt) {
   Register res = AllocTempReg();
   as_.Movq(res, arg);
   as_.Rorl(res, shamt);
+  as_.Movsxlq(res, res);
   return res;
 }
 
@@ -350,6 +351,7 @@ void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
 }
 
 void LiteTranslator::ExitRegion(GuestAddr target) {
+  StoreMappedRegs();
   if (params_.allow_dispatch) {
     EmitDirectDispatch(&as_, target, /* check_pending_signals */ true);
   } else {
@@ -360,6 +362,7 @@ void LiteTranslator::ExitRegion(GuestAddr target) {
 }
 
 void LiteTranslator::ExitRegionIndirect(Register target) {
+  StoreMappedRegs();
   if (params_.allow_dispatch) {
     EmitIndirectDispatch(&as_, target);
   } else {

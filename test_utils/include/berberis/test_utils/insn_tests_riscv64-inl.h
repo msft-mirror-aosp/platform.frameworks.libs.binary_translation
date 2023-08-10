@@ -80,6 +80,7 @@ decltype(auto) TupleMap(const ContainerType& container, const Transformer& trans
 
 class TESTSUITE : public ::testing::Test {
  public:
+  TESTSUITE() : state_{.cpu = {.frm = intrinsics::GuestModeFromHostRounding()}} {}
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
@@ -428,8 +429,6 @@ class TESTSUITE : public ::testing::Test {
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
   uint64_t store_area_;
-
- private:
   ThreadState state_;
 };
 
@@ -1132,6 +1131,13 @@ TEST_F(TESTSUITE, OpInstructions) {
            bit_cast<uint64_t>(int64_t{-10})}});
   // Minu
   TestOp(0x0a3150b3, {{50, 1, 1}});
+
+  // Ror
+  TestOp(0x603150b3, {{0xf000'0000'0000'000fULL, 4, 0xff00'0000'0000'0000ULL}});
+  TestOp(0x603150b3, {{0xf000'0000'0000'000fULL, 8, 0x0ff0'0000'0000'0000ULL}});
+  // Rol
+  TestOp(0x603110b3, {{0xff00'0000'0000'0000ULL, 4, 0xf000'0000'0000'000fULL}});
+  TestOp(0x603110b3, {{0x000f'ff00'0000'000fULL, 8, 0x0fff'0000'0000'0f00ULL}});
 }
 
 TEST_F(TESTSUITE, Op32Instructions) {
@@ -1161,6 +1167,13 @@ TEST_F(TESTSUITE, Op32Instructions) {
           {0xffff'ffff'8000'0000, 0xffff'ffff'8000'0001, 0xffff'ffff'8000'0000}});
   // Zext.h
   TestOp(0x080140bb, {{0xffff'ffff'ffff'fffeULL, 0, 0xfffe}});
+  // Rorw
+  TestOp(0x603150bb, {{0x0000'0000'f000'000fULL, 4, 0xffff'ffff'ff00'0000}});
+  TestOp(0x603150bb, {{0x0000'0000'f000'0000ULL, 4, 0x0000'0000'0f00'0000}});
+  TestOp(0x603150bb, {{0x0000'0000'0f00'000fULL, 4, 0xffff'ffff'f0f0'0000}});
+  // Rolw
+  TestOp(0x603110bb, {{0x0000'0000'f000'000fULL, 4, 0x0000'0000'0000'00ff}});
+  TestOp(0x603110bb, {{0x0000'0000'0ff0'0000ULL, 4, 0xffff'ffff'ff00'0000}});
 }
 
 TEST_F(TESTSUITE, OpImmInstructions) {
@@ -1219,7 +1232,9 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   // Sraiw
   TestOpImm(0x4001509b, {{0x0000'0000'f000'0000ULL, 12, 0xffff'ffff'ffff'0000ULL}});
   // Roriw
-  TestOpImm(0x6001509b, {{0x0000'0000'f000'000fULL, 4, 0x0000'0000'0000'0000'ff00'0000}});
+  TestOpImm(0x6001509b, {{0x0000'0000'f000'000fULL, 4, 0xffff'ffff'ff00'0000}});
+  TestOpImm(0x6001509b, {{0x0000'0000'f000'0000ULL, 4, 0x0000'0000'0f00'0000}});
+  TestOpImm(0x6001509b, {{0x0000'0000'0f00'000fULL, 4, 0xffff'ffff'f0f0'0000}});
   // Clzw
   TestOpImm(0x6001109b, {{0, 0, 32}});
   TestOpImm(0x6001109b, {{123, 0, 25}});
@@ -1397,6 +1412,20 @@ TEST_F(TESTSUITE, JumpAndLinkInstructions) {
   TestJumpAndLink(0x008000ef, 8);
   // Jal with negative offset.
   TestJumpAndLink(0xffdff0ef, -4);
+}
+
+TEST_F(TESTSUITE, JumpAndLinkWithReturnAddressRegisterAsTarget) {
+  uint32_t insn_bytes{// jalr   ra
+                      0x000080e7};
+  auto code_start = ToGuestAddr(&insn_bytes);
+  state_.cpu.insn_addr = code_start;
+  // Translation cache requires upper bits to be zero.
+  constexpr GuestAddr kJumpTargetAddr = 0x0000'f00d'cafe'b0baULL;
+  SetXReg<RA>(state_.cpu, kJumpTargetAddr);
+
+  EXPECT_TRUE(RunOneInstruction(&state_, kJumpTargetAddr));
+  EXPECT_EQ(state_.cpu.insn_addr, kJumpTargetAddr);
+  EXPECT_EQ(GetXReg<RA>(state_.cpu), code_start + 4);
 }
 
 TEST_F(TESTSUITE, JumpAndLinkRegisterInstructions) {
