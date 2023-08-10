@@ -24,7 +24,6 @@
 namespace berberis {
 
 void InterpretInsn(ThreadState* state);
-void RunSyscall(ThreadState* state);
 
 }  // namespace berberis
 
