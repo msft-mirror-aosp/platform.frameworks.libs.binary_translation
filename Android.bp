@@ -51,6 +51,7 @@ cc_defaults {
             // TODO(b/123294366): disconnect guest arch from host arch!
             cflags: [
                 "-DBERBERIS_GUEST_LP64=1",
+                "-DNATIVE_BRIDGE_GUEST_ARCH_RISCV64",
             ],
         },
     },
