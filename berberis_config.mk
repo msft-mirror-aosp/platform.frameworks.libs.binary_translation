@@ -25,6 +25,7 @@ BERBERIS_PRODUCT_PACKAGES := \
     libberberis_exec_region
 
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
+    libberberis_proxy_libc.so \
     berberis_prebuilt_riscv64 \
     berberis_program_runner_riscv64 \
     libberberis_riscv64
