@@ -1215,6 +1215,12 @@ TEST_F(TESTSUITE, OpImmInstructions) {
   TestOpImm(0x60111093, {{0x01000000'0000, 0, 40}});
   // Cpop
   TestOpImm(0x60211093, {{0xf000'0000'0000'000fULL, 0, 8}});
+  // Rev8
+  TestOpImm(0x6b815093, {{0x0000'0000'0000'000fULL, 0, 0x0f00'0000'0000'0000ULL}});
+  TestOpImm(0x6b815093, {{0xf000'0000'0000'0000ULL, 0, 0x0000'0000'0000'00f0ULL}});
+  TestOpImm(0x6b815093, {{0x00f0'0000'0000'0000ULL, 0, 0x0000'0000'0000'f000ULL}});
+  TestOpImm(0x6b815093, {{0x0000'000f'0000'0000ULL, 0, 0x0000'0000'0f00'0000ULL}});
+
   // Sext.b
   TestOpImm(0x60411093, {{0b1111'1110, 0, 0xffff'ffff'ffff'fffe}});  // -2
   // Sext.h
