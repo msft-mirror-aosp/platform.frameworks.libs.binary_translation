@@ -24,6 +24,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
+#include "berberis/intrinsics/guest_fp_flags.h"        // GuestModeFromHostRounding
 #include "berberis/intrinsics/guest_rounding_modes.h"  // ScopedRoundingMode
 
 namespace berberis {
@@ -33,6 +34,7 @@ namespace {
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
   // Non-Compressed Instructions.
+  Riscv64InterpreterTest() : state_{.cpu = {.frm = intrinsics::GuestModeFromHostRounding()}} {}
 
   void InterpretCsr(uint32_t insn_bytes, uint8_t expected_rm) {
     auto code_start = ToGuestAddr(&insn_bytes);
@@ -41,6 +43,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     InterpretInsn(&state_);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
     EXPECT_EQ(state_.cpu.frm, expected_rm);
+    state_.cpu.frm = intrinsics::GuestModeFromHostRounding();
   }
 
   void InterpretFence(uint32_t insn_bytes) {
