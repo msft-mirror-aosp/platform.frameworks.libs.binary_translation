@@ -53,6 +53,7 @@ class Assembler : public AssemblerX86<Assembler> {
   static constexpr Register r14{14};
   static constexpr Register r15{15};
 
+  static constexpr XMMRegister no_xmm_register{0x80};
   static constexpr XMMRegister xmm0{0};
   static constexpr XMMRegister xmm1{1};
   static constexpr XMMRegister xmm2{2};

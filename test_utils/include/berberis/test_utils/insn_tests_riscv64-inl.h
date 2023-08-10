@@ -1226,6 +1226,9 @@ TEST_F(TESTSUITE, OpImmInstructions) {
   // Sext.h
   TestOpImm(0x60511093, {{0b1111'1110, 0, 0xfe}});
   TestOpImm(0x60511093, {{0b1111'1111'1111'1110, 0, 0xffff'ffff'ffff'fffe}});
+  // Orc.b
+  TestOpImm(0x28715093, {{0xfe00'f0ff'fa00'fffb, 0, 0xff00'ffff'ff00'ffff}});
+  TestOpImm(0x28715093, {{0xfa00, 0, 0xff00}});
 }
 
 TEST_F(TESTSUITE, OpImm32Instructions) {
