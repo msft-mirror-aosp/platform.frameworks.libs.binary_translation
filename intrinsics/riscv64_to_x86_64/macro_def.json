@@ -136,6 +136,15 @@
       "mnemo": "MACRO_ORCB"
     },
     {
+      "name": "OrcbAVX",
+      "args": [
+        { "class": "FpReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use" }
+      ],
+      "asm": "MacroOrcbAVX",
+      "mnemo": "MACRO_ORCB"
+    },
+    {
       "name": "MacroFeqFloat32",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
