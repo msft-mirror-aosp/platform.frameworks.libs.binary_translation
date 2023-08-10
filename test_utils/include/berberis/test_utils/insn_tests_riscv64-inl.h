@@ -80,6 +80,7 @@ decltype(auto) TupleMap(const ContainerType& container, const Transformer& trans
 
 class TESTSUITE : public ::testing::Test {
  public:
+  TESTSUITE() : state_{.cpu = {.frm = intrinsics::GuestModeFromHostRounding()}} {}
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
