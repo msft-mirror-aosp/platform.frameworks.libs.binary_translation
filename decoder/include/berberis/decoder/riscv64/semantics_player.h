@@ -332,9 +332,16 @@ class SemanticsPlayer {
   };
 
   void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
-    Register result = listener_->GetImm(listener_->GetInsnAddr() + args.insn_len);
-    SetRegOrIgnore(args.dst, result);
     Register base = GetRegOrZero(args.base);
+    if (args.base == args.dst) {
+      // If base and dst are the same register and the listener implements register mapping
+      // SetRegOrIgnore below will overwrite the original base register and make it invalid for
+      // BranchRegister call. Note that this issue only exists for JumpAndLinkRegister since we
+      // need to write the result before consuming all the arguments.
+      base = listener_->Copy(base);
+    }
+    Register next_insn_addr = listener_->GetImm(listener_->GetInsnAddr() + args.insn_len);
+    SetRegOrIgnore(args.dst, next_insn_addr);
     listener_->BranchRegister(base, args.offset);
   };
 
