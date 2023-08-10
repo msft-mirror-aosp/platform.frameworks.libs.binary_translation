@@ -56,10 +56,13 @@ long RunGuestSyscall___NR_rt_sigaction(long sig_num_arg,
   return -1;
 }
 
-long RunGuestSyscall___NR_sigaltstack(long, long) {
-  // TODO(b/283534035): Implement when GuestThread::SigAltStack is ready.
-  TRACE("unimplemented syscall sigaltstack");
-  errno = ENOSYS;
+long RunGuestSyscall___NR_sigaltstack(long stack, long old_stack) {
+  int error;
+  if (GetCurrentGuestThread()->SigAltStack(
+          bit_cast<const stack_t*>(stack), bit_cast<stack_t*>(old_stack), &error)) {
+    return 0;
+  }
+  errno = error;
   return -1;
 }
 
@@ -72,7 +75,7 @@ long RunGuestSyscall___NR_timer_create(long arg_1, long arg_2, long arg_3) {
 }
 
 long RunGuestSyscall___NR_exit(long code) {
-  _exit(code);
+  ExitCurrentThread(code);
   return 0;
 }
 
