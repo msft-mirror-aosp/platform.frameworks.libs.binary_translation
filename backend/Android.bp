@@ -172,6 +172,7 @@ cc_library_headers {
 filegroup {
     name: "berberis_backend_srcs",
     srcs: [
+        "common/lifetime_analysis.cc",
         "common/machine_ir_debug.cc",
         "x86_64/code.cc",
         "x86_64/code_debug.cc",
