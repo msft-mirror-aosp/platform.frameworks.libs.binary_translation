@@ -23,6 +23,7 @@
 #include <type_traits>
 
 #include "berberis/assembler/x86_64.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/guest_fp_flags.h"
 #include "berberis/intrinsics/intrinsics_process_bindings.h"
@@ -283,6 +284,9 @@ class TryBindingBasedInlineIntrinsic {
                            *this, asm_call_info)));
     static_assert(std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 1);
     using ReturnType = std::tuple_element_t<0, typename AsmCallInfo::OutputArguments>;
+    if (result_xmm_reg_ != x86_64::Assembler::no_xmm_register) {
+      Mov<typename TypeTraits<int64_t>::Float>(as_, result_, result_xmm_reg_);
+    }
     if constexpr (std::is_integral_v<ReturnType> && sizeof(ReturnType) < sizeof(std::int32_t)) {
       // Don't handle these types just yet. We are not sure how to expand them and there
       // are no examples.
@@ -318,16 +322,31 @@ class TryBindingBasedInlineIntrinsic {
     static constexpr const auto& arg_info = ArgTraits<ArgBinding>::arg_info;
     using RegisterClass = typename ArgTraits<ArgBinding>::RegisterClass;
     using Usage = typename ArgTraits<ArgBinding>::Usage;
+    using Type = std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>;
     if constexpr (arg_info.arg_type == ArgInfo::IN_ARG) {
-      static_assert(std::is_same_v<Usage, intrinsics::bindings::Use>);
-      static_assert(!RegisterClass::kIsImplicitReg);
-      return std::tuple{std::get<arg_info.from>(input_args_)};
+      if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
+        auto reg = reg_alloc();
+        Mov<typename TypeTraits<int64_t>::Float>(as_, reg, std::get<arg_info.from>(input_args_));
+        return std::tuple{reg};
+      } else {
+        static_assert(std::is_same_v<Usage, intrinsics::bindings::Use>);
+        static_assert(!RegisterClass::kIsImplicitReg);
+        return std::tuple{std::get<arg_info.from>(input_args_)};
+      }
     } else if constexpr (arg_info.arg_type == ArgInfo::IN_OUT_ARG) {
       static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
       static_assert(!RegisterClass::kIsImplicitReg);
-      Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
-          as_, result_, std::get<arg_info.from>(input_args_));
-      return std::tuple{result_};
+      if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
+        CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
+        result_xmm_reg_ = reg_alloc();
+        Mov<typename TypeTraits<int64_t>::Float>(
+            as_, result_xmm_reg_, std::get<arg_info.from>(input_args_));
+        return std::tuple{result_xmm_reg_};
+      } else {
+        Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
+            as_, result_, std::get<arg_info.from>(input_args_));
+        return std::tuple{result_};
+      }
     } else if constexpr (arg_info.arg_type == ArgInfo::IN_TMP_ARG) {
       if constexpr (RegisterClass::kAsRegister == 'c') {
         Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
@@ -346,7 +365,13 @@ class TryBindingBasedInlineIntrinsic {
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                     std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
       static_assert(!RegisterClass::kIsImplicitReg);
-      return std::tuple{result_};
+      if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
+        CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
+        result_xmm_reg_ = reg_alloc();
+        return std::tuple{result_xmm_reg_};
+      } else {
+        return std::tuple{result_};
+      }
     } else if constexpr (arg_info.arg_type == ArgInfo::TMP_ARG) {
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                     std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
@@ -365,6 +390,7 @@ class TryBindingBasedInlineIntrinsic {
   RegAlloc& reg_alloc_;
   SIMDRegAlloc& simd_reg_alloc_;
   AssemblerResType result_;
+  x86_64::Assembler::XMMRegister result_xmm_reg_ = x86_64::Assembler::no_xmm_register;
   std::tuple<AssemblerArgType...> input_args_;
   bool success_;
 };

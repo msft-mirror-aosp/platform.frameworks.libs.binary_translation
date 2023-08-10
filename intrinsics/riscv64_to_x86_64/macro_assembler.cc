@@ -41,22 +41,26 @@ struct MacroAssemblerConstants {
                                                          0x7fc00000,
                                                          0x7fc00000};
   alignas(16) const uint64_t kCanonicalNansFloat64[2] = {0x7ff8000000000000, 0x7ff8000000000000};
+  alignas(16) const uint64_t kMaxUInt64[2] = {0xffff'ffff'ffff'ffffULL, 0xffff'ffff'ffff'ffffULL};
   int64_t BsrToClzInt64 = 127;
   int64_t WidthInBits64 = 64;
+  int64_t Zero64 = 0;
   int32_t BsrToClzInt32 = 63;
   int32_t WidthInBits32 = 32;
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 768, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 896, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat64, 384, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, BsrToClzInt64, 512, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, WidthInBits64, 576, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, BsrToClzInt32, 640, 32);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, WidthInBits32, 672, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxUInt64, 512, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, BsrToClzInt64, 640, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, WidthInBits64, 704, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, Zero64, 768, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, BsrToClzInt32, 832, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, WidthInBits32, 864, 32);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -112,5 +116,7 @@ const int32_t WidthInBits<int32_t> =
 template <>
 const int32_t WidthInBits<int64_t> =
     GetConstants() + offsetof(MacroAssemblerConstants, WidthInBits64);
+const int32_t Zero = GetConstants() + offsetof(MacroAssemblerConstants, Zero64);
+const int32_t kMaxUInt = GetConstants() + offsetof(MacroAssemblerConstants, kMaxUInt64);
 
 }  // namespace berberis::constant_pool
