@@ -167,6 +167,14 @@
     },
     {
       "encodings": {
+        "Bswapq": { "opcodes": [ "0F", "C8" ] }
+      },
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
         "Btq": { "opcodes": [ "0F", "A3" ], "reg_to_rm": true },
         "Cmpq": { "opcodes": [ "39" ], "reg_to_rm": true },
         "Testq": { "opcodes": [ "85" ], "reg_to_rm": true }
