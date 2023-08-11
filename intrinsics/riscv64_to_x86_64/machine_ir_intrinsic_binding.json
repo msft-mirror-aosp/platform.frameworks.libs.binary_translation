@@ -169,6 +169,13 @@
     "out": [ 0 ]
   },
   {
+    "name": "Orcb",
+    "insn": "OrcbAVX",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float32>",
     "insn": "AddssXRegXReg",
     "in": [ 0, 1 ],
