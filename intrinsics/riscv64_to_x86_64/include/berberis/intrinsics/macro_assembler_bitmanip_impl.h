@@ -70,6 +70,12 @@ void MacroAssembler<Assembler>::MacroOrcb(XMMRegister result) {
   Pandn(result, {.disp = constants_pool::kMaxUInt});
 }
 
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroOrcbAVX(XMMRegister result, XMMRegister src) {
+  Vpcmpeqb(result, src, {.disp = constants_pool::Zero});
+  Vpandn(result, result, {.disp = constants_pool::kMaxInt});
+}
+
 }  // namespace berberis
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_BITMANIP_IMPL_H_
