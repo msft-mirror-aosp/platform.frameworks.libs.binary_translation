@@ -35,6 +35,7 @@ BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 += $(NATIVE_BRIDGE_PRODUCT_PACKAGES_RISCV64_READY)
 
 BERBERIS_DEV_PRODUCT_PACKAGES := \
+    berberis_hello_world.native_bridge \
     berberis_hello_world_static.native_bridge \
     berberis_host_tests \
     berberis_ndk_program_tests \
