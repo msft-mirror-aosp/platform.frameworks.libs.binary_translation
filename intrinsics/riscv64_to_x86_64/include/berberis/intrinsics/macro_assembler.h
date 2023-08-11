@@ -61,6 +61,7 @@ class MacroAssembler : public Assembler {
   using Assembler::Pshufd;
   using Assembler::Vpand;
   using Assembler::Vpandn;
+  using Assembler::Vpcmpeqb;
   using Assembler::Vpor;
   using Assembler::Vpshufd;
 
