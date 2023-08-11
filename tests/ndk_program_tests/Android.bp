@@ -40,6 +40,7 @@ filegroup {
         "string_test.cc",
         "thread_test.cc",
         "time_test.cc",
+        "user_test.cc",
         "wchar_test.cc",
         "zlib_test.cc",
     ],
