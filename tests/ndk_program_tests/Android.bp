@@ -38,6 +38,7 @@ filegroup {
         "resource_test.cc",
         "sem_test.cc",
         "string_test.cc",
+        "sysconf_test.cc",
         "thread_test.cc",
         "time_test.cc",
         "user_test.cc",
