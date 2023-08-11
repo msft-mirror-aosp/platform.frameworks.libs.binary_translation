@@ -35,6 +35,7 @@ filegroup {
         "epoll_test.cc",
         "mutex_test.cc",
         "ptrace_test.cc",
+        "resource_test.cc",
         "sem_test.cc",
         "string_test.cc",
         "thread_test.cc",
