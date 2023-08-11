@@ -163,6 +163,12 @@
     "out": [ 0 ]
   },
   {
+    "name": "Orcb",
+    "insn": "Orcb",
+    "in": [0],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float32>",
     "insn": "AddssXRegXReg",
     "in": [ 0, 1 ],

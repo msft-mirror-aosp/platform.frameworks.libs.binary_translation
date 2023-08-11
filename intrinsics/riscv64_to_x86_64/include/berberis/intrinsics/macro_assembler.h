@@ -55,6 +55,7 @@ class MacroAssembler : public Assembler {
   using Assembler::MakeLabel;
   using Assembler::Pand;
   using Assembler::Pandn;
+  using Assembler::Pcmpeqb;
   using Assembler::Pmov;
   using Assembler::Por;
   using Assembler::Pshufd;

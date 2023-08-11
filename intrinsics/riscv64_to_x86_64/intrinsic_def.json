@@ -231,6 +231,12 @@
     "in": [ "int16_t" ],
     "out": [ "int64_t" ]
   },
+  "Orcb": {
+    "comment": "OR-Combine, byte granule.",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
     "FAdd": {
     "comment": "Floating point addition",
     "class": "template",
