@@ -60,6 +60,9 @@ extern const int32_t WidthInBits<int32_t>;
 template <>
 extern const int32_t WidthInBits<int64_t>;
 
+extern const int32_t Zero;
+extern const int32_t kMaxUInt;
+
 }  // namespace berberis::constants_pool
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
