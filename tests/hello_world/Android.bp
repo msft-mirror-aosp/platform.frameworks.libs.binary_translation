@@ -17,10 +17,9 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-cc_test {
-    name: "berberis_hello_world_static",
+cc_defaults {
+    name: "berberis_hello_world_defaults",
     srcs: ["main.cc"],
-    static_executable: true,
     native_bridge_supported: true,
     enabled: false,
     target: {
@@ -28,4 +27,15 @@ cc_test {
             enabled: true,
         },
     },
+}
+
+cc_test {
+    name: "berberis_hello_world",
+    defaults: ["berberis_hello_world_defaults"],
+}
+
+cc_test {
+    name: "berberis_hello_world_static",
+    defaults: ["berberis_hello_world_defaults"],
+    static_executable: true,
 }
