@@ -42,7 +42,7 @@ class TextAssembler : public TextAssemblerX86<TextAssembler> {
 
  protected:
   static constexpr bool need_gpr_macroassembler_mxcsr_scratch_ = false;
-  typedef RegisterTemplate<kEsp, false> RegisterDefaultBit;
+  typedef RegisterTemplate<kRsp, 'q'> RegisterDefaultBit;
 
  private:
   using Assembler = TextAssembler;
