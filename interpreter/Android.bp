@@ -35,6 +35,7 @@ cc_library_static {
         "libberberis_interpreter_riscv64_headers",
         "libberberis_intrinsics_riscv64_headers",
         "libberberis_kernel_api_headers",
+        "libberberis_runtime_primitives_headers",
     ],
     export_header_lib_headers: ["libberberis_interpreter_riscv64_headers"],
     srcs: ["riscv64/interpreter.cc"],
