@@ -33,4 +33,8 @@ std::tuple<int64_t> Cpop<int64_t>(int64_t src) {
   return {__builtin_popcountll(src)};
 }
 
+std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
+  return {uint64_t{src} << imm};
+}
+
 }  // namespace berberis::intrinsics
