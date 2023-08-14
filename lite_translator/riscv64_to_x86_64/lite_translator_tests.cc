@@ -109,6 +109,30 @@ TEST(Riscv64LiteTranslatorTest, NanBoxAndSetFpReg) {
   EXPECT_EQ(nan_box_insn_size + mov_insn_size, machine_code.install_size() - nan_box_and_set_base);
 }
 
+TEST(Riscv64LiteTranslatorTest, SetReg) {
+  MachineCode machine_code;
+  LiteTranslator translator(&machine_code, 0);
+  LiteTranslator::Register reg;
+  int32_t offset = offsetof(ThreadState, cpu.x[0]) + 1 * 8;
+  size_t store_insn_base = machine_code.install_size();
+  translator.as()->Movq({.base = translator.as()->rbp, .disp = offset}, reg);
+  size_t store_insn_size = machine_code.install_size() - store_insn_base;
+
+  size_t mov_insn_base = machine_code.install_size();
+  translator.as()->Movq(reg, reg);
+  size_t mov_insn_size = machine_code.install_size() - mov_insn_base;
+
+  ASSERT_NE(store_insn_size, mov_insn_size);
+
+  size_t set_base = machine_code.install_size();
+  translator.SetReg(1, reg);
+  EXPECT_EQ(mov_insn_size, machine_code.install_size() - set_base);
+
+  set_base = machine_code.install_size();
+  translator.SetReg(1, reg);
+  EXPECT_EQ(mov_insn_size, machine_code.install_size() - set_base);
+}
+
 }  // namespace
 
 }  // namespace berberis
