@@ -76,6 +76,22 @@ TEST_F(Riscv64LiteTranslatorExecTest, StoreMappedRegs) {
   EXPECT_EQ(state_.cpu.x[1], 33ULL);
 }
 
+TEST_F(Riscv64LiteTranslatorExecTest, StoreMappedFpRegs) {
+  state_.cpu.f[1] = 0;
+  LiteTranslator::FpRegister reg = translator_.AllocTempSimdReg();
+
+  translator_.as()->Movq(x86_64::Assembler::rax, 33);
+  translator_.as()->Movq(reg, x86_64::Assembler::rax);
+  translator_.NanBoxAndSetFpReg(1, reg, LiteTranslator::Decoder::FloatOperandType::kDouble);
+  EXPECT_TRUE(translator_.simd_maintainer()->IsMapped(1));
+  EXPECT_TRUE(translator_.simd_maintainer()->IsModified(1));
+  translator_.StoreMappedRegs();
+  translator_.as()->Jmp(kEntryExitGeneratedCode);
+
+  Run();
+  EXPECT_EQ(state_.cpu.f[1], 33ULL);
+}
+
 }  // namespace
 
 }  // namespace berberis
