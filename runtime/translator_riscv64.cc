@@ -104,8 +104,7 @@ HostCodePiece InstallTranslated(MachineCode* machine_code,
 void InitTranslator() {
   UpdateTranslationMode();
   InitHostCallFrameGuestPC(ToGuestAddr(g_native_bridge_call_guest + 1));
-  // TODO(b/232598137) Setup recovery for interpreter then init here.
-  // InitInterpreter();
+  InitInterpreter();
 }
 
 // Exported for testing only.

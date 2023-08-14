@@ -33,6 +33,7 @@
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
+#include "berberis/runtime_primitives/recovery_code.h"
 
 #include "fp_regs.h"
 
@@ -529,6 +530,12 @@ class Interpreter {
 };
 
 }  // namespace
+
+void InitInterpreter() {
+  // TODO(b/232598137): Currently we just call it to initialize the recovery map.
+  // We need to add real faulty instructions with recovery here.
+  InitExtraRecoveryCodeUnsafe({});
+}
 
 void InterpretInsn(ThreadState* state) {
   GuestAddr pc = state->cpu.insn_addr;
