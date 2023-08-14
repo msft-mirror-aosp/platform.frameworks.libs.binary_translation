@@ -155,6 +155,69 @@
       "mnemo": "MACRO_ORCB"
     },
     {
+      "name": "Adduw",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroAdduw",
+      "mnemo": "MACRO_ADDUW"
+    },
+    {
+      "name": "Sh1adduw",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh1adduw",
+      "mnemo": "MACRO_SH1ADDUW"
+    },
+    {
+      "name": "Sh2adduw",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh2adduw",
+      "mnemo": "MACRO_SH2ADDUW"
+    },
+    {
+      "name": "Sh3adduw",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh3adduw",
+      "mnemo": "MACRO_SH3ADDUW"
+    },
+    {
+      "name": "Sh1add",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh1add",
+      "mnemo": "MACRO_SH1ADD"
+    },
+    {
+      "name": "Sh2add",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh2add",
+      "mnemo": "MACRO_SH2ADD"
+    },
+    {
+      "name": "Sh3add",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh3add",
+      "mnemo": "MACRO_SH3ADD"
+    },
+    {
       "name": "MacroFeqFloat32",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
