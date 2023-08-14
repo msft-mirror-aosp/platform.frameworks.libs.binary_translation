@@ -393,16 +393,30 @@ class SemanticsPlayer {
                                        return listener_->template Rol<int64_t>(arg1, arg2);
                                      case Decoder::OpOpcode::kRor:
                                        return listener_->template Ror<int64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kSh1add:
+                                       return listener_->Sh1add(arg1, arg2);
+                                     case Decoder::OpOpcode::kSh2add:
+                                       return listener_->Sh2add(arg1, arg2);
+                                     case Decoder::OpOpcode::kSh3add:
+                                       return listener_->Sh3add(arg1, arg2);
                                      default:
                                        return listener_->Op(args.opcode, arg1, arg2);
                                    }
                                  },
                                  [&](const typename Decoder::Op32Args& args) {
                                    switch (args.opcode) {
+                                     case Decoder::Op32Opcode::kAdduw:
+                                       return listener_->Adduw(arg1, arg2);
                                      case Decoder::Op32Opcode::kRolw:
                                        return listener_->template Rol<int32_t>(arg1, arg2);
                                      case Decoder::Op32Opcode::kRorw:
                                        return listener_->template Ror<int32_t>(arg1, arg2);
+                                     case Decoder::Op32Opcode::kSh1adduw:
+                                       return listener_->Sh1adduw(arg1, arg2);
+                                     case Decoder::Op32Opcode::kSh2adduw:
+                                       return listener_->Sh2adduw(arg1, arg2);
+                                     case Decoder::Op32Opcode::kSh3adduw:
+                                       return listener_->Sh3adduw(arg1, arg2);
                                      default:
                                        return listener_->Op32(args.opcode, arg1, arg2);
                                    }
@@ -713,6 +727,8 @@ class SemanticsPlayer {
                                        return listener_->template Ctz<int32_t>(arg);
                                      case Decoder::BitmanipImm32Opcode::kRoriw:
                                        return listener_->Roriw(arg, args.shamt);
+                                     case Decoder::BitmanipImm32Opcode::kSlliuw:
+                                       return listener_->Slliuw(arg, args.shamt);
                                      default:
                                        Unimplemented();
                                        return Register{};
