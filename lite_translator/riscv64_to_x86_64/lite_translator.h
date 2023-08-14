@@ -208,10 +208,26 @@ class LiteTranslator {
         as_.Movq({.base = as_.rbp, .disp = offset}, mapped_reg);
       }
     }
+    for (int i = 0; i < int(kNumGuestFpRegs); i++) {
+      if (simd_maintainer_.IsModified(i)) {
+        auto mapped_reg = simd_maintainer_.GetMapped(i);
+        int32_t offset = offsetof(ThreadState, cpu.f) + i * sizeof(Float64);
+        StoreFpReg(mapped_reg, offset);
+      }
+    }
   }
 
   FpRegister GetFpReg(uint8_t reg) {
     CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+    CHECK_LE(reg, kNumGuestFpRegs);
+    if (IsRegMappingEnabled()) {
+      auto [mapped_reg, is_new_mapping] = GetMappedFpRegOrMap(reg);
+      if (is_new_mapping) {
+        int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
+        as_.Movsd(mapped_reg, {.base = Assembler::rbp, .disp = offset});
+      }
+      return mapped_reg;
+    }
     SimdRegister result = AllocTempSimdReg();
     int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
     as_.Movsd(result, {.base = Assembler::rbp, .disp = offset});
@@ -265,29 +281,33 @@ class LiteTranslator {
     }
   }
 
+  void NanBoxFpReg(FpRegister value) {
+    if (host_platform::kHasAVX) {
+      as_.MacroNanBoxAVX<Float32>(value);
+      return;
+    }
+    as_.MacroNanBox<Float32>(value);
+  }
+
   void NanBoxAndSetFpReg(uint8_t reg, FpRegister value, Decoder::FloatOperandType operand_type) {
     CHECK_LT(reg, arraysize(ThreadState::cpu.f));
     int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat:
-        if (host_platform::kHasAVX) {
-          as_.MacroNanBoxAVX<Float32>(value);
-          as_.Vmovsd({.base = Assembler::rbp, .disp = offset}, value);
-        } else {
-          as_.Movsd({.base = Assembler::rbp, .disp = offset}, value);
-        }
-        break;
-      case Decoder::FloatOperandType::kDouble:
-        if (host_platform::kHasAVX) {
-          as_.Vmovsd({.base = Assembler::rbp, .disp = offset}, value);
-        } else {
-          as_.Movsd({.base = Assembler::rbp, .disp = offset}, value);
-        }
-        break;
-      // No support for half-precision and quad-precision operands.
-      default:
-        return Unimplemented();
+    // Nan-boxing is always done for 32-bit floats.
+    if (operand_type == Decoder::FloatOperandType::kFloat) {
+      NanBoxFpReg(value);
     }
+
+    if (IsRegMappingEnabled()) {
+      auto [mapped_reg, _] = GetMappedFpRegOrMap(reg);
+      if (success()) {
+        // Operand type doesn't matter.
+        MoveFpReg(mapped_reg, value);
+        simd_maintainer_.NoticeModified(reg);
+      }
+      return;
+    }
+
+    StoreFpReg(value, offset);
   }
 
   //
@@ -316,12 +336,31 @@ class LiteTranslator {
   void Unimplemented() { success_ = false; }
 
   RegisterFileMaintainer<Register, kNumGuestRegs>* gp_maintainer() { return &gp_maintainer_; }
+  RegisterFileMaintainer<SimdRegister, kNumGuestFpRegs>* simd_maintainer() {
+    return &simd_maintainer_;
+  }
   [[nodiscard]] Assembler* as() { return &as_; }
   [[nodiscard]] bool success() const { return success_; }
 
   void FreeTempRegs() {
     gp_allocator_.FreeTemps();
     simd_allocator_.FreeTemps();
+  }
+
+  void StoreFpReg(FpRegister value, int32_t offset) {
+    if (host_platform::kHasAVX) {
+      as_.Vmovsd({.base = Assembler::rbp, .disp = offset}, value);
+    } else {
+      as_.Movsd({.base = Assembler::rbp, .disp = offset}, value);
+    }
+  }
+
+  void MoveFpReg(FpRegister reg, FpRegister value) {
+    if (host_platform::kHasAVX) {
+      as_.Vmovsd(reg, value, value);
+    } else {
+      as_.Movsd(reg, value);
+    }
   }
 
 #include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
@@ -339,6 +378,19 @@ class LiteTranslator {
 
     if (auto alloc_result = gp_allocator_.Alloc()) {
       gp_maintainer_.Map(reg, alloc_result.value());
+      return {alloc_result.value(), true};
+    }
+    success_ = false;
+    return {{}, false};
+  }
+
+  std::tuple<SimdRegister, bool> GetMappedFpRegOrMap(int reg) {
+    if (simd_maintainer_.IsMapped(reg)) {
+      return {simd_maintainer_.GetMapped(reg), false};
+    }
+
+    if (auto alloc_result = simd_allocator_.Alloc()) {
+      simd_maintainer_.Map(reg, alloc_result.value());
       return {alloc_result.value(), true};
     }
     success_ = false;
@@ -394,6 +446,7 @@ class LiteTranslator {
   GuestAddr pc_;
   Allocator<Register> gp_allocator_;
   RegisterFileMaintainer<Register, kNumGuestRegs> gp_maintainer_;
+  RegisterFileMaintainer<SimdRegister, kNumGuestFpRegs> simd_maintainer_;
   Allocator<SimdRegister> simd_allocator_;
   const LiteTranslateParams params_;
   bool is_region_end_reached_;
