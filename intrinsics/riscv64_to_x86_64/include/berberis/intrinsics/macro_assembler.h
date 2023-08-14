@@ -52,7 +52,9 @@ class MacroAssembler : public Assembler {
 
   using Assembler::Bind;
   using Assembler::Jcc;
+  using Assembler::Leaq;
   using Assembler::MakeLabel;
+  using Assembler::Movl;
   using Assembler::Pand;
   using Assembler::Pandn;
   using Assembler::Pcmpeqb;
