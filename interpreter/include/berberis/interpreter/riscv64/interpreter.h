@@ -23,6 +23,7 @@
 
 namespace berberis {
 
+void InitInterpreter();
 void InterpretInsn(ThreadState* state);
 
 }  // namespace berberis

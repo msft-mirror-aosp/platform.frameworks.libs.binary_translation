@@ -114,6 +114,8 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
     return nullptr;
   }
 
+  SetShadowCallStackPointer(GetCPUState(*thread->state()), thread->scs_base_);
+
   // Static TLS must be in an independent mapping, because on creation of main thread its config
   // is yet unknown. Loader sets main thread's static TLS explicitly later.
   if (!thread->AllocStaticTls()) {
