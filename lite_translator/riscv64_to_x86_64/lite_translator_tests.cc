@@ -46,16 +46,91 @@ TEST(Riscv64LiteTranslatorTest, GetRegs) {
   MachineCode machine_code;
   LiteTranslator translator(&machine_code, 0);
   translator.GetReg(1);
+  EXPECT_TRUE(translator.gp_maintainer()->IsMapped(1));
   int size1 = machine_code.install_size();
   translator.GetReg(1);
   int size2 = machine_code.install_size();
   EXPECT_EQ(size1, size2);
   translator.GetReg(2);
+  EXPECT_TRUE(translator.gp_maintainer()->IsMapped(2));
   int size3 = machine_code.install_size();
   EXPECT_LT(size2, size3);
   translator.GetReg(3);
+  EXPECT_TRUE(translator.gp_maintainer()->IsMapped(3));
   int size4 = machine_code.install_size();
   EXPECT_LT(size3, size4);
+}
+
+TEST(Riscv64LiteTranslatorTest, GetFpReg) {
+  // if size of machine_code does not change load is skipped.
+  MachineCode machine_code;
+  LiteTranslator translator(&machine_code, 0);
+  translator.GetFpReg(1);
+  EXPECT_TRUE(translator.simd_maintainer()->IsMapped(1));
+  int size1 = machine_code.install_size();
+  translator.GetFpReg(1);
+  int size2 = machine_code.install_size();
+  EXPECT_EQ(size1, size2);
+  translator.GetFpReg(2);
+  EXPECT_TRUE(translator.simd_maintainer()->IsMapped(2));
+  int size3 = machine_code.install_size();
+  EXPECT_LT(size2, size3);
+  translator.GetFpReg(3);
+  EXPECT_TRUE(translator.simd_maintainer()->IsMapped(3));
+  int size4 = machine_code.install_size();
+  EXPECT_LT(size3, size4);
+}
+
+TEST(Riscv64LiteTranslatorTest, NanBoxAndSetFpReg) {
+  MachineCode machine_code;
+  LiteTranslator translator(&machine_code, 0);
+  LiteTranslator::FpRegister reg;
+  int32_t offset = offsetof(ThreadState, cpu.f) + 1 * sizeof(LiteTranslator::Float64);
+  size_t store_insn_base = machine_code.install_size();
+  translator.StoreFpReg(reg, offset);
+  size_t store_insn_size = machine_code.install_size() - store_insn_base;
+
+  size_t mov_insn_base = machine_code.install_size();
+  translator.MoveFpReg(reg, reg);
+  size_t mov_insn_size = machine_code.install_size() - mov_insn_base;
+
+  size_t nan_box_insn_base = machine_code.install_size();
+  translator.NanBoxFpReg(reg);
+  size_t nan_box_insn_size = machine_code.install_size() - nan_box_insn_base;
+
+  ASSERT_NE(store_insn_size, mov_insn_size);
+
+  size_t nan_box_and_set_base = machine_code.install_size();
+  translator.NanBoxAndSetFpReg(1, reg, LiteTranslator::Decoder::FloatOperandType::kFloat);
+  EXPECT_EQ(nan_box_insn_size + mov_insn_size, machine_code.install_size() - nan_box_and_set_base);
+
+  nan_box_and_set_base = machine_code.install_size();
+  translator.NanBoxAndSetFpReg(1, reg, LiteTranslator::Decoder::FloatOperandType::kFloat);
+  EXPECT_EQ(nan_box_insn_size + mov_insn_size, machine_code.install_size() - nan_box_and_set_base);
+}
+
+TEST(Riscv64LiteTranslatorTest, SetReg) {
+  MachineCode machine_code;
+  LiteTranslator translator(&machine_code, 0);
+  LiteTranslator::Register reg;
+  int32_t offset = offsetof(ThreadState, cpu.x[0]) + 1 * 8;
+  size_t store_insn_base = machine_code.install_size();
+  translator.as()->Movq({.base = translator.as()->rbp, .disp = offset}, reg);
+  size_t store_insn_size = machine_code.install_size() - store_insn_base;
+
+  size_t mov_insn_base = machine_code.install_size();
+  translator.as()->Movq(reg, reg);
+  size_t mov_insn_size = machine_code.install_size() - mov_insn_base;
+
+  ASSERT_NE(store_insn_size, mov_insn_size);
+
+  size_t set_base = machine_code.install_size();
+  translator.SetReg(1, reg);
+  EXPECT_EQ(mov_insn_size, machine_code.install_size() - set_base);
+
+  set_base = machine_code.install_size();
+  translator.SetReg(1, reg);
+  EXPECT_EQ(mov_insn_size, machine_code.install_size() - set_base);
 }
 
 }  // namespace

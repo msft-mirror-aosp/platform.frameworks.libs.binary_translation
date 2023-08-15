@@ -132,11 +132,15 @@ class Decoder {
     kMinu = 0b0000'101'101,
     kRol = 0b0110'000'001,
     kRor = 0b0110'000'101,
+    kSh1add = 0b0010'000'010,
+    kSh2add = 0b0010'000'100,
+    kSh3add = 0b0010'000'110,
     kMaxValue = 0b1111'111'111,
   };
 
   enum class Op32Opcode {
     kAddw = 0b0000'000'000,
+    kAdduw = 0b0000'100'000,
     kSubw = 0b0100'000'000,
     kSllw = 0b0000'000'001,
     kSrlw = 0b0000'000'101,
@@ -148,6 +152,9 @@ class Decoder {
     kRemuw = 0b0000'001'111,
     kRolw = 0b0110'000'001,
     kRorw = 0b0110'000'101,
+    kSh1adduw = 0b0010'000'010,
+    kSh2adduw = 0b0010'000'100,
+    kSh3adduw = 0b0010'000'110,
     kMaxValue = 0b1111'111'111,
   };
 
@@ -229,6 +236,8 @@ class Decoder {
     kCtz = 0b0110000'00001'001,
     kSextb = 0b0110000'00100'001,
     kSexth = 0b0110000'00101'001,
+    kOrcb = 0b0010100'00111'101,
+    kRev8 = 0b0110101'11000'101,
     kRori = 0b011000'101,
     kMaxValue = 0b111111'111111'111,
   };
@@ -238,6 +247,7 @@ class Decoder {
     kCpopw = 0b0110000'00010'001,
     kCtzw = 0b0110000'00001'001,
     kRoriw = 0b0110000'101,
+    kSlliuw = 0b0000100'001,
     kMaxValue = 0b1111111'111111'111,
   };
 
@@ -1311,12 +1321,12 @@ class Decoder {
 
       switch ((BitmanipImm32Opcode)opcode) {
         case BitmanipImm32Opcode::kRoriw:
+        case BitmanipImm32Opcode::kSlliuw:
           is_shift = true;
           break;
         default:
           break;
       }
-
       // TODO(b/291851792): Refactor instructions with shamt into ShiftImmArgs
       if (!is_shift) {
         high_opcode = GetBits<uint16_t, 20, 12>();

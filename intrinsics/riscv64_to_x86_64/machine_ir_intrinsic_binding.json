@@ -115,6 +115,12 @@
     "out": [ 0 ]
   },
   {
+    "name": "Rev8",
+    "insn": "BswapqReg",
+    "in": [ 0 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "Rol<int64_t>",
     "insn": "RolqRegReg",
     "in": [0,1],
@@ -154,6 +160,61 @@
     "name": "Zexth",
     "insn": "MovzxwqRegReg",
     "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Orcb",
+    "insn": "Orcb",
+    "in": [0],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Orcb",
+    "insn": "OrcbAVX",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Adduw",
+    "insn": "Adduw",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh1adduw",
+    "insn": "Sh1adduw",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh2adduw",
+    "insn": "Sh2adduw",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh3adduw",
+    "insn": "Sh3adduw",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh1add",
+    "insn": "Sh1add",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh2add",
+    "insn": "Sh2add",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh3add",
+    "insn": "Sh3add",
+    "in": [ 0, 1 ],
     "out": [ 0 ]
   },
   {

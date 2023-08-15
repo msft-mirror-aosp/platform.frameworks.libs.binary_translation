@@ -55,7 +55,8 @@
       "name": "ClzInt32",
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
-        { "class": "GeneralReg32", "usage": "use" }
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ],
       "asm": "MacroClz<int32_t>",
       "mnemo": "CLZ_I32"
@@ -64,7 +65,8 @@
       "name": "ClzInt64",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
-        { "class": "GeneralReg64", "usage": "use" }
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ],
       "asm": "MacroClz<int64_t>",
       "mnemo": "CLZ_I64"
@@ -73,7 +75,8 @@
       "name": "CtzInt32",
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
-        { "class": "GeneralReg32", "usage": "use" }
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ],
       "asm": "MacroCtz<int32_t>",
       "mnemo": "CTZ_I32"
@@ -82,7 +85,8 @@
       "name": "CtzInt64",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
-        { "class": "GeneralReg64", "usage": "use" }
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ],
       "asm": "MacroCtz<int64_t>",
       "mnemo": "CTZ_I64"
@@ -92,7 +96,8 @@
       "args": [
         { "class": "GeneralReg64", "usage": "def_early_clobber" },
         { "class": "GeneralReg64", "usage": "use" },
-        { "class": "GeneralReg64", "usage": "use" }
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ],
       "asm": "MacroMax<int64_t>",
       "mnemo": "MACRO_MAX_I64"
@@ -102,7 +107,8 @@
       "args": [
         { "class": "GeneralReg64", "usage": "def_early_clobber" },
         { "class": "GeneralReg64", "usage": "use" },
-        { "class": "GeneralReg64", "usage": "use" }
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ],
       "asm": "MacroMax<uint64_t>",
       "mnemo": "MACRO_MAX_U64"
@@ -112,7 +118,8 @@
       "args": [
         { "class": "GeneralReg64", "usage": "def_early_clobber" },
         { "class": "GeneralReg64", "usage": "use" },
-        { "class": "GeneralReg64", "usage": "use" }
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ],
       "asm": "MacroMin<int64_t>",
       "mnemo": "MACRO_MIN_I64"
@@ -122,10 +129,93 @@
       "args": [
         { "class": "GeneralReg64", "usage": "def_early_clobber" },
         { "class": "GeneralReg64", "usage": "use" },
-        { "class": "GeneralReg64", "usage": "use" }
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
       ],
       "asm": "MacroMin<uint64_t>",
       "mnemo": "MACRO_MIN_U64"
+    },
+    {
+      "name": "Orcb",
+      "args": [
+        { "class": "FpReg64", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroOrcb",
+      "mnemo": "MACRO_ORCB"
+    },
+    {
+      "name": "OrcbAVX",
+      "args": [
+        { "class": "FpReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroOrcbAVX",
+      "mnemo": "MACRO_ORCB"
+    },
+    {
+      "name": "Adduw",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroAdduw",
+      "mnemo": "MACRO_ADDUW"
+    },
+    {
+      "name": "Sh1adduw",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh1adduw",
+      "mnemo": "MACRO_SH1ADDUW"
+    },
+    {
+      "name": "Sh2adduw",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh2adduw",
+      "mnemo": "MACRO_SH2ADDUW"
+    },
+    {
+      "name": "Sh3adduw",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh3adduw",
+      "mnemo": "MACRO_SH3ADDUW"
+    },
+    {
+      "name": "Sh1add",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh1add",
+      "mnemo": "MACRO_SH1ADD"
+    },
+    {
+      "name": "Sh2add",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh2add",
+      "mnemo": "MACRO_SH2ADD"
+    },
+    {
+      "name": "Sh3add",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ],
+      "asm": "MacroSh3add",
+      "mnemo": "MACRO_SH3ADD"
     },
     {
       "name": "MacroFeqFloat32",

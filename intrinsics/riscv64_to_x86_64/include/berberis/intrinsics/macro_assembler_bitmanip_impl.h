@@ -64,6 +64,57 @@ void MacroAssembler<Assembler>::MacroMin(Register result, Register src1, Registe
   }
 }
 
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroOrcb(XMMRegister result) {
+  Pcmpeqb(result, {.disp = constants_pool::Zero});
+  Pandn(result, {.disp = constants_pool::kMaxUInt});
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroOrcbAVX(XMMRegister result, XMMRegister src) {
+  Vpcmpeqb(result, src, {.disp = constants_pool::Zero});
+  Vpandn(result, result, {.disp = constants_pool::kMaxUInt});
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroAdduw(Register result, Register src) {
+  Movl(src, src);
+  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesOne});
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroSh1adduw(Register result, Register src) {
+  Movl(src, src);
+  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesTwo});
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroSh2adduw(Register result, Register src) {
+  Movl(src, src);
+  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesFour});
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroSh3adduw(Register result, Register src) {
+  Movl(src, src);
+  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesEight});
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroSh1add(Register result, Register src) {
+  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesTwo});
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroSh2add(Register result, Register src) {
+  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesFour});
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroSh3add(Register result, Register src) {
+  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesEight});
+}
+
 }  // namespace berberis
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_BITMANIP_IMPL_H_

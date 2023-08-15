@@ -198,6 +198,12 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "Rev8": {
+    "comment": "Byte reverse.",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
   "Rol": {
     "comment": "Rotate left.",
     "class": "template",
@@ -225,7 +231,61 @@
     "in": [ "int16_t" ],
     "out": [ "int64_t" ]
   },
-    "FAdd": {
+  "Orcb": {
+    "comment": "OR-Combine, byte granule.",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Adduw": {
+    "comment": "Add unsigned word",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint32_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh1adduw": {
+    "comment": "Shift unsigned word left and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint32_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh2adduw": {
+    "comment": "Shift unsigned word left by 2 and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint32_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh3adduw": {
+    "comment": "Shift unsigned word left by 3 and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint32_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh1add": {
+    "comment": "Shift left and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh2add": {
+    "comment": "Shift left by 2 and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh3add": {
+    "comment": "Shift left by 3 and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Slliuw": {
+    "comment": "Shift left unsigned word immediate",
+    "class": "scalar",
+    "in": [ "uint32_t", "uimm8" ],
+    "out": [ "uint64_t" ]
+  },
+  "FAdd": {
     "comment": "Floating point addition",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
