@@ -17,6 +17,7 @@
 #ifndef BERBERIS_BASE_CONFIG_GLOBALS_H_
 #define BERBERIS_BASE_CONFIG_GLOBALS_H_
 
+#include <cstdint>
 #include <string_view>
 
 namespace berberis {
@@ -44,6 +45,8 @@ const char* GetTracingConfig();
 const char* GetTranslationModeConfig();
 
 const char* GetProfilingConfig();
+
+uintptr_t GetEntryPointOverride();
 
 enum ConfigFlag { kVerboseTranslation, kAccurateSigsegv, kNumConfigFlags };
 

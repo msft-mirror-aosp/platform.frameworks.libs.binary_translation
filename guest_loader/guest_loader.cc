@@ -18,6 +18,7 @@
 
 #include <algorithm>   // std::generate
 #include <climits>     // CHAR_BIT
+#include <cstdint>
 #include <functional>  // std::ref
 #include <mutex>
 #include <random>
@@ -72,8 +73,19 @@ const char* FindPtInterp(const LoadedElfFile* loaded_executable) {
                                            const LoadedElfFile* main_executable_elf_file,
                                            const LoadedElfFile* vdso_elf_file) {
   GuestAddr main_executable_entry_point = ToGuestAddr(main_executable_elf_file->entry_point());
-  GuestAddr entry_point = linker_elf_file->is_loaded() ? ToGuestAddr(linker_elf_file->entry_point())
-                                                       : main_executable_entry_point;
+  GuestAddr entry_point;
+
+  if (linker_elf_file->is_loaded()) {
+    entry_point = ToGuestAddr(linker_elf_file->entry_point());
+  } else {
+    // This is static executable. Entry point override only makes sense for static executables.
+    uintptr_t entry_point_override = GetEntryPointOverride();
+    if (entry_point_override != 0) {
+      entry_point = ToGuestAddr(reinterpret_cast<void*>(entry_point_override));
+    } else {
+      entry_point = main_executable_entry_point;
+    }
+  }
 
   uint8_t kRandomBytes[16];
   std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> engine;
