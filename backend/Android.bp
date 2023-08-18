@@ -179,6 +179,7 @@ filegroup {
         "x86_64/code_debug.cc",
         "x86_64/code_emit.cc",
         "x86_64/context_liveness_analyzer.cc",
+        "x86_64/machine_ir_analysis.cc",
         "x86_64/machine_ir_check.cc",
     ],
 }
@@ -222,6 +223,7 @@ filegroup {
     srcs: [
         "common/machine_ir_test.cc",
         "x86_64/context_liveness_analyzer_test.cc",
+        "x86_64/machine_ir_analysis_test.cc",
         "x86_64/machine_ir_check_test.cc",
         "x86_64/machine_ir_exec_test.cc",
         "x86_64/machine_ir_test.cc",
