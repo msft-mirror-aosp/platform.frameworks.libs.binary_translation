@@ -44,6 +44,8 @@ inline constexpr bool kAllJumpsExitGeneratedCode = false;
 inline constexpr bool kLinkJumpsBetweenRegions = !kAllJumpsExitGeneratedCode;
 // Guest page size. Always 4K for now.
 inline constexpr size_t kGuestPageSize = 4096;
+// Number of hard registers assumed by the register allocator.
+inline constexpr uint32_t kMaxHardRegs = 64u;
 
 }  // namespace berberis::config
 
