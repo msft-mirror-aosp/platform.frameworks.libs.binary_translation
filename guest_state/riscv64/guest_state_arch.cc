@@ -16,6 +16,8 @@
 
 #include "berberis/guest_state/guest_state.h"
 
+#include "berberis/base/checks.h"
+
 namespace berberis {
 
 void SetReturnValueRegister(CPUState& cpu, GuestAddr val) {
@@ -62,6 +64,15 @@ void AdvanceInsnAddrBeyondSyscall(CPUState& cpu) {
   // RV64I uses the same 4-byte ECALL instruction as RV32I.
   // See ratified RISC-V unprivileged spec v2.1.
   cpu.insn_addr += 4;
+}
+
+std::size_t GetThreadStateRegOffset(int reg) {
+  return offsetof(ThreadState, cpu.x[reg]);
+}
+
+std::size_t GetThreadStateSimdRegOffset(int /* simd_reg */) {
+  // TODO(b/232598137) not yet implemented for RISCV64
+  CHECK(false);
 }
 
 }  // namespace berberis
