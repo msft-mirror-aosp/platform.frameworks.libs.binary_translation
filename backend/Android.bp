@@ -21,12 +21,12 @@ python_binary_host {
     name: "berberis_gen_lir",
     main: "gen_lir.py",
     srcs: ["gen_lir.py"],
-    libs: ["asm_defs_lib"],
+    libs: ["gen_lir_lib"],
 }
 
 python_library_host {
     name: "gen_lir_lib",
-    srcs: ["gen_lir.py"],
+    srcs: ["gen_lir_lib.py"],
     libs: ["asm_defs_lib"],
 }
 
@@ -34,11 +34,12 @@ python_binary_host {
     name: "berberis_gen_reg_class",
     main: "gen_reg_class.py",
     srcs: ["gen_reg_class.py"],
+    libs: ["gen_reg_class_lib"],
 }
 
 python_library_host {
     name: "gen_reg_class_lib",
-    srcs: ["gen_reg_class.py"],
+    srcs: ["gen_reg_class_lib.py"],
 }
 
 filegroup {
