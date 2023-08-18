@@ -114,6 +114,7 @@ cc_library_shared {
     arch: {
         x86_64: {
             static_libs: [
+                "libberberis_backend_riscv64_to_x86_64",
                 "libberberis_code_gen_lib_riscv64",
                 "libberberis_guest_abi_riscv64",
                 "libberberis_guest_state_riscv64",
@@ -181,6 +182,7 @@ cc_test_host {
                 "base/raw_syscall_tests.cc",
             ],
             static_libs: [
+                "libberberis_backend_riscv64_to_x86_64",
                 "libberberis_guest_abi_riscv64",
                 "libberberis_guest_os_primitives_riscv64",
                 "libberberis_guest_state_riscv64",
@@ -195,6 +197,7 @@ cc_test_host {
                 "libberberis_code_gen_lib_riscv64",
             ],
             whole_static_libs: [
+                "libberberis_backend_riscv64_to_x86_64_unit_tests",
                 "libberberis_code_gen_lib_riscv64_unit_tests",
                 "libberberis_guest_abi_riscv64_unit_tests",
                 "libberberis_guest_os_primitives_unit_tests",
