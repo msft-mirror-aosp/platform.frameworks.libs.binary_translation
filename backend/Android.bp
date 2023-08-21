@@ -182,6 +182,7 @@ filegroup {
         "x86_64/liveness_analyzer.cc",
         "x86_64/machine_ir_analysis.cc",
         "x86_64/machine_ir_check.cc",
+        "x86_64/rename_vregs_local.cc",
     ],
 }
 
@@ -230,6 +231,7 @@ filegroup {
         "x86_64/machine_ir_exec_test.cc",
         "x86_64/machine_ir_test.cc",
         "x86_64/machine_ir_test_corpus.cc",
+        "x86_64/rename_vregs_local_test.cc",
     ],
 }
 
