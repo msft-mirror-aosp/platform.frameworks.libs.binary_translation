@@ -22,7 +22,6 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
-#include "berberis/base/logging.h"
 #include "berberis/base/macros.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
@@ -399,7 +398,20 @@ class Interpreter {
 
   void Nop() {}
 
-  void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
+  void Unimplemented() {
+    auto* addr = ToHostAddr<const uint16_t>(GetInsnAddr());
+    uint8_t size = Decoder::GetInsnSize(addr);
+    if (size == 2) {
+      FATAL("Unimplemented riscv64 instruction 0x%" PRIx16 " at %p", *addr, addr);
+    } else {
+      CHECK_EQ(size, 4);
+      // Warning: do not cast and dereference the pointer
+      // since the address may not be 4-bytes aligned.
+      uint32_t code;
+      memcpy(&code, addr, sizeof(code));
+      FATAL("Unimplemented riscv64 instruction 0x%" PRIx32 " at %p", code, addr);
+    }
+  }
 
   //
   // Guest state getters/setters.

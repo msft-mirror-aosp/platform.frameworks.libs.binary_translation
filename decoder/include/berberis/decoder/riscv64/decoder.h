@@ -557,12 +557,18 @@ class Decoder {
     int32_t imm;
   };
 
-  uint8_t Decode(const uint16_t* code) {
+  static uint8_t GetInsnSize(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
-    if ((*code & kInsnLenMask) != kInsnLenMask) {
+    return ((*code & kInsnLenMask) != kInsnLenMask) ? 2 : 4;
+  }
+
+  uint8_t Decode(const uint16_t* code) {
+    uint8_t insn_size = GetInsnSize(code);
+    if (insn_size == 2) {
       code_ = *code;
       return DecodeCompressedInstruction();
     }
+    CHECK_EQ(insn_size, 4);
     // Warning: do not cast and dereference the pointer
     // since the address may not be 4-bytes aligned.
     memcpy(&code_, code, sizeof(code_));
