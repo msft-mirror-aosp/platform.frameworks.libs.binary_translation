@@ -41,10 +41,10 @@ void IncrementCounter(void* arg) {
 
 void* ThreadKeyFunc(void* arg) {
   pthread_key_t* key = reinterpret_cast<pthread_key_t*>(arg);
-  int* count = new int(0);
   if (pthread_getspecific(*key) != nullptr) {
     return nullptr;
   }
+  int* count = new int(0);
   if (pthread_setspecific(*key, count) != 0) {
     delete count;
     return nullptr;
