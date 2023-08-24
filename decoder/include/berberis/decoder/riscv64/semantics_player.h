@@ -53,7 +53,7 @@ class SemanticsPlayer {
         return;
     }
     SetRegOrIgnore(args.dst, result);
-  };
+  }
 
   template <typename IntType>
   Register Amo(typename Decoder::AmoOpcode opcode, Register arg1, Register arg2, bool aq, bool rl) {
@@ -112,7 +112,7 @@ class SemanticsPlayer {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
     listener_->CompareAndBranch(args.opcode, arg1, arg2, args.offset);
-  };
+  }
 
   void Csr(const typename Decoder::CsrArgs& args) {
     Register result;
@@ -329,7 +329,7 @@ class SemanticsPlayer {
     Register result = listener_->GetImm(listener_->GetInsnAddr() + args.insn_len);
     SetRegOrIgnore(args.dst, result);
     listener_->Branch(args.offset);
-  };
+  }
 
   void JumpAndLinkRegister(const typename Decoder::JumpAndLinkRegisterArgs& args) {
     Register base = GetRegOrZero(args.base);
@@ -343,13 +343,13 @@ class SemanticsPlayer {
     Register next_insn_addr = listener_->GetImm(listener_->GetInsnAddr() + args.insn_len);
     SetRegOrIgnore(args.dst, next_insn_addr);
     listener_->BranchRegister(base, args.offset);
-  };
+  }
 
   void Load(const typename Decoder::LoadArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register result = listener_->Load(args.operand_type, arg, args.offset);
     SetRegOrIgnore(args.dst, result);
-  };
+  }
 
   void Load(const typename Decoder::LoadFpArgs& args) {
     Register arg = GetRegOrZero(args.src);
@@ -366,7 +366,7 @@ class SemanticsPlayer {
         return;
     }
     NanBoxAndSetFpReg(args.dst, result, args.operand_type);
-  };
+  }
 
   void Lui(const typename Decoder::UpperImmArgs& args) {
     Register result = listener_->Lui(args.imm);
@@ -422,7 +422,7 @@ class SemanticsPlayer {
                                    }
                                  }}(args);
     SetRegOrIgnore(args.dst, result);
-  };
+  }
 
   void OpSingleInput(const typename Decoder::OpSingleInputArgs& args) {
     Register arg = GetRegOrZero(args.src);
@@ -735,13 +735,13 @@ class SemanticsPlayer {
                                    }
                                  }}(args);
     SetRegOrIgnore(args.dst, result);
-  };
+  }
 
   void Store(const typename Decoder::StoreArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register data = GetRegOrZero(args.data);
     listener_->Store(args.operand_type, arg, args.offset, data);
-  };
+  }
 
   void Store(const typename Decoder::StoreFpArgs& args) {
     Register arg = GetRegOrZero(args.src);
@@ -757,7 +757,7 @@ class SemanticsPlayer {
         Unimplemented();
         return;
     }
-  };
+  }
 
   // We may have executed a signal handler just after the syscall. If that handler changed x10, then
   // overwriting x10 here would be incorrect. On the other hand asynchronous signals are unlikely to
