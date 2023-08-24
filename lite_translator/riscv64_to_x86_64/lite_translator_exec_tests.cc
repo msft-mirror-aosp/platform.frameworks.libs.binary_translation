@@ -82,7 +82,7 @@ TEST_F(Riscv64LiteTranslatorExecTest, StoreMappedFpRegs) {
 
   translator_.as()->Movq(x86_64::Assembler::rax, 33);
   translator_.as()->Movq(reg, x86_64::Assembler::rax);
-  translator_.NanBoxAndSetFpReg(1, reg, LiteTranslator::Decoder::FloatOperandType::kDouble);
+  translator_.NanBoxAndSetFpReg<LiteTranslator::Float64>(1, reg);
   EXPECT_TRUE(translator_.simd_maintainer()->IsMapped(1));
   EXPECT_TRUE(translator_.simd_maintainer()->IsModified(1));
   translator_.StoreMappedRegs();

@@ -432,51 +432,11 @@ class Interpreter {
     return state_->cpu.f[reg];
   }
 
-  FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
-    CheckFpRegIsValid(reg);
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat: {
-        FpRegister value = state_->cpu.f[reg];
-        return UnboxNan<Float32>(value);
-      }
-      case Decoder::FloatOperandType::kDouble:
-        return state_->cpu.f[reg];
-      // No support for half-precision and quad-precision operands.
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
+  template <typename FloatType>
+  FpRegister GetFRegAndUnboxNan(uint8_t reg);
 
-  FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat: {
-        return CanonicalizeNan<Float32>(value);
-      }
-      case Decoder::FloatOperandType::kDouble: {
-        return CanonicalizeNan<Float64>(value);
-      }
-      // No support for half-precision and quad-precision operands.
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value, Decoder::FloatOperandType operand_type) {
-    CheckFpRegIsValid(reg);
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat:
-        state_->cpu.f[reg] = NanBox<Float32>(value);
-        break;
-      case Decoder::FloatOperandType::kDouble:
-        state_->cpu.f[reg] = value;
-        break;
-      // No support for half-precision and quad-precision operands.
-      default:
-        return Unimplemented();
-    }
-  }
+  template <typename FloatType>
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value);
 
   //
   // Various helper methods.
@@ -540,6 +500,31 @@ class Interpreter {
   ThreadState* state_;
   bool branch_taken_;
 };
+
+template <>
+Interpreter::FpRegister Interpreter::GetFRegAndUnboxNan<Interpreter::Float32>(uint8_t reg) {
+  CheckFpRegIsValid(reg);
+  FpRegister value = state_->cpu.f[reg];
+  return UnboxNan<Float32>(value);
+}
+
+template <>
+Interpreter::FpRegister Interpreter::GetFRegAndUnboxNan<Interpreter::Float64>(uint8_t reg) {
+  CheckFpRegIsValid(reg);
+  return state_->cpu.f[reg];
+}
+
+template <>
+void Interpreter::NanBoxAndSetFpReg<Interpreter::Float32>(uint8_t reg, FpRegister value) {
+  CheckFpRegIsValid(reg);
+  state_->cpu.f[reg] = NanBox<Float32>(value);
+}
+
+template <>
+void Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, FpRegister value) {
+  CheckFpRegIsValid(reg);
+  state_->cpu.f[reg] = value;
+}
 
 }  // namespace
 
