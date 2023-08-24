@@ -79,40 +79,40 @@ void MacroAssembler<Assembler>::MacroOrcbAVX(XMMRegister result, XMMRegister src
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroAdduw(Register result, Register src) {
   Movl(src, src);
-  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesOne});
+  Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesOne});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh1adduw(Register result, Register src) {
   Movl(src, src);
-  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesTwo});
+  Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesTwo});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh2adduw(Register result, Register src) {
   Movl(src, src);
-  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesFour});
+  Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesFour});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh3adduw(Register result, Register src) {
   Movl(src, src);
-  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesEight});
+  Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesEight});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh1add(Register result, Register src) {
-  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesTwo});
+  Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesTwo});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh2add(Register result, Register src) {
-  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesFour});
+  Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesFour});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh3add(Register result, Register src) {
-  Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesEight});
+  Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesEight});
 }
 
 }  // namespace berberis

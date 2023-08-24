@@ -1122,8 +1122,8 @@ class Decoder {
             .si = bool(GetBits<uint8_t, 23, 1>()),
             .pw = bool(GetBits<uint8_t, 24, 1>()),
             .pr = bool(GetBits<uint8_t, 25, 1>()),
-            .pi = bool(GetBits<uint8_t, 26, 1>()),
-            .po = bool(GetBits<uint8_t, 27, 1>()),
+            .po = bool(GetBits<uint8_t, 26, 1>()),
+            .pi = bool(GetBits<uint8_t, 27, 1>()),
         };
         insn_consumer_->Fence(args);
         break;
