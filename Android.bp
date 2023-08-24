@@ -27,6 +27,7 @@ cc_defaults {
         "-Wover-aligned",
         "-Wunused",
         "-Wimplicit-fallthrough",
+        "-Werror=reorder-init-list",
         "-Wdefaulted-function-deleted",
     ],
     // It is tempting to disable builds by default and explicitly enable only x86.
