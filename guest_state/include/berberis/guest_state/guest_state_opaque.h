@@ -94,6 +94,9 @@ void InitFloatingPointState();
 std::size_t GetThreadStateRegOffset(int reg);
 std::size_t GetThreadStateSimdRegOffset(int simd_reg);
 
+bool DoesCpuStateHaveFlags();
+std::size_t GetThreadStateFlagOffset();
+
 }  // namespace berberis
 
 #endif  // BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
