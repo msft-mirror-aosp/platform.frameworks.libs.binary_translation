@@ -218,6 +218,17 @@
       "mnemo": "MACRO_SH3ADD"
     },
     {
+      "name": "Bext",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroBext",
+      "mnemo": "MACRO_BEXT"
+    },
+    {
       "name": "MacroFeqFloat32",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },

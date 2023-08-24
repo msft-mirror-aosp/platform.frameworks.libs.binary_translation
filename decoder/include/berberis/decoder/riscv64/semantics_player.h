@@ -399,6 +399,14 @@ class SemanticsPlayer {
                                        return listener_->Sh2add(arg1, arg2);
                                      case Decoder::OpOpcode::kSh3add:
                                        return listener_->Sh3add(arg1, arg2);
+                                     case Decoder::OpOpcode::kBclr:
+                                       return listener_->Bclr(arg1, arg2);
+                                     case Decoder::OpOpcode::kBext:
+                                       return listener_->Bext(arg1, arg2);
+                                     case Decoder::OpOpcode::kBinv:
+                                       return listener_->Binv(arg1, arg2);
+                                     case Decoder::OpOpcode::kBset:
+                                       return listener_->Bset(arg1, arg2);
                                      default:
                                        return listener_->Op(args.opcode, arg1, arg2);
                                    }
@@ -712,6 +720,14 @@ class SemanticsPlayer {
                                        return listener_->Rev8(arg);
                                      case Decoder::BitmanipImmOpcode::kRori:
                                        return listener_->Rori(arg, args.shamt);
+                                     case Decoder::BitmanipImmOpcode::kBclri:
+                                       return listener_->Bclri(arg, args.shamt);
+                                     case Decoder::BitmanipImmOpcode::kBexti:
+                                       return listener_->Bexti(arg, args.shamt);
+                                     case Decoder::BitmanipImmOpcode::kBinvi:
+                                       return listener_->Binvi(arg, args.shamt);
+                                     case Decoder::BitmanipImmOpcode::kBseti:
+                                       return listener_->Bseti(arg, args.shamt);
                                      default:
                                        Unimplemented();
                                        return Register{};

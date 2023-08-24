@@ -115,6 +115,13 @@ void MacroAssembler<Assembler>::MacroSh3add(Register result, Register src) {
   Leaq(result, {.index = result, .base = src, .scale = Assembler::kTimesEight});
 }
 
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroBext(Register result, Register src1, Register src2) {
+  Btq(src1, src2);
+  Movl(result, 0);
+  Setcc(Condition::kCarry, result);
+}
+
 }  // namespace berberis
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_BITMANIP_IMPL_H_
