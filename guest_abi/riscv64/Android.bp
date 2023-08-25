@@ -65,6 +65,7 @@ cc_test_library {
         "guest_function_wrapper_test.cc",
         "guest_params_test.cc",
         "host_function_wrapper_test.cc",
+        "trampoline_func_generator_test.cc",
     ],
     header_libs: [
         "berberis_test_utils_headers",
