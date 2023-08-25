@@ -27,6 +27,7 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
+#include "berberis/intrinsics/csr.h"
 #include "berberis/intrinsics/guest_fp_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
@@ -42,6 +43,7 @@ namespace {
 
 class Interpreter {
  public:
+  using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
   using FpRegister = uint64_t;
@@ -54,7 +56,7 @@ class Interpreter {
   // Instruction implementations.
   //
 
-  Register Csr(Decoder::CsrOpcode opcode, Register arg, Decoder::CsrRegister csr) {
+  Register Csr(Decoder::CsrOpcode opcode, Register arg, CsrName csr) {
     Register (*UpdateStatus)(Register arg, Register original_csr_value);
     switch (opcode) {
       case Decoder::CsrOpcode::kCsrrw:
@@ -76,7 +78,7 @@ class Interpreter {
     }
     Register result;
     switch (csr) {
-      case Decoder::CsrRegister::kFrm:
+      case CsrName::kFrm:
         result = state_->cpu.frm;
         arg = UpdateStatus(arg, result);
         state_->cpu.frm = arg;
@@ -91,7 +93,7 @@ class Interpreter {
     return result;
   }
 
-  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, Decoder::CsrRegister csr) {
+  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, CsrName csr) {
     return Csr(Decoder::CsrOpcode(opcode), imm, csr);
   }
 

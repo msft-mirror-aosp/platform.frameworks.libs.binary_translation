@@ -27,6 +27,7 @@ namespace berberis {
 template <class SemanticsListener>
 class SemanticsPlayer {
  public:
+  using CsrName = typename SemanticsListener::CsrName;
   using Decoder = Decoder<SemanticsPlayer>;
   using Register = typename SemanticsListener::Register;
   using Float32 = typename SemanticsListener::Float32;
@@ -117,13 +118,13 @@ class SemanticsPlayer {
   void Csr(const typename Decoder::CsrArgs& args) {
     Register result;
     Register arg = GetRegOrZero(args.src);
-    result = listener_->Csr(args.opcode, arg, args.csr);
+    result = listener_->Csr(args.opcode, arg, static_cast<CsrName>(args.csr));
     SetRegOrIgnore(args.dst, result);
   }
 
   void Csr(const typename Decoder::CsrImmArgs& args) {
     Register result;
-    result = listener_->Csr(args.opcode, args.imm, args.csr);
+    result = listener_->Csr(args.opcode, args.imm, static_cast<CsrName>(args.csr));
     SetRegOrIgnore(args.dst, result);
   }
 
