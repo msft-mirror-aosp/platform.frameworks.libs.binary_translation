@@ -64,6 +64,7 @@ cc_test_library {
         "guest_arguments_test.cc",
         "guest_function_wrapper_test.cc",
         "guest_params_test.cc",
+        "host_function_wrapper_test.cc",
     ],
     header_libs: [
         "berberis_test_utils_headers",
