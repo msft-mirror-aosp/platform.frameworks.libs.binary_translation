@@ -23,9 +23,13 @@ cc_library_headers {
     host_supported: true,
     export_include_dirs: ["include"],
     header_libs: [
+        "libberberis_kernel_api_headers",
+        "libberberis_runtime_headers",
         "libberberis_runtime_primitives_headers",
     ],
     export_header_lib_headers: [
+        "libberberis_kernel_api_headers",
+        "libberberis_runtime_headers",
         "libberberis_runtime_primitives_headers",
     ],
 }
