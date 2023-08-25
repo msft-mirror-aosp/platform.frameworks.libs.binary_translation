@@ -17,6 +17,7 @@
 #include "berberis/guest_state/guest_state.h"
 
 #include "berberis/base/checks.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis {
 
@@ -72,6 +73,15 @@ std::size_t GetThreadStateRegOffset(int reg) {
 
 std::size_t GetThreadStateSimdRegOffset(int /* simd_reg */) {
   // TODO(b/232598137) not yet implemented for RISCV64
+  CHECK(false);
+}
+
+bool DoesCpuStateHaveFlags() {
+  return false;
+}
+
+std::size_t GetThreadStateFlagOffset() {
+  // RISCV64 Does not have flags in its CPUState
   CHECK(false);
 }
 
