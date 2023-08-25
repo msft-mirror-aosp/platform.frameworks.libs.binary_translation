@@ -218,6 +218,30 @@
     "out": [ 0 ]
   },
   {
+    "name": "Bclr",
+    "insn": "BtrqRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Binv",
+    "insn": "BtcqRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Bset",
+    "insn": "BtsqRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Bext",
+    "insn": "Bext",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "FAddHostRounding<Float32>",
     "insn": "AddssXRegXReg",
     "in": [ 0, 1 ],

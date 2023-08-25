@@ -37,4 +37,20 @@ std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
   return {uint64_t{src} << imm};
 }
 
+std::tuple<uint64_t> Bclri(uint64_t src, uint8_t imm) {
+  return {src & ~(uint64_t{1} << imm)};
+}
+
+std::tuple<uint64_t> Bexti(uint64_t src, uint8_t imm) {
+  return {(src >> imm) & uint64_t{1}};
+}
+
+std::tuple<uint64_t> Binvi(uint64_t src, uint8_t imm) {
+  return {src ^ (uint64_t{1} << imm)};
+}
+
+std::tuple<uint64_t> Bseti(uint64_t src, uint8_t imm) {
+  return {src | (uint64_t{1} << imm)};
+}
+
 }  // namespace berberis::intrinsics
