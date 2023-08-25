@@ -46,13 +46,20 @@ GuestCodeEntry::Kind kSpecialHandler = GuestCodeEntry::Kind::kSpecialHandler;
 GuestCodeEntry::Kind kInterpreted = GuestCodeEntry::Kind::kInterpreted;
 GuestCodeEntry::Kind kLightTranslated = GuestCodeEntry::Kind::kLightTranslated;
 
-enum class TranslationMode { kInterpretOnly, kLiteTranslateOrFallbackToInterpret, kNumModes };
+enum class TranslationMode {
+  kInterpretOnly,
+  kLiteTranslateOrFallbackToInterpret,
+  kLightTranslateThenHeavyOptimize,
+  kTwoGear = kLightTranslateThenHeavyOptimize,
+  kNumModes
+};
 
 TranslationMode g_translation_mode = TranslationMode::kLiteTranslateOrFallbackToInterpret;
 
 void UpdateTranslationMode() {
   // Indices must match TranslationMode enum.
-  constexpr const char* kTranslationModeNames[] = {"interpret-only", "lite-translate-or-interpret"};
+  constexpr const char* kTranslationModeNames[] = {
+      "interpret-only", "lite-translate-or-interpret", "two-gear"};
   static_assert(static_cast<int>(TranslationMode::kNumModes) ==
                 sizeof(kTranslationModeNames) / sizeof(char*));
 
@@ -80,6 +87,11 @@ alignas(4) uint32_t g_native_bridge_call_guest[] = {
     0xd503201f,  // nop
     0xd503201f,  // nop  <--
     0xd503201f,  // nop
+};
+
+enum class TranslationGear {
+  kFirst,
+  kSecond,
 };
 
 uint8_t GetRiscv64InsnSize(GuestAddr pc) {
@@ -136,7 +148,13 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAn
           kLightTranslated};
 }
 
+template <TranslationGear kGear = TranslationGear::kFirst>
 void TranslateRegion(GuestAddr pc) {
+  // kSecond is not supported yet.
+  if (kGear == TranslationGear::kSecond) {
+    return;
+  }
+
   TranslationCache* cache = TranslationCache::GetInstance();
 
   GuestCodeEntry* entry;
@@ -169,6 +187,9 @@ void TranslateRegion(GuestAddr pc) {
       std::tie(host_code_piece, size, kind) =
           std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
     }
+  } else if (g_translation_mode == TranslationMode::kTwoGear && kGear == TranslationGear::kFirst) {
+    std::tie(success, host_code_piece, size, kind) = TryLiteTranslateAndInstallRegion(
+        pc, {.enable_self_profiling = true, .counter_location = &(entry->invocation_counter)});
   } else {
     LOG_ALWAYS_FATAL("Unsupported translation mode %u", g_translation_mode);
   }
@@ -191,7 +212,7 @@ void TranslateRegion(GuestAddr pc) {
 
 // A wrapper to export a template function.
 void TranslateRegionAtFirstGear(GuestAddr pc) {
-  TranslateRegion(pc);
+  TranslateRegion<TranslationGear::kFirst>(pc);
 }
 
 // ATTENTION: This symbol gets called directly, without PLT. To keep text
@@ -217,8 +238,9 @@ extern "C" __attribute__((used, __visibility__("hidden"))) const void* berberis_
 }
 
 extern "C" __attribute__((used, __visibility__("hidden"))) void
-berberis_HandleLightCounterThresholdReached(ThreadState* /* state */) {
-  // no-op stub
+berberis_HandleLightCounterThresholdReached(ThreadState* state) {
+  CHECK(g_translation_mode == TranslationMode::kTwoGear);
+  TranslateRegion<TranslationGear::kSecond>(state->cpu.insn_addr);
 }
 
 }  // namespace berberis
