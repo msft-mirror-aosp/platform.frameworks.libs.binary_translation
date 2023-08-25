@@ -257,17 +257,6 @@ class Decoder {
     kMaxValue = 0b111111111111'11111'111'11111,
   };
 
-  // Technically CsrRegister is instruction argument, but it's handling is closer to the handling
-  // of opcode: instructions which deal with different registers have radically different semantic
-  // while most combinations trigger “illegal instruction opcode”.
-
-  enum class CsrRegister {
-    kFFlags = 0b00'00'0000'0001,
-    kFrm = 0b00'00'0000'0010,
-    kFCsr = 0b00'00'0000'0011,
-    kMaxValue = 0b11'11'1111'1111,
-  };
-
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions
   // include 2bit “fmt” field.
   //
@@ -340,14 +329,14 @@ class Decoder {
     CsrOpcode opcode;
     uint8_t dst;
     uint8_t src;
-    CsrRegister csr;
+    uint16_t csr;
   };
 
   struct CsrImmArgs {
     CsrImmOpcode opcode;
     uint8_t dst;
     uint8_t imm;
-    CsrRegister csr;
+    uint16_t csr;
   };
 
   struct FcvtFloatToFloatArgs {
@@ -1550,7 +1539,7 @@ class Decoder {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .imm = GetBits<uint8_t, 15, 5>(),
-          .csr = CsrRegister(GetBits<uint16_t, 20, 12>()),
+          .csr = GetBits<uint16_t, 20, 12>(),
       };
       return insn_consumer_->Csr(args);
     }
@@ -1559,7 +1548,7 @@ class Decoder {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src = GetBits<uint8_t, 15, 5>(),
-        .csr = CsrRegister(GetBits<uint16_t, 20, 12>()),
+        .csr = GetBits<uint16_t, 20, 12>(),
     };
     return insn_consumer_->Csr(args);
   }
