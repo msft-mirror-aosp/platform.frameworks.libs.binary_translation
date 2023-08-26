@@ -135,6 +135,10 @@ class Decoder {
     kSh1add = 0b0010'000'010,
     kSh2add = 0b0010'000'100,
     kSh3add = 0b0010'000'110,
+    kBclr = 0b0100'100'001,
+    kBext = 0b0100'100'101,
+    kBinv = 0b0110'100'001,
+    kBset = 0b0010'100'001,
     kMaxValue = 0b1111'111'111,
   };
 
@@ -239,6 +243,10 @@ class Decoder {
     kOrcb = 0b0010100'00111'101,
     kRev8 = 0b0110101'11000'101,
     kRori = 0b011000'101,
+    kBclri = 0b010010'001,
+    kBexti = 0b010010'101,
+    kBinvi = 0b011010'001,
+    kBseti = 0b001010'001,
     kMaxValue = 0b111111'111111'111,
   };
 
@@ -1304,11 +1312,15 @@ class Decoder {
       uint8_t shamt = GetBits<uint8_t, 20, kShiftFieldSize>();
       uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
       BitmanipOpCodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
-      bool is_shift = false;
+      bool has_shamt = false;
 
       switch ((BitmanipImmOpcode)opcode) {
         case BitmanipImmOpcode::kRori:
-          is_shift = true;
+        case BitmanipImmOpcode::kBclri:
+        case BitmanipImmOpcode::kBexti:
+        case BitmanipImmOpcode::kBinvi:
+        case BitmanipImmOpcode::kBseti:
+          has_shamt = true;
           break;
         default:
           break;
@@ -1317,13 +1329,13 @@ class Decoder {
       switch ((BitmanipImm32Opcode)opcode) {
         case BitmanipImm32Opcode::kRoriw:
         case BitmanipImm32Opcode::kSlliuw:
-          is_shift = true;
+          has_shamt = true;
           break;
         default:
           break;
       }
       // TODO(b/291851792): Refactor instructions with shamt into ShiftImmArgs
-      if (!is_shift) {
+      if (!has_shamt) {
         high_opcode = GetBits<uint16_t, 20, 12>();
         opcode = {low_opcode | (high_opcode << 3)};
         shamt = 0;

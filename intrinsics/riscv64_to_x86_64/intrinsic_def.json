@@ -285,6 +285,54 @@
     "in": [ "uint32_t", "uimm8" ],
     "out": [ "uint64_t" ]
   },
+  "Bclr": {
+    "comment": "Single bit clear register",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Binv": {
+    "comment": "Single bit invert register",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Bset": {
+    "comment": "Single bit set register",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Bseti": {
+    "comment": "Single bit set immediate",
+    "class": "scalar",
+    "in": [ "uint64_t", "uimm8" ],
+    "out": [ "uint64_t" ]
+  },
+  "Bclri": {
+      "comment": "Single bit clear immediate",
+      "class": "scalar",
+      "in": [ "uint64_t", "uimm8" ],
+      "out": [ "uint64_t" ]
+   },
+  "Binvi": {
+      "comment": "Single bit invert immediate",
+      "class": "scalar",
+      "in": [ "uint64_t", "uimm8" ],
+      "out": [ "uint64_t" ]
+   },
+  "Bext": {
+      "comment": "Single bit extract register",
+      "class": "scalar",
+      "in": [ "uint64_t", "uint64_t" ],
+      "out": [ "uint64_t" ]
+   },
+  "Bexti": {
+      "comment": "Single bit extract immediate",
+      "class": "scalar",
+      "in": [ "uint64_t", "uimm8" ],
+      "out": [ "uint64_t" ]
+   },
   "FAdd": {
     "comment": "Floating point addition",
     "class": "template",
