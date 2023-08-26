@@ -257,17 +257,6 @@ class Decoder {
     kMaxValue = 0b111111111111'11111'111'11111,
   };
 
-  // Technically CsrRegister is instruction argument, but it's handling is closer to the handling
-  // of opcode: instructions which deal with different registers have radically different semantic
-  // while most combinations trigger “illegal instruction opcode”.
-
-  enum class CsrRegister {
-    kFFlags = 0b00'00'0000'0001,
-    kFrm = 0b00'00'0000'0010,
-    kFCsr = 0b00'00'0000'0011,
-    kMaxValue = 0b11'11'1111'1111,
-  };
-
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions
   // include 2bit “fmt” field.
   //
@@ -340,14 +329,14 @@ class Decoder {
     CsrOpcode opcode;
     uint8_t dst;
     uint8_t src;
-    CsrRegister csr;
+    uint16_t csr;
   };
 
   struct CsrImmArgs {
     CsrImmOpcode opcode;
     uint8_t dst;
     uint8_t imm;
-    CsrRegister csr;
+    uint16_t csr;
   };
 
   struct FcvtFloatToFloatArgs {
@@ -557,12 +546,18 @@ class Decoder {
     int32_t imm;
   };
 
-  uint8_t Decode(const uint16_t* code) {
+  static uint8_t GetInsnSize(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
-    if ((*code & kInsnLenMask) != kInsnLenMask) {
+    return ((*code & kInsnLenMask) != kInsnLenMask) ? 2 : 4;
+  }
+
+  uint8_t Decode(const uint16_t* code) {
+    uint8_t insn_size = GetInsnSize(code);
+    if (insn_size == 2) {
       code_ = *code;
       return DecodeCompressedInstruction();
     }
+    CHECK_EQ(insn_size, 4);
     // Warning: do not cast and dereference the pointer
     // since the address may not be 4-bytes aligned.
     memcpy(&code_, code, sizeof(code_));
@@ -1116,8 +1111,8 @@ class Decoder {
             .si = bool(GetBits<uint8_t, 23, 1>()),
             .pw = bool(GetBits<uint8_t, 24, 1>()),
             .pr = bool(GetBits<uint8_t, 25, 1>()),
-            .pi = bool(GetBits<uint8_t, 26, 1>()),
-            .po = bool(GetBits<uint8_t, 27, 1>()),
+            .po = bool(GetBits<uint8_t, 26, 1>()),
+            .pi = bool(GetBits<uint8_t, 27, 1>()),
         };
         insn_consumer_->Fence(args);
         break;
@@ -1544,7 +1539,7 @@ class Decoder {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .imm = GetBits<uint8_t, 15, 5>(),
-          .csr = CsrRegister(GetBits<uint16_t, 20, 12>()),
+          .csr = GetBits<uint16_t, 20, 12>(),
       };
       return insn_consumer_->Csr(args);
     }
@@ -1553,7 +1548,7 @@ class Decoder {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src = GetBits<uint8_t, 15, 5>(),
-        .csr = CsrRegister(GetBits<uint16_t, 20, 12>()),
+        .csr = GetBits<uint16_t, 20, 12>(),
     };
     return insn_consumer_->Csr(args);
   }

@@ -22,12 +22,12 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
-#include "berberis/base/logging.h"
 #include "berberis/base/macros.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
+#include "berberis/intrinsics/csr.h"
 #include "berberis/intrinsics/guest_fp_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
@@ -43,6 +43,7 @@ namespace {
 
 class Interpreter {
  public:
+  using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
   using FpRegister = uint64_t;
@@ -55,7 +56,7 @@ class Interpreter {
   // Instruction implementations.
   //
 
-  Register Csr(Decoder::CsrOpcode opcode, Register arg, Decoder::CsrRegister csr) {
+  Register Csr(Decoder::CsrOpcode opcode, Register arg, CsrName csr) {
     Register (*UpdateStatus)(Register arg, Register original_csr_value);
     switch (opcode) {
       case Decoder::CsrOpcode::kCsrrw:
@@ -77,7 +78,7 @@ class Interpreter {
     }
     Register result;
     switch (csr) {
-      case Decoder::CsrRegister::kFrm:
+      case CsrName::kFrm:
         result = state_->cpu.frm;
         arg = UpdateStatus(arg, result);
         state_->cpu.frm = arg;
@@ -92,7 +93,7 @@ class Interpreter {
     return result;
   }
 
-  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, Decoder::CsrRegister csr) {
+  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, CsrName csr) {
     return Csr(Decoder::CsrOpcode(opcode), imm, csr);
   }
 
@@ -399,7 +400,20 @@ class Interpreter {
 
   void Nop() {}
 
-  void Unimplemented() { FATAL("Unimplemented riscv64 instruction"); }
+  void Unimplemented() {
+    auto* addr = ToHostAddr<const uint16_t>(GetInsnAddr());
+    uint8_t size = Decoder::GetInsnSize(addr);
+    if (size == 2) {
+      FATAL("Unimplemented riscv64 instruction 0x%" PRIx16 " at %p", *addr, addr);
+    } else {
+      CHECK_EQ(size, 4);
+      // Warning: do not cast and dereference the pointer
+      // since the address may not be 4-bytes aligned.
+      uint32_t code;
+      memcpy(&code, addr, sizeof(code));
+      FATAL("Unimplemented riscv64 instruction 0x%" PRIx32 " at %p", code, addr);
+    }
+  }
 
   //
   // Guest state getters/setters.
@@ -420,51 +434,11 @@ class Interpreter {
     return state_->cpu.f[reg];
   }
 
-  FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
-    CheckFpRegIsValid(reg);
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat: {
-        FpRegister value = state_->cpu.f[reg];
-        return UnboxNan<Float32>(value);
-      }
-      case Decoder::FloatOperandType::kDouble:
-        return state_->cpu.f[reg];
-      // No support for half-precision and quad-precision operands.
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
+  template <typename FloatType>
+  FpRegister GetFRegAndUnboxNan(uint8_t reg);
 
-  FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat: {
-        return CanonicalizeNan<Float32>(value);
-      }
-      case Decoder::FloatOperandType::kDouble: {
-        return CanonicalizeNan<Float64>(value);
-      }
-      // No support for half-precision and quad-precision operands.
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value, Decoder::FloatOperandType operand_type) {
-    CheckFpRegIsValid(reg);
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat:
-        state_->cpu.f[reg] = NanBox<Float32>(value);
-        break;
-      case Decoder::FloatOperandType::kDouble:
-        state_->cpu.f[reg] = value;
-        break;
-      // No support for half-precision and quad-precision operands.
-      default:
-        return Unimplemented();
-    }
-  }
+  template <typename FloatType>
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value);
 
   //
   // Various helper methods.
@@ -528,6 +502,31 @@ class Interpreter {
   ThreadState* state_;
   bool branch_taken_;
 };
+
+template <>
+Interpreter::FpRegister Interpreter::GetFRegAndUnboxNan<Interpreter::Float32>(uint8_t reg) {
+  CheckFpRegIsValid(reg);
+  FpRegister value = state_->cpu.f[reg];
+  return UnboxNan<Float32>(value);
+}
+
+template <>
+Interpreter::FpRegister Interpreter::GetFRegAndUnboxNan<Interpreter::Float64>(uint8_t reg) {
+  CheckFpRegIsValid(reg);
+  return state_->cpu.f[reg];
+}
+
+template <>
+void Interpreter::NanBoxAndSetFpReg<Interpreter::Float32>(uint8_t reg, FpRegister value) {
+  CheckFpRegIsValid(reg);
+  state_->cpu.f[reg] = NanBox<Float32>(value);
+}
+
+template <>
+void Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, FpRegister value) {
+  CheckFpRegIsValid(reg);
+  state_->cpu.f[reg] = value;
+}
 
 }  // namespace
 

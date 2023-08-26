@@ -29,6 +29,7 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
+#include "berberis/intrinsics/csr.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/macro_assembler.h"
@@ -47,6 +48,7 @@ class MachindeCode;
 class LiteTranslator {
  public:
   using Assembler = MacroAssembler<x86_64::Assembler>;
+  using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<LiteTranslator>>;
   using Register = Assembler::Register;
   // Note: on RISC-V architecture FP register and SIMD registers are disjoint, but on x86 they are
@@ -136,13 +138,13 @@ class LiteTranslator {
     as_.Movs<DataType>({.base = arg, .disp = offset}, data);
   }
 
-  Register Csr(Decoder::CsrOpcode opcode, Register arg, Decoder::CsrRegister csr) {
+  Register Csr(Decoder::CsrOpcode opcode, Register arg, CsrName csr) {
     UNUSED(opcode, arg, csr);
     Unimplemented();
     return {};
   }
 
-  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, Decoder::CsrRegister csr) {
+  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, CsrName csr) {
     UNUSED(opcode, imm, csr);
     Unimplemented();
     return {};
@@ -234,68 +236,32 @@ class LiteTranslator {
     return result;
   }
 
-  FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
+  template <typename FloatType>
+  FpRegister GetFRegAndUnboxNan(uint8_t reg) {
     SimdRegister result = GetFpReg(reg);
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat: {
-        SimdRegister unboxed_result = AllocTempSimdReg();
-        if (host_platform::kHasAVX) {
-          as_.MacroUnboxNanAVX<Float32>(unboxed_result, result);
-        } else {
-          as_.MacroUnboxNan<Float32>(unboxed_result, result);
-        }
-        return unboxed_result;
-      }
-      case Decoder::FloatOperandType::kDouble:
-        return result;
-      // No support for half-precision and quad-precision operands.
-      default:
-        Unimplemented();
-        return {};
+    SimdRegister unboxed_result = AllocTempSimdReg();
+    if (host_platform::kHasAVX) {
+      as_.MacroUnboxNanAVX<FloatType>(unboxed_result, result);
+    } else {
+      as_.MacroUnboxNan<FloatType>(unboxed_result, result);
     }
+    return unboxed_result;
   }
 
-  FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
-    SimdRegister canonical_result = AllocTempSimdReg();
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat: {
-        if (host_platform::kHasAVX) {
-          as_.MacroCanonicalizeNanAVX<Float32>(canonical_result, value);
-        } else {
-          as_.MacroCanonicalizeNan<Float32>(canonical_result, value);
-        }
-        return canonical_result;
-      }
-      case Decoder::FloatOperandType::kDouble: {
-        if (host_platform::kHasAVX) {
-          as_.MacroCanonicalizeNanAVX<Float64>(canonical_result, value);
-        } else {
-          as_.MacroCanonicalizeNan<Float64>(canonical_result, value);
-        }
-        return canonical_result;
-      }
-      // No support for half-precision and quad-precision operands.
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
+  template <typename FloatType>
   void NanBoxFpReg(FpRegister value) {
     if (host_platform::kHasAVX) {
-      as_.MacroNanBoxAVX<Float32>(value);
+      as_.MacroNanBoxAVX<FloatType>(value);
       return;
     }
-    as_.MacroNanBox<Float32>(value);
+    as_.MacroNanBox<FloatType>(value);
   }
 
-  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value, Decoder::FloatOperandType operand_type) {
+  template <typename FloatType>
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
     CHECK_LT(reg, arraysize(ThreadState::cpu.f));
     int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
-    // Nan-boxing is always done for 32-bit floats.
-    if (operand_type == Decoder::FloatOperandType::kFloat) {
-      NanBoxFpReg(value);
-    }
+    NanBoxFpReg<FloatType>(value);
 
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, _] = GetMappedFpRegOrMap(reg);
@@ -451,6 +417,17 @@ class LiteTranslator {
   const LiteTranslateParams params_;
   bool is_region_end_reached_;
 };
+
+// There is no NanBoxing for Float64 except on CPUs with Float128 support.
+template <>
+inline LiteTranslator::FpRegister LiteTranslator::GetFRegAndUnboxNan<LiteTranslator::Float64>(
+    uint8_t reg) {
+  SimdRegister result = GetFpReg(reg);
+  return result;
+}
+
+template <>
+inline void LiteTranslator::NanBoxFpReg<LiteTranslator::Float64>(FpRegister) {}
 
 }  // namespace berberis
 
