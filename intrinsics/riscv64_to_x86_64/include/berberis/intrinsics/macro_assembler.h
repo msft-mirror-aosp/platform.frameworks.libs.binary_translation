@@ -51,6 +51,7 @@ class MacroAssembler : public Assembler {
 #include "berberis/intrinsics/macro_assembler_interface-inl.h"  // NOLINT generated file
 
   using Assembler::Bind;
+  using Assembler::Btq;
   using Assembler::Jcc;
   using Assembler::Leaq;
   using Assembler::MakeLabel;
@@ -61,6 +62,7 @@ class MacroAssembler : public Assembler {
   using Assembler::Pmov;
   using Assembler::Por;
   using Assembler::Pshufd;
+  using Assembler::Setcc;
   using Assembler::Vpand;
   using Assembler::Vpandn;
   using Assembler::Vpcmpeqb;
