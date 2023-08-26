@@ -105,6 +105,9 @@
       "encodings": {
         "Addq": { "opcodes": [ "01" ], "reg_to_rm": true },
         "Andq": { "opcodes": [ "21" ], "reg_to_rm": true },
+        "Btcq": { "opcodes": [ "0F", "BB" ], "reg_to_rm": true },
+        "Btrq": { "opcodes": [ "0F", "B3" ], "reg_to_rm": true },
+        "Btsq": { "opcodes": [ "0F", "AB" ], "reg_to_rm": true },
         "Orq": { "opcodes": [ "09" ], "reg_to_rm": true },
         "Subq": { "opcodes": [ "29" ], "reg_to_rm": true },
         "Xorq": { "opcodes": [ "31" ], "reg_to_rm": true }
