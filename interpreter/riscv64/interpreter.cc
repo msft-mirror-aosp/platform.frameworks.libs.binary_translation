@@ -80,7 +80,7 @@ class Interpreter {
     switch (csr) {
       case CsrName::kFrm:
         result = state_->cpu.frm;
-        arg = UpdateStatus(arg, result);
+        arg = UpdateStatus(arg, result) & 0b111;
         state_->cpu.frm = arg;
         if (arg <= FPFlags::RM_MAX) {
           std::fesetround(intrinsics::ToHostRoundingMode(arg));
