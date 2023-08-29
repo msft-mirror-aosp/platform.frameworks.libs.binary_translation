@@ -282,8 +282,8 @@ class LiteTranslator {
 
   [[nodiscard]] Register GetFrm() {
     Register frm_reg = AllocTempReg();
-    as_.Movb(frm_reg, {.base = Assembler::rbp, .disp = offsetof(ThreadState, cpu.csr_data)});
-    as_.Andb(frm_reg, int8_t{0b111});
+    as_.Expand<uint64_t, uint8_t>(frm_reg,
+                                  {.base = Assembler::rbp, .disp = offsetof(ThreadState, cpu.frm)});
     return frm_reg;
   }
 
