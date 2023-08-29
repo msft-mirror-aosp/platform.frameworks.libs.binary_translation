@@ -14,6 +14,12 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
+  "Adduw": {
+    "comment": "Add unsigned word",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint32_t" ],
+    "out": [ "uint64_t" ]
+  },
   "AmoAdd": {
     "comment": "Atomic add, like __atomic_fetch_add. Three template arguments: type, aq, rl.",
     "class": "template",
@@ -156,145 +162,40 @@
     "side_effects_comment": "Atomic instruction. Should be volatile.",
     "has_side_effects": true
   },
-  "CanonicalizeNan": {
-    "comment": "Unbox small floating-point value from NaN",
-    "class": "template",
-    "variants": [ "Float32", "Float64" ],
-    "in": [ "Type0" ],
-    "out": [ "Type0" ]
-  },
-  "Clz": {
-    "comment": "Count leading zeros. Note: works like lzcnt, supports zero input!",
-    "class": "template",
-    "variants": [ "int32_t", "int64_t" ],
-    "in": [ "Type0" ],
-    "out": [ "int64_t" ]
-  },
-  "Ctz": {
-    "comment": "Count trailing zeros. Note: works like tzcnt, supports zero input!",
-    "class": "template",
-    "variants": [ "int32_t", "int64_t" ],
-    "in": [ "Type0" ],
-    "out": [ "int64_t" ]
-  },
-  "Cpop": {
-    "comment": "Count set bits",
-    "class": "template",
-    "variants": [ "int32_t", "int64_t" ],
-    "in": [ "Type0" ],
-    "out": [ "int64_t" ]
-  },
-  "Max": {
-    "comment": "Returns the larger of two integers.",
-    "class": "template",
-    "variants": [ "int64_t", "uint64_t" ],
-    "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
-  },
-  "Min": {
-    "comment": "Returns the smaller of two integers.",
-    "class": "template",
-    "variants": [ "int64_t", "uint64_t" ],
-    "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
-  },
-  "Rev8": {
-    "comment": "Byte reverse.",
-    "class": "scalar",
-    "in": [ "uint64_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Rol": {
-    "comment": "Rotate left.",
-    "class": "template",
-    "variants": [ "int64_t", "int32_t" ],
-    "in": [ "Type0", "int8_t" ],
-    "out": [ "Type0" ]
-  },
-  "Ror": {
-    "comment": "Rotate right.",
-    "class": "template",
-    "variants": [ "int64_t", "int32_t" ],
-    "in": [ "Type0", "int8_t" ],
-    "out": [ "Type0" ]
-  },
-  "Sext": {
-    "comment": "Sign-extends to 64bit",
-    "class": "template",
-    "variants": [ "int8_t", "int16_t" ],
-    "in": [ "Type0" ],
-    "out": [ "int64_t" ]
-  },
-  "Zexth": {
-    "comment": "Zero-extend half word",
-    "class": "scalar",
-    "in": [ "int16_t" ],
-    "out": [ "int64_t" ]
-  },
-  "Orcb": {
-    "comment": "OR-Combine, byte granule.",
-    "class": "scalar",
-    "in": [ "uint64_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Adduw": {
-    "comment": "Add unsigned word",
-    "class": "scalar",
-    "in": [ "uint64_t", "uint32_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Sh1adduw": {
-    "comment": "Shift unsigned word left and add",
-    "class": "scalar",
-    "in": [ "uint64_t", "uint32_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Sh2adduw": {
-    "comment": "Shift unsigned word left by 2 and add",
-    "class": "scalar",
-    "in": [ "uint64_t", "uint32_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Sh3adduw": {
-    "comment": "Shift unsigned word left by 3 and add",
-    "class": "scalar",
-    "in": [ "uint64_t", "uint32_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Sh1add": {
-    "comment": "Shift left and add",
-    "class": "scalar",
-    "in": [ "uint64_t", "uint64_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Sh2add": {
-    "comment": "Shift left by 2 and add",
-    "class": "scalar",
-    "in": [ "uint64_t", "uint64_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Sh3add": {
-    "comment": "Shift left by 3 and add",
-    "class": "scalar",
-    "in": [ "uint64_t", "uint64_t" ],
-    "out": [ "uint64_t" ]
-  },
-  "Slliuw": {
-    "comment": "Shift left unsigned word immediate",
-    "class": "scalar",
-    "in": [ "uint32_t", "uimm8" ],
-    "out": [ "uint64_t" ]
-  },
   "Bclr": {
     "comment": "Single bit clear register",
     "class": "scalar",
     "in": [ "uint64_t", "uint64_t" ],
     "out": [ "uint64_t" ]
   },
+  "Bclri": {
+    "comment": "Single bit clear immediate",
+    "class": "scalar",
+    "in": [ "uint64_t", "uimm8" ],
+    "out": [ "uint64_t" ]
+  },
+  "Bext": {
+    "comment": "Single bit extract register",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Bexti": {
+    "comment": "Single bit extract immediate",
+    "class": "scalar",
+    "in": [ "uint64_t", "uimm8" ],
+    "out": [ "uint64_t" ]
+  },
   "Binv": {
     "comment": "Single bit invert register",
     "class": "scalar",
     "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Binvi": {
+    "comment": "Single bit invert immediate",
+    "class": "scalar",
+    "in": [ "uint64_t", "uimm8" ],
     "out": [ "uint64_t" ]
   },
   "Bset": {
@@ -309,30 +210,34 @@
     "in": [ "uint64_t", "uimm8" ],
     "out": [ "uint64_t" ]
   },
-  "Bclri": {
-      "comment": "Single bit clear immediate",
-      "class": "scalar",
-      "in": [ "uint64_t", "uimm8" ],
-      "out": [ "uint64_t" ]
-   },
-  "Binvi": {
-      "comment": "Single bit invert immediate",
-      "class": "scalar",
-      "in": [ "uint64_t", "uimm8" ],
-      "out": [ "uint64_t" ]
-   },
-  "Bext": {
-      "comment": "Single bit extract register",
-      "class": "scalar",
-      "in": [ "uint64_t", "uint64_t" ],
-      "out": [ "uint64_t" ]
-   },
-  "Bexti": {
-      "comment": "Single bit extract immediate",
-      "class": "scalar",
-      "in": [ "uint64_t", "uimm8" ],
-      "out": [ "uint64_t" ]
-   },
+  "CanonicalizeNan": {
+    "comment": "Unbox small floating-point value from NaN",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "Clz": {
+    "comment": "Count leading zeros. Note: works like lzcnt, supports zero input!",
+    "class": "template",
+    "variants": [ "int32_t", "int64_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Cpop": {
+    "comment": "Count set bits",
+    "class": "template",
+    "variants": [ "int32_t", "int64_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Ctz": {
+    "comment": "Count trailing zeros. Note: works like tzcnt, supports zero input!",
+    "class": "template",
+    "variants": [ "int32_t", "int64_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
   "FAdd": {
     "comment": "Floating point addition",
     "class": "template",
@@ -383,6 +288,15 @@
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
     "has_side_effects": false
   },
+  "FCvtFloatToIntegerHostRounding": {
+    "comment": "Convert float to integer",
+    "class": "template",
+    "variants": [ "int32_t, Float32", "int32_t, Float64", "int64_t, Float32", "int64_t, Float64" ],
+    "in": [ "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
+  },
   "FCvtIntegerToFloat": {
     "comment": "Convert integer to float",
     "class": "template",
@@ -401,20 +315,6 @@
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
     "has_side_effects": false
   },
-  "FCvtFloatToIntegerHostRounding": {
-    "comment": "Convert float to integer",
-    "class": "template",
-    "variants": [
-      "int32_t, Float32",
-      "int32_t, Float64",
-      "int64_t, Float32",
-      "int64_t, Float64"
-    ],
-    "in": [ "Type1" ],
-    "out": [ "Type0" ],
-    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": false
-  },
   "FDiv": {
     "comment": "Floating point division",
     "class": "template",
@@ -428,27 +328,6 @@
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
-  },
-  "Feq": {
-    "comment": "Floating point comparison for “equal” (quiet comparison)",
-    "class": "template",
-    "variants": [ "Float32", "Float64" ],
-    "in": [ "Type0", "Type0" ],
-    "out": [ "int64_t" ]
-  },
-  "Fle": {
-    "comment": "Floating point comparison for “less of equal” (signaling comparison)",
-    "class": "template",
-    "variants": [ "Float32", "Float64" ],
-    "in": [ "Type0", "Type0" ],
-    "out": [ "int64_t" ]
-  },
-  "Flt": {
-    "comment": "Floating point comparison for “less” (quiet comparison)",
-    "class": "template",
-    "variants": [ "Float32", "Float64" ],
-    "in": [ "Type0", "Type0" ],
-    "out": [ "int64_t" ]
   },
   "FMAdd": {
     "comment": "Fused multiply-addition",
@@ -505,24 +384,6 @@
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
-  },
-  "FmvFloatToInteger": {
-    "comment": "Move floating point register to integer register",
-    "class": "template",
-    "variants": [ "int32_t, Float32", "int64_t, Float64" ],
-    "in": [ "Type1" ],
-    "out": [ "Type0" ],
-    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": false
-  },
-  "FmvIntegerToFloat": {
-    "comment": "Move floating point register to integer register",
-    "class": "template",
-    "variants": [ "Float32, int32_t", "Float64, int64_t" ],
-    "in": [ "Type1" ],
-    "out": [ "Type0" ],
-    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
-    "has_side_effects": false
   },
   "FNMAdd": {
     "comment": "Fused negated multiply-addition",
@@ -607,6 +468,45 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "Feq": {
+    "comment": "Floating point comparison for \u201cequal\u201d (quiet comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Fle": {
+    "comment": "Floating point comparison for \u201cless of equal\u201d (signaling comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Flt": {
+    "comment": "Floating point comparison for \u201cless\u201d (quiet comparison)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "FmvFloatToInteger": {
+    "comment": "Move floating point register to integer register",
+    "class": "template",
+    "variants": [ "int32_t, Float32", "int64_t, Float64" ],
+    "in": [ "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
+  },
+  "FmvIntegerToFloat": {
+    "comment": "Move floating point register to integer register",
+    "class": "template",
+    "variants": [ "Float32, int32_t", "Float64, int64_t" ],
+    "in": [ "Type1" ],
+    "out": [ "Type0" ],
+    "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
+    "has_side_effects": false
+  },
   "Lr": {
     "comment": "Atomic load+reserve (see RISC-V manual). Three template arguments: type, aq, rl.",
     "class": "template",
@@ -625,6 +525,20 @@
     "side_effects_comment": "Atomic instruction. Should be volatile.",
     "has_side_effects": true
   },
+  "Max": {
+    "comment": "Returns the larger of two integers.",
+    "class": "template",
+    "variants": [ "int64_t", "uint64_t" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "Min": {
+    "comment": "Returns the smaller of two integers.",
+    "class": "template",
+    "variants": [ "int64_t", "uint64_t" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "NanBox": {
     "comment": [
       "NaN-box small floating-point value into NaN.",
@@ -635,6 +549,32 @@
     "variants": [ "Float32" ],
     "in": [ "Float64" ],
     "out": [ "Float64" ]
+  },
+  "Orcb": {
+    "comment": "OR-Combine, byte granule.",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Rev8": {
+    "comment": "Byte reverse.",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Rol": {
+    "comment": "Rotate left.",
+    "class": "template",
+    "variants": [ "int64_t", "int32_t" ],
+    "in": [ "Type0", "int8_t" ],
+    "out": [ "Type0" ]
+  },
+  "Ror": {
+    "comment": "Rotate right.",
+    "class": "template",
+    "variants": [ "int64_t", "int32_t" ],
+    "in": [ "Type0", "int8_t" ],
+    "out": [ "Type0" ]
   },
   "Sc": {
     "comment": "Store conditional (see RISC-V manual). Three template arguments: type, aq, rl.",
@@ -654,11 +594,66 @@
     "side_effects_comment": "Atomic instruction. Should be volatile.",
     "has_side_effects": true
   },
+  "Sext": {
+    "comment": "Sign-extends to 64bit",
+    "class": "template",
+    "variants": [ "int8_t", "int16_t" ],
+    "in": [ "Type0" ],
+    "out": [ "int64_t" ]
+  },
+  "Sh1add": {
+    "comment": "Shift left and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh1adduw": {
+    "comment": "Shift unsigned word left and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint32_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh2add": {
+    "comment": "Shift left by 2 and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh2adduw": {
+    "comment": "Shift unsigned word left by 2 and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint32_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh3add": {
+    "comment": "Shift left by 3 and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Sh3adduw": {
+    "comment": "Shift unsigned word left by 3 and add",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint32_t" ],
+    "out": [ "uint64_t" ]
+  },
+  "Slliuw": {
+    "comment": "Shift left unsigned word immediate",
+    "class": "scalar",
+    "in": [ "uint32_t", "uimm8" ],
+    "out": [ "uint64_t" ]
+  },
   "UnboxNan": {
     "comment": "Unbox small floating-point value from NaN",
     "class": "template",
     "variants": [ "Float32" ],
     "in": [ "Float64" ],
     "out": [ "Type0" ]
+  },
+  "Zexth": {
+    "comment": "Zero-extend half word",
+    "class": "scalar",
+    "in": [ "int16_t" ],
+    "out": [ "int64_t" ]
   }
 }
