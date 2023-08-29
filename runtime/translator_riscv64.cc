@@ -151,9 +151,7 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAn
 template <TranslationGear kGear = TranslationGear::kFirst>
 void TranslateRegion(GuestAddr pc) {
   // kSecond is not supported yet.
-  if (kGear == TranslationGear::kSecond) {
-    return;
-  }
+  CHECK(kGear != TranslationGear::kSecond);
 
   TranslationCache* cache = TranslationCache::GetInstance();
 
