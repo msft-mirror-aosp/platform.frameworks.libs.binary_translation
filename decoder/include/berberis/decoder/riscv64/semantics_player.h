@@ -132,13 +132,13 @@ class SemanticsPlayer {
     if (args.dst_type == Decoder::FloatOperandType::kFloat &&
         args.src_type == Decoder::FloatOperandType::kDouble) {
       FpRegister arg = GetFRegAndUnboxNan<Float64>(args.src);
-      Register frm = listener_->GetFrm();
+      Register frm = listener_->template GetCsr<SemanticsListener::CsrName::kFrm>();
       FpRegister result = listener_->template FCvtFloatToFloat<Float32, Float64>(args.rm, frm, arg);
       NanBoxAndSetFpReg<Float32>(args.dst, result);
     } else if (args.dst_type == Decoder::FloatOperandType::kDouble &&
                args.src_type == Decoder::FloatOperandType::kFloat) {
       FpRegister arg = GetFRegAndUnboxNan<Float32>(args.src);
-      Register frm = listener_->GetFrm();
+      Register frm = listener_->template GetCsr<SemanticsListener::CsrName::kFrm>();
       FpRegister result = listener_->template FCvtFloatToFloat<Float64, Float32>(args.rm, frm, arg);
       NanBoxAndSetFpReg<Float64>(args.dst, result);
     } else {
@@ -164,7 +164,7 @@ class SemanticsPlayer {
                          int8_t dst,
                          int8_t src) {
     FpRegister arg = GetFRegAndUnboxNan<FLoatType>(src);
-    Register frm = listener_->GetFrm();
+    Register frm = listener_->template GetCsr<SemanticsListener::CsrName::kFrm>();
     Register result;
     switch (dst_type) {
       case Decoder::FcvtOperandType::k32bitSigned:
@@ -202,7 +202,7 @@ class SemanticsPlayer {
                           int8_t dst,
                           int8_t src) {
     Register arg = GetRegOrZero(src);
-    Register frm = listener_->GetFrm();
+    Register frm = listener_->template GetCsr<SemanticsListener::CsrName::kFrm>();
     FpRegister result;
     switch (src_type) {
       case Decoder::FcvtOperandType::k32bitSigned:
@@ -247,7 +247,7 @@ class SemanticsPlayer {
     FpRegister arg1 = GetFRegAndUnboxNan<FloatType>(src1);
     FpRegister arg2 = GetFRegAndUnboxNan<FloatType>(src2);
     FpRegister arg3 = GetFRegAndUnboxNan<FloatType>(src3);
-    Register frm = listener_->GetFrm();
+    Register frm = listener_->template GetCsr<SemanticsListener::CsrName::kFrm>();
     FpRegister result;
     switch (opcode) {
       case Decoder::FmaOpcode::kFmadd:
@@ -444,7 +444,7 @@ class SemanticsPlayer {
   void OpFp(typename Decoder::OpFpOpcode opcode, int8_t rm, int8_t dst, int8_t src1, int8_t src2) {
     FpRegister arg1 = GetFRegAndUnboxNan<FloatType>(src1);
     FpRegister arg2 = GetFRegAndUnboxNan<FloatType>(src2);
-    Register frm = listener_->GetFrm();
+    Register frm = listener_->template GetCsr<SemanticsListener::CsrName::kFrm>();
     FpRegister result;
     switch (opcode) {
       case Decoder::OpFpOpcode::kFAdd:
@@ -627,7 +627,7 @@ class SemanticsPlayer {
                        int8_t src) {
     FpRegister arg = GetFRegAndUnboxNan<FloatType>(src);
     FpRegister result;
-    Register frm = listener_->GetFrm();
+    Register frm = listener_->template GetCsr<SemanticsListener::CsrName::kFrm>();
     switch (opcode) {
       case Decoder::OpFpSingleInputOpcode::kFSqrt:
         result = listener_->template FSqrt<FloatType>(rm, frm, arg);
