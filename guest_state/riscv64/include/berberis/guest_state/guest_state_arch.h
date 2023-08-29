@@ -29,6 +29,13 @@ namespace berberis {
 
 using Reservation = uint64_t;
 
+enum class CsrName {
+  kFFlags = 0b00'00'0000'0001,
+  kFrm = 0b00'00'0000'0010,
+  kFCsr = 0b00'00'0000'0011,
+  kMaxValue = 0b11'11'1111'1111,
+};
+
 struct CPUState {
   // x0 to x31.
   uint64_t x[32];
@@ -130,6 +137,30 @@ struct ThreadState {
   // Arbitrary per-thread data added by instrumentation.
   void* instrument_data;
 };
+
+template <CsrName>
+class CsrField;
+
+#define DEFINE_CSR_FIELD(EnumName, field_name)                               \
+  template <>                                                                \
+  class CsrField<CsrName::k##EnumName> {                                     \
+   public:                                                                   \
+    static constexpr size_t kOffset = offsetof(ThreadState, cpu.field_name); \
+    using Type = decltype(std::declval<CPUState>().field_name);              \
+    static constexpr Type(CPUState::*Addr) = &CPUState::field_name;          \
+  }
+
+DEFINE_CSR_FIELD(Frm, frm);
+#undef DEFINE_CSR_FIELD
+
+template <CsrName kName>
+inline constexpr size_t kCsrFieldOffset = CsrField<kName>::kOffset;
+
+template <CsrName kName>
+using CsrFieldType = typename CsrField<kName>::Type;
+
+template <CsrName kName>
+inline constexpr CsrFieldType<kName>(CPUState::*CsrFieldAddr) = CsrField<kName>::Addr;
 
 // The ABI names come from
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc.
