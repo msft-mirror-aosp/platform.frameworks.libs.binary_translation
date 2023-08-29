@@ -46,6 +46,8 @@ inline constexpr bool kLinkJumpsBetweenRegions = !kAllJumpsExitGeneratedCode;
 inline constexpr size_t kGuestPageSize = 4096;
 // Number of hard registers assumed by the register allocator.
 inline constexpr uint32_t kMaxHardRegs = 64u;
+// Threshold for switching between gears
+inline constexpr uint32_t kGearSwitchThreshold = 1000;
 
 }  // namespace berberis::config
 
