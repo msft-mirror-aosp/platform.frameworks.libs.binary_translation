@@ -182,6 +182,7 @@ filegroup {
         "x86_64/context_liveness_analyzer.cc",
         "x86_64/liveness_analyzer.cc",
         "x86_64/local_guest_context_optimizer.cc",
+        "x86_64/loop_guest_context_optimizer.cc",
         "x86_64/machine_ir_analysis.cc",
         "x86_64/machine_ir_check.cc",
         "x86_64/machine_ir_opt.cc",
@@ -230,6 +231,7 @@ filegroup {
         "x86_64/context_liveness_analyzer_test.cc",
         "x86_64/liveness_analyzer_test.cc",
         "x86_64/local_guest_context_optimizer_test.cc",
+        "x86_64/loop_guest_context_optimizer_test.cc",
         "x86_64/machine_ir_analysis_test.cc",
         "x86_64/machine_ir_check_test.cc",
         "x86_64/machine_ir_exec_test.cc",
@@ -270,4 +272,6 @@ cc_test_library {
     shared: {
         enabled: false,
     },
+    srcs: [
+    ],
 }
