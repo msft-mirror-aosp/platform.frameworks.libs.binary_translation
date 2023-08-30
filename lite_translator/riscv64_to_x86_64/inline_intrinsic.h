@@ -21,6 +21,7 @@
 #include <optional>
 #include <tuple>
 #include <type_traits>
+#include <variant>
 
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/checks.h"
@@ -188,19 +189,7 @@ template <auto kFunction,
           typename SIMDRegAlloc,
           typename AssemblerResType,
           typename... AssemblerArgType>
-bool TryInlineIntrinsic(MacroAssembler<x86_64::Assembler>& as,
-                        RegAlloc&& reg_alloc,
-                        SIMDRegAlloc&& simd_reg_alloc,
-                        AssemblerResType result,
-                        AssemblerArgType... args);
-
-template <auto kFunction,
-          typename RegAlloc,
-          typename SIMDRegAlloc,
-          typename AssemblerResType,
-          typename... AssemblerArgType>
 class TryBindingBasedInlineIntrinsic {
-
   template <auto kFunctionForFriend,
             typename RegAllocForFriend,
             typename SIMDRegAllocForFriend,
@@ -244,7 +233,7 @@ class TryBindingBasedInlineIntrinsic {
       : as_(as),
         reg_alloc_(reg_alloc),
         simd_reg_alloc_(simd_reg_alloc),
-        result_(result),
+        result_{result},
         input_args_(std::tuple{args...}),
         success_(
             intrinsics::bindings::ProcessBindings<kFunction,
