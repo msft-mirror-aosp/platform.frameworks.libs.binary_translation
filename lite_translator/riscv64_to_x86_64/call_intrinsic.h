@@ -341,6 +341,19 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
   return regs_info;
 }
 
+// Note: we can ignore status in the actual InitArgs call because we know that InitArgs would
+// succeed if the call in static_assert succeeded.
+//
+// AVX flag shouldn't change the outcome, but better safe than sorry.
+
+template <typename IntrinsicResType, typename... IntrinsicArgType, typename... AssemblerArgType>
+void InitArgsVerify(AssemblerArgType...) {
+  static_assert(InitArgs<IntrinsicResType, IntrinsicArgType...>(
+      ConstExprCheckAssembler(), true, AssemblerArgType{0}...));
+  static_assert(InitArgs<IntrinsicResType, IntrinsicArgType...>(
+      ConstExprCheckAssembler(), false, AssemblerArgType{0}...));
+}
+
 template <typename AssemblerResType,
           typename IntrinsicResType,
           typename... IntrinsicArgType,
@@ -351,14 +364,7 @@ void CallIntrinsic(MacroAssembler<x86_64::Assembler>& as,
                    AssemblerArgType... args) {
   PushCallerSaved(as);
 
-  // Note: we can ignore status in the actual InitArgs call because we know that InitArgs would
-  // succeed if the call in static_assert succeeded.
-  //
-  // AVX flag shouldn't change the outcome, but better safe than sorry.
-  static_assert(InitArgs<IntrinsicResType, IntrinsicArgType...>(
-      ConstExprCheckAssembler(), true, AssemblerArgType{0}...));
-  static_assert(InitArgs<IntrinsicResType, IntrinsicArgType...>(
-      ConstExprCheckAssembler(), false, AssemblerArgType{0}...));
+  InitArgsVerify<IntrinsicResType, IntrinsicArgType...>(args...);
   InitArgs<IntrinsicResType, IntrinsicArgType...>(as, host_platform::kHasAVX, args...);
 
   as.Call(reinterpret_cast<void*>(function));
@@ -366,6 +372,21 @@ void CallIntrinsic(MacroAssembler<x86_64::Assembler>& as,
   auto regs_info = ForwardResults<IntrinsicResType>(as, result);
 
   PopCallerSaved(as, regs_info);
+}
+
+template <typename AssemblerResType, typename... IntrinsicArgType, typename... AssemblerArgType>
+void CallIntrinsic(MacroAssembler<x86_64::Assembler>& as,
+                   void (*function)(IntrinsicArgType...),
+                   AssemblerArgType... args) {
+  PushCallerSaved(as);
+
+  InitArgsVerify<void, IntrinsicArgType...>(args...);
+  InitArgs<void, IntrinsicArgType...>(as, host_platform::kHasAVX, args...);
+
+  as.Call(reinterpret_cast<void*>(function));
+
+  PopCallerSaved(
+      as, {.regs_on_stack = kRegOffsetsOnStack, .simd_regs_on_stack = kSimdRegOffsetsOnStack});
 }
 
 }  // namespace berberis::call_intrinsic
