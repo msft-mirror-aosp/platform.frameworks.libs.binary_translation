@@ -39,7 +39,7 @@ bool LoadProxyLibrary(ProxyLibraryBuilder* builder,
 
   void* proxy = dlopen(proxy_name.c_str(), RTLD_NOW | RTLD_LOCAL);
   if (!proxy) {
-    TRACE("proxy library \"%s\" not found", library_name);
+    TRACE("proxy library \"%s\" not found", proxy_name.c_str());
     return false;
   }
 
@@ -47,13 +47,13 @@ bool LoadProxyLibrary(ProxyLibraryBuilder* builder,
   InitProxyLibraryFunc init =
       reinterpret_cast<InitProxyLibraryFunc>(dlsym(proxy, "InitProxyLibrary"));
   if (!init) {
-    TRACE("failed to initialize proxy library \"%s\"", library_name);
+    TRACE("failed to initialize proxy library \"%s\"", proxy_name.c_str());
     return false;
   }
 
   init(builder);
 
-  TRACE("loaded proxy library \"%s\"", library_name);
+  TRACE("loaded proxy library \"%s\"", proxy_name.c_str());
   return true;
 }
 

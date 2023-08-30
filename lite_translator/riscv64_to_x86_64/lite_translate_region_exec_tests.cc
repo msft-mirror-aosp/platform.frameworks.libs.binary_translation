@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include <setjmp.h>
 #include <cstdint>
 
 #include "berberis/assembler/machine_code.h"
@@ -119,6 +120,67 @@ TEST_F(Riscv64LiteTranslateRegionTest, GracefulFailure) {
                                   ToGuestAddr(code) + 8,
                                   &machine_code,
                                   LiteTranslateParams{.allow_dispatch = false}));
+}
+
+jmp_buf g_jmp_buf;
+
+extern "C" __attribute__((used, __visibility__("hidden"))) void
+LightTranslateRegionTest_HandleThresholdReached() {
+  // We are in generated code, so the easiest way to recover without using
+  // runtime library internals is to longjmp.
+  longjmp(g_jmp_buf, 1);
+}
+
+// The execution jumps here (no call!) from generated code. Thus we
+// need this proxy to normal C++ ABI function. Stack in generated code is
+// aligned properly for calls.
+__attribute__((naked)) void CounterThresholdReached() {
+  asm(R"(call LightTranslateRegionTest_HandleThresholdReached)");
+}
+
+TEST_F(Riscv64LiteTranslateRegionTest, ProfileCounter) {
+  static const uint16_t code[] = {
+      0x0505,  //  addi a0,a0,1
+  };
+
+  // Volatile to ensure it's correctly restored on longjmp.
+  volatile ThreadState state;
+  GuestAddr code_end = ToGuestAddr(code + 1);
+
+  MachineCode machine_code;
+  uint32_t counter;
+  constexpr uint32_t kCounterThreshold = 42;
+  bool success = LiteTranslateRange(
+      ToGuestAddr(code),
+      code_end,
+      &machine_code,
+      {
+          .enable_self_profiling = true,
+          .counter_location = &counter,
+          .counter_threshold = kCounterThreshold,
+          .counter_threshold_callback = reinterpret_cast<const void*>(CounterThresholdReached),
+      });
+  ASSERT_TRUE(success);
+
+  ScopedExecRegion exec(&machine_code);
+
+  if (setjmp(g_jmp_buf) != 0) {
+    // We should trap here after longjmp.
+    EXPECT_EQ(state.cpu.x[10], kCounterThreshold);
+    return;
+  }
+
+  state.cpu.x[10] = 0;
+  // We shouldn't ever reach above kCounterThreshold, but keeping this exit condition
+  // to handle a potential failure gracefully.
+  for (uint64_t i = 0; i <= kCounterThreshold; i++) {
+    state.cpu.insn_addr = ToGuestAddr(code);
+    // The API accepts non-volatile state.
+    TestingRunGeneratedCode(const_cast<ThreadState*>(&state), exec.get(), code_end);
+    EXPECT_EQ(state.cpu.insn_addr, code_end);
+    EXPECT_EQ(state.cpu.x[10], i + 1);
+  }
+  FAIL();
 }
 
 }  // namespace

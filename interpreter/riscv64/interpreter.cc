@@ -27,7 +27,6 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
-#include "berberis/intrinsics/csr.h"
 #include "berberis/intrinsics/guest_fp_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
@@ -56,7 +55,7 @@ class Interpreter {
   // Instruction implementations.
   //
 
-  Register Csr(Decoder::CsrOpcode opcode, Register arg, CsrName csr) {
+  Register Csr(Decoder::CsrOpcode opcode, Register arg, CsrName name) {
     Register (*UpdateStatus)(Register arg, Register original_csr_value);
     switch (opcode) {
       case Decoder::CsrOpcode::kCsrrw:
@@ -77,10 +76,10 @@ class Interpreter {
         return {};
     }
     Register result;
-    switch (csr) {
+    switch (name) {
       case CsrName::kFrm:
         result = state_->cpu.frm;
-        arg = UpdateStatus(arg, result);
+        arg = UpdateStatus(arg, result) & 0b111;
         state_->cpu.frm = arg;
         if (arg <= FPFlags::RM_MAX) {
           std::fesetround(intrinsics::ToHostRoundingMode(arg));
@@ -93,8 +92,8 @@ class Interpreter {
     return result;
   }
 
-  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, CsrName csr) {
-    return Csr(Decoder::CsrOpcode(opcode), imm, csr);
+  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, CsrName name) {
+    return Csr(Decoder::CsrOpcode(opcode), imm, name);
   }
 
   // Note: we prefer not to use C11/C++ atomic_thread_fence or even gcc/clang builtin
@@ -444,7 +443,10 @@ class Interpreter {
   // Various helper methods.
   //
 
-  [[nodiscard]] uint8_t GetFrm() const { return state_->cpu.frm; }
+  template <CsrName kName>
+  [[nodiscard]] uint64_t GetCsr() const {
+    return state_->cpu.*CsrFieldAddr<kName>;
+  }
 
   [[nodiscard]] uint64_t GetImm(uint64_t imm) const { return imm; }
 

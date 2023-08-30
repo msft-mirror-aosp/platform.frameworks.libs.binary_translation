@@ -29,7 +29,6 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
-#include "berberis/intrinsics/csr.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/macro_assembler.h"
@@ -138,14 +137,14 @@ class LiteTranslator {
     as_.Movs<DataType>({.base = arg, .disp = offset}, data);
   }
 
-  Register Csr(Decoder::CsrOpcode opcode, Register arg, CsrName csr) {
-    UNUSED(opcode, arg, csr);
+  Register Csr(Decoder::CsrOpcode opcode, Register arg, CsrName name) {
+    UNUSED(opcode, arg, name);
     Unimplemented();
     return {};
   }
 
-  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, CsrName csr) {
-    UNUSED(opcode, imm, csr);
+  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, CsrName name) {
+    UNUSED(opcode, imm, name);
     Unimplemented();
     return {};
   }
@@ -280,11 +279,12 @@ class LiteTranslator {
   // Various helper methods.
   //
 
-  [[nodiscard]] Register GetFrm() {
-    Register frm_reg = AllocTempReg();
-    as_.Movb(frm_reg, {.base = Assembler::rbp, .disp = offsetof(ThreadState, cpu.csr_data)});
-    as_.Andb(frm_reg, int8_t{0b111});
-    return frm_reg;
+  template <CsrName kName>
+  [[nodiscard]] Register GetCsr() {
+    Register csr_reg = AllocTempReg();
+    as_.Expand<uint64_t, CsrFieldType<kName>>(
+        csr_reg, {.base = Assembler::rbp, .disp = kCsrFieldOffset<kName>});
+    return csr_reg;
   }
 
   [[nodiscard]] Register GetImm(uint64_t imm) {
