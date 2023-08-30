@@ -329,6 +329,12 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "FeSetRound": {
+    "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": []
+  },
   "FMAdd": {
     "comment": "Fused multiply-addition",
     "class": "template",
