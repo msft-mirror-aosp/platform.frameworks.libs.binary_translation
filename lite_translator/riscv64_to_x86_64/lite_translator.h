@@ -137,14 +137,14 @@ class LiteTranslator {
     as_.Movs<DataType>({.base = arg, .disp = offset}, data);
   }
 
-  Register Csr(Decoder::CsrOpcode opcode, Register arg, CsrName name) {
-    UNUSED(opcode, arg, name);
+  Register UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
+    UNUSED(opcode, arg, csr);
     Unimplemented();
     return {};
   }
 
-  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, CsrName name) {
-    UNUSED(opcode, imm, name);
+  Register UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr) {
+    UNUSED(opcode, imm, csr);
     Unimplemented();
     return {};
   }
@@ -285,6 +285,11 @@ class LiteTranslator {
     as_.Expand<uint64_t, CsrFieldType<kName>>(
         csr_reg, {.base = Assembler::rbp, .disp = kCsrFieldOffset<kName>});
     return csr_reg;
+  }
+
+  template <CsrName kName>
+  void SetCsr(Register /*arg*/) {
+    Unimplemented();
   }
 
   [[nodiscard]] Register GetImm(uint64_t imm) {
