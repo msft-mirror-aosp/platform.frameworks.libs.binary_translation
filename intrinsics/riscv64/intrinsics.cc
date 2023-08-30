@@ -15,27 +15,12 @@
  */
 
 #include "berberis/intrinsics/intrinsics.h"
+#include "berberis/intrinsics/guest_fp_flags.h"
 
 #include <cstdint>
 #include <tuple>
 
 namespace berberis::intrinsics {
-
-// TODO(b/260725458): stop using __builtin_popcount after C++20 would become available.
-template <>
-std::tuple<int64_t> Cpop<int32_t>(int32_t src) {
-  return {__builtin_popcount(src)};
-}
-
-// TODO(b/260725458): stop using __builtin_popcountll after C++20 would become available.
-template <>
-std::tuple<int64_t> Cpop<int64_t>(int64_t src) {
-  return {__builtin_popcountll(src)};
-}
-
-std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
-  return {uint64_t{src} << imm};
-}
 
 std::tuple<uint64_t> Bclri(uint64_t src, uint8_t imm) {
   return {src & ~(uint64_t{1} << imm)};
@@ -51,6 +36,28 @@ std::tuple<uint64_t> Binvi(uint64_t src, uint8_t imm) {
 
 std::tuple<uint64_t> Bseti(uint64_t src, uint8_t imm) {
   return {src | (uint64_t{1} << imm)};
+}
+
+// TODO(b/260725458): stop using __builtin_popcount after C++20 would become available.
+template <>
+std::tuple<int64_t> Cpop<int32_t>(int32_t src) {
+  return {__builtin_popcount(src)};
+}
+
+// TODO(b/260725458): stop using __builtin_popcountll after C++20 would become available.
+template <>
+std::tuple<int64_t> Cpop<int64_t>(int64_t src) {
+  return {__builtin_popcountll(src)};
+}
+
+void FeSetRound(uint64_t rm) {
+  if (rm <= FPFlags::RM_MAX) {
+    std::fesetround(intrinsics::ToHostRoundingMode(rm));
+  }
+}
+
+std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
+  return {uint64_t{src} << imm};
 }
 
 }  // namespace berberis::intrinsics
