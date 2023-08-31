@@ -279,5 +279,6 @@ cc_test_library {
         enabled: false,
     },
     srcs: [
+        "riscv64_to_x86_64/code_gen.cc",
     ],
 }
