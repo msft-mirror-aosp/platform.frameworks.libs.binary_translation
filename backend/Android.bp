@@ -180,6 +180,7 @@ filegroup {
         "x86_64/code_debug.cc",
         "x86_64/code_emit.cc",
         "x86_64/context_liveness_analyzer.cc",
+        "x86_64/insn_folding.cc",
         "x86_64/liveness_analyzer.cc",
         "x86_64/local_guest_context_optimizer.cc",
         "x86_64/loop_guest_context_optimizer.cc",
@@ -229,6 +230,7 @@ filegroup {
     srcs: [
         "common/machine_ir_test.cc",
         "x86_64/context_liveness_analyzer_test.cc",
+        "x86_64/insn_folding_test.cc",
         "x86_64/liveness_analyzer_test.cc",
         "x86_64/local_guest_context_optimizer_test.cc",
         "x86_64/loop_guest_context_optimizer_test.cc",
