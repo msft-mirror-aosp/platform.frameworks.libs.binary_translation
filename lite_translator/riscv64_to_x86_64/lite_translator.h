@@ -382,29 +382,41 @@ class LiteTranslator {
  private:
   template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
   AssemblerResType CallIntrinsic(AssemblerArgType... args) {
-    AssemblerResType result;
-    if constexpr (std::is_same_v<AssemblerResType, Register>) {
-      result = AllocTempReg();
-    } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
-      result = AllocTempSimdReg();
+    if constexpr (std::is_same_v<AssemblerResType, void>) {
+      if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
+              as_,
+              [this]() { return AllocTempReg(); },
+              [this]() { return AllocTempSimdReg(); },
+              std::monostate{},
+              args...)) {
+        return;
+      }
+      call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, args...);
     } else {
-      // This should not be reached by the compiler. If it is - there is a new result type that
-      // needs to be supported.
-      static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
-    }
+      AssemblerResType result;
+      if constexpr (std::is_same_v<AssemblerResType, Register>) {
+        result = AllocTempReg();
+      } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
+        result = AllocTempSimdReg();
+      } else {
+        // This should not be reached by the compiler. If it is - there is a new result type that
+        // needs to be supported.
+        static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
+      }
 
-    if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
-            as_,
-            [this]() { return AllocTempReg(); },
-            [this]() { return AllocTempSimdReg(); },
-            result,
-            args...)) {
+      if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
+              as_,
+              [this]() { return AllocTempReg(); },
+              [this]() { return AllocTempSimdReg(); },
+              result,
+              args...)) {
+        return result;
+      }
+
+      call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, result, args...);
+
       return result;
     }
-
-    call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, result, args...);
-
-    return result;
   }
 
   Assembler as_;
