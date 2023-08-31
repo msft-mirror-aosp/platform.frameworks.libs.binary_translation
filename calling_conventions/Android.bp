@@ -30,6 +30,7 @@ cc_test_library {
     name: "libberberis_calling_conventions_unit_tests",
     defaults: ["berberis_test_library_defaults"],
     srcs: [
+        "calling_conventions_arm_test.cc",
         "calling_conventions_arm64_test.cc",
         "calling_conventions_riscv64_test.cc",
         "calling_conventions_x86_32_test.cc",
