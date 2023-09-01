@@ -513,24 +513,6 @@
     "side_effects_comment": "Conversion of value, doesn't set exceptions bits.",
     "has_side_effects": false
   },
-  "Lr": {
-    "comment": "Atomic load+reserve (see RISC-V manual). Three template arguments: type, aq, rl.",
-    "class": "template",
-    "variants": [
-      "int32_t, false, false",
-      "int32_t, false, true",
-      "int32_t, true, false",
-      "int32_t, true, true",
-      "int64_t, false, false",
-      "int64_t, false, true",
-      "int64_t, true, false",
-      "int64_t, true, true"
-    ],
-    "in": [ "int64_t" ],
-    "out": [ "Type0" ],
-    "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": true
-  },
   "Max": {
     "comment": "Returns the larger of two integers.",
     "class": "template",
@@ -581,24 +563,6 @@
     "variants": [ "int64_t", "int32_t" ],
     "in": [ "Type0", "int8_t" ],
     "out": [ "Type0" ]
-  },
-  "Sc": {
-    "comment": "Store conditional (see RISC-V manual). Three template arguments: type, aq, rl.",
-    "class": "template",
-    "variants": [
-      "int32_t, false, false",
-      "int32_t, false, true",
-      "int32_t, true, false",
-      "int32_t, true, true",
-      "int64_t, false, false",
-      "int64_t, false, true",
-      "int64_t, true, false",
-      "int64_t, true, true"
-    ],
-    "in": [ "int64_t", "Type0" ],
-    "out": [ "int64_t" ],
-    "side_effects_comment": "Atomic instruction. Should be volatile.",
-    "has_side_effects": true
   },
   "Sext": {
     "comment": "Sign-extends to 64bit",

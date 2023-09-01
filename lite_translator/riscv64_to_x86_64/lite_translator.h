@@ -379,6 +379,18 @@ class LiteTranslator {
     return {};
   };
 
+  template <typename IntType, bool aq, bool rl>
+  Register Lr(Register /* addr */) {
+    Unimplemented();
+    return {};
+  }
+
+  template <typename IntType, bool aq, bool rl>
+  Register Sc(Register /* addr */, Register /* data */) {
+    Unimplemented();
+    return {};
+  }
+
  private:
   template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
   AssemblerResType CallIntrinsic(AssemblerArgType... args) {
