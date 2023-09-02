@@ -78,25 +78,25 @@ void MacroAssembler<Assembler>::MacroOrcbAVX(XMMRegister result, XMMRegister src
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroAdduw(Register result, Register src) {
-  Movl(src, src);
+  Movl(result, result);
   Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesOne});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh1adduw(Register result, Register src) {
-  Movl(src, src);
+  Movl(result, result);
   Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesTwo});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh2adduw(Register result, Register src) {
-  Movl(src, src);
+  Movl(result, result);
   Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesFour});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroSh3adduw(Register result, Register src) {
-  Movl(src, src);
+  Movl(result, result);
   Leaq(result, {.base = src, .index = result, .scale = Assembler::kTimesEight});
 }
 
