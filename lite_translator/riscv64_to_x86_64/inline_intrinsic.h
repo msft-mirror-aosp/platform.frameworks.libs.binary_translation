@@ -261,6 +261,10 @@ class TryBindingBasedInlineIntrinsic {
       if (!host_platform::kHasLZCNT) {
         return false;
       }
+    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasPOPCNT) {
+      if (!host_platform::kHasLZCNT) {
+        return false;
+      }
     } else if constexpr (AsmCallInfo::kCPUIDRestriction ==
                          intrinsics::bindings::kNoCPUIDRestriction) {
       // No restrictions. Do nothing.
