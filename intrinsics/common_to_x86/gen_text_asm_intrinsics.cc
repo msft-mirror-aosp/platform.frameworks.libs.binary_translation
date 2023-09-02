@@ -323,21 +323,21 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
                        }
                      })));
   // Verify CPU vendor and SSE restrictions.
-  bool expect_lzcnt = false;
+  bool expect_avx = false;
   bool expect_bmi = false;
+  bool expect_fma = false;
+  bool expect_fma4 = false;
+  bool expect_lzcnt = false;
   bool expect_sse3 = false;
   bool expect_ssse3 = false;
   bool expect_sse4_1 = false;
   bool expect_sse4_2 = false;
-  bool expect_avx = false;
-  bool expect_fma = false;
-  bool expect_fma4 = false;
   switch (AsmCallInfo::kCPUIDRestriction) {
-    case intrinsics::bindings::kHasLZCNT:
-      expect_lzcnt = true;
-      break;
     case intrinsics::bindings::kHasBMI:
       expect_bmi = true;
+      break;
+    case intrinsics::bindings::kHasLZCNT:
+      expect_lzcnt = true;
       break;
     case intrinsics::bindings::kHasFMA:
     case intrinsics::bindings::kHasFMA4:
@@ -365,15 +365,15 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
     case intrinsics::bindings::kIsAuthenticAMD:
     case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
   }
-  CHECK_EQ(expect_lzcnt, as.need_lzcnt);
+  CHECK_EQ(expect_avx, as.need_avx);
   CHECK_EQ(expect_bmi, as.need_bmi);
+  CHECK_EQ(expect_fma, as.need_fma);
+  CHECK_EQ(expect_fma4, as.need_fma4);
+  CHECK_EQ(expect_lzcnt, as.need_lzcnt);
   CHECK_EQ(expect_sse3, as.need_sse3);
   CHECK_EQ(expect_ssse3, as.need_ssse3);
   CHECK_EQ(expect_sse4_1, as.need_sse4_1);
   CHECK_EQ(expect_sse4_2, as.need_sse4_2);
-  CHECK_EQ(expect_avx, as.need_avx);
-  CHECK_EQ(expect_fma, as.need_fma);
-  CHECK_EQ(expect_fma4, as.need_fma4);
   return std::tuple{as.need_gpr_macroassembler_mxcsr_scratch(),
                     as.need_gpr_macroassembler_constants()};
 }
@@ -614,11 +614,20 @@ void GenerateTextAsmIntrinsics(FILE* out) {
               case intrinsics::bindings::kIsAuthenticAMD:
                 fprintf(out, "host_platform::kIsAuthenticAMD");
                 break;
-              case intrinsics::bindings::kHasLZCNT:
-                fprintf(out, "host_platform::kHasLZCNT");
+              case intrinsics::bindings::kHasAVX:
+                fprintf(out, "host_platform::kHasAVX");
                 break;
               case intrinsics::bindings::kHasBMI:
                 fprintf(out, "host_platform::kHasBMI");
+                break;
+              case intrinsics::bindings::kHasFMA:
+                fprintf(out, "host_platform::kHasFMA");
+                break;
+              case intrinsics::bindings::kHasFMA4:
+                fprintf(out, "host_platform::kHasFMA4");
+                break;
+              case intrinsics::bindings::kHasLZCNT:
+                fprintf(out, "host_platform::kHasLZCNT");
                 break;
               case intrinsics::bindings::kHasSSE3:
                 fprintf(out, "host_platform::kHasSSE3");
@@ -631,15 +640,6 @@ void GenerateTextAsmIntrinsics(FILE* out) {
                 break;
               case intrinsics::bindings::kHasSSE4_2:
                 fprintf(out, "host_platform::kHasSSE4_2");
-                break;
-              case intrinsics::bindings::kHasAVX:
-                fprintf(out, "host_platform::kHasAVX");
-                break;
-              case intrinsics::bindings::kHasFMA:
-                fprintf(out, "host_platform::kHasFMA");
-                break;
-              case intrinsics::bindings::kHasFMA4:
-                fprintf(out, "host_platform::kHasFMA4");
                 break;
               case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
             }
