@@ -36,6 +36,12 @@ enum class CsrName {
   kMaxValue = 0b11'11'1111'1111,
 };
 
+// Only CSRs listed below will be processed. All others are treated as undefined instruction.
+// Define BERBERIS_RISV64_PROCESS_CSR before use. It would receive two names:
+//   • CamelCaseName, suitable for functions and enums.
+//   • snake_case_name, suitable for fields of data structures.
+#define BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS BERBERIS_RISV64_PROCESS_CSR(Frm, frm)
+
 struct CPUState {
   // x0 to x31.
   uint64_t x[32];
@@ -145,17 +151,17 @@ struct ThreadState {
 template <CsrName>
 class CsrField;
 
-#define DEFINE_CSR_FIELD(EnumName, field_name)                               \
+#define BERBERIS_RISV64_PROCESS_CSR(EnumName, field_name)                    \
   template <>                                                                \
   class CsrField<CsrName::k##EnumName> {                                     \
    public:                                                                   \
     static constexpr size_t kOffset = offsetof(ThreadState, cpu.field_name); \
     using Type = decltype(std::declval<CPUState>().field_name);              \
     static constexpr Type(CPUState::*Addr) = &CPUState::field_name;          \
-  }
+  };
 
-DEFINE_CSR_FIELD(Frm, frm);
-#undef DEFINE_CSR_FIELD
+BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS
+#undef BERBERIS_RISV64_PROCESS_CSR
 
 template <CsrName kName>
 inline constexpr size_t kCsrFieldOffset = CsrField<kName>::kOffset;
@@ -165,6 +171,21 @@ using CsrFieldType = typename CsrField<kName>::Type;
 
 template <CsrName kName>
 inline constexpr CsrFieldType<kName>(CPUState::*CsrFieldAddr) = CsrField<kName>::Addr;
+
+template <CsrName... kName, typename Processor>
+bool ProcessCsrNameAsTemplateParameterImpl(CsrName name, Processor& processor) {
+  return ((kName == name ? processor.template operator()<kName>(), true : false) || ...);
+}
+
+template <typename Processor>
+bool ProcessCsrNameAsTemplateParameter(CsrName name, Processor& processor) {
+#define BERBERIS_RISV64_PROCESS_CSR(EnumName, field_name) CsrName::k##EnumName,
+  return ProcessCsrNameAsTemplateParameterImpl<
+      BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS CsrName::kFrm>(name, processor);
+#undef BERBERIS_RISV64_PROCESS_CSR
+}
+
+#undef BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS
 
 // The ABI names come from
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc.
