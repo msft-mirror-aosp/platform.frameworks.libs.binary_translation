@@ -212,6 +212,7 @@ class TextAssemblerX86 {
 
   bool need_avx = false;
   bool need_bmi = false;
+  bool need_bmi2 = false;
   bool need_fma = false;
   bool need_fma4 = false;
   bool need_lzcnt = false;
@@ -276,6 +277,10 @@ class TextAssemblerX86 {
 
   void SetRequiredFeatureBMI() {
     need_bmi = true;
+  }
+
+  void SetRequiredFeatureBMI2() {
+    need_bmi2 = true;
   }
 
   void SetRequiredFeatureFMA() {
