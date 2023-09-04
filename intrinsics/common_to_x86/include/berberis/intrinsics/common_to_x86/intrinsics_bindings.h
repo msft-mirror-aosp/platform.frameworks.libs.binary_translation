@@ -269,6 +269,7 @@ enum CPUIDRestriction : int {
   kHasFMA4,
   kHasFXSAVE,
   kHasLZCNT,
+  kHasPOPCNT,
   kHasRDSEED,
   kHasSERIALIZE,
   kHasSHA,

@@ -14,38 +14,25 @@
  * limitations under the License.
  */
 
-#include "berberis/intrinsics/intrinsics.h"
-#include "berberis/intrinsics/guest_fp_flags.h"
+#ifndef BERBERIS_INTRINSICS_INTRINSICS_BITMANIP_IMPL_H_
+#define BERBERIS_INTRINSICS_INTRINSICS_BITMANIP_IMPL_H_
 
 #include <cstdint>
-#include <tuple>
 
 namespace berberis::intrinsics {
 
-std::tuple<uint64_t> Bclri(uint64_t src, uint8_t imm) {
-  return {src & ~(uint64_t{1} << imm)};
+// TODO(b/260725458): stop using __builtin_popcount after C++20 would become available.
+template <>
+inline std::tuple<int64_t> Cpop<int32_t, kUseCppImplementation>(int32_t src) {
+  return {__builtin_popcount(src)};
 }
 
-std::tuple<uint64_t> Bexti(uint64_t src, uint8_t imm) {
-  return {(src >> imm) & uint64_t{1}};
-}
-
-std::tuple<uint64_t> Binvi(uint64_t src, uint8_t imm) {
-  return {src ^ (uint64_t{1} << imm)};
-}
-
-std::tuple<uint64_t> Bseti(uint64_t src, uint8_t imm) {
-  return {src | (uint64_t{1} << imm)};
-}
-
-void FeSetRound(uint64_t rm) {
-  if (rm <= FPFlags::RM_MAX) {
-    std::fesetround(intrinsics::ToHostRoundingMode(rm));
-  }
-}
-
-std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
-  return {uint64_t{src} << imm};
+// TODO(b/260725458): stop using __builtin_popcountll after C++20 would become available.
+template <>
+inline std::tuple<int64_t> Cpop<int64_t, kUseCppImplementation>(int64_t src) {
+  return {__builtin_popcountll(src)};
 }
 
 }  // namespace berberis::intrinsics
+
+#endif  // BERBERIS_INTRINSICS_INTRINSICS_BITMANIP_IMPL_H_

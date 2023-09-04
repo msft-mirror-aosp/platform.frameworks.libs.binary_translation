@@ -559,6 +559,7 @@
         "Bsfl": { "opcodes": [ "0F", "BC" ] },
         "Bsrl": { "opcodes": [ "0F", "BD" ] },
         "Lzcntl": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] },
+        "Popcntl": { "feature": "POPCNT", "opcodes": [ "F3", "0F", "B8" ] },
         "Tzcntl": { "feature": "BMI", "opcodes": [ "F3", "0F", "BC" ] }
       },
       "args": [
@@ -572,6 +573,7 @@
         "Bsfw": { "opcodes": [ "66", "0F", "BC" ] },
         "Bsrw": { "opcodes": [ "66", "0F", "BD" ] },
         "Lzcntw": { "feature": "LZCNT", "opcodes": [ "66", "F3", "0F", "BD" ] },
+        "Popcntw": { "feature": "POPCNT", "opcodes": [ "66", "F3", "0F", "B8" ] },
         "Tzcntw": { "feature": "BMI", "opcodes": [ "66", "F3", "0F", "BC" ] }
       },
       "args": [
