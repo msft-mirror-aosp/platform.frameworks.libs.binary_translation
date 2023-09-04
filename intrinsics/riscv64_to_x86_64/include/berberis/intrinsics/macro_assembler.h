@@ -110,13 +110,13 @@ class MacroAssembler : public Assembler {
       Assembler::Movsxbq arguments;                                                                \
     } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
                          FormatIs<format_in, uint8_t>) {                                           \
-      Assembler::Movzxbq arguments;                                                                \
+      Assembler::Movzxbl arguments;                                                                \
     } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
                          FormatIs<format_in, int16_t>) {                                           \
       Assembler::Movsxwq arguments;                                                                \
     } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
                          FormatIs<format_in, uint16_t>) {                                          \
-      Assembler::Movzxwq arguments;                                                                \
+      Assembler::Movzxwl arguments;                                                                \
     } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
                          FormatIs<format_in, int32_t>) {                                           \
       Assembler::Movsxlq arguments;                                                                \
