@@ -43,6 +43,7 @@ extern const struct PlatformCapabilities {
   bool kHasFMA;
   bool kHasFMA4;
   bool kHasLZCNT;
+  bool kHasPOPCNT;
   bool kHasSHA;
   bool kHasSSE3;
   bool kHasSSSE3;
@@ -60,6 +61,7 @@ inline const bool& kHasBMI = kPlatformCapabilities.kHasBMI;
 inline const bool& kHasF16C = kPlatformCapabilities.kHasF16C;
 inline const bool& kHasFMA = kPlatformCapabilities.kHasFMA;
 inline const bool& kHasFMA4 = kPlatformCapabilities.kHasFMA4;
+inline const bool& kHasPOPCNT = kPlatformCapabilities.kHasPOPCNT;
 inline const bool& kHasLZCNT = kPlatformCapabilities.kHasLZCNT;
 inline const bool& kHasSHA = kPlatformCapabilities.kHasSHA;
 inline const bool& kHasSSE3 = kPlatformCapabilities.kHasSSE3;

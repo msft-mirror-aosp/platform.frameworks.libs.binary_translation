@@ -160,6 +160,7 @@
         "Bsfq": { "opcodes": [ "0F", "BC" ] },
         "Bsrq": { "opcodes": [ "0F", "BD" ] },
         "Lzcntq": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] },
+        "Popcntq": { "feature": "POPCNT", "opcodes": [ "F3", "0F", "B8" ] },
         "Tzcntq": { "feature": "BMI", "opcodes": [ "F3", "0F", "BC" ] }
       },
       "args": [

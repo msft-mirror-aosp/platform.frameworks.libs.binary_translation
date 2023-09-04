@@ -215,6 +215,7 @@ class TextAssemblerX86 {
   bool need_fma = false;
   bool need_fma4 = false;
   bool need_lzcnt = false;
+  bool need_popcnt = false;
   bool need_sse3 = false;
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
@@ -289,6 +290,10 @@ class TextAssemblerX86 {
 
   void SetRequiredFeatureLZCNT() {
     need_lzcnt = true;
+  }
+
+  void SetRequiredFeaturePOPCNT() {
+    need_popcnt = true;
   }
 
   void SetRequiredFeatureSSE3() {
