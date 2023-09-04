@@ -34,6 +34,7 @@ auto Init() {
   platform_capabilities.kHasCLMUL = ecx & bit_PCLMUL;
   platform_capabilities.kHasF16C = ecx & bit_F16C;
   platform_capabilities.kHasFMA = ecx & bit_FMA;
+  platform_capabilities.kHasPOPCNT = ecx & bit_POPCNT;
   platform_capabilities.kHasSSE3 = ecx & bit_SSE3;
   platform_capabilities.kHasSSSE3 = ecx & bit_SSSE3;
   platform_capabilities.kHasSSE4_1 = ecx & bit_SSE4_1;
