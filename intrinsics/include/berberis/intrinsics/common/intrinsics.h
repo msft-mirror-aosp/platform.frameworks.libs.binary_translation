@@ -57,6 +57,7 @@ enum PreferredIntrinsicsImplementation {
 }  // namespace berberis
 
 #include "berberis/intrinsics/intrinsics_atomics_impl.h"
+#include "berberis/intrinsics/intrinsics_bitmanip_impl.h"
 #include "berberis/intrinsics/intrinsics_floating_point_impl.h"
 
 #endif  // BERBERIS_INTRINSICS_COMMON_INTRINSICS_H_

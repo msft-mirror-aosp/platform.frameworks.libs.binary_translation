@@ -328,6 +328,7 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
   bool expect_fma = false;
   bool expect_fma4 = false;
   bool expect_lzcnt = false;
+  bool expect_popcnt = false;
   bool expect_sse3 = false;
   bool expect_ssse3 = false;
   bool expect_sse4_1 = false;
@@ -338,6 +339,9 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
       break;
     case intrinsics::bindings::kHasLZCNT:
       expect_lzcnt = true;
+      break;
+    case intrinsics::bindings::kHasPOPCNT:
+      expect_popcnt = true;
       break;
     case intrinsics::bindings::kHasFMA:
     case intrinsics::bindings::kHasFMA4:
@@ -370,6 +374,7 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
   CHECK_EQ(expect_fma, as.need_fma);
   CHECK_EQ(expect_fma4, as.need_fma4);
   CHECK_EQ(expect_lzcnt, as.need_lzcnt);
+  CHECK_EQ(expect_popcnt, as.need_popcnt);
   CHECK_EQ(expect_sse3, as.need_sse3);
   CHECK_EQ(expect_ssse3, as.need_ssse3);
   CHECK_EQ(expect_sse4_1, as.need_sse4_1);
@@ -628,6 +633,9 @@ void GenerateTextAsmIntrinsics(FILE* out) {
                 break;
               case intrinsics::bindings::kHasLZCNT:
                 fprintf(out, "host_platform::kHasLZCNT");
+                break;
+              case intrinsics::bindings::kHasPOPCNT:
+                fprintf(out, "host_platform::kHasPOPCNT");
                 break;
               case intrinsics::bindings::kHasSSE3:
                 fprintf(out, "host_platform::kHasSSE3");
