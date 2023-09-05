@@ -108,6 +108,8 @@ void GenerateFunctionHeader(FILE* out, int indent) {
     ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
   }
   GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
+  fprintf(out, "  [[maybe_unused]] alignas(16) uint8_t mxcsr_scratch[16];\n");
+  fprintf(out, "  [[maybe_unused]] auto& mxcsr_scratch2 = mxcsr_scratch[8];\n");
 }
 
 template <typename AsmCallInfo>
@@ -429,7 +431,7 @@ void GenerateAssemblerIns(FILE* out,
     }
   });
   if (need_gpr_macroassembler_mxcsr_scratch) {
-    ins.push_back("\"m\"(*&MxcsrStorage()), \"m\"(*&MxcsrStorage())");
+    ins.push_back("\"m\"(mxcsr_scratch), \"m\"(mxcsr_scratch2)");
   }
   if (need_gpr_macroassembler_constants) {
     ins.push_back(
@@ -598,7 +600,9 @@ void GenerateTextAsmIntrinsics(FILE* out) {
             fprintf(out, "  }\n");
           }
           // Final line of function.
-          fprintf(out, "};\n\n");
+          if (!running_name.empty()) {
+            fprintf(out, "};\n\n");
+          }
           GenerateFunctionHeader<AsmCallInfo>(out, 0);
           running_name = full_name;
         }
@@ -700,13 +704,6 @@ namespace constants_pool {
 }  // namespace constants_pool
 
 namespace intrinsics {
-
-class MxcsrStorage {
- public:
-  uint32_t* operator&() { return &storage_; }
-
- private:
-  uint32_t storage_;
 )STRING",
           berberis::TextAssembler::kArchName,
           berberis::TextAssembler::kNamespaceName,
