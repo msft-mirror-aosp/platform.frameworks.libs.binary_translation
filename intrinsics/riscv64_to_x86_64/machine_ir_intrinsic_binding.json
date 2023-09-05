@@ -1,0 +1,119 @@
+[
+  "Copyright (C) 2023 The Android Open Source Project",
+  "",
+  "Licensed under the Apache License, Version 2.0 (the “License”);",
+  "you may not use this file except in compliance with the License.",
+  "You may obtain a copy of the License at",
+  "",
+  "     http://www.apache.org/licenses/LICENSE-2.0",
+  "",
+  "Unless required by applicable law or agreed to in writing, software",
+  "distributed under the License is distributed on an “AS IS” BASIS,",
+  "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+  "See the License for the specific language governing permissions and",
+  "limitations under the License.",
+  {
+    "name": "FAddHostRounding<Float32>",
+    "insn": "AddssXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FAddHostRounding<Float64>",
+    "insn": "AddsdXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FDivHostRounding<Float32>",
+    "insn": "DivssXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FDivHostRounding<Float64>",
+    "insn": "DivsdXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMAddHostRounding<Float32>",
+    "insn": "Vfmadd231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMAddHostRounding<Float64>",
+    "insn": "Vfmadd231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMAddHostRounding<Float32>",
+    "insn": "Vfnmadd231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMAddHostRounding<Float64>",
+    "insn": "Vfnmadd231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMSubHostRounding<Float32>",
+    "insn": "Vfnmsub231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMSubHostRounding<Float64>",
+    "insn": "Vfnmsub231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMSubHostRounding<Float32>",
+    "insn": "Vfmsub231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMSubHostRounding<Float64>",
+    "insn": "Vfmsub231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMulHostRounding<Float32>",
+    "insn": "MulssXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMulHostRounding<Float64>",
+    "insn": "MulsdXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FSubHostRounding<Float32>",
+    "insn": "SubssXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FSubHostRounding<Float64>",
+    "insn": "SubsdXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  }
+]

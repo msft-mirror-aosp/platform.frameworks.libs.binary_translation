@@ -14,12 +14,4 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_H_
-#define BERBERIS_GUEST_STATE_GUEST_STATE_H_
-
-// Opaque declarations from this header will be checked against the full ones by the compiler.
-#include "berberis/guest_state/guest_state_opaque.h"  // IWYU pragma: export.
-
-#include "berberis/guest_state/guest_state_arch.h"  // IWYU pragma: export.
-
-#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_H_
+extern "C" __attribute__((noinline)) void foo() {}

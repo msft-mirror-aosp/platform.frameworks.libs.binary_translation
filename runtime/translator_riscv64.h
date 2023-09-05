@@ -14,12 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_H_
-#define BERBERIS_GUEST_STATE_GUEST_STATE_H_
+#ifndef BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
+#define BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
 
-// Opaque declarations from this header will be checked against the full ones by the compiler.
-#include "berberis/guest_state/guest_state_opaque.h"  // IWYU pragma: export.
+#include <cstddef>
+#include <tuple>
 
-#include "berberis/guest_state/guest_state_arch.h"  // IWYU pragma: export.
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/lite_translator/lite_translate_region.h"
+#include "berberis/runtime_primitives/host_code.h"
+#include "berberis/runtime_primitives/translation_cache.h"
 
-#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_H_
+namespace berberis {
+
+std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAndInstallRegion(
+    GuestAddr pc,
+    const LiteTranslateParams& params = LiteTranslateParams());
+
+}  // namespace berberis
+
+#endif  // BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_H_
-#define BERBERIS_GUEST_STATE_GUEST_STATE_H_
+#include <stdio.h>
 
-// Opaque declarations from this header will be checked against the full ones by the compiler.
-#include "berberis/guest_state/guest_state_opaque.h"  // IWYU pragma: export.
-
-#include "berberis/guest_state/guest_state_arch.h"  // IWYU pragma: export.
-
-#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_H_
+int main(int argc, char* argv[]) {
+  FILE* out = argc > 1 ? fopen(argv[1], "w") : stdout;
+  fprintf(out, "Generation of \"%s\" is only supported on Linux\n", argv[1]);
+  fclose(out);
+  return 0;
+}

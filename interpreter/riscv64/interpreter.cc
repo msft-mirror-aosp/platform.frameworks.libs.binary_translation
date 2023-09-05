@@ -357,24 +357,6 @@ class Interpreter {
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   }
 
-  FpRegister OpFp(Decoder::OpFpOpcode opcode,
-                  Decoder::FloatOperandType float_size,
-                  uint8_t rm,
-                  FpRegister arg1,
-                  FpRegister arg2) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return FloatToFPReg(
-            OpFp<Float32>(opcode, rm, FPRegToFloat<Float32>(arg1), FPRegToFloat<Float32>(arg2)));
-      case Decoder::FloatOperandType::kDouble:
-        return FloatToFPReg(
-            OpFp<Float64>(opcode, rm, FPRegToFloat<Float64>(arg1), FPRegToFloat<Float64>(arg2)));
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   // In 32-bit case we don't care about the upper 32-bits because nan-boxing will clobber them.
   FpRegister Fmv(Register arg) { return arg; }
 
@@ -407,44 +389,6 @@ class Interpreter {
     }
   }
 
-  FpRegister OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode,
-                             Decoder::FloatOperandType float_size,
-                             uint8_t rm,
-                             FpRegister arg) {
-    switch (float_size) {
-      case Decoder::FloatOperandType::kFloat:
-        return FloatToFPReg(OpFpSingleInput<Float32>(opcode, rm, FPRegToFloat<Float32>(arg)));
-      case Decoder::FloatOperandType::kDouble:
-        return FloatToFPReg(OpFpSingleInput<Float64>(opcode, rm, FPRegToFloat<Float64>(arg)));
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  // TODO(b/278812060): switch to intrinsics when they would become available and stop using
-  // ExecuteFloatOperation directly.
-  template <typename FloatType>
-  FloatType OpFp(Decoder::OpFpOpcode opcode, uint8_t rm, FloatType arg1, FloatType arg2) {
-    switch (opcode) {
-      case Decoder::OpFpOpcode::kFAdd:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm, state_->cpu.frm, [](auto x, auto y) { return x + y; }, arg1, arg2);
-      case Decoder::OpFpOpcode::kFSub:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm, state_->cpu.frm, [](auto x, auto y) { return x - y; }, arg1, arg2);
-      case Decoder::OpFpOpcode::kFMul:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm, state_->cpu.frm, [](auto x, auto y) { return x * y; }, arg1, arg2);
-      case Decoder::OpFpOpcode::kFDiv:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm, state_->cpu.frm, [](auto x, auto y) { return x / y; }, arg1, arg2);
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
   template <typename FloatType>
   Register OpFpGpRegisterTargetNoRounding(Decoder::OpFpGpRegisterTargetNoRoundingOpcode opcode,
                                           FloatType arg1,
@@ -456,18 +400,6 @@ class Interpreter {
         return arg1 < arg2;
       case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFeq:
         return arg1 == arg2;
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
-  template <typename FloatType>
-  FloatType OpFpSingleInput(Decoder::OpFpSingleInputOpcode opcode, uint8_t rm, FloatType arg) {
-    switch (opcode) {
-      case Decoder::OpFpSingleInputOpcode::kFSqrt:
-        return intrinsics::ExecuteFloatOperation<FloatType>(
-            rm, state_->cpu.frm, [](auto x) { return intrinsics::Sqrt(x); }, arg);
       default:
         Unimplemented();
         return {};

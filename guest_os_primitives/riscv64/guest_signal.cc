@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GUEST_STATE_H_
-#define BERBERIS_GUEST_STATE_GUEST_STATE_H_
+#include "berberis/guest_os_primitives/guest_signal.h"
 
-// Opaque declarations from this header will be checked against the full ones by the compiler.
-#include "berberis/guest_state/guest_state_opaque.h"  // IWYU pragma: export.
+namespace berberis {
 
-#include "berberis/guest_state/guest_state_arch.h"  // IWYU pragma: export.
+size_t GetGuest_MINSIGSTKSZ() {
+  // See bionic/libc/kernel/uapi/asm-riscv/asm/signal.h
+  return 2048;
+}
 
-#endif  // BERBERIS_GUEST_STATE_GUEST_STATE_H_
+}  // namespace berberis

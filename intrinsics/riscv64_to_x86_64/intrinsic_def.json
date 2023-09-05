@@ -14,6 +14,20 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
+  "FAdd": {
+    "comment": "Floating point addition",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FAddHostRounding": {
+    "comment": "Fused multiply-addition (uses host dynamic rounding)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FClass": {
     "comment": "Classify float number in 10 classes as defined by RISC-V",
     "class": "template",
@@ -60,6 +74,20 @@
     "in": [ "uint8_t", "uint8_t", "Type1" ],
     "out": [ "Type0" ]
   },
+  "FDiv": {
+    "comment": "Floating point division",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FDivHostRounding": {
+    "comment": "Floating point division (uses host dynamic rounding)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FMAdd": {
     "comment": "Fused multiply-addition",
     "class": "template",
@@ -67,8 +95,22 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FMAddDyn": {
-    "comment": "Fused multiply-addition",
+  "FMAddHostRounding": {
+    "comment": "Fused multiply-addition (uses host dynamic rounding)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FMSub": {
+    "comment": "Fused multiply-subtraction",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FMSubHostRounding": {
+    "comment": "Fused multiply-subtraction (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0", "Type0" ],
@@ -88,6 +130,20 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "FMul": {
+    "comment": "Floating point multiplication",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FMulHostRounding": {
+    "comment": "Floating point multiplication (uses host dynamic rounding)",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FNMAdd": {
     "comment": "Fused negated multiply-addition",
     "class": "template",
@@ -95,22 +151,8 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FMSub": {
-    "comment": "Fused multiply-subtraction",
-    "class": "template",
-    "variants": [ "Float32", "Float64" ],
-    "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
-    "out": [ "Type0" ]
-  },
-  "FMSubDyn": {
-    "comment": "Fused multiply-subtraction",
-    "class": "template",
-    "variants": [ "Float32", "Float64" ],
-    "in": [ "Type0", "Type0", "Type0" ],
-    "out": [ "Type0" ]
-  },
-  "FNMAddDyn": {
-    "comment": "Fused negated multiply-addition",
+  "FNMAddHostRounding": {
+    "comment": "Fused negated multiply-addition (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0", "Type0" ],
@@ -123,8 +165,8 @@
     "in": [ "uint8_t", "uint8_t", "Type0", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
-  "FNMSubDyn": {
-    "comment": "Fused negated multiply-subtraction",
+  "FNMSubHostRounding": {
+    "comment": "Fused negated multiply-subtraction (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0", "Type0" ],
@@ -146,6 +188,34 @@
   },
   "FSgnjx": {
     "comment": "Xor two sign bits of two floats and return",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FSqrt": {
+    "comment": "Square root",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "uint8_t", "uint8_t", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FSqrtHostRounding": {
+    "comment": "Square root (uses host dynamic rounding)",
+    "class": "template",
+    "variants": [ "Float32" ],
+    "in": [ "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FSub": {
+    "comment": "Floating point subtraction",
+    "class": "template",
+    "variants": [ "Float32", "Float64" ],
+    "in": [ "uint8_t", "uint8_t", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
+  "FSubHostRounding": {
+    "comment": "Floating point subtraction (uses host dynamic rounding)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],

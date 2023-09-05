@@ -32,7 +32,9 @@ bool LiteTranslateRange(GuestAddr start_pc,
                         GuestAddr end_pc,
                         MachineCode* machine_code,
                         LiteTranslateParams params);
-std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc, MachineCode* machine_code);
+std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc,
+                                                   MachineCode* machine_code,
+                                                   LiteTranslateParams params);
 
 }  // namespace berberis
 
