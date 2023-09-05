@@ -95,6 +95,20 @@
     "out": [ 0 ]
   },
   {
+    "name": "Cpop<int32_t>",
+    "insn": "PopcntlRegReg",
+    "feature": "POPCNT",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Cpop<int64_t>",
+    "insn": "PopcntqRegReg",
+    "feature": "POPCNT",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "Ctz<int32_t>",
     "insn": "CtzInt32",
     "in": [ 1 ],
