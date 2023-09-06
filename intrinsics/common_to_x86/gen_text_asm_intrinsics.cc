@@ -72,7 +72,7 @@ template <typename AsmCallInfo>
 void GenerateAssemblerIns(FILE* out,
                           int indent,
                           int* register_numbers,
-                          bool need_gpr_macroassembler_mxcsr_scratch,
+                          bool need_gpr_macroassembler_scratch,
                           bool need_gpr_macroassembler_constants);
 template <typename AsmCallInfo>
 void GenerateOutShadows(FILE* out, int indent);
@@ -108,8 +108,8 @@ void GenerateFunctionHeader(FILE* out, int indent) {
     ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
   }
   GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
-  fprintf(out, "  [[maybe_unused]] alignas(16) uint8_t mxcsr_scratch[16];\n");
-  fprintf(out, "  [[maybe_unused]] auto& mxcsr_scratch2 = mxcsr_scratch[8];\n");
+  fprintf(out, "  [[maybe_unused]] alignas(16) uint8_t scratch[16];\n");
+  fprintf(out, "  [[maybe_unused]] auto& scratch2 = scratch[8];\n");
 }
 
 template <typename AsmCallInfo>
@@ -136,7 +136,7 @@ void GenerateFunctionBody(FILE* out, int indent) {
     fprintf(out, "%*s__asm__(\n", indent, "");
   }
   // Call text assembler to produce the body of an asm call.
-  auto [need_gpr_macroassembler_mxcsr_scratch, need_gpr_macroassembler_constants] =
+  auto [need_gpr_macroassembler_scratch, need_gpr_macroassembler_constants] =
       CallTextAssembler<AsmCallInfo>(out, indent, register_numbers);
   // Assembler instruction outs.
   GenerateAssemblerOuts<AsmCallInfo>(out, indent);
@@ -144,7 +144,7 @@ void GenerateFunctionBody(FILE* out, int indent) {
   GenerateAssemblerIns<AsmCallInfo>(out,
                                     indent,
                                     register_numbers,
-                                    need_gpr_macroassembler_mxcsr_scratch,
+                                    need_gpr_macroassembler_scratch,
                                     need_gpr_macroassembler_constants);
   // Close asm call.
   fprintf(out, "%*s);\n", indent, "");
@@ -381,8 +381,7 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
   CHECK_EQ(expect_ssse3, as.need_ssse3);
   CHECK_EQ(expect_sse4_1, as.need_sse4_1);
   CHECK_EQ(expect_sse4_2, as.need_sse4_2);
-  return std::tuple{as.need_gpr_macroassembler_mxcsr_scratch(),
-                    as.need_gpr_macroassembler_constants()};
+  return std::tuple{as.need_gpr_macroassembler_scratch(), as.need_gpr_macroassembler_constants()};
 }
 
 template <typename AsmCallInfo>
@@ -418,7 +417,7 @@ template <typename AsmCallInfo>
 void GenerateAssemblerIns(FILE* out,
                           int indent,
                           int* register_numbers,
-                          bool need_gpr_macroassembler_mxcsr_scratch,
+                          bool need_gpr_macroassembler_scratch,
                           bool need_gpr_macroassembler_constants) {
   std::vector<std::string> ins;
   AsmCallInfo::ProcessBindings([&ins](auto arg) {
@@ -430,8 +429,8 @@ void GenerateAssemblerIns(FILE* out,
                     (NeedInputShadow<AsmCallInfo>(arg) ? "_shadow)" : ")"));
     }
   });
-  if (need_gpr_macroassembler_mxcsr_scratch) {
-    ins.push_back("\"m\"(mxcsr_scratch), \"m\"(mxcsr_scratch2)");
+  if (need_gpr_macroassembler_scratch) {
+    ins.push_back("\"m\"(scratch), \"m\"(scratch2)");
   }
   if (need_gpr_macroassembler_constants) {
     ins.push_back(
