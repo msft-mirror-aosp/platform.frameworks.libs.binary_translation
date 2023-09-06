@@ -190,6 +190,17 @@
       "mnemo": "MACRO_FEQ_F64"
     },
     {
+      "name": "MacroFeSetRound",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "Mem16", "usage": "def_early_clobber" },
+        { "class": "Mem32", "usage": "def_early_clobber" },
+        { "class": "CL", "usage": "use" }
+      ],
+      "asm": "MacroFeSetRound",
+      "mnemo": "MACRO_FE_SET_ROUND"
+    },
+    {
       "name": "MacroFleFloat32",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },

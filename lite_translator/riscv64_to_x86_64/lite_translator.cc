@@ -444,4 +444,51 @@ void LiteTranslator::Store(Decoder::StoreOperandType operand_type,
   }
 }
 
+Register LiteTranslator::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
+  Register res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::CsrOpcode::kCsrrw:
+      as_.Movq(res, arg);
+      break;
+    case Decoder::CsrOpcode::kCsrrs:
+      as_.Movq(res, arg);
+      as_.Orq(res, csr);
+      break;
+    case Decoder::CsrOpcode::kCsrrc:
+      if (host_platform::kHasBMI) {
+        as_.Andnq(res, arg, csr);
+      } else {
+        as_.Movq(res, arg);
+        as_.Notq(res);
+        as_.Andq(res, csr);
+      }
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return arg;
+}
+
+Register LiteTranslator::UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr) {
+  Register res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::CsrImmOpcode::kCsrrwi:
+      as_.Movl(res, imm);
+      break;
+    case Decoder::CsrImmOpcode::kCsrrsi:
+      as_.Movl(res, imm);
+      as_.Orq(res, csr);
+      break;
+    case Decoder::CsrImmOpcode::kCsrrci:
+      as_.Movq(res, static_cast<int8_t>(~imm));
+      as_.Andq(res, csr);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
 }  // namespace berberis

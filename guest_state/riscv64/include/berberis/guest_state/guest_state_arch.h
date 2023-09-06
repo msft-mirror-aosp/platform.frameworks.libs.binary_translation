@@ -134,6 +134,10 @@ class GuestThread;
 struct ThreadState {
   CPUState cpu;
 
+  // Scratch space for x87 use and MXCSR.
+  // These operations can only read/write values from memory for historical reasons.
+  alignas(16) uint8_t intrinsics_scratch_area[16];
+
   // Guest thread pointer.
   GuestThread* thread;
 

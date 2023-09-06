@@ -489,7 +489,7 @@ template <>
 void Interpreter::SetCsr<CsrName::kFrm>(Register arg) {
   arg &= 0b111;
   state_->cpu.frm = arg;
-  std::fesetround(intrinsics::ToHostRoundingMode(arg));
+  FeSetRound(arg);
 }
 
 template <>

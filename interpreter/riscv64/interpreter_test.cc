@@ -36,16 +36,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
   // Non-Compressed Instructions.
   Riscv64InterpreterTest() : state_{.cpu = {.frm = intrinsics::GuestModeFromHostRounding()}} {}
 
-  void InterpretCsr(uint32_t insn_bytes, uint8_t expected_rm) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    state_.cpu.frm = 0b001u;
-    InterpretInsn(&state_);
-    EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
-    EXPECT_EQ(state_.cpu.frm, expected_rm);
-    state_.cpu.frm = intrinsics::GuestModeFromHostRounding();
-  }
-
   void InterpretFence(uint32_t insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     InterpretInsn(&state_);
@@ -70,16 +60,6 @@ bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
 #undef TESTSUITE
 
 // Tests for Non-Compressed Instructions.
-
-TEST_F(Riscv64InterpreterTest, CsrInstructions) {
-  ScopedRoundingMode scoped_rounding_mode;
-  // Csrrw x2, frm, 2
-  InterpretCsr(0x00215173, 2);
-  // Csrrsi x2, frm, 2
-  InterpretCsr(0x00216173, 3);
-  // Csrrci x2, frm, 1
-  InterpretCsr(0x0020f173, 0);
-}
 
 TEST_F(Riscv64InterpreterTest, FenceInstructions) {
   // Fence
