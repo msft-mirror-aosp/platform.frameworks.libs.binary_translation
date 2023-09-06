@@ -30,10 +30,6 @@ class TextAssembler : public TextAssemblerX86<TextAssembler> {
 // Instructions.
 #include "gen_text_assembler_x86_64-inl.h"  // NOLINT generated file
 
-  static constexpr bool need_gpr_macroassembler_mxcsr_scratch() {
-    return need_gpr_macroassembler_mxcsr_scratch_;
-  }
-
   // Unhide Movq(Mem, XMMReg) and Movq(XMMReg, Mem) hidden by Movq(Reg, Imm) and many others.
   using TextAssemblerX86::Movq;
 
@@ -41,7 +37,6 @@ class TextAssembler : public TextAssemblerX86<TextAssembler> {
   static constexpr char kNamespaceName[] = "berberis";
 
  protected:
-  static constexpr bool need_gpr_macroassembler_mxcsr_scratch_ = false;
   typedef RegisterTemplate<kRsp, 'q'> RegisterDefaultBit;
 
  private:
