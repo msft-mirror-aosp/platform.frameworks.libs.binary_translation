@@ -210,6 +210,9 @@ class TextAssemblerX86 {
   Register gpr_macroassembler_constants{};
   bool need_gpr_macroassembler_constants() const { return need_gpr_macroassembler_constants_; }
 
+  Register gpr_macroassembler_scratch{};
+  bool need_gpr_macroassembler_scratch() const { return need_gpr_macroassembler_scratch_; }
+
   bool need_avx = false;
   bool need_bmi = false;
   bool need_bmi2 = false;
@@ -238,6 +241,7 @@ class TextAssemblerX86 {
 
  protected:
   bool need_gpr_macroassembler_constants_ = false;
+  bool need_gpr_macroassembler_scratch_ = false;
 
   template <const char* kSpPrefix, char kRegisterPrefix>
   class RegisterTemplate {
