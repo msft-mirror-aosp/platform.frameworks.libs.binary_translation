@@ -121,9 +121,13 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Movq(res, opcode == OpOpcode::kDivu ? as_.rax : as_.rdx);
       break;
     case Decoder::OpOpcode::kAndn:
-      as_.Movq(res, arg2);
-      as_.Notq(res);
-      as_.Andq(res, arg1);
+      if (host_platform::kHasBMI) {
+        as_.Andnq(res, arg2, arg1);
+      } else {
+        as_.Movq(res, arg2);
+        as_.Notq(res);
+        as_.Andq(res, arg1);
+      }
       break;
     case Decoder::OpOpcode::kOrn:
       as_.Movq(res, arg2);

@@ -249,20 +249,25 @@ class TryBindingBasedInlineIntrinsic {
     static_assert(std::is_same_v<decltype(kFunction), typename AsmCallInfo::IntrinsicType>);
     static_assert(AsmCallInfo::kPreciseNanOperationsHandling ==
                   intrinsics::bindings::kNoNansOperation);
-    if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kNoCPUIDRestriction) {
-      // No restrictions. Do nothing.
-    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasLZCNT) {
-      if (!host_platform::kHasLZCNT) {
+    if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasAVX) {
+      if (!host_platform::kHasAVX) {
         return false;
       }
     } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasBMI) {
       if (!host_platform::kHasBMI) {
         return false;
       }
-    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasAVX) {
-      if (!host_platform::kHasAVX) {
+    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasLZCNT) {
+      if (!host_platform::kHasLZCNT) {
         return false;
       }
+    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasPOPCNT) {
+      if (!host_platform::kHasLZCNT) {
+        return false;
+      }
+    } else if constexpr (AsmCallInfo::kCPUIDRestriction ==
+                         intrinsics::bindings::kNoCPUIDRestriction) {
+      // No restrictions. Do nothing.
     } else {
       static_assert(kDependentValueFalse<AsmCallInfo::kCPUIDRestriction>);
     }

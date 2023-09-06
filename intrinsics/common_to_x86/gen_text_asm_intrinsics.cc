@@ -108,6 +108,8 @@ void GenerateFunctionHeader(FILE* out, int indent) {
     ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
   }
   GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
+  fprintf(out, "  [[maybe_unused]] alignas(16) uint8_t mxcsr_scratch[16];\n");
+  fprintf(out, "  [[maybe_unused]] auto& mxcsr_scratch2 = mxcsr_scratch[8];\n");
 }
 
 template <typename AsmCallInfo>
@@ -323,21 +325,25 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
                        }
                      })));
   // Verify CPU vendor and SSE restrictions.
-  bool expect_lzcnt = false;
+  bool expect_avx = false;
   bool expect_bmi = false;
+  bool expect_fma = false;
+  bool expect_fma4 = false;
+  bool expect_lzcnt = false;
+  bool expect_popcnt = false;
   bool expect_sse3 = false;
   bool expect_ssse3 = false;
   bool expect_sse4_1 = false;
   bool expect_sse4_2 = false;
-  bool expect_avx = false;
-  bool expect_fma = false;
-  bool expect_fma4 = false;
   switch (AsmCallInfo::kCPUIDRestriction) {
+    case intrinsics::bindings::kHasBMI:
+      expect_bmi = true;
+      break;
     case intrinsics::bindings::kHasLZCNT:
       expect_lzcnt = true;
       break;
-    case intrinsics::bindings::kHasBMI:
-      expect_bmi = true;
+    case intrinsics::bindings::kHasPOPCNT:
+      expect_popcnt = true;
       break;
     case intrinsics::bindings::kHasFMA:
     case intrinsics::bindings::kHasFMA4:
@@ -365,15 +371,16 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
     case intrinsics::bindings::kIsAuthenticAMD:
     case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
   }
-  CHECK_EQ(expect_lzcnt, as.need_lzcnt);
+  CHECK_EQ(expect_avx, as.need_avx);
   CHECK_EQ(expect_bmi, as.need_bmi);
+  CHECK_EQ(expect_fma, as.need_fma);
+  CHECK_EQ(expect_fma4, as.need_fma4);
+  CHECK_EQ(expect_lzcnt, as.need_lzcnt);
+  CHECK_EQ(expect_popcnt, as.need_popcnt);
   CHECK_EQ(expect_sse3, as.need_sse3);
   CHECK_EQ(expect_ssse3, as.need_ssse3);
   CHECK_EQ(expect_sse4_1, as.need_sse4_1);
   CHECK_EQ(expect_sse4_2, as.need_sse4_2);
-  CHECK_EQ(expect_avx, as.need_avx);
-  CHECK_EQ(expect_fma, as.need_fma);
-  CHECK_EQ(expect_fma4, as.need_fma4);
   return std::tuple{as.need_gpr_macroassembler_mxcsr_scratch(),
                     as.need_gpr_macroassembler_constants()};
 }
@@ -424,7 +431,7 @@ void GenerateAssemblerIns(FILE* out,
     }
   });
   if (need_gpr_macroassembler_mxcsr_scratch) {
-    ins.push_back("\"m\"(*&MxcsrStorage()), \"m\"(*&MxcsrStorage())");
+    ins.push_back("\"m\"(mxcsr_scratch), \"m\"(mxcsr_scratch2)");
   }
   if (need_gpr_macroassembler_constants) {
     ins.push_back(
@@ -593,7 +600,9 @@ void GenerateTextAsmIntrinsics(FILE* out) {
             fprintf(out, "  }\n");
           }
           // Final line of function.
-          fprintf(out, "};\n\n");
+          if (!running_name.empty()) {
+            fprintf(out, "};\n\n");
+          }
           GenerateFunctionHeader<AsmCallInfo>(out, 0);
           running_name = full_name;
         }
@@ -614,11 +623,23 @@ void GenerateTextAsmIntrinsics(FILE* out) {
               case intrinsics::bindings::kIsAuthenticAMD:
                 fprintf(out, "host_platform::kIsAuthenticAMD");
                 break;
-              case intrinsics::bindings::kHasLZCNT:
-                fprintf(out, "host_platform::kHasLZCNT");
+              case intrinsics::bindings::kHasAVX:
+                fprintf(out, "host_platform::kHasAVX");
                 break;
               case intrinsics::bindings::kHasBMI:
                 fprintf(out, "host_platform::kHasBMI");
+                break;
+              case intrinsics::bindings::kHasFMA:
+                fprintf(out, "host_platform::kHasFMA");
+                break;
+              case intrinsics::bindings::kHasFMA4:
+                fprintf(out, "host_platform::kHasFMA4");
+                break;
+              case intrinsics::bindings::kHasLZCNT:
+                fprintf(out, "host_platform::kHasLZCNT");
+                break;
+              case intrinsics::bindings::kHasPOPCNT:
+                fprintf(out, "host_platform::kHasPOPCNT");
                 break;
               case intrinsics::bindings::kHasSSE3:
                 fprintf(out, "host_platform::kHasSSE3");
@@ -631,15 +652,6 @@ void GenerateTextAsmIntrinsics(FILE* out) {
                 break;
               case intrinsics::bindings::kHasSSE4_2:
                 fprintf(out, "host_platform::kHasSSE4_2");
-                break;
-              case intrinsics::bindings::kHasAVX:
-                fprintf(out, "host_platform::kHasAVX");
-                break;
-              case intrinsics::bindings::kHasFMA:
-                fprintf(out, "host_platform::kHasFMA");
-                break;
-              case intrinsics::bindings::kHasFMA4:
-                fprintf(out, "host_platform::kHasFMA4");
                 break;
               case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
             }
@@ -692,13 +704,6 @@ namespace constants_pool {
 }  // namespace constants_pool
 
 namespace intrinsics {
-
-class MxcsrStorage {
- public:
-  uint32_t* operator&() { return &storage_; }
-
- private:
-  uint32_t storage_;
 )STRING",
           berberis::TextAssembler::kArchName,
           berberis::TextAssembler::kNamespaceName,
