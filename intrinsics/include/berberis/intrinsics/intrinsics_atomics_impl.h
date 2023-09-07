@@ -108,24 +108,6 @@ std::tuple<IntType> AmoXor(int64_t arg1, IntType arg2) {
   return {__atomic_fetch_xor(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
-// TODO(b/287347834): Implement reservation semantics when it's added to runtime_primitives.
-template <typename IntType, bool qa, bool rl, enum PreferredIntrinsicsImplementation>
-std::tuple<IntType> Lr(int64_t arg1) {
-  static_assert(std::is_integral_v<IntType>, "Lr: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "Lr: IntType must be signed");
-  auto ptr = ToHostAddr<IntType>(arg1);
-  return {*ptr};
-}
-
-template <typename IntType, bool qa, bool rl, enum PreferredIntrinsicsImplementation>
-std::tuple<int64_t> Sc(int64_t arg1, IntType arg2) {
-  static_assert(std::is_integral_v<IntType>, "Sc: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "Sc: IntType must be signed");
-  auto ptr = ToHostAddr<IntType>(arg1);
-  *ptr = arg2;
-  return {0};
-}
-
 }  // namespace berberis::intrinsics
 
 #endif  // BERBERIS_INTRINSICS_INTRINSICS_ATOMICS_IMPL_H_
