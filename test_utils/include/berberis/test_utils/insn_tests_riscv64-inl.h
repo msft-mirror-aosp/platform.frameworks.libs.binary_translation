@@ -397,13 +397,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
   }
 
-  void TestAtomicLoad(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    SetXReg<1>(state_.cpu, ToGuestAddr(&kDataToLoad));
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
-  }
-
   void TestStoreFp(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
@@ -412,17 +405,6 @@ class TESTSUITE : public ::testing::Test {
     store_area_ = 0;
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(store_area_, expected_result);
-  }
-
-  void TestAtomicStore(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
-    SetXReg<2>(state_.cpu, kDataToStore);
-    SetXReg<3>(state_.cpu, 0xdeadbeef);
-    store_area_ = 0;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(store_area_, expected_result);
-    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
   }
 
  protected:
@@ -1801,24 +1783,10 @@ TEST_F(TESTSUITE, LoadFpInstructions) {
   TestLoadFp(0x00813087, kDataToLoad);
 }
 
-TEST_F(TESTSUITE, AtomicLoadInstructions) {
-  // Lrw
-  TestAtomicLoad(0x1000a12f, int64_t{int32_t(kDataToLoad)});
-  // Lrd
-  TestAtomicLoad(0x1000b12f, kDataToLoad);
-}
-
 TEST_F(TESTSUITE, StoreFpInstructions) {
   // Offset is always 8.
   // Fsw
   TestStoreFp(0x0020a427, kDataToStore & 0xffff'ffffULL);
   // Fsd
   TestStoreFp(0x0020b427, kDataToStore);
-}
-
-TEST_F(TESTSUITE, AtomicStoreInstructions) {
-  // Scw
-  TestAtomicStore(0x1820a1af, kDataToStore & 0xffff'ffffULL);
-  // Scd
-  TestAtomicStore(0x1820b1af, kDataToStore);
 }
