@@ -26,10 +26,19 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 #include "berberis/intrinsics/guest_fp_flags.h"        // GuestModeFromHostRounding
 #include "berberis/intrinsics/guest_rounding_modes.h"  // ScopedRoundingMode
+#include "berberis/runtime_primitives/memory_region_reservation.h"
 
 namespace berberis {
 
 namespace {
+
+//  Interpreter decodes the size itself, but we need to accept this template parameter to share
+//  tests with translators.
+template <uint8_t kInsnSize = 4>
+bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
+  InterpretInsn(state);
+  return state->cpu.insn_addr == stop_pc;
+}
 
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
@@ -51,17 +60,64 @@ class Riscv64InterpreterTest : public ::testing::Test {
     InterpretInsn(&state_);
   }
 
+  void TestAtomicLoad(uint32_t insn_bytes,
+                      const uint64_t* const data_to_load,
+                      uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(data_to_load));
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
+    EXPECT_EQ(state_.cpu.reservation_address, ToGuestAddr(data_to_load));
+    // We always reserve the full 64-bit range of the reservation address.
+    EXPECT_EQ(state_.cpu.reservation_value, *data_to_load);
+  }
+
+  template <typename T>
+  void TestAtomicStore(uint32_t insn_bytes, T expected_result) {
+    store_area_ = ~uint64_t{0};
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    state_.cpu.reservation_address = ToGuestAddr(&store_area_);
+    state_.cpu.reservation_value = store_area_;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&store_area_), &state_.cpu);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(static_cast<T>(store_area_), expected_result);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
+  }
+
+  void TestAtomicStoreNoLoadFailure(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
+  }
+
+  void TestAtomicStoreDifferentLoadFailure(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    state_.cpu.reservation_address = ToGuestAddr(&kDataToStore);
+    state_.cpu.reservation_value = 0;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&kDataToStore), &state_.cpu);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
+  }
+
  protected:
+  static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
+  static constexpr uint64_t kDataToStore = kDataToLoad;
+  uint64_t store_area_;
   ThreadState state_;
 };
-
-//  Interpreter decodes the size itself, but we need to accept this template parameter to share
-//  tests with translators.
-template <uint8_t kInsnSize = 4>
-bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
-  InterpretInsn(state);
-  return state->cpu.insn_addr == stop_pc;
-}
 
 #define TESTSUITE Riscv64InterpretInsnTest
 
@@ -119,6 +175,47 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   EXPECT_EQ(0, strcmp(message, buf));
   close(pipefd[0]);
   close(pipefd[1]);
+}
+
+TEST_F(Riscv64InterpreterTest, AtomicLoadInstructions) {
+  // Validate sign-extension of returned value.
+  const uint64_t kNegative32BitValue = 0x0000'0000'8000'0000ULL;
+  const uint64_t kSignExtendedNegative = 0xffff'ffff'8000'0000ULL;
+  const uint64_t kPositive32BitValue = 0xffff'ffff'0000'0000ULL;
+  const uint64_t kSignExtendedPositive = 0ULL;
+  static_assert(static_cast<int32_t>(kSignExtendedPositive) >= 0);
+  static_assert(static_cast<int32_t>(kSignExtendedNegative) < 0);
+
+  // Lrw - sign extends from 32 to 64.
+  TestAtomicLoad(0x1000a12f, &kPositive32BitValue, kSignExtendedPositive);
+  TestAtomicLoad(0x1000a12f, &kNegative32BitValue, kSignExtendedNegative);
+
+  // Lrd
+  TestAtomicLoad(0x1000b12f, &kDataToLoad, kDataToLoad);
+}
+
+TEST_F(Riscv64InterpreterTest, AtomicStoreInstructions) {
+  // Scw
+  TestAtomicStore(0x1820a1af, static_cast<uint32_t>(kDataToStore));
+
+  // Scd
+  TestAtomicStore(0x1820b1af, kDataToStore);
+}
+
+TEST_F(Riscv64InterpreterTest, AtomicStoreInstructionNoLoadFailure) {
+  // Scw
+  TestAtomicStoreNoLoadFailure(0x1820a1af);
+
+  // Scd
+  TestAtomicStoreNoLoadFailure(0x1820b1af);
+}
+
+TEST_F(Riscv64InterpreterTest, AtomicStoreInstructionDifferentLoadFailure) {
+  // Scw
+  TestAtomicStoreDifferentLoadFailure(0x1820a1af);
+
+  // Scd
+  TestAtomicStoreDifferentLoadFailure(0x1820b1af);
 }
 
 }  // namespace
