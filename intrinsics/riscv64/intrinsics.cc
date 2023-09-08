@@ -38,12 +38,6 @@ std::tuple<uint64_t> Bseti(uint64_t src, uint8_t imm) {
   return {src | (uint64_t{1} << imm)};
 }
 
-void FeSetRound(uint64_t rm) {
-  if (rm <= FPFlags::RM_MAX) {
-    std::fesetround(intrinsics::ToHostRoundingMode(rm));
-  }
-}
-
 std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
   return {uint64_t{src} << imm};
 }
