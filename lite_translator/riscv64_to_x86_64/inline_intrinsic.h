@@ -21,11 +21,11 @@
 #include <optional>
 #include <tuple>
 #include <type_traits>
-#include <variant>
 
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/dependent_false.h"
+#include "berberis/guest_state/guest_state.h"
 #include "berberis/intrinsics/guest_fp_flags.h"
 #include "berberis/intrinsics/intrinsics_process_bindings.h"
 #include "berberis/intrinsics/macro_assembler.h"
@@ -276,27 +276,32 @@ class TryBindingBasedInlineIntrinsic {
         std::tuple_cat(std::tuple<MacroAssembler<x86_64::Assembler>&>{as_},
                        AsmCallInfo::template MakeTuplefromBindings<TryBindingBasedInlineIntrinsic&>(
                            *this, asm_call_info)));
-    static_assert(std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 1);
-    using ReturnType = std::tuple_element_t<0, typename AsmCallInfo::OutputArguments>;
-    if (result_xmm_reg_ != x86_64::Assembler::no_xmm_register) {
-      Mov<typename TypeTraits<int64_t>::Float>(as_, result_, result_xmm_reg_);
-    }
-    if constexpr (std::is_integral_v<ReturnType> && sizeof(ReturnType) < sizeof(std::int32_t)) {
-      // Don't handle these types just yet. We are not sure how to expand them and there
-      // are no examples.
-      static_assert(kDependentTypeFalse<ReturnType>);
-    }
-    if constexpr (std::is_same_v<ReturnType, int32_t> || std::is_same_v<ReturnType, uint32_t>) {
-      // Expans 32 bit values as signed. Even if actual results are processed as unsigned!
-      as_.Expand<int64_t, std::make_signed_t<ReturnType>>(result_, result_);
-    } else if constexpr (std::is_integral_v<ReturnType> &&
-                         sizeof(ReturnType) == sizeof(std::int64_t)) {
-      // Do nothing, we have already produced expanded value.
-    } else if constexpr (std::is_same_v<ReturnType, intrinsics::Float32> ||
-                         std::is_same_v<ReturnType, intrinsics::Float64>) {
-      // Do nothing, NaN boxing is handled by semantics player.
+    if constexpr (std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 0) {
+      // No return value. Do nothing.
+    } else if constexpr (std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 1) {
+      using ReturnType = std::tuple_element_t<0, typename AsmCallInfo::OutputArguments>;
+      if (result_xmm_reg_ != x86_64::Assembler::no_xmm_register) {
+        Mov<typename TypeTraits<int64_t>::Float>(as_, result_, result_xmm_reg_);
+      }
+      if constexpr (std::is_integral_v<ReturnType> && sizeof(ReturnType) < sizeof(std::int32_t)) {
+        // Don't handle these types just yet. We are not sure how to expand them and there
+        // are no examples.
+        static_assert(kDependentTypeFalse<ReturnType>);
+      }
+      if constexpr (std::is_same_v<ReturnType, int32_t> || std::is_same_v<ReturnType, uint32_t>) {
+        // Expans 32 bit values as signed. Even if actual results are processed as unsigned!
+        as_.Expand<int64_t, std::make_signed_t<ReturnType>>(result_, result_);
+      } else if constexpr (std::is_integral_v<ReturnType> &&
+                           sizeof(ReturnType) == sizeof(std::int64_t)) {
+        // Do nothing, we have already produced expanded value.
+      } else if constexpr (std::is_same_v<ReturnType, intrinsics::Float32> ||
+                           std::is_same_v<ReturnType, intrinsics::Float64>) {
+        // Do nothing, NaN boxing is handled by semantics player.
+      } else {
+        static_assert(kDependentTypeFalse<ReturnType>);
+      }
     } else {
-      static_assert(kDependentTypeFalse<ReturnType>);
+      static_assert(kDependentTypeFalse<typename AsmCallInfo::OutputArguments>);
     }
     return {true};
   }
@@ -354,7 +359,6 @@ class TryBindingBasedInlineIntrinsic {
             as_, reg, std::get<arg_info.from>(input_args_));
         return std::tuple{reg};
       }
-
     } else if constexpr (arg_info.arg_type == ArgInfo::OUT_ARG) {
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                     std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
@@ -369,7 +373,15 @@ class TryBindingBasedInlineIntrinsic {
     } else if constexpr (arg_info.arg_type == ArgInfo::TMP_ARG) {
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                     std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
-      if constexpr (RegisterClass::kIsImplicitReg) {
+      if constexpr (RegisterClass::kAsRegister == 'm') {
+        if (scratch_arg_ >= 2) {
+          FATAL("Only two scratch registers are supported for now");
+        }
+        return std::tuple{x86_64::Assembler::Operand{
+            .base = as_.rbp,
+            .disp = static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area) +
+                                     8 * scratch_arg_++)}};
+      } else if constexpr (RegisterClass::kIsImplicitReg) {
         return std::tuple{};
       } else {
         return std::tuple{reg_alloc()};
@@ -386,6 +398,7 @@ class TryBindingBasedInlineIntrinsic {
   AssemblerResType result_;
   x86_64::Assembler::XMMRegister result_xmm_reg_ = x86_64::Assembler::no_xmm_register;
   std::tuple<AssemblerArgType...> input_args_;
+  uint32_t scratch_arg_ = 0;
   bool success_;
 };
 
