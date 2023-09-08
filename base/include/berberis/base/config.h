@@ -46,6 +46,12 @@ inline constexpr size_t kGuestPageSize = 4096;
 inline constexpr uint32_t kMaxHardRegs = 64u;
 // Threshold for switching between gears
 inline constexpr uint32_t kGearSwitchThreshold = 1000;
+// Scratch area size for use in intrinsics with instructions which may only work with memory.
+inline constexpr uint32_t kScratchAreaSize = 16;
+// Scratch area alignment (important if we would use Movaps/Movapd).
+inline constexpr uint32_t kScratchAreaAlign = 16;
+// Scratch area slot size if more than one scratch is needed.
+inline constexpr uint32_t kScratchAreaSlotSize = 8;
 
 }  // namespace berberis::config
 

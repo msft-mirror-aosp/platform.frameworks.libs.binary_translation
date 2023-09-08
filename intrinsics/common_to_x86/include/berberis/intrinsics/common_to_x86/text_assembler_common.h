@@ -25,6 +25,7 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
+#include "berberis/runtime_primitives/config.h"
 
 namespace berberis {
 
@@ -184,7 +185,7 @@ class TextAssemblerX86 {
         // Only support two pointers to scratch area for now.
         if (op.disp == 0) {
           result = '%' + std::to_string(as->gpr_macroassembler_scratch.arg_no());
-        } else if (op.disp == 8) {
+        } else if (op.disp == config::kScratchAreaSlotSize) {
           result = '%' + std::to_string(as->gpr_macroassembler_scratch2.arg_no());
         } else {
           FATAL("Only two scratch registers are supported for now");

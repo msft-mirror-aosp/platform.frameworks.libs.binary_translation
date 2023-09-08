@@ -33,6 +33,7 @@
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
+#include "berberis/runtime_primitives/config.h"
 
 #include "text_assembler.h"
 
@@ -108,8 +109,12 @@ void GenerateFunctionHeader(FILE* out, int indent) {
     ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
   }
   GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
-  fprintf(out, "  [[maybe_unused]] alignas(16) uint8_t scratch[16];\n");
-  fprintf(out, "  [[maybe_unused]] auto& scratch2 = scratch[8];\n");
+  fprintf(out,
+          "  [[maybe_unused]]  alignas(berberis::config::kScratchAreaAlign)"
+          " uint8_t scratch[berberis::config::kScratchAreaSize];\n");
+  fprintf(out,
+          "  [[maybe_unused]] auto& scratch2 ="
+          " scratch[berberis::config::kScratchAreaSlotSize];\n");
 }
 
 template <typename AsmCallInfo>
@@ -335,7 +340,8 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
                            // scratch2 address in scratch buffer.
                            return std::tuple{TextAssembler::Operand{
                                .base = as.gpr_scratch,
-                               .disp = static_cast<int32_t>(8 * scratch_counter++)}};
+                               .disp = static_cast<int32_t>(config::kScratchAreaSlotSize *
+                                                            scratch_counter++)}};
                          } else if constexpr (RegisterClass::kIsImplicitReg) {
                            ++arg_counter;
                            return std::tuple{};
@@ -706,6 +712,7 @@ int main(int argc, char* argv[]) {
 #include "berberis/runtime_primitives/platform.h"
 #include "%2$s/intrinsics/common/intrinsics.h"
 #include "%2$s/intrinsics/vector_intrinsics.h"
+#include "berberis/runtime_primitives/config.h"
 
 namespace berberis::constants_pool {
 

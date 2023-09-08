@@ -20,6 +20,7 @@
 #include <atomic>
 #include <cstdint>
 
+#include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -136,7 +137,7 @@ struct ThreadState {
 
   // Scratch space for x87 use and MXCSR.
   // These operations can only read/write values from memory for historical reasons.
-  alignas(16) uint8_t intrinsics_scratch_area[16];
+  alignas(config::kScratchAreaAlign) uint8_t intrinsics_scratch_area[config::kScratchAreaSize];
 
   // Guest thread pointer.
   GuestThread* thread;
