@@ -43,6 +43,7 @@ class MacroAssembler : public Assembler {
   using Label = typename Assembler::Label;
   using Operand = typename Assembler::Operand;
   using Register = typename Assembler::Register;
+  using ScaleFactor = typename Assembler::ScaleFactor;
   using XMMRegister = typename Assembler::XMMRegister;
 
   using Float32 = intrinsics::Float32;
@@ -52,7 +53,11 @@ class MacroAssembler : public Assembler {
 
   using Assembler::Bind;
   using Assembler::Btq;
+  using Assembler::Fldcw;
+  using Assembler::Fnstcw;
   using Assembler::Jcc;
+  using Assembler::Ldmxcsr;
+  using Assembler::Leal;
   using Assembler::Leaq;
   using Assembler::MakeLabel;
   using Assembler::Movl;
@@ -63,6 +68,7 @@ class MacroAssembler : public Assembler {
   using Assembler::Por;
   using Assembler::Pshufd;
   using Assembler::Setcc;
+  using Assembler::Stmxcsr;
   using Assembler::Vpand;
   using Assembler::Vpandn;
   using Assembler::Vpcmpeqb;
@@ -135,34 +141,34 @@ class MacroAssembler : public Assembler {
   DEFINE_EXPAND_INSTRUCTION(if (dest == src) return, (Register dest, Register src), (dest, src))
 #undef DEFINE_EXPAND_INSTRUCTION
 
-#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)                           \
+#define DEFINE_INT_INSTRUCTION(insn_name, insn_siffix, parameters, arguments)              \
   template <typename format>                                                               \
-  std::enable_if_t<std::is_integral_v<format>, void> insn_name parameters {                \
+  std::enable_if_t<std::is_integral_v<format>, void> insn_name##insn_siffix parameters {   \
     if constexpr (FormatIs<format, int8_t, uint8_t>) {                                     \
-      Assembler::insn_name##b arguments;                                                   \
+      Assembler::insn_name##b##insn_siffix arguments;                                      \
     } else if constexpr (FormatIs<format, int16_t, uint16_t>) {                            \
-      Assembler::insn_name##w arguments;                                                   \
+      Assembler::insn_name##w##insn_siffix arguments;                                      \
     } else if constexpr (FormatIs<format, int32_t, uint32_t>) {                            \
-      Assembler::insn_name##l arguments;                                                   \
+      Assembler::insn_name##l##insn_siffix arguments;                                      \
     } else {                                                                               \
       static_assert(FormatIs<format, int64_t, uint64_t>,                                   \
                     "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported"); \
-      Assembler::insn_name##q arguments;                                                   \
+      Assembler::insn_name##q##insn_siffix arguments;                                      \
     }                                                                                      \
   }
-  DEFINE_INT_INSTRUCTION(CmpXchg, (Operand dest, Register src), (dest, src))
-  DEFINE_INT_INSTRUCTION(CmpXchg, (Register dest, Register src), (dest, src))
-  DEFINE_INT_INSTRUCTION(LockCmpXchg, (Operand dest, Register src), (dest, src))
-  DEFINE_INT_INSTRUCTION(Mov, (Operand dest, ImmFormat<format> imm), (dest, imm))
-  DEFINE_INT_INSTRUCTION(Mov, (Operand dest, Register src), (dest, src))
-  DEFINE_INT_INSTRUCTION(Mov, (Register dest, std::make_signed_t<format> imm), (dest, imm))
-  DEFINE_INT_INSTRUCTION(Mov, (Register dest, Operand src), (dest, src))
-#define DEFINE_ARITH_INSTRUCTION(insn_name)                                              \
-  DEFINE_INT_INSTRUCTION(insn_name, (Operand dest, ImmFormat<format> imm), (dest, imm))  \
-  DEFINE_INT_INSTRUCTION(insn_name, (Operand dest, Register src), (dest, src))           \
-  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, ImmFormat<format> imm), (dest, imm)) \
-  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, Operand src), (dest, src))           \
-  DEFINE_INT_INSTRUCTION(insn_name, (Register dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(CmpXchg, , (Operand dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(CmpXchg, , (Register dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(LockCmpXchg, , (Operand dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(Mov, , (Operand dest, ImmFormat<format> imm), (dest, imm))
+  DEFINE_INT_INSTRUCTION(Mov, , (Operand dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(Mov, , (Register dest, std::make_signed_t<format> imm), (dest, imm))
+  DEFINE_INT_INSTRUCTION(Mov, , (Register dest, Operand src), (dest, src))
+#define DEFINE_ARITH_INSTRUCTION(insn_name)                                                \
+  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, ImmFormat<format> imm), (dest, imm))  \
+  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, Register src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, ImmFormat<format> imm), (dest, imm)) \
+  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, Operand src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, Register src), (dest, src))
   DEFINE_ARITH_INSTRUCTION(Adc)
   DEFINE_ARITH_INSTRUCTION(Add)
   DEFINE_ARITH_INSTRUCTION(And)
@@ -171,7 +177,20 @@ class MacroAssembler : public Assembler {
   DEFINE_ARITH_INSTRUCTION(Sbb)
   DEFINE_ARITH_INSTRUCTION(Sub)
   DEFINE_ARITH_INSTRUCTION(Xor)
+#define DEFINE_SHIFT_INSTRUCTION(insn_name)                                     \
+  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, int8_t imm), (dest, imm))  \
+  DEFINE_INT_INSTRUCTION(insn_name, ByCl, (Operand dest), (dest))               \
+  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, int8_t imm), (dest, imm)) \
+  DEFINE_INT_INSTRUCTION(insn_name, ByCl, (Register dest), (dest))
+  DEFINE_SHIFT_INSTRUCTION(Rcl)
+  DEFINE_SHIFT_INSTRUCTION(Rcr)
+  DEFINE_SHIFT_INSTRUCTION(Rol)
+  DEFINE_SHIFT_INSTRUCTION(Ror)
+  DEFINE_SHIFT_INSTRUCTION(Sar)
+  DEFINE_SHIFT_INSTRUCTION(Shl)
+  DEFINE_SHIFT_INSTRUCTION(Shr)
 #undef DEFINE_INT_INSTRUCTION
+#undef DEFINE_SHIFT_INSTRUCTION
 
 #define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)                       \
   template <typename format>                                                           \
