@@ -139,6 +139,7 @@ class DX {
 class EDX {
  public:
   using Type = uint32_t;
+  static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'd';
 };
@@ -220,6 +221,34 @@ class XmmReg {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'x';
+};
+
+class Mem8 {
+ public:
+  using Type = uint8_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
+};
+
+class Mem16 {
+ public:
+  using Type = uint16_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
+};
+
+class Mem32 {
+ public:
+  using Type = uint32_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
+};
+
+class Mem64 {
+ public:
+  using Type = uint64_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
 };
 
 // Tag classes. They are never instantioned, only used as tags to pass information about bindings.
@@ -339,7 +368,9 @@ class AsmCallInfo<kIntrinsicTemplateName,
   using InputArguments = std::tuple<InputArgumentsTypes...>;
   using OutputArguments = std::tuple<OutputArgumentsTypes...>;
   using Bindings = std::tuple<BindingsTypes...>;
-  using IntrinsicType = OutputArguments (*)(InputArgumentsTypes...);
+  using IntrinsicType = std::conditional_t<std::tuple_size_v<OutputArguments> == 0,
+                                           void (*)(InputArgumentsTypes...),
+                                           OutputArguments (*)(InputArgumentsTypes...)>;
 };
 
 }  // namespace berberis::intrinsics::bindings
