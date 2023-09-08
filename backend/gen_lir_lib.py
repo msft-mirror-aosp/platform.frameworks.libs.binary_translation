@@ -147,7 +147,7 @@ def _make_label_operand():
   return op
 
 
-def _check_insn_defs(insn):
+def _check_insn_defs(insn, skip_unsupported=False):
   seen_imm = False
   seen_memop = False
   seen_disp = False
@@ -163,6 +163,9 @@ def _check_insn_defs(insn):
       # No insn can have more than one memop.
       assert not seen_memop
       addr_mode = insn.get('addr_mode')
+      if skip_unsupported:
+        if addr_mode not in ('Absolute', 'BaseDisp', 'IndexDisp', 'BaseIndexDisp'):
+          return False
       assert addr_mode in ('Absolute', 'BaseDisp', 'IndexDisp', 'BaseIndexDisp'), \
         'unknown addressing mode %s' % (addr_mode)
       seen_memop = True
@@ -176,6 +179,7 @@ def _check_insn_defs(insn):
       seen_imm = True
     else:
       assert False, 'unknown operand class %s' % (kind)
+  return True
 
 
 def _get_insn_operands(insn):
@@ -448,8 +452,7 @@ def _expand_mem_insns(insns):
     if _contains_mem(insn):
       result.extend([_create_mem_insn(insn, addr_mode)
                      for addr_mode in ('Absolute', 'BaseDisp', 'IndexDisp', 'BaseIndexDisp')])
-    else:
-      result.append(insn)
+    result.append(insn)
   return result
 
 
@@ -492,14 +495,20 @@ def load_all_lir_defs(allowlist_files, machine_ir_intrinsic_binding_files, lir_d
   allowlist_found = set()
   arch = None
   insns = []
+  macro_insns = []
   for lir_def in lir_defs:
     def_arch, def_insns = _load_lir_def(allowlist_looked, allowlist_found, lir_def)
     if arch and not arch.startswith('common_'):
       assert def_arch is None or arch == def_arch
     else:
       arch = def_arch
-    insns.extend(def_insns)
-  for i in insns:
-    _check_insn_defs(i)
+    if def_arch is None:
+      macro_insns.extend(def_insns)
+    else:
+      insns.extend(def_insns)
+  for insn in insns:
+    _check_insn_defs(insn)
+  # Some macroinstructions can only be used in Lite translator for now. Ignore them here.
+  insns.extend(insn for insn in macro_insns if _check_insn_defs(insn, True))
   assert allowlist_looked == allowlist_found
   return arch, insns
