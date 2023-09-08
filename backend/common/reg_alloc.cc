@@ -72,8 +72,8 @@
 #include "berberis/base/arena_alloc.h"
 #include "berberis/base/arena_list.h"
 #include "berberis/base/arena_vector.h"
+#include "berberis/base/config.h"
 #include "berberis/base/logging.h"
-#include "berberis/runtime_primitives/config.h"
 
 // #define LOG_REG_ALLOC(...) ALOGE(__VA_ARGS__)
 #define LOG_REG_ALLOC(...) ((void)0)
