@@ -374,13 +374,13 @@ class TryBindingBasedInlineIntrinsic {
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                     std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
       if constexpr (RegisterClass::kAsRegister == 'm') {
-        if (scratch_arg_ >= 2) {
+        if (scratch_arg_ >= config::kScratchAreaSize / config::kScratchAreaSlotSize) {
           FATAL("Only two scratch registers are supported for now");
         }
         return std::tuple{x86_64::Assembler::Operand{
             .base = as_.rbp,
             .disp = static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area) +
-                                     8 * scratch_arg_++)}};
+                                     config::kScratchAreaSlotSize * scratch_arg_++)}};
       } else if constexpr (RegisterClass::kIsImplicitReg) {
         return std::tuple{};
       } else {
