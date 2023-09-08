@@ -17,8 +17,8 @@
 #include "berberis/runtime_primitives/runtime_library.h"
 
 #include "berberis/base/checks.h"
+#include "berberis/base/config.h"
 #include "berberis/guest_state/guest_state.h"
-#include "berberis/runtime_primitives/config.h"
 
 // Perform all the steps needed to exit generated code except return, which is
 // up to the users of this macro. The users of this macro may choose to perform
