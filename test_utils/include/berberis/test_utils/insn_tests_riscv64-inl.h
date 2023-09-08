@@ -181,6 +181,16 @@ class TESTSUITE : public ::testing::Test {
 
   // Non-Compressed Instructions.
 
+  void TestCsr(uint32_t insn_bytes, uint8_t expected_rm) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    state_.cpu.frm = 0b001u;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
+    EXPECT_EQ(state_.cpu.frm, expected_rm);
+    state_.cpu.frm = intrinsics::GuestModeFromHostRounding();
+  }
+
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
@@ -1041,6 +1051,50 @@ TEST_F(TESTSUITE, CJalr) {
 }
 
 // Tests for Non-Compressed Instructions.
+
+TEST_F(TESTSUITE, CsrInstructions) {
+  ScopedRoundingMode scoped_rounding_mode;
+  // Csrrw x2, frm, 2
+  TestCsr(0x00215173, 2);
+  // Csrrsi x2, frm, 2
+  TestCsr(0x00216173, 3);
+  // Csrrci x2, frm, 1
+  TestCsr(0x0020f173, 0);
+}
+
+TEST_F(TESTSUITE, FsrRegister) {
+  ScopedRoundingMode scoped_rounding_mode;
+  // Csrrw x2, frm, 0
+  TestCsr(0x00205173, 0);
+  EXPECT_EQ(std::fegetround(), FE_TONEAREST);
+  // Csrrw x2, frm, 1
+  TestCsr(0x0020d173, 1);
+  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+  // Csrrw x2, frm, 2
+  TestCsr(0x00215173, 2);
+  EXPECT_EQ(std::fegetround(), FE_DOWNWARD);
+  // Csrrw x2, frm, 3
+  TestCsr(0x0021d173, 3);
+  EXPECT_EQ(std::fegetround(), FE_UPWARD);
+  // Csrrw x2, frm, 4
+  TestCsr(0x00225173, 4);
+  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+  // Csrrw x2, frm, 8
+  TestCsr(0x00245173, 0);
+  EXPECT_EQ(std::fegetround(), FE_TONEAREST);
+  // Csrrw x2, frm, 9
+  TestCsr(0x0024d173, 1);
+  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+  // Csrrw x2, frm, 10
+  TestCsr(0x00255173, 2);
+  EXPECT_EQ(std::fegetround(), FE_DOWNWARD);
+  // Csrrw x2, frm, 11
+  TestCsr(0x0025d173, 3);
+  EXPECT_EQ(std::fegetround(), FE_UPWARD);
+  // Csrrw x2, frm, 12
+  TestCsr(0x00265173, 4);
+  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+}
 
 TEST_F(TESTSUITE, OpInstructions) {
   // Add
