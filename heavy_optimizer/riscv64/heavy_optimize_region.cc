@@ -42,14 +42,14 @@ std::tuple<GuestAddr, size_t> HeavyOptimizeRegion(GuestAddr pc, MachineCode* mac
   size_t number_of_instructions = 0;
 
   while (!frontend.IsRegionEndReached()) {
-    // TODO(b/291126189) start insn
+    frontend.StartInsn();
     // TODO(b/291126189) decode insn, pass size to incr below.
     frontend.IncrementInsnAddr(4);
     number_of_instructions++;
   }
 
   auto stop_pc = frontend.GetInsnAddr();
-  // TODO(b/291126189) finalize insn
+  frontend.Finalize(stop_pc);
 
   if (IsConfigFlagSet(kVerboseTranslation)) {
     // Trace only after all the potential failure points.
