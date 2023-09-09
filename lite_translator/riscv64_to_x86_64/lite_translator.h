@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <tuple>
+#include <variant>
 
 #include "berberis/assembler/common.h"
 #include "berberis/assembler/x86_64.h"
@@ -122,6 +123,13 @@ class LiteTranslator {
   void Nop() {}
 
   //
+  // Csr
+  //
+
+  Register UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr);
+  Register UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr);
+
+  //
   // F and D extensions.
   //
 
@@ -135,18 +143,6 @@ class LiteTranslator {
   template <typename DataType>
   void StoreFp(Register arg, int16_t offset, FpRegister data) {
     as_.Movs<DataType>({.base = arg, .disp = offset}, data);
-  }
-
-  Register UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
-    UNUSED(opcode, arg, csr);
-    Unimplemented();
-    return {};
-  }
-
-  Register UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr) {
-    UNUSED(opcode, imm, csr);
-    Unimplemented();
-    return {};
   }
 
   FpRegister Fmv(FpRegister arg) {
@@ -288,9 +284,7 @@ class LiteTranslator {
   }
 
   template <CsrName kName>
-  void SetCsr(Register /*arg*/) {
-    Unimplemented();
-  }
+  void SetCsr(Register arg);
 
   [[nodiscard]] Register GetImm(uint64_t imm) {
     Register imm_reg = AllocTempReg();
@@ -384,6 +378,18 @@ class LiteTranslator {
     return {};
   };
 
+  template <typename IntType, bool aq, bool rl>
+  Register Lr(Register /* addr */) {
+    Unimplemented();
+    return {};
+  }
+
+  template <typename IntType, bool aq, bool rl>
+  Register Sc(Register /* addr */, Register /* data */) {
+    Unimplemented();
+    return {};
+  }
+
  private:
   template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
   AssemblerResType CallIntrinsic(AssemblerArgType... args) {
@@ -434,6 +440,16 @@ class LiteTranslator {
   const LiteTranslateParams params_;
   bool is_region_end_reached_;
 };
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFrm>(Register arg) {
+  // Use RCX as temporary register. We know it would be used by FeSetRound, too.
+  as_.Mov<uint8_t>(Assembler::rcx, arg);
+  as_.And<uint8_t>(Assembler::rcx, 0b111);
+  as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
+                   Assembler::rcx);
+  FeSetRound(Assembler::rcx);
+}
 
 // There is no NanBoxing for Float64 except on CPUs with Float128 support.
 template <>

@@ -20,8 +20,8 @@
 #include <tuple>
 
 #include "berberis/assembler/machine_code.h"
+#include "berberis/base/config.h"
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/runtime_primitives/config.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 

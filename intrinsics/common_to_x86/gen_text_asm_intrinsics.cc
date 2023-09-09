@@ -33,6 +33,7 @@
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
+#include "berberis/runtime_primitives/config.h"
 
 #include "text_assembler.h"
 
@@ -93,7 +94,7 @@ void GenerateFunctionHeader(FILE* out, int indent) {
     fprintf(out, "template <>\n");
   }
   std::string prefix;
-  if constexpr (std::tuple_size_v<typename AsmCallInfo::InputArguments> == 0) {
+  if constexpr (std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 0) {
     prefix = "inline void " + std::string(AsmCallInfo::kIntrinsic) + "(";
   } else {
     const char* prefix_of_prefix = "inline std::tuple<";
@@ -108,8 +109,12 @@ void GenerateFunctionHeader(FILE* out, int indent) {
     ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
   }
   GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
-  fprintf(out, "  [[maybe_unused]] alignas(16) uint8_t scratch[16];\n");
-  fprintf(out, "  [[maybe_unused]] auto& scratch2 = scratch[8];\n");
+  fprintf(out,
+          "  [[maybe_unused]]  alignas(berberis::config::kScratchAreaAlign)"
+          " uint8_t scratch[berberis::config::kScratchAreaSize];\n");
+  fprintf(out,
+          "  [[maybe_unused]] auto& scratch2 ="
+          " scratch[berberis::config::kScratchAreaSlotSize];\n");
 }
 
 template <typename AsmCallInfo>
@@ -193,7 +198,10 @@ template <typename AsmCallInfo>
 void GenerateInShadows(FILE* out, int indent) {
   AsmCallInfo::ProcessBindings([out, indent](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (RegisterClass::kAsRegister == 'r') {
+    if constexpr (RegisterClass::kAsRegister == 'm') {
+      // Only temporary memory scratch area is supported.
+      static_assert(!HaveInput(arg.arg_info) && !HaveOutput(arg.arg_info));
+    } else if constexpr (RegisterClass::kAsRegister == 'r') {
       // TODO(b/138439904): remove when clang handling of 'r' constraint would be fixed.
       if constexpr (NeedInputShadow<AsmCallInfo>(arg)) {
         fprintf(out, "%2$*1$suint32_t in%3$d_shadow = in%3$d;\n", indent, "", arg.arg_info.from);
@@ -293,14 +301,16 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
   AsmCallInfo::ProcessBindings([&arg_counter, &as, register_numbers](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
     if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
-      if constexpr (RegisterClass::kIsImplicitReg) {
-        if constexpr (RegisterClass::kAsRegister == 'a') {
-          as.gpr_a = TextAssembler::Register(register_numbers[arg_counter]);
-        } else if constexpr (RegisterClass::kAsRegister == 'c') {
-          as.gpr_c = TextAssembler::Register(register_numbers[arg_counter]);
-        } else {
-          static_assert(RegisterClass::kAsRegister == 'd');
-          as.gpr_d = TextAssembler::Register(register_numbers[arg_counter]);
+      if constexpr (RegisterClass::kAsRegister != 'm') {
+        if constexpr (RegisterClass::kIsImplicitReg) {
+          if constexpr (RegisterClass::kAsRegister == 'a') {
+            as.gpr_a = TextAssembler::Register(register_numbers[arg_counter]);
+          } else if constexpr (RegisterClass::kAsRegister == 'c') {
+            as.gpr_c = TextAssembler::Register(register_numbers[arg_counter]);
+          } else {
+            static_assert(RegisterClass::kAsRegister == 'd');
+            as.gpr_d = TextAssembler::Register(register_numbers[arg_counter]);
+          }
         }
       }
       ++arg_counter;
@@ -308,13 +318,31 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
   });
   as.gpr_macroassembler_constants = TextAssembler::Register(arg_counter);
   arg_counter = 0;
-  std::apply(
-      AsmCallInfo::kMacroInstruction,
-      std::tuple_cat(std::tuple<MacroAssembler<TextAssembler>&>{as},
-                     AsmCallInfo::MakeTuplefromBindings([&arg_counter, register_numbers](auto arg) {
+  int scratch_counter = 0;
+  std::apply(AsmCallInfo::kMacroInstruction,
+             std::tuple_cat(
+                 std::tuple<MacroAssembler<TextAssembler>&>{as},
+                 AsmCallInfo::MakeTuplefromBindings(
+                     [&as, &arg_counter, &scratch_counter, register_numbers](auto arg) {
                        using RegisterClass = typename decltype(arg)::RegisterClass;
                        if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
-                         if constexpr (RegisterClass::kIsImplicitReg) {
+                         if constexpr (RegisterClass::kAsRegister == 'm') {
+                           if (scratch_counter == 0) {
+                             as.gpr_macroassembler_scratch = TextAssembler::Register(arg_counter++);
+                           } else if (scratch_counter == 1) {
+                             as.gpr_macroassembler_scratch2 =
+                                 TextAssembler::Register(arg_counter++);
+                           } else {
+                             FATAL("Only two scratch registers are supported for now");
+                           }
+                           // Note: as.gpr_scratch in combination with offset is treated by text
+                           // assembler specially.  We rely on offset set here to be the same as
+                           // scratch2 address in scratch buffer.
+                           return std::tuple{TextAssembler::Operand{
+                               .base = as.gpr_scratch,
+                               .disp = static_cast<int32_t>(config::kScratchAreaSlotSize *
+                                                            scratch_counter++)}};
+                         } else if constexpr (RegisterClass::kIsImplicitReg) {
                            ++arg_counter;
                            return std::tuple{};
                          } else {
@@ -684,6 +712,7 @@ int main(int argc, char* argv[]) {
 #include "berberis/runtime_primitives/platform.h"
 #include "%2$s/intrinsics/common/intrinsics.h"
 #include "%2$s/intrinsics/vector_intrinsics.h"
+#include "berberis/runtime_primitives/config.h"
 
 namespace berberis::constants_pool {
 
