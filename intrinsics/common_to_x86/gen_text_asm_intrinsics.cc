@@ -27,13 +27,13 @@
 #include <vector>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/config.h"
 #include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
 #include "berberis/intrinsics/intrinsics_args.h"
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
-#include "berberis/runtime_primitives/config.h"
 
 #include "text_assembler.h"
 
@@ -709,10 +709,10 @@ int main(int argc, char* argv[]) {
 
 #include <xmmintrin.h>
 
+#include "berberis/base/config.h"
 #include "berberis/runtime_primitives/platform.h"
 #include "%2$s/intrinsics/common/intrinsics.h"
 #include "%2$s/intrinsics/vector_intrinsics.h"
-#include "berberis/runtime_primitives/config.h"
 
 namespace berberis::constants_pool {
 

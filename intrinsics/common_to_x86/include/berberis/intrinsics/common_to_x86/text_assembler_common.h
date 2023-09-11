@@ -24,8 +24,8 @@
 #include <string>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/config.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
-#include "berberis/runtime_primitives/config.h"
 
 namespace berberis {
 
