@@ -116,6 +116,10 @@ void GenWrapGuestFunction(MachineCode* mc,
       };
       if (fp_argc < static_cast<int>(arraysize(kParamRegs))) {
         as.Movq({.base = Assembler::rsp, .disp = kFpArgvOffset + fp_argc * 8}, kParamRegs[fp_argc]);
+        if (signature[i] == 'f') {
+          // 1-extend floats to meet the NaN boxing requirements of the LP64D calling convention.
+          as.Movl({.base = Assembler::rsp, .disp = kFpArgvOffset + fp_argc * 8 + 4}, 0xffff'ffff);
+        }
       } else {
         as.Movq(Assembler::rax,
                 {.base = Assembler::rsp, .disp = params_offset + host_stack_argc * 8});
@@ -155,7 +159,11 @@ void GenWrapGuestFunction(MachineCode* mc,
   // Get the result.
   if (signature[0] == 'i' || signature[0] == 'p' || signature[0] == 'l') {
     as.Movq(Assembler::rax, {.base = Assembler::rsp, .disp = kArgvOffset});
-  } else if (signature[0] == 'f' || signature[0] == 'd') {
+  } else if (signature[0] == 'f') {
+    // Only take the lower 32 bits of the result register because floats are 1-extended (NaN boxed)
+    // on LP64D.
+    as.Movd(Assembler::xmm0, {.base = Assembler::rsp, .disp = kFpArgvOffset});
+  } else if (signature[0] == 'd') {
     as.Movq(Assembler::xmm0, {.base = Assembler::rsp, .disp = kFpArgvOffset});
   } else {
     CHECK_EQ('v', signature[0]);
