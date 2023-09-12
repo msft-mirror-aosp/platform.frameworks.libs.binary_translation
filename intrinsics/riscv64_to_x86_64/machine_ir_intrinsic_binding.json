@@ -488,7 +488,7 @@
     "name": "NanBox<Float32>",
     "insn": "MacroNanBoxFloat32AVX",
     "feature": "AVX",
-    "in": [ 0 ],
+    "in": [ 1 ],
     "out": [ 0 ]
   },
   {
