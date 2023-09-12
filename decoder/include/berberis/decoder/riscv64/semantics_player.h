@@ -116,23 +116,55 @@ class SemanticsPlayer {
   }
 
   void Csr(const typename Decoder::CsrArgs& args) {
-    auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
-    if (!csr_supported) {
-      Unimplemented();
+    if (args.opcode == Decoder::CsrOpcode::kCsrrw) {
+      if (args.dst != 0) {
+        auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
+        if (!csr_supported) {
+          return Unimplemented();
+        }
+        Register arg = listener_->GetReg(args.src);
+        SetCsr(static_cast<CsrName>(args.csr), arg);
+        listener_->SetReg(args.dst, csr);
+      }
+      Register arg = listener_->GetReg(args.src);
+      if (!SetCsr(static_cast<CsrName>(args.csr), arg)) {
+        return Unimplemented();
+      }
       return;
     }
-    Register arg = GetRegOrZero(args.src);
-    SetCsr(static_cast<CsrName>(args.csr), listener_->UpdateCsr(args.opcode, arg, csr));
+    auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
+    if (!csr_supported) {
+      return Unimplemented();
+    }
+    if (args.src != 0) {
+      Register arg = listener_->GetReg(args.src);
+      SetCsr(static_cast<CsrName>(args.csr), listener_->UpdateCsr(args.opcode, arg, csr));
+    }
     SetRegOrIgnore(args.dst, csr);
   }
 
   void Csr(const typename Decoder::CsrImmArgs& args) {
-    auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
-    if (!csr_supported) {
-      Unimplemented();
+    if (args.opcode == Decoder::CsrImmOpcode::kCsrrwi) {
+      if (args.dst != 0) {
+        auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
+        if (!csr_supported) {
+          return Unimplemented();
+        }
+        if (!SetCsr(static_cast<CsrName>(args.csr), csr)) {
+          return Unimplemented();
+        }
+        listener_->SetReg(args.dst, csr);
+      }
+      SetCsr(static_cast<CsrName>(args.csr), args.imm);
       return;
     }
-    SetCsr(static_cast<CsrName>(args.csr), listener_->UpdateCsr(args.opcode, args.imm, csr));
+    auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
+    if (!csr_supported) {
+      return Unimplemented();
+    }
+    if (args.imm != 0) {
+      SetCsr(static_cast<CsrName>(args.csr), listener_->UpdateCsr(args.opcode, args.imm, csr));
+    }
     SetRegOrIgnore(args.dst, csr);
   }
 
@@ -828,6 +860,26 @@ class SemanticsPlayer {
 
   // TODO(b/260725458): stop using SetCsrProcessor helper class and define lambda in SetCsr instead.
   // We need C++20 (https://wg21.link/P0428R2) for that.
+  class SetCsrImmProcessor {
+   public:
+    SetCsrImmProcessor(uint8_t imm, SemanticsListener* listener) : imm_(imm), listener_(listener) {}
+    template <CsrName kName>
+    void operator()() {
+      listener_->template SetCsr<kName>(imm_);
+    }
+
+   private:
+    uint8_t imm_;
+    SemanticsListener* listener_;
+  };
+
+  bool SetCsr(CsrName csr, uint8_t imm) {
+    SetCsrImmProcessor set_csr(imm, listener_);
+    return ProcessCsrNameAsTemplateParameter(csr, set_csr);
+  }
+
+  // TODO(b/260725458): stop using SetCsrProcessor helper class and define lambda in SetCsr instead.
+  // We need C++20 (https://wg21.link/P0428R2) for that.
   class SetCsrProcessor {
    public:
     SetCsrProcessor(Register reg, SemanticsListener* listener) : reg_(reg), listener_(listener) {}
@@ -841,9 +893,9 @@ class SemanticsPlayer {
     SemanticsListener* listener_;
   };
 
-  void SetCsr(CsrName csr, Register reg) {
+  bool SetCsr(CsrName csr, Register reg) {
     SetCsrProcessor set_csr(reg, listener_);
-    ProcessCsrNameAsTemplateParameter(csr, set_csr);
+    return ProcessCsrNameAsTemplateParameter(csr, set_csr);
   }
 
   // Floating point instructions in RISC-V are encoded in a way where you may find out size of
