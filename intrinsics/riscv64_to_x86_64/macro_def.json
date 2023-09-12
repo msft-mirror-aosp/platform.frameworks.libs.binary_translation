@@ -295,7 +295,8 @@
     {
       "name": "MacroNanBoxFloat32AVX",
       "args": [
-        { "class": "FpReg64", "usage": "use_def" }
+        { "class": "FpReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use" }
       ],
       "asm": "MacroNanBoxAVX<intrinsics::Float32>",
       "mnemo": "MACRO_BOX_F32"
