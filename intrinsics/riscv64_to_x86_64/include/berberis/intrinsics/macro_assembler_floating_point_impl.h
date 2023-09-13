@@ -158,10 +158,10 @@ void MacroAssembler<Assembler>::MacroNanBox(XMMRegister arg) {
 
 template <typename Assembler>
 template <typename FloatType>
-void MacroAssembler<Assembler>::MacroNanBoxAVX(XMMRegister arg) {
+void MacroAssembler<Assembler>::MacroNanBoxAVX(XMMRegister result, XMMRegister src) {
   static_assert(std::is_same_v<FloatType, Float32>);
 
-  Vpor(arg, arg, {.disp = constants_pool::kNanBox<Float32>});
+  Vpor(result, src, {.disp = constants_pool::kNanBox<Float32>});
 }
 
 template <typename Assembler>
