@@ -68,6 +68,22 @@ TEST_F(GuestFunctionWrapperTest, Wrap2SubLong) {
   EXPECT_EQ(x, 0x8000000000000001ULL);
 }
 
+TEST_F(GuestFunctionWrapperTest, Wrap2SubFloat) {
+  // float sub_float(float x, float y) {
+  //   return x - y;
+  // }
+  GuestAddr pc = MakeGuestExecRegion<uint32_t>({
+      0x08b57553,  // fsub.s fa0, fa0, fa1
+      0x00008067,  // ret
+  });
+
+  using TwoArgFunction = float (*)(float, float);
+  TwoArgFunction sub = WrapGuestFunction(bit_cast<GuestType<TwoArgFunction>>(pc), "sub_float");
+
+  float x = sub(2.71f, 3.14f);
+  EXPECT_FLOAT_EQ(x, -0.43f);
+}
+
 TEST_F(GuestFunctionWrapperTest, Wrap2SubDouble) {
   // double sub_double(double x, double y) {
   //   return x - y;
