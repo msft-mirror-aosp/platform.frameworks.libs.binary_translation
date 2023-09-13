@@ -61,6 +61,8 @@ void MacroAssembler<Assembler>::MacroFeqAVX(Register result,
   And<int32_t>(result, 1);
 }
 
+// Note: actual rounding mode comes in %cl which is implicit argument of that macro-instruction.
+// All explicit arguments are temporaries.
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroFeSetRound(Register scratch,
                                                 const Operand& cw_scratch,
@@ -81,6 +83,39 @@ void MacroAssembler<Assembler>::MacroFeSetRound(Register scratch,
   // Each field is two bits so we need to shift by “rm” twice.
   // By doing it with 2x shifts we keep “rm” in CL intact (and speed is the same on most CPUs).
   ShrByCl<uint32_t>(scratch);
+  // Mask only x87-RM bits.
+  And<uint32_t>(scratch, 0b1100'0000'0000);
+  // Push x87-RM field into x87 control world.
+  Or<uint16_t>(cw_scratch, scratch);
+  // Move x87-RM field into MSCXR-RM field.
+  Shl<uint32_t>(scratch, int8_t{3});
+  // Push MXCSR-RM field into MXCSR.
+  Or<uint32_t>(mxcsr_scratch, scratch);
+  // Load new control world into x87 FPU.
+  Fldcw(cw_scratch);
+  // Load Mxcsr.
+  Ldmxcsr(mxcsr_scratch);
+}
+
+template <typename Assembler>
+void MacroAssembler<Assembler>::MacroFeSetRoundImmTranslate(Register scratch,
+                                                            const Operand& cw_scratch,
+                                                            const Operand& mxcsr_scratch,
+                                                            int8_t rm) {
+  // Store x87 control world in first scratch slot.
+  Fnstcw(cw_scratch);
+  // Store MXCSR in second scratch slot.
+  Stmxcsr(mxcsr_scratch);
+  // Clean-out x87-RM field in x87 control word.
+  And<uint16_t>(cw_scratch, static_cast<uint16_t>(0b1111'0011'1111'1111));
+  // Clean-out MXCSR-RM field in MXCSR.
+  And<uint32_t>(mxcsr_scratch,
+                static_cast<uint32_t>(0b1111'1111'1111'1111'1111'1001'1111'1111'1111));
+  // FE_TONEAREST, FE_TOWARDZERO, FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO table from bits 10-11:
+  Mov<uint32_t>(scratch, 0b1110'0111'0000'0000'0000);
+  // Shift by “rm * 2” to get appropriate bits, suitable for x87 FPU control word.
+  // Each field is two bits so we need to shift by “rm * 2”, not by “rm”.
+  Shr<uint32_t>(scratch, rm * 2);
   // Mask only x87-RM bits.
   And<uint32_t>(scratch, 0b1100'0000'0000);
   // Push x87-RM field into x87 control world.
