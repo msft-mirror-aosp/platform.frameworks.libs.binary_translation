@@ -284,6 +284,9 @@ class LiteTranslator {
   }
 
   template <CsrName kName>
+  void SetCsr(uint8_t imm);
+
+  template <CsrName kName>
   void SetCsr(Register arg);
 
   [[nodiscard]] Register GetImm(uint64_t imm) {
@@ -440,6 +443,13 @@ class LiteTranslator {
   const LiteTranslateParams params_;
   bool is_region_end_reached_;
 };
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFrm>(uint8_t imm) {
+  as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
+                   static_cast<int8_t>(imm & 0b111));
+  FeSetRoundImm(static_cast<int8_t>(imm & 0b111));
+}
 
 template <>
 inline void LiteTranslator::SetCsr<CsrName::kFrm>(Register arg) {

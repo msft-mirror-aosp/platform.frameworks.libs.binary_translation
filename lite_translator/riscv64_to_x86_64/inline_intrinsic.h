@@ -308,86 +308,95 @@ class TryBindingBasedInlineIntrinsic {
 
   template <typename ArgBinding, typename AsmCallInfo>
   auto /*MakeTuplefromBindingsClient*/ operator()(ArgTraits<ArgBinding>, AsmCallInfo) {
-    using RegisterClass = typename ArgTraits<ArgBinding>::RegisterClass;
-    if constexpr (RegisterClass::kAsRegister == 'x') {
-      return ProcessArgInput<ArgBinding, AsmCallInfo>(simd_reg_alloc_);
-    } else {
+    static constexpr const auto& arg_info = ArgTraits<ArgBinding>::arg_info;
+    if constexpr (arg_info.arg_type == ArgInfo::IMM_ARG) {
       return ProcessArgInput<ArgBinding, AsmCallInfo>(reg_alloc_);
+    } else {
+      using RegisterClass = typename ArgTraits<ArgBinding>::RegisterClass;
+      if constexpr (RegisterClass::kAsRegister == 'x') {
+        return ProcessArgInput<ArgBinding, AsmCallInfo>(simd_reg_alloc_);
+      } else {
+        return ProcessArgInput<ArgBinding, AsmCallInfo>(reg_alloc_);
+      }
     }
   }
 
   template <typename ArgBinding, typename AsmCallInfo, typename RegAllocForArg>
   auto ProcessArgInput(RegAllocForArg&& reg_alloc) {
     static constexpr const auto& arg_info = ArgTraits<ArgBinding>::arg_info;
-    using RegisterClass = typename ArgTraits<ArgBinding>::RegisterClass;
-    using Usage = typename ArgTraits<ArgBinding>::Usage;
-    using Type = std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>;
-    if constexpr (arg_info.arg_type == ArgInfo::IN_ARG) {
-      if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
-        auto reg = reg_alloc();
-        Mov<typename TypeTraits<int64_t>::Float>(as_, reg, std::get<arg_info.from>(input_args_));
-        return std::tuple{reg};
-      } else {
-        static_assert(std::is_same_v<Usage, intrinsics::bindings::Use>);
-        static_assert(!RegisterClass::kIsImplicitReg);
-        return std::tuple{std::get<arg_info.from>(input_args_)};
-      }
-    } else if constexpr (arg_info.arg_type == ArgInfo::IN_OUT_ARG) {
-      static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
-      static_assert(!RegisterClass::kIsImplicitReg);
-      if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
-        CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
-        result_xmm_reg_ = reg_alloc();
-        Mov<typename TypeTraits<int64_t>::Float>(
-            as_, result_xmm_reg_, std::get<arg_info.from>(input_args_));
-        return std::tuple{result_xmm_reg_};
-      } else {
-        Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
-            as_, result_, std::get<arg_info.from>(input_args_));
-        return std::tuple{result_};
-      }
-    } else if constexpr (arg_info.arg_type == ArgInfo::IN_TMP_ARG) {
-      if constexpr (RegisterClass::kAsRegister == 'c') {
-        Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
-            as_, as_.rcx, std::get<arg_info.from>(input_args_));
-        return std::tuple{};
-      } else {
+    if constexpr (arg_info.arg_type == ArgInfo::IMM_ARG) {
+      return std::tuple{std::get<arg_info.from>(input_args_)};
+    } else {
+      using RegisterClass = typename ArgTraits<ArgBinding>::RegisterClass;
+      using Usage = typename ArgTraits<ArgBinding>::Usage;
+      using Type = std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>;
+      if constexpr (arg_info.arg_type == ArgInfo::IN_ARG) {
+        if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
+          auto reg = reg_alloc();
+          Mov<typename TypeTraits<int64_t>::Float>(as_, reg, std::get<arg_info.from>(input_args_));
+          return std::tuple{reg};
+        } else {
+          static_assert(std::is_same_v<Usage, intrinsics::bindings::Use>);
+          static_assert(!RegisterClass::kIsImplicitReg);
+          return std::tuple{std::get<arg_info.from>(input_args_)};
+        }
+      } else if constexpr (arg_info.arg_type == ArgInfo::IN_OUT_ARG) {
         static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
         static_assert(!RegisterClass::kIsImplicitReg);
-        auto reg = reg_alloc();
-        Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
-            as_, reg, std::get<arg_info.from>(input_args_));
-        return std::tuple{reg};
-      }
-    } else if constexpr (arg_info.arg_type == ArgInfo::OUT_ARG) {
-      static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
-                    std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
-      static_assert(!RegisterClass::kIsImplicitReg);
-      if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
-        CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
-        result_xmm_reg_ = reg_alloc();
-        return std::tuple{result_xmm_reg_};
-      } else {
-        return std::tuple{result_};
-      }
-    } else if constexpr (arg_info.arg_type == ArgInfo::TMP_ARG) {
-      static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
-                    std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
-      if constexpr (RegisterClass::kAsRegister == 'm') {
-        if (scratch_arg_ >= config::kScratchAreaSize / config::kScratchAreaSlotSize) {
-          FATAL("Only two scratch registers are supported for now");
+        if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
+          CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
+          result_xmm_reg_ = reg_alloc();
+          Mov<typename TypeTraits<int64_t>::Float>(
+              as_, result_xmm_reg_, std::get<arg_info.from>(input_args_));
+          return std::tuple{result_xmm_reg_};
+        } else {
+          Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
+              as_, result_, std::get<arg_info.from>(input_args_));
+          return std::tuple{result_};
         }
-        return std::tuple{x86_64::Assembler::Operand{
-            .base = as_.rbp,
-            .disp = static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area) +
-                                     config::kScratchAreaSlotSize * scratch_arg_++)}};
-      } else if constexpr (RegisterClass::kIsImplicitReg) {
-        return std::tuple{};
+      } else if constexpr (arg_info.arg_type == ArgInfo::IN_TMP_ARG) {
+        if constexpr (RegisterClass::kAsRegister == 'c') {
+          Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
+              as_, as_.rcx, std::get<arg_info.from>(input_args_));
+          return std::tuple{};
+        } else {
+          static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
+          static_assert(!RegisterClass::kIsImplicitReg);
+          auto reg = reg_alloc();
+          Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
+              as_, reg, std::get<arg_info.from>(input_args_));
+          return std::tuple{reg};
+        }
+      } else if constexpr (arg_info.arg_type == ArgInfo::OUT_ARG) {
+        static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
+                      std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
+        static_assert(!RegisterClass::kIsImplicitReg);
+        if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
+          CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
+          result_xmm_reg_ = reg_alloc();
+          return std::tuple{result_xmm_reg_};
+        } else {
+          return std::tuple{result_};
+        }
+      } else if constexpr (arg_info.arg_type == ArgInfo::TMP_ARG) {
+        static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
+                      std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
+        if constexpr (RegisterClass::kAsRegister == 'm') {
+          if (scratch_arg_ >= config::kScratchAreaSize / config::kScratchAreaSlotSize) {
+            FATAL("Only two scratch registers are supported for now");
+          }
+          return std::tuple{x86_64::Assembler::Operand{
+              .base = as_.rbp,
+              .disp = static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area) +
+                                       config::kScratchAreaSlotSize * scratch_arg_++)}};
+        } else if constexpr (RegisterClass::kIsImplicitReg) {
+          return std::tuple{};
+        } else {
+          return std::tuple{reg_alloc()};
+        }
       } else {
-        return std::tuple{reg_alloc()};
+        static_assert(kDependentValueFalse<arg_info.arg_type>);
       }
-    } else {
-      static_assert(kDependentValueFalse<arg_info.arg_type>);
     }
   }
 

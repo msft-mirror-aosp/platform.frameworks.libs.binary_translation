@@ -201,6 +201,17 @@
       "mnemo": "MACRO_FE_SET_ROUND"
     },
     {
+      "name": "MacroFeSetRoundImmTranslate",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def_early_clobber" },
+        { "class": "Mem16", "usage": "def_early_clobber" },
+        { "class": "Mem32", "usage": "def_early_clobber" },
+        { "class": "Imm8" }
+      ],
+      "asm": "MacroFeSetRoundImmTranslate",
+      "mnemo": "MACRO_FE_SET_ROUND"
+    },
+    {
       "name": "MacroFleFloat32",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
