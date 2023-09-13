@@ -217,6 +217,20 @@
     "out": []
   },
   {
+    "name": "FeSetRoundImm",
+    "insn": "MacroFeSetRound",
+    "usage": "interpret-only",
+    "in": [ 3 ],
+    "out": []
+  },
+  {
+    "name": "FeSetRoundImm",
+    "insn": "MacroFeSetRoundImmTranslate",
+    "usage": "translate-only",
+    "in": [ 3 ],
+    "out": []
+  },
+  {
     "name": "FMAddHostRounding<Float32>",
     "insn": "Vfmadd231ssXRegXRegXReg",
     "feature": "FMA",
