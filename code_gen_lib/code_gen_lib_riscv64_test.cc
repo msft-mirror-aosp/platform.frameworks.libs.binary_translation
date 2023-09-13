@@ -34,6 +34,9 @@ namespace berberis {
 
 namespace {
 
+// Constant for NaN boxing and unboxing of 32-bit floats.
+constexpr uint64_t kNanBoxFloat32 = 0xffff'ffff'0000'0000ULL;
+
 bool g_called;
 uint32_t g_arg;
 ThreadState g_state{};
@@ -187,18 +190,27 @@ void Run10Fp(GuestAddr pc, GuestArgumentBuffer* buf) {
   ASSERT_EQ(16, buf->stack_argc);
   ASSERT_EQ(0, buf->resc);
   ASSERT_EQ(1, buf->fp_resc);
-  // For 32-bit parameters, only least-significant bits are defined!
+  // 32-bit parameters passed in floating-point registers are 1-extended.
+  // 32-bit parameters passed on the stack are 0-extended.
+  ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[0] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(0.0f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[0])));
+  ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[1] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(1.1f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[1])));
+  ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[2] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(2.2f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[2])));
+  ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[3] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(3.3f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[3])));
+  ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[4] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(4.4f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[4])));
+  ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[5] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(5.5f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[5])));
+  ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[6] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(6.6f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[6])));
+  ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[7] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(7.7f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[7])));
   ASSERT_FLOAT_EQ(8.8f, bit_cast<float>(static_cast<uint32_t>(buf->stack_argv[0])));
   ASSERT_FLOAT_EQ(9.9f, bit_cast<float>(static_cast<uint32_t>(buf->stack_argv[1])));
-  buf->fp_argv[0] = bit_cast<uint32_t>(45.45f);
+  buf->fp_argv[0] = static_cast<uint64_t>(bit_cast<uint32_t>(45.45f)) | kNanBoxFloat32;
 }
 
 TEST(CodeGenLib, GenWrapGuestFunction_Run10Fp) {
