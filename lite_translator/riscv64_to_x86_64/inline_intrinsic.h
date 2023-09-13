@@ -262,7 +262,7 @@ class TryBindingBasedInlineIntrinsic {
         return false;
       }
     } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasPOPCNT) {
-      if (!host_platform::kHasLZCNT) {
+      if (!host_platform::kHasPOPCNT) {
         return false;
       }
     } else if constexpr (AsmCallInfo::kCPUIDRestriction ==
