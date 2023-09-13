@@ -246,7 +246,7 @@ class LiteTranslator {
   template <typename FloatType>
   void NanBoxFpReg(FpRegister value) {
     if (host_platform::kHasAVX) {
-      as_.MacroNanBoxAVX<FloatType>(value);
+      as_.MacroNanBoxAVX<FloatType>(value, value);
       return;
     }
     as_.MacroNanBox<FloatType>(value);
