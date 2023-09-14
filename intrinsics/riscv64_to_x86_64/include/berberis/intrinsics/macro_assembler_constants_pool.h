@@ -63,6 +63,13 @@ extern const int32_t kWidthInBits<int64_t>;
 extern const int32_t kZero;
 extern const int32_t kMaxUInt;
 
+// 64 bit constants for use with arithmetic operations.
+// Used because only 32 bit immediates are supported on x86-64.
+template <auto Value>
+extern const int32_t kConst;
+template <>
+extern const int32_t kConst<uint64_t{0x8000'0000'0000'00ff}>;
+
 }  // namespace berberis::constants_pool
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_

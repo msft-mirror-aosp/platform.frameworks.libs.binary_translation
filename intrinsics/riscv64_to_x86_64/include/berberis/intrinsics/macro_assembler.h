@@ -163,6 +163,10 @@ class MacroAssembler : public Assembler {
   DEFINE_INT_INSTRUCTION(Mov, , (Operand dest, Register src), (dest, src))
   DEFINE_INT_INSTRUCTION(Mov, , (Register dest, std::make_signed_t<format> imm), (dest, imm))
   DEFINE_INT_INSTRUCTION(Mov, , (Register dest, Operand src), (dest, src))
+  DEFINE_INT_INSTRUCTION(Test, , (Operand dest, ImmFormat<format> imm), (dest, imm))
+  DEFINE_INT_INSTRUCTION(Test, , (Operand dest, Register src), (dest, src))
+  DEFINE_INT_INSTRUCTION(Test, , (Register dest, ImmFormat<format> imm), (dest, imm))
+  DEFINE_INT_INSTRUCTION(Test, , (Register dest, Register src), (dest, src))
 #define DEFINE_ARITH_INSTRUCTION(insn_name)                                                \
   DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, ImmFormat<format> imm), (dest, imm))  \
   DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, Register src), (dest, src))           \
