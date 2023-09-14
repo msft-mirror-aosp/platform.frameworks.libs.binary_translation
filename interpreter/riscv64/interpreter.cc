@@ -75,8 +75,6 @@ class Interpreter {
 
   Register UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
     switch (opcode) {
-      case Decoder::CsrOpcode::kCsrrw:
-        return arg;
       case Decoder::CsrOpcode::kCsrrs:
         return arg | csr;
       case Decoder::CsrOpcode::kCsrrc:
@@ -463,6 +461,9 @@ class Interpreter {
   }
 
   template <CsrName kName>
+  void SetCsr(uint8_t imm);
+
+  template <CsrName kName>
   void SetCsr(Register arg);
 
   [[nodiscard]] uint64_t GetImm(uint64_t imm) const { return imm; }
@@ -527,6 +528,11 @@ void Interpreter::SetCsr<CsrName::kFrm>(Register arg) {
   arg &= 0b111;
   state_->cpu.frm = arg;
   FeSetRound(arg);
+}
+
+template <>
+void Interpreter::SetCsr<CsrName::kFrm>(uint8_t imm) {
+  SetCsr<CsrName::kFrm>(Register{imm});
 }
 
 template <>
