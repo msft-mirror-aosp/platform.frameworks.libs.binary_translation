@@ -150,8 +150,7 @@ void SigsegvSignalHandler(int /* sig */, siginfo_t* info, void* /* ctx */) {
   mprotect(g_data_page, 4096, PROT_WRITE);
 }
 
-// TODO(b/300488499): Enable after implementing recovery code for loads/stores.
-TEST(Signal, DISABLED_Sigsegv) {
+TEST(Signal, Sigsegv) {
   g_data_page = static_cast<int*>(mmap(0, 4096, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
 
   struct sigaction sa;
@@ -181,8 +180,7 @@ void* AsyncSigsegvSender(void* arg) {
   return nullptr;
 }
 
-// TODO(b/300488499): Enable after implementing recovery code for loads/stores.
-TEST(Signal, DISABLED_AsyncSigsegv) {
+TEST(Signal, AsyncSigsegv) {
   struct sigaction sa {};
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = AsyncSigsegvSignalHandler;
