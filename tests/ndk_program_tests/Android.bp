@@ -38,6 +38,7 @@ filegroup {
         "ptrace_test.cc",
         "resource_test.cc",
         "sem_test.cc",
+        "signal_test.cc",
         "string_test.cc",
         "sysconf_test.cc",
         "thread_test.cc",
