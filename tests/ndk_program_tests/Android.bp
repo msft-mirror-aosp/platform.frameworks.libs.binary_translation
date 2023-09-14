@@ -33,6 +33,7 @@ filegroup {
         "ctype_test.cc",
         "div_test.cc",
         "epoll_test.cc",
+        "memory_order_test.cc",
         "mutex_test.cc",
         "ptrace_test.cc",
         "resource_test.cc",
