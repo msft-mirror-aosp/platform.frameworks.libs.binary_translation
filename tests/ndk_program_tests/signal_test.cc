@@ -206,8 +206,7 @@ void NoExecSignalHandler(int /* sig */, siginfo_t* info, void* /* ctx */) {
   longjmp(g_recover_no_exec, 1);
 }
 
-// TODO(b/300488860): Enable after fixing the translator executable memory check.
-TEST(Signal, DISABLED_RecoverFromNoExec) {
+TEST(Signal, RecoverFromNoExec) {
   struct sigaction sa;
   sa.sa_flags = SA_SIGINFO;
   sigemptyset(&sa.sa_mask);

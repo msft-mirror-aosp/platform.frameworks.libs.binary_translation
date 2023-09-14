@@ -163,11 +163,19 @@ void TranslateRegion(GuestAddr pc) {
 
   GuestMapShadow* guest_map_shadow = GuestMapShadow::GetInstance();
 
-  uint8_t first_insn_size = GetRiscv64InsnSize(pc);
+  // First check if the instruction would be in executable memory if it is compressed.  This
+  // prevents dereferencing unknown memory to determine the size of the instruction.
+  constexpr uint8_t kMinimumInsnSize = 2;
+  if (!guest_map_shadow->IsExecutable(pc, kMinimumInsnSize)) {
+    cache->SetTranslatedAndUnlock(pc, entry, kMinimumInsnSize, kSpecialHandler, {kEntryNoExec, 0});
+    return;
+  }
 
-  // Check if 1st insn is in executable memory. We don't know yet
-  // how many instructions will be translated.
-  if (!guest_map_shadow->IsExecutable(pc, first_insn_size)) {
+  // Now check the rest of the instruction based on its size.  It is now safe to dereference the
+  // memory at pc because at least two bytes are within known executable memory.
+  uint8_t first_insn_size = GetRiscv64InsnSize(pc);
+  if (first_insn_size > kMinimumInsnSize &&
+      !guest_map_shadow->IsExecutable(pc + kMinimumInsnSize, first_insn_size - kMinimumInsnSize)) {
     cache->SetTranslatedAndUnlock(pc, entry, first_insn_size, kSpecialHandler, {kEntryNoExec, 0});
     return;
   }
