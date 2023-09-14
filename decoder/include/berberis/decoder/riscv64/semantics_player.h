@@ -138,7 +138,9 @@ class SemanticsPlayer {
     }
     if (args.src != 0) {
       Register arg = listener_->GetReg(args.src);
-      SetCsr(static_cast<CsrName>(args.csr), listener_->UpdateCsr(args.opcode, arg, csr));
+      if (!SetCsr(static_cast<CsrName>(args.csr), listener_->UpdateCsr(args.opcode, arg, csr))) {
+        return Unimplemented();
+      }
     }
     SetRegOrIgnore(args.dst, csr);
   }
@@ -163,7 +165,10 @@ class SemanticsPlayer {
       return Unimplemented();
     }
     if (args.imm != 0) {
-      SetCsr(static_cast<CsrName>(args.csr), listener_->UpdateCsr(args.opcode, args.imm, csr));
+      if (!SetCsr(static_cast<CsrName>(args.csr),
+                  listener_->UpdateCsr(args.opcode, args.imm, csr))) {
+        return Unimplemented();
+      }
     }
     SetRegOrIgnore(args.dst, csr);
   }
@@ -865,7 +870,11 @@ class SemanticsPlayer {
     SetCsrImmProcessor(uint8_t imm, SemanticsListener* listener) : imm_(imm), listener_(listener) {}
     template <CsrName kName>
     void operator()() {
-      listener_->template SetCsr<kName>(imm_);
+      // Csr registers with two top bits set are read-only.
+      // Attempts to write into such register raise illegal instruction exceptions.
+      if constexpr (CsrWritable(kName)) {
+        listener_->template SetCsr<kName>(imm_);
+      }
     }
 
    private:
@@ -874,6 +883,11 @@ class SemanticsPlayer {
   };
 
   bool SetCsr(CsrName csr, uint8_t imm) {
+    // Csr registers with two top bits set are read-only.
+    // Attempts to write into such register raise illegal instruction exceptions.
+    if (!CsrWritable(csr)) {
+      return false;
+    }
     SetCsrImmProcessor set_csr(imm, listener_);
     return ProcessCsrNameAsTemplateParameter(csr, set_csr);
   }
@@ -885,7 +899,11 @@ class SemanticsPlayer {
     SetCsrProcessor(Register reg, SemanticsListener* listener) : reg_(reg), listener_(listener) {}
     template <CsrName kName>
     void operator()() {
-      listener_->template SetCsr<kName>(reg_);
+      // Csr registers with two top bits set are read-only.
+      // Attempts to write into such register raise illegal instruction exceptions.
+      if constexpr (CsrWritable(kName)) {
+        listener_->template SetCsr<kName>(reg_);
+      }
     }
 
    private:
@@ -894,6 +912,11 @@ class SemanticsPlayer {
   };
 
   bool SetCsr(CsrName csr, Register reg) {
+    // Csr registers with two top bits set are read-only.
+    // Attempts to write into such register raise illegal instruction exceptions.
+    if (!CsrWritable(csr)) {
+      return false;
+    }
     SetCsrProcessor set_csr(reg, listener_);
     return ProcessCsrNameAsTemplateParameter(csr, set_csr);
   }
