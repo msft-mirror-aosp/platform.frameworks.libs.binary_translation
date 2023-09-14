@@ -55,11 +55,13 @@ cc_library_static {
         "libberberis_guest_state_headers",
         "libberberis_instrument_headers",
         "libberberis_kernel_api_headers",
+        "libberberis_macro_assembler_headers_riscv64_to_x86_64",
         "libberberis_runtime_primitives_headers",
     ],
     export_header_lib_headers: [
-        "libberberis_code_gen_lib_headers",
         "libberberis_assembler_headers",
+        "libberberis_code_gen_lib_headers",
+        "libberberis_macro_assembler_headers_riscv64_to_x86_64",
     ],
 }
 
