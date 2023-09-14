@@ -461,10 +461,9 @@ class Interpreter {
   }
 
   template <CsrName kName>
-  void SetCsr(uint8_t imm);
-
-  template <CsrName kName>
-  void SetCsr(Register arg);
+  void SetCsr(Register arg) {
+    state_->cpu.*CsrFieldAddr<kName> = arg & kCsrMask<kName>;
+  }
 
   [[nodiscard]] uint64_t GetImm(uint64_t imm) const { return imm; }
 
@@ -524,15 +523,37 @@ class Interpreter {
 };
 
 template <>
+[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kVlenb>() const {
+  return 16;
+}
+
+template <>
+[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kVxrm>() const {
+  return state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b11;
+}
+
+template <>
+[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kVxsat>() const {
+  return state_->cpu.*CsrFieldAddr<CsrName::kVcsr> >> 2;
+}
+
+template <>
 void Interpreter::SetCsr<CsrName::kFrm>(Register arg) {
-  arg &= 0b111;
+  arg &= kCsrMask<CsrName::kFrm>;
   state_->cpu.frm = arg;
   FeSetRound(arg);
 }
 
 template <>
-void Interpreter::SetCsr<CsrName::kFrm>(uint8_t imm) {
-  SetCsr<CsrName::kFrm>(Register{imm});
+void Interpreter::SetCsr<CsrName::kVxrm>(Register arg) {
+  state_->cpu.*CsrFieldAddr<CsrName::kVcsr> =
+      (state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b100) | (arg & 0b11);
+}
+
+template <>
+void Interpreter::SetCsr<CsrName::kVxsat>(Register arg) {
+  state_->cpu.*CsrFieldAddr<CsrName::kVcsr> =
+      (state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b11) | ((arg & 0b1) << 2);
 }
 
 template <>
