@@ -47,10 +47,13 @@ struct MacroAssemblerConstants {
   int64_t kZero64 = 0;
   int32_t kBsrToClzInt32 = 63;
   int32_t kWidthInBits32 = 32;
+  // 64 bit constants for use with arithmetic operations.
+  // Used because only 32 bit immediates are supported on x86-64.
+  int64_t k0x8000_0000_0000_00ff = 0x8000'0000'0000'00ff;
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 896, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 1024, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
@@ -61,6 +64,7 @@ CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits64, 704, 64);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kZero64, 768, 64);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt32, 832, 32);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits32, 864, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, k0x8000_0000_0000_00ff, 896, 64);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -118,5 +122,7 @@ const int32_t kWidthInBits<int64_t> =
     GetConstants() + offsetof(MacroAssemblerConstants, kWidthInBits64);
 const int32_t kZero = GetConstants() + offsetof(MacroAssemblerConstants, kZero64);
 const int32_t kMaxUInt = GetConstants() + offsetof(MacroAssemblerConstants, kMaxUInt64);
-
+template <>
+const int32_t kConst<uint64_t{0x8000'0000'0000'00ff}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, k0x8000_0000_0000_00ff);
 }  // namespace berberis::constant_pool
