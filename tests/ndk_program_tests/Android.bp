@@ -75,6 +75,7 @@ cc_test {
         // TODO(b/187471779): Signal stress test is unstable with high number of repetitions.
         // TODO(b/188086209): Errno emulation is not thread-safe - some checks fail.
         "signal_stress_test.cc",
+        "system_properties_test.cc",
     ],
 }
 
