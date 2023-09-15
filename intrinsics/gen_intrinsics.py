@@ -899,6 +899,8 @@ def _get_asm_operand_type(arg, prefix=''):
     return prefix + 'Register'
   if asm_defs.is_xreg(cls):
     return prefix + 'XMMRegister'
+  if asm_defs.is_mem_op(cls):
+    return 'const ' + prefix + 'Operand&'
   if asm_defs.is_imm(cls):
     if cls == 'Imm2':
       return 'int8_t'
@@ -924,17 +926,19 @@ def _get_asm_reference(asm):
   #       &Assembler_common_x86::Lzcntl)
   if 'arch' in asm:
     assembler = 'Assembler_%s' % asm['arch']
-    return 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
-        assembler,
-        _get_asm_type(asm, 'typename %s::' % assembler),
-        '\n                  ',
-        assembler,
-        'template ' if '<' in asm['asm'] else '',
-        asm['asm'])
+  elif any(arg['class'].startswith('Imm') for arg in asm['args']):
+    assembler = 'MacroAssembler'
   else:
     return '&MacroAssembler::%s%s' % (
         'template ' if '<' in asm['asm'] else '',
         asm['asm'])
+  return 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
+      assembler,
+      _get_asm_type(asm, 'typename %s::' % assembler),
+      '\n                  ',
+      assembler,
+      'template ' if '<' in asm['asm'] else '',
+      asm['asm'])
 
 def _load_intrs_def_files(intrs_def_files):
   result = {}

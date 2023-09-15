@@ -447,9 +447,6 @@ void LiteTranslator::Store(Decoder::StoreOperandType operand_type,
 Register LiteTranslator::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
   Register res = AllocTempReg();
   switch (opcode) {
-    case Decoder::CsrOpcode::kCsrrw:
-      as_.Movq(res, arg);
-      break;
     case Decoder::CsrOpcode::kCsrrs:
       as_.Movq(res, arg);
       as_.Orq(res, csr);
