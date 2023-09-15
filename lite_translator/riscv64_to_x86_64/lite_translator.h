@@ -284,10 +284,26 @@ class LiteTranslator {
   }
 
   template <CsrName kName>
-  void SetCsr(uint8_t imm);
+  void SetCsr(uint8_t imm) {
+    // Note: csr immediate only have 5 bits in RISC-V encoding which guarantess us that
+    // “imm & kCsrMask<kName>”can be used as 8-bit immediate.
+    as_.Mov<CsrFieldType<kName>>({.base = Assembler::rbp, .disp = kCsrFieldOffset<kName>},
+                                 static_cast<int8_t>(imm & kCsrMask<kName>));
+  }
 
   template <CsrName kName>
-  void SetCsr(Register arg);
+  void SetCsr(Register arg) {
+    // Use RCX as temporary register.
+    as_.Mov<CsrFieldType<kName>>(Assembler::rcx, arg);
+    if constexpr (sizeof(CsrFieldType<kName>) <= sizeof(int32_t)) {
+      as_.And<CsrFieldType<kName>>(Assembler::rcx, kCsrMask<kName>);
+    } else {
+      as_.And<CsrFieldType<kName>>(Assembler::rcx,
+                                   {.disp = constants_pool::kConst<uint64_t{kCsrMask<kName>}>});
+    }
+    as_.Mov<CsrFieldType<kName>>({.base = Assembler::rbp, .disp = kCsrFieldOffset<kName>},
+                                 Assembler::rcx);
+  }
 
   [[nodiscard]] Register GetImm(uint64_t imm) {
     Register imm_reg = AllocTempReg();
@@ -445,20 +461,80 @@ class LiteTranslator {
 };
 
 template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kVlenb>() {
+  return GetImm(16);
+}
+
+template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kVxrm>() {
+  Register reg = AllocTempReg();
+  as_.Expand<uint64_t, uint8_t>(reg,
+                                {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>});
+  as_.And<uint8_t>(reg, 0b11);
+  return reg;
+}
+
+template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kVxsat>() {
+  Register reg = AllocTempReg();
+  as_.Expand<uint64_t, uint8_t>(reg,
+                                {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>});
+  as_.Shr<uint8_t>(reg, 2);
+  return reg;
+}
+
+template <>
 inline void LiteTranslator::SetCsr<CsrName::kFrm>(uint8_t imm) {
   as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
-                   static_cast<int8_t>(imm & 0b111));
-  FeSetRoundImm(static_cast<int8_t>(imm & 0b111));
+                   static_cast<int8_t>(imm & kCsrMask<CsrName::kFrm>));
+  FeSetRoundImm(static_cast<int8_t>(imm & kCsrMask<CsrName::kFrm>));
 }
 
 template <>
 inline void LiteTranslator::SetCsr<CsrName::kFrm>(Register arg) {
   // Use RCX as temporary register. We know it would be used by FeSetRound, too.
   as_.Mov<uint8_t>(Assembler::rcx, arg);
-  as_.And<uint8_t>(Assembler::rcx, 0b111);
+  as_.And<uint8_t>(Assembler::rcx, kCsrMask<CsrName::kFrm>);
   as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
                    Assembler::rcx);
   FeSetRound(Assembler::rcx);
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kVxrm>(uint8_t imm) {
+  imm &= 0b11;
+  if (imm != 0b11) {
+    as_.And<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b100);
+  }
+  if (imm != 0b00) {
+    as_.Or<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, imm);
+  }
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kVxrm>(Register arg) {
+  as_.And<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b100);
+  as_.And<uint8_t>(arg, 0b11);
+  as_.Or<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, arg);
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kVxsat>(uint8_t imm) {
+  if (imm & 0b1) {
+    as_.Or<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b100);
+  } else {
+    as_.And<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b11);
+  }
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kVxsat>(Register arg) {
+  as_.And<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b11);
+  as_.Test<uint8_t>(arg, 1);
+  // Use RCX as temporary register.
+  as_.Setcc(Condition::kNotZero, as_.rcx);
+  as_.Shl<uint8_t>(as_.rcx, int8_t{2});
+  as_.Or<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, as_.rcx);
 }
 
 // There is no NanBoxing for Float64 except on CPUs with Float128 support.
