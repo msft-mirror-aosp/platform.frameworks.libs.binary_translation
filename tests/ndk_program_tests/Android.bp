@@ -71,6 +71,11 @@ cc_test {
     name: "berberis_ndk_program_tests",
     defaults: ["berberis_ndk_program_tests_defaults"],
     shared_libs: ["libz"],
+    srcs: [
+        // TODO(b/187471779): Signal stress test is unstable with high number of repetitions.
+        // TODO(b/188086209): Errno emulation is not thread-safe - some checks fail.
+        "signal_stress_test.cc",
+    ],
 }
 
 cc_test {
