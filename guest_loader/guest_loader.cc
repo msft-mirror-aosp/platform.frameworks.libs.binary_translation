@@ -19,6 +19,7 @@
 #include <algorithm>   // std::generate
 #include <climits>     // CHAR_BIT
 #include <cstdint>
+#include <cstdlib>
 #include <functional>  // std::ref
 #include <mutex>
 #include <random>
@@ -66,6 +67,20 @@ const char* FindPtInterp(const LoadedElfFile* loaded_executable) {
   return nullptr;
 }
 
+void FillRandomBuf(uint8_t* buf, size_t size) {
+  // arc4random was introduced in GLIBC 2.36
+#if defined(__GLIBC__) && ((__GLIBC__ < 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ < 36)))
+  // Fall back to implementation-defined stl random
+  std::random_device random_device("/dev/urandom");
+  std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> engine(
+      random_device());
+  std::generate(buf, buf + size, std::ref(engine));
+#else
+  // use arc4random for everything else
+  arc4random_buf(buf, size);
+#endif
+}
+
 [[noreturn]] void StartGuestExecutableImpl(size_t argc,
                                            const char* argv[],
                                            char* envp[],
@@ -88,8 +103,7 @@ const char* FindPtInterp(const LoadedElfFile* loaded_executable) {
   }
 
   uint8_t kRandomBytes[16];
-  std::independent_bits_engine<std::default_random_engine, CHAR_BIT, uint8_t> engine;
-  std::generate(&kRandomBytes[0], &kRandomBytes[0] + sizeof(kRandomBytes), std::ref(engine));
+  FillRandomBuf(kRandomBytes, sizeof(kRandomBytes));
 
   GuestThread* main_thread = GetCurrentGuestThread();
   ThreadState* state = main_thread->state();
