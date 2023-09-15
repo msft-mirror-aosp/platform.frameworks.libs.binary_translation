@@ -913,8 +913,8 @@ def _get_asm_reference(asm):
   # to static cast these references if we want to use them as template argument:
   # https://ibob.bg/blog/2018/08/18/a-bug-in-the-cpp-standard/
 
-  # Thankfully there are no need to use the same name for MacroInstructions
-  # since we may always rename these.
+  # Thankfully there are usually no need to use the same trick for MacroInstructions
+  # since we may always rename these, except when immediates are involved.
 
   # But for assembler we need to use actual type from where these
   # instructions come from!
