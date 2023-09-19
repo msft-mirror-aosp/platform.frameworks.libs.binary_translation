@@ -719,41 +719,86 @@ def _get_reg_operand_info(arg, info_prefix=None):
 def _gen_make_intrinsics(f, intrs, archs):
   print("""%s
 template <%s,
+          typename MacroAssembler,
           typename Callback,
           typename... Args>
 void ProcessAllBindings(Callback callback, Args&&... args) {""" % (
     AUTOGEN,
-    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
-                         ['typename MacroAssembler'])),
+    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs])),
     file=f)
   for line in _gen_c_intrinsics_generator(
-          intrs, _is_interpreter_compatible_assembler):
+          intrs, _is_interpreter_compatible_assembler, False): # False for gen_builder
       print(line, file=f)
   print('}', file=f)
 
+def _gen_opcode_generators_f(f, intrs):
+  for line in _gen_opcode_generators(intrs):
+    print(line, file=f)
+
+def _gen_opcode_generators(intrs):
+  opcode_generators = {}
+  for name, intr in intrs:
+    if 'asm' not in intr:
+      continue
+    if 'variants' in intr:
+      variants = _get_formats_with_descriptions(intr)
+      variants = sorted(variants, key=lambda variant: variant[1].index)
+      # Collect intr_asms for all variants of intrinsic.
+      # Note: not all variants are guaranteed to have an asm variant!
+      # If that happens the list of intr_asms for that variant will be empty.
+      variants = [[
+          intr_asm for intr_asm in _gen_sorted_asms(intr)
+          if fmt in intr_asm['variants']
+      ] for fmt, _ in variants]
+      # Print intrinsic generator
+      for intr_asms in variants:
+        if len(intr_asms) > 0:
+          for intr_asm in intr_asms:
+            for line in _gen_opcode_generator(intr_asm, opcode_generators):
+              yield line
+    else:
+      for intr_asm in _gen_sorted_asms(intr):
+        for line in _gen_opcode_generator(intr_asm, opcode_generators):
+          yield line
+
+def _gen_opcode_generator(asm, opcode_generators):
+  name = asm['name']
+  if name not in opcode_generators:
+    opcode_generators[name] = True
+    yield """
+// TODO(b/260725458): Pass lambda as template argument after C++20 becomes available.
+class GetOpcode%s {
+ public:
+  template <typename Opcode>
+  constexpr auto operator()() {
+    return Opcode::kMachineOp%s;
+  }
+};""" % (name, name)
 
 def _gen_process_bindings(f, intrs, archs):
-  print("""%s
+  print('%s' % AUTOGEN, file=f)
+  _gen_opcode_generators_f(f, intrs)
+  print("""
 template <auto kFunc,
           %s,
+          typename MacroAssembler,
           typename Result,
           typename Callback,
           typename... Args>
 Result ProcessBindings(Callback callback, Result def_result, Args&&... args) {""" % (
-    AUTOGEN,
-    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
-                         ['typename MacroAssembler'])),
+    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs])),
     file=f)
   for line in _gen_c_intrinsics_generator(
-          intrs, _is_translator_compatible_assembler):
+          intrs, _is_translator_compatible_assembler, True): # True for gen_builder
       print(line, file=f)
   print("""  }
   return std::forward<Result>(def_result);
 }""", file=f)
 
 
-def _gen_c_intrinsics_generator(intrs, check_compatible_assembler):
+def _gen_c_intrinsics_generator(intrs, check_compatible_assembler, gen_builder):
   string_labels = {}
+  mnemo_idx = [0]
   for name, intr in intrs:
     ins = intr.get('in')
     outs = intr.get('out')
@@ -785,12 +830,19 @@ def _gen_c_intrinsics_generator(intrs, check_compatible_assembler):
                                          intr,
                                          intr_asm,
                                          string_labels,
-                                         check_compatible_assembler):
+                                         mnemo_idx,
+                                         check_compatible_assembler,
+                                         gen_builder):
               yield line
     else:
       for intr_asm in _gen_sorted_asms(intr):
-        for line in _gen_c_intrinsic(
-          name, intr, intr_asm, string_labels, check_compatible_assembler):
+        for line in _gen_c_intrinsic(name,
+                                     intr,
+                                     intr_asm,
+                                     string_labels,
+                                     mnemo_idx,
+                                     check_compatible_assembler,
+                                     gen_builder):
           yield line
 
 
@@ -819,7 +871,13 @@ _KNOWN_FEATURES_KEYS = {
 }
 
 
-def _gen_c_intrinsic(name, intr, asm, string_labels, check_compatible_assembler):
+def _gen_c_intrinsic(name,
+                     intr,
+                     asm,
+                     string_labels,
+                     mnemo_idx,
+                     check_compatible_assembler,
+                     gen_builder):
   if not check_compatible_assembler(asm):
     return
 
@@ -853,6 +911,12 @@ def _gen_c_intrinsic(name, intr, asm, string_labels, check_compatible_assembler)
   else:
     name_label = string_labels[name]
 
+  mnemo = asm['mnemo']
+  mnemo_label = 'kMnemo%d' % mnemo_idx[0]
+  mnemo_idx[0] += 1
+  yield '    static constexpr const char %s[] = "%s";' % (
+      mnemo_label, mnemo)
+
   restriction = [cpuid_restriction, nan_restriction]
 
   if check_compatible_assembler == _is_translator_compatible_assembler:
@@ -863,7 +927,9 @@ def _gen_c_intrinsic(name, intr, asm, string_labels, check_compatible_assembler)
   yield '              %s>(),' % (
     ',\n              '.join(
         [name_label,
-         _get_asm_reference(asm),
+         _get_asm_reference(asm, gen_builder),
+         mnemo_label,
+         _get_builder_reference(intr, asm) if gen_builder else 'void',
          cpuid_restriction,
          nan_restriction,
          'true' if _intr_has_side_effects(intr) else 'false',
@@ -908,7 +974,7 @@ def _get_asm_operand_type(arg, prefix=''):
   assert False
 
 
-def _get_asm_reference(asm):
+def _get_asm_reference(asm, gen_builder):
   # Because of misfeature of Itanium C++ ABI we couldn't just use MacroAssembler
   # to static cast these references if we want to use them as template argument:
   # https://ibob.bg/blog/2018/08/18/a-bug-in-the-cpp-standard/
@@ -926,6 +992,8 @@ def _get_asm_reference(asm):
   #       &Assembler_common_x86::Lzcntl)
   if 'arch' in asm:
     assembler = 'Assembler_%s' % asm['arch']
+  elif gen_builder:
+    assembler = 'std::tuple_element_t<0, MacroAssembler>'
   elif any(arg['class'].startswith('Imm') for arg in asm['args']):
     assembler = 'MacroAssembler'
   else:
@@ -939,6 +1007,9 @@ def _get_asm_reference(asm):
       assembler,
       'template ' if '<' in asm['asm'] else '',
       asm['asm'])
+
+def _get_builder_reference(intr, asm):
+  return 'GetOpcode%s' % (asm['name'])
 
 def _load_intrs_def_files(intrs_def_files):
   result = {}
