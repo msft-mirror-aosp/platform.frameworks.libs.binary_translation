@@ -156,6 +156,16 @@ class LiteTranslator {
   }
 
   //
+  // V extension.
+  //
+
+  void OpVector(const typename Decoder::VOpArgs& /*args*/) {
+    // TODO(300690740): develop and implement strategy which would allow us to support vector
+    // intrinsics not just in the interpreter.
+    Unimplemented();
+  }
+
+  //
   // Guest state getters/setters.
   //
 

@@ -53,7 +53,7 @@ enum class CsrName {
   BERBERIS_RISV64_PROCESS_CSR(Frm, frm, 0b111)            \
   BERBERIS_RISV64_PROCESS_CSR(Vstart, vstart, 0b01111111) \
   BERBERIS_RISV64_PROCESS_CSR(Vcsr, vcsr, 0b111)          \
-  BERBERIS_RISV64_PROCESS_CSR(Vl, vl, 0b1111111)          \
+  BERBERIS_RISV64_PROCESS_CSR(Vl, vl, 0b11111111)         \
   BERBERIS_RISV64_PROCESS_CSR(                            \
       Vtype,                                              \
       vtype,                                              \
