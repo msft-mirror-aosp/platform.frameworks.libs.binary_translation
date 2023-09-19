@@ -789,6 +789,12 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   }
 
+  void OpVector(const typename Decoder::VOpArgs& args) {
+    // TODO(300690740): develop and implement strategy which would allow us to support vector
+    // intrinsics not just in the interpreter.
+    listener_->OpVector(args);
+  }
+
   void Store(const typename Decoder::StoreArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register data = GetRegOrZero(args.data);
