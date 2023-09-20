@@ -17,9 +17,7 @@
 #ifndef BERBERIS_GUEST_ABI_GUEST_ABI_ARCH_H_
 #define BERBERIS_GUEST_ABI_GUEST_ABI_ARCH_H_
 
-#include <array>
-
-#include "berberis/calling_conventions/calling_conventions_riscv64.h"
+#include "berberis/calling_conventions/calling_conventions_riscv64.h"  // IWYU pragma: export.
 #include "berberis/guest_abi/guest_type.h"
 
 namespace berberis {

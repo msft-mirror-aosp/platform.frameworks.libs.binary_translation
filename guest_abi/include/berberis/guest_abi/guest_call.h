@@ -17,6 +17,6 @@
 #ifndef BERBERIS_GUEST_ABI_GUEST_CALL_H_
 #define BERBERIS_GUEST_ABI_GUEST_CALL_H_
 
-#include "berberis/guest_abi/guest_call_arch.h"
+#include "berberis/guest_abi/guest_call_arch.h"  // IWYU pragma: export.
 
 #endif  // BERBERIS_GUEST_ABI_GUEST_CALL_H_
