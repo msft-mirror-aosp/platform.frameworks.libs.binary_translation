@@ -14,27 +14,17 @@
  * limitations under the License.
  */
 
-#include "berberis/intrinsics/intrinsics.h"
+#ifndef BERBERIS_BACKEND_COMMON_MACHINE_IR_OPT_H_
+#define BERBERIS_BACKEND_COMMON_MACHINE_IR_OPT_H_
 
-#include <cstdint>
-#include <tuple>
+namespace berberis {
 
-namespace berberis::intrinsics {
+class MachineIR;
 
-// TODO(b/260725458): stop using __builtin_popcount after C++20 would become available.
-template <>
-std::tuple<int64_t> Cpop<int32_t>(int32_t src) {
-  return {__builtin_popcount(src)};
-}
+void RemoveNopPseudoCopy(MachineIR* machine_ir);
+void RemoveForwarderBlocks(MachineIR* machine_ir);
+void MoveColdBlocksToEnd(MachineIR* machine_ir);
 
-// TODO(b/260725458): stop using __builtin_popcountll after C++20 would become available.
-template <>
-std::tuple<int64_t> Cpop<int64_t>(int64_t src) {
-  return {__builtin_popcountll(src)};
-}
+}  // namespace berberis
 
-std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
-  return {uint64_t{src} << imm};
-}
-
-}  // namespace berberis::intrinsics
+#endif  // BERBERIS_BACKEND_COMMON_MACHINE_IR_OPT_H_

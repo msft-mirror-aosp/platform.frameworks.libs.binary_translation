@@ -46,22 +46,29 @@ extern const int32_t kCanonicalNans<intrinsics::Float64>;
 
 // Helper constant for BsrToClz conversion. 63 for int32_t, 127 for int64_t.
 template <typename IntType>
-extern const int32_t BsrToClz;
+extern const int32_t kBsrToClz;
 template <>
-extern const int32_t BsrToClz<int32_t>;
+extern const int32_t kBsrToClz<int32_t>;
 template <>
-extern const int32_t BsrToClz<int64_t>;
+extern const int32_t kBsrToClz<int64_t>;
 
 // Helper constant for width of the type. 32 for int32_t, 64 for int64_t.
 template <typename IntType>
-extern const int32_t WidthInBits;
+extern const int32_t kWidthInBits;
 template <>
-extern const int32_t WidthInBits<int32_t>;
+extern const int32_t kWidthInBits<int32_t>;
 template <>
-extern const int32_t WidthInBits<int64_t>;
+extern const int32_t kWidthInBits<int64_t>;
 
-extern const int32_t Zero;
+extern const int32_t kZero;
 extern const int32_t kMaxUInt;
+
+// 64 bit constants for use with arithmetic operations.
+// Used because only 32 bit immediates are supported on x86-64.
+template <auto Value>
+extern const int32_t kConst;
+template <>
+extern const int32_t kConst<uint64_t{0x8000'0000'0000'00ff}>;
 
 }  // namespace berberis::constants_pool
 

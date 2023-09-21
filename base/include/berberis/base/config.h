@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_RUNTIME_PRIMITIVES_CONFIG_H_
-#define BERBERIS_RUNTIME_PRIMITIVES_CONFIG_H_
+#ifndef BERBERIS_BASE_CONFIG_H_
+#define BERBERIS_BASE_CONFIG_H_
 
 #include <cstddef>
 #include <cstdint>
-
-#include "berberis/runtime_primitives/platform.h"
 
 namespace berberis::config {
 
@@ -35,7 +33,7 @@ namespace berberis::config {
 // kStackMisalignAtTranslatedCode config variable.
 // TODO(b/232598137): 12 is what we get on x86-32 after stack alignment, update
 // with, say, 90-percentile of (dynamic) frame size.
-inline constexpr uint32_t kFrameSizeAtTranslatedCode = host_platform::kIsX86_32 ? 12u : 8u;
+inline constexpr uint32_t kFrameSizeAtTranslatedCode = sizeof(size_t) == 4 ? 12u : 8u;
 // Setting this to true enables instrumentation of every executed region in the
 // main execution loop (ExecuteGuest).
 inline constexpr bool kAllJumpsExitGeneratedCode = false;
@@ -44,7 +42,17 @@ inline constexpr bool kAllJumpsExitGeneratedCode = false;
 inline constexpr bool kLinkJumpsBetweenRegions = !kAllJumpsExitGeneratedCode;
 // Guest page size. Always 4K for now.
 inline constexpr size_t kGuestPageSize = 4096;
+// Number of hard registers assumed by the register allocator.
+inline constexpr uint32_t kMaxHardRegs = 64u;
+// Threshold for switching between gears
+inline constexpr uint32_t kGearSwitchThreshold = 1000;
+// Scratch area size for use in intrinsics with instructions which may only work with memory.
+inline constexpr uint32_t kScratchAreaSize = 16;
+// Scratch area alignment (important if we would use Movaps/Movapd).
+inline constexpr uint32_t kScratchAreaAlign = 16;
+// Scratch area slot size if more than one scratch is needed.
+inline constexpr uint32_t kScratchAreaSlotSize = 8;
 
 }  // namespace berberis::config
 
-#endif  // BERBERIS_RUNTIME_PRIMITIVES_CONFIG_H_
+#endif  // BERBERIS_BASE_CONFIG_H_

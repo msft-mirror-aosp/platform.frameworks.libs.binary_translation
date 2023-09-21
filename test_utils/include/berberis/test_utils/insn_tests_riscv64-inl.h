@@ -181,6 +181,16 @@ class TESTSUITE : public ::testing::Test {
 
   // Non-Compressed Instructions.
 
+  void TestCsr(uint32_t insn_bytes, uint8_t expected_rm) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    state_.cpu.frm = 0b001u;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
+    EXPECT_EQ(state_.cpu.frm, expected_rm);
+    state_.cpu.frm = intrinsics::GuestModeFromHostRounding();
+  }
+
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
@@ -397,13 +407,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
   }
 
-  void TestAtomicLoad(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    SetXReg<1>(state_.cpu, ToGuestAddr(&kDataToLoad));
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
-  }
-
   void TestStoreFp(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
@@ -412,17 +415,6 @@ class TESTSUITE : public ::testing::Test {
     store_area_ = 0;
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(store_area_, expected_result);
-  }
-
-  void TestAtomicStore(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
-    SetXReg<2>(state_.cpu, kDataToStore);
-    SetXReg<3>(state_.cpu, 0xdeadbeef);
-    store_area_ = 0;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(store_area_, expected_result);
-    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
   }
 
  protected:
@@ -1060,6 +1052,50 @@ TEST_F(TESTSUITE, CJalr) {
 
 // Tests for Non-Compressed Instructions.
 
+TEST_F(TESTSUITE, CsrInstructions) {
+  ScopedRoundingMode scoped_rounding_mode;
+  // Csrrw x2, frm, 2
+  TestCsr(0x00215173, 2);
+  // Csrrsi x2, frm, 2
+  TestCsr(0x00216173, 3);
+  // Csrrci x2, frm, 1
+  TestCsr(0x0020f173, 0);
+}
+
+TEST_F(TESTSUITE, FsrRegister) {
+  ScopedRoundingMode scoped_rounding_mode;
+  // Csrrw x2, frm, 0
+  TestCsr(0x00205173, 0);
+  EXPECT_EQ(std::fegetround(), FE_TONEAREST);
+  // Csrrw x2, frm, 1
+  TestCsr(0x0020d173, 1);
+  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+  // Csrrw x2, frm, 2
+  TestCsr(0x00215173, 2);
+  EXPECT_EQ(std::fegetround(), FE_DOWNWARD);
+  // Csrrw x2, frm, 3
+  TestCsr(0x0021d173, 3);
+  EXPECT_EQ(std::fegetround(), FE_UPWARD);
+  // Csrrw x2, frm, 4
+  TestCsr(0x00225173, 4);
+  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+  // Csrrw x2, frm, 8
+  TestCsr(0x00245173, 0);
+  EXPECT_EQ(std::fegetround(), FE_TONEAREST);
+  // Csrrw x2, frm, 9
+  TestCsr(0x0024d173, 1);
+  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+  // Csrrw x2, frm, 10
+  TestCsr(0x00255173, 2);
+  EXPECT_EQ(std::fegetround(), FE_DOWNWARD);
+  // Csrrw x2, frm, 11
+  TestCsr(0x0025d173, 3);
+  EXPECT_EQ(std::fegetround(), FE_UPWARD);
+  // Csrrw x2, frm, 12
+  TestCsr(0x00265173, 4);
+  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+}
+
 TEST_F(TESTSUITE, OpInstructions) {
   // Add
   TestOp(0x003100b3, {{19, 23, 42}});
@@ -1138,19 +1174,32 @@ TEST_F(TESTSUITE, OpInstructions) {
   // Rol
   TestOp(0x603110b3, {{0xff00'0000'0000'0000ULL, 4, 0xf000'0000'0000'000fULL}});
   TestOp(0x603110b3, {{0x000f'ff00'0000'000fULL, 8, 0x0fff'0000'0000'0f00ULL}});
-  // Sh1add.uw
-  TestOp(0x203120b3, {{0x1000'0001'0000'0000ULL, 1, 0x2000'0002'0000'0001ULL}});
-  // Sh2add.uw
-  TestOp(0x203140b3, {{0x0000'0001'0000'0000ULL, 1, 0x0000'0004'0000'0001ULL}});
-  // Sh3add.uw
-  TestOp(0x203160b3, {{0x1000'0001'0000'0000ULL, 1, 0x8000'0008'0000'0001ULL}});
+  // Sh1add
+  TestOp(0x203120b3, {{0x0008'0000'0000'0001, 0x1001'0001'0000'0000ULL, 0x1011'0001'0000'0002ULL}});
+  // Sh2add
+  TestOp(0x203140b3, {{0x0008'0000'0000'0001, 0x0001'0001'0000'0000ULL, 0x0021'0001'0000'0004ULL}});
+  // Sh3add
+  TestOp(0x203160b3, {{0x0008'0000'0000'0001, 0x1001'0011'0000'0000ULL, 0x1041'0011'0000'0008ULL}});
+  // Bclr
+  TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
+  // Bext
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 0, 0b0000'0000'0000'0001ULL}});
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 8, 0b0000'0000'0000'0001ULL}});
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 7, 0b0000'0000'0000'0000ULL}});
+  // Binv
+  TestOp(0x683110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOp(0x683110b3, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
+  // Bset
+  TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0001ULL}});
+  TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
 
 TEST_F(TESTSUITE, Op32Instructions) {
   // Addw
   TestOp(0x003100bb, {{19, 23, 42}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
   // Add.uw
-  TestOp(0x083100bb, {{19, 23, 42}, {0x8000'0000, 1, 0x0000'0000'8000'0001}});
+  TestOp(0x083100bb, {{19, 23, 42}, {0x8000'0000'8000'0000, 1, 0x0000'0000'8000'0001}});
   // Subw
   TestOp(0x403100bb, {{42, 23, 19}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
   // Sllw
@@ -1183,11 +1232,11 @@ TEST_F(TESTSUITE, Op32Instructions) {
   TestOp(0x603110bb, {{0x0000'0000'f000'000fULL, 4, 0x0000'0000'0000'00ff}});
   TestOp(0x603110bb, {{0x0000'0000'0ff0'0000ULL, 4, 0xffff'ffff'ff00'0000}});
   // Sh1add.uw
-  TestOp(0x203120bb, {{0x8000'0000, 1, 0x0000'0001'0000'0001}});
+  TestOp(0x203120bb, {{0xf0ff'0000'8000'0001, 0x8000'0000, 0x0000'0001'8000'0002}});
   // Sh2add.uw
-  TestOp(0x203140bb, {{0x8000'0000, 1, 0x0000'0002'0000'0001}});
+  TestOp(0x203140bb, {{0xf0ff'00ff'8000'0001, 0x8000'0000, 0x0000'0002'8000'0004}});
   // Sh3add.uw
-  TestOp(0x203160bb, {{0x8000'0000, 1, 0x0000'0004'0000'0001}});
+  TestOp(0x203160bb, {{0xf0ff'0f00'8000'0001, 0x8000'0000, 0x0000'0004'8000'0008}});
 }
 
 TEST_F(TESTSUITE, OpImmInstructions) {
@@ -1243,6 +1292,19 @@ TEST_F(TESTSUITE, OpImmInstructions) {
   // Orc.b
   TestOpImm(0x28715093, {{0xfe00'f0ff'fa00'fffb, 0, 0xff00'ffff'ff00'ffff}});
   TestOpImm(0x28715093, {{0xfa00, 0, 0xff00}});
+  // Bclri
+  TestOpImm(0x48011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOpImm(0x48011093, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
+  // Bexti
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 0, 0b0000'0000'0000'0001ULL}});
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 8, 0b0000'0000'0000'0001ULL}});
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 7, 0b0000'0000'0000'0000ULL}});
+  // Binvi
+  TestOpImm(0x68011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOpImm(0x68011093, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
+  // Bset
+  TestOpImm(0x28011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0001ULL}});
+  TestOpImm(0x28011093, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
 
 TEST_F(TESTSUITE, OpImm32Instructions) {
@@ -1775,24 +1837,10 @@ TEST_F(TESTSUITE, LoadFpInstructions) {
   TestLoadFp(0x00813087, kDataToLoad);
 }
 
-TEST_F(TESTSUITE, AtomicLoadInstructions) {
-  // Lrw
-  TestAtomicLoad(0x1000a12f, int64_t{int32_t(kDataToLoad)});
-  // Lrd
-  TestAtomicLoad(0x1000b12f, kDataToLoad);
-}
-
 TEST_F(TESTSUITE, StoreFpInstructions) {
   // Offset is always 8.
   // Fsw
   TestStoreFp(0x0020a427, kDataToStore & 0xffff'ffffULL);
   // Fsd
   TestStoreFp(0x0020b427, kDataToStore);
-}
-
-TEST_F(TESTSUITE, AtomicStoreInstructions) {
-  // Scw
-  TestAtomicStore(0x1820a1af, kDataToStore & 0xffff'ffffULL);
-  // Scd
-  TestAtomicStore(0x1820b1af, kDataToStore);
 }

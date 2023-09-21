@@ -13,6 +13,36 @@
   "See the License for the specific language governing permissions and",
   "limitations under the License.",
   {
+    "name": "Adduw",
+    "insn": "Adduw",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Bclr",
+    "insn": "BtrqRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Bext",
+    "insn": "Bext",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Binv",
+    "insn": "BtcqRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Bset",
+    "insn": "BtsqRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "CanonicalizeNan<Float32>",
     "insn": "CanonicalizeNanFloat32",
     "in": [ 1 ],
@@ -65,6 +95,20 @@
     "out": [ 0 ]
   },
   {
+    "name": "Cpop<int32_t>",
+    "insn": "PopcntlRegReg",
+    "feature": "POPCNT",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Cpop<int64_t>",
+    "insn": "PopcntqRegReg",
+    "feature": "POPCNT",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
     "name": "Ctz<int32_t>",
     "insn": "CtzInt32",
     "in": [ 1 ],
@@ -88,133 +132,6 @@
     "insn": "TzcntqRegReg",
     "feature": "BMI",
     "in": [ 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Max<int64_t>",
-    "insn": "MaxInt64",
-    "in": [ 1, 2],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Max<uint64_t>",
-    "insn": "MaxUInt64",
-    "in": [ 1, 2],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Min<int64_t>",
-    "insn": "MinInt64",
-    "in": [ 1, 2],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Min<uint64_t>",
-    "insn": "MinUInt64",
-    "in": [ 1, 2],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Rev8",
-    "insn": "BswapqReg",
-    "in": [ 0 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Rol<int64_t>",
-    "insn": "RolqRegReg",
-    "in": [0,1],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Rol<int32_t>",
-    "insn": "RollRegReg",
-    "in": [0,1],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Ror<int64_t>",
-    "insn": "RorqRegReg",
-    "in": [0,1],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Ror<int32_t>",
-    "insn": "RorlRegReg",
-    "in": [0,1],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Sext<int8_t>",
-    "insn": "MovsxbqRegReg",
-    "in": [ 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Sext<int16_t>",
-    "insn": "MovsxwqRegReg",
-    "in": [ 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Zexth",
-    "insn": "MovzxwqRegReg",
-    "in": [ 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Orcb",
-    "insn": "Orcb",
-    "in": [0],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Orcb",
-    "insn": "OrcbAVX",
-    "feature": "AVX",
-    "in": [ 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Adduw",
-    "insn": "Adduw",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Sh1adduw",
-    "insn": "Sh1adduw",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Sh2adduw",
-    "insn": "Sh2adduw",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Sh3adduw",
-    "insn": "Sh3adduw",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Sh1add",
-    "insn": "Sh1add",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Sh2add",
-    "insn": "Sh2add",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "Sh3add",
-    "insn": "Sh3add",
-    "in": [ 0, 1 ],
     "out": [ 0 ]
   },
   {
@@ -244,14 +161,8 @@
     "out": [ 0 ]
   },
   {
-    "name": "FCvtFloatToIntegerHostRounding<int64_t, Float64>",
-    "insn": "MacroFCvtFloat64ToInt64",
-    "in": [ 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FCvtFloatToIntegerHostRounding<int64_t, Float32>",
-    "insn": "MacroFCvtFloat32ToInt64",
+    "name": "FCvtFloatToIntegerHostRounding<int32_t, Float32>",
+    "insn": "MacroFCvtFloat32ToInt32",
     "in": [ 1 ],
     "out": [ 0 ]
   },
@@ -262,8 +173,14 @@
     "out": [ 0 ]
   },
   {
-    "name": "FCvtFloatToIntegerHostRounding<int32_t, Float32>",
-    "insn": "MacroFCvtFloat32ToInt32",
+    "name": "FCvtFloatToIntegerHostRounding<int64_t, Float32>",
+    "insn": "MacroFCvtFloat32ToInt64",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FCvtFloatToIntegerHostRounding<int64_t, Float64>",
+    "insn": "MacroFCvtFloat64ToInt64",
     "in": [ 1 ],
     "out": [ 0 ]
   },
@@ -289,6 +206,134 @@
   {
     "name": "FDivHostRounding<Float64>",
     "insn": "VdivsdXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FeSetRound",
+    "insn": "MacroFeSetRound",
+    "in": [ 3 ],
+    "out": []
+  },
+  {
+    "name": "FeSetRoundImm",
+    "insn": "MacroFeSetRound",
+    "usage": "interpret-only",
+    "in": [ 3 ],
+    "out": []
+  },
+  {
+    "name": "FeSetRoundImm",
+    "insn": "MacroFeSetRoundImmTranslate",
+    "usage": "translate-only",
+    "in": [ 3 ],
+    "out": []
+  },
+  {
+    "name": "FMAddHostRounding<Float32>",
+    "insn": "Vfmadd231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMAddHostRounding<Float64>",
+    "insn": "Vfmadd231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMSubHostRounding<Float32>",
+    "insn": "Vfmsub231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMSubHostRounding<Float64>",
+    "insn": "Vfmsub231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMulHostRounding<Float32>",
+    "insn": "MulssXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMulHostRounding<Float32>",
+    "insn": "VmulssXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMulHostRounding<Float64>",
+    "insn": "MulsdXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FMulHostRounding<Float64>",
+    "insn": "VmulsdXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMAddHostRounding<Float32>",
+    "insn": "Vfnmadd231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMAddHostRounding<Float64>",
+    "insn": "Vfnmadd231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMSubHostRounding<Float32>",
+    "insn": "Vfnmsub231ssXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FNMSubHostRounding<Float64>",
+    "insn": "Vfnmsub231sdXRegXRegXReg",
+    "feature": "FMA",
+    "in": [ 1, 2, 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FSubHostRounding<Float32>",
+    "insn": "SubssXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FSubHostRounding<Float32>",
+    "insn": "VsubssXRegXRegXReg",
+    "feature": "AVX",
+    "in": [ 1, 2 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FSubHostRounding<Float64>",
+    "insn": "SubsdXRegXReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "FSubHostRounding<Float64>",
+    "insn": "VsubsdXRegXRegXReg",
     "feature": "AVX",
     "in": [ 1, 2 ],
     "out": [ 0 ]
@@ -372,20 +417,6 @@
     "out": [ 0 ]
   },
   {
-    "name": "FMAddHostRounding<Float32>",
-    "insn": "Vfmadd231ssXRegXRegXReg",
-    "feature": "FMA",
-    "in": [ 1, 2, 0 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FMAddHostRounding<Float64>",
-    "insn": "Vfmadd231sdXRegXRegXReg",
-    "feature": "FMA",
-    "in": [ 1, 2, 0 ],
-    "out": [ 0 ]
-  },
-  {
     "name": "FmvFloatToInteger<int32_t, Float32>",
     "insn": "MovdRegXReg",
     "in": [ 1 ],
@@ -438,96 +469,26 @@
     "out": [ 0 ]
   },
   {
-    "name": "FNMAddHostRounding<Float32>",
-    "insn": "Vfnmadd231ssXRegXRegXReg",
-    "feature": "FMA",
-    "in": [ 1, 2, 0 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FNMAddHostRounding<Float64>",
-    "insn": "Vfnmadd231sdXRegXRegXReg",
-    "feature": "FMA",
-    "in": [ 1, 2, 0 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FNMSubHostRounding<Float32>",
-    "insn": "Vfnmsub231ssXRegXRegXReg",
-    "feature": "FMA",
-    "in": [ 1, 2, 0 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FNMSubHostRounding<Float64>",
-    "insn": "Vfnmsub231sdXRegXRegXReg",
-    "feature": "FMA",
-    "in": [ 1, 2, 0 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FMSubHostRounding<Float32>",
-    "insn": "Vfmsub231ssXRegXRegXReg",
-    "feature": "FMA",
-    "in": [ 1, 2, 0 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FMSubHostRounding<Float64>",
-    "insn": "Vfmsub231sdXRegXRegXReg",
-    "feature": "FMA",
-    "in": [ 1, 2, 0 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FMulHostRounding<Float32>",
-    "insn": "MulssXRegXReg",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FMulHostRounding<Float32>",
-    "insn": "VmulssXRegXRegXReg",
-    "feature": "AVX",
+    "name": "Max<int64_t>",
+    "insn": "MaxInt64",
     "in": [ 1, 2 ],
     "out": [ 0 ]
   },
   {
-    "name": "FMulHostRounding<Float64>",
-    "insn": "MulsdXRegXReg",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FMulHostRounding<Float64>",
-    "insn": "VmulsdXRegXRegXReg",
-    "feature": "AVX",
+    "name": "Max<uint64_t>",
+    "insn": "MaxUInt64",
     "in": [ 1, 2 ],
     "out": [ 0 ]
   },
   {
-    "name": "FSubHostRounding<Float32>",
-    "insn": "SubssXRegXReg",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FSubHostRounding<Float32>",
-    "insn": "VsubssXRegXRegXReg",
-    "feature": "AVX",
+    "name": "Min<int64_t>",
+    "insn": "MinInt64",
     "in": [ 1, 2 ],
     "out": [ 0 ]
   },
   {
-    "name": "FSubHostRounding<Float64>",
-    "insn": "SubsdXRegXReg",
-    "in": [ 0, 1 ],
-    "out": [ 0 ]
-  },
-  {
-    "name": "FSubHostRounding<Float64>",
-    "insn": "VsubsdXRegXRegXReg",
-    "feature": "AVX",
+    "name": "Min<uint64_t>",
+    "insn": "MinUInt64",
     "in": [ 1, 2 ],
     "out": [ 0 ]
   },
@@ -541,7 +502,98 @@
     "name": "NanBox<Float32>",
     "insn": "MacroNanBoxFloat32AVX",
     "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Orcb",
+    "insn": "Orcb",
     "in": [ 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Orcb",
+    "insn": "OrcbAVX",
+    "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Rev8",
+    "insn": "BswapqReg",
+    "in": [ 0 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Rol<int32_t>",
+    "insn": "RollRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Rol<int64_t>",
+    "insn": "RolqRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Ror<int32_t>",
+    "insn": "RorlRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Ror<int64_t>",
+    "insn": "RorqRegReg",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sext<int16_t>",
+    "insn": "MovsxwqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sext<int8_t>",
+    "insn": "MovsxbqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh1add",
+    "insn": "Sh1add",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh1adduw",
+    "insn": "Sh1adduw",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh2add",
+    "insn": "Sh2add",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh2adduw",
+    "insn": "Sh2adduw",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh3add",
+    "insn": "Sh3add",
+    "in": [ 0, 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Sh3adduw",
+    "insn": "Sh3adduw",
+    "in": [ 0, 1 ],
     "out": [ 0 ]
   },
   {
@@ -554,6 +606,12 @@
     "name": "UnboxNan<Float32>",
     "insn": "MacroUnboxNanFloat32AVX",
     "feature": "AVX",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Zexth",
+    "insn": "MovzxwqRegReg",
     "in": [ 1 ],
     "out": [ 0 ]
   }

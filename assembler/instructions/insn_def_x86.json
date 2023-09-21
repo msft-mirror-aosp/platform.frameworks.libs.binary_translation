@@ -556,9 +556,36 @@
     },
     {
       "encodings": {
+        "Andnl": { "feature": "BMI", "opcodes": [ "C4", "02", "00", "F2" ], "vex_rm_to_reg": true }
+      },
+      "args": [
+        { "class": "GeneralReg32", "usage": "use_def" },
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "GeneralReg32/Mem32", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Bextrl": { "feature": "BMI", "opcodes": [ "C4", "02", "00", "F7" ] },
+        "Bzhil": { "feature": "BMI2", "opcodes": [ "C4", "02", "00", "F5" ] }
+      },
+      "args": [
+        { "class": "GeneralReg32", "usage": "use_def" },
+        { "class": "GeneralReg32/Mem32", "usage": "use" },
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Blsil": { "feature": "BMI", "opcodes": [ "C4", "02", "00", "F3", "3" ], "rm_to_vex": true },
+        "Blsmskl": { "feature": "BMI", "opcodes": [ "C4", "02", "00", "F3", "2" ], "rm_to_vex": true },
+        "Blsrl": { "feature": "BMI", "opcodes": [ "C4", "02", "00", "F3", "1" ], "rm_to_vex": true },
         "Bsfl": { "opcodes": [ "0F", "BC" ] },
         "Bsrl": { "opcodes": [ "0F", "BD" ] },
         "Lzcntl": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] },
+        "Popcntl": { "feature": "POPCNT", "opcodes": [ "F3", "0F", "B8" ] },
         "Tzcntl": { "feature": "BMI", "opcodes": [ "F3", "0F", "BC" ] }
       },
       "args": [
@@ -572,6 +599,7 @@
         "Bsfw": { "opcodes": [ "66", "0F", "BC" ] },
         "Bsrw": { "opcodes": [ "66", "0F", "BD" ] },
         "Lzcntw": { "feature": "LZCNT", "opcodes": [ "66", "F3", "0F", "BD" ] },
+        "Popcntw": { "feature": "POPCNT", "opcodes": [ "66", "F3", "0F", "B8" ] },
         "Tzcntw": { "feature": "BMI", "opcodes": [ "66", "F3", "0F", "BC" ] }
       },
       "args": [
@@ -1915,6 +1943,18 @@
     },
     {
       "encodings": {
+        "Mulxl": { "feature": "BMI2", "opcodes": [ "C4", "02", "03", "F6" ], "vex_rm_to_reg": true },
+        "Pdepl": { "feature": "BMI2", "opcodes": [ "C4", "02", "03", "F5" ], "vex_rm_to_reg": true },
+        "Pextl": { "feature": "BMI2", "opcodes": [ "C4", "02", "02", "F5" ], "vex_rm_to_reg": true }
+      },
+      "args": [
+        { "class": "GeneralReg32", "usage": "use_def" },
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "GeneralReg32/Mem32", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Negl": { "opcodes": [ "F7", "3" ] },
         "RollByOne": { "opcodes": [ "D1", "0" ] },
         "RorlByOne": { "opcodes": [ "D1", "1" ] },
@@ -2193,6 +2233,16 @@
     },
     {
       "encodings": {
+        "Rorxl": { "feature": "BMI2", "opcodes": [ "C4", "03", "03", "F0" ] }
+      },
+      "args": [
+        { "class": "GeneralReg32", "usage": "def" },
+        { "class": "GeneralReg32/Mem32", "usage": "use" },
+        { "class": "Imm8" }
+      ]
+    },
+    {
+      "encodings": {
         "Roundsd": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "0B" ] }
       },
       "args": [
@@ -2218,6 +2268,18 @@
       "args": [
         { "class": "EAX", "usage": "use" },
         { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Sarxl": { "feature": "BMI2", "opcodes": [ "C4", "02", "02", "F7" ] },
+        "Shlxl": { "feature": "BMI2", "opcodes": [ "C4", "02", "01", "F7" ] },
+        "Shrxl": { "feature": "BMI2", "opcodes": [ "C4", "02", "03", "F7" ] }
+      },
+      "args": [
+        { "class": "GeneralReg32", "usage": "use_def" },
+        { "class": "GeneralReg32/Mem32", "usage": "use" },
+        { "class": "GeneralReg32", "usage": "use" }
       ]
     },
     {

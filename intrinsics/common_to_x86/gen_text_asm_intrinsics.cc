@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/config.h"
 #include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
 #include "berberis/intrinsics/intrinsics_args.h"
 #include "berberis/intrinsics/intrinsics_float.h"
@@ -72,7 +73,7 @@ template <typename AsmCallInfo>
 void GenerateAssemblerIns(FILE* out,
                           int indent,
                           int* register_numbers,
-                          bool need_gpr_macroassembler_mxcsr_scratch,
+                          bool need_gpr_macroassembler_scratch,
                           bool need_gpr_macroassembler_constants);
 template <typename AsmCallInfo>
 void GenerateOutShadows(FILE* out, int indent);
@@ -93,7 +94,7 @@ void GenerateFunctionHeader(FILE* out, int indent) {
     fprintf(out, "template <>\n");
   }
   std::string prefix;
-  if constexpr (std::tuple_size_v<typename AsmCallInfo::InputArguments> == 0) {
+  if constexpr (std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 0) {
     prefix = "inline void " + std::string(AsmCallInfo::kIntrinsic) + "(";
   } else {
     const char* prefix_of_prefix = "inline std::tuple<";
@@ -108,6 +109,12 @@ void GenerateFunctionHeader(FILE* out, int indent) {
     ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
   }
   GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
+  fprintf(out,
+          "  [[maybe_unused]]  alignas(berberis::config::kScratchAreaAlign)"
+          " uint8_t scratch[berberis::config::kScratchAreaSize];\n");
+  fprintf(out,
+          "  [[maybe_unused]] auto& scratch2 ="
+          " scratch[berberis::config::kScratchAreaSlotSize];\n");
 }
 
 template <typename AsmCallInfo>
@@ -134,7 +141,7 @@ void GenerateFunctionBody(FILE* out, int indent) {
     fprintf(out, "%*s__asm__(\n", indent, "");
   }
   // Call text assembler to produce the body of an asm call.
-  auto [need_gpr_macroassembler_mxcsr_scratch, need_gpr_macroassembler_constants] =
+  auto [need_gpr_macroassembler_scratch, need_gpr_macroassembler_constants] =
       CallTextAssembler<AsmCallInfo>(out, indent, register_numbers);
   // Assembler instruction outs.
   GenerateAssemblerOuts<AsmCallInfo>(out, indent);
@@ -142,7 +149,7 @@ void GenerateFunctionBody(FILE* out, int indent) {
   GenerateAssemblerIns<AsmCallInfo>(out,
                                     indent,
                                     register_numbers,
-                                    need_gpr_macroassembler_mxcsr_scratch,
+                                    need_gpr_macroassembler_scratch,
                                     need_gpr_macroassembler_constants);
   // Close asm call.
   fprintf(out, "%*s);\n", indent, "");
@@ -191,7 +198,10 @@ template <typename AsmCallInfo>
 void GenerateInShadows(FILE* out, int indent) {
   AsmCallInfo::ProcessBindings([out, indent](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
-    if constexpr (RegisterClass::kAsRegister == 'r') {
+    if constexpr (RegisterClass::kAsRegister == 'm') {
+      // Only temporary memory scratch area is supported.
+      static_assert(!HaveInput(arg.arg_info) && !HaveOutput(arg.arg_info));
+    } else if constexpr (RegisterClass::kAsRegister == 'r') {
       // TODO(b/138439904): remove when clang handling of 'r' constraint would be fixed.
       if constexpr (NeedInputShadow<AsmCallInfo>(arg)) {
         fprintf(out, "%2$*1$suint32_t in%3$d_shadow = in%3$d;\n", indent, "", arg.arg_info.from);
@@ -291,14 +301,16 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
   AsmCallInfo::ProcessBindings([&arg_counter, &as, register_numbers](auto arg) {
     using RegisterClass = typename decltype(arg)::RegisterClass;
     if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
-      if constexpr (RegisterClass::kIsImplicitReg) {
-        if constexpr (RegisterClass::kAsRegister == 'a') {
-          as.gpr_a = TextAssembler::Register(register_numbers[arg_counter]);
-        } else if constexpr (RegisterClass::kAsRegister == 'c') {
-          as.gpr_c = TextAssembler::Register(register_numbers[arg_counter]);
-        } else {
-          static_assert(RegisterClass::kAsRegister == 'd');
-          as.gpr_d = TextAssembler::Register(register_numbers[arg_counter]);
+      if constexpr (RegisterClass::kAsRegister != 'm') {
+        if constexpr (RegisterClass::kIsImplicitReg) {
+          if constexpr (RegisterClass::kAsRegister == 'a') {
+            as.gpr_a = TextAssembler::Register(register_numbers[arg_counter]);
+          } else if constexpr (RegisterClass::kAsRegister == 'c') {
+            as.gpr_c = TextAssembler::Register(register_numbers[arg_counter]);
+          } else {
+            static_assert(RegisterClass::kAsRegister == 'd');
+            as.gpr_d = TextAssembler::Register(register_numbers[arg_counter]);
+          }
         }
       }
       ++arg_counter;
@@ -306,13 +318,31 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
   });
   as.gpr_macroassembler_constants = TextAssembler::Register(arg_counter);
   arg_counter = 0;
-  std::apply(
-      AsmCallInfo::kMacroInstruction,
-      std::tuple_cat(std::tuple<MacroAssembler<TextAssembler>&>{as},
-                     AsmCallInfo::MakeTuplefromBindings([&arg_counter, register_numbers](auto arg) {
+  int scratch_counter = 0;
+  std::apply(AsmCallInfo::kMacroInstruction,
+             std::tuple_cat(
+                 std::tuple<MacroAssembler<TextAssembler>&>{as},
+                 AsmCallInfo::MakeTuplefromBindings(
+                     [&as, &arg_counter, &scratch_counter, register_numbers](auto arg) {
                        using RegisterClass = typename decltype(arg)::RegisterClass;
                        if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
-                         if constexpr (RegisterClass::kIsImplicitReg) {
+                         if constexpr (RegisterClass::kAsRegister == 'm') {
+                           if (scratch_counter == 0) {
+                             as.gpr_macroassembler_scratch = TextAssembler::Register(arg_counter++);
+                           } else if (scratch_counter == 1) {
+                             as.gpr_macroassembler_scratch2 =
+                                 TextAssembler::Register(arg_counter++);
+                           } else {
+                             FATAL("Only two scratch registers are supported for now");
+                           }
+                           // Note: as.gpr_scratch in combination with offset is treated by text
+                           // assembler specially.  We rely on offset set here to be the same as
+                           // scratch2 address in scratch buffer.
+                           return std::tuple{TextAssembler::Operand{
+                               .base = as.gpr_scratch,
+                               .disp = static_cast<int32_t>(config::kScratchAreaSlotSize *
+                                                            scratch_counter++)}};
+                         } else if constexpr (RegisterClass::kIsImplicitReg) {
                            ++arg_counter;
                            return std::tuple{};
                          } else {
@@ -323,21 +353,25 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
                        }
                      })));
   // Verify CPU vendor and SSE restrictions.
-  bool expect_lzcnt = false;
+  bool expect_avx = false;
   bool expect_bmi = false;
+  bool expect_fma = false;
+  bool expect_fma4 = false;
+  bool expect_lzcnt = false;
+  bool expect_popcnt = false;
   bool expect_sse3 = false;
   bool expect_ssse3 = false;
   bool expect_sse4_1 = false;
   bool expect_sse4_2 = false;
-  bool expect_avx = false;
-  bool expect_fma = false;
-  bool expect_fma4 = false;
   switch (AsmCallInfo::kCPUIDRestriction) {
+    case intrinsics::bindings::kHasBMI:
+      expect_bmi = true;
+      break;
     case intrinsics::bindings::kHasLZCNT:
       expect_lzcnt = true;
       break;
-    case intrinsics::bindings::kHasBMI:
-      expect_bmi = true;
+    case intrinsics::bindings::kHasPOPCNT:
+      expect_popcnt = true;
       break;
     case intrinsics::bindings::kHasFMA:
     case intrinsics::bindings::kHasFMA4:
@@ -365,17 +399,17 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
     case intrinsics::bindings::kIsAuthenticAMD:
     case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
   }
-  CHECK_EQ(expect_lzcnt, as.need_lzcnt);
+  CHECK_EQ(expect_avx, as.need_avx);
   CHECK_EQ(expect_bmi, as.need_bmi);
+  CHECK_EQ(expect_fma, as.need_fma);
+  CHECK_EQ(expect_fma4, as.need_fma4);
+  CHECK_EQ(expect_lzcnt, as.need_lzcnt);
+  CHECK_EQ(expect_popcnt, as.need_popcnt);
   CHECK_EQ(expect_sse3, as.need_sse3);
   CHECK_EQ(expect_ssse3, as.need_ssse3);
   CHECK_EQ(expect_sse4_1, as.need_sse4_1);
   CHECK_EQ(expect_sse4_2, as.need_sse4_2);
-  CHECK_EQ(expect_avx, as.need_avx);
-  CHECK_EQ(expect_fma, as.need_fma);
-  CHECK_EQ(expect_fma4, as.need_fma4);
-  return std::tuple{as.need_gpr_macroassembler_mxcsr_scratch(),
-                    as.need_gpr_macroassembler_constants()};
+  return std::tuple{as.need_gpr_macroassembler_scratch(), as.need_gpr_macroassembler_constants()};
 }
 
 template <typename AsmCallInfo>
@@ -411,7 +445,7 @@ template <typename AsmCallInfo>
 void GenerateAssemblerIns(FILE* out,
                           int indent,
                           int* register_numbers,
-                          bool need_gpr_macroassembler_mxcsr_scratch,
+                          bool need_gpr_macroassembler_scratch,
                           bool need_gpr_macroassembler_constants) {
   std::vector<std::string> ins;
   AsmCallInfo::ProcessBindings([&ins](auto arg) {
@@ -423,8 +457,8 @@ void GenerateAssemblerIns(FILE* out,
                     (NeedInputShadow<AsmCallInfo>(arg) ? "_shadow)" : ")"));
     }
   });
-  if (need_gpr_macroassembler_mxcsr_scratch) {
-    ins.push_back("\"m\"(*&MxcsrStorage()), \"m\"(*&MxcsrStorage())");
+  if (need_gpr_macroassembler_scratch) {
+    ins.push_back("\"m\"(scratch), \"m\"(scratch2)");
   }
   if (need_gpr_macroassembler_constants) {
     ins.push_back(
@@ -593,7 +627,9 @@ void GenerateTextAsmIntrinsics(FILE* out) {
             fprintf(out, "  }\n");
           }
           // Final line of function.
-          fprintf(out, "};\n\n");
+          if (!running_name.empty()) {
+            fprintf(out, "};\n\n");
+          }
           GenerateFunctionHeader<AsmCallInfo>(out, 0);
           running_name = full_name;
         }
@@ -614,11 +650,23 @@ void GenerateTextAsmIntrinsics(FILE* out) {
               case intrinsics::bindings::kIsAuthenticAMD:
                 fprintf(out, "host_platform::kIsAuthenticAMD");
                 break;
-              case intrinsics::bindings::kHasLZCNT:
-                fprintf(out, "host_platform::kHasLZCNT");
+              case intrinsics::bindings::kHasAVX:
+                fprintf(out, "host_platform::kHasAVX");
                 break;
               case intrinsics::bindings::kHasBMI:
                 fprintf(out, "host_platform::kHasBMI");
+                break;
+              case intrinsics::bindings::kHasFMA:
+                fprintf(out, "host_platform::kHasFMA");
+                break;
+              case intrinsics::bindings::kHasFMA4:
+                fprintf(out, "host_platform::kHasFMA4");
+                break;
+              case intrinsics::bindings::kHasLZCNT:
+                fprintf(out, "host_platform::kHasLZCNT");
+                break;
+              case intrinsics::bindings::kHasPOPCNT:
+                fprintf(out, "host_platform::kHasPOPCNT");
                 break;
               case intrinsics::bindings::kHasSSE3:
                 fprintf(out, "host_platform::kHasSSE3");
@@ -631,15 +679,6 @@ void GenerateTextAsmIntrinsics(FILE* out) {
                 break;
               case intrinsics::bindings::kHasSSE4_2:
                 fprintf(out, "host_platform::kHasSSE4_2");
-                break;
-              case intrinsics::bindings::kHasAVX:
-                fprintf(out, "host_platform::kHasAVX");
-                break;
-              case intrinsics::bindings::kHasFMA:
-                fprintf(out, "host_platform::kHasFMA");
-                break;
-              case intrinsics::bindings::kHasFMA4:
-                fprintf(out, "host_platform::kHasFMA4");
                 break;
               case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
             }
@@ -670,6 +709,7 @@ int main(int argc, char* argv[]) {
 
 #include <xmmintrin.h>
 
+#include "berberis/base/config.h"
 #include "berberis/runtime_primitives/platform.h"
 #include "%2$s/intrinsics/common/intrinsics.h"
 #include "%2$s/intrinsics/vector_intrinsics.h"
@@ -692,13 +732,6 @@ namespace constants_pool {
 }  // namespace constants_pool
 
 namespace intrinsics {
-
-class MxcsrStorage {
- public:
-  uint32_t* operator&() { return &storage_; }
-
- private:
-  uint32_t storage_;
 )STRING",
           berberis::TextAssembler::kArchName,
           berberis::TextAssembler::kNamespaceName,

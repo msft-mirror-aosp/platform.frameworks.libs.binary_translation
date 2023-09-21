@@ -42,25 +42,29 @@ struct MacroAssemblerConstants {
                                                          0x7fc00000};
   alignas(16) const uint64_t kCanonicalNansFloat64[2] = {0x7ff8000000000000, 0x7ff8000000000000};
   alignas(16) const uint64_t kMaxUInt64[2] = {0xffff'ffff'ffff'ffffULL, 0xffff'ffff'ffff'ffffULL};
-  int64_t BsrToClzInt64 = 127;
-  int64_t WidthInBits64 = 64;
-  int64_t Zero64 = 0;
-  int32_t BsrToClzInt32 = 63;
-  int32_t WidthInBits32 = 32;
+  int64_t kBsrToClzInt64 = 127;
+  int64_t kWidthInBits64 = 64;
+  int64_t kZero64 = 0;
+  int32_t kBsrToClzInt32 = 63;
+  int32_t kWidthInBits32 = 32;
+  // 64 bit constants for use with arithmetic operations.
+  // Used because only 32 bit immediates are supported on x86-64.
+  int64_t k0x8000_0000_0000_00ff = 0x8000'0000'0000'00ff;
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 896, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 1024, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat64, 384, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxUInt64, 512, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, BsrToClzInt64, 640, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, WidthInBits64, 704, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, Zero64, 768, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, BsrToClzInt32, 832, 32);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, WidthInBits32, 864, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt64, 640, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits64, 704, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kZero64, 768, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt32, 832, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits32, 864, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, k0x8000_0000_0000_00ff, 896, 64);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -105,18 +109,20 @@ template <>
 const int32_t kCanonicalNans<intrinsics::Float64> =
     GetConstants() + offsetof(MacroAssemblerConstants, kCanonicalNansFloat64);
 template <>
-const int32_t BsrToClz<int32_t> =
-    GetConstants() + offsetof(MacroAssemblerConstants, BsrToClzInt32);
+const int32_t kBsrToClz<int32_t> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kBsrToClzInt32);
 template <>
-const int32_t BsrToClz<int64_t> =
-    GetConstants() + offsetof(MacroAssemblerConstants, BsrToClzInt64);
+const int32_t kBsrToClz<int64_t> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kBsrToClzInt64);
 template <>
-const int32_t WidthInBits<int32_t> =
-    GetConstants() + offsetof(MacroAssemblerConstants, WidthInBits32);
+const int32_t kWidthInBits<int32_t> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kWidthInBits32);
 template <>
-const int32_t WidthInBits<int64_t> =
-    GetConstants() + offsetof(MacroAssemblerConstants, WidthInBits64);
-const int32_t Zero = GetConstants() + offsetof(MacroAssemblerConstants, Zero64);
+const int32_t kWidthInBits<int64_t> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kWidthInBits64);
+const int32_t kZero = GetConstants() + offsetof(MacroAssemblerConstants, kZero64);
 const int32_t kMaxUInt = GetConstants() + offsetof(MacroAssemblerConstants, kMaxUInt64);
-
+template <>
+const int32_t kConst<uint64_t{0x8000'0000'0000'00ff}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, k0x8000_0000_0000_00ff);
 }  // namespace berberis::constant_pool

@@ -139,6 +139,7 @@ class DX {
 class EDX {
  public:
   using Type = uint32_t;
+  static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'd';
 };
@@ -222,6 +223,34 @@ class XmmReg {
   static constexpr char kAsRegister = 'x';
 };
 
+class Mem8 {
+ public:
+  using Type = uint8_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
+};
+
+class Mem16 {
+ public:
+  using Type = uint16_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
+};
+
+class Mem32 {
+ public:
+  using Type = uint32_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
+};
+
+class Mem64 {
+ public:
+  using Type = uint64_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
+};
+
 // Tag classes. They are never instantioned, only used as tags to pass information about bindings.
 class Def;
 class DefEarlyClobber;
@@ -230,37 +259,17 @@ class UseDef;
 
 enum CPUIDRestriction : int {
   kNoCPUIDRestriction = 0,
-  kHasX87,
-  kHasFXSAVE,
-  kHasCMOV,
   kHas3DNOW,
   kHas3DNOWP,
-  kHasCMPXCHG8B,
-  kHasCMPXCHG16B,
-  kHasLZCNT,
-  kHasBMI,
-  kHasBMI2,
   kHasADX,
-  kHasTBM,
-  kHasRDSEED,
-  kHasSERIALIZE,
-  kHasSSE,
-  kHasSSE2,
-  kHasSSE3,
-  kHasSSSE3,
-  kHasSSE4a,
-  kHasSSE4_1,
-  kHasSSE4_2,
-  kHasFMA,
-  kHasFMA4,
-  kHasF16C,
-  kHasCLMUL,
-  kHasSHA,
   kHasAES,
-  kHasAVX,
   kHasAESAVX,
+  kHasAMXBF16,
+  kHasAMXFP16,
+  kHasAMXINT8,
+  kHasAMXTILE,
+  kHasAVX,
   kHasAVX2,
-  kHasVAES,
   kHasAVX5124FMAPS,
   kHasAVX5124VNNIW,
   kHasAVX512BF16,
@@ -278,10 +287,31 @@ enum CPUIDRestriction : int {
   kHasAVX512VL,
   kHasAVX512VNNI,
   kHasAVX512VPOPCNTDQ,
-  kHasAMXBF16,
-  kHasAMXFP16,
-  kHasAMXINT8,
-  kHasAMXTILE,
+  kHasBMI,
+  kHasBMI2,
+  kHasCLMUL,
+  kHasCMOV,
+  kHasCMPXCHG16B,
+  kHasCMPXCHG8B,
+  kHasF16C,
+  kHasFMA,
+  kHasFMA4,
+  kHasFXSAVE,
+  kHasLZCNT,
+  kHasPOPCNT,
+  kHasRDSEED,
+  kHasSERIALIZE,
+  kHasSHA,
+  kHasSSE,
+  kHasSSE2,
+  kHasSSE3,
+  kHasSSE4_1,
+  kHasSSE4_2,
+  kHasSSE4a,
+  kHasSSSE3,
+  kHasTBM,
+  kHasVAES,
+  kHasX87,
   kIsAuthenticAMD
 };
 
@@ -338,7 +368,9 @@ class AsmCallInfo<kIntrinsicTemplateName,
   using InputArguments = std::tuple<InputArgumentsTypes...>;
   using OutputArguments = std::tuple<OutputArgumentsTypes...>;
   using Bindings = std::tuple<BindingsTypes...>;
-  using IntrinsicType = OutputArguments (*)(InputArgumentsTypes...);
+  using IntrinsicType = std::conditional_t<std::tuple_size_v<OutputArguments> == 0,
+                                           void (*)(InputArgumentsTypes...),
+                                           OutputArguments (*)(InputArgumentsTypes...)>;
 };
 
 }  // namespace berberis::intrinsics::bindings

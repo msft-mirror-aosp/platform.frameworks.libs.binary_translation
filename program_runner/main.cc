@@ -18,10 +18,8 @@
 #include <sys/auxv.h>
 #include <unistd.h>
 
-#include <cstddef>
 #include <cstdio>
 #include <cstring>
-#include <random>
 #include <string>
 #include <tuple>
 
@@ -38,52 +36,27 @@ namespace {
 
 void Usage(const char* argv_0) {
   printf(
-      "Usage: %s [-h] [-a start_addr] guest_executable [arg1 [arg2 ...]]\n"
+      "Usage: %s [-h] guest_executable [arg1 [arg2 ...]]\n"
       "  -h             - print this message\n"
-      "  -a start_addr  - start execution at start_addr\n"
       "  guest_executable - path to the guest executable\n",
       argv_0);
 }
 
-std::tuple<GuestAddr, bool> ParseGuestAddr(const char* addr_cstr) {
-  char* end_ptr = nullptr;
-  errno = 0;
-  GuestAddr addr = bit_cast<GuestAddr>(strtoull(addr_cstr, &end_ptr, 16));
-
-  // Warning: setting errno on failure is implementation defined. So we also use extra heuristics.
-  if (errno != 0 || (*end_ptr != '\n' && *end_ptr != '\0')) {
-    printf("Cannot convert \"%s\" to integer: %s\n", addr_cstr,
-           errno != 0 ? strerror(errno) : "unexpected end of string");
-    return {kNullGuestAddr, false};
-  }
-  return {addr, true};
-}
-
 struct Options {
-  const char* guest_executable;
-  GuestAddr start_addr;
   bool print_help_and_exit;
 };
 
 Options ParseArgs(int argc, char* argv[]) {
   CHECK_GE(argc, 1);
 
-  Options opts{.start_addr = kNullGuestAddr};
+  Options opts{};
 
   while (true) {
-    int c = getopt(argc, argv, "+ha:");
+    int c = getopt(argc, argv, "+h:");
     if (c < 0) {
       break;
     }
     switch (c) {
-      case 'a': {
-        auto [addr, success] = ParseGuestAddr(optarg);
-        if (!success) {
-          return Options{.print_help_and_exit = true};
-        }
-        opts.start_addr = addr;
-        break;
-      }
       case 'h':
         return Options{.print_help_and_exit = true};
       default:
@@ -95,7 +68,6 @@ Options ParseArgs(int argc, char* argv[]) {
     return Options{.print_help_and_exit = true};
   }
 
-  opts.guest_executable = argv[optind];
   opts.print_help_and_exit = false;
   return opts;
 }

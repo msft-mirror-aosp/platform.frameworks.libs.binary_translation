@@ -121,9 +121,13 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Movq(res, opcode == OpOpcode::kDivu ? as_.rax : as_.rdx);
       break;
     case Decoder::OpOpcode::kAndn:
-      as_.Movq(res, arg2);
-      as_.Notq(res);
-      as_.Andq(res, arg1);
+      if (host_platform::kHasBMI) {
+        as_.Andnq(res, arg2, arg1);
+      } else {
+        as_.Movq(res, arg2);
+        as_.Notq(res);
+        as_.Andq(res, arg1);
+      }
       break;
     case Decoder::OpOpcode::kOrn:
       as_.Movq(res, arg2);
@@ -438,6 +442,50 @@ void LiteTranslator::Store(Decoder::StoreOperandType operand_type,
     default:
       return Unimplemented();
   }
+}
+
+Register LiteTranslator::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
+  Register res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::CsrOpcode::kCsrrs:
+      as_.Movq(res, arg);
+      as_.Orq(res, csr);
+      break;
+    case Decoder::CsrOpcode::kCsrrc:
+      if (host_platform::kHasBMI) {
+        as_.Andnq(res, arg, csr);
+      } else {
+        as_.Movq(res, arg);
+        as_.Notq(res);
+        as_.Andq(res, csr);
+      }
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return arg;
+}
+
+Register LiteTranslator::UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr) {
+  Register res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::CsrImmOpcode::kCsrrwi:
+      as_.Movl(res, imm);
+      break;
+    case Decoder::CsrImmOpcode::kCsrrsi:
+      as_.Movl(res, imm);
+      as_.Orq(res, csr);
+      break;
+    case Decoder::CsrImmOpcode::kCsrrci:
+      as_.Movq(res, static_cast<int8_t>(~imm));
+      as_.Andq(res, csr);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
 }
 
 }  // namespace berberis
