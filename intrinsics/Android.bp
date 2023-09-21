@@ -339,6 +339,7 @@ cc_test_library {
             srcs: [
                 "common_to_x86/intrinsics_float_test.cc",
                 "common_to_x86_64/tuple_test.cc",
+                "riscv64_to_x86_64/vector_intrinsics_test.cc",
             ],
         },
     },
