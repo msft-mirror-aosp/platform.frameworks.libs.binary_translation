@@ -75,6 +75,26 @@ TEST(GuestAbi_riscv64, GuestArgumentUInt32) {
   EXPECT_EQ(value, 0xffff'ffff'f123'4568U);
 }
 
+TEST(GuestAbi_riscv64, GuestArgumentEnumUInt32) {
+  enum class Enum : uint32_t {
+    kA = 0xffff'ffffU,
+    kB = 7,
+    kC = 0xf123'4567U,
+  };
+
+  uint64_t value = 0;
+  auto& param = *reinterpret_cast<GuestAbi::GuestArgument<Enum>*>(&value);
+
+  value = 0xffff'ffff'ffff'ffffU;
+  EXPECT_EQ(static_cast<Enum>(param), Enum::kA);
+
+  value = 7;
+  EXPECT_EQ(static_cast<Enum>(param), Enum::kB);
+
+  param = Enum::kC;
+  EXPECT_EQ(value, 0xffff'ffff'f123'4567U);
+}
+
 }  // namespace
 
 }  // namespace berberis

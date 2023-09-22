@@ -96,6 +96,34 @@ class GuestAbi {
     uint64_t value_ = 0;
   };
 
+  template <typename EnumType, CallingConventionsVariant kCallingConventionsVariant>
+  class alignas(sizeof(uint64_t)) GuestArgument<EnumType,
+                                                kCallingConventionsVariant,
+                                                std::enable_if_t<std::is_enum_v<EnumType>>> {
+   public:
+    using Type = EnumType;
+    GuestArgument(const EnumType& value) : value_(Box(value)) {}
+    GuestArgument(EnumType&& value) : value_(Box(value)) {}
+    GuestArgument() = default;
+    GuestArgument(const GuestArgument&) = default;
+    GuestArgument(GuestArgument&&) = default;
+    GuestArgument& operator=(const GuestArgument&) = default;
+    GuestArgument& operator=(GuestArgument&&) = default;
+    ~GuestArgument() = default;
+    operator EnumType() const { return Unbox(value_); }
+
+   private:
+    using UnderlyingType = std::underlying_type_t<EnumType>;
+
+    static constexpr UnderlyingType Box(EnumType value) {
+      return static_cast<UnderlyingType>(value);
+    }
+
+    static constexpr EnumType Unbox(UnderlyingType value) { return static_cast<EnumType>(value); }
+
+    GuestArgument<UnderlyingType, kCallingConventionsVariant> value_;
+  };
+
  protected:
   enum class ArgumentClass { kInteger, kFp, kLargeStruct };
 
@@ -123,8 +151,8 @@ class GuestAbi {
                            kCallingConventionsVariant,
                            std::enable_if_t<std::is_enum_v<EnumType>>>
       : GuestArgumentInfo<std::underlying_type_t<EnumType>> {
-    using GuestType = GuestType<EnumType>;
-    using HostType = EnumType;
+    using GuestType = GuestArgument<EnumType, kCallingConventionsVariant>;
+    using HostType = GuestType;
   };
 
   template <typename PointeeType, CallingConventionsVariant kCallingConventionsVariant>
