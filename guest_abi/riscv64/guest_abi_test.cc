@@ -95,6 +95,50 @@ TEST(GuestAbi_riscv64, GuestArgumentEnumUInt32) {
   EXPECT_EQ(value, 0xffff'ffff'f123'4567U);
 }
 
+TEST(GuestAbi_riscv64_lp64, GuestArgumentFloat32) {
+  uint64_t value = 0;
+  auto& param = *reinterpret_cast<GuestAbi::GuestArgument<float, GuestAbi::kLp64>*>(&value);
+
+  value = 0x0000'0000'3f00'0000;
+  EXPECT_FLOAT_EQ(param, 0.5f);
+
+  param = 7.125f;
+  EXPECT_EQ(value, 0x0000'0000'40e4'0000U);
+}
+
+TEST(GuestAbi_riscv64_lp64, GuestArgumentFloat64) {
+  uint64_t value = 0;
+  auto& param = *reinterpret_cast<GuestAbi::GuestArgument<double, GuestAbi::kLp64>*>(&value);
+
+  value = 0x3fd5'c28f'5c28'f5c3;
+  EXPECT_DOUBLE_EQ(param, 0.34);
+
+  param = 0.125f;
+  EXPECT_EQ(value, 0x3fc0'0000'0000'0000U);
+}
+
+TEST(GuestAbi_riscv64_lp64d, GuestArgumentFloat32) {
+  uint64_t value = 0;
+  auto& param = *reinterpret_cast<GuestAbi::GuestArgument<float, GuestAbi::kLp64d>*>(&value);
+
+  value = 0xffff'ffff'3f00'0000;
+  EXPECT_FLOAT_EQ(param, 0.5f);
+
+  param = 7.125f;
+  EXPECT_EQ(value, 0xffff'ffff'40e4'0000U);
+}
+
+TEST(GuestAbi_riscv64_lp64d, GuestArgumentFloat64) {
+  uint64_t value = 0;
+  auto& param = *reinterpret_cast<GuestAbi::GuestArgument<double, GuestAbi::kLp64d>*>(&value);
+
+  value = 0x3fd5'c28f'5c28'f5c3;
+  EXPECT_DOUBLE_EQ(param, 0.34);
+
+  param = 0.125f;
+  EXPECT_EQ(value, 0x3fc0'0000'0000'0000U);
+}
+
 }  // namespace
 
 }  // namespace berberis
