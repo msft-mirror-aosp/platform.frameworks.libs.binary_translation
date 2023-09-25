@@ -17,9 +17,9 @@
 #ifndef BERBERIS_GUEST_ABI_FUNCTION_WRAPPERS_H_
 #define BERBERIS_GUEST_ABI_FUNCTION_WRAPPERS_H_
 
-#include "berberis/base/bit_util.h"
-#include "berberis/guest_abi/guest_abi.h"
-#include "berberis/guest_abi/guest_arguments.h"
+#include <utility>
+
+#include "berberis/guest_abi/guest_abi.h"  // IWYU pragma: export.
 #include "berberis/guest_abi/guest_function_wrapper.h"
 #include "berberis/guest_abi/guest_params.h"
 #include "berberis/guest_abi/guest_type.h"
