@@ -17,7 +17,7 @@
 #ifndef BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_H_
 #define BERBERIS_GUEST_ABI_GUEST_ARGUMENTS_H_
 
-#include "berberis/guest_abi/guest_abi.h"
+#include "berberis/guest_abi/guest_abi.h"  // IWYU pragma: export.
 #include "berberis/guest_abi/guest_arguments_arch.h"
 
 namespace berberis {
