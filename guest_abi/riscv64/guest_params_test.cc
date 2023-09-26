@@ -35,7 +35,7 @@ TEST(GuestParams_riscv64_lp64d, PtrIntArgs) {
 
   SetXReg<A0>(state.cpu, ToGuestAddr(&x));
   SetXReg<A1>(state.cpu, 1234);
-  SetXReg<A2>(state.cpu, static_cast<uint64_t>(-7));
+  SetXReg<A2>(state.cpu, 0xffff'ffff'ffff'fff9U);
 
   auto [param1, param2, param3] =
       GuestParamsValues<void(int*, unsigned int, int), GuestAbi::kLp64d>(&state);
@@ -74,11 +74,17 @@ TEST(GuestParams_riscv64_lp64d, IntRes) {
   ret = 123;
   EXPECT_EQ(GetXReg<A0>(state.cpu), 123U);
 
+  ret = -123;
+  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xffff'ffff'ffff'ff85U);
+
   retf = 234;
   EXPECT_EQ(GetXReg<A0>(state.cpu), 234U);
 
   retv = 345;
   EXPECT_EQ(GetXReg<A0>(state.cpu), 345U);
+
+  retv = -345;
+  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xffff'ffff'ffff'fea7U);
 
   retfv = 456;
   EXPECT_EQ(GetXReg<A0>(state.cpu), 456U);
@@ -95,16 +101,16 @@ TEST(GuestParams_riscv64_lp64d, SignedCharRes) {
   auto&& [retfv] = GuestReturnReference<signed char (*)(...), GuestAbi::kLp64d>(&state);
 
   ret = -1;
-  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xffU);
+  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xffff'ffff'ffff'ffffU);
 
   retf = -2;
-  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xfeU);
+  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xffff'ffff'ffff'fffeU);
 
   retv = -3;
-  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xfdU);
+  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xffff'ffff'ffff'fffdU);
 
   retfv = -4;
-  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xfcU);
+  EXPECT_EQ(GetXReg<A0>(state.cpu), 0xffff'ffff'ffff'fffcU);
 }
 
 TEST(GuestParams_riscv64_lp64d, PtrRes) {
