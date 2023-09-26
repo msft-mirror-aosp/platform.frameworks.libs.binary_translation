@@ -28,7 +28,10 @@
 #include "berberis/base/file.h"
 #include "berberis/guest_loader/guest_loader.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/program_runner/program_runner.h"
 #include "berberis/runtime/berberis.h"
+
+// Program runner meant for testing and manual invocation.
 
 namespace berberis {
 
@@ -70,26 +73,6 @@ Options ParseArgs(int argc, char* argv[]) {
 
   opts.print_help_and_exit = false;
   return opts;
-}
-
-bool Run(const char* vdso_path,
-         const char* loader_path,
-         int argc,
-         const char* argv[],
-         char* envp[],
-         std::string* error_msg) {
-  InitBerberis();
-
-  std::string executable_realpath;
-  if (!Realpath(argv[0], &executable_realpath)) {
-    *error_msg = std::string("Unable to get realpath of ") + argv[0];
-    return false;
-  }
-
-  GuestLoader::StartExecutable(
-      executable_realpath.c_str(), vdso_path, loader_path, argc, argv, envp, error_msg);
-
-  return false;
 }
 
 }  // namespace

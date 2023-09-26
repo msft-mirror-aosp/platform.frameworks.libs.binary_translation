@@ -24,9 +24,30 @@ prebuilt_etc {
     src: "system/etc/ld.config.riscv64.txt",
 }
 
+prebuilt_etc {
+    name: "riscv64_dyn",
+    sub_dir: "binfmt_misc",
+    src: "system/etc/binfmt_misc/riscv64_dyn",
+}
+
+prebuilt_etc {
+    name: "riscv64_exe",
+    sub_dir: "binfmt_misc",
+    src: "system/etc/binfmt_misc/riscv64_exe",
+}
+
+prebuilt_etc {
+    name: "berberis.rc",
+    sub_dir: "init",
+    src: "system/etc/init/berberis.rc",
+}
+
 phony {
     name: "berberis_prebuilt_riscv64",
     required: [
+        "berberis.rc",
         "ld.config.riscv64.txt",
+        "riscv64_dyn",
+        "riscv64_exe",
     ],
 }
