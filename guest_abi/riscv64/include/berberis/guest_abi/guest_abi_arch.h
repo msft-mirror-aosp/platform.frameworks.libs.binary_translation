@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "berberis/base/bit_util.h"
 #include "berberis/calling_conventions/calling_conventions_riscv64.h"  // IWYU pragma: export.
 #include "berberis/guest_abi/guest_type.h"
 
@@ -124,6 +125,99 @@ class GuestAbi {
     GuestArgument<UnderlyingType, kCallingConventionsVariant> value_;
   };
 
+  template <typename FloatingPointType>
+  class alignas(sizeof(uint64_t))
+      GuestArgument<FloatingPointType,
+                    kLp64,
+                    std::enable_if_t<std::is_floating_point_v<FloatingPointType>>> {
+   public:
+    using Type = FloatingPointType;
+    GuestArgument(const FloatingPointType& value) : value_(Box(value)) {}
+    GuestArgument(FloatingPointType&& value) : value_(Box(value)) {}
+    GuestArgument() = default;
+    GuestArgument(const GuestArgument&) = default;
+    GuestArgument(GuestArgument&&) = default;
+    GuestArgument& operator=(const GuestArgument&) = default;
+    GuestArgument& operator=(GuestArgument&&) = default;
+    ~GuestArgument() = default;
+    operator FloatingPointType() const { return Unbox(value_); }
+
+   private:
+    // Floating-point arguments in integer registers do not require NaN boxing.  They are stored in
+    // the lower bits of the 64-bit integer register with the high bits undefined.  Bit casting and
+    // unsigned narrowing/widening conversions are sufficient.
+
+    static constexpr uint64_t Box(FloatingPointType value) {
+      if constexpr (sizeof(FloatingPointType) == sizeof(uint64_t)) {
+        return bit_cast<uint64_t>(value);
+      } else if constexpr (sizeof(FloatingPointType) == sizeof(uint32_t)) {
+        return static_cast<uint64_t>(bit_cast<uint32_t>(value));
+      } else {
+        FATAL("Unsupported floating-point argument width");
+      }
+    }
+
+    static constexpr FloatingPointType Unbox(uint64_t value) {
+      if constexpr (sizeof(FloatingPointType) == sizeof(uint64_t)) {
+        return bit_cast<FloatingPointType>(value);
+      } else if constexpr (sizeof(FloatingPointType) == sizeof(uint32_t)) {
+        return bit_cast<FloatingPointType>(static_cast<uint32_t>(value));
+      } else {
+        FATAL("Unsupported floating-point argument width");
+      }
+    }
+
+    uint64_t value_ = 0;
+  };
+
+  template <typename FloatingPointType>
+  class alignas(sizeof(uint64_t))
+      GuestArgument<FloatingPointType,
+                    kLp64d,
+                    std::enable_if_t<std::is_floating_point_v<FloatingPointType>>> {
+   public:
+    using Type = FloatingPointType;
+    GuestArgument(const FloatingPointType& value) : value_(Box(value)) {}
+    GuestArgument(FloatingPointType&& value) : value_(Box(value)) {}
+    GuestArgument() = default;
+    GuestArgument(const GuestArgument&) = default;
+    GuestArgument(GuestArgument&&) = default;
+    GuestArgument& operator=(const GuestArgument&) = default;
+    GuestArgument& operator=(GuestArgument&&) = default;
+    ~GuestArgument() = default;
+    operator FloatingPointType() const { return Unbox(value_); }
+
+   private:
+    // Floating-point arguments passed in floating-point registers require NaN boxing when they are
+    // narrower than 64 bits.  The argument is stored in the lower bits of the 64-bit floating-point
+    // register with the high bits set to 1.
+
+    static constexpr uint64_t Box(FloatingPointType value) {
+      if constexpr (sizeof(FloatingPointType) == sizeof(uint64_t)) {
+        return bit_cast<uint64_t>(value);
+      } else if constexpr (sizeof(FloatingPointType) == sizeof(uint32_t)) {
+        return bit_cast<uint32_t>(value) | kNanBoxFloat32;
+      } else {
+        FATAL("Unsupported floating-point argument width");
+      }
+    }
+
+    static constexpr FloatingPointType Unbox(uint64_t value) {
+      if constexpr (sizeof(FloatingPointType) == sizeof(uint64_t)) {
+        return bit_cast<Type>(value);
+      } else if constexpr (sizeof(FloatingPointType) == sizeof(uint32_t)) {
+        // Integer narrowing removes the NaN box.
+        return bit_cast<Type>(static_cast<uint32_t>(value));
+      } else {
+        FATAL("Unsupported floating-point argument width");
+      }
+    }
+
+    static constexpr uint64_t kNanBoxFloat32 = 0xffff'ffff'0000'0000ULL;
+
+    uint64_t value_ = 0;
+  };
+
  protected:
   enum class ArgumentClass { kInteger, kFp, kLargeStruct };
 
@@ -180,13 +274,17 @@ class GuestAbi {
     constexpr static ArgumentClass kArgumentClass = ArgumentClass::kInteger;
     constexpr static unsigned kSize = 4;
     constexpr static unsigned kAlignment = 4;
-    using GuestType = GuestType<float>;
-    using HostType = float;
+    using GuestType = GuestArgument<float, kLp64>;
+    using HostType = GuestType;
   };
 
   template <>
-  struct GuestArgumentInfo<float, kLp64d> : GuestArgumentInfo<float, kLp64> {
+  struct GuestArgumentInfo<float, kLp64d> {
     constexpr static ArgumentClass kArgumentClass = ArgumentClass::kFp;
+    constexpr static unsigned kSize = 4;
+    constexpr static unsigned kAlignment = 4;
+    using GuestType = GuestArgument<float, kLp64d>;
+    using HostType = GuestType;
   };
 
   template <>
@@ -194,13 +292,17 @@ class GuestAbi {
     constexpr static ArgumentClass kArgumentClass = ArgumentClass::kInteger;
     constexpr static unsigned kSize = 8;
     constexpr static unsigned kAlignment = 8;
-    using GuestType = GuestType<double>;
-    using HostType = double;
+    using GuestType = GuestArgument<double, kLp64>;
+    using HostType = GuestType;
   };
 
   template <>
-  struct GuestArgumentInfo<double, kLp64d> : GuestArgumentInfo<double, kLp64> {
+  struct GuestArgumentInfo<double, kLp64d> {
     constexpr static ArgumentClass kArgumentClass = ArgumentClass::kFp;
+    constexpr static unsigned kSize = 8;
+    constexpr static unsigned kAlignment = 8;
+    using GuestType = GuestArgument<double, kLp64d>;
+    using HostType = GuestType;
   };
 
   // Structures larger than 16 bytes are passed by reference.
