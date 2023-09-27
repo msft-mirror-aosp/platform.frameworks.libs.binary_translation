@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 #include "berberis/runtime_primitives/translation_cache.h"
@@ -26,7 +27,8 @@ namespace berberis {
 void InvalidateGuestRange(GuestAddr start, GuestAddr end) {
   TranslationCache* cache = TranslationCache::GetInstance();
   cache->InvalidateGuestRange(start, end);
-  // TODO(b/280671643): Flush guest code in other threads here.
+  // TODO(b/28081995): Specify region to avoid flushing too much.
+  FlushGuestCodeCache();
 }
 
 }  // namespace berberis
