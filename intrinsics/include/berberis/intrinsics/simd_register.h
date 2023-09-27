@@ -35,9 +35,9 @@ class SIMD128Register;
  * it's not allowed for class members.  Use helper functions instead.
  */
 template <typename T>
-T SIMD128RegisterGet(const SIMD128Register* reg, int index);
+T SIMD128RegisterGet(const SIMD128Register* reg, int index) = delete;
 template <typename T>
-T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index);
+T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index) = delete;
 
 class SIMD128Register {
  public:
@@ -51,7 +51,7 @@ class SIMD128Register {
             typename = std::enable_if_t<sizeof(T) == 16 &&
                                         !std::is_same_v<std::decay_t<T>, SIMD128Register>>>
   SIMD128Register(T&& elem) {
-    Set<T>(elem, 0);
+    Set<T>(elem);
   }
   SIMD128Register() = default;
   SIMD128Register(const SIMD128Register&) = default;
@@ -60,20 +60,30 @@ class SIMD128Register {
   SIMD128Register& operator=(SIMD128Register&&) = default;
 
   template <typename T>
-  T Get(int index) const {
-    return SIMD128RegisterGet<T>(this, index);
+  auto Get(int index) const -> std::enable_if_t<sizeof(T) < 16, std::decay_t<T>> {
+    return SIMD128RegisterGet<std::decay_t<T>>(this, index);
   }
   template <typename T>
-  T Set(T elem, int index) {
+  auto Set(T elem, int index) -> std::enable_if_t<sizeof(T) < 16, std::decay_t<T>> {
     return SIMD128RegisterSet<T>(this, elem, index);
   }
   template <typename T>
-  auto Get() const -> std::enable_if_t<sizeof(T) == 16, T> {
-    return SIMD128RegisterGet<T>(this, 0);
+  auto Get() const -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
+    return SIMD128RegisterGet<std::decay_t<T>>(this, 0);
   }
   template <typename T>
-  auto Set(T elem) -> std::enable_if_t<sizeof(T) == 16, T> {
-    return SIMD128RegisterSet<T>(this, elem, 0);
+  auto Get(int index) const -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
+    CHECK_EQ(index, 0);
+    return SIMD128RegisterGet<std::decay_t<T>>(this, 0);
+  }
+  template <typename T>
+  auto Set(T elem) -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
+    return SIMD128RegisterSet<std::decay_t<T>>(this, elem, 0);
+  }
+  template <typename T>
+  auto Set(T elem, int index) -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
+    CHECK_EQ(index, 0);
+    return SIMD128RegisterSet<std::decay_t<T>>(this, elem, 0);
   }
   template <typename T>
   friend bool operator==(T lhs, SIMD128Register rhs) {
@@ -139,6 +149,7 @@ class SIMD128Register {
     [[gnu::vector_size(16), gnu::may_alias]] int64_t int64;
     [[gnu::vector_size(16), gnu::may_alias]] uint64_t uint64;
 #if defined(__x86_64)
+    [[gnu::vector_size(16), gnu::may_alias]] __int128_t int128;
     [[gnu::vector_size(16), gnu::may_alias]] __uint128_t uint128;
 #endif
     // Note: we couldn't use Float32/Float64 here because [[gnu::vector]] only works with
@@ -233,6 +244,7 @@ SIMD_128_REGISTER_GETTER_SETTER(uint32_t, uint32);
 SIMD_128_REGISTER_GETTER_SETTER(int64_t, int64);
 SIMD_128_REGISTER_GETTER_SETTER(uint64_t, uint64);
 #if defined(__x86_64__)
+SIMD_128_REGISTER_GETTER_SETTER(__int128_t, int128);
 SIMD_128_REGISTER_GETTER_SETTER(__uint128_t, uint128);
 #endif
 #if defined(__i386__) || defined(__x86_64__)
