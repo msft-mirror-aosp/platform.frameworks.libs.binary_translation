@@ -626,6 +626,48 @@
     "in": [ "Float64" ],
     "out": [ "Type0" ]
   },
+  "Vsetivli": {
+    "comment": "Test vtype and set vl accordingly.",
+    "class": "scalar",
+    "in": [ "uimm8", "uimm16" ],
+    "out": [ "uint64_t", "uint64_t" ]
+  },
+  "Vsetvl": {
+    "comment": "Test vtype and set vl accordingly.",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t", "uint64_t" ]
+  },
+  "Vsetvli": {
+    "comment": "Test vtype and set vl accordingly.",
+    "class": "scalar",
+    "in": [ "uint64_t", "uimm16" ],
+    "out": [ "uint64_t", "uint64_t" ]
+  },
+  "Vsetvlmax": {
+    "comment": "Test vtype and set vl accordingly.",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [ "uint64_t", "uint64_t" ]
+  },
+  "Vsetvlimax": {
+    "comment": "Test vtype and set vl accordingly.",
+    "class": "scalar",
+    "in": [ "uimm16" ],
+    "out": [ "uint64_t", "uint64_t" ]
+  },
+  "Vtestvl": {
+    "comment": "Test vl and keep it or reset it and vtype.",
+    "class": "scalar",
+    "in": [ "uint8_t", "uint64_t", "uint64_t" ],
+    "out": [ "uint64_t", "uint64_t" ]
+  },
+  "Vtestvli": {
+    "comment": "Test vl and keep it or reset it and vtype.",
+    "class": "scalar",
+    "in": [ "uint8_t", "uint64_t", "uimm16" ],
+    "out": [ "uint64_t", "uint64_t" ]
+  },
   "Zexth": {
     "comment": "Zero-extend half word",
     "class": "scalar",
