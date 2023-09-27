@@ -80,7 +80,10 @@ decltype(auto) TupleMap(const ContainerType& container, const Transformer& trans
 
 class TESTSUITE : public ::testing::Test {
  public:
-  TESTSUITE() : state_{.cpu = {.frm = intrinsics::GuestModeFromHostRounding()}} {}
+  TESTSUITE()
+      : state_{
+            .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
+
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
@@ -415,6 +418,28 @@ class TESTSUITE : public ::testing::Test {
     store_area_ = 0;
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(store_area_, expected_result);
+  }
+
+  void TestVsetvl(
+      uint32_t insn_bytes,
+      std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>>
+          args) {
+    for (auto [vl_orig, vtype_orig, avl, vtype_new, vl_expected, vtype_expected] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      state_.cpu.vl = vl_orig;
+      state_.cpu.vtype = vtype_orig;
+      SetXReg<1>(state_.cpu, ~0ULL);
+      SetXReg<2>(state_.cpu, avl);
+      SetXReg<3>(state_.cpu, vtype_new);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      if (insn_bytes & 0b11111'0000000) {
+        EXPECT_EQ(GetXReg<1>(state_.cpu), vl_expected);
+      } else {
+        EXPECT_EQ(GetXReg<1>(state_.cpu), ~0ULL);
+      }
+      EXPECT_EQ(state_.cpu.vl, vl_expected);
+      EXPECT_EQ(state_.cpu.vtype, vtype_expected);
+    }
   }
 
  protected:
@@ -1843,4 +1868,122 @@ TEST_F(TESTSUITE, StoreFpInstructions) {
   TestStoreFp(0x0020a427, kDataToStore & 0xffff'ffffULL);
   // Fsd
   TestStoreFp(0x0020b427, kDataToStore);
+}
+
+TEST_F(TESTSUITE, TestVsetvl) {
+  constexpr uint64_t kVill =
+      0b1'0000000'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
+  // Vsetvl, rs1 != x0
+  TestVsetvl(0x803170d7,
+             {
+                 // Valid combinations.
+                 {~0ULL, ~0ULL, ~0ULL, 005, 2, 005},
+                 {~0ULL, ~0ULL, ~0ULL, 006, 4, 006},
+                 {~0ULL, ~0ULL, ~0ULL, 007, 8, 007},
+                 {~0ULL, ~0ULL, ~0ULL, 000, 16, 000},
+                 {~0ULL, ~0ULL, ~0ULL, 001, 32, 001},
+                 {~0ULL, ~0ULL, ~0ULL, 002, 64, 002},
+                 {~0ULL, ~0ULL, ~0ULL, 003, 128, 003},
+                 {~0ULL, ~0ULL, ~0ULL, 015, 1, 015},
+                 {~0ULL, ~0ULL, ~0ULL, 016, 2, 016},
+                 {~0ULL, ~0ULL, ~0ULL, 017, 4, 017},
+                 {~0ULL, ~0ULL, ~0ULL, 010, 8, 010},
+                 {~0ULL, ~0ULL, ~0ULL, 011, 16, 011},
+                 {~0ULL, ~0ULL, ~0ULL, 012, 32, 012},
+                 {~0ULL, ~0ULL, ~0ULL, 013, 64, 013},
+                 {~0ULL, ~0ULL, ~0ULL, 026, 1, 026},
+                 {~0ULL, ~0ULL, ~0ULL, 027, 2, 027},
+                 {~0ULL, ~0ULL, ~0ULL, 020, 4, 020},
+                 {~0ULL, ~0ULL, ~0ULL, 021, 8, 021},
+                 {~0ULL, ~0ULL, ~0ULL, 022, 16, 022},
+                 {~0ULL, ~0ULL, ~0ULL, 023, 32, 023},
+                 {~0ULL, ~0ULL, ~0ULL, 037, 1, 037},
+                 {~0ULL, ~0ULL, ~0ULL, 030, 2, 030},
+                 {~0ULL, ~0ULL, ~0ULL, 031, 4, 031},
+                 {~0ULL, ~0ULL, ~0ULL, 032, 8, 032},
+                 {~0ULL, ~0ULL, ~0ULL, 033, 16, 033},
+                 // Invalid combinations.
+                 {~0ULL, ~0ULL, ~0ULL, 004, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 014, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 024, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 025, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 034, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 035, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 036, 0, kVill},
+                 // Invalid sizes.
+                 {~0ULL, ~0ULL, ~0ULL, 040, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 041, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 042, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 043, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 044, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 045, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 046, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 047, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 050, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 051, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 052, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 053, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 054, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 055, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 056, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 057, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 060, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 061, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 062, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 063, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 064, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 065, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 066, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 067, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 070, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 071, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 072, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 073, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 074, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 075, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 076, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 077, 0, kVill},
+                 // Vma/vta bits.
+                 {~0ULL, ~0ULL, ~0ULL, 0100, 16, 0100},
+                 {~0ULL, ~0ULL, ~0ULL, 0200, 16, 0200},
+                 {~0ULL, ~0ULL, ~0ULL, 0300, 16, 0300},
+                 // Extra bits ignored as permitted by RISC-V specification.
+                 {~0ULL, ~0ULL, ~0ULL, 0400, 16, 0000},
+                 {~0ULL, ~0ULL, ~0ULL, 0500, 16, 0100},
+                 {~0ULL, ~0ULL, ~0ULL, 0600, 16, 0200},
+                 {~0ULL, ~0ULL, ~0ULL, 0700, 16, 0300},
+                 // Avl handling.
+                 {~0ULL, ~0ULL, 67, 003, 67, 003},
+                 {~0ULL, ~0ULL, 151, 003, 76, 003},
+                 {~0ULL, ~0ULL, 256, 003, 128, 003},
+                 {~0ULL, ~0ULL, 257, 003, 128, 003},
+             });
+  // vsetvl rs1 == x0, rd != x0
+  TestVsetvl(0x803070d7, {{~0ULL, ~0ULL, 42, 000, 16, 000}});
+  // vsetvl rs1 == x0, rd == x0
+  TestVsetvl(0x80307057,
+             {// Valid change of vtype.
+              {9, 000, 128, 022, 9, 022},
+              // Invalid change of vtype.
+              {8, 001, 128, 022, 0, kVill}});
+  // vsetvli rs1 != x0
+  TestVsetvl(0x12170d7, {{~0ULL, ~0ULL, 128, 0, 16, 022}});
+  // vsetvli rs1 == x0, rd != x0
+  TestVsetvl(0x12070d7, {{~0ULL, ~0ULL, 42, 000, 16, 022}});
+  // vsetvli, rs1 == x0, rd == x0
+  TestVsetvl(0x1207057,
+             {// Valid change of vtype.
+              {9, 000, 128, ~0ULL, 9, 022},
+              // Invalid change of vtype.
+              {8, 001, 128, ~0ULL, 0, kVill}});
+  // vsetivli rs1 != x0
+  TestVsetvl(0xc12870d7, {{~0ULL, ~0ULL, 128, 0, 16, 022}});
+  // vsetivli rs1 == x0, rd != x0
+  TestVsetvl(0xc12070d7, {{~0ULL, ~0ULL, 42, 000, 16, 022}});
+  // vsetivli, rs1 == x0, rd == x0
+  TestVsetvl(0xc1207057,
+             {// Valid change of vtype.
+              {9, 000, 128, ~0ULL, 9, 022},
+              // Invalid change of vtype.
+              {8, 001, 128, ~0ULL, 0, kVill}});
 }
