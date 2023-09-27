@@ -92,6 +92,46 @@ TEST_F(HostFunctionWrapperTest, WrapTwoInt) {
   EXPECT_EQ(CallWrappedHostFunctionFromWrappedGuestFunction<int>(pc, sub), -2);
 }
 
+float fsub(float x, float y) {
+  return x - y;
+}
+
+TEST_F(HostFunctionWrapperTest, WrapTwoFloat) {
+  // float foo(float (*ptr)(float, float)) {
+  //    return ptr(5.0f, 7.0f);
+  // }
+  GuestAddr pc = MakeGuestExecRegion<uint32_t>({
+      0x00500593,  // li a1, #5
+      0xd025f553,  // fcvt.s.l fa0, a1
+      0x00700593,  // li a1, #7
+      0xd025f5d3,  // fcvt.s.l fa1, a1
+      0x00050067,  // jr a0
+  });
+
+  EXPECT_FLOAT_EQ(
+      (CallWrappedHostFunctionFromWrappedGuestFunction<float, GuestAbi::kLp64d>(pc, fsub)), -2.0f);
+}
+
+double dsub(double x, double y) {
+  return x - y;
+}
+
+TEST_F(HostFunctionWrapperTest, WrapTwoDouble) {
+  // double foo(double (*ptr)(double, double)) {
+  //    return ptr(5.0, 7.0);
+  // }
+  GuestAddr pc = MakeGuestExecRegion<uint32_t>({
+      0x00500593,  // li a1, #5
+      0xd225f553,  // fcvt.d.l fa0, a1
+      0x00700593,  // li a1, #7
+      0xd225f5d3,  // fcvt.d.l fa1, a1
+      0x00050067,  // jr a0
+  });
+
+  EXPECT_DOUBLE_EQ(
+      (CallWrappedHostFunctionFromWrappedGuestFunction<double, GuestAbi::kLp64d>(pc, dsub)), -2.0);
+}
+
 int add(int x, int y) {
   return x + y;
 }
