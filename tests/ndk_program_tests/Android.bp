@@ -38,6 +38,9 @@ filegroup {
         "ptrace_test.cc",
         "resource_test.cc",
         "sem_test.cc",
+        "setjmp_test.cc",
+        "sigaltstack_test.cc",
+        "signal_test.cc",
         "string_test.cc",
         "sysconf_test.cc",
         "thread_test.cc",
@@ -68,6 +71,12 @@ cc_test {
     name: "berberis_ndk_program_tests",
     defaults: ["berberis_ndk_program_tests_defaults"],
     shared_libs: ["libz"],
+    srcs: [
+        // TODO(b/187471779): Signal stress test is unstable with high number of repetitions.
+        // TODO(b/188086209): Errno emulation is not thread-safe - some checks fail.
+        "signal_stress_test.cc",
+        "system_properties_test.cc",
+    ],
 }
 
 cc_test {
