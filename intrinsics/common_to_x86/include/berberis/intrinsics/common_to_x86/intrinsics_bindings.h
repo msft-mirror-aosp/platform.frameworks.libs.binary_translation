@@ -21,6 +21,7 @@
 
 #include <cstdint>
 
+#include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/intrinsics_args.h"
 #include "berberis/intrinsics/type_traits.h"
 
@@ -78,6 +79,8 @@ class EAX {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'a';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kEAX;
 };
 
 class RAX {
@@ -86,6 +89,8 @@ class RAX {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'a';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kRAX;
 };
 
 class CL {
@@ -94,6 +99,8 @@ class CL {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'c';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kCL;
 };
 
 class CX {
@@ -110,6 +117,8 @@ class ECX {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'c';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kECX;
 };
 
 class RCX {
@@ -118,6 +127,8 @@ class RCX {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'c';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kRCX;
 };
 
 class DL {
@@ -142,6 +153,8 @@ class EDX {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'd';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kEDX;
 };
 
 class RDX {
@@ -150,6 +163,8 @@ class RDX {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'd';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kRDX;
 };
 
 class GeneralReg8 {
@@ -158,6 +173,8 @@ class GeneralReg8 {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'q';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kGeneralReg8;
 };
 
 class GeneralReg16 {
@@ -166,6 +183,8 @@ class GeneralReg16 {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'r';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kGeneralReg16;
 };
 
 class GeneralReg32 {
@@ -174,6 +193,8 @@ class GeneralReg32 {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'r';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kGeneralReg32;
 };
 
 class GeneralReg64 {
@@ -182,6 +203,8 @@ class GeneralReg64 {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'r';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kGeneralReg64;
 };
 
 class FLAGS {
@@ -189,6 +212,8 @@ class FLAGS {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 0;
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kFLAGS;
 };
 
 class FpReg32 {
@@ -197,6 +222,8 @@ class FpReg32 {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'x';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kFpReg32;
 };
 
 class FpReg64 {
@@ -205,6 +232,8 @@ class FpReg64 {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'x';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kFpReg64;
 };
 
 class VecReg128 {
@@ -213,6 +242,8 @@ class VecReg128 {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'x';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kVecReg128;
 };
 
 class XmmReg {
@@ -221,6 +252,8 @@ class XmmReg {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = false;
   static constexpr char kAsRegister = 'x';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kXmmReg;
 };
 
 class Mem8 {
@@ -251,11 +284,30 @@ class Mem64 {
   static constexpr char kAsRegister = 'm';
 };
 
-// Tag classes. They are never instantioned, only used as tags to pass information about bindings.
+// // Tag classes. They are never instantioned, only used as tags to pass information about
+// bindings.
 class Def;
 class DefEarlyClobber;
 class Use;
 class UseDef;
+
+template <typename Tag, typename MachineRegKind>
+constexpr auto ToRegKind() {
+  if constexpr (std::is_same_v<Tag, Def>) {
+    return MachineRegKind::kDef;
+  } else if constexpr (std::is_same_v<Tag, DefEarlyClobber>) {
+    return MachineRegKind::kDefEarlyClobber;
+  } else if constexpr (std::is_same_v<Tag, Use>) {
+    return MachineRegKind::kUse;
+  } else if constexpr (std::is_same_v<Tag, UseDef>) {
+    return MachineRegKind::kUseDef;
+  } else {
+    static_assert(kDependentTypeFalse<Tag>);
+  }
+}
+
+template <typename Tag, typename MachineRegKind>
+inline constexpr auto kRegKind = ToRegKind<Tag, MachineRegKind>();
 
 enum CPUIDRestriction : int {
   kNoCPUIDRestriction = 0,

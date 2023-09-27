@@ -61,6 +61,7 @@ cc_test_library {
     name: "libberberis_guest_abi_riscv64_unit_tests",
     defaults: ["berberis_test_library_defaults_64"],
     srcs: [
+        "guest_abi_test.cc",
         "guest_arguments_test.cc",
         "guest_function_wrapper_test.cc",
         "guest_params_test.cc",
