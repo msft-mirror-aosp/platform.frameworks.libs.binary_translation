@@ -120,6 +120,7 @@ def _get_imm_c_type(arg_type):
   return {
       'imm8' : 'int8_t',
       'uimm8' : 'uint8_t',
+      'uimm16' : 'uint16_t',
       'uimm32' : 'uint32_t',
   }[arg_type]
 

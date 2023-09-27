@@ -795,6 +795,65 @@ class SemanticsPlayer {
     listener_->OpVector(args);
   }
 
+  void Vsetivli(const typename Decoder::VsetivliArgs& args) {
+    // Note: it's unclear whether args.avl should be treated similarly to x0 in Vsetvli or not.
+    // Keep implementation separate from Vsetvli to make it easier to adjust that code.
+    if (args.avl == 0) {
+      if (args.dst == 0) {
+        auto [vl_orig, vtype_orig] = GetVlAndVtypeCsr();
+        auto [vl, vtype] = listener_->Vtestvli(vl_orig, vtype_orig, args.vtype);
+        SetVlAndVtypeCsr(vl, vtype);
+      } else {
+        auto [vl, vtype] = listener_->Vsetvlimax(args.vtype);
+        SetVlAndVtypeCsr(vl, vtype);
+        listener_->SetReg(args.dst, vl);
+      }
+    } else {
+      auto [vl, vtype] = listener_->Vsetivli(args.avl, args.vtype);
+      SetVlAndVtypeCsr(vl, vtype);
+      SetRegOrIgnore(args.dst, vl);
+    }
+  }
+
+  void Vsetvl(const typename Decoder::VsetvlArgs& args) {
+    Register vtype_new = listener_->GetReg(args.src2);
+    if (args.src1 == 0) {
+      if (args.dst == 0) {
+        auto [vl_orig, vtype_orig] = GetVlAndVtypeCsr();
+        auto [vl, vtype] = listener_->Vtestvl(vl_orig, vtype_orig, vtype_new);
+        SetVlAndVtypeCsr(vl, vtype);
+      } else {
+        auto [vl, vtype] = listener_->Vsetvlmax(vtype_new);
+        SetVlAndVtypeCsr(vl, vtype);
+        listener_->SetReg(args.dst, vl);
+      }
+    } else {
+      Register avl = listener_->GetReg(args.src1);
+      auto [vl, vtype] = listener_->Vsetvl(avl, vtype_new);
+      SetVlAndVtypeCsr(vl, vtype);
+      SetRegOrIgnore(args.dst, vl);
+    }
+  }
+
+  void Vsetvli(const typename Decoder::VsetvliArgs& args) {
+    if (args.src == 0) {
+      if (args.dst == 0) {
+        auto [vl_orig, vtype_orig] = GetVlAndVtypeCsr();
+        auto [vl, vtype] = listener_->Vtestvli(vl_orig, vtype_orig, args.vtype);
+        SetVlAndVtypeCsr(vl, vtype);
+      } else {
+        auto [vl, vtype] = listener_->Vsetvlimax(args.vtype);
+        SetVlAndVtypeCsr(vl, vtype);
+        listener_->SetReg(args.dst, vl);
+      }
+    } else {
+      Register avl = listener_->GetReg(args.src);
+      auto [vl, vtype] = listener_->Vsetvli(avl, args.vtype);
+      SetVlAndVtypeCsr(vl, vtype);
+      SetRegOrIgnore(args.dst, vl);
+    }
+  }
+
   void Store(const typename Decoder::StoreArgs& args) {
     Register arg = GetRegOrZero(args.src);
     Register data = GetRegOrZero(args.data);
@@ -961,6 +1020,17 @@ class SemanticsPlayer {
   template <typename FloatType>
   void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
     listener_->template NanBoxAndSetFpReg<FloatType>(reg, value);
+  }
+
+  std::tuple<Register, Register> GetVlAndVtypeCsr() {
+    Register vl_orig = listener_->template GetCsr<CsrName::kVl>();
+    Register vtype_orig = listener_->template GetCsr<CsrName::kVtype>();
+    return {vl_orig, vtype_orig};
+  }
+
+  void SetVlAndVtypeCsr(Register vl, Register vtype) {
+    listener_->template SetCsr<CsrName::kVtype>(vtype);
+    listener_->template SetCsr<CsrName::kVl>(vl);
   }
 
   SemanticsListener* listener_;
