@@ -436,6 +436,8 @@ class LiteTranslator {
       AssemblerResType result;
       if constexpr (std::is_same_v<AssemblerResType, Register>) {
         result = AllocTempReg();
+      } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<Register, Register>>) {
+        result = std::tuple{AllocTempReg(), AllocTempReg()};
       } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
         result = AllocTempSimdReg();
       } else {
