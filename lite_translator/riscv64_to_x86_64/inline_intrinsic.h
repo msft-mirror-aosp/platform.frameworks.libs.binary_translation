@@ -213,6 +213,8 @@ class TryBindingBasedInlineIntrinsic {
   template <
       auto kIntrinsicTemplateName,
       auto kMacroInstructionTemplateName,
+      auto kMnemo,
+      typename GetOpcode,
       intrinsics::bindings::CPUIDRestriction kCPUIDRestrictionTemplateValue,
       intrinsics::bindings::PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
       bool kSideEffectsTemplateValue,
@@ -239,7 +241,7 @@ class TryBindingBasedInlineIntrinsic {
             intrinsics::bindings::ProcessBindings<kFunction,
                                                   AssemblerX86<x86_64::Assembler>,
                                                   x86_64::Assembler,
-                                                  MacroAssembler<x86_64::Assembler>,
+                                                  std::tuple<MacroAssembler<x86_64::Assembler>>,
                                                   bool,
                                                   TryBindingBasedInlineIntrinsic&>(*this, false)) {}
   operator bool() { return success_; }

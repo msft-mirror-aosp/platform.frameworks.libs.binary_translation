@@ -375,6 +375,8 @@ enum PreciseNanOperationsHandling : int {
 
 template <auto kIntrinsicTemplateName,
           auto kMacroInstructionTemplateName,
+          auto kMnemo,
+          typename GetOpcode,
           CPUIDRestriction kCPUIDRestrictionTemplateValue,
           PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
           bool kSideEffectsTemplateValue,
@@ -383,6 +385,8 @@ class AsmCallInfo;
 
 template <auto kIntrinsicTemplateName,
           auto kMacroInstructionTemplateName,
+          auto kMnemo,
+          typename GetOpcode,
           CPUIDRestriction kCPUIDRestrictionTemplateValue,
           PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
           bool kSideEffectsTemplateValue,
@@ -391,6 +395,8 @@ template <auto kIntrinsicTemplateName,
           typename... BindingsTypes>
 class AsmCallInfo<kIntrinsicTemplateName,
                   kMacroInstructionTemplateName,
+                  kMnemo,
+                  GetOpcode,
                   kCPUIDRestrictionTemplateValue,
                   kPreciseNanOperationsHandlingTemplateValue,
                   kSideEffectsTemplateValue,
@@ -401,6 +407,9 @@ class AsmCallInfo<kIntrinsicTemplateName,
  public:
   static constexpr auto kIntrinsic = kIntrinsicTemplateName;
   static constexpr auto kMacroInstruction = kMacroInstructionTemplateName;
+  // TODO(b/260725458): Use lambda template argument after C++20 becomes available.
+  template <typename Opcode>
+  static constexpr auto kOpcode = GetOpcode{}.template operator()<Opcode>();
   static constexpr CPUIDRestriction kCPUIDRestriction = kCPUIDRestrictionTemplateValue;
   static constexpr PreciseNanOperationsHandling kPreciseNanOperationsHandling =
       kPreciseNanOperationsHandlingTemplateValue;
@@ -423,6 +432,8 @@ class AsmCallInfo<kIntrinsicTemplateName,
   using IntrinsicType = std::conditional_t<std::tuple_size_v<OutputArguments> == 0,
                                            void (*)(InputArgumentsTypes...),
                                            OutputArguments (*)(InputArgumentsTypes...)>;
+  template <template <typename, auto, auto, typename...> typename MachineInsnType, typename Opcode>
+  using MachineInsn = MachineInsnType<AsmCallInfo, kMnemo, kOpcode<Opcode>, BindingsTypes...>;
 };
 
 }  // namespace berberis::intrinsics::bindings
