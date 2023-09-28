@@ -148,63 +148,87 @@ class ArgTraits;
 template <int N, typename RegisterClassType, typename UsageType>
 class ArgTraits<InArg<N, RegisterClassType, UsageType>> {
  public:
+  using Class = RegisterClassType;
   using RegisterClass = RegisterClassType;
   using Usage = UsageType;
+  template <typename MachineReg>
+  using BuilderArg = MachineReg;
   static constexpr ArgInfo arg_info{.arg_type = ArgInfo::IN_ARG, .from = N};
 };
 
 template <int N, typename RegisterClassType, typename UsageType>
 class ArgTraits<OutArg<N, RegisterClassType, UsageType>> {
  public:
+  using Class = RegisterClassType;
   using RegisterClass = RegisterClassType;
   using Usage = UsageType;
+  template <typename MachineReg>
+  using BuilderArg = MachineReg;
   static constexpr ArgInfo arg_info{.arg_type = ArgInfo::OUT_ARG, .to = N};
 };
 
 template <int N, typename RegisterClassType, typename UsageType>
 class ArgTraits<OutTmpArg<N, RegisterClassType, UsageType>> {
  public:
+  using Class = RegisterClassType;
   using RegisterClass = RegisterClassType;
   using Usage = UsageType;
+  template <typename MachineReg>
+  using BuilderArg = MachineReg;
   static constexpr ArgInfo arg_info{.arg_type = ArgInfo::OUT_TMP_ARG, .to = N};
 };
 
 template <int N, int M, typename RegisterClassType, typename UsageType>
 class ArgTraits<InOutArg<N, M, RegisterClassType, UsageType>> {
  public:
+  using Class = RegisterClassType;
   using RegisterClass = RegisterClassType;
   using Usage = UsageType;
+  template <typename MachineReg>
+  using BuilderArg = MachineReg;
   static constexpr ArgInfo arg_info{.arg_type = ArgInfo::IN_OUT_ARG, .from = N, .to = M};
 };
 
 template <int N, int M, typename RegisterClassType, typename UsageType>
 class ArgTraits<InOutTmpArg<N, M, RegisterClassType, UsageType>> {
  public:
+  using Class = RegisterClassType;
   using RegisterClass = RegisterClassType;
   using Usage = UsageType;
+  template <typename MachineReg>
+  using BuilderArg = MachineReg;
   static constexpr ArgInfo arg_info{.arg_type = ArgInfo::IN_OUT_TMP_ARG, .from = N, .to = M};
 };
 
 template <int N, typename RegisterClassType, typename UsageType>
 class ArgTraits<InTmpArg<N, RegisterClassType, UsageType>> {
  public:
+  using Class = RegisterClassType;
   using RegisterClass = RegisterClassType;
   using Usage = UsageType;
+  template <typename MachineReg>
+  using BuilderArg = MachineReg;
   static constexpr ArgInfo arg_info{.arg_type = ArgInfo::IN_TMP_ARG, .from = N};
 };
 
 template <int N, typename ImmType, typename ImmediateClassType>
 class ArgTraits<ImmArg<N, ImmType, ImmediateClassType>> {
  public:
+  using Class = ImmediateClassType;
   using ImmediateClass = ImmediateClassType;
+  template <typename>
+  using BuilderArg = ImmType;
   static constexpr ArgInfo arg_info{.arg_type = ArgInfo::IMM_ARG, .from = N};
 };
 
 template <typename RegisterClassType, typename UsageType>
 class ArgTraits<TmpArg<RegisterClassType, UsageType>> {
  public:
+  using Class = RegisterClassType;
   using RegisterClass = RegisterClassType;
   using Usage = UsageType;
+  template <typename MachineReg>
+  using BuilderArg = MachineReg;
   static constexpr ArgInfo arg_info{.arg_type = ArgInfo::TMP_ARG};
 };
 
