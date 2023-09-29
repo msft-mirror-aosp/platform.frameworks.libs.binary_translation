@@ -43,7 +43,9 @@ bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
 class Riscv64InterpreterTest : public ::testing::Test {
  public:
   // Non-Compressed Instructions.
-  Riscv64InterpreterTest() : state_{.cpu = {.frm = intrinsics::GuestModeFromHostRounding()}} {}
+  Riscv64InterpreterTest()
+      : state_{
+            .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
 
   void InterpretFence(uint32_t insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);

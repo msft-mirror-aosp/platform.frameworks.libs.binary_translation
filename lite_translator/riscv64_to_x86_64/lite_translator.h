@@ -87,6 +87,7 @@ class LiteTranslator {
   void CompareAndBranch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset);
   void Branch(int32_t offset);
   void BranchRegister(Register base, int16_t offset);
+  void ExitGeneratedCode(GuestAddr target);
   void ExitRegion(GuestAddr target);
   void ExitRegionIndirect(Register target);
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
@@ -436,6 +437,8 @@ class LiteTranslator {
       AssemblerResType result;
       if constexpr (std::is_same_v<AssemblerResType, Register>) {
         result = AllocTempReg();
+      } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<Register, Register>>) {
+        result = std::tuple{AllocTempReg(), AllocTempReg()};
       } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
         result = AllocTempSimdReg();
       } else {

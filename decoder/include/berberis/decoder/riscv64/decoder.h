@@ -620,6 +620,24 @@ class Decoder {
     uint8_t src2;
   };
 
+  struct VsetivliArgs {
+    uint8_t dst;
+    uint8_t avl;
+    uint16_t vtype;
+  };
+
+  struct VsetvliArgs {
+    uint8_t dst;
+    uint8_t src;
+    uint16_t vtype;
+  };
+
+  struct VsetvlArgs {
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
   template <typename OperandTypeEnum>
   struct LoadArgsTemplate {
     OperandTypeEnum operand_type;
@@ -1660,6 +1678,32 @@ class Decoder {
 
   void DecodeOpV() {
     uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+    // Vsetvl/Vsetvli/Vsetivli have radically different encoding strategy from other vector
+    // instructions.
+    if (low_opcode == 0b111) {
+      if (GetBits<uint8_t, 31, 1>() == 0) {
+        const VsetvliArgs args = {
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .src = GetBits<uint8_t, 15, 5>(),
+            .vtype = GetBits<uint16_t, 20, 11>(),
+        };
+        return insn_consumer_->Vsetvli(args);
+      } else if (GetBits<uint8_t, 30, 1>() == 1) {
+        const VsetivliArgs args = {
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .avl = GetBits<uint8_t, 15, 5>(),
+            .vtype = GetBits<uint16_t, 20, 10>(),
+        };
+        return insn_consumer_->Vsetivli(args);
+      } else if (GetBits<uint8_t, 25, 6>() == 0) {
+        const VsetvlArgs args = {
+            .dst = GetBits<uint8_t, 7, 5>(),
+            .src1 = GetBits<uint8_t, 15, 5>(),
+            .src2 = GetBits<uint8_t, 20, 5>(),
+        };
+        return insn_consumer_->Vsetvl(args);
+      }
+    }
     bool vm = GetBits<uint8_t, 25, 1>();
     uint8_t high_opcode = GetBits<uint8_t, 26, 6>();
     uint16_t opcode = (high_opcode << 3) + low_opcode;
