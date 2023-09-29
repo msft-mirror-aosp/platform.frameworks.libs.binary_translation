@@ -215,6 +215,10 @@ DEFINE_ARITHMETIC_INTRINSIC(Vsubvx,
                             return (args - ...),
                             (SIMD128Register src1, ElementType src2),
                             (src1, src2))
+DEFINE_ARITHMETIC_INTRINSIC(Vrsubvx,
+                            ({ auto [arg1, arg2] = std::tuple{args...}; return (arg2 - arg1); }),
+                            (SIMD128Register src1, ElementType src2),
+                            (src1, src2))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
