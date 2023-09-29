@@ -536,9 +536,9 @@ class Interpreter {
         return OpVectorvx<intrinsics::Vaddvx<ElementType, vta>, ElementType, vlmul, vta>(
             args, args.src1 ? GetReg(args.src1) : 0);
       case Decoder::VOpOpcode::kVsubvv:
-        return OpVectorvv<intrinsics::Vaddvv<ElementType, vta>, ElementType, vlmul, vta>(args);
+        return OpVectorvv<intrinsics::Vsubvv<ElementType, vta>, ElementType, vlmul, vta>(args);
       case Decoder::VOpOpcode::kVsubvx:
-        return OpVectorvx<intrinsics::Vaddvx<ElementType, vta>, ElementType, vlmul, vta>(
+        return OpVectorvx<intrinsics::Vsubvx<ElementType, vta>, ElementType, vlmul, vta>(
             args, args.src1 ? GetReg(args.src1) : 0);
       default:
         Unimplemented();
@@ -565,8 +565,8 @@ class Interpreter {
       std::tie(result) = Intrinsic(vstart - index * (16 / sizeof(ElementType)),
                                    vl - index * (16 / sizeof(ElementType)),
                                    result,
-                                   src1,
-                                   src2);
+                                   src2,
+                                   src1);
       state_->cpu.v[args.dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
@@ -616,10 +616,10 @@ class Interpreter {
         return OpVectorvx<intrinsics::Vaddvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args, args.src1 ? GetReg(args.src1) : 0);
       case Decoder::VOpOpcode::kVsubvv:
-        return OpVectorvv<intrinsics::Vaddvvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+        return OpVectorvv<intrinsics::Vsubvvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args);
       case Decoder::VOpOpcode::kVsubvx:
-        return OpVectorvx<intrinsics::Vaddvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+        return OpVectorvx<intrinsics::Vsubvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args, args.src1 ? GetReg(args.src1) : 0);
       default:
         Unimplemented();
@@ -649,8 +649,8 @@ class Interpreter {
                                    vl - index * (16 / sizeof(ElementType)),
                                    intrinsics::MaskForRegisterInSequence<ElementType>(mask, index),
                                    result,
-                                   src1,
-                                   src2);
+                                   src2,
+                                   src1);
       state_->cpu.v[args.dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
