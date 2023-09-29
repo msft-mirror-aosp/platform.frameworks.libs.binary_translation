@@ -151,6 +151,12 @@ class Riscv64InterpreterTest : public ::testing::Test {
     };
 
     auto Verify = [this, &insn_bytes](uint8_t vsew, auto result, auto mask) {
+      constexpr __v16qu kFractionMaskInt8[4] = {
+          {255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+          {255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+          {255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+          {255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0}};
+      constexpr __m128i kAgnosticResult = {-1, -1};
       constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
       constexpr __v2du kMask = {0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5};
       constexpr __v2du source[16] = {
@@ -178,49 +184,113 @@ class Riscv64InterpreterTest : public ::testing::Test {
         state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
       }
       for (uint8_t vlmul = 0; vlmul < 8; ++vlmul) {
-        // Use vsetvl to check whether this combination is allowed and find out VLMAX.
-        uint32_t vsetvl = 0x803170d7;
-        state_.cpu.insn_addr = ToGuestAddr(&vsetvl);
-        SetXReg<2>(state_.cpu, ~0ULL);
-        SetXReg<3>(state_.cpu, (vsew << 3) | vlmul);
-        EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-        uint64_t vlmax = GetXReg<1>(state_.cpu);
-        // Incompatible vsew and vlmax. Skip it.
-        if (vlmax == 0) {
-          continue;
-        }
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          for (uint8_t vma = 0; vma < 2; ++vma) {
+            // Use vsetvl to check whether this combination is allowed and find out VLMAX.
+            uint32_t vsetvl = 0x803170d7;
+            state_.cpu.insn_addr = ToGuestAddr(&vsetvl);
+            SetXReg<2>(state_.cpu, ~0ULL);
+            SetXReg<3>(state_.cpu, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
+            EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+            uint64_t vlmax = GetXReg<1>(state_.cpu);
+            // Incompatible vsew and vlmax. Skip it.
+            if (vlmax == 0) {
+              continue;
+            }
 
-        if ((insn_bytes & (1 << 25)) == 0) {
-          // Set result vector registers into 0b01010101… pattern.
-          for (size_t index = 0; index < 8; ++index) {
-            state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
-          }
+            if (vlmul == 3) {
+              state_.cpu.vstart = vlmax / 16;
+              state_.cpu.vl = (vlmax * 15) / 16;
+            }
 
-          state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-          EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+            if ((insn_bytes & (1 << 25)) == 0) {
+              // Set result vector registers into 0b01010101… pattern.
+              for (size_t index = 0; index < 8; ++index) {
+                state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+              }
 
-          if (vlmul < 4) {
-            for (size_t index = 0; index < 1 << vlmul; ++index) {
-              EXPECT_EQ(state_.cpu.v[8 + index],
-                        SIMD128Register{(result[index] & mask[index]) |
-                                        (kUndisturbedResult & !mask[index])}
+              state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+              EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+
+              if (vlmul < 4) {
+                for (size_t index = 0; index < 1 << vlmul; ++index) {
+                  if (index == 0 && vlmul == 3) {
+                    EXPECT_EQ(
+                        state_.cpu.v[8 + index],
+                        SIMD128Register{(kUndisturbedResult & kFractionMaskInt8[3]) |
+                                        (result[index] & mask[index] & ~kFractionMaskInt8[3]) |
+                                        ((vma ? kAgnosticResult : kUndisturbedResult) &
+                                         ~mask[index] & ~kFractionMaskInt8[3])}
+                            .Get<__uint128_t>());
+                  } else if (index == 7) {
+                    EXPECT_EQ(state_.cpu.v[8 + index],
+                              SIMD128Register{(result[index] & mask[index] & kFractionMaskInt8[3]) |
+                                              ((vma ? kAgnosticResult : kUndisturbedResult) &
+                                               ~mask[index] & kFractionMaskInt8[3]) |
+                                              ((vta ? kAgnosticResult : kUndisturbedResult) &
+                                               ~kFractionMaskInt8[3])}
+                                  .Get<__uint128_t>());
+                  } else {
+                    EXPECT_EQ(state_.cpu.v[8 + index],
+                              SIMD128Register{
+                                  (result[index] & mask[index]) |
+                                  ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[index])}
+                                  .Get<__uint128_t>());
+                  }
+                }
+              } else {
+                EXPECT_EQ(state_.cpu.v[8],
+                          SIMD128Register{(result[0] & mask[0] & kFractionMaskInt8[vlmul - 4]) |
+                                          ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[0] &
+                                           kFractionMaskInt8[vlmul - 4]) |
+                                          ((vta ? kAgnosticResult : kUndisturbedResult) &
+                                           ~kFractionMaskInt8[vlmul - 4])}
+                              .Get<__uint128_t>());
+              }
+            }
+
+            // Set result vector registers into 0b01010101… pattern.
+            for (size_t index = 0; index < 8; ++index) {
+              state_.cpu.v[8 + index] =
+                  SIMD128Register{__m128i{kUndisturbedResult}}.Get<__uint128_t>();
+            }
+
+            if (vlmul == 3) {
+              // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+              EXPECT_EQ(state_.cpu.vstart, 0);
+              EXPECT_EQ(state_.cpu.vl, (vlmax * 15) / 16);
+              state_.cpu.vstart = vlmax / 16;
+            }
+
+            uint32_t no_mask_insn_bytes = insn_bytes | (1 << 25);
+            state_.cpu.insn_addr = ToGuestAddr(&no_mask_insn_bytes);
+            EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+
+            if (vlmul < 4) {
+              for (size_t index = 0; index < 1 << vlmul; ++index) {
+                if (index == 0 && vlmul == 3) {
+                  EXPECT_EQ(state_.cpu.v[8 + index],
+                            SIMD128Register{(kUndisturbedResult & kFractionMaskInt8[3]) |
+                                            (result[index] & ~kFractionMaskInt8[3])}
+                                .Get<__uint128_t>());
+                } else if (index == 7) {
+                  EXPECT_EQ(state_.cpu.v[8 + index],
+                            SIMD128Register{(result[index] & kFractionMaskInt8[3]) |
+                                            ((vta ? kAgnosticResult : kUndisturbedResult) &
+                                             ~kFractionMaskInt8[3])}
+                                .Get<__uint128_t>());
+                } else {
+                  EXPECT_EQ(state_.cpu.v[8 + index],
+                            SIMD128Register{result[index]}.Get<__uint128_t>());
+                }
+              }
+            } else {
+              EXPECT_EQ(state_.cpu.v[8],
+                        SIMD128Register{(result[0] & kFractionMaskInt8[vlmul - 4]) |
+                                        ((vta ? kAgnosticResult : kUndisturbedResult) &
+                                         ~kFractionMaskInt8[vlmul - 4])}
                             .Get<__uint128_t>());
             }
-          }
-        }
-
-        // Set result vector registers into 0b01010101… pattern.
-        for (size_t index = 0; index < 8; ++index) {
-          state_.cpu.v[8 + index] = SIMD128Register{__m128i{kUndisturbedResult}}.Get<__uint128_t>();
-        }
-
-        uint32_t no_mask_insn_bytes = insn_bytes | (1 << 25);
-        state_.cpu.insn_addr = ToGuestAddr(&no_mask_insn_bytes);
-        EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-
-        if (vlmul < 4) {
-          for (size_t index = 0; index < 1 << vlmul; ++index) {
-            EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{result[index]}.Get<__uint128_t>());
           }
         }
       }
