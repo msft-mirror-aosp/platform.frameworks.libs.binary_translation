@@ -354,6 +354,13 @@ void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
   as_.Bind(cont);
 }
 
+void LiteTranslator::ExitGeneratedCode(GuestAddr target) {
+  StoreMappedRegs();
+  // EmitExitGeneratedCode is more efficient if receives target in rax.
+  as_.Movq(as_.rax, target);
+  EmitExitGeneratedCode(&as_, as_.rax);
+}
+
 void LiteTranslator::ExitRegion(GuestAddr target) {
   StoreMappedRegs();
   if (params_.allow_dispatch) {
@@ -390,6 +397,9 @@ void LiteTranslator::BranchRegister(Register base, int16_t offset) {
 }
 
 Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
+  AssemblerBase::Label* recovery_label = as_.MakeLabel();
+  as_.SetRecoveryPoint(recovery_label);
+
   Register res = AllocTempReg();
   Assembler::Operand asm_memop{.base = arg, .disp = offset};
   switch (operand_type) {
@@ -418,6 +428,15 @@ Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register ar
       Unimplemented();
       return {};
   }
+
+  // TODO(b/144326673): Emit the recovery code at the end of the region so it doesn't interrupt
+  // normal code flow with the jump and doesn't negatively affect instruction cache locality.
+  AssemblerBase::Label* cont = as_.MakeLabel();
+  as_.Jmp(*cont);
+  as_.Bind(recovery_label);
+  ExitGeneratedCode(GetInsnAddr());
+  as_.Bind(cont);
+
   return res;
 }
 
@@ -425,6 +444,9 @@ void LiteTranslator::Store(Decoder::StoreOperandType operand_type,
                            Register arg,
                            int16_t offset,
                            Register data) {
+  AssemblerBase::Label* recovery_label = as_.MakeLabel();
+  as_.SetRecoveryPoint(recovery_label);
+
   Assembler::Operand asm_memop{.base = arg, .disp = offset};
   switch (operand_type) {
     case Decoder::StoreOperandType::k8bit:
@@ -442,6 +464,14 @@ void LiteTranslator::Store(Decoder::StoreOperandType operand_type,
     default:
       return Unimplemented();
   }
+
+  // TODO(b/144326673): Emit the recovery code at the end of the region so it doesn't interrupt
+  // normal code flow with the jump and doesn't negatively affect instruction cache locality.
+  AssemblerBase::Label* cont = as_.MakeLabel();
+  as_.Jmp(*cont);
+  as_.Bind(recovery_label);
+  ExitGeneratedCode(GetInsnAddr());
+  as_.Bind(cont);
 }
 
 Register LiteTranslator::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
