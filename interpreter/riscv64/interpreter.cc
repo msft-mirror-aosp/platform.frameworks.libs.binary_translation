@@ -523,20 +523,23 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpArgs& args) {
+    struct {
+      int8_t val : 5;
+    } imm = {.val = static_cast<int8_t>(args.src1) };
     switch (args.opcode) {
       case Decoder::VOpOpcode::kVaddvi:
         return OpVectorvx<intrinsics::Vaddvx<ElementType, vta>, ElementType, vlmul, vta>(args,
-                                                                                         args.src2);
+                                                                                         imm.val);
       case Decoder::VOpOpcode::kVaddvv:
         return OpVectorvv<intrinsics::Vaddvv<ElementType, vta>, ElementType, vlmul, vta>(args);
       case Decoder::VOpOpcode::kVaddvx:
         return OpVectorvx<intrinsics::Vaddvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args, GetReg(args.src2));
+            args, args.src1 ? GetReg(args.src1) : 0);
       case Decoder::VOpOpcode::kVsubvv:
         return OpVectorvv<intrinsics::Vaddvv<ElementType, vta>, ElementType, vlmul, vta>(args);
       case Decoder::VOpOpcode::kVsubvx:
         return OpVectorvx<intrinsics::Vaddvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args, GetReg(args.src2));
+            args, args.src1 ? GetReg(args.src1) : 0);
       default:
         Unimplemented();
     }
@@ -573,23 +576,22 @@ class Interpreter {
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta>
-  void OpVectorvx(const Decoder::VOpArgs& args, ElementType arg2) {
+  void OpVectorvx(const Decoder::VOpArgs& args, ElementType arg1) {
     constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if ((args.dst & (registers_involved - 1)) != 0 || (args.src1 & (registers_involved - 1)) != 0 ||
-        (args.src2 & (registers_involved - 1)) != 0) {
+    if ((args.dst & (registers_involved - 1)) != 0 || (args.src2 & (registers_involved - 1)) != 0) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
-    SIMD128Register result, src1;
+    SIMD128Register result, src2;
     for (size_t index = 0; index < registers_involved; ++index) {
       result.Set(state_->cpu.v[args.dst + index]);
-      src1.Set(state_->cpu.v[args.src1 + index]);
+      src2.Set(state_->cpu.v[args.src2 + index]);
       std::tie(result) = Intrinsic(vstart - index * (16 / sizeof(ElementType)),
                                    vl - index * (16 / sizeof(ElementType)),
                                    result,
-                                   src1,
-                                   arg2);
+                                   src2,
+                                   arg1);
       state_->cpu.v[args.dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
@@ -600,22 +602,25 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVector(const Decoder::VOpArgs& args) {
+    struct {
+      int8_t val : 5;
+    } imm = {.val = static_cast<int8_t>(args.src1) };
     switch (args.opcode) {
       case Decoder::VOpOpcode::kVaddvi:
         return OpVectorvx<intrinsics::Vaddvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args, args.src2);
+            args, imm.val);
       case Decoder::VOpOpcode::kVaddvv:
         return OpVectorvv<intrinsics::Vaddvvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args);
       case Decoder::VOpOpcode::kVaddvx:
         return OpVectorvx<intrinsics::Vaddvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args, GetReg(args.src2));
+            args, args.src1 ? GetReg(args.src1) : 0);
       case Decoder::VOpOpcode::kVsubvv:
         return OpVectorvv<intrinsics::Vaddvvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args);
       case Decoder::VOpOpcode::kVsubvx:
         return OpVectorvx<intrinsics::Vaddvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args, GetReg(args.src2));
+            args, args.src1 ? GetReg(args.src1) : 0);
       default:
         Unimplemented();
     }
@@ -656,25 +661,24 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             InactiveProcessing vma>
-  void OpVectorvx(const Decoder::VOpArgs& args, ElementType arg2) {
+  void OpVectorvx(const Decoder::VOpArgs& args, ElementType arg1) {
     constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if ((args.dst & (registers_involved - 1)) != 0 || (args.src1 & (registers_involved - 1)) != 0 ||
-        (args.src2 & (registers_involved - 1)) != 0) {
+    if ((args.dst & (registers_involved - 1)) != 0 || (args.src2 & (registers_involved - 1)) != 0) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
-    SIMD128Register mask, result, src1;
+    SIMD128Register mask, result, src2;
     mask.Set(state_->cpu.v[0]);
     for (size_t index = 0; index < registers_involved; ++index) {
       result.Set(state_->cpu.v[args.dst + index]);
-      src1.Set(state_->cpu.v[args.src1 + index]);
+      src2.Set(state_->cpu.v[args.src2 + index]);
       std::tie(result) = Intrinsic(vstart - index * (16 / sizeof(ElementType)),
                                    vl - index * (16 / sizeof(ElementType)),
                                    intrinsics::MaskForRegisterInSequence<ElementType>(mask, index),
                                    result,
-                                   src1,
-                                   arg2);
+                                   src2,
+                                   arg1);
       state_->cpu.v[args.dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);

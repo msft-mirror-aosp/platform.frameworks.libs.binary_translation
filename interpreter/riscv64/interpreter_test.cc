@@ -183,16 +183,18 @@ class Riscv64InterpreterTest : public ::testing::Test {
       for (size_t index = 0; index < arraysize(source); ++index) {
         state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
       }
+      // Set x1 for vx instructions.
+      SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
       for (uint8_t vlmul = 0; vlmul < 8; ++vlmul) {
         for (uint8_t vta = 0; vta < 2; ++vta) {
           for (uint8_t vma = 0; vma < 2; ++vma) {
             // Use vsetvl to check whether this combination is allowed and find out VLMAX.
-            uint32_t vsetvl = 0x803170d7;
+            uint32_t vsetvl = 0x8041f157;
             state_.cpu.insn_addr = ToGuestAddr(&vsetvl);
-            SetXReg<2>(state_.cpu, ~0ULL);
-            SetXReg<3>(state_.cpu, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
+            SetXReg<3>(state_.cpu, ~0ULL);
+            SetXReg<4>(state_.cpu, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
             EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-            uint64_t vlmax = GetXReg<1>(state_.cpu);
+            uint64_t vlmax = GetXReg<2>(state_.cpu);
             // Incompatible vsew and vlmax. Skip it.
             if (vlmax == 0) {
               continue;
@@ -398,7 +400,7 @@ TEST_F(Riscv64InterpreterTest, AtomicStoreInstructionDifferentLoadFailure) {
   TestAtomicStoreDifferentLoadFailure(0x1820b1af);
 }
 
-TEST_F(Riscv64InterpreterTest, TestVaddvv) {
+TEST_F(Riscv64InterpreterTest, TestVadd) {
   TestVectorInstruction(
       0x10c0457,
       {{0, 3, 6, 9, 13, 15, 18, 21, 25, 27, 30, 33, 36, 39, 42, 45},
@@ -433,6 +435,74 @@ TEST_F(Riscv64InterpreterTest, TestVaddvv) {
        {0x0602'fffd'f9f6'f3f0, 0x1e1b'1815'120f'0c09},
        {0x3633'302e'2a27'2420, 0x4e4b'4845'423f'3c39},
        {0x6663'605e'5a57'5450, 0x7e7b'7875'726f'6c69}});
+  TestVectorInstruction(
+      0x100c457,
+      {{170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185},
+       {186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201},
+       {202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217},
+       {218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233},
+       {234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249},
+       {250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+       {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25},
+       {26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41}},
+      {{0xabaa, 0xadac, 0xafae, 0xb1b0, 0xb3b2, 0xb5b4, 0xb7b6, 0xb9b8},
+       {0xbbba, 0xbdbc, 0xbfbe, 0xc1c0, 0xc3c2, 0xc5c4, 0xc7c6, 0xc9c8},
+       {0xcbca, 0xcdcc, 0xcfce, 0xd1d0, 0xd3d2, 0xd5d4, 0xd7d6, 0xd9d8},
+       {0xdbda, 0xdddc, 0xdfde, 0xe1e0, 0xe3e2, 0xe5e4, 0xe7e6, 0xe9e8},
+       {0xebea, 0xedec, 0xefee, 0xf1f0, 0xf3f2, 0xf5f4, 0xf7f6, 0xf9f8},
+       {0xfbfa, 0xfdfc, 0xfffe, 0x0200, 0x0402, 0x0604, 0x0806, 0x0a08},
+       {0x0c0a, 0x0e0c, 0x100e, 0x1210, 0x1412, 0x1614, 0x1816, 0x1a18},
+       {0x1c1a, 0x1e1c, 0x201e, 0x2220, 0x2422, 0x2624, 0x2826, 0x2a28}},
+      {{0xadac'abaa, 0xb1b0'afae, 0xb5b4'b3b2, 0xb9b8'b7b6},
+       {0xbdbc'bbba, 0xc1c0'bfbe, 0xc5c4'c3c2, 0xc9c8'c7c6},
+       {0xcdcc'cbca, 0xd1d0'cfce, 0xd5d4'd3d2, 0xd9d8'd7d6},
+       {0xdddc'dbda, 0xe1e0'dfde, 0xe5e4'e3e2, 0xe9e8'e7e6},
+       {0xedec'ebea, 0xf1f0'efee, 0xf5f4'f3f2, 0xf9f8'f7f6},
+       {0xfdfc'fbfa, 0x0200'fffe, 0x0605'0402, 0x0a09'0806},
+       {0x0e0d'0c0a, 0x1211'100e, 0x1615'1412, 0x1a19'1816},
+       {0x1e1d'1c1a, 0x2221'201e, 0x2625'2422, 0x2a29'2826}},
+      {{0xb1b0'afae'adac'abaa, 0xb9b8'b7b6'b5b4'b3b2},
+       {0xc1c0'bfbe'bdbc'bbba, 0xc9c8'c7c6'c5c4'c3c2},
+       {0xd1d0'cfce'cdcc'cbca, 0xd9d8'd7d6'd5d4'd3d2},
+       {0xe1e0'dfde'dddc'dbda, 0xe9e8'e7e6'e5e4'e3e2},
+       {0xf1f0'efee'edec'ebea, 0xf9f8'f7f6'f5f4'f3f2},
+       {0x0200'fffe'fdfc'fbfa, 0x0a09'0807'0605'0402},
+       {0x1211'100f'0e0d'0c0a, 0x1a19'1817'1615'1412},
+       {0x2221'201f'1e1d'1c1a, 0x2a29'2827'2625'2422}});
+  TestVectorInstruction(
+      0x10ab457,
+      {{245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4},
+       {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20},
+       {21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36},
+       {37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52},
+       {53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68},
+       {69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84},
+       {85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100},
+       {101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116}},
+      {{0x00f5, 0x02f7, 0x04f9, 0x06fb, 0x08fd, 0x0aff, 0x0d01, 0x0f03},
+       {0x1105, 0x1307, 0x1509, 0x170b, 0x190d, 0x1b0f, 0x1d11, 0x1f13},
+       {0x2115, 0x2317, 0x2519, 0x271b, 0x291d, 0x2b1f, 0x2d21, 0x2f23},
+       {0x3125, 0x3327, 0x3529, 0x372b, 0x392d, 0x3b2f, 0x3d31, 0x3f33},
+       {0x4135, 0x4337, 0x4539, 0x473b, 0x493d, 0x4b3f, 0x4d41, 0x4f43},
+       {0x5145, 0x5347, 0x5549, 0x574b, 0x594d, 0x5b4f, 0x5d51, 0x5f53},
+       {0x6155, 0x6357, 0x6559, 0x675b, 0x695d, 0x6b5f, 0x6d61, 0x6f63},
+       {0x7165, 0x7367, 0x7569, 0x776b, 0x796d, 0x7b6f, 0x7d71, 0x7f73}},
+      {{0x0302'00f5, 0x0706'04f9, 0x0b0a'08fd, 0x0f0e'0d01},
+       {0x1312'1105, 0x1716'1509, 0x1b1a'190d, 0x1f1e'1d11},
+       {0x2322'2115, 0x2726'2519, 0x2b2a'291d, 0x2f2e'2d21},
+       {0x3332'3125, 0x3736'3529, 0x3b3a'392d, 0x3f3e'3d31},
+       {0x4342'4135, 0x4746'4539, 0x4b4a'493d, 0x4f4e'4d41},
+       {0x5352'5145, 0x5756'5549, 0x5b5a'594d, 0x5f5e'5d51},
+       {0x6362'6155, 0x6766'6559, 0x6b6a'695d, 0x6f6e'6d61},
+       {0x7372'7165, 0x7776'7569, 0x7b7a'796d, 0x7f7e'7d71}},
+      {{0x0706'0504'0302'00f5, 0x0f0e'0d0c'0b0a'08fd},
+       {0x1716'1514'1312'1105, 0x1f1e'1d1c'1b1a'190d},
+       {0x2726'2524'2322'2115, 0x2f2e'2d2c'2b2a'291d},
+       {0x3736'3534'3332'3125, 0x3f3e'3d3c'3b3a'392d},
+       {0x4746'4544'4342'4135, 0x4f4e'4d4c'4b4a'493d},
+       {0x5756'5554'5352'5145, 0x5f5e'5d5c'5b5a'594d},
+       {0x6766'6564'6362'6155, 0x6f6e'6d6c'6b6a'695d},
+       {0x7776'7574'7372'7165, 0x7f7e'7d7c'7b7a'796d}});
 }
 
 }  // namespace
