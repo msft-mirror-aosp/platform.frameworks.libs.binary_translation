@@ -15,10 +15,11 @@
  */
 
 #include "berberis/intrinsics/intrinsics.h"
-#include "berberis/intrinsics/guest_fp_flags.h"
 
 #include <cstdint>
 #include <tuple>
+
+#include "berberis/intrinsics/guest_fp_flags.h"
 
 namespace berberis::intrinsics {
 
