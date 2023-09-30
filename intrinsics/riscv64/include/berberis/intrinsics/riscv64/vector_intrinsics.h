@@ -47,9 +47,9 @@ int MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence)
   } else if constexpr (sizeof(ElementType) == sizeof(uint16_t)) {
     return mask.Get<uint8_t>(register_in_sequence);
   } else if constexpr (sizeof(ElementType) == sizeof(uint32_t)) {
-    return mask.Get<uint32_t>(0) >> (register_in_sequence << 4);
+    return mask.Get<uint32_t>(0) >> (register_in_sequence * 4);
   } else if constexpr (sizeof(ElementType) == sizeof(uint64_t)) {
-    return mask.Get<uint32_t>(0) >> (register_in_sequence << 2);
+    return mask.Get<uint32_t>(0) >> (register_in_sequence * 2);
   } else {
     static_assert(kDependentTypeFalse<ElementType>, "Unsupported vector element type");
   }
