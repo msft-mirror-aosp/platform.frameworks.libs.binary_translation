@@ -265,115 +265,123 @@ class Decoder {
     kMaxValue = 0b111111111111'11111'111'11111,
   };
 
-  enum class VOpOpcode {
-    kVaddvv = 0b000000'000,
-    kVaddvi = 0b000000'011,
-    kVaddvx = 0b000000'100,
-    kVsubvv = 0b000010'000,
-    kVsubvx = 0b000010'100,
-    kVrsubvi = 0b000011'011,
-    kVrsubvx = 0b000011'100,
-    kVminuvv = 0b000100'000,
-    kVminuvx = 0b000100'100,
-    kVminvv = 0b000101'000,
-    kVminvx = 0b000101'100,
-    kVmaxuvv = 0b000110'000,
-    kVmaxuvx = 0b000110'100,
-    kVmaxvv = 0b000111'000,
-    kVmaxvx = 0b000111'100,
-    kVandvv = 0b001001'000,
-    kVandvi = 0b001001'011,
-    kVandvx = 0b001001'100,
-    kVorvv = 0b001010'000,
-    kVorvi = 0b001010'011,
-    kVorvx = 0b001010'100,
-    kVxorvv = 0b001011'000,
-    kVxorvi = 0b001011'011,
-    kVxorvx = 0b001011'100,
-    kVrgathervv = 0b001100'000,
-    kVrgathervi = 0b001100'011,
-    kVrgathervx = 0b001100'100,
-    kVslideupvi = 0b001110'011,
-    kVslideupvx = 0b001110'100,
-    kVrgatherei16vv = 0b001110'000,
-    kVslidedownvi = 0b001111'011,
-    kVslidedownvx = 0b001111'100,
-    kVadcvv = 0b010000'000,
-    kVadcvi = 0b010000'011,
-    kVadcvx = 0b010000'100,
-    kVmadcvv = 0b010001'000,
-    kVmadcvi = 0b010001'011,
-    kVmadcvx = 0b010001'100,
-    kVsbcvv = 0b010010'000,
-    kVsbcvx = 0b010010'100,
-    kVmsbcvv = 0b010011'000,
-    kVmsbcvx = 0b010011'100,
-    kVmergevv = 0b010111'000,
-    kVmergevi = 0b010111'011,
-    kVmergevx = 0b010111'100,
-    kVmseqvv = 0b011000'000,
-    kVmseqvi = 0b011000'011,
-    kVmseqvx = 0b011000'100,
-    kVmsnevv = 0b011001'000,
-    kVmsnevi = 0b011001'011,
-    kVmsnevx = 0b011001'100,
-    kVmsltuvv = 0b011010'000,
-    kVmsltuvx = 0b011010'100,
-    kVmsltvv = 0b011011'000,
-    kVmsltvx = 0b011011'100,
-    kVmsleuvv = 0b011100'000,
-    kVmsleuvi = 0b011100'011,
-    kVmsleuvx = 0b011100'100,
-    kVmslevv = 0b011101'000,
-    kVmslevi = 0b011101'011,
-    kVmslevx = 0b011101'100,
-    kVmsgtuvi = 0b011110'011,
-    kVmsgtuvx = 0b011110'100,
-    kVmsgtvi = 0b011111'011,
-    kVmsgtvx = 0b011111'100,
-    kVsadduvv = 0b100000'000,
-    kVsadduvi = 0b100000'011,
-    kVsadduvx = 0b100000'100,
-    kVsaddvv = 0b100001'000,
-    kVsaddvi = 0b100001'011,
-    kVsaddvx = 0b100001'100,
-    kVssubuvv = 0b100000'000,
-    kVssubuvx = 0b100000'100,
-    kVssubvv = 0b100001'000,
-    kVssubvx = 0b100001'100,
-    kVsllvv = 0b100101'000,
-    kVsllvi = 0b100101'011,
-    kVsllvx = 0b100101'100,
-    kVsmulvv = 0b100111'000,
-    kVsmulvx = 0b100111'100,
-    kVmvvi = 0b100111'011,
-    kVsrlvv = 0b101000'000,
-    kVsrlvi = 0b101000'011,
-    kVsrlvx = 0b101000'100,
-    kVsravv = 0b101001'000,
-    kVsravi = 0b101001'011,
-    kVsravx = 0b101001'100,
-    kVssrlvv = 0b101010'000,
-    kVssrlvi = 0b101010'011,
-    kVssrlvx = 0b101010'100,
-    kVssravv = 0b101011'000,
-    kVssravi = 0b101011'011,
-    kVssravx = 0b101011'100,
-    kVnsrlvv = 0b101100'000,
-    kVnsrlvi = 0b101100'011,
-    kVnsrlvx = 0b101100'100,
-    kVnsravv = 0b101101'000,
-    kVnsravi = 0b101101'011,
-    kVnsravx = 0b101101'100,
-    kVnclipuvv = 0b101110'000,
-    kVnclipuvi = 0b101110'011,
-    kVnclipuvx = 0b101110'100,
-    kVnclipvv = 0b101111'000,
-    kVnclipvi = 0b101111'011,
-    kVnclipvx = 0b101111'100,
-    kVwredsumuvv = 0b110000'000,
-    kVwredsumvv = 0b110001'000,
-    kMaxValue = 0b111111'111,
+  enum class VOpViOpcode {
+    kVaddvi = 0b000000,
+    kVrsubvi = 0b000011,
+    kVandvi = 0b001001,
+    kVorvi = 0b001010,
+    kVxorvi = 0b001011,
+    kVrgathervi = 0b001100,
+    kVslideupvi = 0b001110,
+    kVslidedownvi = 0b001111,
+    kVadcvi = 0b010000,
+    kVmadcvi = 0b010001,
+    kVmergevi = 0b010111,
+    kVmseqvi = 0b011000,
+    kVmsnevi = 0b011001,
+    kVmsleuvi = 0b011100,
+    kVmslevi = 0b011101,
+    kVmsgtuvi = 0b011110,
+    kVmsgtvi = 0b011111,
+    kVsadduvi = 0b100000,
+    kVsaddvi = 0b100001,
+    kVsllvi = 0b100101,
+    kVmvvi = 0b100111,
+    kVsrlvi = 0b101000,
+    kVsravi = 0b101001,
+    kVssrlvi = 0b101010,
+    kVssravi = 0b101011,
+    kVnsrlvi = 0b101100,
+    kVnsravi = 0b101101,
+    kVnclipuvi = 0b101110,
+    kVnclipvi = 0b101111,
+    kMaxValue = 0b111111,
+  };
+
+  enum class VOpVvOpcode {
+    kVaddvv = 0b000000,
+    kVsubvv = 0b000010,
+    kVminuvv = 0b000100,
+    kVminvv = 0b000101,
+    kVmaxuvv = 0b000110,
+    kVmaxvv = 0b000111,
+    kVandvv = 0b001001,
+    kVorvv = 0b001010,
+    kVxorvv = 0b001011,
+    kVrgathervv = 0b001100,
+    kVrgatherei16vv = 0b001110,
+    kVadcvv = 0b010000,
+    kVmadcvv = 0b010001,
+    kVsbcvv = 0b010010,
+    kVmsbcvv = 0b010011,
+    kVmergevv = 0b010111,
+    kVmseqvv = 0b011000,
+    kVmsnevv = 0b011001,
+    kVmsltuvv = 0b011010,
+    kVmsltvv = 0b011011,
+    kVmsleuvv = 0b011100,
+    kVmslevv = 0b011101,
+    kVsadduvv = 0b100000,
+    kVsaddvv = 0b100001,
+    kVssubuvv = 0b100000,
+    kVssubvv = 0b100001,
+    kVsllvv = 0b100101,
+    kVsmulvv = 0b100111,
+    kVsrlvv = 0b101000,
+    kVsravv = 0b101001,
+    kVssrlvv = 0b101010,
+    kVssravv = 0b101011,
+    kVnsrlvv = 0b101100,
+    kVnsravv = 0b101101,
+    kVnclipuvv = 0b101110,
+    kVnclipvv = 0b101111,
+    kVwredsumuvv = 0b110000,
+    kVwredsumvv = 0b110001,
+    kMaxValue = 0b111111
+  };
+
+  enum class VOpVxOpcode {
+    kVaddvx = 0b000000,
+    kVsubvx = 0b000010,
+    kVrsubvx = 0b000011,
+    kVminuvx = 0b000100,
+    kVminvx = 0b000101,
+    kVmaxuvx = 0b000110,
+    kVmaxvx = 0b000111,
+    kVandvx = 0b001001,
+    kVorvx = 0b001010,
+    kVxorvx = 0b001011,
+    kVrgathervx = 0b001100,
+    kVslideupvx = 0b001110,
+    kVslidedownvx = 0b001111,
+    kVadcvx = 0b010000,
+    kVmadcvx = 0b010001,
+    kVsbcvx = 0b010010,
+    kVmsbcvx = 0b010011,
+    kVmergevx = 0b010111,
+    kVmseqvx = 0b011000,
+    kVmsnevx = 0b011001,
+    kVmsltuvx = 0b011010,
+    kVmsltvx = 0b011011,
+    kVmsleuvx = 0b011100,
+    kVmslevx = 0b011101,
+    kVmsgtuvx = 0b011110,
+    kVmsgtvx = 0b011111,
+    kVsadduvx = 0b100000,
+    kVsaddvx = 0b100001,
+    kVssubuvx = 0b100000,
+    kVssubvx = 0b100001,
+    kVsllvx = 0b100101,
+    kVsmulvx = 0b100111,
+    kVsrlvx = 0b101000,
+    kVsravx = 0b101001,
+    kVssrlvx = 0b101010,
+    kVssravx = 0b101011,
+    kVnsrlvx = 0b101100,
+    kVnsravx = 0b101101,
+    kVnclipuvx = 0b101110,
+    kVnclipvx = 0b101111,
+    kMaxValue = 0b111111
   };
 
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions
@@ -612,8 +620,24 @@ class Decoder {
   using OpImmArgs = OpImmArgsTemplate<OpImmOpcode>;
   using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
 
-  struct VOpArgs {
-    VOpOpcode opcode;
+  struct VOpViArgs {
+    VOpViOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src;
+    int8_t imm;
+  };
+
+  struct VOpVvArgs {
+    VOpVvOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
+  struct VOpVxArgs {
+    VOpVxOpcode opcode;
     bool vm;
     uint8_t dst;
     uint8_t src1;
@@ -1678,43 +1702,68 @@ class Decoder {
 
   void DecodeOpV() {
     uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
-    // Vsetvl/Vsetvli/Vsetivli have radically different encoding strategy from other vector
-    // instructions.
-    if (low_opcode == 0b111) {
-      if (GetBits<uint8_t, 31, 1>() == 0) {
-        const VsetvliArgs args = {
-            .dst = GetBits<uint8_t, 7, 5>(),
-            .src = GetBits<uint8_t, 15, 5>(),
-            .vtype = GetBits<uint16_t, 20, 11>(),
-        };
-        return insn_consumer_->Vsetvli(args);
-      } else if (GetBits<uint8_t, 30, 1>() == 1) {
-        const VsetivliArgs args = {
-            .dst = GetBits<uint8_t, 7, 5>(),
-            .avl = GetBits<uint8_t, 15, 5>(),
-            .vtype = GetBits<uint16_t, 20, 10>(),
-        };
-        return insn_consumer_->Vsetivli(args);
-      } else if (GetBits<uint8_t, 25, 6>() == 0) {
-        const VsetvlArgs args = {
-            .dst = GetBits<uint8_t, 7, 5>(),
-            .src1 = GetBits<uint8_t, 15, 5>(),
-            .src2 = GetBits<uint8_t, 20, 5>(),
-        };
-        return insn_consumer_->Vsetvl(args);
-      }
-    }
     bool vm = GetBits<uint8_t, 25, 1>();
-    uint8_t high_opcode = GetBits<uint8_t, 26, 6>();
-    uint16_t opcode = (high_opcode << 3) + low_opcode;
-    const VOpArgs args = {
-        .opcode = VOpOpcode(opcode),
-        .vm = vm,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
-    };
-    return insn_consumer_->OpVector(args);
+    uint8_t opcode = GetBits<uint8_t, 26, 6>();
+    uint8_t dst = GetBits<uint8_t, 7, 5>();
+    // Note: in vector instructions vs2 field is 2nd operand while vs1 field is 2rd operand.
+    // FMA instructions are exception, but there are not that many of these.
+    uint8_t src1 = GetBits<uint8_t, 20, 5>();
+    uint8_t src2 = GetBits<uint8_t, 15, 5>();
+    switch (low_opcode) {
+      case 0b000: {
+        const VOpVvArgs args = {
+            .opcode = VOpVvOpcode(opcode),
+            .vm = vm,
+            .dst = dst,
+            .src1 = src1,
+            .src2 = src2,
+        };
+        return insn_consumer_->OpVector(args);
+      }
+      case 0b011: {
+        const VOpViArgs args = {
+            .opcode = VOpViOpcode(opcode),
+            .vm = vm,
+            .dst = dst,
+            .src = src1,
+            .imm = SignExtend<5>(src2),
+        };
+        return insn_consumer_->OpVector(args);
+      }
+      case 0b100: {
+        const VOpVxArgs args = {
+            .opcode = VOpVxOpcode(opcode),
+            .vm = vm,
+            .dst = dst,
+            .src1 = src1,
+            .src2 = src2,
+        };
+        return insn_consumer_->OpVector(args);
+      }
+      case 0b111:
+        if (GetBits<uint8_t, 31, 1>() == 0) {
+          const VsetvliArgs args = {
+              .dst = GetBits<uint8_t, 7, 5>(),
+              .src = GetBits<uint8_t, 15, 5>(),
+              .vtype = GetBits<uint16_t, 20, 11>(),
+          };
+          return insn_consumer_->Vsetvli(args);
+        } else if (GetBits<uint8_t, 30, 1>() == 1) {
+          const VsetivliArgs args = {
+              .dst = GetBits<uint8_t, 7, 5>(),
+              .avl = GetBits<uint8_t, 15, 5>(),
+              .vtype = GetBits<uint16_t, 20, 10>(),
+          };
+          return insn_consumer_->Vsetivli(args);
+        } else if (GetBits<uint8_t, 25, 6>() == 0) {
+          const VsetvlArgs args = {
+              .dst = GetBits<uint8_t, 7, 5>(),
+              .src1 = GetBits<uint8_t, 15, 5>(),
+              .src2 = GetBits<uint8_t, 20, 5>(),
+          };
+          return insn_consumer_->Vsetvl(args);
+        }
+    }
   }
 
   void DecodeSystem() {
