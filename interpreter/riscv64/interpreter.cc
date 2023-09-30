@@ -33,9 +33,11 @@
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
+#include "berberis/runtime_primitives/interpret_helpers.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/runtime_primitives/recovery_code.h"
 
+#include "faulty_memory_accesses.h"
 #include "fp_regs.h"
 
 namespace berberis {
@@ -67,7 +69,8 @@ class Interpreter {
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
-  explicit Interpreter(ThreadState* state) : state_(state), branch_taken_(false) {}
+  explicit Interpreter(ThreadState* state)
+      : state_(state), branch_taken_(false), exception_raised_(false) {}
 
   //
   // Instruction implementations.
@@ -138,6 +141,7 @@ class Interpreter {
   Register Lr(int64_t addr) {
     static_assert(std::is_integral_v<IntType>, "Lr: IntType must be integral");
     static_assert(std::is_signed_v<IntType>, "Lr: IntType must be signed");
+    CHECK(!exception_raised_);
     // Address must be aligned on size of IntType.
     CHECK((addr % sizeof(IntType)) == 0ULL);
     return MemoryRegionReservation::Load<IntType>(&state_->cpu, addr, AqRlToStdMemoryOrder(aq, rl));
@@ -147,6 +151,7 @@ class Interpreter {
   Register Sc(int64_t addr, IntType val) {
     static_assert(std::is_integral_v<IntType>, "Sc: IntType must be integral");
     static_assert(std::is_signed_v<IntType>, "Sc: IntType must be signed");
+    CHECK(!exception_raised_);
     // Address must be aligned on size of IntType.
     CHECK((addr % sizeof(IntType)) == 0ULL);
     return static_cast<Register>(MemoryRegionReservation::Store<IntType>(
@@ -258,10 +263,14 @@ class Interpreter {
   template <typename DataType>
   FpRegister LoadFp(Register arg, int16_t offset) {
     static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
+    CHECK(!exception_raised_);
     DataType* ptr = ToHostAddr<DataType>(arg + offset);
-    FpRegister reg = 0;
-    memcpy(&reg, ptr, sizeof(DataType));
-    return reg;
+    FaultyLoadResult result = FaultyLoad(ptr, sizeof(DataType));
+    if (result.is_fault) {
+      exception_raised_ = true;
+      return {};
+    }
+    return result.value;
   }
 
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
@@ -303,6 +312,7 @@ class Interpreter {
 
   Register Ecall(Register syscall_nr, Register arg0, Register arg1, Register arg2, Register arg3,
                  Register arg4, Register arg5) {
+    CHECK(!exception_raised_);
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   }
 
@@ -359,8 +369,9 @@ class Interpreter {
   template <typename DataType>
   void StoreFp(Register arg, int16_t offset, FpRegister data) {
     static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
+    CHECK(!exception_raised_);
     DataType* ptr = ToHostAddr<DataType>(arg + offset);
-    memcpy(ptr, &data, sizeof(DataType));
+    exception_raised_ = FaultyStore(ptr, sizeof(DataType), data);
   }
 
   void CompareAndBranch(Decoder::BranchOpcode opcode,
@@ -392,17 +403,18 @@ class Interpreter {
     }
 
     if (cond_value) {
-      state_->cpu.insn_addr += offset;
-      branch_taken_ = true;
+      Branch(offset);
     }
   }
 
   void Branch(int32_t offset) {
+    CHECK(!exception_raised_);
     state_->cpu.insn_addr += offset;
     branch_taken_ = true;
   }
 
   void BranchRegister(Register base, int16_t offset) {
+    CHECK(!exception_raised_);
     state_->cpu.insn_addr = (base + offset) & ~uint64_t{1};
     branch_taken_ = true;
   }
@@ -747,18 +759,11 @@ class Interpreter {
   void Nop() {}
 
   void Unimplemented() {
-    auto* addr = ToHostAddr<const uint16_t>(GetInsnAddr());
-    uint8_t size = Decoder::GetInsnSize(addr);
-    if (size == 2) {
-      FATAL("Unimplemented riscv64 instruction 0x%" PRIx16 " at %p", *addr, addr);
-    } else {
-      CHECK_EQ(size, 4);
-      // Warning: do not cast and dereference the pointer
-      // since the address may not be 4-bytes aligned.
-      uint32_t code;
-      memcpy(&code, addr, sizeof(code));
-      FATAL("Unimplemented riscv64 instruction 0x%" PRIx32 " at %p", code, addr);
-    }
+    UndefinedInsn(GetInsnAddr());
+    // If there is a guest handler registered for SIGILL we'll delay its processing until the next
+    // sync point (likely the main dispatching loop) due to enabled pending signals. Thus we must
+    // ensure that insn_addr isn't automatically advanced in FinalizeInsn.
+    exception_raised_ = true;
   }
 
   //
@@ -771,6 +776,10 @@ class Interpreter {
   }
 
   void SetReg(uint8_t reg, Register value) {
+    if (exception_raised_) {
+      // Do not produce side effects.
+      return;
+    }
     CheckRegIsValid(reg);
     state_->cpu.x[reg] = value;
   }
@@ -797,6 +806,7 @@ class Interpreter {
 
   template <CsrName kName>
   void SetCsr(Register arg) {
+    CHECK(!exception_raised_);
     state_->cpu.*CsrFieldAddr<kName> = arg & kCsrMask<kName>;
   }
 
@@ -807,7 +817,7 @@ class Interpreter {
   [[nodiscard]] GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
 
   void FinalizeInsn(uint8_t insn_len) {
-    if (!branch_taken_) {
+    if (!branch_taken_ && !exception_raised_) {
       state_->cpu.insn_addr += insn_len;
     }
   }
@@ -816,24 +826,22 @@ class Interpreter {
 
  private:
   template <typename DataType>
-  Register Load(const void* ptr) const {
+  Register Load(const void* ptr) {
     static_assert(std::is_integral_v<DataType>);
-    DataType data;
-    memcpy(&data, ptr, sizeof(data));
-    // Signed types automatically sign-extend to int64_t.
-    return static_cast<uint64_t>(data);
+    CHECK(!exception_raised_);
+    FaultyLoadResult result = FaultyLoad(ptr, sizeof(DataType));
+    if (result.is_fault) {
+      exception_raised_ = true;
+      return {};
+    }
+    return static_cast<DataType>(result.value);
   }
 
   template <typename DataType>
-  void Store(void* ptr, uint64_t data) const {
+  void Store(void* ptr, uint64_t data) {
     static_assert(std::is_integral_v<DataType>);
-    memcpy(ptr, &data, sizeof(DataType));
-  }
-
-  template <typename DataType>
-  void StoreFp(void* ptr, uint64_t data) const {
-    static_assert(std::is_floating_point_v<DataType>);
-    memcpy(ptr, &data, sizeof(DataType));
+    CHECK(!exception_raised_);
+    exception_raised_ = FaultyStore(ptr, sizeof(DataType), data);
   }
 
   void CheckShamtIsValid(int8_t shamt) const {
@@ -855,6 +863,15 @@ class Interpreter {
 
   ThreadState* state_;
   bool branch_taken_;
+  // This flag is set by illegal instructions and faulted memory accesses. The former must always
+  // stop the playback of the current instruction, so we don't need to do anything special. The
+  // latter may result in having more operations with side effects called before the end of the
+  // current instruction:
+  //   Load (faulted)    -> SetReg
+  //   LoadFp (faulted)  -> NanBoxAndSetFpReg
+  // If an exception is raised before these operations, we skip them. For all other operations with
+  // side-effects we check that this flag is never raised.
+  bool exception_raised_;
 };
 
 template <>
@@ -874,6 +891,7 @@ template <>
 
 template <>
 void Interpreter::SetCsr<CsrName::kFrm>(Register arg) {
+  CHECK(!exception_raised_);
   arg &= kCsrMask<CsrName::kFrm>;
   state_->cpu.frm = arg;
   FeSetRound(arg);
@@ -881,12 +899,14 @@ void Interpreter::SetCsr<CsrName::kFrm>(Register arg) {
 
 template <>
 void Interpreter::SetCsr<CsrName::kVxrm>(Register arg) {
+  CHECK(!exception_raised_);
   state_->cpu.*CsrFieldAddr<CsrName::kVcsr> =
       (state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b100) | (arg & 0b11);
 }
 
 template <>
 void Interpreter::SetCsr<CsrName::kVxsat>(Register arg) {
+  CHECK(!exception_raised_);
   state_->cpu.*CsrFieldAddr<CsrName::kVcsr> =
       (state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b11) | ((arg & 0b1) << 2);
 }
@@ -906,12 +926,20 @@ Interpreter::FpRegister Interpreter::GetFRegAndUnboxNan<Interpreter::Float64>(ui
 
 template <>
 void Interpreter::NanBoxAndSetFpReg<Interpreter::Float32>(uint8_t reg, FpRegister value) {
+  if (exception_raised_) {
+    // Do not produce side effects.
+    return;
+  }
   CheckFpRegIsValid(reg);
   state_->cpu.f[reg] = NanBox<Float32>(value);
 }
 
 template <>
 void Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, FpRegister value) {
+  if (exception_raised_) {
+    // Do not produce side effects.
+    return;
+  }
   CheckFpRegIsValid(reg);
   state_->cpu.f[reg] = value;
 }
@@ -919,9 +947,7 @@ void Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, FpRegiste
 }  // namespace
 
 void InitInterpreter() {
-  // TODO(b/232598137): Currently we just call it to initialize the recovery map.
-  // We need to add real faulty instructions with recovery here.
-  InitExtraRecoveryCodeUnsafe({});
+  AddFaultyMemoryAccessRecoveryCode();
 }
 
 void InterpretInsn(ThreadState* state) {
