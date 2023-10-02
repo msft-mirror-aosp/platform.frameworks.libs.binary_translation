@@ -858,6 +858,16 @@ class Interpreter {
 };
 
 template <>
+[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kFCsr>() const {
+  return FeGetExceptions() | (state_->cpu.frm << 5);
+}
+
+template <>
+[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kFFlags>() const {
+  return FeGetExceptions();
+}
+
+template <>
 [[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kVlenb>() const {
   return 16;
 }
@@ -870,6 +880,19 @@ template <>
 template <>
 [[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kVxsat>() const {
   return state_->cpu.*CsrFieldAddr<CsrName::kVcsr> >> 2;
+}
+
+template <>
+void Interpreter::SetCsr<CsrName::kFCsr>(Register arg) {
+  FeSetExceptions(arg & 0b1'1111);
+  arg = (arg >> 5) & kCsrMask<CsrName::kFrm>;
+  state_->cpu.frm = arg;
+  FeSetRound(arg);
+}
+
+template <>
+void Interpreter::SetCsr<CsrName::kFFlags>(Register arg) {
+  FeSetExceptions(arg & 0b1'1111);
 }
 
 template <>

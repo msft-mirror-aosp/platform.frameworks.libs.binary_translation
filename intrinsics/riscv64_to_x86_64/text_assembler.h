@@ -45,7 +45,44 @@ class TextAssembler : public TextAssemblerX86<TextAssembler> {
   friend TextAssemblerX86;
 };
 
-void MakeExtraGuestFunctions(FILE*) {}
+void MakeGetSetFPEnvironment(FILE* out) {
+  fprintf(out,
+          R"STRING(
+// On platforms that we care about (Bionic, GLibc, MUSL, even x86-64 MacOS) exceptions are
+// taken directly from x86 status word or MXCSR.
+//
+// The only exception seems to be MSVC and it can be detected with this simple check.
+#if (FE_INVALID == 0x01) && (FE_DIVBYZERO == 0x04) && (FE_OVERFLOW == 0x08) && \
+    (FE_UNDERFLOW == 0x10) && (FE_INEXACT == 0x20)
+
+inline std::tuple<uint64_t> FeGetExceptions() {
+  return reinterpret_cast<const char*>(&constants_pool::kBerberisMacroAssemblerConstants)
+      [%1$d + fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INEXACT)];
+}
+
+inline void FeSetExceptions(uint64_t exceptions) {
+  const fexcept_t x87_flag = reinterpret_cast<const char*>(
+      &constants_pool::kBerberisMacroAssemblerConstants)[%2$d + exceptions];
+  fesetexceptflag(&x87_flag, FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INEXACT);
+}
+
+inline void FeSetExceptionsImm(uint8_t exceptions) {
+  FeSetExceptions(exceptions);
+}
+
+#else
+
+#error Unsupported libc.
+
+#endif
+)STRING",
+          constants_pool::GetOffset(constants_pool::kX87ToRiscVExceptions),
+          constants_pool::GetOffset(constants_pool::kRiscVToX87Exceptions));
+}
+
+void MakeExtraGuestFunctions(FILE* out) {
+  MakeGetSetFPEnvironment(out);
+}
 
 }  // namespace berberis
 
