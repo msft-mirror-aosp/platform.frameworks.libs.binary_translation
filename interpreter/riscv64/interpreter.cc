@@ -33,7 +33,6 @@
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
-#include "berberis/runtime_primitives/interpret_helpers.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/runtime_primitives/recovery_code.h"
 
@@ -695,11 +694,18 @@ class Interpreter {
   void Nop() {}
 
   void Unimplemented() {
-    UndefinedInsn(GetInsnAddr());
-    // If there is a guest handler registered for SIGILL we'll delay its processing until the next
-    // sync point (likely the main dispatching loop) due to enabled pending signals. Thus we must
-    // ensure that insn_addr isn't automatically advanced in FinalizeInsn.
-    exception_raised_ = true;
+    auto* addr = ToHostAddr<const uint16_t>(GetInsnAddr());
+    uint8_t size = Decoder::GetInsnSize(addr);
+    if (size == 2) {
+      FATAL("Unimplemented riscv64 instruction 0x%" PRIx16 " at %p", *addr, addr);
+    } else {
+      CHECK_EQ(size, 4);
+      // Warning: do not cast and dereference the pointer
+      // since the address may not be 4-bytes aligned.
+      uint32_t code;
+      memcpy(&code, addr, sizeof(code));
+      FATAL("Unimplemented riscv64 instruction 0x%" PRIx32 " at %p", code, addr);
+    }
   }
 
   //
@@ -799,10 +805,8 @@ class Interpreter {
 
   ThreadState* state_;
   bool branch_taken_;
-  // This flag is set by illegal instructions and faulted memory accesses. The former must always
-  // stop the playback of the current instruction, so we don't need to do anything special. The
-  // latter may result in having more operations with side effects called before the end of the
-  // current instruction:
+  // This flag is set by faulted memory accesses. Faulted memory accesses may result in having more
+  // operations with side effects called before the end of the current instruction:
   //   Load (faulted)    -> SetReg
   //   LoadFp (faulted)  -> NanBoxAndSetFpReg
   // If an exception is raised before these operations, we skip them. For all other operations with
