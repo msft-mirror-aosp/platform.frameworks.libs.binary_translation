@@ -329,6 +329,30 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "FeGetExceptions": {
+    "comment": "Read exceptions state from x87 status word and MXCSR.",
+    "class": "scalar",
+    "in": [],
+    "out": [ "uint64_t" ],
+    "side_effects_comment": "Reads state from host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
+  "FeSetExceptions": {
+    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [],
+    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
+  "FeSetExceptionsImm": {
+    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
+    "class": "scalar",
+    "in": [ "uimm8" ],
+    "out": [],
+    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
   "FeSetRound": {
     "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
     "class": "scalar",

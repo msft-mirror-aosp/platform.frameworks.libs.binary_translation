@@ -50,10 +50,24 @@ struct MacroAssemblerConstants {
   // 64 bit constants for use with arithmetic operations.
   // Used because only 32 bit immediates are supported on x86-64.
   int64_t k0x8000_0000_0000_00ff = 0x8000'0000'0000'00ff;
+  alignas(16) const int8_t kRiscVToX87Exceptions[32] = {
+      0x00, 0x20, 0x10, 0x30, 0x08, 0x28, 0x18, 0x38,
+      0x04, 0x24, 0x14, 0x34, 0x0c, 0x2c, 0x1c, 0x3c,
+      0x01, 0x21, 0x11, 0x31, 0x09, 0x29, 0x19, 0x39,
+      0x05, 0x25, 0x15, 0x35, 0x0d, 0x2d, 0x1d, 0x3d};
+  alignas(16) const int8_t kX87ToRiscVExceptions[64] = {
+      0x00, 0x10, 0x00, 0x10, 0x08, 0x18, 0x08, 0x18,
+      0x04, 0x14, 0x04, 0x14, 0x0c, 0x1c, 0x0c, 0x1c,
+      0x02, 0x12, 0x02, 0x12, 0x0a, 0x1a, 0x0a, 0x1a,
+      0x06, 0x16, 0x06, 0x16, 0x0e, 0x1e, 0x0e, 0x1e,
+      0x01, 0x11, 0x01, 0x11, 0x09, 0x19, 0x09, 0x19,
+      0x05, 0x15, 0x05, 0x15, 0x0d, 0x1d, 0x0d, 0x1d,
+      0x03, 0x13, 0x03, 0x13, 0x0b, 0x1b, 0x0b, 0x1b,
+      0x07, 0x17, 0x07, 0x17, 0x0f, 0x1f, 0x0f, 0x1f};
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 1024, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 1792, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
@@ -65,6 +79,8 @@ CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kZero64, 768, 64);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt32, 832, 32);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits32, 864, 32);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, k0x8000_0000_0000_00ff, 896, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kRiscVToX87Exceptions, 1024, 256);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kX87ToRiscVExceptions, 1280, 512);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -125,4 +141,9 @@ const int32_t kMaxUInt = GetConstants() + offsetof(MacroAssemblerConstants, kMax
 template <>
 const int32_t kConst<uint64_t{0x8000'0000'0000'00ff}> =
     GetConstants() + offsetof(MacroAssemblerConstants, k0x8000_0000_0000_00ff);
+const int32_t kRiscVToX87Exceptions =
+    GetConstants() + offsetof(MacroAssemblerConstants, kRiscVToX87Exceptions);
+const int32_t kX87ToRiscVExceptions =
+    GetConstants() + offsetof(MacroAssemblerConstants, kX87ToRiscVExceptions);
+
 }  // namespace berberis::constant_pool
