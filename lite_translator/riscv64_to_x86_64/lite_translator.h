@@ -475,6 +475,21 @@ class LiteTranslator {
 };
 
 template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kFCsr>() {
+  Register csr_reg = FeGetExceptions();
+  as_.Expand<uint64_t, CsrFieldType<CsrName::kFrm>>(
+      Assembler::rax, {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>});
+  as_.Shl<uint8_t>(Assembler::rax, 5);
+  as_.Or<uint8_t>(csr_reg, Assembler::rax);
+  return csr_reg;
+}
+
+template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kFFlags>() {
+  return FeGetExceptions();
+}
+
+template <>
 [[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kVlenb>() {
   return GetImm(16);
 }
@@ -495,6 +510,48 @@ template <>
                                 {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>});
   as_.Shr<uint8_t>(reg, 2);
   return reg;
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFCsr>(uint8_t imm) {
+  // Note: instructions Csrrci or Csrrsi couldn't affect Frm because immediate only has five bits.
+  // But these instruction don't pass their immediate-specified argument into `SetCsr`, they combine
+  // it with register first. Fixing that can only be done by changing code in the semantics player.
+  //
+  // But Csrrwi may clear it.  And we actually may only arrive here from Csrrwi.
+  // Thus, technically, we know that imm >> 5 is always zero, but it doesn't look like a good idea
+  // to rely on that: it's very subtle and it only affects code generation speed.
+  FeSetExceptionsImm(static_cast<int8_t>(imm & 0b1'1111));
+  as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
+                   static_cast<int8_t>(imm >> 5));
+  FeSetRoundImm(static_cast<int8_t>(imm >> 5));
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFCsr>(Register arg) {
+  Register fflags = AllocTempReg();
+  as_.Mov<uint32_t>(fflags, arg);
+  as_.And<uint32_t>(fflags, 0b1'1111);
+  FeSetExceptions(fflags);
+  // Use RCX as temporary register. We know it would be used by FeSetRound, too.
+  as_.Shldl(Assembler::rcx, arg, int8_t{32-5});
+  as_.And<uint32_t>(Assembler::rcx, kCsrMask<CsrName::kFrm>);
+  as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
+                   Assembler::rcx);
+  FeSetRound(Assembler::rcx);
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFFlags>(uint8_t imm) {
+  FeSetExceptionsImm(static_cast<int8_t>(imm & 0b1'1111));
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFFlags>(Register arg) {
+  Register fflags = AllocTempReg();
+  as_.Mov<uint32_t>(fflags, arg);
+  as_.And<uint32_t>(fflags, 0b1'1111);
+  FeSetExceptions(fflags);
 }
 
 template <>
