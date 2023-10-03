@@ -476,11 +476,17 @@ class LiteTranslator {
 
 template <>
 [[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kFCsr>() {
-  Register csr_reg = FeGetExceptions();
+  Register csr_reg = AllocTempReg();
+  bool inline_succeful = inline_intrinsic::TryInlineIntrinsic<&intrinsics::FeGetExceptions>(
+      as_,
+      [this]() { return AllocTempReg(); },
+      [this]() { return AllocTempSimdReg(); },
+      Assembler::rax);
+  CHECK(inline_succeful);
   as_.Expand<uint64_t, CsrFieldType<CsrName::kFrm>>(
-      Assembler::rax, {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>});
-  as_.Shl<uint8_t>(Assembler::rax, 5);
-  as_.Or<uint8_t>(csr_reg, Assembler::rax);
+      csr_reg, {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>});
+  as_.Shl<uint8_t>(csr_reg, 5);
+  as_.Or<uint8_t>(csr_reg, as_.rax);
   return csr_reg;
 }
 
@@ -521,24 +527,27 @@ inline void LiteTranslator::SetCsr<CsrName::kFCsr>(uint8_t imm) {
   // But Csrrwi may clear it.  And we actually may only arrive here from Csrrwi.
   // Thus, technically, we know that imm >> 5 is always zero, but it doesn't look like a good idea
   // to rely on that: it's very subtle and it only affects code generation speed.
-  FeSetExceptionsImm(static_cast<int8_t>(imm & 0b1'1111));
   as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
                    static_cast<int8_t>(imm >> 5));
-  FeSetRoundImm(static_cast<int8_t>(imm >> 5));
+  as_.MacroFeSetExceptionsAndRoundImmTranslate(
+      {Assembler::rbp, .disp = static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area))},
+      imm);
 }
 
 template <>
 inline void LiteTranslator::SetCsr<CsrName::kFCsr>(Register arg) {
-  Register fflags = AllocTempReg();
-  as_.Mov<uint32_t>(fflags, arg);
-  as_.And<uint32_t>(fflags, 0b1'1111);
-  FeSetExceptions(fflags);
-  // Use RCX as temporary register. We know it would be used by FeSetRound, too.
-  as_.Shldl(Assembler::rcx, arg, int8_t{32-5});
-  as_.And<uint32_t>(Assembler::rcx, kCsrMask<CsrName::kFrm>);
+  // Use RAX as temporary register for exceptions and RCX for rm.
+  // We know RCX would be used by FeSetRound, too.
+  as_.Mov<uint8_t>(Assembler::rax, arg);
+  as_.And<uint32_t>(Assembler::rax, 0b1'1111);
+  as_.Shldl(Assembler::rcx, arg, int8_t{32 - 5});
+  as_.And<uint8_t>(Assembler::rcx, kCsrMask<CsrName::kFrm>);
   as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
                    Assembler::rcx);
-  FeSetRound(Assembler::rcx);
+  as_.MacroFeSetExceptionsAndRoundTranslate(
+      Assembler::rax,
+      {Assembler::rbp, .disp = static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area))},
+      Assembler::rax);
 }
 
 template <>
@@ -548,10 +557,10 @@ inline void LiteTranslator::SetCsr<CsrName::kFFlags>(uint8_t imm) {
 
 template <>
 inline void LiteTranslator::SetCsr<CsrName::kFFlags>(Register arg) {
-  Register fflags = AllocTempReg();
-  as_.Mov<uint32_t>(fflags, arg);
-  as_.And<uint32_t>(fflags, 0b1'1111);
-  FeSetExceptions(fflags);
+  // Use RAX as temporary register.
+  as_.Mov<uint8_t>(Assembler::rax, arg);
+  as_.And<uint32_t>(Assembler::rax, 0b1'1111);
+  FeSetExceptions(Assembler::rax);
 }
 
 template <>

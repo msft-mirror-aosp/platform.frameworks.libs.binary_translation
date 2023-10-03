@@ -54,7 +54,10 @@ class MacroAssembler : public Assembler {
   using Assembler::Bind;
   using Assembler::Btq;
   using Assembler::Fldcw;
+  using Assembler::Fldenv;
   using Assembler::Fnstcw;
+  using Assembler::Fnstenv;
+  using Assembler::Fnstsw;
   using Assembler::Jcc;
   using Assembler::Ldmxcsr;
   using Assembler::Leal;

@@ -47,7 +47,7 @@ inline constexpr uint32_t kMaxHardRegs = 64u;
 // Threshold for switching between gears
 inline constexpr uint32_t kGearSwitchThreshold = 1000;
 // Scratch area size for use in intrinsics with instructions which may only work with memory.
-inline constexpr uint32_t kScratchAreaSize = 16;
+inline constexpr uint32_t kScratchAreaSize = 32;
 // Scratch area alignment (important if we would use Movaps/Movapd).
 inline constexpr uint32_t kScratchAreaAlign = 16;
 // Scratch area slot size if more than one scratch is needed.

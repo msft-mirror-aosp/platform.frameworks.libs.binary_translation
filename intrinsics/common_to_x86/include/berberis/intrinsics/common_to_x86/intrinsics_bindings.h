@@ -284,6 +284,12 @@ class Mem64 {
   static constexpr char kAsRegister = 'm';
 };
 
+class MemX87 {
+ public:
+  static constexpr bool kIsImmediate = false;
+  static constexpr char kAsRegister = 'm';
+};
+
 // // Tag classes. They are never instantioned, only used as tags to pass information about
 // bindings.
 class Def;

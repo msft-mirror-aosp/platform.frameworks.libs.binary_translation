@@ -211,6 +211,27 @@
     "out": [ 0 ]
   },
   {
+    "name": "FeGetExceptions",
+    "insn": "MacroFeGetExceptionsTranslate",
+    "usage": "translate-only",
+    "in": [],
+    "out": [ 1 ]
+  },
+  {
+    "name": "FeSetExceptions",
+    "insn": "MacroFeSetExceptionsTranslate",
+    "usage": "translate-only",
+    "in": [ 0 ],
+    "out": []
+  },
+  {
+    "name": "FeSetExceptionsImm",
+    "insn": "MacroFeSetExceptionsImmTranslate",
+    "usage": "translate-only",
+    "in": [ 1 ],
+    "out": []
+  },
+  {
     "name": "FeSetRound",
     "insn": "MacroFeSetRound",
     "in": [ 3 ],
@@ -227,7 +248,7 @@
     "name": "FeSetRoundImm",
     "insn": "MacroFeSetRoundImmTranslate",
     "usage": "translate-only",
-    "in": [ 3 ],
+    "in": [ 2 ],
     "out": []
   },
   {
