@@ -54,6 +54,7 @@ filegroup {
 filegroup {
     name: "berberis_ndk_program_tests_riscv64_srcs",
     srcs: [
+        "riscv64/handle_not_executable_test.cc",
         "riscv64/sigill_test.cc",
     ],
 }
