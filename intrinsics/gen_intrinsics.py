@@ -383,7 +383,7 @@ def _get_interpreter_hook_vector_body(name, intr):
 
 
 def _gen_interpreter_hook(f, name, intr):
-  print('%s {' % (_get_semantics_player_hook_proto(name, intr)), file=f)
+  print('%s const {' % (_get_semantics_player_hook_proto(name, intr)), file=f)
 
   if _is_vector_class(intr):
     if 'raw' in intr['variants']:

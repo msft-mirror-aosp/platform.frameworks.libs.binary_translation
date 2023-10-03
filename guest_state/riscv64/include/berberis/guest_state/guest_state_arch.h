@@ -61,9 +61,10 @@ enum class CsrName {
 // Only CSRs listed below will be processed. All others are treated as undefined instruction.
 // Define BERBERIS_RISV64_PROCESS_CSR before use. It would receive three arguments (see above).
 // Define BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR. It would receive one argument.
-#define BERBERIS_RISV64_PROCESS_ALL_SUPPORTED_CSRS                                           \
-  BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS                                                     \
-  BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxsat), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxrm), \
+#define BERBERIS_RISV64_PROCESS_ALL_SUPPORTED_CSRS                                               \
+  BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS                                                         \
+  BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(FCsr), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(FFlags),    \
+      BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxsat), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxrm), \
       BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vlenb)
 
 struct CPUState {
