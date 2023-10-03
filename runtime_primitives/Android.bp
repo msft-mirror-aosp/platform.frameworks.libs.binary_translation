@@ -102,6 +102,7 @@ cc_library_static {
     srcs: [
         "checks_riscv64.cc",
         "host_call_frame_riscv64.cc",
+        "interpret_helpers_riscv64.cc",
     ],
     whole_static_libs: [
         "libberberis_runtime_primitives",
