@@ -14,21 +14,24 @@
  * limitations under the License.
  */
 
-#include "berberis/guest_os_primitives/guest_thread_manager.h"
-#include "berberis/guest_state/guest_addr.h"
-#include "berberis/runtime_primitives/runtime_library.h"
-#include "berberis/runtime_primitives/translation_cache.h"
+#ifndef BERBERIS_INTERPRETER_RISCV64_FAULTY_MEMORY_ACCESSES_H_
+#define BERBERIS_INTERPRETER_RISCV64_FAULTY_MEMORY_ACCESSES_H_
 
-#include "berberis/base/checks.h"
+#include <cstdint>
 
 namespace berberis {
 
-// Invalidate regions overlapping with the range. Could be pretty slow.
-void InvalidateGuestRange(GuestAddr start, GuestAddr end) {
-  TranslationCache* cache = TranslationCache::GetInstance();
-  cache->InvalidateGuestRange(start, end);
-  // TODO(b/28081995): Specify region to avoid flushing too much.
-  FlushGuestCodeCache();
-}
+struct FaultyLoadResult {
+  uint64_t value;
+  uint64_t is_fault;
+};
+
+FaultyLoadResult FaultyLoad(const void* addr, uint8_t data_bytes);
+bool FaultyStore(void* addr, uint8_t data_bytes, uint64_t value);
+
+void AddFaultyMemoryAccessRecoveryCode();
+void* FindFaultyMemoryAccessRecoveryAddrForTesting(void* fault_addr);
 
 }  // namespace berberis
+
+#endif  // BERBERIS_INTERPRETER_RISCV64_FAULTY_MEMORY_ACCESSES_H_
