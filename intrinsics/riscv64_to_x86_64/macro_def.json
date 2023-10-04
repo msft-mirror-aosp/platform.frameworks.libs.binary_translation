@@ -190,6 +190,54 @@
       "mnemo": "MACRO_FEQ_F64"
     },
     {
+      "name": "MacroFeGetExceptionsTranslate",
+      "args": [
+        { "class": "Mem32", "usage": "def_early_clobber" },
+        { "class": "RAX", "usage": "def" }
+      ],
+      "asm": "MacroFeGetExceptionsTranslate",
+      "mnemo": "MACRO_FE_GET_EXCEPTIONS"
+    },
+    {
+      "name": "MacroFeSetExceptionsAndRoundImmTranslate",
+      "args": [
+        { "class": "MemX87", "usage": "def_early_clobber" },
+        { "class": "Imm8" }
+      ],
+      "asm": "MacroFeSetExceptionsAndRoundImmTranslate",
+      "mnemo": "MACRO_FE_SET_EXCEPTIONS_AND_ROUND"
+    },
+    {
+      "name": "MacroFeSetExceptionsAndRoundTranslate",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "MemX87", "usage": "def_early_clobber" },
+        { "class": "GeneralReg8", "usage": "def" },
+        { "class": "CL", "usage": "use" }
+      ],
+      "asm": "MacroFeSetExceptionsAndRoundTranslate",
+      "mnemo": "MACRO_FE_SET_EXCEPTIONS_AND_ROUND"
+    },
+    {
+      "name": "MacroFeSetExceptionsImmTranslate",
+      "args": [
+        { "class": "MemX87", "usage": "def_early_clobber" },
+        { "class": "Imm8" }
+      ],
+      "asm": "MacroFeSetExceptionsImmTranslate",
+      "mnemo": "MACRO_FE_SET_EXCEPTIONS"
+    },
+    {
+      "name": "MacroFeSetExceptionsTranslate",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "MemX87", "usage": "def_early_clobber" },
+        { "class": "GeneralReg8", "usage": "def" }
+      ],
+      "asm": "MacroFeSetExceptionsTranslate",
+      "mnemo": "MACRO_FE_SET_EXCEPTIONS"
+    },
+    {
       "name": "MacroFeSetRound",
       "args": [
         { "class": "GeneralReg64", "usage": "def_early_clobber" },
@@ -203,7 +251,6 @@
     {
       "name": "MacroFeSetRoundImmTranslate",
       "args": [
-        { "class": "GeneralReg64", "usage": "def_early_clobber" },
         { "class": "Mem16", "usage": "def_early_clobber" },
         { "class": "Mem32", "usage": "def_early_clobber" },
         { "class": "Imm8" }
