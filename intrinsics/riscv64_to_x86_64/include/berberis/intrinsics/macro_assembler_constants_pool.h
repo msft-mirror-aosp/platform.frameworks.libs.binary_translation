@@ -70,6 +70,9 @@ extern const int32_t kConst;
 template <>
 extern const int32_t kConst<uint64_t{0x8000'0000'0000'00ff}>;
 
+extern const int32_t kRiscVToX87Exceptions;
+extern const int32_t kX87ToRiscVExceptions;
+
 }  // namespace berberis::constants_pool
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
