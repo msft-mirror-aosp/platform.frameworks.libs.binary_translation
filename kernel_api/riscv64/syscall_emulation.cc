@@ -24,10 +24,12 @@
 #include "berberis/base/macros.h"
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/struct_check.h"
+#include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
 #include "berberis/kernel_api/syscall_emulation_common.h"
 #include "berberis/kernel_api/tracing.h"
+#include "berberis/runtime_primitives/runtime_library.h"
 
 #include "epoll_emulation.h"
 #include "guest_types.h"
@@ -99,6 +101,25 @@ long RunGuestSyscall___NR_newfstatat(long arg_1, long arg_2, long arg_3, long ar
     ConvertHostStatToGuest(host_stat, bit_cast<Guest_stat*>(arg_3));
   }
   return result;
+}
+
+long RunGuestSyscall___NR_riscv_flush_icache(long arg_1, long arg_2, long arg_3) {
+  static constexpr uint64_t kFlagsLocal = 1UL;
+  static constexpr uint64_t kFlagsAll = kFlagsLocal;
+
+  // ATTENTION: On RISC-V, arg_2 is the address range end, not the address range size.
+  auto start = bit_cast<GuestAddr>(arg_1);
+  auto end = bit_cast<GuestAddr>(arg_2);
+  auto flags = bit_cast<uint64_t>(arg_3);
+  if (end < start || (flags & ~kFlagsAll) != 0) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  // Ignore kFlagsLocal because we do not have a per-thread cache to clear.
+  TRACE("icache flush: [0x%lx, 0x%lx)", start, end);
+  InvalidateGuestRange(start, end);
+  return 0;
 }
 
 // RunGuestSyscallImpl.
