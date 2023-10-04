@@ -38,13 +38,21 @@ cc_library_static {
         "libberberis_runtime_primitives_headers",
     ],
     export_header_lib_headers: ["libberberis_interpreter_riscv64_headers"],
+    arch: {
+        x86_64: {
+            srcs: ["riscv64/faulty_memory_accesses_x86_64.cc"],
+        },
+    },
     srcs: ["riscv64/interpreter.cc"],
 }
 
 cc_test_library {
     name: "libberberis_interpreter_riscv64_unit_tests",
     defaults: ["berberis_test_library_defaults_64"],
-    srcs: ["riscv64/interpreter_test.cc"],
+    srcs: [
+        "riscv64/faulty_memory_accesses_test.cc",
+        "riscv64/interpreter_test.cc",
+    ],
     header_libs: [
         "berberis_test_utils_headers",
         "libberberis_base_headers",
