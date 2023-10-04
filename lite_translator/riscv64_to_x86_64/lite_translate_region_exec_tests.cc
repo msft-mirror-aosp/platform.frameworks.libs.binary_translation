@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include <setjmp.h>
 #include <cstdint>
 
 #include "berberis/assembler/machine_code.h"
@@ -31,7 +32,10 @@ namespace {
 
 class Riscv64LiteTranslateRegionTest : public ::testing::Test {
  public:
-  void Reset(const uint32_t code[]) { state_.cpu.insn_addr = ToGuestAddr(code); }
+  template <typename T>
+  void Reset(const T code) {
+    state_.cpu.insn_addr = ToGuestAddr(code);
+  }
 
   // Attention: it's important to pass code array by reference for sizeof(code) to return the size
   // of the whole array rather than a pointer size when it's passed by value.
@@ -53,7 +57,9 @@ class Riscv64LiteTranslateRegionTest : public ::testing::Test {
 
     TestingRunGeneratedCode(&state_, exec.get(), expected_stop_addr);
 
-    return state_.cpu.insn_addr == expected_stop_addr;
+    // Make sure we print the addresses on mismatch.
+    EXPECT_EQ(state_.cpu.insn_addr, expected_stop_addr);
+    return true;
   }
 
  protected:
@@ -70,6 +76,23 @@ TEST_F(Riscv64LiteTranslateRegionTest, AddTwice) {
   SetXReg<3>(state_.cpu, 1);
   EXPECT_TRUE(Run(code, ToGuestAddr(bit_cast<char*>(&code[0]) + sizeof(code))));
   EXPECT_EQ(GetXReg<3>(state_.cpu), 3ULL);
+}
+
+TEST_F(Riscv64LiteTranslateRegionTest, XorLoop) {
+  static const uint16_t code[] = {
+      // loop_enter:
+      0x161b,  // (4 bytes sllw instruction)
+      0x0015,  // sllw    a2,a0,0x1
+      0x35fd,  // addw    a1,a1,-1
+      0x8d31,  // xor     a0,a0,a2
+      0xfde5,  // bnez    a1, loop_enter
+  };
+  SetXReg<A0>(state_.cpu, 1);
+  // The counter will be equal one after decrement, so we expected to branch back.
+  SetXReg<A1>(state_.cpu, 2);
+  SetXReg<A2>(state_.cpu, 0);
+  EXPECT_TRUE(Run(code, ToGuestAddr(&code[0])));
+  EXPECT_EQ(GetXReg<A0>(state_.cpu), uint64_t{0b11});
 }
 
 TEST_F(Riscv64LiteTranslateRegionTest, RegionEnd) {
@@ -97,6 +120,67 @@ TEST_F(Riscv64LiteTranslateRegionTest, GracefulFailure) {
                                   ToGuestAddr(code) + 8,
                                   &machine_code,
                                   LiteTranslateParams{.allow_dispatch = false}));
+}
+
+jmp_buf g_jmp_buf;
+
+extern "C" __attribute__((used, __visibility__("hidden"))) void
+LightTranslateRegionTest_HandleThresholdReached() {
+  // We are in generated code, so the easiest way to recover without using
+  // runtime library internals is to longjmp.
+  longjmp(g_jmp_buf, 1);
+}
+
+// The execution jumps here (no call!) from generated code. Thus we
+// need this proxy to normal C++ ABI function. Stack in generated code is
+// aligned properly for calls.
+__attribute__((naked)) void CounterThresholdReached() {
+  asm(R"(call LightTranslateRegionTest_HandleThresholdReached)");
+}
+
+TEST_F(Riscv64LiteTranslateRegionTest, ProfileCounter) {
+  static const uint16_t code[] = {
+      0x0505,  //  addi a0,a0,1
+  };
+
+  // Volatile to ensure it's correctly restored on longjmp.
+  volatile ThreadState state;
+  GuestAddr code_end = ToGuestAddr(code + 1);
+
+  MachineCode machine_code;
+  uint32_t counter;
+  constexpr uint32_t kCounterThreshold = 42;
+  bool success = LiteTranslateRange(
+      ToGuestAddr(code),
+      code_end,
+      &machine_code,
+      {
+          .enable_self_profiling = true,
+          .counter_location = &counter,
+          .counter_threshold = kCounterThreshold,
+          .counter_threshold_callback = reinterpret_cast<const void*>(CounterThresholdReached),
+      });
+  ASSERT_TRUE(success);
+
+  ScopedExecRegion exec(&machine_code);
+
+  if (setjmp(g_jmp_buf) != 0) {
+    // We should trap here after longjmp.
+    EXPECT_EQ(state.cpu.x[10], kCounterThreshold);
+    return;
+  }
+
+  state.cpu.x[10] = 0;
+  // We shouldn't ever reach above kCounterThreshold, but keeping this exit condition
+  // to handle a potential failure gracefully.
+  for (uint64_t i = 0; i <= kCounterThreshold; i++) {
+    state.cpu.insn_addr = ToGuestAddr(code);
+    // The API accepts non-volatile state.
+    TestingRunGeneratedCode(const_cast<ThreadState*>(&state), exec.get(), code_end);
+    EXPECT_EQ(state.cpu.insn_addr, code_end);
+    EXPECT_EQ(state.cpu.x[10], i + 1);
+  }
+  FAIL();
 }
 
 }  // namespace

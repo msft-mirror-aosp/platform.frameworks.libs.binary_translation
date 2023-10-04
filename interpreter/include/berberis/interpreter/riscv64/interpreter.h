@@ -23,8 +23,8 @@
 
 namespace berberis {
 
+void InitInterpreter();
 void InterpretInsn(ThreadState* state);
-void RunSyscall(ThreadState* state);
 
 }  // namespace berberis
 

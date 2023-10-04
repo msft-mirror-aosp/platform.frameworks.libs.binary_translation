@@ -18,6 +18,7 @@
 
 #include <sys/syscall.h>
 
+#include "berberis/base/checks.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/scoped_pending_signals.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -28,17 +29,18 @@ namespace berberis {
 // ATTENTION: this symbol gets called directly, without PLT. To keep text
 // sharable we should prevent preemption of this symbol, so do not export it!
 // TODO(b/232598137): may be set default visibility to protected instead?
-extern "C" __attribute__((__visibility__("hidden"))) void berberis_HandleNoExec(
+extern "C" __attribute__((used, __visibility__("hidden"))) void berberis_HandleNoExec(
     ThreadState* state) {
+  CHECK(state);
   // We are about to raise SIGSEGV. Let guest handler (if any) run immediately.
   // It's safe since guest state is synchronized here. More context at b/143786256.
-  ScopedPendingSignalsDisabler disable_pending_signals(GetGuestThread(state));
+  ScopedPendingSignalsDisabler disable_pending_signals(GetGuestThread(*state));
   // LR register is usually useful even if we came here via jump instead of
   // call because compilers rarely use LR for general-purpose calculations.
-  CPUState* cpu = GetCPUState(state);
+  CPUState& cpu = GetCPUState(*state);
   TRACE("Trying to execute non-executable code at %p called from %p",
         ToHostAddr<void>(GetInsnAddr(cpu)),
-        ToHostAddr<void>(GetLinkRegister(*cpu)));
+        ToHostAddr<void>(GetLinkRegister(cpu)));
   siginfo_t info{};
   info.si_signo = SIGSEGV;
   info.si_code = SEGV_ACCERR;

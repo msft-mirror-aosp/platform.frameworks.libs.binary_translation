@@ -20,7 +20,9 @@
 #include "berberis/base/checks.h"
 #include "berberis/guest_abi/guest_arguments.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/runtime_primitives/host_code.h"
+#include "berberis/runtime_primitives/platform.h"
 
 namespace berberis {
 
@@ -33,7 +35,7 @@ void GenWrapGuestFunction(MachineCode* mc,
                           const char* name) {
   UNUSED(name);
 
-  Assembler as(mc);
+  MacroAssembler<Assembler> as(mc);
 
   // On function entry, rsp + 8 is a multiple of 16.
   // Right before next function call, rsp is a multiple of 16.
@@ -115,7 +117,21 @@ void GenWrapGuestFunction(MachineCode* mc,
           Assembler::xmm7,
       };
       if (fp_argc < static_cast<int>(arraysize(kParamRegs))) {
-        as.Movq({.base = Assembler::rsp, .disp = kFpArgvOffset + fp_argc * 8}, kParamRegs[fp_argc]);
+        if (signature[i] == 'f') {
+          // LP64D requires 32-bit floats to be NaN boxed.
+          if (host_platform::kHasAVX) {
+            as.MacroNanBoxAVX<intrinsics::Float32>(kParamRegs[fp_argc], kParamRegs[fp_argc]);
+          } else {
+            as.MacroNanBox<intrinsics::Float32>(kParamRegs[fp_argc]);
+          }
+        }
+        if (host_platform::kHasAVX) {
+          as.Vmovq({.base = Assembler::rsp, .disp = kFpArgvOffset + fp_argc * 8},
+                   kParamRegs[fp_argc]);
+        } else {
+          as.Movq({.base = Assembler::rsp, .disp = kFpArgvOffset + fp_argc * 8},
+                  kParamRegs[fp_argc]);
+        }
       } else {
         as.Movq(Assembler::rax,
                 {.base = Assembler::rsp, .disp = params_offset + host_stack_argc * 8});
@@ -155,8 +171,20 @@ void GenWrapGuestFunction(MachineCode* mc,
   // Get the result.
   if (signature[0] == 'i' || signature[0] == 'p' || signature[0] == 'l') {
     as.Movq(Assembler::rax, {.base = Assembler::rsp, .disp = kArgvOffset});
-  } else if (signature[0] == 'f' || signature[0] == 'd') {
-    as.Movq(Assembler::xmm0, {.base = Assembler::rsp, .disp = kFpArgvOffset});
+  } else if (signature[0] == 'f') {
+    // Only take the lower 32 bits of the result register because floats are 1-extended (NaN boxed)
+    // on LP64D.
+    if (host_platform::kHasAVX) {
+      as.Vmovd(Assembler::xmm0, {.base = Assembler::rsp, .disp = kFpArgvOffset});
+    } else {
+      as.Movd(Assembler::xmm0, {.base = Assembler::rsp, .disp = kFpArgvOffset});
+    }
+  } else if (signature[0] == 'd') {
+    if (host_platform::kHasAVX) {
+      as.Vmovq(Assembler::xmm0, {.base = Assembler::rsp, .disp = kFpArgvOffset});
+    } else {
+      as.Movq(Assembler::xmm0, {.base = Assembler::rsp, .disp = kFpArgvOffset});
+    }
   } else {
     CHECK_EQ('v', signature[0]);
   }

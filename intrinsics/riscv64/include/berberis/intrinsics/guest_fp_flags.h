@@ -20,6 +20,9 @@
 #include <cfenv>
 #include <cstdint>
 
+#include "berberis/base/checks.h"
+#include "berberis/intrinsics/guest_rounding_modes.h"
+
 namespace berberis {
 
 namespace FPFlags {
@@ -46,9 +49,37 @@ namespace intrinsics {
 // Note that not all RISC-V rounding modes are supported on popular architectures.
 // FE_TIESAWAY is emulated, but proper emulation needs FE_TOWARDZERO mode.
 inline int ToHostRoundingMode(int8_t rm) {
+  if (rm == FPFlags::DYN) {
+    return FE_HOSTROUND;
+  }
+  CHECK_GE(rm, 0);
+  CHECK_LE(rm, int8_t{FPFlags::RM_MAX});
   static constexpr int kRounding[FPFlags::RM_MAX + 1] = {
       FE_TONEAREST, FE_TOWARDZERO, FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO};
   return kRounding[rm];
+}
+
+// Same as ToHostRoundingMode, but returns pseudo FE_TIESAWAY mode for RMM.
+inline int ToIntrinsicRoundingMode(int8_t rm) {
+  if (rm == FPFlags::RMM) {
+    return FE_TIESAWAY;
+  }
+  return ToHostRoundingMode(rm);
+}
+
+inline uint8_t GuestModeFromHostRounding() {
+  switch (fegetround()) {
+    case FE_TONEAREST:
+      return FPFlags::RNE;
+    case FE_DOWNWARD:
+      return FPFlags::RDN;
+    case FE_UPWARD:
+      return FPFlags::RUP;
+    case FE_TOWARDZERO:
+      return FPFlags::RTZ;
+    default:
+      CHECK(false);
+  }
 }
 
 }  // namespace intrinsics

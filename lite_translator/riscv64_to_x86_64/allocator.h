@@ -21,28 +21,68 @@
 #include <optional>
 
 #include "berberis/assembler/x86_64.h"
+#include "berberis/base/dependent_false.h"
 
 namespace berberis {
 
 template <typename RegType>
-class Allocator;
+inline constexpr auto kAllocatableRegisters = []() {
+  static_assert(kDependentTypeFalse<RegType>,
+                "kAllocatableRegisters is only usable with x86_64::Assembler::Register or "
+                "x86_64::Assembler::XMMRegister");
+  return true;
+};
+
+// TODO(286261771): Add rdx to registers, push it on stack in all instances that are clobbering it.
+template <>
+inline constexpr x86_64::Assembler::Register kAllocatableRegisters<x86_64::Assembler::Register>[] =
+    {x86_64::Assembler::rbx,
+     x86_64::Assembler::rsi,
+     x86_64::Assembler::rdi,
+     x86_64::Assembler::r8,
+     x86_64::Assembler::r9,
+     x86_64::Assembler::r10,
+     x86_64::Assembler::r11,
+     x86_64::Assembler::r12,
+     x86_64::Assembler::r13,
+     x86_64::Assembler::r14,
+     x86_64::Assembler::r15};
 
 template <>
-class Allocator<x86_64::Assembler::Register> {
+inline constexpr x86_64::Assembler::XMMRegister
+    kAllocatableRegisters<x86_64::Assembler::XMMRegister>[] = {x86_64::Assembler::xmm0,
+                                                               x86_64::Assembler::xmm1,
+                                                               x86_64::Assembler::xmm2,
+                                                               x86_64::Assembler::xmm3,
+                                                               x86_64::Assembler::xmm4,
+                                                               x86_64::Assembler::xmm5,
+                                                               x86_64::Assembler::xmm6,
+                                                               x86_64::Assembler::xmm7,
+                                                               x86_64::Assembler::xmm8,
+                                                               x86_64::Assembler::xmm9,
+                                                               x86_64::Assembler::xmm10,
+                                                               x86_64::Assembler::xmm11,
+                                                               x86_64::Assembler::xmm12,
+                                                               x86_64::Assembler::xmm13,
+                                                               x86_64::Assembler::xmm14,
+                                                               x86_64::Assembler::xmm15};
+
+template <typename RegType>
+class Allocator {
  public:
-  std::optional<x86_64::Assembler::Register> Alloc() {
+  std::optional<RegType> Alloc() {
     if (regs_allocated_ + max_temp_regs_allocated >= kNumRegister) {
       return std::nullopt;
     }
-    return std::optional<x86_64::Assembler::Register>(kRegs[regs_allocated_++]);
+    return std::optional<RegType>(kAllocatableRegisters<RegType>[regs_allocated_++]);
   }
 
-  std::optional<x86_64::Assembler::Register> AllocTemp() {
+  std::optional<RegType> AllocTemp() {
     if (regs_allocated_ + temp_regs_allocated >= kNumRegister) {
       return std::nullopt;
     }
-    auto res =
-        std::optional<x86_64::Assembler::Register>(kRegs[kNumRegister - 1 - temp_regs_allocated]);
+    auto res = std::optional<RegType>(
+        kAllocatableRegisters<RegType>[kNumRegister - 1 - temp_regs_allocated]);
     temp_regs_allocated++;
     max_temp_regs_allocated = std::max(max_temp_regs_allocated, temp_regs_allocated);
     return res;
@@ -51,24 +91,11 @@ class Allocator<x86_64::Assembler::Register> {
   void FreeTemps() { temp_regs_allocated = 0; }
 
  private:
-  // TODO(286261771): Add rdx to registers, push it on stack in all instances that are clobbering
-  // it.
-  static constexpr x86_64::Assembler::Register kRegs[] = {x86_64::Assembler::rbx,
-                                                          x86_64::Assembler::rsi,
-                                                          x86_64::Assembler::rdi,
-                                                          x86_64::Assembler::r8,
-                                                          x86_64::Assembler::r9,
-                                                          x86_64::Assembler::r10,
-                                                          x86_64::Assembler::r11,
-                                                          x86_64::Assembler::r12,
-                                                          x86_64::Assembler::r13,
-                                                          x86_64::Assembler::r14,
-                                                          x86_64::Assembler::r15};
-  static constexpr unsigned kNumRegister = arraysize(kRegs);
+  inline static const uint32_t kNumRegister = arraysize(kAllocatableRegisters<RegType>);
 
-  unsigned int regs_allocated_ = 0;
-  unsigned int temp_regs_allocated = 0;
-  unsigned int max_temp_regs_allocated = 0;
+  uint32_t regs_allocated_ = 0;
+  uint32_t temp_regs_allocated = 0;
+  uint32_t max_temp_regs_allocated = 0;
 };
 
 }  // namespace berberis

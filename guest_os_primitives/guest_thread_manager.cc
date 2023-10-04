@@ -23,6 +23,7 @@
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/instrument/guest_thread.h"
+#include "berberis/runtime_primitives/code_pool.h"  // ResetAllExecRegions
 #include "guest_thread_manager_impl.h"
 #include "guest_thread_map.h"
 #include "scoped_signal_blocker.h"
@@ -61,6 +62,84 @@ void InitGuestThreadManager() {
 GuestThread* GetCurrentGuestThread() {
   bool attached;
   return AttachCurrentThread(true, &attached);
+}
+
+void ResetCurrentGuestThreadAfterFork(GuestThread* thread) {
+  g_guest_thread_map_.ResetThreadTable(GettidSyscall(), thread);
+#if defined(__BIONIC__)
+  // Force (host) bionic to update cached tid if necessary
+  // 1. Bionic `clone` implementation resets cached `tid` before syscall
+  //    so that it does not get accidentally propagate to the child.
+  // 2. pthread_lock/unlock implementations do not call `gettid()` they
+  //    instead access cached value directly from TLS. Which leads to
+  //    a situation where cached `tid` is updated in the middle of
+  //    `dlopen` and it fails to unlock the mutex because the
+  //    ownership check fails. Subsequent `dlsym` (or any other
+  //    dl* call) stops on locked mutex.
+  //
+  // By calling `gettid()` here we force bionic to set the cached
+  // value to the correct one.
+  CHECK_NE(gettid(), -1);
+#endif
+  ResetAllExecRegions();
+}
+
+bool GetGuestThreadAttr(pid_t tid,
+                        GuestAddr* stack_base,
+                        size_t* stack_size,
+                        size_t* guard_size,
+                        int* error) {
+  GuestThread* thread = g_guest_thread_map_.FindThread(tid);
+  if (thread) {
+    thread->GetAttr(stack_base, stack_size, guard_size);
+    return true;
+  }
+  *error = ESRCH;
+  return false;
+}
+
+void ExitCurrentThread(int status) {
+  pid_t tid = GettidSyscall();
+
+  // The following code is not reentrant!
+  ScopedSignalBlocker signal_blocker;
+
+  // Remove thread from global table.
+  GuestThread* thread = g_guest_thread_map_.RemoveThread(tid);
+  if (kInstrumentGuestThread) {
+    OnRemoveGuestThread(tid, thread);
+  }
+
+  TRACE("guest thread exited %d", tid);
+  GuestThread::Exit(thread, status);
+}
+
+// We assume translation cache is already modified. If any thread still runs
+// a region that is already obsolete, we should force the thread to dispatcher
+// to re-read from translation cache. We should also wait for that thread to
+// acknowledge the dispatch, so code that called cache invalidation can be sure
+// that obsolete code is never run after this point.
+void FlushGuestCodeCache() {
+  // TODO(b/28081995): at the moment we don't know what range was flushed, so
+  // we have to force ALL guest threads to dispatcher. This is really, really,
+  // REALLY bad for performance.
+  // TODO(b/28081995): at the moment we don't wait for acknowledgment. This
+  // might cause subtle guest logic failures.
+  pid_t current_tid = GettidSyscall();
+  g_guest_thread_map_.ForEachThread([current_tid](pid_t tid, GuestThread* thread) {
+    // ATTENTION: we probably don't want to force current thread to dispatcher
+    // and to wait for it to acknowledge :) Assume caller of this function
+    // (syscall emulation or trampoline) will force re-read from translation
+    // cache before continuing to guest code.
+    if (tid != current_tid) {
+      // Set thread's pending signals to present to force it to dispatcher.
+      // ATTENTION! this is the only place we access pending_signals_status
+      // from other thread!
+      uint8_t old_status = kPendingSignalsEnabled;
+      GetPendingSignalsStatusAtomic(*thread->state())
+          .compare_exchange_strong(old_status, kPendingSignalsPresent, std::memory_order_acq_rel);
+    }
+  });
 }
 
 // Common guest thread function attaches GuestThread lazily on first call and detaches in pthread
@@ -108,9 +187,9 @@ GuestThread* AttachCurrentThread(bool register_dtor, bool* attached) {
   // If thread is attached in HandleHostSignal we must run guest handler
   // immediately because we detach guest thread before exit from HandleHostSignal.
   // All non-reentrant code in runtime must be protected with ScopedPendingSignalsEnabler.
-  *GetPendingSignalsStatusAtomic(thread->state()) = kPendingSignalsDisabled;
+  GetPendingSignalsStatusAtomic(*thread->state()) = kPendingSignalsDisabled;
   // AttachCurrentThread is never called from generated code.
-  SetResidence(thread->state(), kOutsideGeneratedCode);
+  SetResidence(*thread->state(), kOutsideGeneratedCode);
 
   *attached = true;
   return thread;

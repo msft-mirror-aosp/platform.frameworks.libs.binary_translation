@@ -17,8 +17,8 @@
 #include "berberis/runtime_primitives/runtime_library.h"
 
 #include "berberis/base/checks.h"
+#include "berberis/base/config.h"
 #include "berberis/guest_state/guest_state.h"
-#include "berberis/runtime_primitives/config.h"
 
 // Perform all the steps needed to exit generated code except return, which is
 // up to the users of this macro. The users of this macro may choose to perform
@@ -47,7 +47,7 @@
       "pop %%r12\n"                                                     \
       "pop %%rbx\n"                                                     \
       "pop %%rbp\n"                                                     \
-      EXIT_INSN                                                        \
+      EXIT_INSN                                                         \
       ::[InsnAddr] "p"(offsetof(berberis::ThreadState, cpu.insn_addr)), \
       [Residence] "p"(offsetof(berberis::ThreadState, residence)),      \
       [OutsideGeneratedCode] "J"(berberis::kOutsideGeneratedCode),      \
@@ -228,6 +228,18 @@ extern "C" [[gnu::naked]] [[gnu::noinline]] void berberis_entry_Interpret() {
 [[gnu::naked]] [[gnu::noinline]] void berberis_entry_Wrapping() {
   // TODO(b/232598137): maybe call sched_yield() here.
   END_GENERATED_CODE("ret");
+}
+
+[[gnu::naked]] [[gnu::noinline]] void berberis_entry_HandleLightCounterThresholdReached() {
+  // void berberis_HandleLightCounterThresholdReached(ProcessState*);
+  // Perform a sibling call to berberis_HandleLightCounterThresholdReached. The
+  // only parameter is state which is saved in %rdi by END_GENERATED_CODE. We
+  // could call the function here instead of jumping to it, but it would be more
+  // work to do so because we would have to align the stack and issue the "ret"
+  // instruction after the call.
+  // TODO(b/232598137): Remove state from HandleLightCounterThresholdReached
+  // parameters. Get it from the guest thread instead.
+  END_GENERATED_CODE("jmp berberis_HandleLightCounterThresholdReached");
 }
 
 }  // extern "C"

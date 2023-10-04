@@ -20,6 +20,7 @@
 #include <atomic>
 #include <cstdint>
 
+#include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -29,12 +30,68 @@ namespace berberis {
 
 using Reservation = uint64_t;
 
+enum class CsrName {
+  kFFlags = 0b00'00'0000'0001,
+  kFrm = 0b00'00'0000'0010,
+  kFCsr = 0b00'00'0000'0011,
+  kVstart = 0b00'00'0000'1000,
+  kVxsat = 0b00'00'0000'1001,
+  kVxrm = 0b00'00'0000'1010,
+  kVcsr = 0b00'00'0000'1111,
+  kVl = 0b11'00'0010'0000,
+  kVtype = 0b11'00'0010'0001,
+  kVlenb = 0b11'00'0010'0010,
+  kMaxValue = 0b11'11'1111'1111,
+};
+
+// Only for CSRs listed below helper defines would be defined.
+// Define BERBERIS_RISV64_PROCESS_CSR before use. It would receive three arguments:
+//   • CamelCaseName, suitable for functions and enums.
+//   • snake_case_name, suitable for fields of data structures.
+//   • mask value, suitable for masking operations during write to register.
+#define BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS            \
+  BERBERIS_RISV64_PROCESS_CSR(Frm, frm, 0b111)            \
+  BERBERIS_RISV64_PROCESS_CSR(Vstart, vstart, 0b01111111) \
+  BERBERIS_RISV64_PROCESS_CSR(Vcsr, vcsr, 0b111)          \
+  BERBERIS_RISV64_PROCESS_CSR(Vl, vl, 0b11111111)         \
+  BERBERIS_RISV64_PROCESS_CSR(                            \
+      Vtype,                                              \
+      vtype,                                              \
+      0b1000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'1'1'111'111)
+// Only CSRs listed below will be processed. All others are treated as undefined instruction.
+// Define BERBERIS_RISV64_PROCESS_CSR before use. It would receive three arguments (see above).
+// Define BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR. It would receive one argument.
+#define BERBERIS_RISV64_PROCESS_ALL_SUPPORTED_CSRS                                               \
+  BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS                                                         \
+  BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(FCsr), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(FFlags),    \
+      BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxsat), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxrm), \
+      BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vlenb)
+
 struct CPUState {
   // x0 to x31.
   uint64_t x[32];
   // f0 to f31. We are using uint64_t because C++ may change values of NaN when they are passed from
   // or to function and RISC-V uses NaN-boxing which would make things problematic.
   uint64_t f[32];
+  // v0 to v32. We only support 128bit vectors for now.
+  alignas(16) __uint128_t v[32];
+
+  GuestAddr insn_addr;
+
+  GuestAddr reservation_address;
+  Reservation reservation_value;
+
+  // Technically only 9 bits are defined: sign bit and 8 low bits.
+  // But for performance reason it's easier to keep full 64bits in this variable.
+  uint64_t vtype;
+  // This register usually contains zero and each vector instruction would reset it to zero.
+  // But it's allowed to change it and if that happens we are supposed to support it.
+  uint8_t vstart;
+  // This register is usually set to process full 128 bits set of SIMD data.
+  // But it's allowed to change it and if that happens we are supposed to support it.
+  uint8_t vl;
+  // Only 3 bits are defined but we allocate full byte to simplify implementation.
+  uint8_t vcsr;
   // RISC-V has five rounding modes, while x86-64 has only four.
   //
   // Extra rounding mode (RMM in RISC-V documentation) is emulated but requires the use of
@@ -49,12 +106,11 @@ struct CPUState {
   //
   // Exceptions, on the other hand, couldn't be stored here efficiently, instead we rely on the fact
   // that x86-64 implements all five exceptions that RISC-V needs (and more).
-  uint8_t frm : 3;
-  GuestAddr insn_addr;
-
-  GuestAddr reservation_address;
-  Reservation reservation_value;
+  uint8_t frm;
 };
+
+constexpr uint32_t kNumGuestRegs = arraysize(CPUState::x);
+constexpr uint32_t kNumGuestFpRegs = arraysize(CPUState::f);
 
 template <uint8_t kIndex>
 inline uint64_t GetXReg(const CPUState& state) {
@@ -114,6 +170,10 @@ class GuestThread;
 struct ThreadState {
   CPUState cpu;
 
+  // Scratch space for x87 use and MXCSR.
+  // These operations can only read/write values from memory for historical reasons.
+  alignas(config::kScratchAreaAlign) uint8_t intrinsics_scratch_area[config::kScratchAreaSize];
+
   // Guest thread pointer.
   GuestThread* thread;
 
@@ -127,6 +187,57 @@ struct ThreadState {
   // Arbitrary per-thread data added by instrumentation.
   void* instrument_data;
 };
+
+template <CsrName>
+class CsrField;
+
+#define BERBERIS_RISV64_PROCESS_CSR(EnumName, field_name, field_mask)        \
+  template <>                                                                \
+  class CsrField<CsrName::k##EnumName> {                                     \
+   public:                                                                   \
+    using Type = decltype(std::declval<CPUState>().field_name);              \
+    static constexpr Type(CPUState::*Addr) = &CPUState::field_name;          \
+    static constexpr size_t kOffset = offsetof(ThreadState, cpu.field_name); \
+    static constexpr Type kMask{field_mask};                                 \
+  };
+
+BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS
+#undef BERBERIS_RISV64_PROCESS_CSR
+
+template <CsrName kName>
+using CsrFieldType = typename CsrField<kName>::Type;
+
+template <CsrName kName>
+inline constexpr CsrFieldType<kName>(CPUState::*CsrFieldAddr) = CsrField<kName>::Addr;
+
+template <CsrName... kName, typename Processor>
+bool ProcessCsrNameAsTemplateParameterImpl(CsrName name, Processor& processor) {
+  return ((kName == name ? processor.template operator()<kName>(), true : false) || ...);
+}
+
+template <CsrName kName>
+inline constexpr size_t kCsrFieldOffset = CsrField<kName>::kOffset;
+
+template <CsrName kName>
+inline constexpr CsrFieldType<kName> kCsrMask = CsrField<kName>::kMask;
+
+inline constexpr bool CsrWritable(CsrName name) {
+  return (static_cast<typename std::underlying_type_t<CsrName>>(name) & 0b11'00'0000'0000) !=
+         0b11'00'0000'0000;
+}
+
+template <typename Processor>
+bool ProcessCsrNameAsTemplateParameter(CsrName name, Processor& processor) {
+#define BERBERIS_RISV64_PROCESS_CSR(EnumName, field_name, field_mask) CsrName::k##EnumName,
+#define BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(EnumName) CsrName::k##EnumName
+  return ProcessCsrNameAsTemplateParameterImpl<BERBERIS_RISV64_PROCESS_ALL_SUPPORTED_CSRS>(
+      name, processor);
+#undef BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR
+#undef BERBERIS_RISV64_PROCESS_CSR
+}
+
+#undef BERBERIS_RISV64_PROCESS_ALL_SUPPORTED_CSRS
+#undef BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS
 
 // The ABI names come from
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc.

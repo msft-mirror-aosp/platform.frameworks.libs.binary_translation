@@ -20,12 +20,21 @@
 #include <tuple>
 
 #include "berberis/assembler/machine_code.h"
+#include "berberis/base/config.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/runtime_primitives/host_code.h"
+#include "berberis/runtime_primitives/runtime_library.h"
 
 namespace berberis {
 
 struct LiteTranslateParams {
   bool allow_dispatch = true;
+  bool enable_reg_mapping = true;
+  bool enable_self_profiling = false;
+  uint32_t* counter_location = nullptr;
+  uint32_t counter_threshold = config::kGearSwitchThreshold;
+  HostCode counter_threshold_callback =
+      AsHostCode(berberis::berberis_entry_HandleLightCounterThresholdReached);
 };
 
 bool LiteTranslateRange(GuestAddr start_pc,
