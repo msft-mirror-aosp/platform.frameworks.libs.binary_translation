@@ -185,30 +185,32 @@ class TESTSUITE : public ::testing::Test {
   // Non-Compressed Instructions.
 
   void TestFCsr(uint32_t insn_bytes,
-                uint8_t set_fcsr,
+                uint8_t fcsr_to_set,
                 uint8_t expected_fcsr,
                 uint8_t expected_cpustate_frm) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     state_.cpu.frm =
         0b100u;  // Pass non-zero frm to ensure that we don't accidentally rely on it being zero.
-    SetXReg<3>(state_.cpu, set_fcsr);
+    SetXReg<3>(state_.cpu, fcsr_to_set);
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b1000'0000ULL | expected_fcsr);
     EXPECT_EQ(state_.cpu.frm, expected_cpustate_frm);
   }
 
-  void TestFFlags(uint32_t insn_bytes, uint8_t expected_fflags) {
+  void TestFFlags(uint32_t insn_bytes, uint8_t fflags_to_set, uint8_t expected_fflags) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
+    SetXReg<3>(state_.cpu, fflags_to_set);
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<2>(state_.cpu), expected_fflags);
   }
 
-  void TestFrm(uint32_t insn_bytes, uint8_t expected_rm) {
+  void TestFrm(uint32_t insn_bytes, uint8_t frm_to_set, uint8_t expected_rm) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
     state_.cpu.frm = 0b001u;
+    SetXReg<3>(state_.cpu, frm_to_set);
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
     EXPECT_EQ(state_.cpu.frm, expected_rm);
@@ -1100,11 +1102,11 @@ TEST_F(TESTSUITE, CJalr) {
 TEST_F(TESTSUITE, CsrInstructions) {
   ScopedRoundingMode scoped_rounding_mode;
   // Csrrw x2, frm, 2
-  TestFrm(0x00215173, 2);
+  TestFrm(0x00215173, 0, 2);
   // Csrrsi x2, frm, 2
-  TestFrm(0x00216173, 3);
+  TestFrm(0x00216173, 0, 3);
   // Csrrci x2, frm, 1
-  TestFrm(0x0020f173, 0);
+  TestFrm(0x0020f173, 0, 0);
 }
 
 TEST_F(TESTSUITE, FCsrRegister) {
@@ -1131,14 +1133,20 @@ TEST_F(TESTSUITE, FCsrRegister) {
     TestFCsr(0x00319173, 0, riscv_fflags, 0);
   }
 
-  for (uint8_t riscv_fflags = 0; riscv_fflags < 32; riscv_fflags += 1) {
-    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
-    TestFCsr(0x00319173, 0b100'0000 | riscv_fflags, 0, 2);
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+  for (bool immediate_source : {true, false}) {
+    for (uint8_t riscv_fflags = 0; riscv_fflags < 32; ++riscv_fflags) {
+      EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+      if (immediate_source) {
+        TestFCsr(0x00305173 | (riscv_fflags << 15), 0, 0, 0);
+      } else {
+        TestFCsr(0x00319173, 0b100'0000 | riscv_fflags, 0, 2);
+      }
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+    }
   }
 
   EXPECT_EQ(fesetenv(&saved_environment), 0);
@@ -1165,17 +1173,23 @@ TEST_F(TESTSUITE, FFlagsRegister) {
     if (riscv_fflags & FPFlags::NV) {
       EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
     }
-    TestFFlags(0x00105173, riscv_fflags);
+    TestFFlags(0x00105173, 0, riscv_fflags);
   }
 
-  for (uint8_t riscv_fflags = 0; riscv_fflags < 32; riscv_fflags += 1) {
-    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
-    TestFFlags(0x00105173 | (riscv_fflags << 15), 0);
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
-    EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+  for (bool immediate_source : {true, false}) {
+    for (uint8_t riscv_fflags = 0; riscv_fflags < 32; ++riscv_fflags) {
+      EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+      if (immediate_source) {
+        TestFFlags(0x00105173 | (riscv_fflags << 15), 0, 0);
+      } else {
+        TestFFlags(0x00119173, riscv_fflags, 0);
+      }
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+    }
   }
 
   EXPECT_EQ(fesetenv(&saved_environment), 0);
@@ -1183,36 +1197,29 @@ TEST_F(TESTSUITE, FFlagsRegister) {
 
 TEST_F(TESTSUITE, FsrRegister) {
   ScopedRoundingMode scoped_rounding_mode;
-  // Csrrw x2, frm, 0
-  TestFrm(0x00205173, 0);
-  EXPECT_EQ(std::fegetround(), FE_TONEAREST);
-  // Csrrw x2, frm, 1
-  TestFrm(0x0020d173, 1);
-  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
-  // Csrrw x2, frm, 2
-  TestFrm(0x00215173, 2);
-  EXPECT_EQ(std::fegetround(), FE_DOWNWARD);
-  // Csrrw x2, frm, 3
-  TestFrm(0x0021d173, 3);
-  EXPECT_EQ(std::fegetround(), FE_UPWARD);
-  // Csrrw x2, frm, 4
-  TestFrm(0x00225173, 4);
-  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
-  // Csrrw x2, frm, 8
-  TestFrm(0x00245173, 0);
-  EXPECT_EQ(std::fegetround(), FE_TONEAREST);
-  // Csrrw x2, frm, 9
-  TestFrm(0x0024d173, 1);
-  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
-  // Csrrw x2, frm, 10
-  TestFrm(0x00255173, 2);
-  EXPECT_EQ(std::fegetround(), FE_DOWNWARD);
-  // Csrrw x2, frm, 11
-  TestFrm(0x0025d173, 3);
-  EXPECT_EQ(std::fegetround(), FE_UPWARD);
-  // Csrrw x2, frm, 12
-  TestFrm(0x00265173, 4);
-  EXPECT_EQ(std::fegetround(), FE_TOWARDZERO);
+  int rounding[][2] = {
+    {0, FE_TONEAREST},
+    {1, FE_TOWARDZERO},
+    {2, FE_DOWNWARD},
+    {3, FE_UPWARD},
+    {4, FE_TOWARDZERO},
+    // Only low three bits must be affecting output (for forward compatibility).
+    {8, FE_TONEAREST},
+    {9, FE_TOWARDZERO},
+    {10, FE_DOWNWARD},
+    {11, FE_UPWARD},
+    {12, FE_TOWARDZERO}
+  };
+  for (bool immediate_source : {true, false}) {
+    for (auto [guest_rounding, host_rounding] : rounding) {
+      if (immediate_source) {
+        TestFrm(0x00205173 | (guest_rounding << 15), 0, guest_rounding & 0b111);
+      } else {
+        TestFrm(0x00219173, guest_rounding, guest_rounding & 0b111);
+      }
+      EXPECT_EQ(std::fegetround(), host_rounding);
+    }
+  }
 }
 
 TEST_F(TESTSUITE, OpInstructions) {
