@@ -48,66 +48,68 @@ static constexpr bool kIntTypeWLQ =
 template <typename FloatType>
 static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
 
-#define DEFINE_EXPAND_INSTRUCTION(opt_check, parameters, arguments)  \
+#define DEFINE_EXPAND_INSTRUCTION(Declare_dest, Declare_src)         \
   template <typename format_out, typename format_in>                 \
   std::enable_if_t<kIntType<format_out> && kIntType<format_in> &&    \
                    sizeof(format_in) <= sizeof(format_out)>          \
-      Expand parameters {                                            \
+  Expand(Declare_dest, Declare_src) {                                \
+    if constexpr (std::is_same_v<decltype(dest), decltype(src)> &&   \
+                  sizeof(format_out) == sizeof(format_in)) {         \
+      if (dest == src) {                                             \
+        return;                                                      \
+      }                                                              \
+    }                                                                \
     if constexpr (kFormatIs<format_out, int8_t, uint8_t> &&          \
                   kFormatIs<format_in, int8_t, uint8_t>) {           \
-      opt_check;                                                     \
-      Assembler::Movb arguments;                                     \
+      Assembler::Movb(dest, src);                                    \
     } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
                          kFormatIs<format_in, int8_t>) {             \
-      Assembler::Movsxbw arguments;                                  \
+      Assembler::Movsxbw(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
                          kFormatIs<format_in, uint8_t>) {            \
-      Assembler::Movzxbw arguments;                                  \
+      Assembler::Movzxbw(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
                          kFormatIs<format_in, int16_t, uint16_t>) {  \
-      opt_check;                                                     \
-      Assembler::Movw arguments;                                     \
+      Assembler::Movw(dest, src);                                    \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, int8_t>) {             \
-      Assembler::Movsxbl arguments;                                  \
+      Assembler::Movsxbl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, uint8_t>) {            \
-      Assembler::Movzxbl arguments;                                  \
+      Assembler::Movzxbl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, int16_t>) {            \
-      Assembler::Movsxwl arguments;                                  \
+      Assembler::Movsxwl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, uint16_t>) {           \
-      Assembler::Movzxwl arguments;                                  \
+      Assembler::Movzxwl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, int32_t, uint32_t>) {  \
-      opt_check;                                                     \
-      Assembler::Movl arguments;                                     \
+      Assembler::Movl(dest, src);                                    \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, int8_t>) {             \
-      Assembler::Movsxbq arguments;                                  \
+      Assembler::Movsxbq(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, uint8_t>) {            \
-      Assembler::Movzxbl arguments;                                  \
+      Assembler::Movzxbl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, int16_t>) {            \
-      Assembler::Movsxwq arguments;                                  \
+      Assembler::Movsxwq(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, uint16_t>) {           \
-      Assembler::Movzxwl arguments;                                  \
+      Assembler::Movzxwl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, int32_t>) {            \
-      Assembler::Movsxlq arguments;                                  \
+      Assembler::Movsxlq(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, uint32_t>) {           \
-      Assembler::Movl arguments;                                     \
+      Assembler::Movl(dest, src);                                    \
     } else {                                                         \
-      opt_check;                                                     \
-      Assembler::Movq arguments;                                     \
+      Assembler::Movq(dest, src);                                    \
     }                                                                \
   }
-DEFINE_EXPAND_INSTRUCTION(, (Register dest, Operand src), (dest, src))
-DEFINE_EXPAND_INSTRUCTION(if (dest == src) return, (Register dest, Register src), (dest, src))
+DEFINE_EXPAND_INSTRUCTION(Register dest, Operand src)
+DEFINE_EXPAND_INSTRUCTION(Register dest, Register src)
 #undef DEFINE_EXPAND_INSTRUCTION
 
 #define DEFINE_INT_INSTRUCTION(insn_name, insn_siffix, parameters, arguments) \
