@@ -20,86 +20,108 @@
 #undef DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
 #endif
 
+using Condition = typename Assembler::Condition;
+using Label = typename Assembler::Label;
+using Operand = typename Assembler::Operand;
+using Register = typename Assembler::Register;
+using ScaleFactor = typename Assembler::ScaleFactor;
+using XMMRegister = typename Assembler::XMMRegister;
+
+using Float32 = intrinsics::Float32;
+using Float64 = intrinsics::Float64;
+
 template <typename IntType>
 using ImmFormat =
     std::conditional_t<sizeof(IntType) <= sizeof(int32_t), std::make_signed_t<IntType>, int32_t>;
 
 template <typename format, typename... allowed_formats>
-static constexpr bool FormatIs = (std::is_same_v<format, allowed_formats> || ...);
+static constexpr bool kFormatIs = (std::is_same_v<format, allowed_formats> || ...);
 
-#define DEFINE_EXPAND_INSTRUCTION(opt_check, parameters, arguments)                                \
-  template <typename format_out, typename format_in>                                               \
-  void Expand parameters {                                                                         \
-    if constexpr (FormatIs<format_out, int8_t, uint8_t> && FormatIs<format_in, int8_t, uint8_t>) { \
-      opt_check;                                                                                   \
-      Assembler::Movb arguments;                                                                   \
-    } else if constexpr (FormatIs<format_out, int16_t, uint16_t> && FormatIs<format_in, int8_t>) { \
-      Assembler::Movsxbw arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int16_t, uint16_t> &&                                \
-                         FormatIs<format_in, uint8_t>) {                                           \
-      Assembler::Movzxbw arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int16_t, uint16_t> &&                                \
-                         FormatIs<format_in, int16_t, uint16_t>) {                                 \
-      opt_check;                                                                                   \
-      Assembler::Movw arguments;                                                                   \
-    } else if constexpr (FormatIs<format_out, int32_t, uint32_t> && FormatIs<format_in, int8_t>) { \
-      Assembler::Movsxbl arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int32_t, uint32_t> &&                                \
-                         FormatIs<format_in, uint8_t>) {                                           \
-      Assembler::Movzxbl arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int32_t, uint32_t> &&                                \
-                         FormatIs<format_in, int16_t>) {                                           \
-      Assembler::Movsxwl arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int32_t, uint32_t> &&                                \
-                         FormatIs<format_in, uint16_t>) {                                          \
-      Assembler::Movzxwl arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int32_t, uint32_t> &&                                \
-                         FormatIs<format_in, int32_t, uint32_t>) {                                 \
-      opt_check;                                                                                   \
-      Assembler::Movl arguments;                                                                   \
-    } else if constexpr (FormatIs<format_out, int64_t, uint64_t> && FormatIs<format_in, int8_t>) { \
-      Assembler::Movsxbq arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
-                         FormatIs<format_in, uint8_t>) {                                           \
-      Assembler::Movzxbl arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
-                         FormatIs<format_in, int16_t>) {                                           \
-      Assembler::Movsxwq arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
-                         FormatIs<format_in, uint16_t>) {                                          \
-      Assembler::Movzxwl arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
-                         FormatIs<format_in, int32_t>) {                                           \
-      Assembler::Movsxlq arguments;                                                                \
-    } else if constexpr (FormatIs<format_out, int64_t, uint64_t> &&                                \
-                         FormatIs<format_in, uint32_t>) {                                          \
-      Assembler::Movl arguments;                                                                   \
-    } else {                                                                                       \
-      static_assert(                                                                               \
-          FormatIs<format_out, int64_t, uint64_t> && FormatIs<format_in, int64_t, uint64_t>,       \
-          "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported");                   \
-      opt_check;                                                                                   \
-      Assembler::Movq arguments;                                                                   \
-    }                                                                                              \
+template <typename IntType>
+static constexpr bool kIntType =
+    kFormatIs<IntType, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t>;
+
+template <typename IntType>
+static constexpr bool kIntTypeWLQ =
+    kFormatIs<IntType, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t>;
+
+template <typename FloatType>
+static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
+
+#define DEFINE_EXPAND_INSTRUCTION(opt_check, parameters, arguments)  \
+  template <typename format_out, typename format_in>                 \
+  std::enable_if_t<kIntType<format_out> && kIntType<format_in> &&    \
+                   sizeof(format_in) <= sizeof(format_out)>          \
+      Expand parameters {                                            \
+    if constexpr (kFormatIs<format_out, int8_t, uint8_t> &&          \
+                  kFormatIs<format_in, int8_t, uint8_t>) {           \
+      opt_check;                                                     \
+      Assembler::Movb arguments;                                     \
+    } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
+                         kFormatIs<format_in, int8_t>) {             \
+      Assembler::Movsxbw arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
+                         kFormatIs<format_in, uint8_t>) {            \
+      Assembler::Movzxbw arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
+                         kFormatIs<format_in, int16_t, uint16_t>) {  \
+      opt_check;                                                     \
+      Assembler::Movw arguments;                                     \
+    } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
+                         kFormatIs<format_in, int8_t>) {             \
+      Assembler::Movsxbl arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
+                         kFormatIs<format_in, uint8_t>) {            \
+      Assembler::Movzxbl arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
+                         kFormatIs<format_in, int16_t>) {            \
+      Assembler::Movsxwl arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
+                         kFormatIs<format_in, uint16_t>) {           \
+      Assembler::Movzxwl arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
+                         kFormatIs<format_in, int32_t, uint32_t>) {  \
+      opt_check;                                                     \
+      Assembler::Movl arguments;                                     \
+    } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
+                         kFormatIs<format_in, int8_t>) {             \
+      Assembler::Movsxbq arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
+                         kFormatIs<format_in, uint8_t>) {            \
+      Assembler::Movzxbl arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
+                         kFormatIs<format_in, int16_t>) {            \
+      Assembler::Movsxwq arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
+                         kFormatIs<format_in, uint16_t>) {           \
+      Assembler::Movzxwl arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
+                         kFormatIs<format_in, int32_t>) {            \
+      Assembler::Movsxlq arguments;                                  \
+    } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
+                         kFormatIs<format_in, uint32_t>) {           \
+      Assembler::Movl arguments;                                     \
+    } else {                                                         \
+      opt_check;                                                     \
+      Assembler::Movq arguments;                                     \
+    }                                                                \
   }
 DEFINE_EXPAND_INSTRUCTION(, (Register dest, Operand src), (dest, src))
 DEFINE_EXPAND_INSTRUCTION(if (dest == src) return, (Register dest, Register src), (dest, src))
 #undef DEFINE_EXPAND_INSTRUCTION
 
-#define DEFINE_INT_INSTRUCTION(insn_name, insn_siffix, parameters, arguments)              \
-  template <typename format>                                                               \
-  std::enable_if_t<std::is_integral_v<format>, void> insn_name##insn_siffix parameters {   \
-    if constexpr (FormatIs<format, int8_t, uint8_t>) {                                     \
-      Assembler::insn_name##b##insn_siffix arguments;                                      \
-    } else if constexpr (FormatIs<format, int16_t, uint16_t>) {                            \
-      Assembler::insn_name##w##insn_siffix arguments;                                      \
-    } else if constexpr (FormatIs<format, int32_t, uint32_t>) {                            \
-      Assembler::insn_name##l##insn_siffix arguments;                                      \
-    } else {                                                                               \
-      static_assert(FormatIs<format, int64_t, uint64_t>,                                   \
-                    "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported"); \
-      Assembler::insn_name##q##insn_siffix arguments;                                      \
-    }                                                                                      \
+#define DEFINE_INT_INSTRUCTION(insn_name, insn_siffix, parameters, arguments) \
+  template <typename format>                                                  \
+  std::enable_if_t<kIntType<format>> insn_name##insn_siffix parameters {      \
+    if constexpr (kFormatIs<format, int8_t, uint8_t>) {                       \
+      Assembler::insn_name##b##insn_siffix arguments;                         \
+    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {              \
+      Assembler::insn_name##w##insn_siffix arguments;                         \
+    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {              \
+      Assembler::insn_name##l##insn_siffix arguments;                         \
+    } else {                                                                  \
+      Assembler::insn_name##q##insn_siffix arguments;                         \
+    }                                                                         \
   }
 DEFINE_INT_INSTRUCTION(CmpXchg, , (Operand dest, Register src), (dest, src))
 DEFINE_INT_INSTRUCTION(CmpXchg, , (Register dest, Register src), (dest, src))
@@ -143,14 +165,12 @@ DEFINE_SHIFT_INSTRUCTION(Shr)
 
 #define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)                       \
   template <typename format>                                                           \
-  std::enable_if_t<std::is_integral_v<format>, void> insn_name parameters {            \
-    if constexpr (FormatIs<format, int16_t, uint16_t>) {                               \
+  std::enable_if_t<kIntTypeWLQ<format>> insn_name parameters {                         \
+    if constexpr (kFormatIs<format, int16_t, uint16_t>) {                              \
       Assembler::insn_name##w arguments;                                               \
-    } else if constexpr (FormatIs<format, int32_t, uint32_t>) {                        \
+    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {                       \
       Assembler::insn_name##l arguments;                                               \
     } else {                                                                           \
-      static_assert(FormatIs<format, int64_t, uint64_t>,                               \
-                    "Only int{16,32,64}_t or uint{16,32,64}_t formats are supported"); \
       Assembler::insn_name##q arguments;                                               \
     }                                                                                  \
   }
@@ -178,37 +198,33 @@ DEFINE_BIT_INSTRUCTION(Tzcnt)
 // Note: Mov<int32_t> from one register to that same register doesn't zero-out top 32bits,
 // like real Movq would! If you want that effect then use Expand<tnt32_t, int32_t> instead!
 template <typename format>
-std::enable_if_t<std::is_integral_v<format>, void> Mov(Register dest, Register src) {
+std::enable_if_t<kIntType<format>> Mov(Register dest, Register src) {
   if (dest == src) {
     return;
   }
-  if constexpr (FormatIs<format, int8_t, uint8_t>) {
+  if constexpr (kFormatIs<format, int8_t, uint8_t>) {
     Assembler::Movb(dest, src);
-  } else if constexpr (FormatIs<format, int16_t, uint16_t>) {
+  } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {
     Assembler::Movw(dest, src);
-  } else if constexpr (FormatIs<format, int32_t, uint32_t>) {
+  } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {
     Assembler::Movl(dest, src);
   } else {
-    static_assert(FormatIs<format, int64_t, uint64_t>,
-                  "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported");
     Assembler::Movq(dest, src);
   }
 }
 
-#define DEFINE_XMM_INT_INSTRUCTION(insn_name, parameters, arguments)                       \
-  template <typename format>                                                               \
-  void insn_name parameters {                                                              \
-    if constexpr (FormatIs<format, int8_t, uint8_t>) {                                     \
-      Assembler::insn_name##b arguments;                                                   \
-    } else if constexpr (FormatIs<format, int16_t, uint16_t>) {                            \
-      Assembler::insn_name##w arguments;                                                   \
-    } else if constexpr (FormatIs<format, int32_t, uint32_t>) {                            \
-      Assembler::insn_name##d arguments;                                                   \
-    } else {                                                                               \
-      static_assert(FormatIs<format, int64_t, uint64_t>,                                   \
-                    "Only int{8,16,32,64}_t or uint{8,16,32,64}_t formats are supported"); \
-      Assembler::insn_name##q arguments;                                                   \
-    }                                                                                      \
+#define DEFINE_XMM_INT_INSTRUCTION(insn_name, parameters, arguments) \
+  template <typename format>                                         \
+  std::enable_if_t<kIntType<format>> insn_name parameters {          \
+    if constexpr (kFormatIs<format, int8_t, uint8_t>) {              \
+      Assembler::insn_name##b arguments;                             \
+    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {     \
+      Assembler::insn_name##w arguments;                             \
+    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {     \
+      Assembler::insn_name##d arguments;                             \
+    } else {                                                         \
+      Assembler::insn_name##q arguments;                             \
+    }                                                                \
   }
 #define DEFINE_PCMP_INSTRUCTION(insn_name)                                                      \
   DEFINE_XMM_INT_INSTRUCTION(Pcmp##insn_name, (XMMRegister dest, Operand src), (dest, src))     \
@@ -223,18 +239,16 @@ DEFINE_PCMP_INSTRUCTION(gt)
 #undef DEFINE_PCMP_INSTRUCTION
 #undef DEFINE_XMM_INT_INSTRUCTION
 
-#define DEFINE_MOVS_INSTRUCTION(insn_name, opt_check, parameters, arguments)       \
-  template <typename format>                                                       \
-  void insn_name parameters {                                                      \
-    if constexpr (FormatIs<format, float, Float32>) {                              \
-      opt_check;                                                                   \
-      Assembler::insn_name##s arguments;                                           \
-    } else {                                                                       \
-      static_assert(FormatIs<format, double, Float64>,                             \
-                    "Only float/Float32 or double/Float64 formats are supported"); \
-      opt_check;                                                                   \
-      Assembler::insn_name##d arguments;                                           \
-    }                                                                              \
+#define DEFINE_MOVS_INSTRUCTION(insn_name, opt_check, parameters, arguments) \
+  template <typename format>                                                 \
+  std::enable_if_t<kFloatType<format>> insn_name parameters {                \
+    if constexpr (kFormatIs<format, Float32>) {                              \
+      opt_check;                                                             \
+      Assembler::insn_name##s arguments;                                     \
+    } else {                                                                 \
+      opt_check;                                                             \
+      Assembler::insn_name##d arguments;                                     \
+    }                                                                        \
   }
 DEFINE_MOVS_INSTRUCTION(Movs, , (XMMRegister dest, Operand src), (dest, src))
 DEFINE_MOVS_INSTRUCTION(Movs, , (Operand dest, XMMRegister src), (dest, src))
@@ -250,16 +264,14 @@ DEFINE_MOVS_INSTRUCTION(Vmovs,
                         (dest, src1, src2))
 #undef DEFINE_MOVS_INSTRUCTION
 
-#define DEFINE_XMM_MOV_INSTRUCTION(insn_name, parameters, arguments)               \
-  template <typename format>                                                       \
-  void insn_name parameters {                                                      \
-    if constexpr (FormatIs<format, float, Float32>) {                              \
-      Assembler::insn_name##d arguments;                                           \
-    } else {                                                                       \
-      static_assert(FormatIs<format, double, Float64>,                             \
-                    "Only float/Float32 or double/Float64 formats are supported"); \
-      Assembler::insn_name##q arguments;                                           \
-    }                                                                              \
+#define DEFINE_XMM_MOV_INSTRUCTION(insn_name, parameters, arguments) \
+  template <typename format>                                         \
+  std::enable_if_t<kFloatType<format>> insn_name parameters {        \
+    if constexpr (kFormatIs<format, Float32>) {                      \
+      Assembler::insn_name##d arguments;                             \
+    } else {                                                         \
+      Assembler::insn_name##q arguments;                             \
+    }                                                                \
   }
 DEFINE_XMM_MOV_INSTRUCTION(Mov, (XMMRegister dest, Operand src), (dest, src))
 DEFINE_XMM_MOV_INSTRUCTION(Mov, (Operand dest, XMMRegister src), (dest, src))
@@ -271,16 +283,14 @@ DEFINE_XMM_MOV_INSTRUCTION(Vmov, (XMMRegister dest, Register src), (dest, src))
 DEFINE_XMM_MOV_INSTRUCTION(Vmov, (Register dest, XMMRegister src), (dest, src))
 #undef DEFINE_XMM_MOV_INSTRUCTION
 
-#define DEFINE_XMM_FLOAT_INSTRUCTION(insn_name, parameters, arguments)             \
-  template <typename format>                                                       \
-  void insn_name parameters {                                                      \
-    if constexpr (FormatIs<format, float, Float32>) {                              \
-      Assembler::insn_name##s arguments;                                           \
-    } else {                                                                       \
-      static_assert(FormatIs<format, double, Float64>,                             \
-                    "Only float/Float32 or double/Float64 formats are supported"); \
-      Assembler::insn_name##d arguments;                                           \
-    }                                                                              \
+#define DEFINE_XMM_FLOAT_INSTRUCTION(insn_name, parameters, arguments) \
+  template <typename format>                                           \
+  std::enable_if_t<kFloatType<format>> insn_name parameters {          \
+    if constexpr (kFormatIs<format, Float32>) {                        \
+      Assembler::insn_name##s arguments;                               \
+    } else {                                                           \
+      Assembler::insn_name##d arguments;                               \
+    }                                                                  \
   }
 DEFINE_XMM_FLOAT_INSTRUCTION(Comis, (XMMRegister dest, Operand src), (dest, src))
 DEFINE_XMM_FLOAT_INSTRUCTION(Comis, (XMMRegister dest, XMMRegister src), (dest, src))
