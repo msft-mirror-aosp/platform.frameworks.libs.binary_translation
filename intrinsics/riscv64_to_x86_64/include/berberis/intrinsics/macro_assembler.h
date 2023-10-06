@@ -35,15 +35,8 @@ class MacroAssembler : public Assembler {
   explicit MacroAssembler(Args&&... args) : Assembler(std::forward<Args>(args)...) {
   }
 
-  using Condition = typename Assembler::Condition;
-  using Label = typename Assembler::Label;
-  using Operand = typename Assembler::Operand;
-  using Register = typename Assembler::Register;
-  using ScaleFactor = typename Assembler::ScaleFactor;
-  using XMMRegister = typename Assembler::XMMRegister;
-
-  using Float32 = intrinsics::Float32;
-  using Float64 = intrinsics::Float64;
+#define DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
+#include "berberis/intrinsics/macro_assembler-inl.h"
 
 #include "berberis/intrinsics/macro_assembler_interface-inl.h"  // NOLINT generated file
 
@@ -77,9 +70,6 @@ class MacroAssembler : public Assembler {
   using Assembler::gpr_a;
   using Assembler::gpr_c;
   using Assembler::gpr_d;
-
-#define DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
-#include "berberis/intrinsics/macro_assembler-inl.h"
 
  private:
 
