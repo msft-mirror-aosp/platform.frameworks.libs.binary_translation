@@ -45,6 +45,8 @@ template <typename IntType>
 static constexpr bool kIntTypeWLQ =
     kFormatIs<IntType, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t>;
 
+template <typename IntType>
+static constexpr bool kSignedIntType = kFormatIs<IntType, int8_t, int16_t, int32_t, int64_t>;
 template <typename FloatType>
 static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
 
@@ -215,30 +217,35 @@ std::enable_if_t<kIntType<format>> Mov(Register dest, Register src) {
   }
 }
 
-#define DEFINE_XMM_INT_INSTRUCTION(insn_name, parameters, arguments) \
-  template <typename format>                                         \
-  std::enable_if_t<kIntType<format>> insn_name parameters {          \
-    if constexpr (kFormatIs<format, int8_t, uint8_t>) {              \
-      Assembler::insn_name##b arguments;                             \
-    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {     \
-      Assembler::insn_name##w arguments;                             \
-    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {     \
-      Assembler::insn_name##d arguments;                             \
-    } else {                                                         \
-      Assembler::insn_name##q arguments;                             \
-    }                                                                \
+#define DEFINE_XMM_INT_INSTRUCTION(insn_name, type_check, parameters, arguments) \
+  template <typename format>                                                     \
+  std::enable_if_t<type_check<format>> insn_name parameters {                    \
+    if constexpr (kFormatIs<format, int8_t, uint8_t>) {                          \
+      Assembler::insn_name##b arguments;                                         \
+    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {                 \
+      Assembler::insn_name##w arguments;                                         \
+    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {                 \
+      Assembler::insn_name##d arguments;                                         \
+    } else {                                                                     \
+      Assembler::insn_name##q arguments;                                         \
+    }                                                                            \
   }
-#define DEFINE_PCMP_INSTRUCTION(insn_name)                                                      \
-  DEFINE_XMM_INT_INSTRUCTION(Pcmp##insn_name, (XMMRegister dest, Operand src), (dest, src))     \
-  DEFINE_XMM_INT_INSTRUCTION(Pcmp##insn_name, (XMMRegister dest, XMMRegister src), (dest, src)) \
-  DEFINE_XMM_INT_INSTRUCTION(                                                                   \
-      Vpcmp##insn_name, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2)) \
-  DEFINE_XMM_INT_INSTRUCTION(Vpcmp##insn_name,                                                  \
-                             (XMMRegister dest, XMMRegister src1, XMMRegister src2),            \
+#define DEFINE_XMM_INT_INSTRUCTIONS_GROUP(insn_name, type_check)                     \
+  DEFINE_XMM_INT_INSTRUCTION(                                                        \
+      P##insn_name, type_check, (XMMRegister dest, Operand src), (dest, src))        \
+  DEFINE_XMM_INT_INSTRUCTION(                                                        \
+      P##insn_name, type_check, (XMMRegister dest, XMMRegister src), (dest, src))    \
+  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                          \
+                             type_check,                                             \
+                             (XMMRegister dest, XMMRegister src1, Operand src2),     \
+                             (dest, src1, src2))                                     \
+  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                          \
+                             type_check,                                             \
+                             (XMMRegister dest, XMMRegister src1, XMMRegister src2), \
                              (dest, src1, src2))
-DEFINE_PCMP_INSTRUCTION(eq)
-DEFINE_PCMP_INSTRUCTION(gt)
-#undef DEFINE_PCMP_INSTRUCTION
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(cmpeq, kIntType)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(cmpgt, kSignedIntType)
+#undef DEFINE_XMM_INT_INSTRUCTIONS_GROUP
 #undef DEFINE_XMM_INT_INSTRUCTION
 
 #define DEFINE_MOVS_INSTRUCTION(insn_name, opt_check, parameters, arguments) \
