@@ -51,8 +51,8 @@ void GenIncrementProfileCounter(x86_64::Assembler* as, const LiteTranslateParams
   // the reached threshold.
   as->Movq(as->rcx, bit_cast<int64_t>(params.counter_location));
   static_assert(sizeof(*params.counter_location) == 4);
-  as->Addl(x86_64::Assembler::Operand{as->rcx}, 1);
-  as->Cmpl(x86_64::Assembler::Operand{as->rcx}, params.counter_threshold);
+  as->Addl({.base = as->rcx}, 1);
+  as->Cmpl({.base = as->rcx}, params.counter_threshold);
   as->Jcc(x86_64::Assembler::Condition::kGreater, params.counter_threshold_callback);
 }
 
