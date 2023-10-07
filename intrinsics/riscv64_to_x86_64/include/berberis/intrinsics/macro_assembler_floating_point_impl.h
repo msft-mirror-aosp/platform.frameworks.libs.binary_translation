@@ -361,16 +361,7 @@ void MacroAssembler<Assembler>::MacroFle(Register result, XMMRegister src1, XMMR
 template <typename Assembler>
 template <typename FormatTo, typename FormatFrom>
 void MacroAssembler<Assembler>::MacroFCvtFloatToInteger(Register result, XMMRegister src) {
-  if constexpr (kFormatIs<FormatFrom, intrinsics::Float32> && kFormatIs<FormatTo, int32_t>) {
-    Assembler::Cvtss2sil(result, src);
-  } else if constexpr (kFormatIs<FormatFrom, intrinsics::Float32> && kFormatIs<FormatTo, int64_t>) {
-    Assembler::Cvtss2siq(result, src);
-  } else if constexpr (kFormatIs<FormatFrom, intrinsics::Float64> && kFormatIs<FormatTo, int32_t>) {
-    Assembler::Cvtsd2sil(result, src);
-  } else {
-    static_assert(kFormatIs<FormatFrom, intrinsics::Float64> && kFormatIs<FormatTo, int64_t>);
-    Assembler::Cvtsd2siq(result, src);
-  }
+  Cvt<FormatFrom, FormatTo>(result, src);
 }
 
 template <typename Assembler>
