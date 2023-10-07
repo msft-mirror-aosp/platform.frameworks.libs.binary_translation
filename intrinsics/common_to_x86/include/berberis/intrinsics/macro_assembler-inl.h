@@ -42,11 +42,29 @@ static constexpr bool kIntType =
     kFormatIs<IntType, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t>;
 
 template <typename IntType>
+static constexpr bool kIntTypeBW = kFormatIs<IntType, int8_t, uint8_t, int16_t, uint16_t>;
+
+template <typename IntType>
+static constexpr bool kIntTypeBWL =
+    kFormatIs<IntType, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t>;
+
+template <typename IntType>
+static constexpr bool kIntTypeWL = kFormatIs<IntType, int16_t, uint16_t, int32_t, uint32_t>;
+
+template <typename IntType>
 static constexpr bool kIntTypeWLQ =
     kFormatIs<IntType, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t>;
 
+// Psr is the only asymmetric instruction where unsigned 64bit variant was supported in MMX in CPUs
+// released last century while signed 64bit variant is only added in AVX10 which is not yet even
+// available for purchase!
+template <typename IntType>
+static constexpr bool kIntTypePsr =
+    kFormatIs<IntType, int16_t, uint16_t, int32_t, uint32_t, uint64_t>;
+
 template <typename IntType>
 static constexpr bool kSignedIntType = kFormatIs<IntType, int8_t, int16_t, int32_t, int64_t>;
+
 template <typename FloatType>
 static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
 
@@ -217,34 +235,87 @@ std::enable_if_t<kIntType<format>> Mov(Register dest, Register src) {
   }
 }
 
-#define DEFINE_XMM_INT_INSTRUCTION(insn_name, type_check, parameters, arguments) \
-  template <typename format>                                                     \
-  std::enable_if_t<type_check<format>> insn_name parameters {                    \
-    if constexpr (kFormatIs<format, int8_t, uint8_t>) {                          \
-      Assembler::insn_name##b arguments;                                         \
-    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {                 \
-      Assembler::insn_name##w arguments;                                         \
-    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {                 \
-      Assembler::insn_name##d arguments;                                         \
-    } else {                                                                     \
-      Assembler::insn_name##q arguments;                                         \
-    }                                                                            \
+#define DEFINE_XMM_INT_INSTRUCTION(                                           \
+    insn_name, asm_name, type_check, parameters, arguments, signed, unsigned) \
+  template <typename format>                                                  \
+  std::enable_if_t<type_check<format>> insn_name parameters {                 \
+    if constexpr (kFormatIs<format, int8_t>) {                                \
+      Assembler::asm_name##signed##b arguments;                               \
+    } else if constexpr (kFormatIs<format, uint8_t>) {                        \
+      Assembler::asm_name##unsigned##b arguments;                             \
+    } else if constexpr (kFormatIs<format, int16_t>) {                        \
+      Assembler::asm_name##signed##w arguments;                               \
+    } else if constexpr (kFormatIs<format, uint16_t>) {                       \
+      Assembler::asm_name##unsigned##w arguments;                             \
+    } else if constexpr (kFormatIs<format, int32_t>) {                        \
+      Assembler::asm_name##signed##d arguments;                               \
+    } else if constexpr (kFormatIs<format, uint32_t>) {                       \
+      Assembler::asm_name##unsigned##d arguments;                             \
+    } else if constexpr (kFormatIs<format, int64_t>) {                        \
+      Assembler::asm_name##signed##q arguments;                               \
+    } else {                                                                  \
+      Assembler::asm_name##unsigned##q arguments;                             \
+    }                                                                         \
   }
-#define DEFINE_XMM_INT_INSTRUCTIONS_GROUP(insn_name, type_check)                     \
-  DEFINE_XMM_INT_INSTRUCTION(                                                        \
-      P##insn_name, type_check, (XMMRegister dest, Operand src), (dest, src))        \
-  DEFINE_XMM_INT_INSTRUCTION(                                                        \
-      P##insn_name, type_check, (XMMRegister dest, XMMRegister src), (dest, src))    \
-  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                          \
-                             type_check,                                             \
-                             (XMMRegister dest, XMMRegister src1, Operand src2),     \
-                             (dest, src1, src2))                                     \
-  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                          \
-                             type_check,                                             \
-                             (XMMRegister dest, XMMRegister src1, XMMRegister src2), \
-                             (dest, src1, src2))
-DEFINE_XMM_INT_INSTRUCTIONS_GROUP(cmpeq, kIntType)
-DEFINE_XMM_INT_INSTRUCTIONS_GROUP(cmpgt, kSignedIntType)
+#define DEFINE_XMM_INT_INSTRUCTIONS_GROUP(insn_name, asm_name, type_check, signed, unsigned) \
+  DEFINE_XMM_INT_INSTRUCTION(P##insn_name,                                                   \
+                             P##asm_name,                                                    \
+                             type_check,                                                     \
+                             (XMMRegister dest, Operand src),                                \
+                             (dest, src),                                                    \
+                             signed,                                                         \
+                             unsigned)                                                       \
+  DEFINE_XMM_INT_INSTRUCTION(P##insn_name,                                                   \
+                             P##asm_name,                                                    \
+                             type_check,                                                     \
+                             (XMMRegister dest, XMMRegister src),                            \
+                             (dest, src),                                                    \
+                             signed,                                                         \
+                             unsigned)                                                       \
+  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                                  \
+                             Vp##asm_name,                                                   \
+                             type_check,                                                     \
+                             (XMMRegister dest, XMMRegister src1, Operand src2),             \
+                             (dest, src1, src2),                                             \
+                             signed,                                                         \
+                             unsigned)                                                       \
+  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                                  \
+                             Vp##asm_name,                                                   \
+                             type_check,                                                     \
+                             (XMMRegister dest, XMMRegister src1, XMMRegister src2),         \
+                             (dest, src1, src2),                                             \
+                             signed,                                                         \
+                             unsigned)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(add, add, kIntType, , )
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(adds, add, kIntTypeBW, s, us)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(cmpeq, cmpeq, kIntType, , )
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(cmpgt, cmpgt, kSignedIntType, , )
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(max, max, kIntTypeBWL, s, u)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(min, min, kIntTypeBWL, s, u)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(mull, mull, kIntTypeWL, , )
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sl, sl, kIntTypeWLQ, l, l)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sr, sr, kIntTypePsr, a, l)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(subs, sub, kIntTypeBW, s, us)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sub, sub, kIntType, , )
+#undef DEFINE_XMM_INT_INSTRUCTIONS_GROUP
+// Shifts have immediate form in addition to register-to-register form.
+#define DEFINE_XMM_INT_INSTRUCTIONS_GROUP(insn_name, asm_name, type_check, signed, unsigned) \
+  DEFINE_XMM_INT_INSTRUCTION(P##insn_name,                                                   \
+                             P##asm_name,                                                    \
+                             type_check,                                                     \
+                             (XMMRegister dest, int8_t imm),                                 \
+                             (dest, imm),                                                    \
+                             signed,                                                         \
+                             unsigned)                                                       \
+  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                                  \
+                             Vp##asm_name,                                                   \
+                             type_check,                                                     \
+                             (XMMRegister dest, XMMRegister src, int8_t imm),                \
+                             (dest, src, imm),                                               \
+                             signed,                                                         \
+                             unsigned)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sl, sl, kIntTypeWLQ, l, l)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sr, sr, kIntTypePsr, a, l)
 #undef DEFINE_XMM_INT_INSTRUCTIONS_GROUP
 #undef DEFINE_XMM_INT_INSTRUCTION
 
