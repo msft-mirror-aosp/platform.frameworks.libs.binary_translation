@@ -65,6 +65,9 @@ static constexpr bool kIntTypePsr =
 template <typename IntType>
 static constexpr bool kSignedIntType = kFormatIs<IntType, int8_t, int16_t, int32_t, int64_t>;
 
+template <typename IntType>
+static constexpr bool kUnsignedIntType = kFormatIs<IntType, uint8_t, uint16_t, uint32_t, uint64_t>;
+
 template <typename FloatType>
 static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
 
@@ -234,6 +237,46 @@ std::enable_if_t<kIntType<format>> Mov(Register dest, Register src) {
     Assembler::Movq(dest, src);
   }
 }
+
+#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)     \
+  template <typename target_format>                                  \
+  std::enable_if_t<kIntTypeBW<target_format>> insn_name parameters { \
+    if constexpr (kFormatIs<target_format, int8_t>) {                \
+      Assembler::insn_name##sswb arguments;                          \
+    } else if constexpr (kFormatIs<target_format, uint8_t>) {        \
+      Assembler::insn_name##uswb arguments;                          \
+    } else if constexpr (kFormatIs<target_format, int16_t>) {        \
+      Assembler::insn_name##ssdw arguments;                          \
+    } else {                                                         \
+      Assembler::insn_name##usdw arguments;                          \
+    }                                                                \
+  }
+#define DEFINE_XMM_INT_INSTRUCTIONS_GROUP(insn_name)                                             \
+  DEFINE_INT_INSTRUCTION(P##insn_name, (XMMRegister dest, XMMRegister src), (dest, src))         \
+  DEFINE_INT_INSTRUCTION(P##insn_name, (XMMRegister dest, Operand src), (dest, src))             \
+  DEFINE_INT_INSTRUCTION(                                                                        \
+      Vp##insn_name, (XMMRegister dest, XMMRegister src1, XMMRegister src2), (dest, src1, src2)) \
+  DEFINE_INT_INSTRUCTION(                                                                        \
+      Vp##insn_name, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2))
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(ack)
+#undef DEFINE_INT_INSTRUCTION
+#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)    \
+  template <typename format>                                        \
+  std::enable_if_t<kUnsignedIntType<format>> insn_name parameters { \
+    if constexpr (kFormatIs<format, uint8_t>) {                     \
+      Assembler::insn_name##bw arguments;                           \
+    } else if constexpr (kFormatIs<format, uint16_t>) {             \
+      Assembler::insn_name##wd arguments;                           \
+    } else if constexpr (kFormatIs<format, uint32_t>) {             \
+      Assembler::insn_name##dq arguments;                           \
+    } else {                                                        \
+      Assembler::insn_name##qdq arguments;                          \
+    }                                                               \
+  }
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(unpckh)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(unpckl)
+#undef DEFINE_XMM_INT_INSTRUCTIONS_GROUP
+#undef DEFINE_INT_INSTRUCTION
 
 #define DEFINE_XMM_INT_INSTRUCTION(                                           \
     insn_name, asm_name, type_check, parameters, arguments, signed, unsigned) \
