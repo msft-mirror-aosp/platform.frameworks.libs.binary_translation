@@ -42,72 +42,100 @@ static constexpr bool kIntType =
     kFormatIs<IntType, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t>;
 
 template <typename IntType>
+static constexpr bool kIntTypeBW = kFormatIs<IntType, int8_t, uint8_t, int16_t, uint16_t>;
+
+template <typename IntType>
+static constexpr bool kIntTypeBWL =
+    kFormatIs<IntType, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t>;
+
+template <typename IntType>
+static constexpr bool kIntTypeWL = kFormatIs<IntType, int16_t, uint16_t, int32_t, uint32_t>;
+
+template <typename IntType>
 static constexpr bool kIntTypeWLQ =
     kFormatIs<IntType, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t>;
+
+template <typename IntType>
+static constexpr bool kIntTypeLQ = kFormatIs<IntType, int32_t, uint32_t, int64_t, uint64_t>;
+
+// Psr is the only asymmetric instruction where unsigned 64bit variant was supported in MMX in CPUs
+// released last century while signed 64bit variant is only added in AVX10 which is not yet even
+// available for purchase!
+template <typename IntType>
+static constexpr bool kIntTypePsr =
+    kFormatIs<IntType, int16_t, uint16_t, int32_t, uint32_t, uint64_t>;
+
+template <typename IntType>
+static constexpr bool kSignedIntType = kFormatIs<IntType, int8_t, int16_t, int32_t, int64_t>;
+
+template <typename IntType>
+static constexpr bool kUnsignedIntType = kFormatIs<IntType, uint8_t, uint16_t, uint32_t, uint64_t>;
 
 template <typename FloatType>
 static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
 
-#define DEFINE_EXPAND_INSTRUCTION(opt_check, parameters, arguments)  \
+#define DEFINE_EXPAND_INSTRUCTION(Declare_dest, Declare_src)         \
   template <typename format_out, typename format_in>                 \
   std::enable_if_t<kIntType<format_out> && kIntType<format_in> &&    \
                    sizeof(format_in) <= sizeof(format_out)>          \
-      Expand parameters {                                            \
+  Expand(Declare_dest, Declare_src) {                                \
+    if constexpr (std::is_same_v<decltype(dest), decltype(src)> &&   \
+                  sizeof(format_out) == sizeof(format_in)) {         \
+      if (dest == src) {                                             \
+        return;                                                      \
+      }                                                              \
+    }                                                                \
     if constexpr (kFormatIs<format_out, int8_t, uint8_t> &&          \
                   kFormatIs<format_in, int8_t, uint8_t>) {           \
-      opt_check;                                                     \
-      Assembler::Movb arguments;                                     \
+      Assembler::Movb(dest, src);                                    \
     } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
                          kFormatIs<format_in, int8_t>) {             \
-      Assembler::Movsxbw arguments;                                  \
+      Assembler::Movsxbw(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
                          kFormatIs<format_in, uint8_t>) {            \
-      Assembler::Movzxbw arguments;                                  \
+      Assembler::Movzxbw(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
                          kFormatIs<format_in, int16_t, uint16_t>) {  \
-      opt_check;                                                     \
-      Assembler::Movw arguments;                                     \
+      Assembler::Movw(dest, src);                                    \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, int8_t>) {             \
-      Assembler::Movsxbl arguments;                                  \
+      Assembler::Movsxbl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, uint8_t>) {            \
-      Assembler::Movzxbl arguments;                                  \
+      Assembler::Movzxbl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, int16_t>) {            \
-      Assembler::Movsxwl arguments;                                  \
+      Assembler::Movsxwl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, uint16_t>) {           \
-      Assembler::Movzxwl arguments;                                  \
+      Assembler::Movzxwl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, int32_t, uint32_t>) {  \
-      opt_check;                                                     \
-      Assembler::Movl arguments;                                     \
+      Assembler::Movl(dest, src);                                    \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, int8_t>) {             \
-      Assembler::Movsxbq arguments;                                  \
+      Assembler::Movsxbq(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, uint8_t>) {            \
-      Assembler::Movzxbl arguments;                                  \
+      Assembler::Movzxbl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, int16_t>) {            \
-      Assembler::Movsxwq arguments;                                  \
+      Assembler::Movsxwq(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, uint16_t>) {           \
-      Assembler::Movzxwl arguments;                                  \
+      Assembler::Movzxwl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, int32_t>) {            \
-      Assembler::Movsxlq arguments;                                  \
+      Assembler::Movsxlq(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, uint32_t>) {           \
-      Assembler::Movl arguments;                                     \
+      Assembler::Movl(dest, src);                                    \
     } else {                                                         \
-      opt_check;                                                     \
-      Assembler::Movq arguments;                                     \
+      Assembler::Movq(dest, src);                                    \
     }                                                                \
   }
-DEFINE_EXPAND_INSTRUCTION(, (Register dest, Operand src), (dest, src))
-DEFINE_EXPAND_INSTRUCTION(if (dest == src) return, (Register dest, Register src), (dest, src))
+DEFINE_EXPAND_INSTRUCTION(Register dest, Operand src)
+DEFINE_EXPAND_INSTRUCTION(Register dest, Register src)
 #undef DEFINE_EXPAND_INSTRUCTION
 
 #define DEFINE_INT_INSTRUCTION(insn_name, insn_siffix, parameters, arguments) \
@@ -213,30 +241,128 @@ std::enable_if_t<kIntType<format>> Mov(Register dest, Register src) {
   }
 }
 
-#define DEFINE_XMM_INT_INSTRUCTION(insn_name, parameters, arguments) \
-  template <typename format>                                         \
-  std::enable_if_t<kIntType<format>> insn_name parameters {          \
-    if constexpr (kFormatIs<format, int8_t, uint8_t>) {              \
-      Assembler::insn_name##b arguments;                             \
-    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {     \
-      Assembler::insn_name##w arguments;                             \
-    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {     \
-      Assembler::insn_name##d arguments;                             \
+#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)     \
+  template <typename target_format>                                  \
+  std::enable_if_t<kIntTypeBW<target_format>> insn_name parameters { \
+    if constexpr (kFormatIs<target_format, int8_t>) {                \
+      Assembler::insn_name##sswb arguments;                          \
+    } else if constexpr (kFormatIs<target_format, uint8_t>) {        \
+      Assembler::insn_name##uswb arguments;                          \
+    } else if constexpr (kFormatIs<target_format, int16_t>) {        \
+      Assembler::insn_name##ssdw arguments;                          \
     } else {                                                         \
-      Assembler::insn_name##q arguments;                             \
+      Assembler::insn_name##usdw arguments;                          \
     }                                                                \
   }
-#define DEFINE_PCMP_INSTRUCTION(insn_name)                                                      \
-  DEFINE_XMM_INT_INSTRUCTION(Pcmp##insn_name, (XMMRegister dest, Operand src), (dest, src))     \
-  DEFINE_XMM_INT_INSTRUCTION(Pcmp##insn_name, (XMMRegister dest, XMMRegister src), (dest, src)) \
-  DEFINE_XMM_INT_INSTRUCTION(                                                                   \
-      Vpcmp##insn_name, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2)) \
-  DEFINE_XMM_INT_INSTRUCTION(Vpcmp##insn_name,                                                  \
-                             (XMMRegister dest, XMMRegister src1, XMMRegister src2),            \
-                             (dest, src1, src2))
-DEFINE_PCMP_INSTRUCTION(eq)
-DEFINE_PCMP_INSTRUCTION(gt)
-#undef DEFINE_PCMP_INSTRUCTION
+#define DEFINE_XMM_INT_INSTRUCTIONS_GROUP(insn_name)                                             \
+  DEFINE_INT_INSTRUCTION(P##insn_name, (XMMRegister dest, XMMRegister src), (dest, src))         \
+  DEFINE_INT_INSTRUCTION(P##insn_name, (XMMRegister dest, Operand src), (dest, src))             \
+  DEFINE_INT_INSTRUCTION(                                                                        \
+      Vp##insn_name, (XMMRegister dest, XMMRegister src1, XMMRegister src2), (dest, src1, src2)) \
+  DEFINE_INT_INSTRUCTION(                                                                        \
+      Vp##insn_name, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2))
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(ack)
+#undef DEFINE_INT_INSTRUCTION
+#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)    \
+  template <typename format>                                        \
+  std::enable_if_t<kUnsignedIntType<format>> insn_name parameters { \
+    if constexpr (kFormatIs<format, uint8_t>) {                     \
+      Assembler::insn_name##bw arguments;                           \
+    } else if constexpr (kFormatIs<format, uint16_t>) {             \
+      Assembler::insn_name##wd arguments;                           \
+    } else if constexpr (kFormatIs<format, uint32_t>) {             \
+      Assembler::insn_name##dq arguments;                           \
+    } else {                                                        \
+      Assembler::insn_name##qdq arguments;                          \
+    }                                                               \
+  }
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(unpckh)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(unpckl)
+#undef DEFINE_XMM_INT_INSTRUCTIONS_GROUP
+#undef DEFINE_INT_INSTRUCTION
+
+#define DEFINE_XMM_INT_INSTRUCTION(                                           \
+    insn_name, asm_name, type_check, parameters, arguments, signed, unsigned) \
+  template <typename format>                                                  \
+  std::enable_if_t<type_check<format>> insn_name parameters {                 \
+    if constexpr (kFormatIs<format, int8_t>) {                                \
+      Assembler::asm_name##signed##b arguments;                               \
+    } else if constexpr (kFormatIs<format, uint8_t>) {                        \
+      Assembler::asm_name##unsigned##b arguments;                             \
+    } else if constexpr (kFormatIs<format, int16_t>) {                        \
+      Assembler::asm_name##signed##w arguments;                               \
+    } else if constexpr (kFormatIs<format, uint16_t>) {                       \
+      Assembler::asm_name##unsigned##w arguments;                             \
+    } else if constexpr (kFormatIs<format, int32_t>) {                        \
+      Assembler::asm_name##signed##d arguments;                               \
+    } else if constexpr (kFormatIs<format, uint32_t>) {                       \
+      Assembler::asm_name##unsigned##d arguments;                             \
+    } else if constexpr (kFormatIs<format, int64_t>) {                        \
+      Assembler::asm_name##signed##q arguments;                               \
+    } else {                                                                  \
+      Assembler::asm_name##unsigned##q arguments;                             \
+    }                                                                         \
+  }
+#define DEFINE_XMM_INT_INSTRUCTIONS_GROUP(insn_name, asm_name, type_check, signed, unsigned) \
+  DEFINE_XMM_INT_INSTRUCTION(P##insn_name,                                                   \
+                             P##asm_name,                                                    \
+                             type_check,                                                     \
+                             (XMMRegister dest, Operand src),                                \
+                             (dest, src),                                                    \
+                             signed,                                                         \
+                             unsigned)                                                       \
+  DEFINE_XMM_INT_INSTRUCTION(P##insn_name,                                                   \
+                             P##asm_name,                                                    \
+                             type_check,                                                     \
+                             (XMMRegister dest, XMMRegister src),                            \
+                             (dest, src),                                                    \
+                             signed,                                                         \
+                             unsigned)                                                       \
+  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                                  \
+                             Vp##asm_name,                                                   \
+                             type_check,                                                     \
+                             (XMMRegister dest, XMMRegister src1, Operand src2),             \
+                             (dest, src1, src2),                                             \
+                             signed,                                                         \
+                             unsigned)                                                       \
+  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                                  \
+                             Vp##asm_name,                                                   \
+                             type_check,                                                     \
+                             (XMMRegister dest, XMMRegister src1, XMMRegister src2),         \
+                             (dest, src1, src2),                                             \
+                             signed,                                                         \
+                             unsigned)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(add, add, kIntType, , )
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(adds, add, kIntTypeBW, s, us)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(cmpeq, cmpeq, kIntType, , )
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(cmpgt, cmpgt, kSignedIntType, , )
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(max, max, kIntTypeBWL, s, u)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(min, min, kIntTypeBWL, s, u)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(mull, mull, kIntTypeWL, , )
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sl, sl, kIntTypeWLQ, l, l)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sr, sr, kIntTypePsr, a, l)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(subs, sub, kIntTypeBW, s, us)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sub, sub, kIntType, , )
+#undef DEFINE_XMM_INT_INSTRUCTIONS_GROUP
+// Shifts have immediate form in addition to register-to-register form.
+#define DEFINE_XMM_INT_INSTRUCTIONS_GROUP(insn_name, asm_name, type_check, signed, unsigned) \
+  DEFINE_XMM_INT_INSTRUCTION(P##insn_name,                                                   \
+                             P##asm_name,                                                    \
+                             type_check,                                                     \
+                             (XMMRegister dest, int8_t imm),                                 \
+                             (dest, imm),                                                    \
+                             signed,                                                         \
+                             unsigned)                                                       \
+  DEFINE_XMM_INT_INSTRUCTION(Vp##insn_name,                                                  \
+                             Vp##asm_name,                                                   \
+                             type_check,                                                     \
+                             (XMMRegister dest, XMMRegister src, int8_t imm),                \
+                             (dest, src, imm),                                               \
+                             signed,                                                         \
+                             unsigned)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sl, sl, kIntTypeWLQ, l, l)
+DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sr, sr, kIntTypePsr, a, l)
+#undef DEFINE_XMM_INT_INSTRUCTIONS_GROUP
 #undef DEFINE_XMM_INT_INSTRUCTION
 
 #define DEFINE_MOVS_INSTRUCTION(insn_name, opt_check, parameters, arguments) \
@@ -282,6 +408,77 @@ DEFINE_XMM_MOV_INSTRUCTION(Vmov, (Operand dest, XMMRegister src), (dest, src))
 DEFINE_XMM_MOV_INSTRUCTION(Vmov, (XMMRegister dest, Register src), (dest, src))
 DEFINE_XMM_MOV_INSTRUCTION(Vmov, (Register dest, XMMRegister src), (dest, src))
 #undef DEFINE_XMM_MOV_INSTRUCTION
+
+#define DEFINE_XMM_CVT_INSTRUCTION(insn_name, parameters, arguments)                           \
+  template <typename FormatFrom, typename FormatTo>                                            \
+  std::enable_if_t<kFloatType<FormatFrom> && kSignedIntType<FormatTo> && kIntTypeLQ<FormatTo>> \
+      insn_name parameters {                                                                   \
+    if constexpr (kFormatIs<FormatFrom, Float32> && kFormatIs<FormatTo, int32_t>) {            \
+      Assembler::insn_name##ss2sil arguments;                                                  \
+    } else if constexpr (kFormatIs<FormatFrom, Float32> && kFormatIs<FormatTo, int64_t>) {     \
+      Assembler::insn_name##ss2siq(dest, src);                                                 \
+    } else if constexpr (kFormatIs<FormatFrom, Float64> && kFormatIs<FormatTo, int32_t>) {     \
+      Assembler::insn_name##sd2sil(dest, src);                                                 \
+    } else {                                                                                   \
+      Assembler::insn_name##sd2siq(dest, src);                                                 \
+    }                                                                                          \
+  }
+DEFINE_XMM_CVT_INSTRUCTION(Cvt, (Register dest, XMMRegister src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Cvt, (Register dest, Operand src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Cvtt, (Register dest, XMMRegister src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Cvtt, (Register dest, Operand src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt, (Register dest, XMMRegister src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt, (Register dest, Operand src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvtt, (Register dest, XMMRegister src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvtt, (Register dest, Operand src), (dest, src))
+#undef DEFINE_XMM_CVT_INSTRUCTION
+
+#define DEFINE_XMM_CVT_INSTRUCTION(insn_name, parameters, arguments)                             \
+  template <typename FormatFrom, typename FormatTo>                                              \
+  std::enable_if_t<kSignedIntType<FormatFrom> && kIntTypeWL<FormatFrom> && kFloatType<FormatTo>> \
+      insn_name parameters {                                                                     \
+    if constexpr (kFormatIs<FormatFrom, Float32> && kFormatIs<FormatTo, int32_t>) {              \
+      Assembler::insn_name##sil2ss arguments;                                                    \
+    } else if constexpr (kFormatIs<FormatFrom, Float32> && kFormatIs<FormatTo, int64_t>) {       \
+      Assembler::insn_name##siq2ss(dest, src);                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, Float64> && kFormatIs<FormatTo, int32_t>) {       \
+      Assembler::insn_name##sil2sd(dest, src);                                                   \
+    } else {                                                                                     \
+      Assembler::insn_name##siq2sd(dest, src);                                                   \
+    }                                                                                            \
+  }
+DEFINE_XMM_CVT_INSTRUCTION(Cvt, (XMMRegister dest, Register src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Cvt, (XMMRegister dest, Operand src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt, (XMMRegister dest, Register src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt, (XMMRegister dest, Operand src), (dest, src))
+#undef DEFINE_XMM_CVT_INSTRUCTION
+
+#define DEFINE_XMM_CVT_INSTRUCTION(insn_name, insn_suffix, parameters, arguments)   \
+  template <typename FormatFrom, typename FormatTo>                                 \
+  std::enable_if_t<kFloatType<FormatFrom> && kFloatType<FormatTo> &&                \
+                   sizeof(FormatFrom) != sizeof(FormatTo)>                          \
+      insn_name##insn_suffix parameters {                                           \
+    if constexpr (kFormatIs<FormatFrom, Float32> && kFormatIs<FormatTo, Float64>) { \
+      Assembler::insn_name##insn_suffix##s2##insn_suffix##d arguments;              \
+    } else {                                                                        \
+      Assembler::insn_name##insn_suffix##d2##insn_suffix##s arguments;              \
+    }                                                                               \
+  }
+DEFINE_XMM_CVT_INSTRUCTION(Cvt, p, (XMMRegister dest, XMMRegister src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Cvt, p, (XMMRegister dest, Operand src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Cvt, s, (XMMRegister dest, XMMRegister src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Cvt, s, (XMMRegister dest, Operand src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt, p, (XMMRegister dest, XMMRegister src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt, p, (XMMRegister dest, Operand src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt,
+                           s,
+                           (XMMRegister dest, XMMRegister src1, XMMRegister src2),
+                           (dest, src1, src2))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt,
+                           s,
+                           (XMMRegister dest, XMMRegister src1, Operand src2),
+                           (dest, src1, src2))
+#undef DEFINE_XMM_CVT_INSTRUCTION
 
 #define DEFINE_XMM_FLOAT_INSTRUCTION(insn_name, parameters, arguments) \
   template <typename format>                                           \
