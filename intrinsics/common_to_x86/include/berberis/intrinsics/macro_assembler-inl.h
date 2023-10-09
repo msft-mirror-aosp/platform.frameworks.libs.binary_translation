@@ -138,36 +138,78 @@ DEFINE_EXPAND_INSTRUCTION(Register dest, Operand src)
 DEFINE_EXPAND_INSTRUCTION(Register dest, Register src)
 #undef DEFINE_EXPAND_INSTRUCTION
 
-#define DEFINE_INT_INSTRUCTION(insn_name, insn_siffix, parameters, arguments) \
-  template <typename format>                                                  \
-  std::enable_if_t<kIntType<format>> insn_name##insn_siffix parameters {      \
-    if constexpr (kFormatIs<format, int8_t, uint8_t>) {                       \
-      Assembler::insn_name##b##insn_siffix arguments;                         \
-    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {              \
-      Assembler::insn_name##w##insn_siffix arguments;                         \
-    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {              \
-      Assembler::insn_name##l##insn_siffix arguments;                         \
-    } else {                                                                  \
-      Assembler::insn_name##q##insn_siffix arguments;                         \
-    }                                                                         \
+#define DEFINE_INT_INSTRUCTION(                                            \
+    insn_name, asm_name, insn_siffix, type_check, parameters, arguments)   \
+  template <typename format>                                               \
+  std::enable_if_t<type_check<format>> insn_name##insn_siffix parameters { \
+    if constexpr (kFormatIs<format, int8_t, uint8_t>) {                    \
+      Assembler::asm_name##b##insn_siffix arguments;                       \
+    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {           \
+      Assembler::asm_name##w##insn_siffix arguments;                       \
+    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {           \
+      Assembler::asm_name##l##insn_siffix arguments;                       \
+    } else {                                                               \
+      Assembler::asm_name##q##insn_siffix arguments;                       \
+    }                                                                      \
   }
-DEFINE_INT_INSTRUCTION(CmpXchg, , (Operand dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(CmpXchg, , (Register dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(LockCmpXchg, , (Operand dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(Mov, , (Operand dest, ImmFormat<format> imm), (dest, imm))
-DEFINE_INT_INSTRUCTION(Mov, , (Operand dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(Mov, , (Register dest, std::make_signed_t<format> imm), (dest, imm))
-DEFINE_INT_INSTRUCTION(Mov, , (Register dest, Operand src), (dest, src))
-DEFINE_INT_INSTRUCTION(Test, , (Operand dest, ImmFormat<format> imm), (dest, imm))
-DEFINE_INT_INSTRUCTION(Test, , (Operand dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(Test, , (Register dest, ImmFormat<format> imm), (dest, imm))
-DEFINE_INT_INSTRUCTION(Test, , (Register dest, Register src), (dest, src))
-#define DEFINE_ARITH_INSTRUCTION(insn_name)                                                \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, ImmFormat<format> imm), (dest, imm))  \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, Register src), (dest, src))           \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, ImmFormat<format> imm), (dest, imm)) \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, Operand src), (dest, src))           \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(CmpXchg, CmpXchg, , kIntType, (Operand dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(CmpXchg, CmpXchg, , kIntType, (Register dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(LockCmpXchg,
+                       LockCmpXchg,
+                       ,
+                       kIntType,
+                       (Operand dest, Register src),
+                       (dest, src))
+DEFINE_INT_INSTRUCTION(Mov, Mov, , kIntType, (Operand dest, ImmFormat<format> imm), (dest, imm))
+DEFINE_INT_INSTRUCTION(Mov, Mov, , kIntType, (Operand dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(Mov,
+                       Mov,
+                       ,
+                       kIntType,
+                       (Register dest, std::make_signed_t<format> imm),
+                       (dest, imm))
+DEFINE_INT_INSTRUCTION(Mov, Mov, , kIntType, (Register dest, Operand src), (dest, src))
+DEFINE_INT_INSTRUCTION(Mul, Imul, , kIntTypeWLQ, (Operand dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(Mul, Imul, , kIntTypeWLQ, (Operand dest, Operand src), (dest, src))
+DEFINE_INT_INSTRUCTION(Mul,
+                       Imul,
+                       ,
+                       kIntTypeWLQ,
+                       (Operand dest, Register src, ImmFormat<format> imm),
+                       (dest, src, imm))
+DEFINE_INT_INSTRUCTION(Mul,
+                       Imul,
+                       ,
+                       kIntTypeWLQ,
+                       (Operand dest, Operand src, ImmFormat<format> imm),
+                       (dest, src, imm))
+DEFINE_INT_INSTRUCTION(Test, Test, , kIntType, (Operand dest, ImmFormat<format> imm), (dest, imm))
+DEFINE_INT_INSTRUCTION(Test, Test, , kIntType, (Operand dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(Test, Test, , kIntType, (Register dest, ImmFormat<format> imm), (dest, imm))
+DEFINE_INT_INSTRUCTION(Test, Test, , kIntType, (Register dest, Register src), (dest, src))
+#define DEFINE_ARITH_INSTRUCTION(insn_name, asm_name, type_check)                 \
+  DEFINE_INT_INSTRUCTION(insn_name, asm_name, , type_check, (Operand arg), (arg)) \
+  DEFINE_INT_INSTRUCTION(insn_name, asm_name, , type_check, (Register arg), (arg))
+DEFINE_ARITH_INSTRUCTION(Dec, Dec, kIntType)
+DEFINE_ARITH_INSTRUCTION(Div, Div, kUnsignedIntType)
+DEFINE_ARITH_INSTRUCTION(Div, Idiv, kSignedIntType)
+DEFINE_ARITH_INSTRUCTION(Inc, Inc, kIntType)
+DEFINE_ARITH_INSTRUCTION(Mul, Imul, kSignedIntType)
+DEFINE_ARITH_INSTRUCTION(Mul, Mul, kUnsignedIntType)
+DEFINE_ARITH_INSTRUCTION(Neg, Neg, kIntType)
+DEFINE_ARITH_INSTRUCTION(Not, Not, kIntType)
+#undef DEFINE_ARITH_INSTRUCTION
+#define DEFINE_ARITH_INSTRUCTION(insn_name)                                                  \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Operand dest, ImmFormat<format> imm), (dest, imm))  \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Operand dest, Register src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Register dest, ImmFormat<format> imm), (dest, imm)) \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Register dest, Operand src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Register dest, Register src), (dest, src))
 DEFINE_ARITH_INSTRUCTION(Adc)
 DEFINE_ARITH_INSTRUCTION(Add)
 DEFINE_ARITH_INSTRUCTION(And)
@@ -176,11 +218,14 @@ DEFINE_ARITH_INSTRUCTION(Or)
 DEFINE_ARITH_INSTRUCTION(Sbb)
 DEFINE_ARITH_INSTRUCTION(Sub)
 DEFINE_ARITH_INSTRUCTION(Xor)
-#define DEFINE_SHIFT_INSTRUCTION(insn_name)                                     \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, int8_t imm), (dest, imm))  \
-  DEFINE_INT_INSTRUCTION(insn_name, ByCl, (Operand dest), (dest))               \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, int8_t imm), (dest, imm)) \
-  DEFINE_INT_INSTRUCTION(insn_name, ByCl, (Register dest), (dest))
+#undef DEFINE_ARITH_INSTRUCTION
+#define DEFINE_SHIFT_INSTRUCTION(insn_name)                                            \
+  DEFINE_INT_INSTRUCTION(                                                              \
+      insn_name, insn_name, , kIntType, (Operand dest, int8_t imm), (dest, imm))       \
+  DEFINE_INT_INSTRUCTION(insn_name, insn_name, ByCl, kIntType, (Operand dest), (dest)) \
+  DEFINE_INT_INSTRUCTION(                                                              \
+      insn_name, insn_name, , kIntType, (Register dest, int8_t imm), (dest, imm))      \
+  DEFINE_INT_INSTRUCTION(insn_name, insn_name, ByCl, kIntType, (Register dest), (dest))
 DEFINE_SHIFT_INSTRUCTION(Rcl)
 DEFINE_SHIFT_INSTRUCTION(Rcr)
 DEFINE_SHIFT_INSTRUCTION(Rol)
