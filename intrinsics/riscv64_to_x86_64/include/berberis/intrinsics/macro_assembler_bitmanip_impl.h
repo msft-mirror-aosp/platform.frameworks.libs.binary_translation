@@ -66,14 +66,14 @@ void MacroAssembler<Assembler>::MacroMin(Register result, Register src1, Registe
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroOrcb(XMMRegister result) {
-  Pcmpeqb(result, {.disp = constants_pool::kZero});
-  Pandn(result, {.disp = constants_pool::kMaxUInt});
+  Pcmpeqb(result, {.disp = constants_pool::kVectorConst<uint8_t{0}>});
+  Pandn(result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroOrcbAVX(XMMRegister result, XMMRegister src) {
-  Vpcmpeqb(result, src, {.disp = constants_pool::kZero});
-  Vpandn(result, result, {.disp = constants_pool::kMaxUInt});
+  Vpcmpeqb(result, src, {.disp = constants_pool::kVectorConst<uint8_t{0}>});
+  Vpandn(result, result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
 }
 
 template <typename Assembler>
