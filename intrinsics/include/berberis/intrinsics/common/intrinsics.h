@@ -17,19 +17,62 @@
 #ifndef BERBERIS_INTRINSICS_COMMON_INTRINSICS_H_
 #define BERBERIS_INTRINSICS_COMMON_INTRINSICS_H_
 
-#include <limits>
-#include <tuple>
-#include <type_traits>
+#include <cstdint>
 
-#include "berberis/base/bit_util.h"
+#include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64/ProcessNans
-#include "berberis/intrinsics/type_traits.h"
 
 namespace berberis {
 
 class SIMD128Register;
 
 namespace intrinsics {
+
+enum EnumFromTemplateType {
+  kInt8T,
+  kUInt8T,
+  kInt16T,
+  kUInt16T,
+  kInt32T,
+  kUInt32T,
+  kInt64T,
+  kUInt64T,
+  kFloat32,
+  kFloat64,
+  kSIMD128Register,
+};
+
+template <typename Type>
+constexpr EnumFromTemplateType TypeToEnumFromTemplateType() {
+  if constexpr (std::is_same_v<int8_t, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kInt8T;
+  } else if constexpr (std::is_same_v<uint8_t, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kUInt8T;
+  } else if constexpr (std::is_same_v<int16_t, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kUInt16T;
+  } else if constexpr (std::is_same_v<uint16_t, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kUInt16T;
+  } else if constexpr (std::is_same_v<int32_t, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kUInt32T;
+  } else if constexpr (std::is_same_v<uint32_t, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kUInt32T;
+  } else if constexpr (std::is_same_v<int64_t, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kUInt64T;
+  } else if constexpr (std::is_same_v<uint64_t, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kUInt64T;
+  } else if constexpr (std::is_same_v<Float32, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kFloat32;
+  } else if constexpr (std::is_same_v<Float64, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kFloat64;
+  } else if constexpr (std::is_same_v<Float64, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kSIMD128Register;
+  } else {
+    static_assert(kDependentTypeFalse<Type>);
+  }
+}
+
+template <typename Type>
+constexpr EnumFromTemplateType kEnumFromTemplateType = TypeToEnumFromTemplateType<Type>();
 
 // A solution for the inability to call generic implementation from specialization.
 // Declaration:
@@ -50,14 +93,8 @@ enum PreferredIntrinsicsImplementation {
   kUseCppImplementation
 };
 
-#include "berberis/intrinsics/intrinsics-inl.h"  // NOLINT: generated file!
-
 }  // namespace intrinsics
 
 }  // namespace berberis
-
-#include "berberis/intrinsics/intrinsics_atomics_impl.h"
-#include "berberis/intrinsics/intrinsics_bitmanip_impl.h"
-#include "berberis/intrinsics/intrinsics_floating_point_impl.h"
 
 #endif  // BERBERIS_INTRINSICS_COMMON_INTRINSICS_H_
