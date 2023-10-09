@@ -284,6 +284,8 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
     out_type = _get_semantic_player_type(outs[0], intr.get('sem-player-types'))
     if out_type == "FpRegister":
       call_expr = 'FloatToFPReg(std::get<0>(%s))' % call_expr
+    elif out_type == "SimdRegister":
+      call_expr = 'std::get<0>(%s)' % call_expr
     else:
       assert out_type == "Register"
       assert not _is_simd128_conversion_required(
@@ -441,6 +443,21 @@ def _gen_translator_hook(f, name, intr):
 
 def _gen_mock_semantics_listener_hook(f, name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
+  if intr.get('class') == 'template':
+    print('template<%s>\n%s %s(%s) {\n  return %s(%s);\n}' % (
+      _get_template_arguments(intr.get('variants'), []), result, name, args, name, ', '.join([
+      'intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
+      for arg in _get_template_spec_arguments(intr.get('variants'))] +
+      [('arg%d' % n) for n, _ in enumerate(intr['in'])])), file=f)
+    args = ', '.join([
+      '%s %s' % (
+          {
+              'kBoo': 'bool',
+              'kInt': 'int',
+              'Type': 'intrinsics::EnumFromTemplateType'
+          }[argument[0:4]],
+          argument)
+      for argument in _get_template_spec_arguments(intr.get('variants'))] + [args])
   print('MOCK_METHOD((%s), %s, (%s));' % (result, name, args), file=f)
 
 
