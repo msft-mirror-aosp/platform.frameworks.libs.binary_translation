@@ -240,6 +240,13 @@ bool IsForwarderBlock(MachineBasicBlock* bb) {
     return false;
   }
 
+  // Don't remove self-loop. We don't need to check for loops formed by
+  // a sequence of forwarders since we can remove all of them but the
+  // last one, which will be excluded by this condition.
+  if (bb->out_edges().size() == 1 && bb->out_edges()[0]->dst() == bb) {
+    return false;
+  }
+
   const MachineInsn* last_insn = bb->insn_list().back();
   return last_insn->opcode() == PseudoBranch::kOpcode;
 }
