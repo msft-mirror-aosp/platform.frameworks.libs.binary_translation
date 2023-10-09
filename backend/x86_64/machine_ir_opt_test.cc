@@ -710,15 +710,10 @@ TEST(MachineIR, ForwardingPseudoCondBranchElse) {
   EXPECT_EQ(bb3, *(++bb_it));
 }
 
-TEST(MachineIR, ForwarderBlockAtTheBeginning) {
-  // We create:
-  //
-  // BB0 (forwarder) -> BB2
+TEST(MachineIR, EntryForwarderIsNotRemoved) {
+  // BB0 (entry forwarder) -> BB2
   // BB1
   // BB2
-  //
-  // We verify that RemoveForwarderBlocks does not change or remove
-  // basic blocks.
 
   Arena arena;
   x86_64::MachineIR machine_ir(&arena);
@@ -761,7 +756,87 @@ TEST(MachineIR, ForwarderBlockAtTheBeginning) {
   EXPECT_EQ(bb2, *(++bb_it));
 }
 
-TEST(MachineIR, RemoveForwarderBlocks) {
+TEST(MachineIR, SelfForwarderIsNotRemoved) {
+  // We add entry block BB0 so that BB1 is skipped because it's self-forwarding,
+  // and not because it's the entry block
+  //
+  // BB0
+  // BB1 -> BB1 (self-forwarder)
+
+  Arena arena;
+  x86_64::MachineIR machine_ir(&arena);
+  x86_64::MachineIRBuilder builder(&machine_ir);
+
+  auto* bb0 = machine_ir.NewBasicBlock();
+  auto* bb1 = machine_ir.NewBasicBlock();
+
+  machine_ir.AddEdge(bb0, bb1);
+  machine_ir.AddEdge(bb1, bb1);
+
+  builder.StartBasicBlock(bb0);
+  builder.Gen<PseudoBranch>(bb1);
+
+  builder.StartBasicBlock(bb1);
+  builder.Gen<PseudoBranch>(bb1);
+
+  EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+  x86_64::RemoveForwarderBlocks(&machine_ir);
+  EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  EXPECT_EQ(machine_ir.bb_list().size(), 2u);
+
+  auto bb_it = machine_ir.bb_list().begin();
+
+  // Check for BB0.
+  EXPECT_EQ(bb0, *bb_it);
+
+  // Check for BB1.
+  EXPECT_EQ(bb1, *(++bb_it));
+}
+
+TEST(MachineIR, ForwarderLoopIsNotRemoved) {
+  // We add entry block BB0 so that entry exception doesn't apply to loop nodes.
+  //
+  // BB0
+  // BB1 (forwarder)
+  // BB2 -> BB1 (forwarder)
+  //
+  // After BB1 is removed, BB2 becomes self-forwarder and should not be removed.
+
+  Arena arena;
+  x86_64::MachineIR machine_ir(&arena);
+  x86_64::MachineIRBuilder builder(&machine_ir);
+
+  auto* bb0 = machine_ir.NewBasicBlock();
+  auto* bb1 = machine_ir.NewBasicBlock();
+  auto* bb2 = machine_ir.NewBasicBlock();
+
+  machine_ir.AddEdge(bb0, bb1);
+  machine_ir.AddEdge(bb1, bb2);
+  machine_ir.AddEdge(bb2, bb1);
+
+  builder.StartBasicBlock(bb0);
+  builder.Gen<PseudoBranch>(bb1);
+
+  builder.StartBasicBlock(bb1);
+  builder.Gen<PseudoBranch>(bb2);
+
+  builder.StartBasicBlock(bb2);
+  builder.Gen<PseudoBranch>(bb1);
+
+  EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+  x86_64::RemoveForwarderBlocks(&machine_ir);
+  EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  EXPECT_EQ(machine_ir.bb_list().size(), 2u);
+
+  auto bb_it = machine_ir.bb_list().begin();
+
+  EXPECT_EQ(bb0, *bb_it);
+  EXPECT_EQ(bb2, *(++bb_it));
+}
+
+TEST(MachineIR, RemoveConsecutiveForwarderBlocks) {
   // We create:
   //
   // BB0 (cond jump)->  BB3
