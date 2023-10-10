@@ -24,6 +24,6 @@ riscv64-linux-gnu-as -march=rv64gc_zba_zbb_zbs_v -o "$TEMP.o" "$TEMP.S"
 # Assembler marks .word bytes as data pool ("$d"), and objdump doesn't
 # disassemble such instructions. Strip symbols to force instruction disassembly.
 riscv64-linux-gnu-strip "$TEMP.o"
-riscv64-linux-gnu-objdump -d "$TEMP.o" | sed '0,/<.text>/d'
+riscv64-linux-gnu-objdump -M numeric -d "$TEMP.o" | sed '0,/<.text>/d'
 
 rm "$TEMP.S" "$TEMP.o"
