@@ -16,6 +16,13 @@
 
 #include "frontend.h"
 
+#include <cstddef>
+
+#include "berberis/backend/common/machine_ir.h"
+#include "berberis/base/checks.h"
+#include "berberis/base/config.h"
+#include "berberis/guest_state/guest_state_arch.h"
+
 namespace berberis {
 
 using BranchOpcode = HeavyOptimizerFrontend::Decoder::BranchOpcode;
@@ -129,7 +136,117 @@ bool HeavyOptimizerFrontend::IsRegionEndReached() const {
 }
 
 void HeavyOptimizerFrontend::ResolveJumps() {
-  // TODO(b/291126189) implement.
+  if (!config::kLinkJumpsWithinRegion) {
+    return;
+  }
+  auto ir = builder_.ir();
+
+  MachineBasicBlockList bb_list_copy(ir->bb_list());
+  for (auto bb : bb_list_copy) {
+    if (bb->is_recovery()) {
+      // Recovery blocks must exit region, do not try to resolve it into a local branch.
+      continue;
+    }
+
+    const MachineInsn* last_insn = bb->insn_list().back();
+    if (last_insn->opcode() != kMachineOpPseudoJump) {
+      continue;
+    }
+
+    auto* jump = static_cast<const PseudoJump*>(last_insn);
+    if (jump->kind() == PseudoJump::Kind::kSyscall ||
+        jump->kind() == PseudoJump::Kind::kExitGeneratedCode) {
+      // Syscall or generated code exit must always exit region.
+      continue;
+    }
+
+    GuestAddr target = jump->target();
+    auto map_it = branch_targets_.find(target);
+    // All PseudoJump insns must add their targets to branch_targets.
+    CHECK(map_it != branch_targets_.end());
+
+    MachineInsnPosition pos = map_it->second;
+    MachineBasicBlock* target_containing_bb = pos.first;
+    if (!target_containing_bb) {
+      // Branch target is not in the current region
+      continue;
+    }
+
+    CHECK(pos.second.has_value());
+    auto target_insn_it = pos.second.value();
+    MachineBasicBlock* target_bb;
+    if (target_insn_it == target_containing_bb->insn_list().begin()) {
+      // We don't need to split if target_insn_it is at the beginning of target_containing_bb.
+      target_bb = target_containing_bb;
+    } else {
+      // target_bb is split from target_containing_bb.
+      target_bb = ir->SplitBasicBlock(target_containing_bb, target_insn_it);
+      UpdateBranchTargetsAfterSplit(target, target_containing_bb, target_bb);
+
+      // Make sure target_bb is also considered for jump resolution. Otherwise we may leave code
+      // referenced by it unlinked from the rest of the IR.
+      bb_list_copy.push_back(target_bb);
+
+      // If bb is equal to target_containing_bb, then the branch instruction at the end of bb
+      // is moved to the new target_bb, so we replace the instruction at the end of the
+      // target_bb instead of bb.
+      if (bb == target_containing_bb) {
+        bb = target_bb;
+      }
+    }
+
+    ReplaceJumpWithBranch(bb, target_bb);
+  }
+}
+
+void HeavyOptimizerFrontend::ReplaceJumpWithBranch(MachineBasicBlock* bb,
+                                                   MachineBasicBlock* target_bb) {
+  auto ir = builder_.ir();
+  const auto* last_insn = bb->insn_list().back();
+  CHECK_EQ(last_insn->opcode(), kMachineOpPseudoJump);
+  auto* jump = static_cast<const PseudoJump*>(last_insn);
+  GuestAddr target = static_cast<const PseudoJump*>(jump)->target();
+  // Do not invalidate this iterator as it may be a target for another jump.
+  // Instead overwrite the instruction.
+  auto jump_it = std::prev(bb->insn_list().end());
+
+  if (jump->kind() == PseudoJump::Kind::kJumpWithoutPendingSignalsCheck) {
+    // Simple branch for forward jump.
+    *jump_it = ir->NewInsn<PseudoBranch>(target_bb);
+    ir->AddEdge(bb, target_bb);
+  } else {
+    CHECK(jump->kind() == PseudoJump::Kind::kJumpWithPendingSignalsCheck);
+    // See EmitCheckSignalsAndMaybeReturn.
+    auto* exit_bb = ir->NewBasicBlock();
+    // Note that we intentionally don't mark exit_bb as recovery and therefore don't request its
+    // reordering away from hot code spots. target_bb is a back branch and is unlikely to be a
+    // fall-through jump for the current bb. At the same time exit_bb can be a fall-through jump
+    // and benchmarks benefit from it.
+    const size_t offset = offsetof(ThreadState, pending_signals_status);
+    auto* cmpb = ir->NewInsn<x86_64::CmpbMemBaseDispImm>(
+        x86_64::kMachineRegRBP, offset, kPendingSignalsPresent, GetFlagsRegister());
+    *jump_it = cmpb;
+    auto* cond_branch = ir->NewInsn<PseudoCondBranch>(
+        x86_64::Assembler::Condition::kEqual, exit_bb, target_bb, GetFlagsRegister());
+    bb->insn_list().push_back(cond_branch);
+
+    builder_.StartBasicBlock(exit_bb);
+    ExitGeneratedCode(target);
+
+    ir->AddEdge(bb, exit_bb);
+    ir->AddEdge(bb, target_bb);
+  }
+}
+
+void HeavyOptimizerFrontend::UpdateBranchTargetsAfterSplit(GuestAddr addr,
+                                                           const MachineBasicBlock* old_bb,
+                                                           MachineBasicBlock* new_bb) {
+  auto map_it = branch_targets_.find(addr);
+  CHECK(map_it != branch_targets_.end());
+  while (map_it != branch_targets_.end() && map_it->second.first == old_bb) {
+    map_it->second.first = new_bb;
+    map_it++;
+  }
 }
 
 void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
