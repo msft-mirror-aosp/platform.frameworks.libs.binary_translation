@@ -85,11 +85,16 @@ class HeavyOptimizerFrontend {
 
   [[nodiscard]] Register AllocTempReg();
   [[nodiscard]] Register GetFlagsRegister() const { return flag_register_; };
+
   void GenJump(GuestAddr target);
   void ExitGeneratedCode(GuestAddr target);
   void ExitRegionIndirect(Register target);
 
   void ResolveJumps();
+  void ReplaceJumpWithBranch(MachineBasicBlock* bb, MachineBasicBlock* target_bb);
+  void UpdateBranchTargetsAfterSplit(GuestAddr addr,
+                                     const MachineBasicBlock* old_bb,
+                                     MachineBasicBlock* new_bb);
 
   void StartRegion() {
     auto* region_entry_bb = builder_.ir()->NewBasicBlock();
