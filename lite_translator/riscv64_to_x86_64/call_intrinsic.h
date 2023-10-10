@@ -315,18 +315,18 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
   StoredRegsInfo regs_info = {.regs_on_stack = kRegOffsetsOnStack,
                               .simd_regs_on_stack = kSimdRegOffsetsOnStack};
 
-  if constexpr (Assembler::FormatIs<IntrinsicResType, std::tuple<int32_t>, std::tuple<uint32_t>> &&
+  if constexpr (Assembler::kFormatIs<IntrinsicResType, std::tuple<int32_t>, std::tuple<uint32_t>> &&
                 std::is_same_v<AssemblerResType, Register>) {
     // Note: even unsigned 32-bit results are sign-extended to 64bit register on RV64.
     regs_info.regs_on_stack[result.num] = kRegIsNotOnStack;
     as.Expand<int64_t, int32_t>(result, Assembler::rax);
   } else if constexpr (Assembler::
-                           FormatIs<IntrinsicResType, std::tuple<int64_t>, std::tuple<uint64_t>> &&
+                           kFormatIs<IntrinsicResType, std::tuple<int64_t>, std::tuple<uint64_t>> &&
                        std::is_same_v<AssemblerResType, Register>) {
     regs_info.regs_on_stack[result.num] = kRegIsNotOnStack;
     as.Mov<int64_t>(result, Assembler::rax);
   } else if constexpr (Assembler::
-                           FormatIs<IntrinsicResType, std::tuple<Float32>, std::tuple<Float64>> &&
+                           kFormatIs<IntrinsicResType, std::tuple<Float32>, std::tuple<Float64>> &&
                        std::is_same_v<AssemblerResType, XMMRegister>) {
     using ResType0 = std::tuple_element_t<0, IntrinsicResType>;
     regs_info.simd_regs_on_stack[result.num] = kRegIsNotOnStack;
@@ -339,11 +339,11 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
     using ResType0 = std::tuple_element_t<0, IntrinsicResType>;
     using ResType1 = std::tuple_element_t<1, IntrinsicResType>;
     auto [result0, result1] = result;
-    if constexpr (Assembler::FormatIs<ResType0, int32_t, uint32_t> &&
+    if constexpr (Assembler::kFormatIs<ResType0, int32_t, uint32_t> &&
                   std::is_same_v<std::tuple_element_t<0, AssemblerResType>, Register>) {
       regs_info.regs_on_stack[result0.num] = kRegIsNotOnStack;
       as.Expand<int64_t, int32_t>(result0, Assembler::rax);
-    } else if constexpr (Assembler::FormatIs<ResType0, int64_t, uint64_t> &&
+    } else if constexpr (Assembler::kFormatIs<ResType0, int64_t, uint64_t> &&
                          std::is_same_v<std::tuple_element_t<0, AssemblerResType>, Register>) {
       regs_info.regs_on_stack[result0.num] = kRegIsNotOnStack;
       as.Mov<int64_t>(result0, Assembler::rax);
@@ -351,11 +351,11 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
       static_assert(kDependentTypeFalse<std::tuple<IntrinsicResType, AssemblerResType>>,
                     "Unknown result type, please add support to CallIntrinsic");
     }
-    if constexpr (Assembler::FormatIs<ResType1, int32_t, uint32_t> &&
+    if constexpr (Assembler::kFormatIs<ResType1, int32_t, uint32_t> &&
                   std::is_same_v<std::tuple_element_t<1, AssemblerResType>, Register>) {
       regs_info.regs_on_stack[result1.num] = kRegIsNotOnStack;
       as.Expand<int64_t, int32_t>(result1, Assembler::rdx);
-    } else if constexpr (Assembler::FormatIs<ResType1, int64_t, uint64_t> &&
+    } else if constexpr (Assembler::kFormatIs<ResType1, int64_t, uint64_t> &&
                          std::is_same_v<std::tuple_element_t<1, AssemblerResType>, Register>) {
       regs_info.regs_on_stack[result1.num] = kRegIsNotOnStack;
       as.Mov<int64_t>(result1, Assembler::rdx);

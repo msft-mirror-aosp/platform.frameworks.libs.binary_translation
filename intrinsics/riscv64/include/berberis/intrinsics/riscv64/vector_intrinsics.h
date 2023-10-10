@@ -23,8 +23,8 @@
 #include <type_traits>
 
 #include "berberis/base/dependent_false.h"
-#include "berberis/intrinsics/common/intrinsics.h"  // PreferredIntrinsicsImplementation
-#include "berberis/intrinsics/intrinsics_float.h"   // Float32/Float64
+#include "berberis/intrinsics/intrinsics_float.h"    // Float32/Float64
+#include "berberis/intrinsics/riscv64/intrinsics.h"  // PreferredIntrinsicsImplementation
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 
@@ -199,26 +199,24 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
         DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                     \
   }
 
-DEFINE_ARITHMETIC_INTRINSIC(Vaddvv,
-                            return (args + ...),
-                            (SIMD128Register src1, SIMD128Register src2),
-                            (src1, src2))
-DEFINE_ARITHMETIC_INTRINSIC(Vaddvx,
-                            return (args + ...),
-                            (SIMD128Register src1, ElementType src2),
-                            (src1, src2))
-DEFINE_ARITHMETIC_INTRINSIC(Vsubvv,
-                            return (args - ...),
-                            (SIMD128Register src1, SIMD128Register src2),
-                            (src1, src2))
-DEFINE_ARITHMETIC_INTRINSIC(Vsubvx,
-                            return (args - ...),
-                            (SIMD128Register src1, ElementType src2),
-                            (src1, src2))
-DEFINE_ARITHMETIC_INTRINSIC(Vrsubvx,
-                            ({ auto [arg1, arg2] = std::tuple{args...}; return (arg2 - arg1); }),
-                            (SIMD128Register src1, ElementType src2),
-                            (src1, src2))
+#define DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##vv, return ({ __VA_ARGS__; }); \
+                              , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
+#define DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##vx, return ({ __VA_ARGS__; }); \
+                              , (SIMD128Register src1, ElementType src2), (src1, src2))
+
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(rsub, auto [arg1, arg2] = std::tuple{args...}; (arg2 - arg1))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sub, (args - ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sub, (args - ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(and, (args & ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(and, (args & ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(or, (args | ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(or, (args | ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(xor, (args ^ ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(xor, (args ^ ...))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
