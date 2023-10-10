@@ -18,7 +18,72 @@
 
 namespace berberis {
 
+using BranchOpcode = HeavyOptimizerFrontend::Decoder::BranchOpcode;
 using Register = HeavyOptimizerFrontend::Register;
+
+void HeavyOptimizerFrontend::CompareAndBranch(BranchOpcode opcode,
+                                              Register arg1,
+                                              Register arg2,
+                                              int16_t offset) {
+  auto ir = builder_.ir();
+  auto cur_bb = builder_.bb();
+  MachineBasicBlock* then_bb = ir->NewBasicBlock();
+  MachineBasicBlock* else_bb = ir->NewBasicBlock();
+  ir->AddEdge(cur_bb, then_bb);
+  ir->AddEdge(cur_bb, else_bb);
+
+  Gen<x86_64::CmpqRegReg>(arg1, arg2, GetFlagsRegister());
+  Gen<PseudoCondBranch>(ToAssemblerCond(opcode), then_bb, else_bb, GetFlagsRegister());
+
+  builder_.StartBasicBlock(then_bb);
+  GenJump(pc_ + offset);
+
+  builder_.StartBasicBlock(else_bb);
+}
+
+void HeavyOptimizerFrontend::Branch(int32_t offset) {
+  is_uncond_branch_ = true;
+  GenJump(pc_ + offset);
+}
+
+void HeavyOptimizerFrontend::BranchRegister(Register src, int16_t offset) {
+  is_uncond_branch_ = true;
+  Register target = AllocTempReg();
+  Gen<PseudoCopy>(target, src, 8);
+  // Avoid the extra insn if unneeded.
+  if (offset != 0) {
+    Gen<x86_64::AddqRegImm>(target, offset, GetFlagsRegister());
+  }
+  Gen<x86_64::AndqRegImm>(target, ~int32_t{1}, GetFlagsRegister());
+  ExitRegionIndirect(target);
+}
+
+x86_64::Assembler::Condition HeavyOptimizerFrontend::ToAssemblerCond(BranchOpcode opcode) {
+  switch (opcode) {
+    case BranchOpcode::kBeq:
+      return x86_64::Assembler::Condition::kEqual;
+    case BranchOpcode::kBne:
+      return x86_64::Assembler::Condition::kNotEqual;
+    case BranchOpcode::kBlt:
+      return x86_64::Assembler::Condition::kLess;
+    case BranchOpcode::kBge:
+      return x86_64::Assembler::Condition::kGreaterEqual;
+    case BranchOpcode::kBltu:
+      return x86_64::Assembler::Condition::kBelow;
+    case BranchOpcode::kBgeu:
+      return x86_64::Assembler::Condition::kAboveEqual;
+  }
+}
+
+Register HeavyOptimizerFrontend::GetImm(uint64_t imm) {
+  Register result = AllocTempReg();
+  Gen<x86_64::MovqRegImm>(result, imm);
+  return result;
+}
+
+Register HeavyOptimizerFrontend::AllocTempReg() {
+  return builder_.ir()->AllocVReg();
+}
 
 void HeavyOptimizerFrontend::GenJump(GuestAddr target) {
   auto map_it = branch_targets_.find(target);
@@ -38,6 +103,10 @@ void HeavyOptimizerFrontend::GenJump(GuestAddr target) {
 
 void HeavyOptimizerFrontend::ExitGeneratedCode(GuestAddr target) {
   Gen<PseudoJump>(target, PseudoJump::Kind::kExitGeneratedCode);
+}
+
+void HeavyOptimizerFrontend::ExitRegionIndirect(Register target) {
+  Gen<PseudoIndirectJump>(target);
 }
 
 void HeavyOptimizerFrontend::Unimplemented() {
@@ -61,6 +130,11 @@ bool HeavyOptimizerFrontend::IsRegionEndReached() const {
 
 void HeavyOptimizerFrontend::ResolveJumps() {
   // TODO(b/291126189) implement.
+}
+
+void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
+  CHECK_LT(reg, kNumGuestRegs);
+  builder_.GenPut(reg, value);
 }
 
 //
