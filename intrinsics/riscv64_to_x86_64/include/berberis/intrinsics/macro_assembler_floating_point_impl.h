@@ -19,7 +19,6 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/macro_assembler.h"
-#include "berberis/intrinsics/macro_assembler_constants_pool.h"
 
 namespace berberis {
 
