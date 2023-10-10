@@ -138,36 +138,78 @@ DEFINE_EXPAND_INSTRUCTION(Register dest, Operand src)
 DEFINE_EXPAND_INSTRUCTION(Register dest, Register src)
 #undef DEFINE_EXPAND_INSTRUCTION
 
-#define DEFINE_INT_INSTRUCTION(insn_name, insn_siffix, parameters, arguments) \
-  template <typename format>                                                  \
-  std::enable_if_t<kIntType<format>> insn_name##insn_siffix parameters {      \
-    if constexpr (kFormatIs<format, int8_t, uint8_t>) {                       \
-      Assembler::insn_name##b##insn_siffix arguments;                         \
-    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {              \
-      Assembler::insn_name##w##insn_siffix arguments;                         \
-    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {              \
-      Assembler::insn_name##l##insn_siffix arguments;                         \
-    } else {                                                                  \
-      Assembler::insn_name##q##insn_siffix arguments;                         \
-    }                                                                         \
+#define DEFINE_INT_INSTRUCTION(                                            \
+    insn_name, asm_name, insn_siffix, type_check, parameters, arguments)   \
+  template <typename format>                                               \
+  std::enable_if_t<type_check<format>> insn_name##insn_siffix parameters { \
+    if constexpr (kFormatIs<format, int8_t, uint8_t>) {                    \
+      Assembler::asm_name##b##insn_siffix arguments;                       \
+    } else if constexpr (kFormatIs<format, int16_t, uint16_t>) {           \
+      Assembler::asm_name##w##insn_siffix arguments;                       \
+    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {           \
+      Assembler::asm_name##l##insn_siffix arguments;                       \
+    } else {                                                               \
+      Assembler::asm_name##q##insn_siffix arguments;                       \
+    }                                                                      \
   }
-DEFINE_INT_INSTRUCTION(CmpXchg, , (Operand dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(CmpXchg, , (Register dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(LockCmpXchg, , (Operand dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(Mov, , (Operand dest, ImmFormat<format> imm), (dest, imm))
-DEFINE_INT_INSTRUCTION(Mov, , (Operand dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(Mov, , (Register dest, std::make_signed_t<format> imm), (dest, imm))
-DEFINE_INT_INSTRUCTION(Mov, , (Register dest, Operand src), (dest, src))
-DEFINE_INT_INSTRUCTION(Test, , (Operand dest, ImmFormat<format> imm), (dest, imm))
-DEFINE_INT_INSTRUCTION(Test, , (Operand dest, Register src), (dest, src))
-DEFINE_INT_INSTRUCTION(Test, , (Register dest, ImmFormat<format> imm), (dest, imm))
-DEFINE_INT_INSTRUCTION(Test, , (Register dest, Register src), (dest, src))
-#define DEFINE_ARITH_INSTRUCTION(insn_name)                                                \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, ImmFormat<format> imm), (dest, imm))  \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, Register src), (dest, src))           \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, ImmFormat<format> imm), (dest, imm)) \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, Operand src), (dest, src))           \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(CmpXchg, CmpXchg, , kIntType, (Operand dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(CmpXchg, CmpXchg, , kIntType, (Register dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(LockCmpXchg,
+                       LockCmpXchg,
+                       ,
+                       kIntType,
+                       (Operand dest, Register src),
+                       (dest, src))
+DEFINE_INT_INSTRUCTION(Mov, Mov, , kIntType, (Operand dest, ImmFormat<format> imm), (dest, imm))
+DEFINE_INT_INSTRUCTION(Mov, Mov, , kIntType, (Operand dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(Mov,
+                       Mov,
+                       ,
+                       kIntType,
+                       (Register dest, std::make_signed_t<format> imm),
+                       (dest, imm))
+DEFINE_INT_INSTRUCTION(Mov, Mov, , kIntType, (Register dest, Operand src), (dest, src))
+DEFINE_INT_INSTRUCTION(Mul, Imul, , kIntTypeWLQ, (Operand dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(Mul, Imul, , kIntTypeWLQ, (Operand dest, Operand src), (dest, src))
+DEFINE_INT_INSTRUCTION(Mul,
+                       Imul,
+                       ,
+                       kIntTypeWLQ,
+                       (Operand dest, Register src, ImmFormat<format> imm),
+                       (dest, src, imm))
+DEFINE_INT_INSTRUCTION(Mul,
+                       Imul,
+                       ,
+                       kIntTypeWLQ,
+                       (Operand dest, Operand src, ImmFormat<format> imm),
+                       (dest, src, imm))
+DEFINE_INT_INSTRUCTION(Test, Test, , kIntType, (Operand dest, ImmFormat<format> imm), (dest, imm))
+DEFINE_INT_INSTRUCTION(Test, Test, , kIntType, (Operand dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(Test, Test, , kIntType, (Register dest, ImmFormat<format> imm), (dest, imm))
+DEFINE_INT_INSTRUCTION(Test, Test, , kIntType, (Register dest, Register src), (dest, src))
+#define DEFINE_ARITH_INSTRUCTION(insn_name, asm_name, type_check)                 \
+  DEFINE_INT_INSTRUCTION(insn_name, asm_name, , type_check, (Operand arg), (arg)) \
+  DEFINE_INT_INSTRUCTION(insn_name, asm_name, , type_check, (Register arg), (arg))
+DEFINE_ARITH_INSTRUCTION(Dec, Dec, kIntType)
+DEFINE_ARITH_INSTRUCTION(Div, Div, kUnsignedIntType)
+DEFINE_ARITH_INSTRUCTION(Div, Idiv, kSignedIntType)
+DEFINE_ARITH_INSTRUCTION(Inc, Inc, kIntType)
+DEFINE_ARITH_INSTRUCTION(Mul, Imul, kSignedIntType)
+DEFINE_ARITH_INSTRUCTION(Mul, Mul, kUnsignedIntType)
+DEFINE_ARITH_INSTRUCTION(Neg, Neg, kIntType)
+DEFINE_ARITH_INSTRUCTION(Not, Not, kIntType)
+#undef DEFINE_ARITH_INSTRUCTION
+#define DEFINE_ARITH_INSTRUCTION(insn_name)                                                  \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Operand dest, ImmFormat<format> imm), (dest, imm))  \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Operand dest, Register src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Register dest, ImmFormat<format> imm), (dest, imm)) \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Register dest, Operand src), (dest, src))           \
+  DEFINE_INT_INSTRUCTION(                                                                    \
+      insn_name, insn_name, , kIntType, (Register dest, Register src), (dest, src))
 DEFINE_ARITH_INSTRUCTION(Adc)
 DEFINE_ARITH_INSTRUCTION(Add)
 DEFINE_ARITH_INSTRUCTION(And)
@@ -176,11 +218,14 @@ DEFINE_ARITH_INSTRUCTION(Or)
 DEFINE_ARITH_INSTRUCTION(Sbb)
 DEFINE_ARITH_INSTRUCTION(Sub)
 DEFINE_ARITH_INSTRUCTION(Xor)
-#define DEFINE_SHIFT_INSTRUCTION(insn_name)                                     \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Operand dest, int8_t imm), (dest, imm))  \
-  DEFINE_INT_INSTRUCTION(insn_name, ByCl, (Operand dest), (dest))               \
-  DEFINE_INT_INSTRUCTION(insn_name, , (Register dest, int8_t imm), (dest, imm)) \
-  DEFINE_INT_INSTRUCTION(insn_name, ByCl, (Register dest), (dest))
+#undef DEFINE_ARITH_INSTRUCTION
+#define DEFINE_SHIFT_INSTRUCTION(insn_name)                                            \
+  DEFINE_INT_INSTRUCTION(                                                              \
+      insn_name, insn_name, , kIntType, (Operand dest, int8_t imm), (dest, imm))       \
+  DEFINE_INT_INSTRUCTION(insn_name, insn_name, ByCl, kIntType, (Operand dest), (dest)) \
+  DEFINE_INT_INSTRUCTION(                                                              \
+      insn_name, insn_name, , kIntType, (Register dest, int8_t imm), (dest, imm))      \
+  DEFINE_INT_INSTRUCTION(insn_name, insn_name, ByCl, kIntType, (Register dest), (dest))
 DEFINE_SHIFT_INSTRUCTION(Rcl)
 DEFINE_SHIFT_INSTRUCTION(Rcr)
 DEFINE_SHIFT_INSTRUCTION(Rol)
@@ -191,16 +236,16 @@ DEFINE_SHIFT_INSTRUCTION(Shr)
 #undef DEFINE_INT_INSTRUCTION
 #undef DEFINE_SHIFT_INSTRUCTION
 
-#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments)                       \
-  template <typename format>                                                           \
-  std::enable_if_t<kIntTypeWLQ<format>> insn_name parameters {                         \
-    if constexpr (kFormatIs<format, int16_t, uint16_t>) {                              \
-      Assembler::insn_name##w arguments;                                               \
-    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) {                       \
-      Assembler::insn_name##l arguments;                                               \
-    } else {                                                                           \
-      Assembler::insn_name##q arguments;                                               \
-    }                                                                                  \
+#define DEFINE_INT_INSTRUCTION(insn_name, parameters, arguments) \
+  template <typename format>                                     \
+  std::enable_if_t<kIntTypeWLQ<format>> insn_name parameters {   \
+    if constexpr (kFormatIs<format, int16_t, uint16_t>) {        \
+      Assembler::insn_name##w arguments;                         \
+    } else if constexpr (kFormatIs<format, int32_t, uint32_t>) { \
+      Assembler::insn_name##l arguments;                         \
+    } else {                                                     \
+      Assembler::insn_name##q arguments;                         \
+    }                                                            \
   }
 DEFINE_INT_INSTRUCTION(Cmov, (Condition cond, Register dest, Operand src), (cond, dest, src))
 DEFINE_INT_INSTRUCTION(Cmov, (Condition cond, Register dest, Register src), (cond, dest, src))
@@ -221,6 +266,7 @@ DEFINE_BIT_INSTRUCTION(Bsf)
 DEFINE_BIT_INSTRUCTION(Bsr)
 DEFINE_BIT_INSTRUCTION(Lzcnt)
 DEFINE_BIT_INSTRUCTION(Tzcnt)
+#undef DEFINE_BIT_INSTRUCTION
 #undef DEFINE_INT_INSTRUCTION
 
 // Note: Mov<int32_t> from one register to that same register doesn't zero-out top 32bits,
@@ -497,30 +543,138 @@ DEFINE_XMM_FLOAT_INSTRUCTION(Vcomis, (XMMRegister dest, Operand src), (dest, src
 DEFINE_XMM_FLOAT_INSTRUCTION(Vcomis, (XMMRegister dest, XMMRegister src), (dest, src))
 DEFINE_XMM_FLOAT_INSTRUCTION(Vucomis, (XMMRegister dest, Operand src), (dest, src))
 DEFINE_XMM_FLOAT_INSTRUCTION(Vucomis, (XMMRegister dest, XMMRegister src), (dest, src))
-#define DEFINE_CMP_INSTRUCTION(insn_name)                                                         \
-  DEFINE_XMM_FLOAT_INSTRUCTION(Cmp##insn_name##p, (XMMRegister dest, Operand src), (dest, src))   \
-  DEFINE_XMM_FLOAT_INSTRUCTION(Cmp##insn_name##s, (XMMRegister dest, Operand src), (dest, src))   \
-  DEFINE_XMM_FLOAT_INSTRUCTION(                                                                   \
-      Cmp##insn_name##p, (XMMRegister dest, XMMRegister src), (dest, src))                        \
-  DEFINE_XMM_FLOAT_INSTRUCTION(                                                                   \
-      Cmp##insn_name##s, (XMMRegister dest, XMMRegister src), (dest, src))                        \
-  DEFINE_XMM_FLOAT_INSTRUCTION(                                                                   \
-      Vcmp##insn_name##p, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2)) \
-  DEFINE_XMM_FLOAT_INSTRUCTION(                                                                   \
-      Vcmp##insn_name##s, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2)) \
-  DEFINE_XMM_FLOAT_INSTRUCTION(Vcmp##insn_name##p,                                                \
-                               (XMMRegister dest, XMMRegister src1, XMMRegister src2),            \
-                               (dest, src1, src2))                                                \
-  DEFINE_XMM_FLOAT_INSTRUCTION(Vcmp##insn_name##s,                                                \
-                               (XMMRegister dest, XMMRegister src1, XMMRegister src2),            \
-                               (dest, src1, src2))
-DEFINE_CMP_INSTRUCTION(eq)
-DEFINE_CMP_INSTRUCTION(le)
-DEFINE_CMP_INSTRUCTION(lt)
-DEFINE_CMP_INSTRUCTION(ord)
-DEFINE_CMP_INSTRUCTION(neq)
-DEFINE_CMP_INSTRUCTION(nle)
-DEFINE_CMP_INSTRUCTION(nlt)
-DEFINE_CMP_INSTRUCTION(unord)
-#undef DEFINE_CMP_INSTRUCTION
+#define DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_SCALAR(insn_name, vinsn_name)                      \
+  DEFINE_XMM_FLOAT_INSTRUCTION(insn_name##s, (XMMRegister dest, Operand src), (dest, src))     \
+  DEFINE_XMM_FLOAT_INSTRUCTION(insn_name##s, (XMMRegister dest, XMMRegister src), (dest, src)) \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                                \
+      vinsn_name##s, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2))   \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                                \
+      vinsn_name##s, (XMMRegister dest, XMMRegister src1, XMMRegister src2), (dest, src1, src2))
+#define DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED(insn_name, vinsn_name)                      \
+  DEFINE_XMM_FLOAT_INSTRUCTION(insn_name##p, (XMMRegister dest, Operand src), (dest, src))     \
+  DEFINE_XMM_FLOAT_INSTRUCTION(insn_name##p, (XMMRegister dest, XMMRegister src), (dest, src)) \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                                \
+      vinsn_name##p, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2))   \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                                \
+      vinsn_name##p, (XMMRegister dest, XMMRegister src1, XMMRegister src2), (dest, src1, src2))
+#define DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(insn_name, vinsn_name)  \
+  DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_SCALAR(insn_name, vinsn_name) \
+  DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED(insn_name, vinsn_name)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Add, Vadd)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Cmpeq, Vcmpeq)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Cmple, Vcmple)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Cmplt, Vcmplt)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Cmpord, Vcmpord)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Cmpneq, Vcmpneq)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Cmpnle, Vcmpnle)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Cmpnlt, Vcmpnlt)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Cmpunord, Vcmpunord)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Hadd, Vhadd)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Max, Vmax)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Min, Vmin)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Mul, Vmul)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Sub, Vsub)
+// Note: logical operations 𝐫𝐞𝐚𝐥𝐥𝐲 don't have scalar versions!
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED(And, Vand)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED(Or, Vor)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED(Xor, Vxor)
+#undef DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED
+#undef DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_SCALAR
+#undef DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP
+#define DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_SCALAR(insn_name)                               \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                             \
+      insn_name##s, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2)) \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                             \
+      insn_name##s, (XMMRegister dest, XMMRegister src1, XMMRegister src2), (dest, src1, src2))
+#define DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED(insn_name)                               \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                             \
+      insn_name##p, (XMMRegister dest, XMMRegister src1, Operand src2), (dest, src1, src2)) \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                             \
+      insn_name##p, (XMMRegister dest, XMMRegister src1, XMMRegister src2), (dest, src1, src2))
+#define DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(insn_name)  \
+  DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_SCALAR(insn_name) \
+  DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED(insn_name)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmadd132)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmadd213)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmadd231)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmaddsub132)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmaddsub213)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmaddsub231)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmsub132)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmsub213)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmsub231)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmsubadd132)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmsubadd213)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmsubadd231)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfnmadd132)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfnmadd213)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfnmadd231)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfnmsub132)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfnmsub213)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfnmsub231)
+#undef DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED
+#undef DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_SCALAR
+#define DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_SCALAR(insn_name)                   \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                 \
+      insn_name##s,                                                             \
+      (XMMRegister dest, XMMRegister src1, XMMRegister src2, Operand src3),     \
+      (dest, src1, src2, src3))                                                 \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                 \
+      insn_name##s,                                                             \
+      (XMMRegister dest, XMMRegister src1, Operand src2, XMMRegister src3),     \
+      (dest, src1, src2, src3))                                                 \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                 \
+      insn_name##s,                                                             \
+      (XMMRegister dest, XMMRegister src1, XMMRegister src2, XMMRegister src3), \
+      (dest, src1, src2, src3))
+#define DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED(insn_name)                   \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                 \
+      insn_name##p,                                                             \
+      (XMMRegister dest, XMMRegister src1, XMMRegister src2, Operand src3),     \
+      (dest, src1, src2, src3))                                                 \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                 \
+      insn_name##p,                                                             \
+      (XMMRegister dest, XMMRegister src1, Operand src2, XMMRegister src3),     \
+      (dest, src1, src2, src3))                                                 \
+  DEFINE_XMM_FLOAT_INSTRUCTION(                                                 \
+      insn_name##p,                                                             \
+      (XMMRegister dest, XMMRegister src1, XMMRegister src2, XMMRegister src3), \
+      (dest, src1, src2, src3))
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmadd)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmaddsub)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmsubadd)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfmsub)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfnmadd)
+DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP(Vfnmsub)
+#undef DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_PACKED
+#undef DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP_SCALAR
+#undef DEFINE_XMM_FLOAT_INSTRUCTIONS_GROUP
+// Special, unique, instructions
+//   Movmskps/Movmskpd doesn't support memoru operand, Round[sp][sd] two arguments and immediate.
+DEFINE_XMM_FLOAT_INSTRUCTION(Movmskp, (Register dest, XMMRegister src), (dest, src))
+DEFINE_XMM_FLOAT_INSTRUCTION(Vmovmskp, (Register dest, XMMRegister src), (dest, src))
+DEFINE_XMM_FLOAT_INSTRUCTION(Roundp,
+                             (XMMRegister dest, XMMRegister src, uint8_t imm8),
+                             (dest, src, imm8))
+DEFINE_XMM_FLOAT_INSTRUCTION(Rounds,
+                             (XMMRegister dest, XMMRegister src, uint8_t imm8),
+                             (dest, src, imm8))
+DEFINE_XMM_FLOAT_INSTRUCTION(Roundp,
+                             (XMMRegister dest, Operand src, uint8_t imm8),
+                             (dest, src, imm8))
+DEFINE_XMM_FLOAT_INSTRUCTION(Rounds,
+                             (XMMRegister dest, Operand src, uint8_t imm8),
+                             (dest, src, imm8))
+DEFINE_XMM_FLOAT_INSTRUCTION(Vroundp,
+                             (XMMRegister dest, XMMRegister src, uint8_t imm8),
+                             (dest, src, imm8))
+DEFINE_XMM_FLOAT_INSTRUCTION(Vrounds,
+                             (XMMRegister dest, XMMRegister src, uint8_t imm8),
+                             (dest, src, imm8))
+DEFINE_XMM_FLOAT_INSTRUCTION(Vroundp,
+                             (XMMRegister dest, Operand src, uint8_t imm8),
+                             (dest, src, imm8))
+DEFINE_XMM_FLOAT_INSTRUCTION(Vrounds,
+                             (XMMRegister dest, Operand src, uint8_t imm8),
+                             (dest, src, imm8))
 #undef DEFINE_XMM_FLOAT_INSTRUCTION
