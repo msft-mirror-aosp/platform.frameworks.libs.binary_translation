@@ -21,7 +21,6 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/macro_assembler.h"
-#include "berberis/intrinsics/macro_assembler_constants_pool.h"
 
 namespace berberis {
 
@@ -67,13 +66,13 @@ void MacroAssembler<Assembler>::MacroMin(Register result, Register src1, Registe
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroOrcb(XMMRegister result) {
   Pcmpeqb(result, {.disp = constants_pool::kVectorConst<uint8_t{0}>});
-  Pandn(result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
+  PNot(result);
 }
 
 template <typename Assembler>
 void MacroAssembler<Assembler>::MacroOrcbAVX(XMMRegister result, XMMRegister src) {
   Vpcmpeqb(result, src, {.disp = constants_pool::kVectorConst<uint8_t{0}>});
-  Vpandn(result, result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
+  Vpnot(result, result);
 }
 
 template <typename Assembler>
