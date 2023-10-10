@@ -25,6 +25,7 @@
 #include <utility>
 
 #include "berberis/intrinsics/intrinsics_float.h"
+#include "berberis/intrinsics/macro_assembler_constants_pool.h"
 
 namespace berberis {
 
@@ -37,6 +38,14 @@ class MacroAssembler : public Assembler {
 
 #define DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
 #include "berberis/intrinsics/macro_assembler-inl.h"
+
+  void PNot(XMMRegister result) {
+    Pandn(result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
+  }
+
+  void Vpnot(XMMRegister result, XMMRegister src) {
+    Vpandn(result, src, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
+  }
 
 #include "berberis/intrinsics/macro_assembler_interface-inl.h"  // NOLINT generated file
 
