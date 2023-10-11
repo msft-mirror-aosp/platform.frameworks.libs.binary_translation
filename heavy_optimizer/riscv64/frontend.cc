@@ -92,6 +92,10 @@ Register HeavyOptimizerFrontend::AllocTempReg() {
   return builder_.ir()->AllocVReg();
 }
 
+SimdReg HeavyOptimizerFrontend::AllocTempSimdReg() {
+  return SimdReg{builder_.ir()->AllocVReg()};
+}
+
 void HeavyOptimizerFrontend::GenJump(GuestAddr target) {
   auto map_it = branch_targets_.find(target);
   if (map_it == branch_targets_.end()) {
