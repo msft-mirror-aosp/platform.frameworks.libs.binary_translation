@@ -29,7 +29,7 @@ PRODUCT_PACKAGES += \
 # PRODUCT_SYSTEM_PROPERTIES += ro.dalvik.vm.native.bridge?=0
 # set by build/make/target/product/runtime_libart.mk
 PRODUCT_SYSTEM_PROPERTIES += \
-    ro.dalvik.vm.native.bridge=libberberis.so
+    ro.dalvik.vm.native.bridge=libberberis_riscv64.so
 
 PRODUCT_SYSTEM_PROPERTIES += \
     ro.dalvik.vm.isa.riscv64=x86_64 \
