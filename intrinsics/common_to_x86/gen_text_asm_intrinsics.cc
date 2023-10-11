@@ -733,7 +733,7 @@ namespace constants_pool {
 
 namespace intrinsics {
 )STRING",
-          berberis::TextAssembler::kArchName,
+          berberis::TextAssembler::kArchGuard,
           berberis::TextAssembler::kNamespaceName,
           strcmp(berberis::TextAssembler::kNamespaceName, "berberis")
               ? "using berberis::constants_pool::kBerberisMacroAssemblerConstants;"
@@ -750,7 +750,7 @@ namespace intrinsics {
 
 #endif /* %1$s_%2$s_INTRINSICS_INTRINSICS_H_ */
 )STRING",
-          berberis::TextAssembler::kArchName,
+          berberis::TextAssembler::kArchGuard,
           berberis::TextAssembler::kNamespaceName);
 
   fclose(out);
