@@ -38,7 +38,7 @@
 #include "berberis/runtime_primitives/recovery_code.h"
 
 #include "faulty_memory_accesses.h"
-#include "fp_regs.h"
+#include "regs.h"
 
 namespace berberis {
 
