@@ -102,7 +102,7 @@ class VecSize(object):
     self.index = index
 
 
-_VECTOR_SIZES = {'X8': VecSize(8, 1), 'X16': VecSize(16, 2)}
+_VECTOR_SIZES = {'X64': VecSize(64, 1), 'X128': VecSize(128, 2)}
 
 
 def _is_imm_type(arg_type):
@@ -321,7 +321,7 @@ def _get_semantics_player_hook_raw_vector_body(name, intr, get_return_stmt):
   reg_class = intr.get('class')
   yield 'switch (size) {'
   for fmt, desc in _VECTOR_SIZES.items():
-    if _check_reg_class_size(reg_class, desc.num_elements):
+    if _check_reg_class_size(reg_class, desc.num_elements / 8):
       yield INDENT + 'case %s:' % desc.num_elements
       yield 2 * INDENT + get_return_stmt(name, intr, desc)
   yield INDENT + 'default:'
@@ -545,7 +545,7 @@ def _get_formats_with_descriptions(intr):
 
     if variant == 'raw':
       for fmt, desc in _VECTOR_SIZES.items():
-        if _check_reg_class_size(reg_class, desc.num_elements):
+        if _check_reg_class_size(reg_class, desc.num_elements / 8):
           found_fmt = True
           yield fmt, desc
 
