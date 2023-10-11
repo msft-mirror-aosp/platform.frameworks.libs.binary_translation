@@ -1,4 +1,18 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include "guest_jni_trampolines.h"
 
@@ -45,14 +59,14 @@ void GuestCall_uloc_setDefault(GuestAddr addr, const char* tag) {
   CHECK_NE(addr, berberis::kNullGuestAddr);
   berberis::GuestCall call;
   int err = 0;
-#if defined(BERBERIS_GUEST_ARCH_ARM)
+#if defined(BERBERIS_GUEST_ILP32)
   call.AddArgInt32(bit_cast<uint32_t>(tag));
   call.AddArgInt32(bit_cast<uint32_t>(&err));
-#elif defined(BERBERIS_GUEST_ARCH_ARM64)
+#elif defined(BERBERIS_GUEST_LP64)
   call.AddArgInt64(bit_cast<uint64_t>(tag));
   call.AddArgInt64(bit_cast<uint64_t>(&err));
 #else
-#error "Unknown guest arch"
+#error "Unsupported guest arch"
 #endif
   call.RunVoid(addr);
   // If error, we just skip guest setDefault.
@@ -64,12 +78,12 @@ typedef uint8_t UVersionInfo[4];
 void GuestCall_u_getVersion(GuestAddr addr, UVersionInfo version_info) {
   CHECK_NE(addr, berberis::kNullGuestAddr);
   berberis::GuestCall call;
-#if defined(BERBERIS_GUEST_ARCH_ARM)
+#if defined(BERBERIS_GUEST_ILP32)
   call.AddArgInt32(bit_cast<uint32_t>(version_info));
-#elif defined(BERBERIS_GUEST_ARCH_ARM64)
+#elif defined(BERBERIS_GUEST_LP64)
   call.AddArgInt64(bit_cast<uint64_t>(version_info));
 #else
-#error "Unknown guest arch"
+#error "Unsupported guest arch"
 #endif
   call.RunVoid(addr);
 }
@@ -81,18 +95,18 @@ bool GuestCall_uloc_canonicalize(GuestAddr addr,
   CHECK_NE(addr, berberis::kNullGuestAddr);
   berberis::GuestCall call;
   int err = 0;
-#if defined(BERBERIS_GUEST_ARCH_ARM)
+#if defined(BERBERIS_GUEST_ILP32)
   call.AddArgInt32(bit_cast<uint32_t>(tag));
   call.AddArgInt32(bit_cast<uint32_t>(canonical_tag));
   call.AddArgInt32(size);
   call.AddArgInt32(bit_cast<uint32_t>(&err));
-#elif defined(BERBERIS_GUEST_ARCH_ARM64)
+#elif defined(BERBERIS_GUEST_LP64)
   call.AddArgInt64(bit_cast<uint64_t>(tag));
   call.AddArgInt64(bit_cast<uint64_t>(canonical_tag));
   call.AddArgInt64(size);
   call.AddArgInt64(bit_cast<uint64_t>(&err));
 #else
-#error "Unknown guest arch"
+#error "Unsupported guest arch"
 #endif
   call.RunResInt32(addr);
   return err > 0;
