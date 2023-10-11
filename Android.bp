@@ -141,6 +141,11 @@ cc_library_shared {
     },
     target: {
         android: {
+            whole_static_libs: [
+                "libberberis_jni_riscv64",
+                "libberberis_native_activity_riscv64",
+                "libberberis_native_bridge_riscv64",
+            ],
             shared_libs: [
                 "libandroid",
             ],
