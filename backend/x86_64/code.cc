@@ -95,7 +95,7 @@ int CallImm::GetIntArgIndex(int i) {
       6,  // R9
   };
 
-  CHECK_LT(static_cast<unsigned>(i), arraysize(kIntArgIndex));
+  CHECK_LT(static_cast<unsigned>(i), std::size(kIntArgIndex));
   return kIntArgIndex[i];
 }
 
@@ -111,7 +111,7 @@ int CallImm::GetXmmArgIndex(int i) {
       16,  // XMM7
   };
 
-  CHECK_LT(static_cast<unsigned>(i), arraysize(kXmmArgIndex));
+  CHECK_LT(static_cast<unsigned>(i), std::size(kXmmArgIndex));
   return kXmmArgIndex[i];
 }
 
@@ -125,7 +125,7 @@ MachineReg CallImm::IntResultAt(int i) const {
       3,  // RDX
   };
 
-  CHECK_LT(static_cast<unsigned>(i), arraysize(kIntResultIndex));
+  CHECK_LT(static_cast<unsigned>(i), std::size(kIntResultIndex));
   return RegAt(kIntResultIndex[i]);
 }
 
@@ -135,7 +135,7 @@ MachineReg CallImm::XmmResultAt(int i) const {
       10,  // XMM1
   };
 
-  CHECK_LT(static_cast<unsigned>(i), arraysize(kXmmResultIndex));
+  CHECK_LT(static_cast<unsigned>(i), std::size(kXmmResultIndex));
   return RegAt(kXmmResultIndex[i]);
 }
 

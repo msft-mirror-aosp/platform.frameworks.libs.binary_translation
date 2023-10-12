@@ -178,7 +178,7 @@ Assembler::Register GetGReg(MachineReg r) {
                                                       Assembler::r13,
                                                       Assembler::r14,
                                                       Assembler::r15};
-  CHECK_LT(static_cast<unsigned>(r.reg()), arraysize(kHardRegs));
+  CHECK_LT(static_cast<unsigned>(r.reg()), std::size(kHardRegs));
   return kHardRegs[r.reg()];
 }
 
@@ -202,7 +202,7 @@ Assembler::XMMRegister GetXReg(MachineReg r) {
       Assembler::xmm15,
   };
   CHECK_GE(r.reg(), kMachineRegXMM0.reg());
-  CHECK_LT(static_cast<unsigned>(r.reg() - kMachineRegXMM0.reg()), arraysize(kHardRegs));
+  CHECK_LT(static_cast<unsigned>(r.reg() - kMachineRegXMM0.reg()), std::size(kHardRegs));
   return kHardRegs[r.reg() - kMachineRegXMM0.reg()];
 }
 
