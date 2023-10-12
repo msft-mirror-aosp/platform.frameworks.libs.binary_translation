@@ -89,7 +89,7 @@ void GenWrapGuestFunction(MachineCode* mc,
           Assembler::r8,
           Assembler::r9,
       };
-      if (argc < static_cast<int>(arraysize(kParamRegs))) {
+      if (argc < static_cast<int>(std::size(kParamRegs))) {
         as.Movq({.base = Assembler::rsp, .disp = kArgvOffset + argc * 8}, kParamRegs[argc]);
       } else if (argc < 8) {
         as.Movq(Assembler::rax,
@@ -116,7 +116,7 @@ void GenWrapGuestFunction(MachineCode* mc,
           Assembler::xmm6,
           Assembler::xmm7,
       };
-      if (fp_argc < static_cast<int>(arraysize(kParamRegs))) {
+      if (fp_argc < static_cast<int>(std::size(kParamRegs))) {
         if (signature[i] == 'f') {
           // LP64D requires 32-bit floats to be NaN boxed.
           if (host_platform::kHasAVX) {
