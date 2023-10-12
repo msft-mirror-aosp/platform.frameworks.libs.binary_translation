@@ -153,7 +153,7 @@ TEST(BerberisPerf, HighRegPres) {
   unsigned va = 10;
   unsigned vb = 11;
   volatile unsigned vol = 0;
-  for (unsigned i = 0; i < 100 * 1000 * 1000; i++) {
+  for (size_t i = 0; i < 100 * 1000 * 1000; i++) {
     // Disable the auto vectorization by reading a volatile variable.
     i += vol;
 
@@ -176,7 +176,7 @@ TEST(BerberisPerf, HighRegPres) {
 
 TEST(BerberisPerf, EmptyFunc) {
   // Keep calling an empty function.
-  for (unsigned i = 0; i < 500 * 1000 * 1000; i++) {
+  for (size_t i = 0; i < 500 * 1000 * 1000; i++) {
     foo();
   }
   EXPECT_EQ(0, 0);

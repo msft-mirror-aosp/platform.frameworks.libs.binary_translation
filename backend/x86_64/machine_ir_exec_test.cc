@@ -560,8 +560,8 @@ class ExecMachineIRTest : public ::testing::Test {
   static_assert(sizeof(Xmm) == 16, "bad xmm type");
 
   struct Data {
-    uint64_t gregs[arraysize(kGRegs)];
-    Xmm xmms[arraysize(kXmms)];
+    uint64_t gregs[std::size(kGRegs)];
+    Xmm xmms[std::size(kXmms)];
     Xmm slots[16];
   };
   static_assert(sizeof(Data) % sizeof(uint64_t) == 0, "bad data type");
@@ -579,14 +579,14 @@ class ExecMachineIRTest : public ::testing::Test {
   }
 
   static void ExpectEqualData(const Data& x, const Data& y) {
-    for (size_t i = 0; i < arraysize(x.gregs); ++i) {
+    for (size_t i = 0; i < std::size(x.gregs); ++i) {
       EXPECT_EQ(x.gregs[i], y.gregs[i]) << "gregs differ at index " << i;
     }
-    for (size_t i = 0; i < arraysize(x.xmms); ++i) {
+    for (size_t i = 0; i < std::size(x.xmms); ++i) {
       EXPECT_EQ(x.xmms[i].lo, y.xmms[i].lo) << "xmms lo differ at index " << i;
       EXPECT_EQ(x.xmms[i].hi, y.xmms[i].hi) << "xmms hi differ at index " << i;
     }
-    for (size_t i = 0; i < arraysize(x.slots); ++i) {
+    for (size_t i = 0; i < std::size(x.slots); ++i) {
       EXPECT_EQ(x.slots[i].lo, y.slots[i].lo) << "slots lo differ at index " << i;
       EXPECT_EQ(x.slots[i].hi, y.slots[i].hi) << "slots hi differ at index " << i;
     }
@@ -599,7 +599,7 @@ class ExecMachineIRTest : public ::testing::Test {
     // Let rbp point to 'data'.
     builder_.Gen<x86_64::MovqRegImm>(x86_64::kMachineRegRBP, reinterpret_cast<uintptr_t>(&data_));
 
-    for (unsigned i = 0; i < arraysize(data_.slots); ++i) {
+    for (size_t i = 0; i < std::size(data_.slots); ++i) {
       slots_[i] = MachineReg::CreateSpilledRegFromIndex(
           machine_ir_.SpillSlotOffset(machine_ir_.AllocSpill()));
 
@@ -610,29 +610,29 @@ class ExecMachineIRTest : public ::testing::Test {
       builder_.Gen<PseudoCopy>(slots_[i], x86_64::kMachineRegXMM0, 16);
     }
 
-    for (unsigned i = 0; i < arraysize(kXmms); ++i) {
+    for (size_t i = 0; i < std::size(kXmms); ++i) {
       builder_.Gen<x86_64::MovdquXRegMemBaseDisp>(
           kXmms[i], x86_64::kMachineRegRBP, offsetof(Data, xmms) + i * sizeof(data_.xmms[0]));
     }
 
-    for (unsigned i = 0; i < arraysize(kGRegs); ++i) {
+    for (size_t i = 0; i < std::size(kGRegs); ++i) {
       builder_.Gen<x86_64::MovqRegMemBaseDisp>(
           kGRegs[i], x86_64::kMachineRegRBP, offsetof(Data, gregs) + i * sizeof(data_.gregs[0]));
     }
   }
 
   void Finalize() {
-    for (unsigned i = 0; i < arraysize(kGRegs); ++i) {
+    for (size_t i = 0; i < std::size(kGRegs); ++i) {
       builder_.Gen<x86_64::MovqMemBaseDispReg>(
           x86_64::kMachineRegRBP, offsetof(Data, gregs) + i * sizeof(data_.gregs[0]), kGRegs[i]);
     }
 
-    for (unsigned i = 0; i < arraysize(kXmms); ++i) {
+    for (size_t i = 0; i < std::size(kXmms); ++i) {
       builder_.Gen<x86_64::MovdquMemBaseDispXReg>(
           x86_64::kMachineRegRBP, offsetof(Data, xmms) + i * sizeof(data_.xmms[0]), kXmms[i]);
     }
 
-    for (unsigned i = 0; i < arraysize(data_.slots); ++i) {
+    for (size_t i = 0; i < std::size(data_.slots); ++i) {
       builder_.Gen<PseudoCopy>(x86_64::kMachineRegXMM0, slots_[i], 16);
       builder_.Gen<x86_64::MovdquMemBaseDispXReg>(
           x86_64::kMachineRegRBP,
@@ -648,7 +648,7 @@ class ExecMachineIRTest : public ::testing::Test {
   x86_64::MachineIRBuilder builder_;
   MachineBasicBlock* bb_;
   Data data_;
-  MachineReg slots_[arraysize(data_.slots)];
+  MachineReg slots_[std::size(Data{}.slots)];
   ExecTest test_;
 };
 
