@@ -175,7 +175,7 @@ class LiteTranslator {
 
   Register GetReg(uint8_t reg) {
     CHECK_GT(reg, 0);
-    CHECK_LT(reg, arraysize(ThreadState::cpu.x));
+    CHECK_LT(reg, std::size(ThreadState{}.cpu.x));
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, is_new_mapping] = GetMappedRegisterOrMap(reg);
       if (is_new_mapping) {
@@ -192,7 +192,7 @@ class LiteTranslator {
 
   void SetReg(uint8_t reg, Register value) {
     CHECK_GT(reg, 0);
-    CHECK_LT(reg, arraysize(ThreadState::cpu.x));
+    CHECK_LT(reg, std::size(ThreadState{}.cpu.x));
     CHECK_LE(reg, kNumGuestRegs);
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, _] = GetMappedRegisterOrMap(reg);
@@ -227,7 +227,7 @@ class LiteTranslator {
   }
 
   FpRegister GetFpReg(uint8_t reg) {
-    CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+    CHECK_LT(reg, std::size(ThreadState{}.cpu.f));
     CHECK_LE(reg, kNumGuestFpRegs);
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, is_new_mapping] = GetMappedFpRegOrMap(reg);
@@ -266,7 +266,7 @@ class LiteTranslator {
 
   template <typename FloatType>
   void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
-    CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+    CHECK_LT(reg, std::size(ThreadState{}.cpu.f));
     int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
     NanBoxFpReg<FloatType>(value);
 
