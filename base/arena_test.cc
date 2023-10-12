@@ -112,7 +112,7 @@ TEST_F(ArenaTest, Vector) {
   constexpr size_t kElems = 40000;
   FastVector vector(kElems, nullptr, &arena_);
 
-  for (unsigned i = 0; i < kElems; i++) {
+  for (size_t i = 0; i < kElems; i++) {
     vector[i] = NewInArena<Node>(&arena_, i);
   }
 
