@@ -273,7 +273,7 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
     elif '*' in _get_c_type(op):
       call_params.append('bit_cast<%s>(%s)' % (_get_c_type(op), arg))
     else:
-      call_params.append(arg)
+      call_params.append('GPRRegToInteger<%s>(%s)' % (_get_c_type(op), arg))
 
   call_expr = 'intrinsics::%s%s(%s)' % (
       name, _get_desc_specializations(intr, desc).replace(
@@ -290,7 +290,7 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
       assert out_type == "Register"
       assert not _is_simd128_conversion_required(
         outs[0], intr.get('sem-player-types'))
-      call_expr = 'std::make_signed_t<%s>(std::get<0>(%s))' % (outs[0], call_expr)
+      call_expr = 'IntegerToGPRReg(std::get<0>(%s))' % call_expr
   elif len(outs) == 1:
     # Unwrap tuple for single result.
     call_expr = 'std::get<0>(%s)' % call_expr
