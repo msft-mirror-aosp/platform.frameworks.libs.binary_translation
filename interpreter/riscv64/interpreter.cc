@@ -38,7 +38,7 @@
 #include "berberis/runtime_primitives/recovery_code.h"
 
 #include "faulty_memory_accesses.h"
-#include "fp_regs.h"
+#include "regs.h"
 
 namespace berberis {
 
@@ -910,10 +910,10 @@ class Interpreter {
 
   void CheckRegIsValid(uint8_t reg) const {
     CHECK_GT(reg, 0u);
-    CHECK_LE(reg, arraysize(state_->cpu.x));
+    CHECK_LE(reg, std::size(state_->cpu.x));
   }
 
-  void CheckFpRegIsValid(uint8_t reg) const { CHECK_LT(reg, arraysize(state_->cpu.f)); }
+  void CheckFpRegIsValid(uint8_t reg) const { CHECK_LT(reg, std::size(state_->cpu.f)); }
 
   ThreadState* state_;
   bool branch_taken_;

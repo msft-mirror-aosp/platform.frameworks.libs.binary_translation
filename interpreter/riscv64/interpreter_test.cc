@@ -200,7 +200,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
       // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
       // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
       state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
-      for (size_t index = 0; index < arraysize(source); ++index) {
+      for (size_t index = 0; index < std::size(source); ++index) {
         state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
       }
       // Set x1 for vx instructions.

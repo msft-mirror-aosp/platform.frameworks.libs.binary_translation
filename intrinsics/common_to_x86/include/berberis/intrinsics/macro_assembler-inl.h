@@ -90,6 +90,12 @@ static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
       Assembler::Movb(dest, src);                                    \
     } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
                          kFormatIs<format_in, int8_t>) {             \
+      if constexpr (std::is_same_v<decltype(dest), decltype(src)>) { \
+        if (dest == Assembler::gpr_a && src == Assembler::gpr_a) {   \
+          Assembler::Cbw();                                          \
+          return;                                                    \
+        }                                                            \
+      }                                                              \
       Assembler::Movsxbw(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int16_t, uint16_t> && \
                          kFormatIs<format_in, uint8_t>) {            \
@@ -105,6 +111,12 @@ static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
       Assembler::Movzxbl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, int16_t>) {            \
+      if constexpr (std::is_same_v<decltype(dest), decltype(src)>) { \
+        if (dest == Assembler::gpr_a && src == Assembler::gpr_a) {   \
+          Assembler::Cwde();                                         \
+          return;                                                    \
+        }                                                            \
+      }                                                              \
       Assembler::Movsxwl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int32_t, uint32_t> && \
                          kFormatIs<format_in, uint16_t>) {           \
@@ -126,6 +138,12 @@ static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
       Assembler::Movzxwl(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, int32_t>) {            \
+      if constexpr (std::is_same_v<decltype(dest), decltype(src)>) { \
+        if (dest == Assembler::gpr_a && src == Assembler::gpr_a) {   \
+          Assembler::Cdqe();                                         \
+          return;                                                    \
+        }                                                            \
+      }                                                              \
       Assembler::Movsxlq(dest, src);                                 \
     } else if constexpr (kFormatIs<format_out, int64_t, uint64_t> && \
                          kFormatIs<format_in, uint32_t>) {           \

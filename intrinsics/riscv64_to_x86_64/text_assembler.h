@@ -34,6 +34,7 @@ class TextAssembler : public TextAssemblerX86<TextAssembler> {
   using TextAssemblerX86::Movq;
 
   static constexpr char kArchName[] = "RISCV64_TO_X86_64";
+  static constexpr char kArchGuard[] = "RISCV64_TO_X86_64";
   static constexpr char kNamespaceName[] = "berberis";
 
  protected:
