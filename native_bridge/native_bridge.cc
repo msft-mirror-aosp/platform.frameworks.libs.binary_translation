@@ -26,34 +26,21 @@
 #include "procinfo/process_map.h"
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/config_globals.h"
 #include "berberis/base/logging.h"
 #include "berberis/base/strings.h"
-#include "berberis/config/globals.h"
+#include "berberis/base/tracing.h"
 #include "berberis/guest_abi/guest_call.h"
 #include "berberis/guest_loader/guest_loader.h"
 #include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/jni/jni_trampolines.h"
 #include "berberis/native_activity/native_activity_wrapper.h"
+#include "berberis/native_bridge/native_bridge.h"
 #include "berberis/runtime/berberis.h"
 #include "berberis/runtime_primitives/known_guest_function_wrapper.h"
-#include "berberis/tracing/tracing.h"
 
 #define LOG_NB ALOGV  // redefine to ALOGD for debugging
-
-namespace android {
-
-// Environment values required by the apps running with native bridge.
-// See android/system/core/libnativebridge/native_bridge.cc
-struct NativeBridgeRuntimeValues {
-  const char* os_arch;
-  const char* cpu_abi;
-  const char* cpu_abi2;
-  const char** supported_abis;
-  int32_t abi_count;
-};
-
-}  // namespace android
 
 namespace {
 
@@ -177,7 +164,7 @@ void ProtectMappingsFromGuest() {
       [](uint64_t start, uint64_t end, uint16_t, uint64_t, ino_t, const char* libname_c_str, bool) {
         std::string_view libname(libname_c_str);
         // Per analysis in b/218772975 only libc is affected. It's occasionally either proxy libc or
-        // arm libc. So we protect all libs with "libc.so" substring. At this point no app's libs
+        // guest libc. So we protect all libs with "libc.so" substring. At this point no app's libs
         // are loaded yet, so the app shouldn't tamper with the already loaded ones. We don't
         // protect all the already loaded libraries though since GuestMapShadow isn't optimized
         // to work with large number of entries. Also some of them could be unmapped later, which is
@@ -228,19 +215,9 @@ const struct android::NativeBridgeRuntimeValues* GetAppEnvByIsa(const char* app_
     return nullptr;
   }
 
-#if defined(BERBERIS_GUEST_ARCH_ARM)
-  static const struct android::NativeBridgeRuntimeValues g_env = {
-      "armv7l", "armeabi-v7a", "armeabi", nullptr, 0};
-  if (strcmp(app_isa, "arm") == 0) {
-    return &g_env;
+  if (strcmp(app_isa, berberis::kGuestIsa) == 0) {
+    return &berberis::kNativeBridgeRuntimeValues;
   }
-#elif defined(BERBERIS_GUEST_ARCH_ARM64)
-  static const struct android::NativeBridgeRuntimeValues g_env = {
-      "aarch64", "arm64-v8a", nullptr, nullptr, 0};
-  if (strcmp(app_isa, "arm64") == 0) {
-    return &g_env;
-  }
-#endif
 
   ALOGE("unknown instruction set '%s'", app_isa);
   return nullptr;
@@ -375,7 +352,7 @@ android::NativeBridgeSignalHandlerFn native_bridge_getSignalHandler(int signal) 
 
 int native_bridge_unloadLibrary(void* handle) {
   LOG_NB("native_bridge_unloadLibrary(handle=%p)", handle);
-  // TODO(eaeltsin): support library unloading!
+  // TODO(b/276787500): support library unloading!
   return 0;
 }
 
@@ -386,8 +363,7 @@ const char* native_bridge_getError() {
 
 bool native_bridge_isPathSupported(const char* library_path) {
   LOG_NB("native_bridge_isPathSupported(path=%s)", library_path);
-  // TODO(eaeltsin): works for arm and arm64, VERY flaky, figure out how to make this better!
-  return strstr(library_path, "/lib/arm") != nullptr;
+  return strstr(library_path, berberis::kSupportedLibraryPathSubstring) != nullptr;
 }
 
 bool native_bridge_initAnonymousNamespace(const char* public_ns_sonames,

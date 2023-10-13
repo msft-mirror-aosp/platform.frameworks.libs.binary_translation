@@ -1,8 +1,8 @@
-## Build and install tests for arm64 guest
+## Build and install tests for riscv64 guest
 
-./build/soong/soong_ui.bash --make-mode TARGET_BUILD_VARIANT=userdebug TARGET_PRODUCT=aosp_arm64 berberis_jni_tests
+m TARGET_BUILD_VARIANT=userdebug TARGET_PRODUCT=aosp_riscv64 berberis_jni_tests
 
-adb install out/target/product/generic_arm64/testcases/berberis_jni_tests/arm64/berberis_jni_tests.apk
+adb install out/target/product/generic_riscv64/testcases/berberis_jni_tests/riscv64/berberis_jni_tests.apk
 
 
 ## Run tests
