@@ -279,29 +279,27 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
       name, _get_desc_specializations(intr, desc).replace(
           'Float', 'intrinsics::Float'), ', '.join(call_params))
 
-  if 'sem-player-types' in intr:
-    assert len(outs) == 1
-    out_type = _get_semantic_player_type(outs[0], intr.get('sem-player-types'))
-    if out_type == "FpRegister":
-      call_expr = 'FloatToFPReg(std::get<0>(%s))' % call_expr
-    elif out_type == "SimdRegister":
-      call_expr = 'std::get<0>(%s)' % call_expr
-    else:
-      assert out_type == "Register"
-      assert not _is_simd128_conversion_required(
-        outs[0], intr.get('sem-player-types'))
-      call_expr = 'IntegerToGPRReg(std::get<0>(%s))' % call_expr
-  elif len(outs) == 1:
+  if len(outs) == 1:
     # Unwrap tuple for single result.
     call_expr = 'std::get<0>(%s)' % call_expr
-    # Currently this kind of mismatch can only happen for single result, so we
-    # can keep simple code here for now.
-    if _is_simd128_conversion_required(outs[0]):
-      out_type = _get_c_type(outs[0])
-      if out_type in ('Float32', 'Float64'):
-        call_expr = 'SimdRegister(%s)' % call_expr
-      else:
-        raise Exception('Type %s is not supported' % (out_type))
+    if 'sem-player-types' in intr:
+      out_type = _get_semantic_player_type(outs[0], intr.get('sem-player-types'))
+      if out_type == "FpRegister":
+        call_expr = 'FloatToFPReg(%s)' % call_expr
+      elif out_type != "SimdRegister":
+        assert out_type == "Register"
+        assert not _is_simd128_conversion_required(
+          outs[0], intr.get('sem-player-types'))
+        call_expr = 'IntegerToGPRReg(%s)' % call_expr
+    else:
+      # Currently this kind of mismatch can only happen for single result, so we
+      # can keep simple code here for now.
+      if _is_simd128_conversion_required(outs[0]):
+        out_type = _get_c_type(outs[0])
+        if out_type in ('Float32', 'Float64'):
+          call_expr = 'FloatToFPReg(%s)' % call_expr
+        else:
+          raise Exception('Type %s is not supported' % (out_type))
   else:
     if any(_is_simd128_conversion_required(out) for out in outs):
       raise Exception(
@@ -577,9 +575,11 @@ def _get_cast_from_simd128(var, target_type, ptr_bits):
     return 'bit_cast<%s>(%s.Get<uint%d_t>(0))' % (_get_c_type(target_type), var,
                                                   ptr_bits)
 
+  c_type = _get_c_type(target_type)
+  if c_type in ('Float32', 'Float64'):
+    return 'FPRegToFloat<intrinsics::%s>(%s)' % (c_type, var)
+
   cast_map = {
-      'Float32': '.Get<intrinsics::Float32>(0)',
-      'Float64': '.Get<intrinsics::Float64>(0)',
       'int8_t': '.Get<int8_t>(0)',
       'uint8_t': '.Get<uint8_t>(0)',
       'int16_t': '.Get<int16_t>(0)',
@@ -590,7 +590,7 @@ def _get_cast_from_simd128(var, target_type, ptr_bits):
       'uint64_t': '.Get<uint64_t>(0)',
       'SIMD128Register': ''
   }
-  return '%s%s' % (var, cast_map[_get_c_type(target_type)])
+  return '%s%s' % (var, cast_map[c_type])
 
 
 def _get_desc_specializations(intr, desc=None):
