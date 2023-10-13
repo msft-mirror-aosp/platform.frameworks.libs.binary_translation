@@ -23,8 +23,8 @@
 #include <type_traits>
 
 #include "berberis/base/dependent_false.h"
-#include "berberis/intrinsics/intrinsics_float.h"    // Float32/Float64
-#include "berberis/intrinsics/riscv64/intrinsics.h"  // PreferredIntrinsicsImplementation
+#include "berberis/intrinsics/intrinsics.h"        // PreferredIntrinsicsImplementation
+#include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 

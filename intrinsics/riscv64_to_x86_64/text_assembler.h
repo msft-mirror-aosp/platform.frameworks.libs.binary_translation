@@ -33,7 +33,7 @@ class TextAssembler : public TextAssemblerX86<TextAssembler> {
   // Unhide Movq(Mem, XMMReg) and Movq(XMMReg, Mem) hidden by Movq(Reg, Imm) and many others.
   using TextAssemblerX86::Movq;
 
-  static constexpr char kArchName[] = "RISCV64_TO_X86_64";
+  static constexpr char kArchName[] = "riscv64";
   static constexpr char kArchGuard[] = "RISCV64_TO_X86_64";
   static constexpr char kNamespaceName[] = "berberis";
 
