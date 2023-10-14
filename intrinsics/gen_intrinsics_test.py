@@ -108,8 +108,8 @@ class GenIntrinsicsTests(unittest.TestCase):
     self.assertEqual(out,
                      "intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0), "
                                      "GPRRegToInteger<uint8_t>(arg1), "
-                                     "arg2.Get<intrinsics::Float32>(0), "
-                                     "arg3.Get<intrinsics::Float64>(0), "
+                                     "FPRegToFloat<intrinsics::Float32>(arg2), "
+                                     "FPRegToFloat<intrinsics::Float64>(arg3), "
                                      "arg4, "
                                      "GPRRegToInteger<uint8_t>(arg5))" ) # pyforman: disable
 
@@ -135,7 +135,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": ["Float32"]
         })
-    self.assertEqual(out, "SimdRegister(std::get<0>(intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0))))")
+    self.assertEqual(out, "FloatToFPReg(std::get<0>(intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0))))")
 
   def test_get_interpreter_hook_call_expr_float64_result(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
@@ -143,7 +143,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": ["Float64"]
         })
-    self.assertEqual(out, "SimdRegister(std::get<0>(intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0))))")
+    self.assertEqual(out, "FloatToFPReg(std::get<0>(intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0))))")
 
   def test_get_interpreter_hook_call_expr_precise_nan(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
