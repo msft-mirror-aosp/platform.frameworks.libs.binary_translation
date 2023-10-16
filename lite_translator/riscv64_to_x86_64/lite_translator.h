@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <tuple>
+#include <variant>
 
 #include "berberis/assembler/common.h"
 #include "berberis/assembler/x86_64.h"
@@ -47,6 +48,7 @@ class MachindeCode;
 class LiteTranslator {
  public:
   using Assembler = MacroAssembler<x86_64::Assembler>;
+  using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<LiteTranslator>>;
   using Register = Assembler::Register;
   // Note: on RISC-V architecture FP register and SIMD registers are disjoint, but on x86 they are
@@ -85,6 +87,7 @@ class LiteTranslator {
   void CompareAndBranch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset);
   void Branch(int32_t offset);
   void BranchRegister(Register base, int16_t offset);
+  void ExitGeneratedCode(GuestAddr target);
   void ExitRegion(GuestAddr target);
   void ExitRegionIndirect(Register target);
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
@@ -121,6 +124,13 @@ class LiteTranslator {
   void Nop() {}
 
   //
+  // Csr
+  //
+
+  Register UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr);
+  Register UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr);
+
+  //
   // F and D extensions.
   //
 
@@ -136,18 +146,6 @@ class LiteTranslator {
     as_.Movs<DataType>({.base = arg, .disp = offset}, data);
   }
 
-  Register Csr(Decoder::CsrOpcode opcode, Register arg, Decoder::CsrRegister csr) {
-    UNUSED(opcode, arg, csr);
-    Unimplemented();
-    return {};
-  }
-
-  Register Csr(Decoder::CsrImmOpcode opcode, uint8_t imm, Decoder::CsrRegister csr) {
-    UNUSED(opcode, imm, csr);
-    Unimplemented();
-    return {};
-  }
-
   FpRegister Fmv(FpRegister arg) {
     SimdRegister res = AllocTempSimdReg();
     if (host_platform::kHasAVX) {
@@ -159,6 +157,17 @@ class LiteTranslator {
   }
 
   //
+  // V extension.
+  //
+
+  template <typename VOpArgs, typename... ExtraAegs>
+  void OpVector(const VOpArgs& /*args*/, ExtraAegs... /*extra_args*/) {
+    // TODO(300690740): develop and implement strategy which would allow us to support vector
+    // intrinsics not just in the interpreter.
+    Unimplemented();
+  }
+
+  //
   // Guest state getters/setters.
   //
 
@@ -166,7 +175,7 @@ class LiteTranslator {
 
   Register GetReg(uint8_t reg) {
     CHECK_GT(reg, 0);
-    CHECK_LT(reg, arraysize(ThreadState::cpu.x));
+    CHECK_LT(reg, std::size(ThreadState{}.cpu.x));
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, is_new_mapping] = GetMappedRegisterOrMap(reg);
       if (is_new_mapping) {
@@ -183,7 +192,7 @@ class LiteTranslator {
 
   void SetReg(uint8_t reg, Register value) {
     CHECK_GT(reg, 0);
-    CHECK_LT(reg, arraysize(ThreadState::cpu.x));
+    CHECK_LT(reg, std::size(ThreadState{}.cpu.x));
     CHECK_LE(reg, kNumGuestRegs);
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, _] = GetMappedRegisterOrMap(reg);
@@ -218,7 +227,7 @@ class LiteTranslator {
   }
 
   FpRegister GetFpReg(uint8_t reg) {
-    CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+    CHECK_LT(reg, std::size(ThreadState{}.cpu.f));
     CHECK_LE(reg, kNumGuestFpRegs);
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, is_new_mapping] = GetMappedFpRegOrMap(reg);
@@ -234,68 +243,32 @@ class LiteTranslator {
     return result;
   }
 
-  FpRegister GetFRegAndUnboxNan(uint8_t reg, Decoder::FloatOperandType operand_type) {
+  template <typename FloatType>
+  FpRegister GetFRegAndUnboxNan(uint8_t reg) {
     SimdRegister result = GetFpReg(reg);
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat: {
-        SimdRegister unboxed_result = AllocTempSimdReg();
-        if (host_platform::kHasAVX) {
-          as_.MacroUnboxNanAVX<Float32>(unboxed_result, result);
-        } else {
-          as_.MacroUnboxNan<Float32>(unboxed_result, result);
-        }
-        return unboxed_result;
-      }
-      case Decoder::FloatOperandType::kDouble:
-        return result;
-      // No support for half-precision and quad-precision operands.
-      default:
-        Unimplemented();
-        return {};
+    SimdRegister unboxed_result = AllocTempSimdReg();
+    if (host_platform::kHasAVX) {
+      as_.MacroUnboxNanAVX<FloatType>(unboxed_result, result);
+    } else {
+      as_.MacroUnboxNan<FloatType>(unboxed_result, result);
     }
+    return unboxed_result;
   }
 
-  FpRegister CanonicalizeNan(FpRegister value, Decoder::FloatOperandType operand_type) {
-    SimdRegister canonical_result = AllocTempSimdReg();
-    switch (operand_type) {
-      case Decoder::FloatOperandType::kFloat: {
-        if (host_platform::kHasAVX) {
-          as_.MacroCanonicalizeNanAVX<Float32>(canonical_result, value);
-        } else {
-          as_.MacroCanonicalizeNan<Float32>(canonical_result, value);
-        }
-        return canonical_result;
-      }
-      case Decoder::FloatOperandType::kDouble: {
-        if (host_platform::kHasAVX) {
-          as_.MacroCanonicalizeNanAVX<Float64>(canonical_result, value);
-        } else {
-          as_.MacroCanonicalizeNan<Float64>(canonical_result, value);
-        }
-        return canonical_result;
-      }
-      // No support for half-precision and quad-precision operands.
-      default:
-        Unimplemented();
-        return {};
-    }
-  }
-
+  template <typename FloatType>
   void NanBoxFpReg(FpRegister value) {
     if (host_platform::kHasAVX) {
-      as_.MacroNanBoxAVX<Float32>(value);
+      as_.MacroNanBoxAVX<FloatType>(value, value);
       return;
     }
-    as_.MacroNanBox<Float32>(value);
+    as_.MacroNanBox<FloatType>(value);
   }
 
-  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value, Decoder::FloatOperandType operand_type) {
-    CHECK_LT(reg, arraysize(ThreadState::cpu.f));
+  template <typename FloatType>
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
+    CHECK_LT(reg, std::size(ThreadState{}.cpu.f));
     int32_t offset = offsetof(ThreadState, cpu.f) + reg * sizeof(Float64);
-    // Nan-boxing is always done for 32-bit floats.
-    if (operand_type == Decoder::FloatOperandType::kFloat) {
-      NanBoxFpReg(value);
-    }
+    NanBoxFpReg<FloatType>(value);
 
     if (IsRegMappingEnabled()) {
       auto [mapped_reg, _] = GetMappedFpRegOrMap(reg);
@@ -314,11 +287,34 @@ class LiteTranslator {
   // Various helper methods.
   //
 
-  [[nodiscard]] Register GetFrm() {
-    Register frm_reg = AllocTempReg();
-    as_.Movb(frm_reg, {.base = Assembler::rbp, .disp = offsetof(ThreadState, cpu.csr_data)});
-    as_.Andb(frm_reg, int8_t{0b111});
-    return frm_reg;
+  template <CsrName kName>
+  [[nodiscard]] Register GetCsr() {
+    Register csr_reg = AllocTempReg();
+    as_.Expand<uint64_t, CsrFieldType<kName>>(
+        csr_reg, {.base = Assembler::rbp, .disp = kCsrFieldOffset<kName>});
+    return csr_reg;
+  }
+
+  template <CsrName kName>
+  void SetCsr(uint8_t imm) {
+    // Note: csr immediate only have 5 bits in RISC-V encoding which guarantess us that
+    // “imm & kCsrMask<kName>”can be used as 8-bit immediate.
+    as_.Mov<CsrFieldType<kName>>({.base = Assembler::rbp, .disp = kCsrFieldOffset<kName>},
+                                 static_cast<int8_t>(imm & kCsrMask<kName>));
+  }
+
+  template <CsrName kName>
+  void SetCsr(Register arg) {
+    // Use RCX as temporary register.
+    as_.Mov<CsrFieldType<kName>>(Assembler::rcx, arg);
+    if constexpr (sizeof(CsrFieldType<kName>) <= sizeof(int32_t)) {
+      as_.And<CsrFieldType<kName>>(Assembler::rcx, kCsrMask<kName>);
+    } else {
+      as_.And<CsrFieldType<kName>>(Assembler::rcx,
+                                   {.disp = constants_pool::kConst<uint64_t{kCsrMask<kName>}>});
+    }
+    as_.Mov<CsrFieldType<kName>>({.base = Assembler::rbp, .disp = kCsrFieldOffset<kName>},
+                                 Assembler::rcx);
   }
 
   [[nodiscard]] Register GetImm(uint64_t imm) {
@@ -413,32 +409,58 @@ class LiteTranslator {
     return {};
   };
 
+  template <typename IntType, bool aq, bool rl>
+  Register Lr(Register /* addr */) {
+    Unimplemented();
+    return {};
+  }
+
+  template <typename IntType, bool aq, bool rl>
+  Register Sc(Register /* addr */, Register /* data */) {
+    Unimplemented();
+    return {};
+  }
+
  private:
   template <auto kFunction, typename AssemblerResType, typename... AssemblerArgType>
   AssemblerResType CallIntrinsic(AssemblerArgType... args) {
-    AssemblerResType result;
-    if constexpr (std::is_same_v<AssemblerResType, Register>) {
-      result = AllocTempReg();
-    } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
-      result = AllocTempSimdReg();
+    if constexpr (std::is_same_v<AssemblerResType, void>) {
+      if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
+              as_,
+              [this]() { return AllocTempReg(); },
+              [this]() { return AllocTempSimdReg(); },
+              std::monostate{},
+              args...)) {
+        return;
+      }
+      call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, args...);
     } else {
-      // This should not be reached by the compiler. If it is - there is a new result type that
-      // needs to be supported.
-      static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
-    }
+      AssemblerResType result;
+      if constexpr (std::is_same_v<AssemblerResType, Register>) {
+        result = AllocTempReg();
+      } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<Register, Register>>) {
+        result = std::tuple{AllocTempReg(), AllocTempReg()};
+      } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
+        result = AllocTempSimdReg();
+      } else {
+        // This should not be reached by the compiler. If it is - there is a new result type that
+        // needs to be supported.
+        static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
+      }
 
-    if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
-            as_,
-            [this]() { return AllocTempReg(); },
-            [this]() { return AllocTempSimdReg(); },
-            result,
-            args...)) {
+      if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
+              as_,
+              [this]() { return AllocTempReg(); },
+              [this]() { return AllocTempSimdReg(); },
+              result,
+              args...)) {
+        return result;
+      }
+
+      call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, result, args...);
+
       return result;
     }
-
-    call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, result, args...);
-
-    return result;
   }
 
   Assembler as_;
@@ -451,6 +473,160 @@ class LiteTranslator {
   const LiteTranslateParams params_;
   bool is_region_end_reached_;
 };
+
+template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kFCsr>() {
+  Register csr_reg = AllocTempReg();
+  bool inline_succeful = inline_intrinsic::TryInlineIntrinsic<&intrinsics::FeGetExceptions>(
+      as_,
+      [this]() { return AllocTempReg(); },
+      [this]() { return AllocTempSimdReg(); },
+      Assembler::rax);
+  CHECK(inline_succeful);
+  as_.Expand<uint64_t, CsrFieldType<CsrName::kFrm>>(
+      csr_reg, {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>});
+  as_.Shl<uint8_t>(csr_reg, 5);
+  as_.Or<uint8_t>(csr_reg, as_.rax);
+  return csr_reg;
+}
+
+template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kFFlags>() {
+  return FeGetExceptions();
+}
+
+template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kVlenb>() {
+  return GetImm(16);
+}
+
+template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kVxrm>() {
+  Register reg = AllocTempReg();
+  as_.Expand<uint64_t, uint8_t>(reg,
+                                {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>});
+  as_.And<uint8_t>(reg, 0b11);
+  return reg;
+}
+
+template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kVxsat>() {
+  Register reg = AllocTempReg();
+  as_.Expand<uint64_t, uint8_t>(reg,
+                                {.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>});
+  as_.Shr<uint8_t>(reg, 2);
+  return reg;
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFCsr>(uint8_t imm) {
+  // Note: instructions Csrrci or Csrrsi couldn't affect Frm because immediate only has five bits.
+  // But these instruction don't pass their immediate-specified argument into `SetCsr`, they combine
+  // it with register first. Fixing that can only be done by changing code in the semantics player.
+  //
+  // But Csrrwi may clear it.  And we actually may only arrive here from Csrrwi.
+  // Thus, technically, we know that imm >> 5 is always zero, but it doesn't look like a good idea
+  // to rely on that: it's very subtle and it only affects code generation speed.
+  as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
+                   static_cast<int8_t>(imm >> 5));
+  as_.MacroFeSetExceptionsAndRoundImmTranslate(
+      {Assembler::rbp, .disp = static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area))},
+      imm);
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFCsr>(Register arg) {
+  // Use RAX as temporary register for exceptions and RCX for rm.
+  // We know RCX would be used by FeSetRound, too.
+  as_.Mov<uint8_t>(Assembler::rax, arg);
+  as_.And<uint32_t>(Assembler::rax, 0b1'1111);
+  as_.Shldl(Assembler::rcx, arg, int8_t{32 - 5});
+  as_.And<uint8_t>(Assembler::rcx, kCsrMask<CsrName::kFrm>);
+  as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
+                   Assembler::rcx);
+  as_.MacroFeSetExceptionsAndRoundTranslate(
+      Assembler::rax,
+      {Assembler::rbp, .disp = static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area))},
+      Assembler::rax);
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFFlags>(uint8_t imm) {
+  FeSetExceptionsImm(static_cast<int8_t>(imm & 0b1'1111));
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFFlags>(Register arg) {
+  // Use RAX as temporary register.
+  as_.Mov<uint8_t>(Assembler::rax, arg);
+  as_.And<uint32_t>(Assembler::rax, 0b1'1111);
+  FeSetExceptions(Assembler::rax);
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFrm>(uint8_t imm) {
+  as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
+                   static_cast<int8_t>(imm & kCsrMask<CsrName::kFrm>));
+  FeSetRoundImm(static_cast<int8_t>(imm & kCsrMask<CsrName::kFrm>));
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kFrm>(Register arg) {
+  // Use RCX as temporary register. We know it would be used by FeSetRound, too.
+  as_.Mov<uint8_t>(Assembler::rcx, arg);
+  as_.And<uint8_t>(Assembler::rcx, kCsrMask<CsrName::kFrm>);
+  as_.Mov<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kFrm>},
+                   Assembler::rcx);
+  FeSetRound(Assembler::rcx);
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kVxrm>(uint8_t imm) {
+  imm &= 0b11;
+  if (imm != 0b11) {
+    as_.And<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b100);
+  }
+  if (imm != 0b00) {
+    as_.Or<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, imm);
+  }
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kVxrm>(Register arg) {
+  as_.And<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b100);
+  as_.And<uint8_t>(arg, 0b11);
+  as_.Or<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, arg);
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kVxsat>(uint8_t imm) {
+  if (imm & 0b1) {
+    as_.Or<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b100);
+  } else {
+    as_.And<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b11);
+  }
+}
+
+template <>
+inline void LiteTranslator::SetCsr<CsrName::kVxsat>(Register arg) {
+  as_.And<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, 0b11);
+  as_.Test<uint8_t>(arg, 1);
+  // Use RCX as temporary register.
+  as_.Setcc(Condition::kNotZero, as_.rcx);
+  as_.Shl<uint8_t>(as_.rcx, int8_t{2});
+  as_.Or<uint8_t>({.base = Assembler::rbp, .disp = kCsrFieldOffset<CsrName::kVcsr>}, as_.rcx);
+}
+
+// There is no NanBoxing for Float64 except on CPUs with Float128 support.
+template <>
+inline LiteTranslator::FpRegister LiteTranslator::GetFRegAndUnboxNan<LiteTranslator::Float64>(
+    uint8_t reg) {
+  SimdRegister result = GetFpReg(reg);
+  return result;
+}
+
+template <>
+inline void LiteTranslator::NanBoxFpReg<LiteTranslator::Float64>(FpRegister) {}
 
 }  // namespace berberis
 

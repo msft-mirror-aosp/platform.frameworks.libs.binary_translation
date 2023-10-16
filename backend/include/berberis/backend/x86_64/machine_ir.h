@@ -110,8 +110,27 @@ enum class MachineMemOperandScale {
   kEight,
 };
 
+#include "machine_reg_class_x86_64-inl.h"  // NOLINT generated file!
+
 class MachineInsnX86_64 : public MachineInsn {
  public:
+  static constexpr const auto kEAX = x86_64::kEAX;
+  static constexpr const auto kRAX = x86_64::kRAX;
+  static constexpr const auto kCL = x86_64::kCL;
+  static constexpr const auto kECX = x86_64::kECX;
+  static constexpr const auto kRCX = x86_64::kRCX;
+  static constexpr const auto kEDX = x86_64::kEDX;
+  static constexpr const auto kRDX = x86_64::kRDX;
+  static constexpr const auto kGeneralReg8 = x86_64::kGeneralReg8;
+  static constexpr const auto kGeneralReg16 = x86_64::kGeneralReg16;
+  static constexpr const auto kGeneralReg32 = x86_64::kGeneralReg32;
+  static constexpr const auto kGeneralReg64 = x86_64::kGeneralReg64;
+  static constexpr const auto kFpReg32 = x86_64::kFpReg32;
+  static constexpr const auto kFpReg64 = x86_64::kFpReg64;
+  static constexpr const auto kVecReg128 = x86_64::kVecReg128;
+  static constexpr const auto kXmmReg = x86_64::kXmmReg;
+  static constexpr const auto kFLAGS = x86_64::kFLAGS;
+
   ~MachineInsnX86_64() override {
     // No code here - will never be called!
   }
@@ -244,8 +263,6 @@ class CallImmArg : public MachineInsnX86_64 {
       // It's an auxiliary instruction. Do not emit.
   };
 };
-
-#include "machine_reg_class_x86_64-inl.h"  // NOLINT generated file!
 
 // This template is syntax sugar to group memory instructions with
 // different addressing modes.

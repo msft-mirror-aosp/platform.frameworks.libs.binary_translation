@@ -102,7 +102,7 @@ class VecSize(object):
     self.index = index
 
 
-_VECTOR_SIZES = {'X8': VecSize(8, 1), 'X16': VecSize(16, 2)}
+_VECTOR_SIZES = {'X64': VecSize(64, 1), 'X128': VecSize(128, 2)}
 
 
 def _is_imm_type(arg_type):
@@ -120,6 +120,7 @@ def _get_imm_c_type(arg_type):
   return {
       'imm8' : 'int8_t',
       'uimm8' : 'uint8_t',
+      'uimm16' : 'uint16_t',
       'uimm32' : 'uint32_t',
   }[arg_type]
 
@@ -272,33 +273,33 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
     elif '*' in _get_c_type(op):
       call_params.append('bit_cast<%s>(%s)' % (_get_c_type(op), arg))
     else:
-      call_params.append(arg)
+      call_params.append('GPRRegToInteger<%s>(%s)' % (_get_c_type(op), arg))
 
   call_expr = 'intrinsics::%s%s(%s)' % (
       name, _get_desc_specializations(intr, desc).replace(
           'Float', 'intrinsics::Float'), ', '.join(call_params))
 
-  if 'sem-player-types' in intr:
-    assert len(outs) == 1
-    out_type = _get_semantic_player_type(outs[0], intr.get('sem-player-types'))
-    if out_type == "FpRegister":
-      call_expr = 'FloatToFPReg(std::get<0>(%s))' % call_expr
-    else:
-      assert out_type == "Register"
-      assert not _is_simd128_conversion_required(
-        outs[0], intr.get('sem-player-types'))
-      call_expr = 'std::make_signed_t<%s>(std::get<0>(%s))' % (outs[0], call_expr)
-  elif len(outs) == 1:
+  if len(outs) == 1:
     # Unwrap tuple for single result.
     call_expr = 'std::get<0>(%s)' % call_expr
-    # Currently this kind of mismatch can only happen for single result, so we
-    # can keep simple code here for now.
-    if _is_simd128_conversion_required(outs[0]):
-      out_type = _get_c_type(outs[0])
-      if out_type in ('Float32', 'Float64'):
-        call_expr = 'SimdRegister(%s)' % call_expr
-      else:
-        raise Exception('Type %s is not supported' % (out_type))
+    if 'sem-player-types' in intr:
+      out_type = _get_semantic_player_type(outs[0], intr.get('sem-player-types'))
+      if out_type == "FpRegister":
+        call_expr = 'FloatToFPReg(%s)' % call_expr
+      elif out_type != "SimdRegister":
+        assert out_type == "Register"
+        assert not _is_simd128_conversion_required(
+          outs[0], intr.get('sem-player-types'))
+        call_expr = 'IntegerToGPRReg(%s)' % call_expr
+    else:
+      # Currently this kind of mismatch can only happen for single result, so we
+      # can keep simple code here for now.
+      if _is_simd128_conversion_required(outs[0]):
+        out_type = _get_c_type(outs[0])
+        if out_type in ('Float32', 'Float64'):
+          call_expr = 'FloatToFPReg(%s)' % call_expr
+        else:
+          raise Exception('Type %s is not supported' % (out_type))
   else:
     if any(_is_simd128_conversion_required(out) for out in outs):
       raise Exception(
@@ -318,7 +319,7 @@ def _get_semantics_player_hook_raw_vector_body(name, intr, get_return_stmt):
   reg_class = intr.get('class')
   yield 'switch (size) {'
   for fmt, desc in _VECTOR_SIZES.items():
-    if _check_reg_class_size(reg_class, desc.num_elements):
+    if _check_reg_class_size(reg_class, desc.num_elements / 8):
       yield INDENT + 'case %s:' % desc.num_elements
       yield 2 * INDENT + get_return_stmt(name, intr, desc)
   yield INDENT + 'default:'
@@ -382,7 +383,7 @@ def _get_interpreter_hook_vector_body(name, intr):
 
 
 def _gen_interpreter_hook(f, name, intr):
-  print('%s {' % (_get_semantics_player_hook_proto(name, intr)), file=f)
+  print('%s const {' % (_get_semantics_player_hook_proto(name, intr)), file=f)
 
   if _is_vector_class(intr):
     if 'raw' in intr['variants']:
@@ -440,6 +441,21 @@ def _gen_translator_hook(f, name, intr):
 
 def _gen_mock_semantics_listener_hook(f, name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
+  if intr.get('class') == 'template':
+    print('template<%s>\n%s %s(%s) {\n  return %s(%s);\n}' % (
+      _get_template_arguments(intr.get('variants'), []), result, name, args, name, ', '.join([
+      'intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
+      for arg in _get_template_spec_arguments(intr.get('variants'))] +
+      [('arg%d' % n) for n, _ in enumerate(intr['in'])])), file=f)
+    args = ', '.join([
+      '%s %s' % (
+          {
+              'kBoo': 'bool',
+              'kInt': 'int',
+              'Type': 'intrinsics::EnumFromTemplateType'
+          }[argument[0:4]],
+          argument)
+      for argument in _get_template_spec_arguments(intr.get('variants'))] + [args])
   print('MOCK_METHOD((%s), %s, (%s));' % (result, name, args), file=f)
 
 
@@ -527,7 +543,7 @@ def _get_formats_with_descriptions(intr):
 
     if variant == 'raw':
       for fmt, desc in _VECTOR_SIZES.items():
-        if _check_reg_class_size(reg_class, desc.num_elements):
+        if _check_reg_class_size(reg_class, desc.num_elements / 8):
           found_fmt = True
           yield fmt, desc
 
@@ -559,9 +575,11 @@ def _get_cast_from_simd128(var, target_type, ptr_bits):
     return 'bit_cast<%s>(%s.Get<uint%d_t>(0))' % (_get_c_type(target_type), var,
                                                   ptr_bits)
 
+  c_type = _get_c_type(target_type)
+  if c_type in ('Float32', 'Float64'):
+    return 'FPRegToFloat<intrinsics::%s>(%s)' % (c_type, var)
+
   cast_map = {
-      'Float32': '.Get<intrinsics::Float32>(0)',
-      'Float64': '.Get<intrinsics::Float64>(0)',
       'int8_t': '.Get<int8_t>(0)',
       'uint8_t': '.Get<uint8_t>(0)',
       'int16_t': '.Get<int16_t>(0)',
@@ -572,7 +590,7 @@ def _get_cast_from_simd128(var, target_type, ptr_bits):
       'uint64_t': '.Get<uint64_t>(0)',
       'SIMD128Register': ''
   }
-  return '%s%s' % (var, cast_map[_get_c_type(target_type)])
+  return '%s%s' % (var, cast_map[c_type])
 
 
 def _get_desc_specializations(intr, desc=None):
@@ -719,41 +737,86 @@ def _get_reg_operand_info(arg, info_prefix=None):
 def _gen_make_intrinsics(f, intrs, archs):
   print("""%s
 template <%s,
+          typename MacroAssembler,
           typename Callback,
           typename... Args>
 void ProcessAllBindings(Callback callback, Args&&... args) {""" % (
     AUTOGEN,
-    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
-                         ['typename MacroAssembler'])),
+    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs])),
     file=f)
   for line in _gen_c_intrinsics_generator(
-          intrs, _is_interpreter_compatible_assembler):
+          intrs, _is_interpreter_compatible_assembler, False): # False for gen_builder
       print(line, file=f)
   print('}', file=f)
 
+def _gen_opcode_generators_f(f, intrs):
+  for line in _gen_opcode_generators(intrs):
+    print(line, file=f)
+
+def _gen_opcode_generators(intrs):
+  opcode_generators = {}
+  for name, intr in intrs:
+    if 'asm' not in intr:
+      continue
+    if 'variants' in intr:
+      variants = _get_formats_with_descriptions(intr)
+      variants = sorted(variants, key=lambda variant: variant[1].index)
+      # Collect intr_asms for all variants of intrinsic.
+      # Note: not all variants are guaranteed to have an asm variant!
+      # If that happens the list of intr_asms for that variant will be empty.
+      variants = [[
+          intr_asm for intr_asm in _gen_sorted_asms(intr)
+          if fmt in intr_asm['variants']
+      ] for fmt, _ in variants]
+      # Print intrinsic generator
+      for intr_asms in variants:
+        if len(intr_asms) > 0:
+          for intr_asm in intr_asms:
+            for line in _gen_opcode_generator(intr_asm, opcode_generators):
+              yield line
+    else:
+      for intr_asm in _gen_sorted_asms(intr):
+        for line in _gen_opcode_generator(intr_asm, opcode_generators):
+          yield line
+
+def _gen_opcode_generator(asm, opcode_generators):
+  name = asm['name']
+  if name not in opcode_generators:
+    opcode_generators[name] = True
+    yield """
+// TODO(b/260725458): Pass lambda as template argument after C++20 becomes available.
+class GetOpcode%s {
+ public:
+  template <typename Opcode>
+  constexpr auto operator()() {
+    return Opcode::kMachineOp%s;
+  }
+};""" % (name, name)
 
 def _gen_process_bindings(f, intrs, archs):
-  print("""%s
+  print('%s' % AUTOGEN, file=f)
+  _gen_opcode_generators_f(f, intrs)
+  print("""
 template <auto kFunc,
           %s,
+          typename MacroAssembler,
           typename Result,
           typename Callback,
           typename... Args>
 Result ProcessBindings(Callback callback, Result def_result, Args&&... args) {""" % (
-    AUTOGEN,
-    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs] +
-                         ['typename MacroAssembler'])),
+    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs])),
     file=f)
   for line in _gen_c_intrinsics_generator(
-          intrs, _is_translator_compatible_assembler):
+          intrs, _is_translator_compatible_assembler, True): # True for gen_builder
       print(line, file=f)
   print("""  }
   return std::forward<Result>(def_result);
 }""", file=f)
 
 
-def _gen_c_intrinsics_generator(intrs, check_compatible_assembler):
+def _gen_c_intrinsics_generator(intrs, check_compatible_assembler, gen_builder):
   string_labels = {}
+  mnemo_idx = [0]
   for name, intr in intrs:
     ins = intr.get('in')
     outs = intr.get('out')
@@ -785,12 +848,19 @@ def _gen_c_intrinsics_generator(intrs, check_compatible_assembler):
                                          intr,
                                          intr_asm,
                                          string_labels,
-                                         check_compatible_assembler):
+                                         mnemo_idx,
+                                         check_compatible_assembler,
+                                         gen_builder):
               yield line
     else:
       for intr_asm in _gen_sorted_asms(intr):
-        for line in _gen_c_intrinsic(
-          name, intr, intr_asm, string_labels, check_compatible_assembler):
+        for line in _gen_c_intrinsic(name,
+                                     intr,
+                                     intr_asm,
+                                     string_labels,
+                                     mnemo_idx,
+                                     check_compatible_assembler,
+                                     gen_builder):
           yield line
 
 
@@ -819,7 +889,13 @@ _KNOWN_FEATURES_KEYS = {
 }
 
 
-def _gen_c_intrinsic(name, intr, asm, string_labels, check_compatible_assembler):
+def _gen_c_intrinsic(name,
+                     intr,
+                     asm,
+                     string_labels,
+                     mnemo_idx,
+                     check_compatible_assembler,
+                     gen_builder):
   if not check_compatible_assembler(asm):
     return
 
@@ -853,6 +929,12 @@ def _gen_c_intrinsic(name, intr, asm, string_labels, check_compatible_assembler)
   else:
     name_label = string_labels[name]
 
+  mnemo = asm['mnemo']
+  mnemo_label = 'kMnemo%d' % mnemo_idx[0]
+  mnemo_idx[0] += 1
+  yield '    static constexpr const char %s[] = "%s";' % (
+      mnemo_label, mnemo)
+
   restriction = [cpuid_restriction, nan_restriction]
 
   if check_compatible_assembler == _is_translator_compatible_assembler:
@@ -863,7 +945,9 @@ def _gen_c_intrinsic(name, intr, asm, string_labels, check_compatible_assembler)
   yield '              %s>(),' % (
     ',\n              '.join(
         [name_label,
-         _get_asm_reference(asm),
+         _get_asm_reference(asm, gen_builder),
+         mnemo_label,
+         _get_builder_reference(intr, asm) if gen_builder else 'void',
          cpuid_restriction,
          nan_restriction,
          'true' if _intr_has_side_effects(intr) else 'false',
@@ -899,6 +983,8 @@ def _get_asm_operand_type(arg, prefix=''):
     return prefix + 'Register'
   if asm_defs.is_xreg(cls):
     return prefix + 'XMMRegister'
+  if asm_defs.is_mem_op(cls):
+    return 'const ' + prefix + 'Operand&'
   if asm_defs.is_imm(cls):
     if cls == 'Imm2':
       return 'int8_t'
@@ -906,13 +992,13 @@ def _get_asm_operand_type(arg, prefix=''):
   assert False
 
 
-def _get_asm_reference(asm):
+def _get_asm_reference(asm, gen_builder):
   # Because of misfeature of Itanium C++ ABI we couldn't just use MacroAssembler
   # to static cast these references if we want to use them as template argument:
   # https://ibob.bg/blog/2018/08/18/a-bug-in-the-cpp-standard/
 
-  # Thankfully there are no need to use the same name for MacroInstructions
-  # since we may always rename these.
+  # Thankfully there are usually no need to use the same trick for MacroInstructions
+  # since we may always rename these, except when immediates are involved.
 
   # But for assembler we need to use actual type from where these
   # instructions come from!
@@ -924,17 +1010,24 @@ def _get_asm_reference(asm):
   #       &Assembler_common_x86::Lzcntl)
   if 'arch' in asm:
     assembler = 'Assembler_%s' % asm['arch']
-    return 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
-        assembler,
-        _get_asm_type(asm, 'typename %s::' % assembler),
-        '\n                  ',
-        assembler,
-        'template ' if '<' in asm['asm'] else '',
-        asm['asm'])
+  elif gen_builder:
+    assembler = 'std::tuple_element_t<0, MacroAssembler>'
+  elif any(arg['class'].startswith('Imm') for arg in asm['args']):
+    assembler = 'MacroAssembler'
   else:
     return '&MacroAssembler::%s%s' % (
         'template ' if '<' in asm['asm'] else '',
         asm['asm'])
+  return 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
+      assembler,
+      _get_asm_type(asm, 'typename %s::' % assembler),
+      '\n                  ',
+      assembler,
+      'template ' if '<' in asm['asm'] else '',
+      asm['asm'])
+
+def _get_builder_reference(intr, asm):
+  return 'GetOpcode%s' % (asm['name'])
 
 def _load_intrs_def_files(intrs_def_files):
   result = {}

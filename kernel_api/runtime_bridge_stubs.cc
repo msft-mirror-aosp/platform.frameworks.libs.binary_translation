@@ -22,12 +22,12 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
+#include "berberis/base/config.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/kernel_api/sys_mman_emulation.h"
-#include "berberis/runtime_primitives/config.h"
 
 #include "sigevent_emulation.h"
 

@@ -135,6 +135,10 @@ class Decoder {
     kSh1add = 0b0010'000'010,
     kSh2add = 0b0010'000'100,
     kSh3add = 0b0010'000'110,
+    kBclr = 0b0100'100'001,
+    kBext = 0b0100'100'101,
+    kBinv = 0b0110'100'001,
+    kBset = 0b0010'100'001,
     kMaxValue = 0b1111'111'111,
   };
 
@@ -239,6 +243,10 @@ class Decoder {
     kOrcb = 0b0010100'00111'101,
     kRev8 = 0b0110101'11000'101,
     kRori = 0b011000'101,
+    kBclri = 0b010010'001,
+    kBexti = 0b010010'101,
+    kBinvi = 0b011010'001,
+    kBseti = 0b001010'001,
     kMaxValue = 0b111111'111111'111,
   };
 
@@ -257,15 +265,123 @@ class Decoder {
     kMaxValue = 0b111111111111'11111'111'11111,
   };
 
-  // Technically CsrRegister is instruction argument, but it's handling is closer to the handling
-  // of opcode: instructions which deal with different registers have radically different semantic
-  // while most combinations trigger “illegal instruction opcode”.
+  enum class VOpViOpcode {
+    kVaddvi = 0b000000,
+    kVrsubvi = 0b000011,
+    kVandvi = 0b001001,
+    kVorvi = 0b001010,
+    kVxorvi = 0b001011,
+    kVrgathervi = 0b001100,
+    kVslideupvi = 0b001110,
+    kVslidedownvi = 0b001111,
+    kVadcvi = 0b010000,
+    kVmadcvi = 0b010001,
+    kVmergevi = 0b010111,
+    kVmseqvi = 0b011000,
+    kVmsnevi = 0b011001,
+    kVmsleuvi = 0b011100,
+    kVmslevi = 0b011101,
+    kVmsgtuvi = 0b011110,
+    kVmsgtvi = 0b011111,
+    kVsadduvi = 0b100000,
+    kVsaddvi = 0b100001,
+    kVsllvi = 0b100101,
+    kVmvvi = 0b100111,
+    kVsrlvi = 0b101000,
+    kVsravi = 0b101001,
+    kVssrlvi = 0b101010,
+    kVssravi = 0b101011,
+    kVnsrlvi = 0b101100,
+    kVnsravi = 0b101101,
+    kVnclipuvi = 0b101110,
+    kVnclipvi = 0b101111,
+    kMaxValue = 0b111111,
+  };
 
-  enum class CsrRegister {
-    kFFlags = 0b00'00'0000'0001,
-    kFrm = 0b00'00'0000'0010,
-    kFCsr = 0b00'00'0000'0011,
-    kMaxValue = 0b11'11'1111'1111,
+  enum class VOpVvOpcode {
+    kVaddvv = 0b000000,
+    kVsubvv = 0b000010,
+    kVminuvv = 0b000100,
+    kVminvv = 0b000101,
+    kVmaxuvv = 0b000110,
+    kVmaxvv = 0b000111,
+    kVandvv = 0b001001,
+    kVorvv = 0b001010,
+    kVxorvv = 0b001011,
+    kVrgathervv = 0b001100,
+    kVrgatherei16vv = 0b001110,
+    kVadcvv = 0b010000,
+    kVmadcvv = 0b010001,
+    kVsbcvv = 0b010010,
+    kVmsbcvv = 0b010011,
+    kVmergevv = 0b010111,
+    kVmseqvv = 0b011000,
+    kVmsnevv = 0b011001,
+    kVmsltuvv = 0b011010,
+    kVmsltvv = 0b011011,
+    kVmsleuvv = 0b011100,
+    kVmslevv = 0b011101,
+    kVsadduvv = 0b100000,
+    kVsaddvv = 0b100001,
+    kVssubuvv = 0b100000,
+    kVssubvv = 0b100001,
+    kVsllvv = 0b100101,
+    kVsmulvv = 0b100111,
+    kVsrlvv = 0b101000,
+    kVsravv = 0b101001,
+    kVssrlvv = 0b101010,
+    kVssravv = 0b101011,
+    kVnsrlvv = 0b101100,
+    kVnsravv = 0b101101,
+    kVnclipuvv = 0b101110,
+    kVnclipvv = 0b101111,
+    kVwredsumuvv = 0b110000,
+    kVwredsumvv = 0b110001,
+    kMaxValue = 0b111111
+  };
+
+  enum class VOpVxOpcode {
+    kVaddvx = 0b000000,
+    kVsubvx = 0b000010,
+    kVrsubvx = 0b000011,
+    kVminuvx = 0b000100,
+    kVminvx = 0b000101,
+    kVmaxuvx = 0b000110,
+    kVmaxvx = 0b000111,
+    kVandvx = 0b001001,
+    kVorvx = 0b001010,
+    kVxorvx = 0b001011,
+    kVrgathervx = 0b001100,
+    kVslideupvx = 0b001110,
+    kVslidedownvx = 0b001111,
+    kVadcvx = 0b010000,
+    kVmadcvx = 0b010001,
+    kVsbcvx = 0b010010,
+    kVmsbcvx = 0b010011,
+    kVmergevx = 0b010111,
+    kVmseqvx = 0b011000,
+    kVmsnevx = 0b011001,
+    kVmsltuvx = 0b011010,
+    kVmsltvx = 0b011011,
+    kVmsleuvx = 0b011100,
+    kVmslevx = 0b011101,
+    kVmsgtuvx = 0b011110,
+    kVmsgtvx = 0b011111,
+    kVsadduvx = 0b100000,
+    kVsaddvx = 0b100001,
+    kVssubuvx = 0b100000,
+    kVssubvx = 0b100001,
+    kVsllvx = 0b100101,
+    kVsmulvx = 0b100111,
+    kVsrlvx = 0b101000,
+    kVsravx = 0b101001,
+    kVssrlvx = 0b101010,
+    kVssravx = 0b101011,
+    kVnsrlvx = 0b101100,
+    kVnsravx = 0b101101,
+    kVnclipuvx = 0b101110,
+    kVnclipvx = 0b101111,
+    kMaxValue = 0b111111
   };
 
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions
@@ -340,14 +456,14 @@ class Decoder {
     CsrOpcode opcode;
     uint8_t dst;
     uint8_t src;
-    CsrRegister csr;
+    uint16_t csr;
   };
 
   struct CsrImmArgs {
     CsrImmOpcode opcode;
     uint8_t dst;
     uint8_t imm;
-    CsrRegister csr;
+    uint16_t csr;
   };
 
   struct FcvtFloatToFloatArgs {
@@ -504,6 +620,48 @@ class Decoder {
   using OpImmArgs = OpImmArgsTemplate<OpImmOpcode>;
   using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
 
+  struct VOpViArgs {
+    VOpViOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src;
+    int8_t imm;
+  };
+
+  struct VOpVvArgs {
+    VOpVvOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
+  struct VOpVxArgs {
+    VOpVxOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
+  struct VsetivliArgs {
+    uint8_t dst;
+    uint8_t avl;
+    uint16_t vtype;
+  };
+
+  struct VsetvliArgs {
+    uint8_t dst;
+    uint8_t src;
+    uint16_t vtype;
+  };
+
+  struct VsetvlArgs {
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
   template <typename OperandTypeEnum>
   struct LoadArgsTemplate {
     OperandTypeEnum operand_type;
@@ -557,12 +715,18 @@ class Decoder {
     int32_t imm;
   };
 
-  uint8_t Decode(const uint16_t* code) {
+  static uint8_t GetInsnSize(const uint16_t* code) {
     constexpr uint16_t kInsnLenMask = uint16_t{0b11};
-    if ((*code & kInsnLenMask) != kInsnLenMask) {
+    return ((*code & kInsnLenMask) != kInsnLenMask) ? 2 : 4;
+  }
+
+  uint8_t Decode(const uint16_t* code) {
+    uint8_t insn_size = GetInsnSize(code);
+    if (insn_size == 2) {
       code_ = *code;
       return DecodeCompressedInstruction();
     }
+    CHECK_EQ(insn_size, 4);
     // Warning: do not cast and dereference the pointer
     // since the address may not be 4-bytes aligned.
     memcpy(&code_, code, sizeof(code_));
@@ -1052,6 +1216,9 @@ class Decoder {
       case BaseOpcode::kOpFp:
         DecodeOpFp();
         break;
+      case BaseOpcode::vOpV:
+        DecodeOpV();
+        break;
       case BaseOpcode::kBranch:
         DecodeBranch();
         break;
@@ -1116,8 +1283,8 @@ class Decoder {
             .si = bool(GetBits<uint8_t, 23, 1>()),
             .pw = bool(GetBits<uint8_t, 24, 1>()),
             .pr = bool(GetBits<uint8_t, 25, 1>()),
-            .pi = bool(GetBits<uint8_t, 26, 1>()),
-            .po = bool(GetBits<uint8_t, 27, 1>()),
+            .po = bool(GetBits<uint8_t, 26, 1>()),
+            .pi = bool(GetBits<uint8_t, 27, 1>()),
         };
         insn_consumer_->Fence(args);
         break;
@@ -1309,11 +1476,15 @@ class Decoder {
       uint8_t shamt = GetBits<uint8_t, 20, kShiftFieldSize>();
       uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
       BitmanipOpCodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
-      bool is_shift = false;
+      bool has_shamt = false;
 
       switch ((BitmanipImmOpcode)opcode) {
         case BitmanipImmOpcode::kRori:
-          is_shift = true;
+        case BitmanipImmOpcode::kBclri:
+        case BitmanipImmOpcode::kBexti:
+        case BitmanipImmOpcode::kBinvi:
+        case BitmanipImmOpcode::kBseti:
+          has_shamt = true;
           break;
         default:
           break;
@@ -1322,13 +1493,13 @@ class Decoder {
       switch ((BitmanipImm32Opcode)opcode) {
         case BitmanipImm32Opcode::kRoriw:
         case BitmanipImm32Opcode::kSlliuw:
-          is_shift = true;
+          has_shamt = true;
           break;
         default:
           break;
       }
       // TODO(b/291851792): Refactor instructions with shamt into ShiftImmArgs
-      if (!is_shift) {
+      if (!has_shamt) {
         high_opcode = GetBits<uint16_t, 20, 12>();
         opcode = {low_opcode | (high_opcode << 3)};
         shamt = 0;
@@ -1529,6 +1700,72 @@ class Decoder {
     }
   }
 
+  void DecodeOpV() {
+    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+    bool vm = GetBits<uint8_t, 25, 1>();
+    uint8_t opcode = GetBits<uint8_t, 26, 6>();
+    uint8_t dst = GetBits<uint8_t, 7, 5>();
+    // Note: in vector instructions vs2 field is 2nd operand while vs1 field is 2rd operand.
+    // FMA instructions are exception, but there are not that many of these.
+    uint8_t src1 = GetBits<uint8_t, 20, 5>();
+    uint8_t src2 = GetBits<uint8_t, 15, 5>();
+    switch (low_opcode) {
+      case 0b000: {
+        const VOpVvArgs args = {
+            .opcode = VOpVvOpcode(opcode),
+            .vm = vm,
+            .dst = dst,
+            .src1 = src1,
+            .src2 = src2,
+        };
+        return insn_consumer_->OpVector(args);
+      }
+      case 0b011: {
+        const VOpViArgs args = {
+            .opcode = VOpViOpcode(opcode),
+            .vm = vm,
+            .dst = dst,
+            .src = src1,
+            .imm = SignExtend<5>(src2),
+        };
+        return insn_consumer_->OpVector(args);
+      }
+      case 0b100: {
+        const VOpVxArgs args = {
+            .opcode = VOpVxOpcode(opcode),
+            .vm = vm,
+            .dst = dst,
+            .src1 = src1,
+            .src2 = src2,
+        };
+        return insn_consumer_->OpVector(args);
+      }
+      case 0b111:
+        if (GetBits<uint8_t, 31, 1>() == 0) {
+          const VsetvliArgs args = {
+              .dst = GetBits<uint8_t, 7, 5>(),
+              .src = GetBits<uint8_t, 15, 5>(),
+              .vtype = GetBits<uint16_t, 20, 11>(),
+          };
+          return insn_consumer_->Vsetvli(args);
+        } else if (GetBits<uint8_t, 30, 1>() == 1) {
+          const VsetivliArgs args = {
+              .dst = GetBits<uint8_t, 7, 5>(),
+              .avl = GetBits<uint8_t, 15, 5>(),
+              .vtype = GetBits<uint16_t, 20, 10>(),
+          };
+          return insn_consumer_->Vsetivli(args);
+        } else if (GetBits<uint8_t, 25, 6>() == 0) {
+          const VsetvlArgs args = {
+              .dst = GetBits<uint8_t, 7, 5>(),
+              .src1 = GetBits<uint8_t, 15, 5>(),
+              .src2 = GetBits<uint8_t, 20, 5>(),
+          };
+          return insn_consumer_->Vsetvl(args);
+        }
+    }
+  }
+
   void DecodeSystem() {
     uint8_t low_opcode = GetBits<uint8_t, 12, 2>();
     if (low_opcode == 0b00) {
@@ -1544,7 +1781,7 @@ class Decoder {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .imm = GetBits<uint8_t, 15, 5>(),
-          .csr = CsrRegister(GetBits<uint16_t, 20, 12>()),
+          .csr = GetBits<uint16_t, 20, 12>(),
       };
       return insn_consumer_->Csr(args);
     }
@@ -1553,7 +1790,7 @@ class Decoder {
         .opcode = opcode,
         .dst = GetBits<uint8_t, 7, 5>(),
         .src = GetBits<uint8_t, 15, 5>(),
-        .csr = CsrRegister(GetBits<uint16_t, 20, 12>()),
+        .csr = GetBits<uint16_t, 20, 12>(),
     };
     return insn_consumer_->Csr(args);
   }
@@ -1598,7 +1835,7 @@ class Decoder {
     kNmSub = 0b10'010,
     kNmAdd = 0b10'011,
     kOpFp = 0b10'100,
-    // Reserved 0b10'101,
+    vOpV = 0b10'101,
     kCustom2 = 0b10'110,
     // Reserved 0b10'111,
     kBranch = 0b11'000,

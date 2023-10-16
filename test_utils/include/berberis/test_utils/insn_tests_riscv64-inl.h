@@ -80,7 +80,10 @@ decltype(auto) TupleMap(const ContainerType& container, const Transformer& trans
 
 class TESTSUITE : public ::testing::Test {
  public:
-  TESTSUITE() : state_{.cpu = {.frm = intrinsics::GuestModeFromHostRounding()}} {}
+  TESTSUITE()
+      : state_{
+            .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
+
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
@@ -180,6 +183,38 @@ class TESTSUITE : public ::testing::Test {
   }
 
   // Non-Compressed Instructions.
+
+  void TestFCsr(uint32_t insn_bytes,
+                uint8_t fcsr_to_set,
+                uint8_t expected_fcsr,
+                uint8_t expected_cpustate_frm) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    state_.cpu.frm =
+        0b100u;  // Pass non-zero frm to ensure that we don't accidentally rely on it being zero.
+    SetXReg<3>(state_.cpu, fcsr_to_set);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 0b1000'0000ULL | expected_fcsr);
+    EXPECT_EQ(state_.cpu.frm, expected_cpustate_frm);
+  }
+
+  void TestFFlags(uint32_t insn_bytes, uint8_t fflags_to_set, uint8_t expected_fflags) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    SetXReg<3>(state_.cpu, fflags_to_set);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_fflags);
+  }
+
+  void TestFrm(uint32_t insn_bytes, uint8_t frm_to_set, uint8_t expected_rm) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    state_.cpu.frm = 0b001u;
+    SetXReg<3>(state_.cpu, frm_to_set);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
+    EXPECT_EQ(state_.cpu.frm, expected_rm);
+  }
 
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
@@ -397,13 +432,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
   }
 
-  void TestAtomicLoad(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    SetXReg<1>(state_.cpu, ToGuestAddr(&kDataToLoad));
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
-  }
-
   void TestStoreFp(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
@@ -414,15 +442,26 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(store_area_, expected_result);
   }
 
-  void TestAtomicStore(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
-    SetXReg<2>(state_.cpu, kDataToStore);
-    SetXReg<3>(state_.cpu, 0xdeadbeef);
-    store_area_ = 0;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(store_area_, expected_result);
-    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
+  void TestVsetvl(
+      uint32_t insn_bytes,
+      std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>>
+          args) {
+    for (auto [vl_orig, vtype_orig, avl, vtype_new, vl_expected, vtype_expected] : args) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      state_.cpu.vl = vl_orig;
+      state_.cpu.vtype = vtype_orig;
+      SetXReg<1>(state_.cpu, ~0ULL);
+      SetXReg<2>(state_.cpu, avl);
+      SetXReg<3>(state_.cpu, vtype_new);
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      if (insn_bytes & 0b11111'0000000) {
+        EXPECT_EQ(GetXReg<1>(state_.cpu), vl_expected);
+      } else {
+        EXPECT_EQ(GetXReg<1>(state_.cpu), ~0ULL);
+      }
+      EXPECT_EQ(state_.cpu.vl, vl_expected);
+      EXPECT_EQ(state_.cpu.vtype, vtype_expected);
+    }
   }
 
  protected:
@@ -1060,6 +1099,129 @@ TEST_F(TESTSUITE, CJalr) {
 
 // Tests for Non-Compressed Instructions.
 
+TEST_F(TESTSUITE, CsrInstructions) {
+  ScopedRoundingMode scoped_rounding_mode;
+  // Csrrw x2, frm, 2
+  TestFrm(0x00215173, 0, 2);
+  // Csrrsi x2, frm, 2
+  TestFrm(0x00216173, 0, 3);
+  // Csrrci x2, frm, 1
+  TestFrm(0x0020f173, 0, 0);
+}
+
+TEST_F(TESTSUITE, FCsrRegister) {
+  fenv_t saved_environment;
+  EXPECT_EQ(fegetenv(&saved_environment), 0);
+
+  for (uint8_t riscv_fflags = 0; riscv_fflags < 32; riscv_fflags += 1) {
+    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+    if (riscv_fflags & FPFlags::NX) {
+      EXPECT_EQ(feraiseexcept(FE_INEXACT), 0);
+    }
+    if (riscv_fflags & FPFlags::UF) {
+      EXPECT_EQ(feraiseexcept(FE_UNDERFLOW), 0);
+    }
+    if (riscv_fflags & FPFlags::OF) {
+      EXPECT_EQ(feraiseexcept(FE_OVERFLOW), 0);
+    }
+    if (riscv_fflags & FPFlags::DZ) {
+      EXPECT_EQ(feraiseexcept(FE_DIVBYZERO), 0);
+    }
+    if (riscv_fflags & FPFlags::NV) {
+      EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
+    }
+    TestFCsr(0x00319173, 0, riscv_fflags, 0);
+  }
+
+  for (bool immediate_source : {true, false}) {
+    for (uint8_t riscv_fflags = 0; riscv_fflags < 32; ++riscv_fflags) {
+      EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+      if (immediate_source) {
+        TestFCsr(0x00305173 | (riscv_fflags << 15), 0, 0, 0);
+      } else {
+        TestFCsr(0x00319173, 0b100'0000 | riscv_fflags, 0, 2);
+      }
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+    }
+  }
+
+  EXPECT_EQ(fesetenv(&saved_environment), 0);
+}
+
+TEST_F(TESTSUITE, FFlagsRegister) {
+  fenv_t saved_environment;
+  EXPECT_EQ(fegetenv(&saved_environment), 0);
+
+  for (uint8_t riscv_fflags = 0; riscv_fflags < 32; riscv_fflags += 1) {
+    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+    if (riscv_fflags & FPFlags::NX) {
+      EXPECT_EQ(feraiseexcept(FE_INEXACT), 0);
+    }
+    if (riscv_fflags & FPFlags::UF) {
+      EXPECT_EQ(feraiseexcept(FE_UNDERFLOW), 0);
+    }
+    if (riscv_fflags & FPFlags::OF) {
+      EXPECT_EQ(feraiseexcept(FE_OVERFLOW), 0);
+    }
+    if (riscv_fflags & FPFlags::DZ) {
+      EXPECT_EQ(feraiseexcept(FE_DIVBYZERO), 0);
+    }
+    if (riscv_fflags & FPFlags::NV) {
+      EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
+    }
+    TestFFlags(0x00105173, 0, riscv_fflags);
+  }
+
+  for (bool immediate_source : {true, false}) {
+    for (uint8_t riscv_fflags = 0; riscv_fflags < 32; ++riscv_fflags) {
+      EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+      if (immediate_source) {
+        TestFFlags(0x00105173 | (riscv_fflags << 15), 0, 0);
+      } else {
+        TestFFlags(0x00119173, riscv_fflags, 0);
+      }
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
+      EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+    }
+  }
+
+  EXPECT_EQ(fesetenv(&saved_environment), 0);
+}
+
+TEST_F(TESTSUITE, FsrRegister) {
+  ScopedRoundingMode scoped_rounding_mode;
+  int rounding[][2] = {
+    {0, FE_TONEAREST},
+    {1, FE_TOWARDZERO},
+    {2, FE_DOWNWARD},
+    {3, FE_UPWARD},
+    {4, FE_TOWARDZERO},
+    // Only low three bits must be affecting output (for forward compatibility).
+    {8, FE_TONEAREST},
+    {9, FE_TOWARDZERO},
+    {10, FE_DOWNWARD},
+    {11, FE_UPWARD},
+    {12, FE_TOWARDZERO}
+  };
+  for (bool immediate_source : {true, false}) {
+    for (auto [guest_rounding, host_rounding] : rounding) {
+      if (immediate_source) {
+        TestFrm(0x00205173 | (guest_rounding << 15), 0, guest_rounding & 0b111);
+      } else {
+        TestFrm(0x00219173, guest_rounding, guest_rounding & 0b111);
+      }
+      EXPECT_EQ(std::fegetround(), host_rounding);
+    }
+  }
+}
+
 TEST_F(TESTSUITE, OpInstructions) {
   // Add
   TestOp(0x003100b3, {{19, 23, 42}});
@@ -1138,19 +1300,32 @@ TEST_F(TESTSUITE, OpInstructions) {
   // Rol
   TestOp(0x603110b3, {{0xff00'0000'0000'0000ULL, 4, 0xf000'0000'0000'000fULL}});
   TestOp(0x603110b3, {{0x000f'ff00'0000'000fULL, 8, 0x0fff'0000'0000'0f00ULL}});
-  // Sh1add.uw
-  TestOp(0x203120b3, {{0x1000'0001'0000'0000ULL, 1, 0x2000'0002'0000'0001ULL}});
-  // Sh2add.uw
-  TestOp(0x203140b3, {{0x0000'0001'0000'0000ULL, 1, 0x0000'0004'0000'0001ULL}});
-  // Sh3add.uw
-  TestOp(0x203160b3, {{0x1000'0001'0000'0000ULL, 1, 0x8000'0008'0000'0001ULL}});
+  // Sh1add
+  TestOp(0x203120b3, {{0x0008'0000'0000'0001, 0x1001'0001'0000'0000ULL, 0x1011'0001'0000'0002ULL}});
+  // Sh2add
+  TestOp(0x203140b3, {{0x0008'0000'0000'0001, 0x0001'0001'0000'0000ULL, 0x0021'0001'0000'0004ULL}});
+  // Sh3add
+  TestOp(0x203160b3, {{0x0008'0000'0000'0001, 0x1001'0011'0000'0000ULL, 0x1041'0011'0000'0008ULL}});
+  // Bclr
+  TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
+  // Bext
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 0, 0b0000'0000'0000'0001ULL}});
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 8, 0b0000'0000'0000'0001ULL}});
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 7, 0b0000'0000'0000'0000ULL}});
+  // Binv
+  TestOp(0x683110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOp(0x683110b3, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
+  // Bset
+  TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0001ULL}});
+  TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
 
 TEST_F(TESTSUITE, Op32Instructions) {
   // Addw
   TestOp(0x003100bb, {{19, 23, 42}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
   // Add.uw
-  TestOp(0x083100bb, {{19, 23, 42}, {0x8000'0000, 1, 0x0000'0000'8000'0001}});
+  TestOp(0x083100bb, {{19, 23, 42}, {0x8000'0000'8000'0000, 1, 0x0000'0000'8000'0001}});
   // Subw
   TestOp(0x403100bb, {{42, 23, 19}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
   // Sllw
@@ -1183,11 +1358,11 @@ TEST_F(TESTSUITE, Op32Instructions) {
   TestOp(0x603110bb, {{0x0000'0000'f000'000fULL, 4, 0x0000'0000'0000'00ff}});
   TestOp(0x603110bb, {{0x0000'0000'0ff0'0000ULL, 4, 0xffff'ffff'ff00'0000}});
   // Sh1add.uw
-  TestOp(0x203120bb, {{0x8000'0000, 1, 0x0000'0001'0000'0001}});
+  TestOp(0x203120bb, {{0xf0ff'0000'8000'0001, 0x8000'0000, 0x0000'0001'8000'0002}});
   // Sh2add.uw
-  TestOp(0x203140bb, {{0x8000'0000, 1, 0x0000'0002'0000'0001}});
+  TestOp(0x203140bb, {{0xf0ff'00ff'8000'0001, 0x8000'0000, 0x0000'0002'8000'0004}});
   // Sh3add.uw
-  TestOp(0x203160bb, {{0x8000'0000, 1, 0x0000'0004'0000'0001}});
+  TestOp(0x203160bb, {{0xf0ff'0f00'8000'0001, 0x8000'0000, 0x0000'0004'8000'0008}});
 }
 
 TEST_F(TESTSUITE, OpImmInstructions) {
@@ -1243,6 +1418,19 @@ TEST_F(TESTSUITE, OpImmInstructions) {
   // Orc.b
   TestOpImm(0x28715093, {{0xfe00'f0ff'fa00'fffb, 0, 0xff00'ffff'ff00'ffff}});
   TestOpImm(0x28715093, {{0xfa00, 0, 0xff00}});
+  // Bclri
+  TestOpImm(0x48011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOpImm(0x48011093, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
+  // Bexti
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 0, 0b0000'0000'0000'0001ULL}});
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 8, 0b0000'0000'0000'0001ULL}});
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 7, 0b0000'0000'0000'0000ULL}});
+  // Binvi
+  TestOpImm(0x68011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOpImm(0x68011093, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
+  // Bset
+  TestOpImm(0x28011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0001ULL}});
+  TestOpImm(0x28011093, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
 
 TEST_F(TESTSUITE, OpImm32Instructions) {
@@ -1775,13 +1963,6 @@ TEST_F(TESTSUITE, LoadFpInstructions) {
   TestLoadFp(0x00813087, kDataToLoad);
 }
 
-TEST_F(TESTSUITE, AtomicLoadInstructions) {
-  // Lrw
-  TestAtomicLoad(0x1000a12f, int64_t{int32_t(kDataToLoad)});
-  // Lrd
-  TestAtomicLoad(0x1000b12f, kDataToLoad);
-}
-
 TEST_F(TESTSUITE, StoreFpInstructions) {
   // Offset is always 8.
   // Fsw
@@ -1790,9 +1971,120 @@ TEST_F(TESTSUITE, StoreFpInstructions) {
   TestStoreFp(0x0020b427, kDataToStore);
 }
 
-TEST_F(TESTSUITE, AtomicStoreInstructions) {
-  // Scw
-  TestAtomicStore(0x1820a1af, kDataToStore & 0xffff'ffffULL);
-  // Scd
-  TestAtomicStore(0x1820b1af, kDataToStore);
+TEST_F(TESTSUITE, TestVsetvl) {
+  constexpr uint64_t kVill =
+      0b1'0000000'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
+  // Vsetvl, rs1 != x0
+  TestVsetvl(0x803170d7,
+             {
+                 // Valid combinations.
+                 {~0ULL, ~0ULL, ~0ULL, 005, 2, 005},
+                 {~0ULL, ~0ULL, ~0ULL, 006, 4, 006},
+                 {~0ULL, ~0ULL, ~0ULL, 007, 8, 007},
+                 {~0ULL, ~0ULL, ~0ULL, 000, 16, 000},
+                 {~0ULL, ~0ULL, ~0ULL, 001, 32, 001},
+                 {~0ULL, ~0ULL, ~0ULL, 002, 64, 002},
+                 {~0ULL, ~0ULL, ~0ULL, 003, 128, 003},
+                 {~0ULL, ~0ULL, ~0ULL, 015, 1, 015},
+                 {~0ULL, ~0ULL, ~0ULL, 016, 2, 016},
+                 {~0ULL, ~0ULL, ~0ULL, 017, 4, 017},
+                 {~0ULL, ~0ULL, ~0ULL, 010, 8, 010},
+                 {~0ULL, ~0ULL, ~0ULL, 011, 16, 011},
+                 {~0ULL, ~0ULL, ~0ULL, 012, 32, 012},
+                 {~0ULL, ~0ULL, ~0ULL, 013, 64, 013},
+                 {~0ULL, ~0ULL, ~0ULL, 026, 1, 026},
+                 {~0ULL, ~0ULL, ~0ULL, 027, 2, 027},
+                 {~0ULL, ~0ULL, ~0ULL, 020, 4, 020},
+                 {~0ULL, ~0ULL, ~0ULL, 021, 8, 021},
+                 {~0ULL, ~0ULL, ~0ULL, 022, 16, 022},
+                 {~0ULL, ~0ULL, ~0ULL, 023, 32, 023},
+                 {~0ULL, ~0ULL, ~0ULL, 037, 1, 037},
+                 {~0ULL, ~0ULL, ~0ULL, 030, 2, 030},
+                 {~0ULL, ~0ULL, ~0ULL, 031, 4, 031},
+                 {~0ULL, ~0ULL, ~0ULL, 032, 8, 032},
+                 {~0ULL, ~0ULL, ~0ULL, 033, 16, 033},
+                 // Invalid combinations.
+                 {~0ULL, ~0ULL, ~0ULL, 004, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 014, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 024, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 025, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 034, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 035, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 036, 0, kVill},
+                 // Invalid sizes.
+                 {~0ULL, ~0ULL, ~0ULL, 040, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 041, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 042, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 043, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 044, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 045, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 046, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 047, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 050, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 051, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 052, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 053, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 054, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 055, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 056, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 057, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 060, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 061, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 062, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 063, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 064, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 065, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 066, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 067, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 070, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 071, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 072, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 073, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 074, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 075, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 076, 0, kVill},
+                 {~0ULL, ~0ULL, ~0ULL, 077, 0, kVill},
+                 // Vma/vta bits.
+                 {~0ULL, ~0ULL, ~0ULL, 0100, 16, 0100},
+                 {~0ULL, ~0ULL, ~0ULL, 0200, 16, 0200},
+                 {~0ULL, ~0ULL, ~0ULL, 0300, 16, 0300},
+                 // Extra bits ignored as permitted by RISC-V specification.
+                 {~0ULL, ~0ULL, ~0ULL, 0400, 16, 0000},
+                 {~0ULL, ~0ULL, ~0ULL, 0500, 16, 0100},
+                 {~0ULL, ~0ULL, ~0ULL, 0600, 16, 0200},
+                 {~0ULL, ~0ULL, ~0ULL, 0700, 16, 0300},
+                 // Avl handling.
+                 {~0ULL, ~0ULL, 67, 003, 67, 003},
+                 {~0ULL, ~0ULL, 151, 003, 76, 003},
+                 {~0ULL, ~0ULL, 256, 003, 128, 003},
+                 {~0ULL, ~0ULL, 257, 003, 128, 003},
+             });
+  // vsetvl rs1 == x0, rd != x0
+  TestVsetvl(0x803070d7, {{~0ULL, ~0ULL, 42, 000, 16, 000}});
+  // vsetvl rs1 == x0, rd == x0
+  TestVsetvl(0x80307057,
+             {// Valid change of vtype.
+              {9, 000, 128, 022, 9, 022},
+              // Invalid change of vtype.
+              {8, 001, 128, 022, 0, kVill}});
+  // vsetvli rs1 != x0
+  TestVsetvl(0x12170d7, {{~0ULL, ~0ULL, 128, 0, 16, 022}});
+  // vsetvli rs1 == x0, rd != x0
+  TestVsetvl(0x12070d7, {{~0ULL, ~0ULL, 42, 000, 16, 022}});
+  // vsetvli, rs1 == x0, rd == x0
+  TestVsetvl(0x1207057,
+             {// Valid change of vtype.
+              {9, 000, 128, ~0ULL, 9, 022},
+              // Invalid change of vtype.
+              {8, 001, 128, ~0ULL, 0, kVill}});
+  // vsetivli rs1 != x0
+  TestVsetvl(0xc12870d7, {{~0ULL, ~0ULL, 128, 0, 16, 022}});
+  // vsetivli rs1 == x0, rd != x0
+  TestVsetvl(0xc12070d7, {{~0ULL, ~0ULL, 42, 000, 16, 022}});
+  // vsetivli, rs1 == x0, rd == x0
+  TestVsetvl(0xc1207057,
+             {// Valid change of vtype.
+              {9, 000, 128, ~0ULL, 9, 022},
+              // Invalid change of vtype.
+              {8, 001, 128, ~0ULL, 0, kVill}});
 }

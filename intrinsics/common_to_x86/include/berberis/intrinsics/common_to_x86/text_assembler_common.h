@@ -24,6 +24,7 @@
 #include <string>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/config.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
 
 namespace berberis {
@@ -100,6 +101,8 @@ class TextAssemblerX86 {
 
     static constexpr int kNoRegister = -1;
     static constexpr int kStackPointer = -2;
+    // Used in Operand to deal with references to scratch area.
+    static constexpr int kScratchPointer = -3;
 
    private:
     friend struct Operand;
@@ -177,6 +180,16 @@ class TextAssemblerX86 {
         result = std::to_string(constants_pool::GetOffset(op.disp)) + " + " +
                  ToGasArgument(
                      typename Assembler::RegisterDefaultBit(as->gpr_macroassembler_constants), as);
+      } else if (op.base.arg_no_ == Register::kScratchPointer) {
+        CHECK(op.index.arg_no_ == Register::kNoRegister);
+        // Only support two pointers to scratch area for now.
+        if (op.disp == 0) {
+          result = '%' + std::to_string(as->gpr_macroassembler_scratch.arg_no());
+        } else if (op.disp == config::kScratchAreaSlotSize) {
+          result = '%' + std::to_string(as->gpr_macroassembler_scratch2.arg_no());
+        } else {
+          FATAL("Only two scratch registers are supported for now");
+        }
       } else {
         if (op.base.arg_no_ != Register::kNoRegister) {
           result = ToGasArgument(typename Assembler::RegisterDefaultBit(op.base), as);
@@ -202,23 +215,31 @@ class TextAssemblerX86 {
   // Note: stack pointer is not reflected in list of arguments, intrinsics use
   // it implicitly.
   Register gpr_s{Register::kStackPointer};
+  // Used in Operand as pseudo-register to temporary operand.
+  Register gpr_scratch{Register::kScratchPointer};
 
-  // In x86-64 case we could refer to kNdkTranslationMacroAssemblerConstants via %rip.
+  // In x86-64 case we could refer to kBerberisMacroAssemblerConstants via %rip.
   // In x86-32 mode, on the other hand, we need complex dance to access it via GOT.
   // Intrinsics which use these constants receive it via additional parameter - and
   // we need to know if it's needed or not.
   Register gpr_macroassembler_constants{};
   bool need_gpr_macroassembler_constants() const { return need_gpr_macroassembler_constants_; }
 
-  bool need_lzcnt = false;
+  Register gpr_macroassembler_scratch{};
+  bool need_gpr_macroassembler_scratch() const { return need_gpr_macroassembler_scratch_; }
+  Register gpr_macroassembler_scratch2{};
+
+  bool need_avx = false;
   bool need_bmi = false;
+  bool need_bmi2 = false;
+  bool need_fma = false;
+  bool need_fma4 = false;
+  bool need_lzcnt = false;
+  bool need_popcnt = false;
   bool need_sse3 = false;
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
   bool need_sse4_2 = false;
-  bool need_avx = false;
-  bool need_fma = false;
-  bool need_fma4 = false;
 
   void Bind(Label* label) {
     CHECK_EQ(label->bound, false);
@@ -236,6 +257,7 @@ class TextAssemblerX86 {
 
  protected:
   bool need_gpr_macroassembler_constants_ = false;
+  bool need_gpr_macroassembler_scratch_ = false;
 
   template <const char* kSpPrefix, char kRegisterPrefix>
   class RegisterTemplate {
@@ -268,11 +290,36 @@ class TextAssemblerX86 {
   constexpr static char kRsp[] = "%%rsp";
   typedef RegisterTemplate<kRsp, 'q'> Register64Bit;
 
+  void SetRequiredFeatureAVX() {
+    need_avx = true;
+    SetRequiredFeatureSSE4_2();
+  }
+
+  void SetRequiredFeatureBMI() {
+    need_bmi = true;
+  }
+
+  void SetRequiredFeatureBMI2() {
+    need_bmi2 = true;
+  }
+
+  void SetRequiredFeatureFMA() {
+    need_fma = true;
+    SetRequiredFeatureAVX();
+  }
+
+  void SetRequiredFeatureFMA4() {
+    need_fma4 = true;
+    SetRequiredFeatureAVX();
+  }
+
   void SetRequiredFeatureLZCNT() {
     need_lzcnt = true;
   }
 
-  void SetRequiredFeatureBMI() { need_bmi = true; }
+  void SetRequiredFeaturePOPCNT() {
+    need_popcnt = true;
+  }
 
   void SetRequiredFeatureSSE3() {
     need_sse3 = true;
@@ -293,21 +340,6 @@ class TextAssemblerX86 {
   void SetRequiredFeatureSSE4_2() {
     need_sse4_2 = true;
     SetRequiredFeatureSSE4_1();
-  }
-
-  void SetRequiredFeatureAVX() {
-    need_avx = true;
-    SetRequiredFeatureSSE4_2();
-  }
-
-  void SetRequiredFeatureFMA() {
-    need_fma = true;
-    SetRequiredFeatureAVX();
-  }
-
-  void SetRequiredFeatureFMA4() {
-    need_fma4 = true;
-    SetRequiredFeatureAVX();
   }
 
   template <typename... Args>

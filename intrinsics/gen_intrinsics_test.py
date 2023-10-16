@@ -77,7 +77,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": []
         })
-    self.assertEqual(out, "intrinsics::Foo(arg0)")
+    self.assertEqual(out, "intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0))")
 
   def test_get_interpreter_hook_call_expr_template_types(self):
     intr = {
@@ -91,13 +91,13 @@ class GenIntrinsicsTests(unittest.TestCase):
     out = gen_intrinsics._get_interpreter_hook_call_expr("Foo", intr["Foo"])
     self.assertEqual(
         out,
-        "std::make_signed_t<uint32_t>(std::get<0>(intrinsics::Foo<Type0, Type1>("
-            "arg0, "
-            "arg1, "
+        "IntegerToGPRReg(std::get<0>(intrinsics::Foo<Type0, Type1>("
+            "GPRRegToInteger<uint32_t>(arg0), "
+            "GPRRegToInteger<uint8_t>(arg1), "
             "FPRegToFloat<Type0>(arg2), "
-            "arg3, "
+            "GPRRegToInteger<Type1>(arg3), "
             "arg4, "
-            "arg5)))" ) # pyforman: disable
+            "GPRRegToInteger<uint8_t>(arg5))))" ) # pyforman: disable
 
   def test_get_interpreter_hook_call_expr_operand_types(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
@@ -106,12 +106,12 @@ class GenIntrinsicsTests(unittest.TestCase):
             "out": []
         })
     self.assertEqual(out,
-                     "intrinsics::Foo(arg0, "
-                                     "arg1, "
-                                     "arg2.Get<intrinsics::Float32>(0), "
-                                     "arg3.Get<intrinsics::Float64>(0), "
+                     "intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0), "
+                                     "GPRRegToInteger<uint8_t>(arg1), "
+                                     "FPRegToFloat<intrinsics::Float32>(arg2), "
+                                     "FPRegToFloat<intrinsics::Float64>(arg3), "
                                      "arg4, "
-                                     "arg5)" ) # pyforman: disable
+                                     "GPRRegToInteger<uint8_t>(arg5))" ) # pyforman: disable
 
   def test_get_interpreter_hook_call_expr_single_result(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
@@ -119,7 +119,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": ["uint32_t"]
         })
-    self.assertEqual(out, "std::get<0>(intrinsics::Foo(arg0))")
+    self.assertEqual(out, "std::get<0>(intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0)))")
 
   def test_get_interpreter_hook_call_expr_multiple_result(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
@@ -127,7 +127,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": ["vec", "uint32_t"]
         })
-    self.assertEqual(out, "intrinsics::Foo(arg0)")
+    self.assertEqual(out, "intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0))")
 
   def test_get_interpreter_hook_call_expr_float32_result(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
@@ -135,7 +135,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": ["Float32"]
         })
-    self.assertEqual(out, "SimdRegister(std::get<0>(intrinsics::Foo(arg0)))")
+    self.assertEqual(out, "FloatToFPReg(std::get<0>(intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0))))")
 
   def test_get_interpreter_hook_call_expr_float64_result(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
@@ -143,7 +143,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": ["Float64"]
         })
-    self.assertEqual(out, "SimdRegister(std::get<0>(intrinsics::Foo(arg0)))")
+    self.assertEqual(out, "FloatToFPReg(std::get<0>(intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0))))")
 
   def test_get_interpreter_hook_call_expr_precise_nan(self):
     out = gen_intrinsics._get_interpreter_hook_call_expr(
@@ -153,7 +153,8 @@ class GenIntrinsicsTests(unittest.TestCase):
             "precise_nans": True,
         })
     self.assertEqual(
-        out, "intrinsics::Foo<config::kPreciseNaNOperationsHandling>(arg0)")
+        out, "intrinsics::Foo<config::kPreciseNaNOperationsHandling>("
+             "GPRRegToInteger<uint32_t>(arg0))")
 
   def test_gen_interpreter_hook_return_stmt(self):
     out = gen_intrinsics._get_interpreter_hook_return_stmt(
@@ -161,7 +162,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": ["uint32_t"]
         })
-    self.assertEqual(out, "return std::get<0>(intrinsics::Foo(arg0));")
+    self.assertEqual(out, "return std::get<0>(intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0)));")
 
   def test_gen_interpreter_hook_return_stmt_void(self):
     out = gen_intrinsics._get_interpreter_hook_return_stmt(
@@ -169,7 +170,7 @@ class GenIntrinsicsTests(unittest.TestCase):
             "in": ["uint32_t"],
             "out": []
         })
-    self.assertEqual(out, "return intrinsics::Foo(arg0);")
+    self.assertEqual(out, "return intrinsics::Foo(GPRRegToInteger<uint32_t>(arg0));")
 
 
   def test_get_semantics_player_hook_proto_raw_variant(self):
@@ -194,10 +195,10 @@ class GenIntrinsicsTests(unittest.TestCase):
         }, gen_intrinsics._get_interpreter_hook_return_stmt)
     self.assertSequenceEqual(list(out),
                              ("switch (size) {",
-                              "  case 8:" ,
-                              "    return std::get<0>(intrinsics::Foo<8>(arg0, arg1));",
-                              "  case 16:",
-                              "    return std::get<0>(intrinsics::Foo<16>(arg0, arg1));",
+                              "  case 64:" ,
+                              "    return std::get<0>(intrinsics::Foo<64>(arg0, arg1));",
+                              "  case 128:",
+                              "    return std::get<0>(intrinsics::Foo<128>(arg0, arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported size\");",
                               "    return {};",
@@ -318,11 +319,11 @@ class GenIntrinsicsTests(unittest.TestCase):
                              ("auto format = intrinsics::GetVectorFormatInt(elem_size, elem_num, true);",
                               "switch (format) {",
                               "  case intrinsics::kVectorI32x2:" ,
-                              "    return intrinsics::Foo<int32_t, 2>(arg0, arg1);",
+                              "    return intrinsics::Foo<int32_t, 2>(arg0, GPRRegToInteger<uint32_t>(arg1));",
                               "  case intrinsics::kVectorI32x4:" ,
-                              "    return intrinsics::Foo<int32_t, 4>(arg0, arg1);",
+                              "    return intrinsics::Foo<int32_t, 4>(arg0, GPRRegToInteger<uint32_t>(arg1));",
                               "  case intrinsics::kVectorI32x1:" ,
-                              "    return intrinsics::Foo<int32_t, 1>(arg0, arg1);",
+                              "    return intrinsics::Foo<int32_t, 1>(arg0, GPRRegToInteger<uint32_t>(arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported format\");",
                               "    return {};",
@@ -356,10 +357,10 @@ class GenIntrinsicsTests(unittest.TestCase):
         }, gen_intrinsics._get_translator_hook_return_stmt)
     self.assertSequenceEqual(list(out),
                              ("switch (size) {",
-                              "  case 8:",
-                              "    return CallIntrinsic<&intrinsics::Foo<8>, SimdRegister>(arg0, arg1);",
-                              "  case 16:",
-                              "    return CallIntrinsic<&intrinsics::Foo<16>, SimdRegister>(arg0, arg1);",
+                              "  case 64:",
+                              "    return CallIntrinsic<&intrinsics::Foo<64>, SimdRegister>(arg0, arg1);",
+                              "  case 128:",
+                              "    return CallIntrinsic<&intrinsics::Foo<128>, SimdRegister>(arg0, arg1);",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported size\");",
                               "    return {};",

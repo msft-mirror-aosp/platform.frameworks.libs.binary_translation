@@ -22,8 +22,8 @@
 #include <tuple>
 #include <type_traits>
 
+#include "berberis/base/checks.h"
 #include "berberis/base/dependent_false.h"
-#include "berberis/base/logging.h"
 #include "berberis/calling_conventions/calling_conventions_riscv64.h"
 #include "berberis/guest_abi/guest_abi.h"
 #include "berberis/guest_state/guest_addr.h"

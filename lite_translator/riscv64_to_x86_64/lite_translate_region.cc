@@ -37,6 +37,25 @@ void Finalize(LiteTranslator* translator, GuestAddr pc) {
   translator->as()->Finalize();
 }
 
+void GenIncrementProfileCounter(x86_64::Assembler* as, const LiteTranslateParams& params) {
+  CHECK(params.counter_location);
+  *params.counter_location = 0;
+
+  // Ideally for thread safety the counter subtraction needs to be atomic. But,
+  // our experiments showed that the overhead from LOCK prefix here is too high
+  // (b/222363018#comment3).
+  // The threshold for the counter is an heuristic though. The worst what can
+  // happen due to racing threads is counter inadvertently rolling back to a
+  // value a few increments before, which we consider acceptable.
+  // WARNING: do not clobber rax, since insn_addr held in it is used in case of
+  // the reached threshold.
+  as->Movq(as->rcx, bit_cast<int64_t>(params.counter_location));
+  static_assert(sizeof(*params.counter_location) == 4);
+  as->Addl({.base = as->rcx}, 1);
+  as->Cmpl({.base = as->rcx}, params.counter_threshold);
+  as->Jcc(x86_64::Assembler::Condition::kGreater, params.counter_threshold_callback);
+}
+
 // Returns the success status and
 // - in case of success, the pc of the next instruction past the translated region
 // - in case of failure, the pc of the failed instruction
@@ -49,6 +68,10 @@ std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
   LiteTranslator translator(machine_code, start_pc, params);
   SemanticsPlayer sem_player(&translator);
   Decoder decoder(&sem_player);
+
+  if (params.enable_self_profiling) {
+    GenIncrementProfileCounter(translator.as(), params);
+  }
 
   while (translator.GetInsnAddr() != end_pc && !translator.is_region_end_reached()) {
     uint8_t insn_size = decoder.Decode(ToHostAddr<const uint16_t>(translator.GetInsnAddr()));

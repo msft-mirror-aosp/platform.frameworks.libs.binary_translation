@@ -91,7 +91,7 @@ class Allocator {
   void FreeTemps() { temp_regs_allocated = 0; }
 
  private:
-  inline static const uint32_t kNumRegister = arraysize(kAllocatableRegisters<RegType>);
+  inline static const uint32_t kNumRegister = std::size(kAllocatableRegisters<RegType>);
 
   uint32_t regs_allocated_ = 0;
   uint32_t temp_regs_allocated = 0;

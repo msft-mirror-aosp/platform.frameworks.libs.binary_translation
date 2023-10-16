@@ -18,6 +18,7 @@
 #define BERBERIS_GUEST_STATE_GUEST_STATE_OPAQUE_H_
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 
 #include "berberis/guest_state/guest_addr.h"
@@ -89,6 +90,12 @@ GuestAddr GetTlsAddr(const ThreadState& cpu);
 void SetShadowCallStackPointer(CPUState& cpu, GuestAddr scs_sp);
 
 void InitFloatingPointState();
+
+std::size_t GetThreadStateRegOffset(int reg);
+std::size_t GetThreadStateSimdRegOffset(int simd_reg);
+
+bool DoesCpuStateHaveFlags();
+std::size_t GetThreadStateFlagOffset();
 
 }  // namespace berberis
 

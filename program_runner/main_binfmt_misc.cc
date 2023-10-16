@@ -14,24 +14,28 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_FP_REGS_TEST_H_
-#define BERBERIS_FP_REGS_TEST_H_
+#include <cstdio>
+#include <string>
 
-#include <cstdint>
+#include "berberis/program_runner/program_runner.h"
 
-#include "berberis/base/bit_util.h"
+// Basic program runner meant to be used by binfmt_misc utility.
 
-namespace berberis {
-
-inline constexpr class FPValueToFPReg {
- public:
-  uint64_t operator()(uint64_t value) const { return value; }
-  uint64_t operator()(float value) const {
-    return bit_cast<uint32_t>(value) | 0xffff'ffff'0000'0000;
+int main(int argc, const char* argv[], char* envp[]) {
+  if (argc < 3) {
+    printf("Usage: %s /full/path/to/program program [args...]", argv[0]);
+    return 0;
   }
-  uint64_t operator()(double value) const { return bit_cast<uint64_t>(value); }
-} kFPValueToFPReg;
 
-}  // namespace berberis
-
-#endif  // BERBERIS_FP_REGS_TEST_H_
+  std::string error_msg;
+  if (!berberis::Run(
+          /* vdso_path */ nullptr,
+          /* loader_path */ nullptr,
+          argc - 2,
+          &argv[2],
+          envp,
+          &error_msg)) {
+    fprintf(stderr, "Error running %s: %s", argv[1], error_msg.c_str());
+    return -1;
+  }
+}

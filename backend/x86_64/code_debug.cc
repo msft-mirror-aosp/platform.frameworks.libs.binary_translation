@@ -37,7 +37,7 @@ const char* GetMachineHardRegDebugName(MachineReg r) {
       "?",    "eflags", "xmm0", "xmm1",  "xmm2",  "xmm3",  "xmm4",  "xmm5",  "xmm6",
       "xmm7", "xmm8",   "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
   };
-  CHECK_LT(static_cast<unsigned>(r.reg()), arraysize(kHardRegs));
+  CHECK_LT(static_cast<unsigned>(r.reg()), std::size(kHardRegs));
   return kHardRegs[r.reg()];
 }
 

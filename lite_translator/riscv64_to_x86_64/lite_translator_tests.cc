@@ -95,17 +95,17 @@ TEST(Riscv64LiteTranslatorTest, NanBoxAndSetFpReg) {
   size_t mov_insn_size = machine_code.install_size() - mov_insn_base;
 
   size_t nan_box_insn_base = machine_code.install_size();
-  translator.NanBoxFpReg(reg);
+  translator.NanBoxFpReg<LiteTranslator::Float32>(reg);
   size_t nan_box_insn_size = machine_code.install_size() - nan_box_insn_base;
 
   ASSERT_NE(store_insn_size, mov_insn_size);
 
   size_t nan_box_and_set_base = machine_code.install_size();
-  translator.NanBoxAndSetFpReg(1, reg, LiteTranslator::Decoder::FloatOperandType::kFloat);
+  translator.NanBoxAndSetFpReg<LiteTranslator::Float32>(1, reg);
   EXPECT_EQ(nan_box_insn_size + mov_insn_size, machine_code.install_size() - nan_box_and_set_base);
 
   nan_box_and_set_base = machine_code.install_size();
-  translator.NanBoxAndSetFpReg(1, reg, LiteTranslator::Decoder::FloatOperandType::kFloat);
+  translator.NanBoxAndSetFpReg<LiteTranslator::Float32>(1, reg);
   EXPECT_EQ(nan_box_insn_size + mov_insn_size, machine_code.install_size() - nan_box_and_set_base);
 }
 
