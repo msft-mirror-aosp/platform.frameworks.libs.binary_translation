@@ -86,7 +86,7 @@ inline constexpr auto kSimdRegOffsetsOnStack = []() {
     num = kRegIsNotOnStack;
   }
 
-  int8_t stack_allocation_size = AlignUp(arraysize(kCallerSavedRegs), 2);
+  int8_t stack_allocation_size = AlignUp(std::size(kCallerSavedRegs), 2);
   for (auto reg : kCallerSavedXMMRegs) {
     simd_regs_on_stack[reg.num] = stack_allocation_size;
     stack_allocation_size += 2;
@@ -96,7 +96,7 @@ inline constexpr auto kSimdRegOffsetsOnStack = []() {
 
 // Save area size for CallIntrinsic save area. Counted in 8-byte slots.
 inline constexpr int8_t kSaveAreaSize =
-    AlignUp(arraysize(kCallerSavedRegs), 2) + arraysize(kCallerSavedXMMRegs) * 2;
+    AlignUp(std::size(kCallerSavedRegs), 2) + std::size(kCallerSavedXMMRegs) * 2;
 
 struct StoredRegsInfo {
   std::decay_t<decltype(kRegOffsetsOnStack)> regs_on_stack;
@@ -229,12 +229,12 @@ constexpr bool InitArgs(MacroAssembler&& as, bool has_avx, AssemblerArgType... a
     using IntrinsicType = typename decltype(arg)::IntrinsicType;
 
     if (std::is_integral_v<IntrinsicType>) {
-      if (gp_index == arraysize(kAbiArgs)) {
+      if (gp_index == std::size(kAbiArgs)) {
         return false;
       }
     } else if constexpr (std::is_same_v<IntrinsicType, Float32> ||
                          std::is_same_v<IntrinsicType, Float64>) {
-      if (simd_index == arraysize(kAbiSimdArgs)) {
+      if (simd_index == std::size(kAbiSimdArgs)) {
         return false;
       }
     } else {

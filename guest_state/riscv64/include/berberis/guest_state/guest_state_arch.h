@@ -17,6 +17,7 @@
 #ifndef BERBERIS_GUEST_STATE_GUEST_STATE_ARCH_H_
 #define BERBERIS_GUEST_STATE_GUEST_STATE_ARCH_H_
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 
@@ -109,32 +110,32 @@ struct CPUState {
   uint8_t frm;
 };
 
-constexpr uint32_t kNumGuestRegs = arraysize(CPUState::x);
-constexpr uint32_t kNumGuestFpRegs = arraysize(CPUState::f);
+constexpr uint32_t kNumGuestRegs = std::size(CPUState{}.x);
+constexpr uint32_t kNumGuestFpRegs = std::size(CPUState{}.f);
 
 template <uint8_t kIndex>
 inline uint64_t GetXReg(const CPUState& state) {
   static_assert(kIndex > 0);
-  static_assert(kIndex < arraysize(state.x));
+  static_assert(kIndex < std::size(CPUState{}.x));
   return state.x[kIndex];
 }
 
 template <uint8_t kIndex>
 inline void SetXReg(CPUState& state, uint64_t val) {
   static_assert(kIndex > 0);
-  static_assert(kIndex < arraysize(state.x));
+  static_assert(kIndex < std::size(CPUState{}.x));
   state.x[kIndex] = val;
 }
 
 template <uint8_t kIndex>
 inline uint64_t GetFReg(const CPUState& state) {
-  static_assert((kIndex) < arraysize(state.f));
+  static_assert((kIndex) < std::size(CPUState{}.f));
   return state.f[kIndex];
 }
 
 template <uint8_t kIndex>
 inline void SetFReg(CPUState& state, uint64_t val) {
-  static_assert((kIndex) < arraysize(state.f));
+  static_assert((kIndex) < std::size(CPUState{}.f));
   state.f[kIndex] = val;
 }
 

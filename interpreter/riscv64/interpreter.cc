@@ -38,7 +38,7 @@
 #include "berberis/runtime_primitives/recovery_code.h"
 
 #include "faulty_memory_accesses.h"
-#include "fp_regs.h"
+#include "regs.h"
 
 namespace berberis {
 
@@ -428,7 +428,7 @@ class Interpreter {
   using TailProcessing = intrinsics::TailProcessing;
   using InactiveProcessing = intrinsics::InactiveProcessing;
 
-  enum class VectorSelecteElementWidth {
+  enum class VectorSelectElementWidth {
     k8bit = 0b000,
     k16bit = 0b001,
     k32bit = 0b010,
@@ -478,14 +478,14 @@ class Interpreter {
     if (static_cast<std::make_signed_t<Register>>(vtype) < 0) {
       return Unimplemented();
     }
-    switch (static_cast<VectorSelecteElementWidth>((vtype >> 3) & 0b111)) {
-      case VectorSelecteElementWidth::k8bit:
+    switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
+      case VectorSelectElementWidth::k8bit:
         return OpVector<uint8_t>(args, vtype, extra_args...);
-      case VectorSelecteElementWidth::k16bit:
+      case VectorSelectElementWidth::k16bit:
         return OpVector<uint16_t>(args, vtype, extra_args...);
-      case VectorSelecteElementWidth::k32bit:
+      case VectorSelectElementWidth::k32bit:
         return OpVector<uint32_t>(args, vtype, extra_args...);
-      case VectorSelecteElementWidth::k64bit:
+      case VectorSelectElementWidth::k64bit:
         return OpVector<uint64_t>(args, vtype, extra_args...);
       default:
         return Unimplemented();
@@ -910,10 +910,10 @@ class Interpreter {
 
   void CheckRegIsValid(uint8_t reg) const {
     CHECK_GT(reg, 0u);
-    CHECK_LE(reg, arraysize(state_->cpu.x));
+    CHECK_LE(reg, std::size(state_->cpu.x));
   }
 
-  void CheckFpRegIsValid(uint8_t reg) const { CHECK_LT(reg, arraysize(state_->cpu.f)); }
+  void CheckFpRegIsValid(uint8_t reg) const { CHECK_LT(reg, std::size(state_->cpu.f)); }
 
   ThreadState* state_;
   bool branch_taken_;
