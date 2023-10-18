@@ -33,6 +33,9 @@ namespace berberis {
 // initialization will be truly lazy and this function will go away.
 void InitBerberis();
 
+// Assume there is a single host thread and no guest threads running.
+void PreZygoteForkUnsafe();
+
 }  // namespace berberis
 
 #endif  // BERBERIS_RUNTIME_BERBERIS_H_
