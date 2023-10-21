@@ -38,12 +38,6 @@ GuestThreadMap g_guest_thread_map_;
 
 namespace {
 
-// TODO(b/281746270): Consider consolidating these compile-time constants into single location.
-// Size of stack for a single guest call.
-constexpr size_t kGuestStackSize = 2 * 1024 * 1024;
-// Size of stack guard buffer. Same as host's page size. 4K on all systems so far.
-constexpr size_t kGuestStackGuardSize = 4 * 1024;
-
 void GuestThreadDtor(void* /* arg */) {
   // TLS cache was cleared by pthread_exit.
   // TODO(b/280671643): Postpone detach to last pthread destructor iteration.
@@ -169,15 +163,12 @@ GuestThread* AttachCurrentThread(bool register_dtor, bool* attached) {
   }
 
   // Copy host stack size attributes.
-  // TODO(b/30124680): pthread_getattr_np is bionic-only, what about glibc?
-  size_t stack_size = kGuestStackSize;
-  size_t guard_size = kGuestStackGuardSize;
-#if defined(__BIONIC__)
+  size_t stack_size;
+  size_t guard_size;
   pthread_attr_t attr;
   CHECK_EQ(0, pthread_getattr_np(pthread_self(), &attr));
   CHECK_EQ(0, pthread_attr_getstacksize(&attr, &stack_size));
   CHECK_EQ(0, pthread_attr_getguardsize(&attr, &guard_size));
-#endif
   thread = GuestThread::CreatePthread(nullptr, stack_size, guard_size);
   CHECK(thread);
 
