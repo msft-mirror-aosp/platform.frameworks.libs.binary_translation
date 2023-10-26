@@ -748,12 +748,16 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   builder.StartBasicBlock(preloop);
   builder.Gen<PseudoBranch>(body);
 
+  // Regular reg 0 has 3 uses.
+  // Regular reg 1 has 1 use.
   builder.StartBasicBlock(body);
   builder.GenGet(vreg1, 0);
   builder.GenPut(0, vreg1);
   builder.GenGet(vreg1, 0);
   builder.GenGet(vreg1, 1);
 
+  // Simd reg 0 has 2 uses.
+  // Simd reg 1 has 1 use.
   builder.GenGetSimd(vreg2, 0);
   builder.GenSetSimd(0, vreg2);
   builder.GenGetSimd(vreg2, 1);
@@ -764,7 +768,12 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
 
   ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
   Loop loop({body}, machine_ir.arena());
-  OptimizeLoop(&machine_ir, &loop, /* prioritize_popular_regs */ true, /* reg_limit */ 2);
+  OptimizeLoop(&machine_ir,
+               &loop,
+               OptimizeLoopParams{
+                   .general_reg_limit = 1,
+                   .simd_reg_limit = 1,
+               });
 
   EXPECT_EQ(preloop->insn_list().size(), 3UL);
   auto* get_insn_1 = preloop->insn_list().front();
@@ -779,6 +788,7 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   auto disp_2 = AsMachineInsnX86_64(get_insn_2)->disp();
   EXPECT_EQ(disp_2, GetThreadStateSimdRegOffset(0));
 
+  // Since regular reg limit is 1 only reg 0 is optimized. Same for simd regs.
   EXPECT_EQ(body->insn_list().size(), 8UL);
   auto insn_it = body->insn_list().begin();
   EXPECT_EQ(mapped_reg_1, CheckCopyGetInsnAndObtainMappedReg(*insn_it++, vreg1));

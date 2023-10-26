@@ -93,6 +93,7 @@ void InitFloatingPointState();
 
 std::size_t GetThreadStateRegOffset(int reg);
 std::size_t GetThreadStateSimdRegOffset(int simd_reg);
+bool IsSimdOffset(size_t offset);
 
 bool DoesCpuStateHaveFlags();
 std::size_t GetThreadStateFlagOffset();
