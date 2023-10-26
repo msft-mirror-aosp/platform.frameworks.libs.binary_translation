@@ -75,6 +75,11 @@ std::size_t GetThreadStateSimdRegOffset(int simd_reg) {
   return offsetof(ThreadState, cpu.v[simd_reg]);
 }
 
+bool IsSimdOffset(size_t offset) {
+  size_t v0_offset = offsetof(ThreadState, cpu.v);
+  return (offset >= v0_offset) && ((offset - v0_offset) < sizeof(ThreadState::cpu.v));
+}
+
 bool DoesCpuStateHaveFlags() {
   return false;
 }
