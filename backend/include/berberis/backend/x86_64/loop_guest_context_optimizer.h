@@ -53,7 +53,15 @@ ArenaVector<int> CountGuestRegAccesses(const MachineIR* ir, const Loop* loop);
 
 using OffsetCounterMap = ArenaVector<std::pair<size_t, int>>;
 OffsetCounterMap GetSortedOffsetCounters(MachineIR* ir, Loop* loop);
-void OptimizeLoop(MachineIR* machine_ir, Loop* loop, bool prioritize_popular_regs, int reg_limit);
+
+struct OptimizeLoopParams {
+  size_t general_reg_limit = 12;
+  size_t simd_reg_limit = 12;
+};
+
+void OptimizeLoop(MachineIR* machine_ir,
+                  Loop* loop,
+                  const OptimizeLoopParams& params = OptimizeLoopParams());
 
 // Loop optimization interface:
 void RemoveLoopGuestContextAccesses(MachineIR* machine_ir);
