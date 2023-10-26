@@ -260,9 +260,9 @@ bool native_bridge_initialize(const android::NativeBridgeRuntimeCallbacks* runti
 
   char version[PROP_VALUE_MAX];
   if (__system_property_get("ro.berberis.version", version)) {
-    ALOGI("Initialized NDK translation (%s), version %s", env->os_arch, version);
+    ALOGI("Initialized Berberis (%s), version %s", env->os_arch, version);
   } else {
-    ALOGI("Initialized NDK translation (%s)", env->os_arch);
+    ALOGI("Initialized Berberis (%s)", env->os_arch);
   }
 
   std::string error_msg;
