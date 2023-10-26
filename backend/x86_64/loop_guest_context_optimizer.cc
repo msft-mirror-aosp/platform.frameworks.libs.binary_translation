@@ -216,19 +216,24 @@ OffsetCounterMap GetSortedOffsetCounters(MachineIR* ir, Loop* loop) {
   return offset_counter_map;
 }
 
-void OptimizeLoop(MachineIR* machine_ir, Loop* loop, bool prioritize_popular_regs, int reg_limit) {
-  OffsetCounterMap offset_counter_map(machine_ir->arena());
-  if (prioritize_popular_regs) {
-    offset_counter_map = GetSortedOffsetCounters(machine_ir, loop);
-
-    if (reg_limit < static_cast<int>(offset_counter_map.size())) {
-      offset_counter_map.resize(reg_limit);
-    }
-  }
-
+void OptimizeLoop(MachineIR* machine_ir, Loop* loop, const OptimizeLoopParams& params) {
+  OffsetCounterMap sorted_offsets = GetSortedOffsetCounters(machine_ir, loop);
   ArenaVector<bool> optimized_offsets(sizeof(CPUState), false, machine_ir->arena());
-  for (auto pair : offset_counter_map) {
-    optimized_offsets.at(std::get<0>(pair)) = true;
+
+  size_t general_reg_count = 0;
+  size_t simd_reg_count = 0;
+  for (auto [offset, unused_counter] : sorted_offsets) {
+    // Simd regs.
+    if (IsSimdOffset(offset)) {
+      if (simd_reg_count++ < params.simd_reg_limit) {
+        optimized_offsets[offset] = true;
+      }
+      continue;
+    }
+    // General regs and flags.
+    if (general_reg_count++ < params.general_reg_limit) {
+      optimized_offsets[offset] = true;
+    }
   }
 
   MemRegMap mem_reg_map(sizeof(CPUState), std::nullopt, machine_ir->arena());
@@ -238,12 +243,9 @@ void OptimizeLoop(MachineIR* machine_ir, Loop* loop, bool prioritize_popular_reg
       auto insn = AsMachineInsnX86_64(*insn_it);
 
       // Skip insn if it accesses regs with low priority
-      if (prioritize_popular_regs && (insn->IsCPUStateGet() || insn->IsCPUStatePut())) {
+      if (insn->IsCPUStateGet() || insn->IsCPUStatePut()) {
         if (!optimized_offsets.at(insn->disp())) {
-          // Flags context access removal unblocks other critical flag optimizations.
-          if (!DoesCpuStateHaveFlags() || insn->disp() != GetThreadStateFlagOffset()) {
-            continue;
-          }
+          continue;
         }
       }
 
@@ -273,7 +275,7 @@ bool ContainsCall(Loop* loop) {
 template <typename PredicateFunction>
 void OptimizeLoopTree(MachineIR* machine_ir, LoopTreeNode* node, PredicateFunction predicate) {
   if (node->loop() && predicate(node)) {
-    OptimizeLoop(machine_ir, node->loop(), /* prioritize_popular_regs */ true, /* reg_limit */ 12);
+    OptimizeLoop(machine_ir, node->loop());
     return;
   }
 
