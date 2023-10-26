@@ -511,6 +511,49 @@ TEST(InsnFoldingTest, FoldInsnsSmoke) {
   EXPECT_EQ(2UL, AsMachineInsnX86_64(insn)->imm());
 }
 
+using Cond = CodeEmitter::Condition;
+
+void TestFoldCond(Cond input_cond, Cond expected_new_cond, uint16_t expected_flags_mask) {
+  Arena arena;
+  MachineIR machine_ir(&arena);
+
+  auto* bb = machine_ir.NewBasicBlock();
+  MachineIRBuilder builder(&machine_ir);
+
+  builder.StartBasicBlock(bb);
+  builder.Gen<PseudoWriteFlags>(kMachineRegRAX, kMachineRegFLAGS);
+  builder.Gen<PseudoCondBranch>(input_cond, nullptr, nullptr, kMachineRegFLAGS);
+
+  MachineReg flags_src = (*bb->insn_list().begin())->RegAt(0);
+
+  FoldWriteFlags(&machine_ir);
+
+  EXPECT_EQ(bb->insn_list().size(), 2UL);
+
+  auto insn_it = bb->insn_list().begin();
+  const auto* insn = AsMachineInsnX86_64(*insn_it);
+  EXPECT_EQ(insn->opcode(), kMachineOpTestwRegImm);
+  EXPECT_EQ(flags_src, insn->RegAt(0));
+  EXPECT_EQ(expected_flags_mask, static_cast<uint16_t>(insn->imm()));
+  MachineReg flags = insn->RegAt(1);
+
+  const auto* branch = static_cast<const PseudoCondBranch*>(*(++insn_it));
+  EXPECT_EQ(branch->opcode(), kMachineOpPseudoCondBranch);
+  EXPECT_EQ(flags, branch->RegAt(0));
+  EXPECT_EQ(expected_new_cond, branch->cond());
+}
+
+TEST(InsnFoldingTest, FoldWriteFlags) {
+  TestFoldCond(Cond::kEqual, Cond::kNotEqual, PseudoWriteFlags::Flags::kZero);
+  TestFoldCond(Cond::kNotEqual, Cond::kEqual, PseudoWriteFlags::Flags::kZero);
+  TestFoldCond(Cond::kCarry, Cond::kNotEqual, PseudoWriteFlags::Flags::kCarry);
+  TestFoldCond(Cond::kNotCarry, Cond::kEqual, PseudoWriteFlags::Flags::kCarry);
+  TestFoldCond(Cond::kNegative, Cond::kNotEqual, PseudoWriteFlags::Flags::kNegative);
+  TestFoldCond(Cond::kNotSign, Cond::kEqual, PseudoWriteFlags::Flags::kNegative);
+  TestFoldCond(Cond::kOverflow, Cond::kNotEqual, PseudoWriteFlags::Flags::kOverflow);
+  TestFoldCond(Cond::kNoOverflow, Cond::kEqual, PseudoWriteFlags::Flags::kOverflow);
+}
+
 }  // namespace
 
 }  // namespace berberis::x86_64
