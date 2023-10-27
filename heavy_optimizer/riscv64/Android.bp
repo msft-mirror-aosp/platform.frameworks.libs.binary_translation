@@ -67,5 +67,6 @@ cc_test_library {
     srcs: [
         "call_intrinsic_tests.cc",
         "frontend_tests.cc",
+        "heavy_optimizer_insn_exec_tests.cc",
     ],
 }

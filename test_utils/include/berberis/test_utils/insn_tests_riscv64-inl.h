@@ -40,6 +40,11 @@
 #error "TESTSUITE is undefined"
 #endif
 
+#if !(defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+      defined(TESTING_HEAVY_OPTIMIZER))
+#error "One of TESTING_INTERPRETER, TESTING_LITE_TRANSLATOR, TESTING_HEAVY_OPTIMIZER must be defined
+#endif
+
 // TODO(b/276787675): remove these files from interpreter when they are no longer needed there.
 // Maybe extract FPvalueToFPReg and TupleMap to a separate header?
 inline constexpr class FPValueToFPReg {
@@ -84,6 +89,7 @@ class TESTSUITE : public ::testing::Test {
       : state_{
             .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
 
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
@@ -137,6 +143,11 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
   void TestCBeqzBnez(uint16_t insn_bytes, uint64_t value, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -144,6 +155,11 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + expected_offset));
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   void TestCMiscAlu(uint16_t insn_bytes,
                     std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
@@ -264,6 +280,11 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
   void TestBranch(uint32_t insn_bytes,
                   std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
     auto code_start = ToGuestAddr(&insn_bytes);
@@ -307,6 +328,10 @@ class TESTSUITE : public ::testing::Test {
       EXPECT_EQ(GetXReg<1>(state_.cpu), code_start + kLinkRegisterOffsetIfUsed);
     }
   }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   void TestStore(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
@@ -464,12 +489,16 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
   uint64_t store_area_;
   ThreadState state_;
 };
+
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 // Tests for Compressed Instructions.
 template <uint16_t opcode, auto execute_instruction_func>
@@ -1561,7 +1590,10 @@ TEST_F(TESTSUITE, UpperImmInstructions) {
   // Lui
   TestLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
 }
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
 TEST_F(TESTSUITE, TestBranchInstructions) {
   // Beq
   TestBranch(0x00208463,
@@ -1655,7 +1687,10 @@ TEST_F(TESTSUITE, JumpAndLinkRegisterInstructions) {
   // Jr offset=5 - must properly align the target to even.
   TestJumpAndLinkRegister<0>(0x00510067, 38, 42);
 }
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
 
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 TEST_F(TESTSUITE, LoadInstructions) {
   // Offset is always 8.
   // Lbu
@@ -2088,3 +2123,5 @@ TEST_F(TESTSUITE, TestVsetvl) {
               // Invalid change of vtype.
               {8, 001, 128, ~0ULL, 0, kVill}});
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
