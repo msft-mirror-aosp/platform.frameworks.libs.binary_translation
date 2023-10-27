@@ -121,11 +121,11 @@ void HeavyOptimizerFrontend::ExitRegionIndirect(Register target) {
   Gen<PseudoIndirectJump>(target);
 }
 void HeavyOptimizerFrontend::Unimplemented() {
+  success_ = false;
   ExitGeneratedCode(GetInsnAddr());
   // We don't require region to end here as control flow may jump around
   // the undefined instruction, so handle it as an unconditional branch.
   is_uncond_branch_ = true;
-  // TODO(b/291126189) Add success check like in lite translator?
 }
 
 bool HeavyOptimizerFrontend::IsRegionEndReached() const {
