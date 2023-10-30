@@ -23,6 +23,7 @@
 #include "berberis/runtime/translator.h"
 #include "berberis/runtime_primitives/crash_reporter.h"
 #include "berberis/runtime_primitives/guest_function_wrapper_impl.h"
+#include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
 
@@ -48,6 +49,10 @@ void InitBerberis() {
   // C++11 guarantees this is called only once and is thread-safe.
   static bool initialized = InitBerberisUnsafe();
   UNUSED(initialized);
+}
+
+void PreZygoteForkUnsafe() {
+  TranslationCache::GetInstance()->PreZygoteForkUnsafe();
 }
 
 }  // namespace berberis
