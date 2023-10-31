@@ -24,7 +24,10 @@
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state_arch.h"
 #include "berberis/intrinsics/intrinsics.h"
+#include "berberis/intrinsics/macro_assembler.h"
+#include "berberis/runtime_primitives/platform.h"
 
 #include "call_intrinsic.h"
 #include "inline_intrinsic.h"
@@ -43,6 +46,7 @@ class HeavyOptimizerFrontend {
 
   explicit HeavyOptimizerFrontend(x86_64::MachineIR* machine_ir, GuestAddr pc)
       : pc_(pc),
+        success_(true),
         builder_(machine_ir),
         flag_register_(machine_ir->AllocVReg()),
         is_uncond_branch_(false),
@@ -61,8 +65,196 @@ class HeavyOptimizerFrontend {
     return result;
   }
 
+  [[nodiscard]] Register GetReg(uint8_t reg);
   void SetReg(uint8_t reg, Register value);
+
   void Unimplemented();
+  //
+  // Instruction implementations.
+  //
+  void Nop();
+  Register Op(Decoder::OpOpcode /* opcode */, Register /* arg1 */, Register /* arg2 */) {
+    Unimplemented();
+    return {};
+  }
+  Register Op32(Decoder::Op32Opcode /* opcode */, Register /* arg1 */, Register /* arg2 */) {
+    Unimplemented();
+    return {};
+  }
+  Register OpImm(Decoder::OpImmOpcode /* opcode */, Register /* arg */, int16_t /* imm */) {
+    Unimplemented();
+    return {};
+  }
+  Register OpImm32(Decoder::OpImm32Opcode /* opcode */, Register /* arg */, int16_t /* imm */) {
+    Unimplemented();
+    return {};
+  }
+  Register Slli(Register /* arg */, int8_t /* imm */) {
+    Unimplemented();
+    return {};
+  }
+  Register Srli(Register /* arg */, int8_t /* imm */) {
+    Unimplemented();
+    return {};
+  }
+  Register Srai(Register /* arg */, int8_t /* imm */) {
+    Unimplemented();
+    return {};
+  }
+  Register ShiftImm32(Decoder::ShiftImm32Opcode /* opcode */,
+                      Register /* arg */,
+                      uint16_t /* imm */) {
+    Unimplemented();
+    return {};
+  }
+  Register Rori(Register /* arg */, int8_t /* shamt */) {
+    Unimplemented();
+    return {};
+  }
+  Register Roriw(Register /* arg */, int8_t /* shamt */) {
+    Unimplemented();
+    return {};
+  }
+  Register Lui(int32_t /* imm */) {
+    Unimplemented();
+    return {};
+  }
+  Register Auipc(int32_t /* imm */) {
+    Unimplemented();
+    return {};
+  }
+
+  Register Ecall(Register /* syscall_nr */,
+                 Register /* arg0 */,
+                 Register /* arg1 */,
+                 Register /* arg2 */,
+                 Register /* arg3 */,
+                 Register /* arg4 */,
+                 Register /* arg5 */) {
+    Unimplemented();
+    return {};
+  }
+
+  void Store(Decoder::StoreOperandType /* operand_type */,
+             Register /* arg */,
+             int16_t /* offset */,
+             Register /* data */) {
+    Unimplemented();
+  }
+  Register Load(Decoder::LoadOperandType /* operand_type */,
+                Register /* arg */,
+                int16_t /* offset */) {
+    Unimplemented();
+    return {};
+  }
+
+  //
+  // Atomic extensions.
+  //
+
+  template <typename IntType, bool aq, bool rl>
+  Register Lr(Register /* addr */) {
+    Unimplemented();
+    return {};
+  }
+
+  template <typename IntType, bool aq, bool rl>
+  Register Sc(Register /* addr */, Register /* data */) {
+    Unimplemented();
+    return {};
+  }
+
+  void Fence(Decoder::FenceOpcode /*opcode*/,
+             Register /*src*/,
+             bool sw,
+             bool sr,
+             bool /*so*/,
+             bool /*si*/,
+             bool pw,
+             bool pr,
+             bool /*po*/,
+             bool /*pi*/) {
+    UNUSED(sw, sr, pw, pr);
+    Unimplemented();
+  }
+
+  void FenceI(Register /*arg*/, int16_t /*imm*/) { Unimplemented(); }
+
+  //
+  // F and D extensions.
+  //
+  [[nodiscard]] FpRegister GetFpReg(uint8_t reg);
+
+  template <typename FloatType>
+  [[nodiscard]] FpRegister GetFRegAndUnboxNan(uint8_t reg) {
+    CHECK_LE(reg, kNumGuestFpRegs);
+    FpRegister result = AllocTempSimdReg();
+    builder_.GenGetSimd(result.machine_reg(), reg);
+    FpRegister unboxed_result = AllocTempSimdReg();
+    if (host_platform::kHasAVX) {
+      builder_.Gen<x86_64::MacroUnboxNanFloat32AVX>(unboxed_result.machine_reg(),
+                                                    result.machine_reg());
+    } else {
+      builder_.Gen<x86_64::MacroUnboxNanFloat32>(unboxed_result.machine_reg(),
+                                                 result.machine_reg());
+    }
+    return unboxed_result;
+  }
+
+  template <typename FloatType>
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
+    CHECK_LE(reg, kNumGuestFpRegs);
+    if (host_platform::kHasAVX) {
+      builder_.Gen<x86_64::MacroNanBoxFloat32AVX>(value.machine_reg(), value.machine_reg());
+    } else {
+      builder_.Gen<x86_64::MacroNanBoxFloat32>(value.machine_reg());
+    }
+
+    builder_.GenSetSimd(reg, value.machine_reg());
+  }
+
+  template <typename DataType>
+  FpRegister LoadFp(Register /* arg */, int16_t /* offset */) {
+    Unimplemented();
+    return {};
+  }
+
+  template <typename DataType>
+  void StoreFp(Register /* arg */, int16_t /* offset */, FpRegister /* data */) {
+    Unimplemented();
+  }
+
+  FpRegister Fmv(FpRegister /* arg */) {
+    Unimplemented();
+    return {};
+  }
+
+  //
+  // V extension.
+  //
+
+  template <typename VOpArgs, typename... ExtraAegs>
+  void OpVector(const VOpArgs& /*args*/, ExtraAegs... /*extra_args*/) {
+    // TODO(b/300690740): develop and implement strategy which would allow us to support vector
+    // intrinsics not just in the interpreter.
+    Unimplemented();
+  }
+
+  //
+  // Csr
+  //
+
+  Register UpdateCsr(Decoder::CsrOpcode /* opcode */, Register /* arg */, Register /* csr */) {
+    Unimplemented();
+    return {};
+  }
+
+  Register UpdateCsr(Decoder::CsrImmOpcode /* opcode */, uint8_t /* imm */, Register /* csr */) {
+    Unimplemented();
+    return {};
+  }
+
+  [[nodiscard]] bool success() const { return success_; }
 
   //
   // Intrinsic proxy methods.
@@ -84,6 +276,22 @@ class HeavyOptimizerFrontend {
   // These methods are exported only for testing.
   [[nodiscard]] const ArenaMap<GuestAddr, MachineInsnPosition>& branch_targets() const {
     return branch_targets_;
+  }
+
+  template <CsrName kName>
+  [[nodiscard]] Register GetCsr() {
+    Unimplemented();
+    return {};
+  }
+
+  template <CsrName kName>
+  void SetCsr(uint8_t /* imm */) {
+    Unimplemented();
+  }
+
+  template <CsrName kName>
+  void SetCsr(Register /* arg */) {
+    Unimplemented();
   }
 
  private:
@@ -183,6 +391,7 @@ class HeavyOptimizerFrontend {
   }
 
   GuestAddr pc_;
+  bool success_;
   x86_64::MachineIRBuilder builder_;
   MachineReg flag_register_;
   bool is_uncond_branch_;
