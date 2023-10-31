@@ -62,6 +62,7 @@ void HeavyOptimizerFrontend::BranchRegister(Register src, int16_t offset) {
   if (offset != 0) {
     Gen<x86_64::AddqRegImm>(target, offset, GetFlagsRegister());
   }
+  // TODO(b/232598137) Maybe move this to translation cache?
   Gen<x86_64::AndqRegImm>(target, ~int32_t{1}, GetFlagsRegister());
   ExitRegionIndirect(target);
 }
