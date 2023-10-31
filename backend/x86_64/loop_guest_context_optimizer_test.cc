@@ -23,6 +23,7 @@
 #include "berberis/backend/x86_64/machine_ir_check.h"
 #include "berberis/base/arena_alloc.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/guest_state/guest_state.h"
 #include "berberis/guest_state/guest_state_opaque.h"
 
 #include "x86_64/loop_guest_context_optimizer_test_checks.h"
@@ -229,16 +230,20 @@ TEST(MachineIRLoopGuestContextOptimizer, GenerateGetInsns) {
   MappedRegInfo mapped_reg3 = {reg3, MovType::kMovw, true};
   mem_reg_map[GetThreadStateRegOffset(0)] = mapped_reg1;
   mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
-  mem_reg_map[GetThreadStateRegOffset(1)] = mapped_reg3;
+  if (DoesCpuStateHaveFlags()) {
+    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg3;
+  }
 
   GenerateGetInsns(&machine_ir, bb, mem_reg_map);
 
-  EXPECT_EQ(bb->insn_list().size(), 3UL);
+  EXPECT_EQ(bb->insn_list().size(), DoesCpuStateHaveFlags() ? 3UL : 2UL);
   auto insn_it = bb->insn_list().begin();
   CheckGetInsn(*insn_it, kMachineOpMovqRegMemBaseDisp, reg1, GetThreadStateRegOffset(0));
   std::advance(insn_it, 1);
-  CheckGetInsn(*insn_it, kMachineOpMovwRegMemBaseDisp, reg3, GetThreadStateRegOffset(1));
-  std::advance(insn_it, 1);
+  if (DoesCpuStateHaveFlags()) {
+    CheckGetInsn(*insn_it, kMachineOpMovwRegMemBaseDisp, reg3, GetThreadStateFlagOffset());
+    std::advance(insn_it, 1);
+  }
   CheckGetInsn(*insn_it, kMachineOpMovdqaXRegMemBaseDisp, reg2, GetThreadStateSimdRegOffset(0));
 }
 
@@ -258,18 +263,23 @@ TEST(MachineIRLoopGuestContextOptimizer, GeneratePutInsns) {
   MappedRegInfo mapped_reg3 = {reg3, MovType::kMovw, true};
   mem_reg_map[GetThreadStateRegOffset(0)] = mapped_reg1;
   mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
-  mem_reg_map[GetThreadStateRegOffset(1)] = mapped_reg3;
+  if (DoesCpuStateHaveFlags()) {
+    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg3;
+  }
 
   GeneratePutInsns(&machine_ir, bb, mem_reg_map);
 
-  EXPECT_EQ(bb->insn_list().size(), 3UL);
+  EXPECT_EQ(bb->insn_list().size(), DoesCpuStateHaveFlags() ? 3UL : 2UL);
   auto insn_it = bb->insn_list().begin();
   CheckPutInsn(*insn_it, kMachineOpMovqMemBaseDispReg, reg1, GetThreadStateRegOffset(0));
   std::advance(insn_it, 1);
-  CheckPutInsn(*insn_it, kMachineOpMovwMemBaseDispReg, reg3, GetThreadStateRegOffset(1));
-  std::advance(insn_it, 1);
+  if (DoesCpuStateHaveFlags()) {
+    CheckPutInsn(*insn_it, kMachineOpMovwMemBaseDispReg, reg3, GetThreadStateFlagOffset());
+    std::advance(insn_it, 1);
+  }
   CheckPutInsn(*insn_it, kMachineOpMovdqaMemBaseDispXReg, reg2, GetThreadStateSimdRegOffset(0));
 }
+
 TEST(MachineIRLoopGuestContextOptimizer, GeneratePreloop) {
   Arena arena;
   MachineIR machine_ir(&arena);
@@ -302,17 +312,21 @@ TEST(MachineIRLoopGuestContextOptimizer, GeneratePreloop) {
   MappedRegInfo mapped_reg3 = {reg3, MovType::kMovw, true};
   mem_reg_map[GetThreadStateRegOffset(0)] = mapped_reg1;
   mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
-  mem_reg_map[GetThreadStateRegOffset(1)] = mapped_reg3;
+  if (DoesCpuStateHaveFlags()) {
+    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg3;
+  }
 
   GenerateGetsInPreloop(&machine_ir, &loop, mem_reg_map);
   ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
 
-  EXPECT_EQ(preloop->insn_list().size(), 4UL);
+  EXPECT_EQ(preloop->insn_list().size(), DoesCpuStateHaveFlags() ? 4UL : 3UL);
   auto insn_it = preloop->insn_list().begin();
   CheckGetInsn(*insn_it, kMachineOpMovqRegMemBaseDisp, reg1, GetThreadStateRegOffset(0));
   std::advance(insn_it, 1);
-  CheckGetInsn(*insn_it, kMachineOpMovwRegMemBaseDisp, reg3, GetThreadStateRegOffset(1));
-  std::advance(insn_it, 1);
+  if (DoesCpuStateHaveFlags()) {
+    CheckGetInsn(*insn_it, kMachineOpMovwRegMemBaseDisp, reg3, GetThreadStateFlagOffset());
+    std::advance(insn_it, 1);
+  }
   CheckGetInsn(*insn_it, kMachineOpMovdqaXRegMemBaseDisp, reg2, GetThreadStateSimdRegOffset(0));
 }
 
@@ -348,17 +362,21 @@ TEST(MachineIRLoopGuestContextOptimizer, GenerateAfterloop) {
   MappedRegInfo mapped_reg3 = {reg3, MovType::kMovw, true};
   mem_reg_map[GetThreadStateRegOffset(0)] = mapped_reg1;
   mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
-  mem_reg_map[GetThreadStateRegOffset(1)] = mapped_reg3;
+  if (DoesCpuStateHaveFlags()) {
+    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg3;
+  }
 
   GeneratePutsInPostloop(&machine_ir, &loop, mem_reg_map);
   ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
 
-  EXPECT_EQ(afterloop->insn_list().size(), 4UL);
+  EXPECT_EQ(afterloop->insn_list().size(), DoesCpuStateHaveFlags() ? 4UL : 3UL);
   auto insn_it = afterloop->insn_list().begin();
   CheckPutInsn(*insn_it, kMachineOpMovqMemBaseDispReg, reg1, GetThreadStateRegOffset(0));
   std::advance(insn_it, 1);
-  CheckPutInsn(*insn_it, kMachineOpMovwMemBaseDispReg, reg3, GetThreadStateRegOffset(1));
-  std::advance(insn_it, 1);
+  if (DoesCpuStateHaveFlags()) {
+    CheckPutInsn(*insn_it, kMachineOpMovwMemBaseDispReg, reg3, GetThreadStateFlagOffset());
+    std::advance(insn_it, 1);
+  }
   CheckPutInsn(*insn_it, kMachineOpMovdqaMemBaseDispXReg, reg2, GetThreadStateSimdRegOffset(0));
 }
 
@@ -748,12 +766,16 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   builder.StartBasicBlock(preloop);
   builder.Gen<PseudoBranch>(body);
 
+  // Regular reg 0 has 3 uses.
+  // Regular reg 1 has 1 use.
   builder.StartBasicBlock(body);
   builder.GenGet(vreg1, 0);
   builder.GenPut(0, vreg1);
   builder.GenGet(vreg1, 0);
   builder.GenGet(vreg1, 1);
 
+  // Simd reg 0 has 2 uses.
+  // Simd reg 1 has 1 use.
   builder.GenGetSimd(vreg2, 0);
   builder.GenSetSimd(0, vreg2);
   builder.GenGetSimd(vreg2, 1);
@@ -764,7 +786,12 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
 
   ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
   Loop loop({body}, machine_ir.arena());
-  OptimizeLoop(&machine_ir, &loop, /* prioritize_popular_regs */ true, /* reg_limit */ 2);
+  OptimizeLoop(&machine_ir,
+               &loop,
+               OptimizeLoopParams{
+                   .general_reg_limit = 1,
+                   .simd_reg_limit = 1,
+               });
 
   EXPECT_EQ(preloop->insn_list().size(), 3UL);
   auto* get_insn_1 = preloop->insn_list().front();
@@ -779,6 +806,7 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   auto disp_2 = AsMachineInsnX86_64(get_insn_2)->disp();
   EXPECT_EQ(disp_2, GetThreadStateSimdRegOffset(0));
 
+  // Since regular reg limit is 1 only reg 0 is optimized. Same for simd regs.
   EXPECT_EQ(body->insn_list().size(), 8UL);
   auto insn_it = body->insn_list().begin();
   EXPECT_EQ(mapped_reg_1, CheckCopyGetInsnAndObtainMappedReg(*insn_it++, vreg1));
@@ -795,6 +823,60 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   auto* put_insn_2 = *std::next(afterloop->insn_list().begin());
   CheckPutInsn(
       put_insn_2, kMachineOpMovdqaMemBaseDispXReg, mapped_reg_2, GetThreadStateSimdRegOffset(0));
+}
+
+TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetFlagsAndUpdateMap) {
+  if (!DoesCpuStateHaveFlags()) {
+    GTEST_SKIP() << "Guest CPU doesn't support flags";
+  }
+  Arena arena;
+  MachineIR machine_ir(&arena);
+
+  MachineIRBuilder builder(&machine_ir);
+
+  auto bb = machine_ir.NewBasicBlock();
+  builder.StartBasicBlock(bb);
+  auto reg1 = machine_ir.AllocVReg();
+  auto offset = GetThreadStateFlagOffset();
+  builder.Gen<MovwRegMemBaseDisp>(reg1, kMachineRegRBP, offset);
+  builder.Gen<PseudoJump>(kNullGuestAddr);
+
+  auto insn_it = bb->insn_list().begin();
+  MemRegMap mem_reg_map(sizeof(CPUState), std::nullopt, machine_ir.arena());
+  ReplaceGetAndUpdateMap(&machine_ir, insn_it, mem_reg_map);
+  ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  EXPECT_EQ(bb->insn_list().size(), 2UL);
+  auto* copy_insn = *bb->insn_list().begin();
+  auto mapped_reg = CheckCopyGetInsnAndObtainMappedReg(copy_insn, reg1);
+  CheckMemRegMap(mem_reg_map, offset, mapped_reg, MovType::kMovw, false);
+}
+
+TEST(MachineIRLoopGuestContextOptimizer, ReplacePutFlagsAndUpdateMap) {
+  if (!DoesCpuStateHaveFlags()) {
+    GTEST_SKIP() << "Guest CPU doesn't support flags";
+  }
+  Arena arena;
+  MachineIR machine_ir(&arena);
+
+  MachineIRBuilder builder(&machine_ir);
+
+  auto bb = machine_ir.NewBasicBlock();
+  builder.StartBasicBlock(bb);
+  auto reg1 = machine_ir.AllocVReg();
+  auto offset = GetThreadStateFlagOffset();
+  builder.Gen<MovwMemBaseDispReg>(kMachineRegRBP, offset, reg1);
+  builder.Gen<PseudoJump>(kNullGuestAddr);
+
+  auto insn_it = bb->insn_list().begin();
+  MemRegMap mem_reg_map(sizeof(CPUState), std::nullopt, machine_ir.arena());
+  ReplacePutAndUpdateMap(&machine_ir, insn_it, mem_reg_map);
+  ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  EXPECT_EQ(bb->insn_list().size(), 2UL);
+  auto* copy_insn = *bb->insn_list().begin();
+  auto mapped_reg = CheckCopyPutInsnAndObtainMappedReg(copy_insn, reg1);
+  CheckMemRegMap(mem_reg_map, offset, mapped_reg, MovType::kMovw, true);
 }
 
 }  // namespace

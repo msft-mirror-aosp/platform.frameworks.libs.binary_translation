@@ -29,9 +29,10 @@ def check_disallowed_words(commit):
     return 1
 
   disallowed_words = [
-      'ndk_translation',
+      'Google Inc',
+      'NDK translation',
       'NdkTranslation',
-      'Google Inc'
+      'ndk_translation',
   ]
 
   for line in output.splitlines():
