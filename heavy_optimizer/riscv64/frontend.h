@@ -38,13 +38,28 @@ class HeavyOptimizerFrontend {
   explicit HeavyOptimizerFrontend(x86_64::MachineIR* machine_ir, GuestAddr pc)
       : pc_(pc),
         builder_(machine_ir),
+        flag_register_(machine_ir->AllocVReg()),
         is_uncond_branch_(false),
         branch_targets_(machine_ir->arena()) {
     StartRegion();
   }
 
+  void CompareAndBranch(Decoder::BranchOpcode opcode, Register arg1, Register arg2, int16_t offset);
+  void Branch(int32_t offset);
+  void BranchRegister(Register base, int16_t offset);
+
+  [[nodiscard]] Register GetImm(uint64_t imm);
+  [[nodiscard]] Register Copy(Register value) {
+    Register result = AllocTempReg();
+    Gen<PseudoCopy>(result, value, 8);
+    return result;
+  }
+
+  void SetReg(uint8_t reg, Register value);
+  void Unimplemented();
+
   //
-  // Various helper methods.
+  // Guest state getters/setters.
   //
 
   [[nodiscard]] GuestAddr GetInsnAddr() const { return pc_; }
@@ -54,6 +69,11 @@ class HeavyOptimizerFrontend {
   void StartInsn();
   void Finalize(GuestAddr stop_pc);
 
+  // These methods are exported only for testing.
+  [[nodiscard]] const ArenaMap<GuestAddr, MachineInsnPosition>& branch_targets() const {
+    return branch_targets_;
+  }
+
  private:
   // Syntax sugar.
   template <typename InsnType, typename... Args>
@@ -61,12 +81,15 @@ class HeavyOptimizerFrontend {
     return builder_.Gen<InsnType, Args...>(args...);
   }
 
+  static x86_64::Assembler::Condition ToAssemblerCond(Decoder::BranchOpcode opcode);
+
+  [[nodiscard]] Register AllocTempReg();
+  [[nodiscard]] Register GetFlagsRegister() const { return flag_register_; };
   void GenJump(GuestAddr target);
   void ExitGeneratedCode(GuestAddr target);
+  void ExitRegionIndirect(Register target);
 
   void ResolveJumps();
-
-  void Unimplemented();
 
   void StartRegion() {
     auto* region_entry_bb = builder_.ir()->NewBasicBlock();
@@ -79,6 +102,7 @@ class HeavyOptimizerFrontend {
 
   GuestAddr pc_;
   x86_64::MachineIRBuilder builder_;
+  MachineReg flag_register_;
   bool is_uncond_branch_;
   // Contains IR positions of all guest instructions of the current region.
   // Also contains all branch targets which the current region jumps to.
