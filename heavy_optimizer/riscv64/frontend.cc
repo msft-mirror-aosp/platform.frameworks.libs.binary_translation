@@ -26,6 +26,7 @@
 namespace berberis {
 
 using BranchOpcode = HeavyOptimizerFrontend::Decoder::BranchOpcode;
+using FpRegister = HeavyOptimizerFrontend::FpRegister;
 using Register = HeavyOptimizerFrontend::Register;
 
 void HeavyOptimizerFrontend::CompareAndBranch(BranchOpcode opcode,
@@ -119,7 +120,6 @@ void HeavyOptimizerFrontend::ExitGeneratedCode(GuestAddr target) {
 void HeavyOptimizerFrontend::ExitRegionIndirect(Register target) {
   Gen<PseudoIndirectJump>(target);
 }
-
 void HeavyOptimizerFrontend::Unimplemented() {
   ExitGeneratedCode(GetInsnAddr());
   // We don't require region to end here as control flow may jump around
@@ -253,10 +253,25 @@ void HeavyOptimizerFrontend::UpdateBranchTargetsAfterSplit(GuestAddr addr,
   }
 }
 
+Register HeavyOptimizerFrontend::GetReg(uint8_t reg) {
+  CHECK_LT(reg, kNumGuestRegs);
+  Register dst = AllocTempReg();
+  builder_.GenGet(dst, reg);
+  return dst;
+}
+
 void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
   CHECK_LT(reg, kNumGuestRegs);
   builder_.GenPut(reg, value);
 }
+
+FpRegister HeavyOptimizerFrontend::GetFpReg(uint8_t reg) {
+  FpRegister result = AllocTempSimdReg();
+  builder_.GenGetSimd(result.machine_reg(), reg);
+  return result;
+}
+
+void HeavyOptimizerFrontend::Nop() {}
 
 //
 //  Methods that are not part of SemanticsListener implementation.
