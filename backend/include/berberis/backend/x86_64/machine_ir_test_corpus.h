@@ -17,7 +17,7 @@
 #ifndef BERBERIS_BACKEND_X86_64_MACHINE_IR_TEST_CORPUS_H_
 #define BERBERIS_BACKEND_X86_64_MACHINE_IR_TEST_CORPUS_H_
 
-// TODO(b/) Only intended for use by tests.
+// TODO(b/232598137) Only intended for use by tests.
 
 #include <tuple>
 
