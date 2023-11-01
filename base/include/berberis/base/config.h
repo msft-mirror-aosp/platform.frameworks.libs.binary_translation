@@ -40,6 +40,9 @@ inline constexpr bool kAllJumpsExitGeneratedCode = false;
 // Eliminate overhead of exiting/reentering generated code by searching in
 // the translation cache directly from the generated code.
 inline constexpr bool kLinkJumpsBetweenRegions = !kAllJumpsExitGeneratedCode;
+// Generate local jumps if jump's target address falls within the
+// current region. If false dispatch to another region instead.
+inline constexpr bool kLinkJumpsWithinRegion = !kAllJumpsExitGeneratedCode;
 // Guest page size. Always 4K for now.
 inline constexpr size_t kGuestPageSize = 4096;
 // Number of hard registers assumed by the register allocator.
