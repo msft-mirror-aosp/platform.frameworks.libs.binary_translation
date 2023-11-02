@@ -210,9 +210,15 @@ class MachineInsn {
 
   [[nodiscard]] const MachineRegKind& RegKindAt(int i) const { return reg_kinds_[i]; }
 
-  [[nodiscard]] MachineReg RegAt(int i) const { return regs_[i]; }
+  [[nodiscard]] MachineReg RegAt(int i) const {
+    CHECK_LT(i, num_reg_operands_);
+    return regs_[i];
+  }
 
-  void SetRegAt(int i, MachineReg reg) { regs_[i] = reg; }
+  void SetRegAt(int i, MachineReg reg) {
+    CHECK_LT(i, num_reg_operands_);
+    regs_[i] = reg;
+  }
 
   [[nodiscard]] bool has_side_effects() const {
     return (kind_ == kMachineInsnSideEffects) || recovery_info_.bb ||
