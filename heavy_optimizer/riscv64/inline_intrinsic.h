@@ -195,6 +195,31 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
                    std::tuple<x86_64::MachineIRBuilder&>{*builder_},
                    AsmCallInfo::template MakeTuplefromBindings<
                        TryBindingBasedInlineIntrinsicForHeavyOptimizer&>(*this, asm_call_info)));
+    if constexpr (std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 0) {
+      // No return value. Do nothing.
+    } else if constexpr (std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 1) {
+      using ReturnType = std::tuple_element_t<0, typename AsmCallInfo::OutputArguments>;
+      if constexpr (std::is_integral_v<ReturnType> && sizeof(ReturnType) < sizeof(int32_t)) {
+        // Don't handle these types just yet. We are not sure how to expand them and there
+        // are no examples.
+        static_assert(kDependentTypeFalse<ReturnType>);
+      }
+      if constexpr (std::is_same_v<ReturnType, int32_t> || std::is_same_v<ReturnType, uint32_t>) {
+        // Expands 32 bit values as signed. Even if actual results are processed as unsigned!
+        // TODO(b/308951522) replace with Expand node when it's created.
+        builder_->Gen<x86_64::MovsxlqRegReg>(result_, result_);
+      } else if constexpr (std::is_integral_v<ReturnType> &&
+                           sizeof(ReturnType) == sizeof(int64_t)) {
+        // Do nothing, we have already produced expanded value.
+      } else if constexpr (std::is_same_v<ReturnType, intrinsics::Float32> ||
+                           std::is_same_v<ReturnType, intrinsics::Float64>) {
+        // Do nothing, NaN boxing is handled by semantics player.
+      } else {
+        static_assert(kDependentTypeFalse<ReturnType>);
+      }
+    } else {
+      static_assert(kDependentTypeFalse<typename AsmCallInfo::OutputArguments>);
+    }
     return true;
   }
 
