@@ -1362,10 +1362,6 @@ TEST_F(TESTSUITE, OpInstructions) {
   TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
 TEST_F(TESTSUITE, Op32Instructions) {
   // Addw
   TestOp(0x003100bb, {{19, 23, 42}, {0x8000'0000, 0, 0xffff'ffff'8000'0000}});
@@ -1409,6 +1405,10 @@ TEST_F(TESTSUITE, Op32Instructions) {
   // Sh3add.uw
   TestOp(0x203160bb, {{0xf0ff'0f00'8000'0001, 0x8000'0000, 0x0000'0004'8000'0008}});
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, OpImmInstructions) {
   // Addi

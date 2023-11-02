@@ -74,11 +74,8 @@ class HeavyOptimizerFrontend {
   //
   void Nop();
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2);
+  Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2);
 
-  Register Op32(Decoder::Op32Opcode /* opcode */, Register /* arg1 */, Register /* arg2 */) {
-    Unimplemented();
-    return {};
-  }
   Register OpImm(Decoder::OpImmOpcode /* opcode */, Register /* arg */, int16_t /* imm */) {
     Unimplemented();
     return {};

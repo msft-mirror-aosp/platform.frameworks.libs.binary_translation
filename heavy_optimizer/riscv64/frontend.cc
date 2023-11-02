@@ -403,6 +403,66 @@ Register HeavyOptimizerFrontend::Op(Decoder::OpOpcode opcode, Register arg1, Reg
   return res;
 }
 
+Register HeavyOptimizerFrontend::Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
+  using Op32Opcode = Decoder::Op32Opcode;
+  auto res = AllocTempReg();
+  auto unextended_res = res;
+  switch (opcode) {
+    case Op32Opcode::kAddw:
+      Gen<PseudoCopy>(res, arg1, 4);
+      Gen<x86_64::AddlRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case Op32Opcode::kSubw:
+      Gen<PseudoCopy>(res, arg1, 4);
+      Gen<x86_64::SublRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case Op32Opcode::kSllw:
+    case Op32Opcode::kSrlw:
+    case Op32Opcode::kSraw: {
+      auto rcx = AllocTempReg();
+      Gen<PseudoCopy>(res, arg1, 4);
+      Gen<PseudoCopy>(rcx, arg2, 4);
+      if (opcode == Op32Opcode::kSllw) {
+        Gen<x86_64::ShllRegReg>(res, rcx, GetFlagsRegister());
+      } else if (opcode == Op32Opcode::kSrlw) {
+        Gen<x86_64::ShrlRegReg>(res, rcx, GetFlagsRegister());
+      } else {
+        Gen<x86_64::SarlRegReg>(res, rcx, GetFlagsRegister());
+      }
+    } break;
+    case Op32Opcode::kMulw:
+      Gen<PseudoCopy>(res, arg1, 4);
+      Gen<x86_64::ImullRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case Op32Opcode::kDivw:
+    case Op32Opcode::kRemw: {
+      auto rax = AllocTempReg();
+      auto rdx = AllocTempReg();
+      Gen<PseudoCopy>(rax, arg1, 4);
+      Gen<PseudoCopy>(rdx, rax, 4);
+      Gen<x86_64::SarlRegImm>(rdx, int8_t{31}, GetFlagsRegister());
+      Gen<x86_64::IdivlRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
+      unextended_res = opcode == Op32Opcode::kDivw ? rax : rdx;
+    } break;
+    case Op32Opcode::kDivuw:
+    case Op32Opcode::kRemuw: {
+      auto rax = AllocTempReg();
+      auto rdx = AllocTempReg();
+      Gen<PseudoCopy>(rax, arg1, 4);
+      // Pseudo-def for use-def operand of XOR to make sure data-flow is integrate.
+      Gen<PseudoDefReg>(rdx);
+      Gen<x86_64::XorlRegReg>(rdx, rdx, GetFlagsRegister());
+      Gen<x86_64::DivlRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
+      unextended_res = opcode == Op32Opcode::kDivuw ? rax : rdx;
+    } break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  Gen<x86_64::MovsxlqRegReg>(res, unextended_res);
+  return res;
+}
+
 //
 //  Methods that are not part of SemanticsListener implementation.
 //
