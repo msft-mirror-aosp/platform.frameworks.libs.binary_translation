@@ -73,10 +73,8 @@ class HeavyOptimizerFrontend {
   // Instruction implementations.
   //
   void Nop();
-  Register Op(Decoder::OpOpcode /* opcode */, Register /* arg1 */, Register /* arg2 */) {
-    Unimplemented();
-    return {};
-  }
+  Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2);
+
   Register Op32(Decoder::Op32Opcode /* opcode */, Register /* arg1 */, Register /* arg2 */) {
     Unimplemented();
     return {};

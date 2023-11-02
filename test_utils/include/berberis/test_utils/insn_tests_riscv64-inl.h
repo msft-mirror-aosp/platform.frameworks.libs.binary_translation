@@ -232,6 +232,10 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
@@ -242,6 +246,10 @@ class TESTSUITE : public ::testing::Test {
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   template <typename... Types>
   void TestOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
@@ -1251,6 +1259,10 @@ TEST_F(TESTSUITE, FsrRegister) {
   }
 }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
 TEST_F(TESTSUITE, OpInstructions) {
   // Add
   TestOp(0x003100b3, {{19, 23, 42}});
@@ -1263,7 +1275,7 @@ TEST_F(TESTSUITE, OpInstructions) {
   // Xor
   TestOp(0x003140b3, {{0b0101, 0b0011, 0b0110}});
   // Sll
-  TestOp(0x003110b3, {{0b1010, 3, 0b1010'000}});
+  TestOp(0x003110b3, {{0b1010, 3, 0b0101'0000}});
   // Srl
   TestOp(0x003150b3, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
   // Sra
@@ -1349,6 +1361,10 @@ TEST_F(TESTSUITE, OpInstructions) {
   TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0001ULL}});
   TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, Op32Instructions) {
   // Addw
