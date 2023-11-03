@@ -128,6 +128,16 @@ template <typename ElementType>
   return src;
 }
 
+template <typename ElementType>
+std::tuple<SIMD128Register> VMovTopHalfToBottom(SIMD128Register src) {
+  SIMD128Register result;
+  constexpr int kMaxCount = 16 / sizeof(ElementType);
+  for (int i = 0; i < kMaxCount / 2; ++i) {
+    result.Set<ElementType>(src.Get<ElementType>(kMaxCount / 2 + i), i);
+  }
+  return result;
+}
+
 template <typename ElementType, TailProcessing vta>
 SIMD128Register VectorMasking(int vstart, int vl, SIMD128Register dest, SIMD128Register result) {
   constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
@@ -213,6 +223,19 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
   return result;
 }
 
+// TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
+template <typename ElementType, typename Lambda, typename... ParameterType>
+inline std::tuple<SIMD128Register> VectorArithmeticW(Lambda lambda, ParameterType... parameters) {
+  static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
+                  std::is_same_v<ParameterType, ElementType>)&&...));
+  SIMD128Register result;
+  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
+  for (int index = 0; index < kElementsCount; ++index) {
+    result.Set(lambda(Widen(VectorElement<ElementType>(parameters, index))...), index);
+  }
+  return result;
+}
+
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
 #define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, arguments)                      \
                                                                                                   \
@@ -233,6 +256,20 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##vs, return ({ __VA_ARGS__; }); \
                               , (ElementType src1, ElementType src2), (src1, src2))
+
+#define DEFINE_ARITHMETIC_INTRINSIC_W(Name, arithmetic, parameters, arguments)                     \
+                                                                                                   \
+  template <typename ElementType,                                                                  \
+            enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>        \
+  inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) {  \
+    return VectorArithmeticW<ElementType>(                                                         \
+        [](auto... args) {                                                                         \
+          static_assert((std::is_same_v<decltype(args), decltype(Widen(ElementType{0}))> && ...)); \
+          arithmetic;                                                                              \
+        },                                                                                         \
+        DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                      \
+  }
+
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##vv, return ({ __VA_ARGS__; }); \
                               , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
@@ -247,6 +284,10 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
   DEFINE_ARITHMETIC_INTRINSIC(                        \
       V##name##vx, return ({ __VA_ARGS__; });         \
       , (SIMD128Register src1, ElementType src2, SIMD128Register src3), (src1, src2, src3))
+
+#define DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC_W(V##name##vv, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
 
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
@@ -335,6 +376,7 @@ DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
                                   (arg == Int128{0})
                                   ? Int128{-1}
                                   : Popcount(arg ^ (arg - Int128{1})))
+DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV(wadd, (args + ...))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
@@ -344,6 +386,7 @@ DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VX
+#undef DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV
 
 }  // namespace berberis::intrinsics
 
