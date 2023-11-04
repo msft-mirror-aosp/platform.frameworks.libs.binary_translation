@@ -597,6 +597,89 @@ Register HeavyOptimizerFrontend::Auipc(int32_t imm) {
   return res;
 }
 
+void HeavyOptimizerFrontend::Store(Decoder::StoreOperandType operand_type,
+                                   Register arg,
+                                   int16_t offset,
+                                   Register data) {
+  int32_t sx_offset{offset};
+  switch (operand_type) {
+    case Decoder::StoreOperandType::k8bit:
+      Gen<x86_64::MovbMemBaseDispReg>(arg, sx_offset, data);
+      break;
+    case Decoder::StoreOperandType::k16bit:
+      Gen<x86_64::MovwMemBaseDispReg>(arg, sx_offset, data);
+      break;
+    case Decoder::StoreOperandType::k32bit:
+      Gen<x86_64::MovlMemBaseDispReg>(arg, sx_offset, data);
+      break;
+    case Decoder::StoreOperandType::k64bit:
+      Gen<x86_64::MovqMemBaseDispReg>(arg, sx_offset, data);
+      break;
+    default:
+      return Unimplemented();
+  }
+
+  GenRecoveryBlockForLastInsn();
+}
+
+Register HeavyOptimizerFrontend::Load(Decoder::LoadOperandType operand_type,
+                                      Register arg,
+                                      int16_t offset) {
+  int32_t sx_offset{offset};
+  auto res = AllocTempReg();
+  switch (operand_type) {
+    case Decoder::LoadOperandType::k8bitUnsigned:
+      Gen<x86_64::MovzxblRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k16bitUnsigned:
+      Gen<x86_64::MovzxwlRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k32bitUnsigned:
+      Gen<x86_64::MovlRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k64bit:
+      Gen<x86_64::MovqRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k8bitSigned:
+      Gen<x86_64::MovsxbqRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k16bitSigned:
+      Gen<x86_64::MovsxwqRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k32bitSigned:
+      Gen<x86_64::MovsxlqRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+
+  GenRecoveryBlockForLastInsn();
+  return res;
+}
+
+void HeavyOptimizerFrontend::GenRecoveryBlockForLastInsn() {
+  // TODO(b/311240558) Accurate Sigsegv?
+  auto* ir = builder_.ir();
+  auto* current_bb = builder_.bb();
+  auto* continue_bb = ir->NewBasicBlock();
+  auto* recovery_bb = ir->NewBasicBlock();
+  ir->AddEdge(current_bb, continue_bb);
+  ir->AddEdge(current_bb, recovery_bb);
+
+  builder_.SetRecoveryPointAtLastInsn(recovery_bb);
+
+  // Note, even though there are two bb successors, we only explicitly branch to
+  // the continue_bb, since jump to the recovery_bb is set up by the signal
+  // handler.
+  Gen<PseudoBranch>(continue_bb);
+
+  builder_.StartBasicBlock(recovery_bb);
+  ExitGeneratedCode(GetInsnAddr());
+
+  builder_.StartBasicBlock(continue_bb);
+}
+
 //
 //  Methods that are not part of SemanticsListener implementation.
 //
