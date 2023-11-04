@@ -569,6 +569,14 @@ class PseudoReadFlags : public MachineInsn {
   // Syntax sugar to avoid anonymous bool during construction on caller side.
   enum WithOverflowEnum { kWithOverflow, kWithoutOverflow };
 
+  // Flags in LAHF-compatible format.
+  enum Flags : uint16_t {
+    kNegative = 1 << 15,
+    kZero = 1 << 14,
+    kCarry = 1 << 8,
+    kOverflow = 1,
+  };
+
   PseudoReadFlags(WithOverflowEnum with_overflow, MachineReg dst, MachineReg flags);
 
   std::string GetDebugString() const override;
@@ -584,6 +592,8 @@ class PseudoReadFlags : public MachineInsn {
 class PseudoWriteFlags : public MachineInsn {
  public:
   static const MachineOpcode kOpcode;
+
+  using Flags = PseudoReadFlags::Flags;
 
   PseudoWriteFlags(MachineReg src, MachineReg flags);
 
