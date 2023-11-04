@@ -83,15 +83,8 @@ class HeavyOptimizerFrontend {
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm);
   Register Rori(Register arg, int8_t shamt);
   Register Roriw(Register arg, int8_t shamt);
-
-  Register Lui(int32_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Auipc(int32_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
+  Register Lui(int32_t imm);
+  Register Auipc(int32_t imm);
 
   Register Ecall(Register /* syscall_nr */,
                  Register /* arg0 */,

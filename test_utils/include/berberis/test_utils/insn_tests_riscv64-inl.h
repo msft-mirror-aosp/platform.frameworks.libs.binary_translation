@@ -278,10 +278,6 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
   void TestAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -295,11 +291,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestBranch(uint32_t insn_bytes,
                   std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
@@ -1608,16 +1599,18 @@ TEST_F(TESTSUITE, OpFpInstructions) {
             {-0.0, 1.0, 1.0}});
 }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
 TEST_F(TESTSUITE, UpperImmInstructions) {
   // Auipc
   TestAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
   // Lui
   TestLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
 }
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 TEST_F(TESTSUITE, TestBranchInstructions) {
   // Beq
   TestBranch(0x00208463,
