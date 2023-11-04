@@ -332,7 +332,7 @@ class HeavyOptimizerFrontend {
     }
 
     if (TryInlineIntrinsicForHeavyOptimizer<kFunction>(
-            &builder_, UnwrapSimdReg(result), GetFlagsRegister(), UnwrapSimdReg(args)...)) {
+            &builder_, result, GetFlagsRegister(), args...)) {
       return result;
     }
 
@@ -361,20 +361,6 @@ class HeavyOptimizerFrontend {
   void UpdateBranchTargetsAfterSplit(GuestAddr addr,
                                      const MachineBasicBlock* old_bb,
                                      MachineBasicBlock* new_bb);
-
-  template <typename T>
-  static constexpr auto UnwrapSimdReg(T r) {
-    if constexpr (std::is_same_v<T, SimdReg>) {
-      return r.machine_reg();
-    } else {
-      return r;
-    }
-  }
-
-  template <typename T, typename U>
-  static constexpr auto UnwrapSimdReg(std::tuple<T, U> regs) {
-    return std::make_tuple(UnwrapSimdReg(std::get<0>(regs)), UnwrapSimdReg(std::get<1>(regs)));
-  }
 
   void StartRegion() {
     auto* region_entry_bb = builder_.ir()->NewBasicBlock();
