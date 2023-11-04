@@ -23,6 +23,7 @@
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/guest_state/guest_state_arch.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/platform.h"
 
 namespace berberis {
@@ -577,6 +578,22 @@ Register HeavyOptimizerFrontend::Roriw(Register arg, int8_t shamt) {
   Gen<PseudoCopy>(res, arg, 8);
   Gen<x86_64::RorlRegImm>(res, shamt, GetFlagsRegister());
   Gen<x86_64::MovsxlqRegReg>(res, res);
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Lui(int32_t imm) {
+  auto res = AllocTempReg();
+  Gen<x86_64::MovlRegImm>(res, imm);
+  Gen<x86_64::MovsxlqRegReg>(res, res);
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Auipc(int32_t imm) {
+  auto res = GetImm(GetInsnAddr());
+  auto temp = AllocTempReg();
+  Gen<x86_64::MovlRegImm>(temp, imm);
+  Gen<x86_64::MovsxlqRegReg>(temp, temp);
+  Gen<x86_64::AddqRegReg>(res, temp, GetFlagsRegister());
   return res;
 }
 
