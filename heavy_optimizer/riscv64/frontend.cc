@@ -463,6 +463,123 @@ Register HeavyOptimizerFrontend::Op32(Decoder::Op32Opcode opcode, Register arg1,
   return res;
 }
 
+Register HeavyOptimizerFrontend::OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
+  using OpImmOpcode = Decoder::OpImmOpcode;
+  using Condition = x86_64::Assembler::Condition;
+  auto res = AllocTempReg();
+  switch (opcode) {
+    case OpImmOpcode::kAddi:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::AddqRegImm>(res, imm, GetFlagsRegister());
+      break;
+    case OpImmOpcode::kSlti: {
+      auto temp = AllocTempReg();
+      Gen<x86_64::CmpqRegImm>(arg, imm, GetFlagsRegister());
+      Gen<x86_64::SetccReg>(Condition::kLess, temp, GetFlagsRegister());
+      Gen<x86_64::MovsxbqRegReg>(res, temp);
+    } break;
+    case OpImmOpcode::kSltiu: {
+      auto temp = AllocTempReg();
+      Gen<x86_64::CmpqRegImm>(arg, imm, GetFlagsRegister());
+      Gen<x86_64::SetccReg>(Condition::kBelow, temp, GetFlagsRegister());
+      Gen<x86_64::MovsxbqRegReg>(res, temp);
+    } break;
+    case OpImmOpcode::kXori:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::XorqRegImm>(res, imm, GetFlagsRegister());
+      break;
+    case OpImmOpcode::kOri:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::OrqRegImm>(res, imm, GetFlagsRegister());
+      break;
+    case OpImmOpcode::kAndi:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::AndqRegImm>(res, imm, GetFlagsRegister());
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
+Register HeavyOptimizerFrontend::OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
+  auto res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::OpImm32Opcode::kAddiw:
+      Gen<PseudoCopy>(res, arg, 4);
+      Gen<x86_64::AddlRegImm>(res, imm, GetFlagsRegister());
+      Gen<x86_64::MovsxlqRegReg>(res, res);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Slli(Register arg, int8_t imm) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::ShlqRegImm>(res, imm, GetFlagsRegister());
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Srli(Register arg, int8_t imm) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::ShrqRegImm>(res, imm, GetFlagsRegister());
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Srai(Register arg, int8_t imm) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::SarqRegImm>(res, imm, GetFlagsRegister());
+  return res;
+}
+
+Register HeavyOptimizerFrontend::ShiftImm32(Decoder::ShiftImm32Opcode opcode,
+                                            Register arg,
+                                            uint16_t imm) {
+  using ShiftImm32Opcode = Decoder::ShiftImm32Opcode;
+  auto res = AllocTempReg();
+  auto rcx = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 4);
+  Gen<x86_64::MovlRegImm>(rcx, imm);
+  switch (opcode) {
+    case ShiftImm32Opcode::kSlliw:
+      Gen<x86_64::ShllRegReg>(res, rcx, GetFlagsRegister());
+      break;
+    case ShiftImm32Opcode::kSrliw:
+      Gen<x86_64::ShrlRegReg>(res, rcx, GetFlagsRegister());
+      break;
+    case ShiftImm32Opcode::kSraiw:
+      Gen<x86_64::SarlRegReg>(res, rcx, GetFlagsRegister());
+      break;
+    default:
+      Unimplemented();
+      break;
+  }
+  Gen<x86_64::MovsxlqRegReg>(res, res);
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Rori(Register arg, int8_t shamt) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::RorqRegImm>(res, shamt, GetFlagsRegister());
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Roriw(Register arg, int8_t shamt) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::RorlRegImm>(res, shamt, GetFlagsRegister());
+  Gen<x86_64::MovsxlqRegReg>(res, res);
+  return res;
+}
+
 //
 //  Methods that are not part of SemanticsListener implementation.
 //
