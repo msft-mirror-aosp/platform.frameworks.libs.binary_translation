@@ -75,41 +75,15 @@ class HeavyOptimizerFrontend {
   void Nop();
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2);
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2);
+  Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm);
+  Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm);
+  Register Slli(Register arg, int8_t imm);
+  Register Srli(Register arg, int8_t imm);
+  Register Srai(Register arg, int8_t imm);
+  Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm);
+  Register Rori(Register arg, int8_t shamt);
+  Register Roriw(Register arg, int8_t shamt);
 
-  Register OpImm(Decoder::OpImmOpcode /* opcode */, Register /* arg */, int16_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register OpImm32(Decoder::OpImm32Opcode /* opcode */, Register /* arg */, int16_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Slli(Register /* arg */, int8_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Srli(Register /* arg */, int8_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Srai(Register /* arg */, int8_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register ShiftImm32(Decoder::ShiftImm32Opcode /* opcode */,
-                      Register /* arg */,
-                      uint16_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Rori(Register /* arg */, int8_t /* shamt */) {
-    Unimplemented();
-    return {};
-  }
-  Register Roriw(Register /* arg */, int8_t /* shamt */) {
-    Unimplemented();
-    return {};
-  }
   Register Lui(int32_t /* imm */) {
     Unimplemented();
     return {};

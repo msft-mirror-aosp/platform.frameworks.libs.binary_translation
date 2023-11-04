@@ -262,6 +262,10 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
   void TestOpImm(uint32_t insn_bytes,
                  std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
     for (auto [arg1, imm, expected_result] : args) {
@@ -273,6 +277,10 @@ class TESTSUITE : public ::testing::Test {
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   void TestAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
@@ -1406,10 +1414,6 @@ TEST_F(TESTSUITE, Op32Instructions) {
   TestOp(0x203160bb, {{0xf0ff'0f00'8000'0001, 0x8000'0000, 0x0000'0004'8000'0008}});
 }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
 TEST_F(TESTSUITE, OpImmInstructions) {
   // Addi
   TestOpImm(0x00010093, {{19, 23, 42}});
@@ -1502,6 +1506,10 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   // Slli.uw
   TestOpImm(0x0801109b, {{0x0000'0000'f000'000fULL, 4, 0x0000'000f'0000'00f0}});
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, OpFpInstructions) {
   // FAdd.S
