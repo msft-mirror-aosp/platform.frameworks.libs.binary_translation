@@ -105,6 +105,15 @@ class ExecTest {
   uint64_t returned_rax_;
 };
 
+// Convert flags to LAHF-compatible format.
+inline uint16_t MakeFlags(bool n, bool z, bool c, bool o) {
+  return (n ? (1 << 15) : 0) | (z ? (1 << 14) : 0) | (c ? (1 << 8) : 0) | (o ? 1 : 0);
+}
+
+inline uint16_t MakeFlags(uint8_t nzco_bits) {
+  return MakeFlags(nzco_bits & 0b1000, nzco_bits & 0b0100, nzco_bits & 0b0010, nzco_bits & 0b0001);
+}
+
 TEST(ExecMachineIR, Smoke) {
   struct Data {
     uint64_t x;
@@ -765,6 +774,123 @@ TEST(ExecMachineIR, RecoveryWithGuestPC) {
 
   // Guest PC for recovery is set to RAX.
   EXPECT_EQ(test.returned_rax(), 42ULL);
+}
+
+TEST(ExecMachineIR, PseudoReadFlags) {
+  struct Data {
+    uint64_t x;
+    uint64_t y;
+  } data{};
+  uint64_t res_flags;
+
+  Arena arena;
+  x86_64::MachineIR machine_ir(&arena);
+
+  x86_64::MachineIRBuilder builder(&machine_ir);
+  builder.StartBasicBlock(machine_ir.NewBasicBlock());
+
+  // Let RBP point to 'data'.
+  builder.Gen<x86_64::MovqRegImm>(x86_64::kMachineRegRBP, reinterpret_cast<uintptr_t>(&data));
+  builder.Gen<x86_64::MovqRegMemBaseDisp>(
+      x86_64::kMachineRegRAX, x86_64::kMachineRegRBP, offsetof(Data, x));
+  builder.Gen<x86_64::AddqRegMemBaseDisp>(
+      x86_64::kMachineRegRAX, x86_64::kMachineRegRBP, offsetof(Data, y), x86_64::kMachineRegFLAGS);
+  builder.Gen<PseudoReadFlags>(
+      PseudoReadFlags::kWithOverflow, x86_64::kMachineRegRAX, x86_64::kMachineRegFLAGS);
+  builder.Gen<x86_64::MovqRegImm>(x86_64::kMachineRegRBP, reinterpret_cast<uintptr_t>(&res_flags));
+  builder.Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, 0, x86_64::kMachineRegRAX);
+
+  ExecTest test;
+  test.Init(machine_ir);
+
+  data.x = 1;
+  data.y = 1;
+  test.Exec();
+  EXPECT_EQ(res_flags & MakeFlags(0b1111), MakeFlags(0b0000));
+
+  data.x = ~0ULL;
+  data.y = 1;
+  test.Exec();
+  EXPECT_EQ(res_flags & MakeFlags(0b1111), MakeFlags(0b0110));
+
+  data.x = (~0ULL) >> 1;
+  data.y = 1;
+  test.Exec();
+  EXPECT_EQ(res_flags & MakeFlags(0b1111), MakeFlags(0b1001));
+}
+
+TEST(ExecMachineIR, PseudoReadFlagsWithoutOverflow) {
+  struct Data {
+    uint64_t x;
+    uint64_t y;
+  } data{};
+  uint64_t res_flags;
+
+  Arena arena;
+  x86_64::MachineIR machine_ir(&arena);
+
+  x86_64::MachineIRBuilder builder(&machine_ir);
+  builder.StartBasicBlock(machine_ir.NewBasicBlock());
+
+  // Let RBP point to 'data'.
+  builder.Gen<x86_64::MovqRegImm>(x86_64::kMachineRegRBP, reinterpret_cast<uintptr_t>(&data));
+  builder.Gen<x86_64::MovqRegMemBaseDisp>(
+      x86_64::kMachineRegRAX, x86_64::kMachineRegRBP, offsetof(Data, x));
+  builder.Gen<x86_64::AddqRegMemBaseDisp>(
+      x86_64::kMachineRegRAX, x86_64::kMachineRegRBP, offsetof(Data, y), x86_64::kMachineRegFLAGS);
+  // ReadFlags must reset overflow to zero, even if it's set in RAX.
+  builder.Gen<x86_64::MovqRegImm>(x86_64::kMachineRegRAX, MakeFlags(0b0001));
+  builder.Gen<PseudoReadFlags>(
+      PseudoReadFlags::kWithoutOverflow, x86_64::kMachineRegRAX, x86_64::kMachineRegFLAGS);
+  builder.Gen<x86_64::MovqRegImm>(x86_64::kMachineRegRBP, reinterpret_cast<uintptr_t>(&res_flags));
+  builder.Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, 0, x86_64::kMachineRegRAX);
+
+  ExecTest test;
+  test.Init(machine_ir);
+
+  data.x = (~0ULL) >> 1;
+  data.y = 1;
+  test.Exec();
+  // Overflow happens but is not returned.
+  EXPECT_EQ(res_flags & MakeFlags(0b1111), MakeFlags(0b1000));
+}
+
+TEST(ExecMachineIR, PseudoWriteFlags) {
+  uint64_t arg_flags;
+  uint64_t res_flags;
+
+  Arena arena;
+  x86_64::MachineIR machine_ir(&arena);
+
+  x86_64::MachineIRBuilder builder(&machine_ir);
+  builder.StartBasicBlock(machine_ir.NewBasicBlock());
+
+  builder.Gen<x86_64::MovqRegImm>(x86_64::kMachineRegRBP, reinterpret_cast<uintptr_t>(&arg_flags));
+  builder.Gen<x86_64::MovqRegMemBaseDisp>(x86_64::kMachineRegRAX, x86_64::kMachineRegRBP, 0);
+  builder.Gen<PseudoWriteFlags>(x86_64::kMachineRegRAX, x86_64::kMachineRegFLAGS);
+  // Assume PseudoReadFlags is verified by another test.
+  builder.Gen<PseudoReadFlags>(
+      PseudoReadFlags::kWithOverflow, x86_64::kMachineRegRAX, x86_64::kMachineRegFLAGS);
+  builder.Gen<x86_64::MovqRegImm>(x86_64::kMachineRegRBP, reinterpret_cast<uintptr_t>(&res_flags));
+  builder.Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, 0, x86_64::kMachineRegRAX);
+
+  ExecTest test;
+  test.Init(machine_ir);
+
+  arg_flags = MakeFlags(0b1111);
+  res_flags = 0;
+  test.Exec();
+  EXPECT_EQ(res_flags & MakeFlags(0b1111), MakeFlags(0b1111));
+
+  arg_flags = MakeFlags(0b1010);
+  res_flags = 0;
+  test.Exec();
+  EXPECT_EQ(res_flags & MakeFlags(0b1111), MakeFlags(0b1010));
+
+  arg_flags = MakeFlags(0b0101);
+  res_flags = 0;
+  test.Exec();
+  EXPECT_EQ(res_flags & MakeFlags(0b1111), MakeFlags(0b0101));
 }
 
 }  // namespace
