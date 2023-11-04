@@ -44,6 +44,14 @@ class HeavyOptimizerFrontend {
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
+  struct MemoryOperand {
+    Register base{0};
+    // We call the following field "index" even though we do not scale it at the
+    // moment.  We can add a scale as the need arises.
+    Register index{0};
+    uint64_t disp = 0;
+  };
+
   explicit HeavyOptimizerFrontend(x86_64::MachineIR* machine_ir, GuestAddr pc)
       : pc_(pc),
         success_(true),
@@ -97,18 +105,8 @@ class HeavyOptimizerFrontend {
     return {};
   }
 
-  void Store(Decoder::StoreOperandType /* operand_type */,
-             Register /* arg */,
-             int16_t /* offset */,
-             Register /* data */) {
-    Unimplemented();
-  }
-  Register Load(Decoder::LoadOperandType /* operand_type */,
-                Register /* arg */,
-                int16_t /* offset */) {
-    Unimplemented();
-    return {};
-  }
+  void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
+  Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
 
   //
   // Atomic extensions.
@@ -322,6 +320,8 @@ class HeavyOptimizerFrontend {
   void GenJump(GuestAddr target);
   void ExitGeneratedCode(GuestAddr target);
   void ExitRegionIndirect(Register target);
+
+  void GenRecoveryBlockForLastInsn();
 
   void ResolveJumps();
   void ReplaceJumpWithBranch(MachineBasicBlock* bb, MachineBasicBlock* target_bb);
