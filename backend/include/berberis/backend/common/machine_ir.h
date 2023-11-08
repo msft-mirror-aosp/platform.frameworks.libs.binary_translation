@@ -210,9 +210,15 @@ class MachineInsn {
 
   [[nodiscard]] const MachineRegKind& RegKindAt(int i) const { return reg_kinds_[i]; }
 
-  [[nodiscard]] MachineReg RegAt(int i) const { return regs_[i]; }
+  [[nodiscard]] MachineReg RegAt(int i) const {
+    CHECK_LT(i, num_reg_operands_);
+    return regs_[i];
+  }
 
-  void SetRegAt(int i, MachineReg reg) { regs_[i] = reg; }
+  void SetRegAt(int i, MachineReg reg) {
+    CHECK_LT(i, num_reg_operands_);
+    regs_[i] = reg;
+  }
 
   [[nodiscard]] bool has_side_effects() const {
     return (kind_ == kMachineInsnSideEffects) || recovery_info_.bb ||
@@ -563,6 +569,14 @@ class PseudoReadFlags : public MachineInsn {
   // Syntax sugar to avoid anonymous bool during construction on caller side.
   enum WithOverflowEnum { kWithOverflow, kWithoutOverflow };
 
+  // Flags in LAHF-compatible format.
+  enum Flags : uint16_t {
+    kNegative = 1 << 15,
+    kZero = 1 << 14,
+    kCarry = 1 << 8,
+    kOverflow = 1,
+  };
+
   PseudoReadFlags(WithOverflowEnum with_overflow, MachineReg dst, MachineReg flags);
 
   std::string GetDebugString() const override;
@@ -578,6 +592,8 @@ class PseudoReadFlags : public MachineInsn {
 class PseudoWriteFlags : public MachineInsn {
  public:
   static const MachineOpcode kOpcode;
+
+  using Flags = PseudoReadFlags::Flags;
 
   PseudoWriteFlags(MachineReg src, MachineReg flags);
 

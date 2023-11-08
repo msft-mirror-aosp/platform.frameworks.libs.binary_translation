@@ -80,6 +80,8 @@ class InsnFolding {
 
 void FoldInsns(MachineIR* machine_ir);
 
+void FoldWriteFlags(MachineIR* machine_ir);
+
 }  // namespace berberis::x86_64
 
 #endif  // BERBERIS_BACKEND_X86_64_INSN_FOLDING_H_
