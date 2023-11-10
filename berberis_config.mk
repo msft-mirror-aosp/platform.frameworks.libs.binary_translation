@@ -27,6 +27,7 @@ BERBERIS_PRODUCT_PACKAGES := \
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
     libberberis_proxy_libc \
     libberberis_proxy_libnativewindow \
+    libberberis_proxy_libneuralnetworks \
     berberis_prebuilt_riscv64 \
     berberis_program_runner_binfmt_misc_riscv64 \
     berberis_program_runner_riscv64 \
