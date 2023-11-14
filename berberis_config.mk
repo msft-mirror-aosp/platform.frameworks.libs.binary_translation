@@ -28,6 +28,7 @@ BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
     libberberis_proxy_libaaudio \
     libberberis_proxy_libandroid \
     libberberis_proxy_libc \
+    libberberis_proxy_libmediandk \
     libberberis_proxy_libnativewindow \
     libberberis_proxy_libneuralnetworks \
     berberis_prebuilt_riscv64 \
