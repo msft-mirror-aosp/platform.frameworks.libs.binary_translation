@@ -28,6 +28,7 @@
 #include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
+#include "berberis/heavy_optimizer/riscv64/heavy_optimize_region.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
 #include "berberis/lite_translator/lite_translate_region.h"
 #include "berberis/runtime_primitives/code_pool.h"
@@ -45,6 +46,7 @@ namespace {
 GuestCodeEntry::Kind kSpecialHandler = GuestCodeEntry::Kind::kSpecialHandler;
 GuestCodeEntry::Kind kInterpreted = GuestCodeEntry::Kind::kInterpreted;
 GuestCodeEntry::Kind kLightTranslated = GuestCodeEntry::Kind::kLightTranslated;
+GuestCodeEntry::Kind kHeavyOptimized = GuestCodeEntry::Kind::kHeavyOptimized;
 
 enum class TranslationMode {
   kInterpretOnly,
@@ -146,6 +148,25 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAn
           InstallTranslated(&another_machine_code, pc, size, "lite_range"),
           size,
           kLightTranslated};
+}
+
+// Exported for testing only.
+std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> HeavyOptimizeRegion(GuestAddr pc) {
+  MachineCode machine_code;
+  auto [stop_pc, success, unused_number_of_processed_instructions] =
+      HeavyOptimizeRegion(pc, &machine_code);
+  size_t size = stop_pc - pc;
+  if (success) {
+    return {true, InstallTranslated(&machine_code, pc, size, "heavy"), size, kHeavyOptimized};
+  }
+
+  if (size == 0) {
+    // Cannot translate even single instruction - the attempt failed.
+    return {false, {}, 0, {}};
+  }
+
+  // TODO(b/286247146) fallback to lite translator or interpreter?
+  return {false, {}, 0, {}};
 }
 
 template <TranslationGear kGear = TranslationGear::kFirst>
