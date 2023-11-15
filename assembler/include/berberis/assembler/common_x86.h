@@ -18,14 +18,12 @@
 #define BERBERIS_ASSEMBLER_COMMON_X86_H_
 
 #include <cstddef>  // std::size_t
-#include <initializer_list>
-#include <iterator>     // std::begin, std::end, std::next
-#include <limits>       // std::is_integral
+#include <cstdint>
 #include <type_traits>  // std::enable_if, std::is_integral
 
 #include "berberis/assembler/common.h"
 #include "berberis/base/bit_util.h"
-#include "berberis/base/logging.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
 
 namespace berberis {
@@ -217,38 +215,43 @@ class AssemblerX86 : public AssemblerBase {
 
   // Flow control.
   void Jmp(int32_t offset) {
-    uint32_t start = pc();
-    if (offset > -124 && offset < 124) {
+    CHECK_GE(offset, INT32_MIN + 2);
+    int32_t short_offset = offset - 2;
+    if (IsInRange<int8_t>(short_offset)) {
       Emit8(0xeb);
-      Emit8((offset - 1 - (pc() - start)) & 0xFF);
+      Emit8(static_cast<int8_t>(short_offset));
     } else {
+      CHECK_GE(offset, INT32_MIN + 5);
       Emit8(0xe9);
-      Emit32(offset - 4 - (pc() - start));
+      Emit32(offset - 5);
     }
   }
 
   void Call(int32_t offset) {
-    uint32_t start = pc();
+    CHECK_GE(offset, INT32_MIN + 5);
     Emit8(0xe8);
-    Emit32(offset - 4 - (pc() - start));
+    Emit32(offset - 5);
   }
 
   void Jcc(Condition cc, int32_t offset) {
     if (cc == Condition::kAlways) {
       Jmp(offset);
       return;
-    } else if (cc == Condition::kNever) {
+    }
+    if (cc == Condition::kNever) {
       return;
     }
-    CHECK_EQ(0, static_cast<uint8_t>(cc) & 0xF0);
-    uint32_t start = pc();
-    if (offset > -124 && offset < 124) {
+    CHECK_EQ(0, static_cast<uint8_t>(cc) & 0xf0);
+    CHECK_GE(offset, INT32_MIN + 2);
+    int32_t short_offset = offset - 2;
+    if (IsInRange<int8_t>(short_offset)) {
       Emit8(0x70 | static_cast<uint8_t>(cc));
-      Emit8(offset - 1 - (pc() - start));
+      Emit8(static_cast<int8_t>(short_offset));
     } else {
-      Emit8(0x0F);
+      CHECK_GE(offset, INT32_MIN + 6);
+      Emit8(0x0f);
       Emit8(0x80 | static_cast<uint8_t>(cc));
-      Emit32(offset - 4 - (pc() - start));
+      Emit32(offset - 6);
     }
   }
 
