@@ -26,6 +26,7 @@
 namespace berberis {
 
 using BranchOpcode = HeavyOptimizerFrontend::Decoder::BranchOpcode;
+using FpRegister = HeavyOptimizerFrontend::FpRegister;
 using Register = HeavyOptimizerFrontend::Register;
 
 void HeavyOptimizerFrontend::CompareAndBranch(BranchOpcode opcode,
@@ -92,6 +93,10 @@ Register HeavyOptimizerFrontend::AllocTempReg() {
   return builder_.ir()->AllocVReg();
 }
 
+SimdReg HeavyOptimizerFrontend::AllocTempSimdReg() {
+  return SimdReg{builder_.ir()->AllocVReg()};
+}
+
 void HeavyOptimizerFrontend::GenJump(GuestAddr target) {
   auto map_it = branch_targets_.find(target);
   if (map_it == branch_targets_.end()) {
@@ -115,13 +120,12 @@ void HeavyOptimizerFrontend::ExitGeneratedCode(GuestAddr target) {
 void HeavyOptimizerFrontend::ExitRegionIndirect(Register target) {
   Gen<PseudoIndirectJump>(target);
 }
-
 void HeavyOptimizerFrontend::Unimplemented() {
+  success_ = false;
   ExitGeneratedCode(GetInsnAddr());
   // We don't require region to end here as control flow may jump around
   // the undefined instruction, so handle it as an unconditional branch.
   is_uncond_branch_ = true;
-  // TODO(b/291126189) Add success check like in lite translator?
 }
 
 bool HeavyOptimizerFrontend::IsRegionEndReached() const {
@@ -249,10 +253,25 @@ void HeavyOptimizerFrontend::UpdateBranchTargetsAfterSplit(GuestAddr addr,
   }
 }
 
+Register HeavyOptimizerFrontend::GetReg(uint8_t reg) {
+  CHECK_LT(reg, kNumGuestRegs);
+  Register dst = AllocTempReg();
+  builder_.GenGet(dst, reg);
+  return dst;
+}
+
 void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
   CHECK_LT(reg, kNumGuestRegs);
   builder_.GenPut(reg, value);
 }
+
+FpRegister HeavyOptimizerFrontend::GetFpReg(uint8_t reg) {
+  FpRegister result = AllocTempSimdReg();
+  builder_.GenGetSimd(result.machine_reg(), reg);
+  return result;
+}
+
+void HeavyOptimizerFrontend::Nop() {}
 
 //
 //  Methods that are not part of SemanticsListener implementation.
