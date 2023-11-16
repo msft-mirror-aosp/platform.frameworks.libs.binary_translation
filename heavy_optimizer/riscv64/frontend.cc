@@ -20,10 +20,12 @@
 
 #include "berberis/assembler/x86_64.h"
 #include "berberis/backend/common/machine_ir.h"
+#include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/guest_state/guest_state_arch.h"
 #include "berberis/guest_state/guest_state_opaque.h"
+#include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/runtime_primitives/platform.h"
 
 namespace berberis {
@@ -812,6 +814,115 @@ void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType oper
     default:
       return Unimplemented();
   }
+}
+
+void HeavyOptimizerFrontend::MemoryRegionReservationLoad(Register aligned_addr) {
+  // Store aligned_addr in CPUState.
+  int32_t address_offset = GetThreadStateReservationAddressOffset();
+  Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, address_offset, aligned_addr);
+
+  // MemoryRegionReservation::SetOwner(aligned_addr, &(state->cpu)).
+  builder_.GenCallImm(bit_cast<uint64_t>(&MemoryRegionReservation::SetOwner),
+                      GetFlagsRegister(),
+                      std::array<x86_64::CallImm::Arg, 2>{{
+                          {aligned_addr, x86_64::CallImm::kIntRegType},
+                          {x86_64::kMachineRegRBP, x86_64::CallImm::kIntRegType},
+                      }});
+
+  // Load monitor value and store it in CPUState.
+  auto monitor = AllocTempSimdReg();
+  MachineReg reservation_reg = monitor.machine_reg();
+  Gen<x86_64::MovqRegMemBaseDisp>(reservation_reg, aligned_addr, 0);
+  int32_t value_offset = GetThreadStateReservationValueOffset();
+  Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, value_offset, reservation_reg);
+}
+
+Register HeavyOptimizerFrontend::MemoryRegionReservationExchange(Register aligned_addr,
+                                                                 Register curr_reservation_value) {
+  auto* ir = builder_.ir();
+  auto* cur_bb = builder_.bb();
+  auto* addr_match_bb = ir->NewBasicBlock();
+  auto* failure_bb = ir->NewBasicBlock();
+  auto* continue_bb = ir->NewBasicBlock();
+  ir->AddEdge(cur_bb, addr_match_bb);
+  ir->AddEdge(cur_bb, failure_bb);
+  ir->AddEdge(failure_bb, continue_bb);
+  Register result = AllocTempReg();
+
+  // MemoryRegionReservation::Clear.
+  Register stored_aligned_addr = AllocTempReg();
+  int32_t address_offset = GetThreadStateReservationAddressOffset();
+  Gen<x86_64::MovqRegMemBaseDisp>(stored_aligned_addr, x86_64::kMachineRegRBP, address_offset);
+  Gen<x86_64::MovqMemBaseDispImm>(x86_64::kMachineRegRBP, address_offset, kNullGuestAddr);
+  // Compare aligned_addr to the one in CPUState.
+  Gen<x86_64::CmpqRegReg>(stored_aligned_addr, aligned_addr, GetFlagsRegister());
+  Gen<PseudoCondBranch>(
+      x86_64::Assembler::Condition::kNotEqual, failure_bb, addr_match_bb, GetFlagsRegister());
+
+  builder_.StartBasicBlock(addr_match_bb);
+  // Load new reservation value into integer register where CmpXchgq expects it.
+  Register new_reservation_value = AllocTempReg();
+  int32_t value_offset = GetThreadStateReservationValueOffset();
+  Gen<x86_64::MovqRegMemBaseDisp>(new_reservation_value, x86_64::kMachineRegRBP, value_offset);
+
+  MemoryRegionReservationSwapWithLockedOwner(
+      aligned_addr, curr_reservation_value, new_reservation_value, failure_bb);
+
+  ir->AddEdge(builder_.bb(), continue_bb);
+  // Pseudo-def for use-def operand of XOR to make sure data-flow is integrate.
+  Gen<PseudoDefReg>(result);
+  Gen<x86_64::XorqRegReg>(result, result, GetFlagsRegister());
+  Gen<PseudoBranch>(continue_bb);
+
+  builder_.StartBasicBlock(failure_bb);
+  Gen<x86_64::MovqRegImm>(result, 1);
+  Gen<PseudoBranch>(continue_bb);
+
+  builder_.StartBasicBlock(continue_bb);
+
+  return result;
+}
+
+void HeavyOptimizerFrontend::MemoryRegionReservationSwapWithLockedOwner(
+    Register aligned_addr,
+    Register curr_reservation_value,
+    Register new_reservation_value,
+    MachineBasicBlock* failure_bb) {
+  auto* ir = builder_.ir();
+  auto* lock_success_bb = ir->NewBasicBlock();
+  auto* swap_success_bb = ir->NewBasicBlock();
+  ir->AddEdge(builder_.bb(), lock_success_bb);
+  ir->AddEdge(builder_.bb(), failure_bb);
+  ir->AddEdge(lock_success_bb, swap_success_bb);
+  ir->AddEdge(lock_success_bb, failure_bb);
+
+  // lock_entry = MemoryRegionReservation::TryLock(aligned_addr, &(state->cpu)).
+  auto* call = builder_.GenCallImm(bit_cast<uint64_t>(&MemoryRegionReservation::TryLock),
+                                   GetFlagsRegister(),
+                                   std::array<x86_64::CallImm::Arg, 2>{{
+                                       {aligned_addr, x86_64::CallImm::kIntRegType},
+                                       {x86_64::kMachineRegRBP, x86_64::CallImm::kIntRegType},
+                                   }});
+  Register lock_entry = AllocTempReg();
+  // Limit life-time of a narrow reg-class call result.
+  Gen<PseudoCopy>(lock_entry, call->IntResultAt(0), 8);
+  Gen<x86_64::TestqRegReg>(lock_entry, lock_entry, GetFlagsRegister());
+  Gen<PseudoCondBranch>(
+      x86_64::Assembler::Condition::kZero, failure_bb, lock_success_bb, GetFlagsRegister());
+
+  builder_.StartBasicBlock(lock_success_bb);
+  auto rax = AllocTempReg();
+  Gen<PseudoCopy>(rax, curr_reservation_value, 8);
+  Gen<x86_64::LockCmpXchgqRegMemBaseDispReg>(
+      rax, aligned_addr, 0, new_reservation_value, GetFlagsRegister());
+
+  // MemoryRegionReservation::Unlock(lock_entry)
+  Gen<x86_64::MovqMemBaseDispImm>(lock_entry, 0, 0);
+  // Zero-flag is set if CmpXchg is successful.
+  Gen<PseudoCondBranch>(
+      x86_64::Assembler::Condition::kNotZero, failure_bb, swap_success_bb, GetFlagsRegister());
+
+  builder_.StartBasicBlock(swap_success_bb);
 }
 
 }  // namespace berberis
