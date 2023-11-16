@@ -160,7 +160,7 @@
         "Andnq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F2" ], "vex_rm_to_reg": true }
       },
       "args": [
-        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "def" },
         { "class": "GeneralReg64", "usage": "use" },
         { "class": "GeneralReg64/Mem64", "usage": "use" },
         { "class": "FLAGS", "usage": "def" }

@@ -18,14 +18,17 @@
 
 #include <cstddef>
 
+#include "berberis/assembler/x86_64.h"
 #include "berberis/backend/common/machine_ir.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/guest_state/guest_state_arch.h"
+#include "berberis/runtime_primitives/platform.h"
 
 namespace berberis {
 
 using BranchOpcode = HeavyOptimizerFrontend::Decoder::BranchOpcode;
+using FpRegister = HeavyOptimizerFrontend::FpRegister;
 using Register = HeavyOptimizerFrontend::Register;
 
 void HeavyOptimizerFrontend::CompareAndBranch(BranchOpcode opcode,
@@ -61,6 +64,7 @@ void HeavyOptimizerFrontend::BranchRegister(Register src, int16_t offset) {
   if (offset != 0) {
     Gen<x86_64::AddqRegImm>(target, offset, GetFlagsRegister());
   }
+  // TODO(b/232598137) Maybe move this to translation cache?
   Gen<x86_64::AndqRegImm>(target, ~int32_t{1}, GetFlagsRegister());
   ExitRegionIndirect(target);
 }
@@ -92,6 +96,10 @@ Register HeavyOptimizerFrontend::AllocTempReg() {
   return builder_.ir()->AllocVReg();
 }
 
+SimdReg HeavyOptimizerFrontend::AllocTempSimdReg() {
+  return SimdReg{builder_.ir()->AllocVReg()};
+}
+
 void HeavyOptimizerFrontend::GenJump(GuestAddr target) {
   auto map_it = branch_targets_.find(target);
   if (map_it == branch_targets_.end()) {
@@ -115,13 +123,12 @@ void HeavyOptimizerFrontend::ExitGeneratedCode(GuestAddr target) {
 void HeavyOptimizerFrontend::ExitRegionIndirect(Register target) {
   Gen<PseudoIndirectJump>(target);
 }
-
 void HeavyOptimizerFrontend::Unimplemented() {
+  success_ = false;
   ExitGeneratedCode(GetInsnAddr());
   // We don't require region to end here as control flow may jump around
   // the undefined instruction, so handle it as an unconditional branch.
   is_uncond_branch_ = true;
-  // TODO(b/291126189) Add success check like in lite translator?
 }
 
 bool HeavyOptimizerFrontend::IsRegionEndReached() const {
@@ -249,9 +256,151 @@ void HeavyOptimizerFrontend::UpdateBranchTargetsAfterSplit(GuestAddr addr,
   }
 }
 
+Register HeavyOptimizerFrontend::GetReg(uint8_t reg) {
+  CHECK_LT(reg, kNumGuestRegs);
+  Register dst = AllocTempReg();
+  builder_.GenGet(dst, reg);
+  return dst;
+}
+
 void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
   CHECK_LT(reg, kNumGuestRegs);
   builder_.GenPut(reg, value);
+}
+
+FpRegister HeavyOptimizerFrontend::GetFpReg(uint8_t reg) {
+  FpRegister result = AllocTempSimdReg();
+  builder_.GenGetSimd(result.machine_reg(), reg);
+  return result;
+}
+
+void HeavyOptimizerFrontend::Nop() {}
+
+Register HeavyOptimizerFrontend::Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
+  using OpOpcode = Decoder::OpOpcode;
+  using Condition = x86_64::Assembler::Condition;
+  auto res = AllocTempReg();
+  switch (opcode) {
+    case OpOpcode::kAdd:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::AddqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kSub:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::SubqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kAnd:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::AndqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kOr:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::OrqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kXor:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::XorqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kSll:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::ShlqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kSrl:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::ShrqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kSra:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::SarqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kSlt: {
+      Gen<x86_64::CmpqRegReg>(arg1, arg2, GetFlagsRegister());
+      auto temp = AllocTempReg();
+      Gen<x86_64::SetccReg>(Condition::kLess, temp, GetFlagsRegister());
+      Gen<x86_64::MovzxbqRegReg>(res, temp);
+      break;
+    }
+    case OpOpcode::kSltu: {
+      Gen<x86_64::CmpqRegReg>(arg1, arg2, GetFlagsRegister());
+      auto temp = AllocTempReg();
+      Gen<x86_64::SetccReg>(Condition::kBelow, temp, GetFlagsRegister());
+      Gen<x86_64::MovzxbqRegReg>(res, temp);
+      break;
+    }
+    case OpOpcode::kMul:
+      Gen<PseudoCopy>(res, arg1, 8);
+      Gen<x86_64::ImulqRegReg>(res, arg2, GetFlagsRegister());
+      break;
+    case OpOpcode::kMulh: {
+      auto rax = AllocTempReg();
+      auto rdx = AllocTempReg();
+      Gen<PseudoCopy>(rax, arg1, 8);
+      Gen<x86_64::ImulqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
+      Gen<PseudoCopy>(res, rdx, 8);
+    } break;
+    case OpOpcode::kMulhsu: {
+      Gen<PseudoCopy>(res, arg1, 8);
+      auto rax = AllocTempReg();
+      auto rdx = AllocTempReg();
+      Gen<PseudoCopy>(rax, arg2, 8);
+      Gen<x86_64::MulqRegRegReg>(rax, rdx, res, GetFlagsRegister());
+      Gen<x86_64::SarqRegImm>(res, 63, GetFlagsRegister());
+      Gen<x86_64::ImulqRegReg>(res, arg2, GetFlagsRegister());
+      Gen<x86_64::AddqRegReg>(res, rdx, GetFlagsRegister());
+    } break;
+    case OpOpcode::kMulhu: {
+      auto rax = AllocTempReg();
+      auto rdx = AllocTempReg();
+      Gen<PseudoCopy>(rax, arg1, 8);
+      Gen<x86_64::MulqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
+      Gen<PseudoCopy>(res, rdx, 8);
+    } break;
+    case OpOpcode::kDiv:
+    case OpOpcode::kRem: {
+      auto rax = AllocTempReg();
+      auto rdx = AllocTempReg();
+      Gen<PseudoCopy>(rax, arg1, 8);
+      Gen<PseudoCopy>(rdx, rax, 8);
+      Gen<x86_64::SarqRegImm>(rdx, 63, GetFlagsRegister());
+      Gen<x86_64::IdivqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
+      Gen<PseudoCopy>(res, opcode == OpOpcode::kDiv ? rax : rdx, 8);
+    } break;
+    case OpOpcode::kDivu:
+    case OpOpcode::kRemu: {
+      auto rax = AllocTempReg();
+      auto rdx = AllocTempReg();
+      Gen<PseudoCopy>(rax, arg1, 8);
+      // Pseudo-def for use-def operand of XOR to make sure data-flow is integrate.
+      Gen<PseudoDefReg>(rdx);
+      Gen<x86_64::XorqRegReg>(rdx, rdx, GetFlagsRegister());
+      Gen<x86_64::DivqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
+      Gen<PseudoCopy>(res, opcode == OpOpcode::kDivu ? rax : rdx, 8);
+    } break;
+    case OpOpcode::kAndn:
+      if (host_platform::kHasBMI) {
+        Gen<x86_64::AndnqRegRegReg>(res, arg2, arg1, GetFlagsRegister());
+      } else {
+        Gen<PseudoCopy>(res, arg2, 8);
+        Gen<x86_64::NotqReg>(res);
+        Gen<x86_64::AndqRegReg>(res, arg1, GetFlagsRegister());
+      }
+      break;
+    case OpOpcode::kOrn:
+      Gen<PseudoCopy>(res, arg2, 8);
+      Gen<x86_64::NotqReg>(res);
+      Gen<x86_64::OrqRegReg>(res, arg1, GetFlagsRegister());
+      break;
+    case OpOpcode::kXnor:
+      Gen<PseudoCopy>(res, arg2, 8);
+      Gen<x86_64::XorqRegReg>(res, arg1, GetFlagsRegister());
+      Gen<x86_64::NotqReg>(res);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+
+  return res;
 }
 
 //
