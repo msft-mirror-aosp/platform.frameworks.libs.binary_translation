@@ -89,7 +89,6 @@ class TESTSUITE : public ::testing::Test {
       : state_{
             .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
 
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
@@ -143,23 +142,19 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
-
   void TestCBeqzBnez(uint16_t insn_bytes, uint64_t value, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
+    if (expected_offset == 0) {
+      // Emit pending signal so we don't get stuck in an infinite loop.
+      state_.pending_signals_status = kPendingSignalsPresent;
+    } else {
+      state_.pending_signals_status = kPendingSignalsDisabled;
+    }
     SetXReg<9>(state_.cpu, value);
     EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + expected_offset));
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   void TestCMiscAlu(uint16_t insn_bytes,
                     std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
@@ -183,6 +178,12 @@ class TESTSUITE : public ::testing::Test {
   void TestCJ(uint16_t insn_bytes, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
+    if (expected_offset == 0) {
+      // Emit pending signal so we don't get stuck in an infinite loop.
+      state_.pending_signals_status = kPendingSignalsPresent;
+    } else {
+      state_.pending_signals_status = kPendingSignalsDisabled;
+    }
     EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + expected_offset));
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
@@ -214,10 +215,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(state_.cpu.frm, expected_cpustate_frm);
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
-
   void TestFFlags(uint32_t insn_bytes, uint8_t fflags_to_set, uint8_t expected_fflags) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -235,10 +232,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
     EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
@@ -488,17 +481,12 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
   uint64_t store_area_;
   ThreadState state_;
 };
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 // Tests for Compressed Instructions.
 template <uint16_t opcode, auto execute_instruction_func>
@@ -1128,10 +1116,6 @@ TEST_F(TESTSUITE, CJalr) {
 
 // Tests for Non-Compressed Instructions.
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
-
 TEST_F(TESTSUITE, CsrInstructions) {
   ScopedRoundingMode scoped_rounding_mode;
   // Csrrw x2, frm, 2
@@ -1142,8 +1126,6 @@ TEST_F(TESTSUITE, CsrInstructions) {
   TestFrm(0x0020f173, 0, 0);
 }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
 #if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, FCsrRegister) {
@@ -1190,8 +1172,6 @@ TEST_F(TESTSUITE, FCsrRegister) {
 }
 
 #endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
 TEST_F(TESTSUITE, FFlagsRegister) {
   fenv_t saved_environment;
@@ -2011,8 +1991,6 @@ TEST_F(TESTSUITE, StoreFpInstructions) {
   TestStoreFp(0x0020b427, kDataToStore);
 }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
 #if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, TestVsetvl) {
