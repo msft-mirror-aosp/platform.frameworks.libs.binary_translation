@@ -209,6 +209,7 @@ cc_test_host {
                 "libberberis_code_gen_lib_riscv64_unit_tests",
                 "libberberis_guest_abi_riscv64_unit_tests",
                 "libberberis_guest_os_primitives_unit_tests",
+                "libberberis_heavy_optimizer_riscv64_unit_tests",
                 "libberberis_interpreter_riscv64_unit_tests",
                 "libberberis_lite_translator_riscv64_to_x86_64_unit_tests",
                 "libberberis_runtime_riscv64_unit_tests",
