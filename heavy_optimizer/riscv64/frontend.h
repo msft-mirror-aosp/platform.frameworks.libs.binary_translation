@@ -20,9 +20,15 @@
 #include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/backend/x86_64/machine_ir_builder.h"
 #include "berberis/base/arena_map.h"
+#include "berberis/base/dependent_false.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/intrinsics/intrinsics.h"
+
+#include "call_intrinsic.h"
+#include "inline_intrinsic.h"
+#include "simd_register.h"
 
 namespace berberis {
 
@@ -31,7 +37,7 @@ class HeavyOptimizerFrontend {
   using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<HeavyOptimizerFrontend>>;
   using Register = MachineReg;
-  using FpRegister = MachineReg;
+  using FpRegister = SimdReg;
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
@@ -59,6 +65,12 @@ class HeavyOptimizerFrontend {
   void Unimplemented();
 
   //
+  // Intrinsic proxy methods.
+  //
+
+#include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
+
+  //
   // Guest state getters/setters.
   //
 
@@ -75,6 +87,56 @@ class HeavyOptimizerFrontend {
   }
 
  private:
+  // Specialization for AssemblerResType=void
+  template <auto kFunction,
+            typename AssemblerResType,
+            typename... AssemblerArgType,
+            std::enable_if_t<std::is_same_v<std::decay_t<AssemblerResType>, void>, bool> = true>
+  void CallIntrinsic(AssemblerArgType... args) {
+    if (TryInlineIntrinsicForHeavyOptimizer<kFunction>(&builder_, GetFlagsRegister(), args...)) {
+      return;
+    }
+
+    CallIntrinsicImpl(&builder_, kFunction, GetFlagsRegister(), args...);
+  }
+
+  template <auto kFunction,
+            typename AssemblerResType,
+            typename... AssemblerArgType,
+            std::enable_if_t<!std::is_same_v<std::decay_t<AssemblerResType>, void>, bool> = true>
+  AssemblerResType CallIntrinsic(AssemblerArgType... args) {
+    AssemblerResType result;
+
+    if constexpr (std::is_same_v<AssemblerResType, Register>) {
+      result = AllocTempReg();
+    } else if constexpr (std::is_same_v<AssemblerResType, SimdReg>) {
+      result = AllocTempSimdReg();
+    } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<Register, Register>>) {
+      result = {AllocTempReg(), AllocTempReg()};
+    } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<SimdReg, Register>>) {
+      result = {AllocTempSimdReg(), AllocTempReg()};
+    } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<SimdReg, SimdReg>>) {
+      result = {AllocTempSimdReg(), AllocTempSimdReg()};
+    } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<SimdReg, SimdReg, SimdReg>>) {
+      result = {AllocTempSimdReg(), AllocTempSimdReg(), AllocTempSimdReg()};
+    } else if constexpr (std::is_same_v<AssemblerResType,
+                                        std::tuple<SimdReg, SimdReg, SimdReg, SimdReg>>) {
+      result = {AllocTempSimdReg(), AllocTempSimdReg(), AllocTempSimdReg(), AllocTempSimdReg()};
+    } else {
+      // This should not be reached by the compiler. If it is - there is a new result type that
+      // needs to be supported.
+      static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
+    }
+
+    if (TryInlineIntrinsicForHeavyOptimizer<kFunction>(
+            &builder_, UnwrapSimdReg(result), GetFlagsRegister(), UnwrapSimdReg(args)...)) {
+      return result;
+    }
+
+    CallIntrinsicImpl(&builder_, kFunction, result, GetFlagsRegister(), args...);
+    return result;
+  }
+
   // Syntax sugar.
   template <typename InsnType, typename... Args>
   /*may_discard*/ InsnType* Gen(Args... args) {
@@ -84,6 +146,7 @@ class HeavyOptimizerFrontend {
   static x86_64::Assembler::Condition ToAssemblerCond(Decoder::BranchOpcode opcode);
 
   [[nodiscard]] Register AllocTempReg();
+  [[nodiscard]] SimdReg AllocTempSimdReg();
   [[nodiscard]] Register GetFlagsRegister() const { return flag_register_; };
 
   void GenJump(GuestAddr target);
@@ -95,6 +158,20 @@ class HeavyOptimizerFrontend {
   void UpdateBranchTargetsAfterSplit(GuestAddr addr,
                                      const MachineBasicBlock* old_bb,
                                      MachineBasicBlock* new_bb);
+
+  template <typename T>
+  static constexpr auto UnwrapSimdReg(T r) {
+    if constexpr (std::is_same_v<T, SimdReg>) {
+      return r.machine_reg();
+    } else {
+      return r;
+    }
+  }
+
+  template <typename T, typename U>
+  static constexpr auto UnwrapSimdReg(std::tuple<T, U> regs) {
+    return std::make_tuple(UnwrapSimdReg(std::get<0>(regs)), UnwrapSimdReg(std::get<1>(regs)));
+  }
 
   void StartRegion() {
     auto* region_entry_bb = builder_.ir()->NewBasicBlock();
