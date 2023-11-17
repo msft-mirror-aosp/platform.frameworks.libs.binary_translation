@@ -42,6 +42,7 @@ cc_library_static {
         "libberberis_backend_headers_riscv64_to_x86_64",
         "libberberis_decoder_riscv64_headers",
         "libberberis_heavy_optimizer_riscv64_headers",
+        "libberberis_intrinsics_riscv64_headers",
         "libberberis_macro_assembler_headers_riscv64_to_x86_64",
     ],
     srcs: [
@@ -61,6 +62,7 @@ cc_test_library {
         "libberberis_code_gen_lib_headers",
         "libberberis_decoder_riscv64_headers",
         "libberberis_heavy_optimizer_riscv64_headers",
+        "libberberis_intrinsics_riscv64_headers",
     ],
     srcs: [
         "call_intrinsic_tests.cc",
