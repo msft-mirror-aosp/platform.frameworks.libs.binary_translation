@@ -25,8 +25,10 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_arch.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/macro_assembler.h"
+#include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/runtime_primitives/platform.h"
 
 #include "call_intrinsic.h"
@@ -108,6 +110,42 @@ class HeavyOptimizerFrontend {
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
 
+  template <typename IntType>
+  constexpr Decoder::LoadOperandType ToLoadOperandType() {
+    if constexpr (std::is_same_v<IntType, int8_t>) {
+      return Decoder::LoadOperandType::k8bitSigned;
+    } else if constexpr (std::is_same_v<IntType, int16_t>) {
+      return Decoder::LoadOperandType::k16bitSigned;
+    } else if constexpr (std::is_same_v<IntType, int32_t>) {
+      return Decoder::LoadOperandType::k32bitSigned;
+    } else if constexpr (std::is_same_v<IntType, int64_t> || std::is_same_v<IntType, uint64_t>) {
+      return Decoder::LoadOperandType::k64bit;
+    } else if constexpr (std::is_same_v<IntType, uint8_t>) {
+      return Decoder::LoadOperandType::k8bitUnsigned;
+    } else if constexpr (std::is_same_v<IntType, uint16_t>) {
+      return Decoder::LoadOperandType::k16bitUnsigned;
+    } else if constexpr (std::is_same_v<IntType, uint32_t>) {
+      return Decoder::LoadOperandType::k32bitUnsigned;
+    } else {
+      static_assert(kDependentTypeFalse<IntType>);
+    }
+  }
+
+  template <typename IntType>
+  constexpr Decoder::StoreOperandType ToStoreOperandType() {
+    if constexpr (std::is_same_v<IntType, int8_t> || std::is_same_v<IntType, uint8_t>) {
+      return Decoder::StoreOperandType::k8bit;
+    } else if constexpr (std::is_same_v<IntType, int16_t> || std::is_same_v<IntType, uint16_t>) {
+      return Decoder::StoreOperandType::k16bit;
+    } else if constexpr (std::is_same_v<IntType, int32_t> || std::is_same_v<IntType, uint32_t>) {
+      return Decoder::StoreOperandType::k32bit;
+    } else if constexpr (std::is_same_v<IntType, int64_t> || std::is_same_v<IntType, uint64_t>) {
+      return Decoder::StoreOperandType::k64bit;
+    } else {
+      static_assert(kDependentTypeFalse<IntType>);
+    }
+  }
+
   // Versions without recovery can be used to access non-guest memory (e.g. CPUState).
   Register LoadWithoutRecovery(Decoder::LoadOperandType operand_type, Register base, int32_t disp);
   Register LoadWithoutRecovery(Decoder::LoadOperandType operand_type,
@@ -129,15 +167,46 @@ class HeavyOptimizerFrontend {
   //
 
   template <typename IntType, bool aq, bool rl>
-  Register Lr(Register /* addr */) {
-    Unimplemented();
-    return {};
+  Register Lr(Register addr) {
+    Register aligned_addr = AllocTempReg();
+    Gen<PseudoCopy>(aligned_addr, addr, 8);
+    // The immediate is sign extended to 64-bit.
+    Gen<x86_64::AndqRegImm>(aligned_addr, ~int32_t{0xf}, GetFlagsRegister());
+
+    MemoryRegionReservationLoad(aligned_addr);
+
+    Register addr_offset = AllocTempReg();
+    Gen<PseudoCopy>(addr_offset, addr, 8);
+    Gen<x86_64::SubqRegReg>(addr_offset, aligned_addr, GetFlagsRegister());
+
+    // Load the requested part from CPUState.
+    return LoadWithoutRecovery(ToLoadOperandType<IntType>(),
+                               x86_64::kMachineRegRBP,
+                               addr_offset,
+                               GetThreadStateReservationValueOffset());
   }
 
   template <typename IntType, bool aq, bool rl>
-  Register Sc(Register /* addr */, Register /* data */) {
-    Unimplemented();
-    return {};
+  Register Sc(Register addr, Register data) {
+    // Compute aligned_addr.
+    auto aligned_addr = AllocTempReg();
+    Gen<PseudoCopy>(aligned_addr, addr, 8);
+    // The immediate is sign extended to 64-bit.
+    Gen<x86_64::AndqRegImm>(aligned_addr, ~int32_t{0xf}, GetFlagsRegister());
+
+    // Load current monitor value before we clobber it.
+    auto reservation_value = AllocTempReg();
+    int32_t value_offset = GetThreadStateReservationValueOffset();
+    Gen<x86_64::MovqRegMemBaseDisp>(reservation_value, x86_64::kMachineRegRBP, value_offset);
+    Register addr_offset = AllocTempReg();
+    Gen<PseudoCopy>(addr_offset, addr, 8);
+    Gen<x86_64::SubqRegReg>(addr_offset, aligned_addr, GetFlagsRegister());
+    // It's okay to clobber reservation_value since we clear out reservation_address in
+    // MemoryRegionReservationExchange anyway.
+    StoreWithoutRecovery(
+        ToStoreOperandType<IntType>(), x86_64::kMachineRegRBP, addr_offset, value_offset, data);
+
+    return MemoryRegionReservationExchange(aligned_addr, reservation_value);
   }
 
   void Fence(Decoder::FenceOpcode /*opcode*/,
@@ -320,6 +389,13 @@ class HeavyOptimizerFrontend {
     CallIntrinsicImpl(&builder_, kFunction, result, GetFlagsRegister(), args...);
     return result;
   }
+
+  void MemoryRegionReservationLoad(Register aligned_addr);
+  Register MemoryRegionReservationExchange(Register aligned_addr, Register curr_reservation_value);
+  void MemoryRegionReservationSwapWithLockedOwner(Register aligned_addr,
+                                                  Register curr_reservation_value,
+                                                  Register new_reservation_value,
+                                                  MachineBasicBlock* failure_bb);
 
   // Syntax sugar.
   template <typename InsnType, typename... Args>
