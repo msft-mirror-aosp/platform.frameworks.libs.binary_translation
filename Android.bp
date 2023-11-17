@@ -148,6 +148,7 @@ cc_library_shared {
             ],
             shared_libs: [
                 "libandroid",
+                "libdl_android",
             ],
         },
     },
