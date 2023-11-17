@@ -19,6 +19,7 @@
 
 #include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/backend/x86_64/machine_ir_builder.h"
+#include "berberis/base/arena_map.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -35,16 +36,55 @@ class HeavyOptimizerFrontend {
   using Float64 = intrinsics::Float64;
 
   explicit HeavyOptimizerFrontend(x86_64::MachineIR* machine_ir, GuestAddr pc)
-      : pc_(pc), builder_(machine_ir) {}
+      : pc_(pc),
+        builder_(machine_ir),
+        is_uncond_branch_(false),
+        branch_targets_(machine_ir->arena()) {
+    StartRegion();
+  }
 
-  bool IsRegionEndReached() const;
+  //
+  // Various helper methods.
+  //
 
   [[nodiscard]] GuestAddr GetInsnAddr() const { return pc_; }
   void IncrementInsnAddr(uint8_t insn_size) { pc_ += insn_size; }
 
+  [[nodiscard]] bool IsRegionEndReached() const;
+  void StartInsn();
+  void Finalize(GuestAddr stop_pc);
+
  private:
+  // Syntax sugar.
+  template <typename InsnType, typename... Args>
+  /*may_discard*/ InsnType* Gen(Args... args) {
+    return builder_.Gen<InsnType, Args...>(args...);
+  }
+
+  void GenJump(GuestAddr target);
+  void ExitGeneratedCode(GuestAddr target);
+
+  void ResolveJumps();
+
+  void Unimplemented();
+
+  void StartRegion() {
+    auto* region_entry_bb = builder_.ir()->NewBasicBlock();
+    auto* cont_bb = builder_.ir()->NewBasicBlock();
+    builder_.ir()->AddEdge(region_entry_bb, cont_bb);
+    builder_.StartBasicBlock(region_entry_bb);
+    Gen<PseudoBranch>(cont_bb);
+    builder_.StartBasicBlock(cont_bb);
+  }
+
   GuestAddr pc_;
   x86_64::MachineIRBuilder builder_;
+  bool is_uncond_branch_;
+  // Contains IR positions of all guest instructions of the current region.
+  // Also contains all branch targets which the current region jumps to.
+  // If the target is outside of the current region the position is uninitialized,
+  // i.e. it's basic block (position.first) is nullptr.
+  ArenaMap<GuestAddr, MachineInsnPosition> branch_targets_;
 };
 
 }  // namespace berberis
