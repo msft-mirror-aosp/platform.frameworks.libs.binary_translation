@@ -60,6 +60,8 @@ class MachineReg {
     return reg_ > kInvalidMachineVRegNumber && reg_ < kFirstVRegNumber;
   }
 
+  [[nodiscard]] constexpr bool IsInvalidReg() const { return reg_ == kInvalidMachineVRegNumber; }
+
   [[nodiscard]] constexpr bool IsVReg() const { return reg_ >= kFirstVRegNumber; }
 
   [[nodiscard]] constexpr uint32_t GetVRegIndex() const {
@@ -120,7 +122,7 @@ struct MachineRegClass {
   int num_regs;
   const MachineReg regs[sizeof(reg_mask) * CHAR_BIT];
 
-  [[nodiscard]] int RegSize() const { return reg_size; }
+  [[nodiscard]] constexpr int RegSize() const { return reg_size; }
 
   [[nodiscard]] bool HasReg(MachineReg r) const { return reg_mask & (uint64_t{1} << r.reg()); }
 

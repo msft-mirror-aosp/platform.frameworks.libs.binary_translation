@@ -20,9 +20,12 @@
 
 #include "berberis/assembler/x86_64.h"
 #include "berberis/backend/common/machine_ir.h"
+#include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/guest_state/guest_state_arch.h"
+#include "berberis/guest_state/guest_state_opaque.h"
+#include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/runtime_primitives/platform.h"
 
 namespace berberis {
@@ -463,6 +466,179 @@ Register HeavyOptimizerFrontend::Op32(Decoder::Op32Opcode opcode, Register arg1,
   return res;
 }
 
+Register HeavyOptimizerFrontend::OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
+  using OpImmOpcode = Decoder::OpImmOpcode;
+  using Condition = x86_64::Assembler::Condition;
+  auto res = AllocTempReg();
+  switch (opcode) {
+    case OpImmOpcode::kAddi:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::AddqRegImm>(res, imm, GetFlagsRegister());
+      break;
+    case OpImmOpcode::kSlti: {
+      auto temp = AllocTempReg();
+      Gen<x86_64::CmpqRegImm>(arg, imm, GetFlagsRegister());
+      Gen<x86_64::SetccReg>(Condition::kLess, temp, GetFlagsRegister());
+      Gen<x86_64::MovsxbqRegReg>(res, temp);
+    } break;
+    case OpImmOpcode::kSltiu: {
+      auto temp = AllocTempReg();
+      Gen<x86_64::CmpqRegImm>(arg, imm, GetFlagsRegister());
+      Gen<x86_64::SetccReg>(Condition::kBelow, temp, GetFlagsRegister());
+      Gen<x86_64::MovsxbqRegReg>(res, temp);
+    } break;
+    case OpImmOpcode::kXori:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::XorqRegImm>(res, imm, GetFlagsRegister());
+      break;
+    case OpImmOpcode::kOri:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::OrqRegImm>(res, imm, GetFlagsRegister());
+      break;
+    case OpImmOpcode::kAndi:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::AndqRegImm>(res, imm, GetFlagsRegister());
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
+Register HeavyOptimizerFrontend::OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
+  auto res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::OpImm32Opcode::kAddiw:
+      Gen<PseudoCopy>(res, arg, 4);
+      Gen<x86_64::AddlRegImm>(res, imm, GetFlagsRegister());
+      Gen<x86_64::MovsxlqRegReg>(res, res);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Slli(Register arg, int8_t imm) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::ShlqRegImm>(res, imm, GetFlagsRegister());
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Srli(Register arg, int8_t imm) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::ShrqRegImm>(res, imm, GetFlagsRegister());
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Srai(Register arg, int8_t imm) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::SarqRegImm>(res, imm, GetFlagsRegister());
+  return res;
+}
+
+Register HeavyOptimizerFrontend::ShiftImm32(Decoder::ShiftImm32Opcode opcode,
+                                            Register arg,
+                                            uint16_t imm) {
+  using ShiftImm32Opcode = Decoder::ShiftImm32Opcode;
+  auto res = AllocTempReg();
+  auto rcx = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 4);
+  Gen<x86_64::MovlRegImm>(rcx, imm);
+  switch (opcode) {
+    case ShiftImm32Opcode::kSlliw:
+      Gen<x86_64::ShllRegReg>(res, rcx, GetFlagsRegister());
+      break;
+    case ShiftImm32Opcode::kSrliw:
+      Gen<x86_64::ShrlRegReg>(res, rcx, GetFlagsRegister());
+      break;
+    case ShiftImm32Opcode::kSraiw:
+      Gen<x86_64::SarlRegReg>(res, rcx, GetFlagsRegister());
+      break;
+    default:
+      Unimplemented();
+      break;
+  }
+  Gen<x86_64::MovsxlqRegReg>(res, res);
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Rori(Register arg, int8_t shamt) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::RorqRegImm>(res, shamt, GetFlagsRegister());
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Roriw(Register arg, int8_t shamt) {
+  auto res = AllocTempReg();
+  Gen<PseudoCopy>(res, arg, 8);
+  Gen<x86_64::RorlRegImm>(res, shamt, GetFlagsRegister());
+  Gen<x86_64::MovsxlqRegReg>(res, res);
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Lui(int32_t imm) {
+  auto res = AllocTempReg();
+  Gen<x86_64::MovlRegImm>(res, imm);
+  Gen<x86_64::MovsxlqRegReg>(res, res);
+  return res;
+}
+
+Register HeavyOptimizerFrontend::Auipc(int32_t imm) {
+  auto res = GetImm(GetInsnAddr());
+  auto temp = AllocTempReg();
+  Gen<x86_64::MovlRegImm>(temp, imm);
+  Gen<x86_64::MovsxlqRegReg>(temp, temp);
+  Gen<x86_64::AddqRegReg>(res, temp, GetFlagsRegister());
+  return res;
+}
+
+void HeavyOptimizerFrontend::Store(Decoder::StoreOperandType operand_type,
+                                   Register arg,
+                                   int16_t offset,
+                                   Register data) {
+  int32_t sx_offset{offset};
+  StoreWithoutRecovery(operand_type, arg, sx_offset, data);
+  GenRecoveryBlockForLastInsn();
+}
+
+Register HeavyOptimizerFrontend::Load(Decoder::LoadOperandType operand_type,
+                                      Register arg,
+                                      int16_t offset) {
+  int32_t sx_offset{offset};
+  auto res = LoadWithoutRecovery(operand_type, arg, sx_offset);
+  GenRecoveryBlockForLastInsn();
+  return res;
+}
+
+void HeavyOptimizerFrontend::GenRecoveryBlockForLastInsn() {
+  // TODO(b/311240558) Accurate Sigsegv?
+  auto* ir = builder_.ir();
+  auto* current_bb = builder_.bb();
+  auto* continue_bb = ir->NewBasicBlock();
+  auto* recovery_bb = ir->NewBasicBlock();
+  ir->AddEdge(current_bb, continue_bb);
+  ir->AddEdge(current_bb, recovery_bb);
+
+  builder_.SetRecoveryPointAtLastInsn(recovery_bb);
+
+  // Note, even though there are two bb successors, we only explicitly branch to
+  // the continue_bb, since jump to the recovery_bb is set up by the signal
+  // handler.
+  Gen<PseudoBranch>(continue_bb);
+
+  builder_.StartBasicBlock(recovery_bb);
+  ExitGeneratedCode(GetInsnAddr());
+
+  builder_.StartBasicBlock(continue_bb);
+}
+
 //
 //  Methods that are not part of SemanticsListener implementation.
 //
@@ -514,6 +690,239 @@ void HeavyOptimizerFrontend::Finalize(GuestAddr stop_pc) {
   }
 
   ResolveJumps();
+}
+
+Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType operand_type,
+                                                     Register base,
+                                                     int32_t disp) {
+  auto res = AllocTempReg();
+  switch (operand_type) {
+    case Decoder::LoadOperandType::k8bitUnsigned:
+      Gen<x86_64::MovzxblRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k16bitUnsigned:
+      Gen<x86_64::MovzxwlRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k32bitUnsigned:
+      Gen<x86_64::MovlRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k64bit:
+      Gen<x86_64::MovqRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k8bitSigned:
+      Gen<x86_64::MovsxbqRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k16bitSigned:
+      Gen<x86_64::MovsxwqRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k32bitSigned:
+      Gen<x86_64::MovsxlqRegMemBaseDisp>(res, base, disp);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+
+  return res;
+}
+
+Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType operand_type,
+                                                     Register base,
+                                                     Register index,
+                                                     int32_t disp) {
+  auto res = AllocTempReg();
+  switch (operand_type) {
+    case Decoder::LoadOperandType::k8bitUnsigned:
+      Gen<x86_64::MovzxblRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k16bitUnsigned:
+      Gen<x86_64::MovzxwlRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k32bitUnsigned:
+      Gen<x86_64::MovlRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k64bit:
+      Gen<x86_64::MovqRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k8bitSigned:
+      Gen<x86_64::MovsxbqRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k16bitSigned:
+      Gen<x86_64::MovsxwqRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k32bitSigned:
+      Gen<x86_64::MovsxlqRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
+void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+                                                  Register base,
+                                                  int32_t disp,
+                                                  Register data) {
+  switch (operand_type) {
+    case Decoder::StoreOperandType::k8bit:
+      Gen<x86_64::MovbMemBaseDispReg>(base, disp, data);
+      break;
+    case Decoder::StoreOperandType::k16bit:
+      Gen<x86_64::MovwMemBaseDispReg>(base, disp, data);
+      break;
+    case Decoder::StoreOperandType::k32bit:
+      Gen<x86_64::MovlMemBaseDispReg>(base, disp, data);
+      break;
+    case Decoder::StoreOperandType::k64bit:
+      Gen<x86_64::MovqMemBaseDispReg>(base, disp, data);
+      break;
+    default:
+      return Unimplemented();
+  }
+}
+
+void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+                                                  Register base,
+                                                  Register index,
+                                                  int32_t disp,
+                                                  Register data) {
+  switch (operand_type) {
+    case Decoder::StoreOperandType::k8bit:
+      Gen<x86_64::MovbMemBaseIndexDispReg>(
+          base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
+      break;
+    case Decoder::StoreOperandType::k16bit:
+      Gen<x86_64::MovwMemBaseIndexDispReg>(
+          base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
+      break;
+    case Decoder::StoreOperandType::k32bit:
+      Gen<x86_64::MovlMemBaseIndexDispReg>(
+          base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
+      break;
+    case Decoder::StoreOperandType::k64bit:
+      Gen<x86_64::MovqMemBaseIndexDispReg>(
+          base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
+      break;
+    default:
+      return Unimplemented();
+  }
+}
+
+void HeavyOptimizerFrontend::MemoryRegionReservationLoad(Register aligned_addr) {
+  // Store aligned_addr in CPUState.
+  int32_t address_offset = GetThreadStateReservationAddressOffset();
+  Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, address_offset, aligned_addr);
+
+  // MemoryRegionReservation::SetOwner(aligned_addr, &(state->cpu)).
+  builder_.GenCallImm(bit_cast<uint64_t>(&MemoryRegionReservation::SetOwner),
+                      GetFlagsRegister(),
+                      std::array<x86_64::CallImm::Arg, 2>{{
+                          {aligned_addr, x86_64::CallImm::kIntRegType},
+                          {x86_64::kMachineRegRBP, x86_64::CallImm::kIntRegType},
+                      }});
+
+  // Load monitor value and store it in CPUState.
+  auto monitor = AllocTempSimdReg();
+  MachineReg reservation_reg = monitor.machine_reg();
+  Gen<x86_64::MovqRegMemBaseDisp>(reservation_reg, aligned_addr, 0);
+  int32_t value_offset = GetThreadStateReservationValueOffset();
+  Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, value_offset, reservation_reg);
+}
+
+Register HeavyOptimizerFrontend::MemoryRegionReservationExchange(Register aligned_addr,
+                                                                 Register curr_reservation_value) {
+  auto* ir = builder_.ir();
+  auto* cur_bb = builder_.bb();
+  auto* addr_match_bb = ir->NewBasicBlock();
+  auto* failure_bb = ir->NewBasicBlock();
+  auto* continue_bb = ir->NewBasicBlock();
+  ir->AddEdge(cur_bb, addr_match_bb);
+  ir->AddEdge(cur_bb, failure_bb);
+  ir->AddEdge(failure_bb, continue_bb);
+  Register result = AllocTempReg();
+
+  // MemoryRegionReservation::Clear.
+  Register stored_aligned_addr = AllocTempReg();
+  int32_t address_offset = GetThreadStateReservationAddressOffset();
+  Gen<x86_64::MovqRegMemBaseDisp>(stored_aligned_addr, x86_64::kMachineRegRBP, address_offset);
+  Gen<x86_64::MovqMemBaseDispImm>(x86_64::kMachineRegRBP, address_offset, kNullGuestAddr);
+  // Compare aligned_addr to the one in CPUState.
+  Gen<x86_64::CmpqRegReg>(stored_aligned_addr, aligned_addr, GetFlagsRegister());
+  Gen<PseudoCondBranch>(
+      x86_64::Assembler::Condition::kNotEqual, failure_bb, addr_match_bb, GetFlagsRegister());
+
+  builder_.StartBasicBlock(addr_match_bb);
+  // Load new reservation value into integer register where CmpXchgq expects it.
+  Register new_reservation_value = AllocTempReg();
+  int32_t value_offset = GetThreadStateReservationValueOffset();
+  Gen<x86_64::MovqRegMemBaseDisp>(new_reservation_value, x86_64::kMachineRegRBP, value_offset);
+
+  MemoryRegionReservationSwapWithLockedOwner(
+      aligned_addr, curr_reservation_value, new_reservation_value, failure_bb);
+
+  ir->AddEdge(builder_.bb(), continue_bb);
+  // Pseudo-def for use-def operand of XOR to make sure data-flow is integrate.
+  Gen<PseudoDefReg>(result);
+  Gen<x86_64::XorqRegReg>(result, result, GetFlagsRegister());
+  Gen<PseudoBranch>(continue_bb);
+
+  builder_.StartBasicBlock(failure_bb);
+  Gen<x86_64::MovqRegImm>(result, 1);
+  Gen<PseudoBranch>(continue_bb);
+
+  builder_.StartBasicBlock(continue_bb);
+
+  return result;
+}
+
+void HeavyOptimizerFrontend::MemoryRegionReservationSwapWithLockedOwner(
+    Register aligned_addr,
+    Register curr_reservation_value,
+    Register new_reservation_value,
+    MachineBasicBlock* failure_bb) {
+  auto* ir = builder_.ir();
+  auto* lock_success_bb = ir->NewBasicBlock();
+  auto* swap_success_bb = ir->NewBasicBlock();
+  ir->AddEdge(builder_.bb(), lock_success_bb);
+  ir->AddEdge(builder_.bb(), failure_bb);
+  ir->AddEdge(lock_success_bb, swap_success_bb);
+  ir->AddEdge(lock_success_bb, failure_bb);
+
+  // lock_entry = MemoryRegionReservation::TryLock(aligned_addr, &(state->cpu)).
+  auto* call = builder_.GenCallImm(bit_cast<uint64_t>(&MemoryRegionReservation::TryLock),
+                                   GetFlagsRegister(),
+                                   std::array<x86_64::CallImm::Arg, 2>{{
+                                       {aligned_addr, x86_64::CallImm::kIntRegType},
+                                       {x86_64::kMachineRegRBP, x86_64::CallImm::kIntRegType},
+                                   }});
+  Register lock_entry = AllocTempReg();
+  // Limit life-time of a narrow reg-class call result.
+  Gen<PseudoCopy>(lock_entry, call->IntResultAt(0), 8);
+  Gen<x86_64::TestqRegReg>(lock_entry, lock_entry, GetFlagsRegister());
+  Gen<PseudoCondBranch>(
+      x86_64::Assembler::Condition::kZero, failure_bb, lock_success_bb, GetFlagsRegister());
+
+  builder_.StartBasicBlock(lock_success_bb);
+  auto rax = AllocTempReg();
+  Gen<PseudoCopy>(rax, curr_reservation_value, 8);
+  Gen<x86_64::LockCmpXchgqRegMemBaseDispReg>(
+      rax, aligned_addr, 0, new_reservation_value, GetFlagsRegister());
+
+  // MemoryRegionReservation::Unlock(lock_entry)
+  Gen<x86_64::MovqMemBaseDispImm>(lock_entry, 0, 0);
+  // Zero-flag is set if CmpXchg is successful.
+  Gen<PseudoCondBranch>(
+      x86_64::Assembler::Condition::kNotZero, failure_bb, swap_success_bb, GetFlagsRegister());
+
+  builder_.StartBasicBlock(swap_success_bb);
 }
 
 }  // namespace berberis
