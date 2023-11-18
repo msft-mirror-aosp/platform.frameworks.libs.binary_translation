@@ -54,6 +54,14 @@ class MachineIRBuilder : public MachineIRBuilderBase<MachineIR> {
         x86_64::kMachineRegRBP, GetThreadStateRegOffset(guest_reg), src_reg);
   }
 
+  void GenGetOffset(MachineReg dst_reg, int32_t offset) {
+    Gen<x86_64::MovqRegMemBaseDisp>(dst_reg, x86_64::kMachineRegRBP, offset);
+  }
+
+  void GenPutOffset(int32_t offset, MachineReg src_reg) {
+    Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, offset, src_reg);
+  }
+
   void GenGetSimd(MachineReg dst_reg, int guest_reg) {
     int32_t offset = GetThreadStateSimdRegOffset(guest_reg);
     Gen<x86_64::MovdqaXRegMemBaseDisp>(dst_reg, x86_64::kMachineRegRBP, offset);
@@ -62,6 +70,28 @@ class MachineIRBuilder : public MachineIRBuilderBase<MachineIR> {
   void GenSetSimd(int guest_reg, MachineReg src_reg) {
     int32_t offset = GetThreadStateSimdRegOffset(guest_reg);
     Gen<x86_64::MovdqaMemBaseDispXReg>(x86_64::kMachineRegRBP, offset, src_reg);
+  }
+
+  template <size_t kSize>
+  void GenGetSimd(MachineReg dst_reg, int32_t offset) {
+    if constexpr (kSize == 8) {
+      Gen<x86_64::MovsdXRegMemBaseDisp>(dst_reg, x86_64::kMachineRegRBP, offset);
+    } else if constexpr (kSize == 16) {
+      Gen<x86_64::MovdqaXRegMemBaseDisp>(dst_reg, x86_64::kMachineRegRBP, offset);
+    } else {
+      static_assert(kDependentValueFalse<kSize>);
+    }
+  }
+
+  template <size_t kSize>
+  void GenSetSimd(int32_t offset, MachineReg src_reg) {
+    if constexpr (kSize == 8) {
+      Gen<x86_64::MovsdMemBaseDispXReg>(x86_64::kMachineRegRBP, offset, src_reg);
+    } else if constexpr (kSize == 16) {
+      Gen<x86_64::MovdqaMemBaseDispXReg>(x86_64::kMachineRegRBP, offset, src_reg);
+    } else {
+      static_assert(kDependentValueFalse<kSize>);
+    }
   }
 
   // Please use GenCallImm instead
