@@ -95,6 +95,9 @@ std::size_t GetThreadStateRegOffset(int reg);
 std::size_t GetThreadStateSimdRegOffset(int simd_reg);
 bool IsSimdOffset(size_t offset);
 
+std::size_t GetThreadStateReservationAddressOffset();
+std::size_t GetThreadStateReservationValueOffset();
+
 bool DoesCpuStateHaveFlags();
 std::size_t GetThreadStateFlagOffset();
 

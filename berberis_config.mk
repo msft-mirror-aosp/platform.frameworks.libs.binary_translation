@@ -25,9 +25,12 @@ BERBERIS_PRODUCT_PACKAGES := \
     libberberis_exec_region
 
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
+    libberberis_proxy_libOpenSLES \
     libberberis_proxy_libaaudio \
+    libberberis_proxy_libamidi \
     libberberis_proxy_libandroid \
     libberberis_proxy_libc \
+    libberberis_proxy_libmediandk \
     libberberis_proxy_libnativewindow \
     libberberis_proxy_libneuralnetworks \
     libberberis_proxy_libwebviewchromium_plat_support \

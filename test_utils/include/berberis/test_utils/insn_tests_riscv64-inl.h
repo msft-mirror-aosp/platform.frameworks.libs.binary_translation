@@ -362,6 +362,10 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
   void TestAmo(uint32_t insn_bytes,
                uint64_t arg1,
                uint64_t arg2,
@@ -389,6 +393,10 @@ class TESTSUITE : public ::testing::Test {
             0xffff'eeee'dddd'ccccULL,
             expected_memory);
   }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   template <typename... Types>
   void TestFmvFloatToInteger(uint32_t insn_bytes,
@@ -1737,7 +1745,6 @@ TEST_F(TESTSUITE, StoreInstructions) {
 
 #endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
         // defined(TESTING_HEAVY_OPTIMIZER)
-
 #if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, FmaInstructions) {
@@ -1758,6 +1765,10 @@ TEST_F(TESTSUITE, FmaInstructions) {
   // Fnmadd.D
   TestFma(0x223170cf, {std::tuple{1.0, 2.0, 3.0, -5.0}});
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
 
 TEST_F(TESTSUITE, AmoInstructions) {
   // Verifying that all aq and rl combinations work for Amoswap, but only test relaxed one for most
@@ -1799,6 +1810,10 @@ TEST_F(TESTSUITE, AmoInstructions) {
   // AmomaxuW/AmomaxuD
   TestAmo(0xe03120af, 0xe03130af, 0xffff'eeee'dddd'ccccULL);
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, OpFpSingleInputInstructions) {
   // FSqrt.S
