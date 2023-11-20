@@ -244,9 +244,16 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
         return std::tuple{result_};
       }
     } else if constexpr (arg_info.arg_type == ArgInfo::IN_TMP_ARG) {
-      static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
-      static_assert(!RegisterClass::kIsImplicitReg);
-      return std::tuple{std::get<arg_info.from>(input_args_)};
+      if constexpr (RegisterClass::kIsImplicitReg) {
+        auto implicit_reg = builder_->ir()->AllocVReg();
+        GenPseudoCopy<sizeof(typename RegisterClass::Type)>(
+            builder_, implicit_reg, std::get<arg_info.from>(input_args_));
+        return std::tuple{implicit_reg};
+      } else {
+        static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
+        static_assert(!RegisterClass::kIsImplicitReg);
+        return std::tuple{std::get<arg_info.from>(input_args_)};
+      }
     } else if constexpr (arg_info.arg_type == ArgInfo::OUT_ARG) {
       static_assert(!std::is_same_v<ResType, std::monostate>);
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
