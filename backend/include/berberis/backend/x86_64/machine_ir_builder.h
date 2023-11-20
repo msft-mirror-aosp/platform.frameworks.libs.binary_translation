@@ -44,33 +44,17 @@ class MachineIRBuilder : public MachineIRBuilderBase<MachineIR> {
     return MachineIRBuilderBase::Gen<InsnType, Args...>(args...);
   }
 
-  void GenGet(MachineReg dst_reg, int guest_reg) {
-    Gen<x86_64::MovqRegMemBaseDisp>(
-        dst_reg, x86_64::kMachineRegRBP, GetThreadStateRegOffset(guest_reg));
-  }
-
-  void GenPut(int guest_reg, MachineReg src_reg) {
-    Gen<x86_64::MovqMemBaseDispReg>(
-        x86_64::kMachineRegRBP, GetThreadStateRegOffset(guest_reg), src_reg);
-  }
-
-  void GenGetOffset(MachineReg dst_reg, int32_t offset) {
+  void GenGet(MachineReg dst_reg, int32_t offset) {
     Gen<x86_64::MovqRegMemBaseDisp>(dst_reg, x86_64::kMachineRegRBP, offset);
   }
 
-  void GenPutOffset(int32_t offset, MachineReg src_reg) {
+  void GenPut(int32_t offset, MachineReg src_reg) {
     Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, offset, src_reg);
   }
 
-  void GenGetSimd(MachineReg dst_reg, int guest_reg) {
-    int32_t offset = GetThreadStateSimdRegOffset(guest_reg);
-    Gen<x86_64::MovdqaXRegMemBaseDisp>(dst_reg, x86_64::kMachineRegRBP, offset);
-  }
+  void GenGetOffset(MachineReg dst_reg, int32_t offset) { GenGet(dst_reg, offset); }
 
-  void GenSetSimd(int guest_reg, MachineReg src_reg) {
-    int32_t offset = GetThreadStateSimdRegOffset(guest_reg);
-    Gen<x86_64::MovdqaMemBaseDispXReg>(x86_64::kMachineRegRBP, offset, src_reg);
-  }
+  void GenPutOffset(int32_t offset, MachineReg src_reg) { GenPut(offset, src_reg); }
 
   template <size_t kSize>
   void GenGetSimd(MachineReg dst_reg, int32_t offset) {
