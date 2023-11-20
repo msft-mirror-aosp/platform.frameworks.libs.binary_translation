@@ -331,9 +331,11 @@ class Riscv64InterpreterTest : public ::testing::Test {
 };
 
 #define TESTSUITE Riscv64InterpretInsnTest
+#define TESTING_INTERPRETER
 
 #include "berberis/test_utils/insn_tests_riscv64-inl.h"
 
+#undef TESTING_INTERPRETER
 #undef TESTSUITE
 
 // Tests for Non-Compressed Instructions.

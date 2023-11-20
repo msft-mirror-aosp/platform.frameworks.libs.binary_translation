@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include <cfenv>  // FE rounding modes
 #include <cstdint>
 #include <initializer_list>
 #include <tuple>
@@ -23,11 +24,11 @@
 #include "berberis/assembler/machine_code.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
-#include "berberis/lite_translator/lite_translate_region.h"
+#include "berberis/heavy_optimizer/riscv64/heavy_optimize_region.h"
 #include "berberis/test_utils/scoped_exec_region.h"
 #include "berberis/test_utils/testing_run_generated_code.h"
 
-#include "riscv64_to_x86_64/lite_translator.h"
+#include "berberis/intrinsics/intrinsics_float.h"
 
 namespace berberis {
 
@@ -36,12 +37,17 @@ namespace {
 template <uint8_t kInsnSize = 4>
 bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
   MachineCode machine_code;
-  bool success = LiteTranslateRange(state->cpu.insn_addr,
-                                    state->cpu.insn_addr + kInsnSize,
-                                    &machine_code,
-                                    LiteTranslateParams{.allow_dispatch = false});
-
+  auto [new_addr, success, number_of_instructions] =
+      HeavyOptimizeRegion(state->cpu.insn_addr,
+                          &machine_code,
+                          HeavyOptimizeParams{
+                              .max_number_of_instructions = 1,
+                          });
   if (!success) {
+    return false;
+  }
+
+  if (number_of_instructions != 1) {
     return false;
   }
 
@@ -51,12 +57,12 @@ bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
   return true;
 }
 
-#define TESTSUITE Riscv64LiteTranslateInsnTest
-#define TESTING_LITE_TRANSLATOR
+#define TESTSUITE Riscv64HeavyOptimizerInsnTest
+#define TESTING_HEAVY_OPTIMIZER
 
 #include "berberis/test_utils/insn_tests_riscv64-inl.h"
 
-#undef TESTING_LITE_TRANSLATOR
+#undef TESTING_HEAVY_OPTIMIZER
 #undef TESTSUITE
 
 }  // namespace
