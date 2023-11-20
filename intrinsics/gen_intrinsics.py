@@ -772,15 +772,20 @@ def _gen_opcode_generators(intrs):
       for intr_asms in variants:
         if len(intr_asms) > 0:
           for intr_asm in intr_asms:
+            if not _is_translator_compatible_assembler(intr_asm):
+              continue
             for line in _gen_opcode_generator(intr_asm, opcode_generators):
               yield line
     else:
       for intr_asm in _gen_sorted_asms(intr):
+        if not _is_translator_compatible_assembler(intr_asm):
+          continue
         for line in _gen_opcode_generator(intr_asm, opcode_generators):
           yield line
 
 def _gen_opcode_generator(asm, opcode_generators):
   name = asm['name']
+  opcode = 'Undefined' if any([arg.get('class').startswith("Mem") and arg.get('usage') == 'def_early_clobber' for arg in asm['args']]) else name
   if name not in opcode_generators:
     opcode_generators[name] = True
     yield """
@@ -791,7 +796,7 @@ class GetOpcode%s {
   constexpr auto operator()() {
     return Opcode::kMachineOp%s;
   }
-};""" % (name, name)
+};""" % (name, opcode)
 
 def _gen_process_bindings(f, intrs, archs):
   print('%s' % AUTOGEN, file=f)
