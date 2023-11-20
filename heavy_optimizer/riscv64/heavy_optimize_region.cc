@@ -33,7 +33,9 @@
 
 namespace berberis {
 
-std::tuple<GuestAddr, size_t> HeavyOptimizeRegion(GuestAddr pc, MachineCode* machine_code) {
+std::tuple<GuestAddr, bool, size_t> HeavyOptimizeRegion(GuestAddr pc,
+                                                        MachineCode* machine_code,
+                                                        const HeavyOptimizeParams& params) {
   Arena arena;
   x86_64::MachineIR machine_ir(&arena);
   HeavyOptimizerFrontend frontend(&machine_ir, pc);
@@ -41,10 +43,11 @@ std::tuple<GuestAddr, size_t> HeavyOptimizeRegion(GuestAddr pc, MachineCode* mac
   Decoder decoder(&sem_player);
   size_t number_of_instructions = 0;
 
-  while (!frontend.IsRegionEndReached()) {
+  while (number_of_instructions != params.max_number_of_instructions &&
+         !frontend.IsRegionEndReached()) {
     frontend.StartInsn();
-    // TODO(b/291126189) decode insn, pass size to incr below.
-    frontend.IncrementInsnAddr(4);
+    auto size = decoder.Decode(ToHostAddr<uint16_t>(frontend.GetInsnAddr()));
+    frontend.IncrementInsnAddr(size);
     number_of_instructions++;
   }
 
@@ -58,7 +61,7 @@ std::tuple<GuestAddr, size_t> HeavyOptimizeRegion(GuestAddr pc, MachineCode* mac
 
   x86_64::GenCode(&machine_ir, machine_code);
 
-  return {stop_pc, number_of_instructions};
+  return {stop_pc, frontend.success(), number_of_instructions};
 }
 
 }  // namespace berberis
