@@ -52,10 +52,6 @@ class MachineIRBuilder : public MachineIRBuilderBase<MachineIR> {
     Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, offset, src_reg);
   }
 
-  void GenGetOffset(MachineReg dst_reg, int32_t offset) { GenGet(dst_reg, offset); }
-
-  void GenPutOffset(int32_t offset, MachineReg src_reg) { GenPut(offset, src_reg); }
-
   template <size_t kSize>
   void GenGetSimd(MachineReg dst_reg, int32_t offset) {
     if constexpr (kSize == 8) {
