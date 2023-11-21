@@ -30,6 +30,7 @@ namespace berberis {
 std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAndInstallRegion(
     GuestAddr pc,
     const LiteTranslateParams& params = LiteTranslateParams());
+std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> HeavyOptimizeRegion(GuestAddr pc);
 
 }  // namespace berberis
 

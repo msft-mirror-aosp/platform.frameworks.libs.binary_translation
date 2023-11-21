@@ -559,7 +559,7 @@
         "Andnl": { "feature": "BMI", "opcodes": [ "C4", "02", "00", "F2" ], "vex_rm_to_reg": true }
       },
       "args": [
-        { "class": "GeneralReg32", "usage": "use_def" },
+        { "class": "GeneralReg32", "usage": "def" },
         { "class": "GeneralReg32", "usage": "use" },
         { "class": "GeneralReg32/Mem32", "usage": "use" },
         { "class": "FLAGS", "usage": "def" }

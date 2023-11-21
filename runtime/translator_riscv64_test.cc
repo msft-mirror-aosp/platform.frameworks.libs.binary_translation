@@ -68,6 +68,34 @@ TEST(TranslatorRiscv64, LiteTranslatePartiallySupportedRegion) {
   EXPECT_EQ(kind, GuestCodeEntry::Kind::kLightTranslated);
 }
 
+TEST(TranslatorRiscv64, HeavyOptimizeSupportedRegion) {
+  static const uint32_t code[] = {
+      0x008000ef,  // jal x1, 8
+  };
+
+  auto [success, host_code_piece, guest_size, kind] = HeavyOptimizeRegion(ToGuestAddr(code));
+
+  EXPECT_TRUE(success);
+  EXPECT_NE(host_code_piece.code, kEntryInterpret);
+  EXPECT_GT(host_code_piece.size, 0U);
+  EXPECT_EQ(guest_size, 4U);
+  EXPECT_EQ(kind, GuestCodeEntry::Kind::kHeavyOptimized);
+}
+
+TEST(TranslatorRiscv64, HeavyOptimizeUnsupportedRegion) {
+  static const uint32_t code[] = {
+      0x0000100f,  // fence.i
+  };
+
+  auto [success, host_code_piece, guest_size, kind] = HeavyOptimizeRegion(ToGuestAddr(code));
+
+  EXPECT_FALSE(success);
+  EXPECT_NE(host_code_piece.code, kEntryInterpret);
+  EXPECT_EQ(host_code_piece.size, 0U);
+  EXPECT_EQ(guest_size, 0U);
+  EXPECT_EQ(kind, GuestCodeEntry::Kind::kInterpreted);
+}
+
 }  // namespace
 
 }  // namespace berberis
