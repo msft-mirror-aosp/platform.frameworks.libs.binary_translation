@@ -81,8 +81,8 @@ class CallingConventions {
   }
 
   constexpr ArgLocation GetIntResLoc(unsigned size) {
-    // Fundamental integer type - 1/1, 2/2, 4/4, 8/8.
-    CHECK_LE(size, 8u);
+    // Fundamental integer type - 1/1, 2/2, 4/4, 8/8, 16/16.
+    CHECK_LE(size, 16u);
 
     // Use x10/a0.
     return {kArgLocationInt, 0u};
