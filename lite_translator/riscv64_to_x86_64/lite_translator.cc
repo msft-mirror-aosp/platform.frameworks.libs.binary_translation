@@ -390,6 +390,7 @@ void LiteTranslator::BranchRegister(Register base, int16_t offset) {
   Register res = AllocTempReg();
   as_.Movq(res, base);
   as_.Addq(res, offset);
+  // TODO(b/232598137) Maybe move this to translation cache?
   // Zeroing out the last bit.
   as_.Andq(res, ~int32_t{1});
   is_region_end_reached_ = true;
