@@ -25,7 +25,20 @@
 
 namespace berberis {
 
-std::tuple<GuestAddr, size_t> HeavyOptimizeRegion(GuestAddr pc, MachineCode* machine_code);
+struct HeavyOptimizeParams {
+  // Generally we don't expect too long regions, since we break at unconditional branches, including
+  // function calls and returns. But some applications end up having more than 1000 insns in region
+  // (b/197703128), which results in huge memory consumption by translator's data structures
+  // (specifically by LivenessAnalyzer). Regions longer than 200 are quite rare and there is a lot
+  // of room for optimzations within this range. Thus this limitation has very little to no impact
+  // on the generated code quality.
+  size_t max_number_of_instructions = 200;
+};
+
+std::tuple<GuestAddr, bool, size_t> HeavyOptimizeRegion(
+    GuestAddr pc,
+    MachineCode* machine_code,
+    const HeavyOptimizeParams& params = HeavyOptimizeParams());
 
 }  // namespace berberis
 

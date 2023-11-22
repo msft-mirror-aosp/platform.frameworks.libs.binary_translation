@@ -17,6 +17,7 @@
 #include "berberis/guest_state/guest_state.h"
 
 #include "berberis/base/checks.h"
+#include "berberis/guest_state/guest_state_arch.h"
 #include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis {
@@ -73,6 +74,14 @@ std::size_t GetThreadStateRegOffset(int reg) {
 
 std::size_t GetThreadStateSimdRegOffset(int simd_reg) {
   return offsetof(ThreadState, cpu.v[simd_reg]);
+}
+
+std::size_t GetThreadStateReservationAddressOffset() {
+  return offsetof(ThreadState, cpu.reservation_address);
+}
+
+std::size_t GetThreadStateReservationValueOffset() {
+  return offsetof(ThreadState, cpu.reservation_value);
 }
 
 bool IsSimdOffset(size_t offset) {
