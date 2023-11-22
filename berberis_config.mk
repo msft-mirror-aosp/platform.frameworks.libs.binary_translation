@@ -26,6 +26,7 @@ BERBERIS_PRODUCT_PACKAGES := \
 
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
     libberberis_proxy_libGLESv1_CM \
+    libberberis_proxy_libOpenMAXAL \
     libberberis_proxy_libOpenSLES \
     libberberis_proxy_libaaudio \
     libberberis_proxy_libamidi \
