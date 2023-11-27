@@ -25,6 +25,7 @@ BERBERIS_PRODUCT_PACKAGES := \
     libberberis_exec_region
 
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
+    libberberis_proxy_libEGL \
     libberberis_proxy_libGLESv1_CM \
     libberberis_proxy_libOpenMAXAL \
     libberberis_proxy_libOpenSLES \
