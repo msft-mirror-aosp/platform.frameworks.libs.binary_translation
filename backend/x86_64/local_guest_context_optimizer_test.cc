@@ -39,8 +39,8 @@ TEST(MachineIRLocalGuestContextOptimizer, RemoveReadAfterWrite) {
   builder.StartBasicBlock(bb);
   auto reg1 = machine_ir.AllocVReg();
   auto reg2 = machine_ir.AllocVReg();
-  builder.GenPut(0, reg1);
-  builder.GenGet(reg2, 0);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), reg1);
+  builder.GenGetOffset(reg2, GetThreadStateRegOffset(0));
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   x86_64::RemoveLocalGuestContextAccesses(&machine_ir);
@@ -71,8 +71,8 @@ TEST(MachineIRLocalGuestContextOptimizer, RemoveReadAfterRead) {
   builder.StartBasicBlock(bb);
   auto reg1 = machine_ir.AllocVReg();
   auto reg2 = machine_ir.AllocVReg();
-  builder.GenGet(reg1, 0);
-  builder.GenGet(reg2, 0);
+  builder.GenGetOffset(reg1, GetThreadStateRegOffset(0));
+  builder.GenGetOffset(reg2, GetThreadStateRegOffset(0));
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   x86_64::RemoveLocalGuestContextAccesses(&machine_ir);
@@ -101,8 +101,8 @@ TEST(MachineIRLocalGuestContextOptimizer, RemoveWriteAfterWrite) {
   builder.StartBasicBlock(bb);
   auto reg1 = machine_ir.AllocVReg();
   auto reg2 = machine_ir.AllocVReg();
-  builder.GenPut(0, reg1);
-  builder.GenPut(0, reg2);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), reg1);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), reg2);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   x86_64::RemoveLocalGuestContextAccesses(&machine_ir);
