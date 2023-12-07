@@ -36,6 +36,7 @@ BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
     libberberis_proxy_libandroid \
     libberberis_proxy_libbinder_ndk \
     libberberis_proxy_libc \
+    libberberis_proxy_libcamera2ndk \
     libberberis_proxy_libmediandk \
     libberberis_proxy_libnativehelper \
     libberberis_proxy_libnativewindow \
@@ -57,6 +58,7 @@ BERBERIS_DEV_PRODUCT_PACKAGES := \
     berberis_ndk_program_tests \
     berberis_ndk_program_tests.native_bridge \
     dwarf_reader \
+    libberberis_emulated_libcamera2ndk_api_checker \
     nogrod_unit_tests \
     gen_intrinsics_tests
 
