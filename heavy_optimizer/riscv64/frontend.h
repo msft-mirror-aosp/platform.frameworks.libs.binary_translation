@@ -44,6 +44,14 @@ class HeavyOptimizerFrontend {
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
+  struct MemoryOperand {
+    Register base{0};
+    // We call the following field "index" even though we do not scale it at the
+    // moment.  We can add a scale as the need arises.
+    Register index{0};
+    uint64_t disp = 0;
+  };
+
   explicit HeavyOptimizerFrontend(x86_64::MachineIR* machine_ir, GuestAddr pc)
       : pc_(pc),
         success_(true),
@@ -73,56 +81,18 @@ class HeavyOptimizerFrontend {
   // Instruction implementations.
   //
   void Nop();
-  Register Op(Decoder::OpOpcode /* opcode */, Register /* arg1 */, Register /* arg2 */) {
-    Unimplemented();
-    return {};
-  }
-  Register Op32(Decoder::Op32Opcode /* opcode */, Register /* arg1 */, Register /* arg2 */) {
-    Unimplemented();
-    return {};
-  }
-  Register OpImm(Decoder::OpImmOpcode /* opcode */, Register /* arg */, int16_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register OpImm32(Decoder::OpImm32Opcode /* opcode */, Register /* arg */, int16_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Slli(Register /* arg */, int8_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Srli(Register /* arg */, int8_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Srai(Register /* arg */, int8_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register ShiftImm32(Decoder::ShiftImm32Opcode /* opcode */,
-                      Register /* arg */,
-                      uint16_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Rori(Register /* arg */, int8_t /* shamt */) {
-    Unimplemented();
-    return {};
-  }
-  Register Roriw(Register /* arg */, int8_t /* shamt */) {
-    Unimplemented();
-    return {};
-  }
-  Register Lui(int32_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
-  Register Auipc(int32_t /* imm */) {
-    Unimplemented();
-    return {};
-  }
+  Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2);
+  Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2);
+  Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm);
+  Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm);
+  Register Slli(Register arg, int8_t imm);
+  Register Srli(Register arg, int8_t imm);
+  Register Srai(Register arg, int8_t imm);
+  Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm);
+  Register Rori(Register arg, int8_t shamt);
+  Register Roriw(Register arg, int8_t shamt);
+  Register Lui(int32_t imm);
+  Register Auipc(int32_t imm);
 
   Register Ecall(Register /* syscall_nr */,
                  Register /* arg0 */,
@@ -135,18 +105,8 @@ class HeavyOptimizerFrontend {
     return {};
   }
 
-  void Store(Decoder::StoreOperandType /* operand_type */,
-             Register /* arg */,
-             int16_t /* offset */,
-             Register /* data */) {
-    Unimplemented();
-  }
-  Register Load(Decoder::LoadOperandType /* operand_type */,
-                Register /* arg */,
-                int16_t /* offset */) {
-    Unimplemented();
-    return {};
-  }
+  void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
+  Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
 
   //
   // Atomic extensions.
@@ -337,7 +297,7 @@ class HeavyOptimizerFrontend {
     }
 
     if (TryInlineIntrinsicForHeavyOptimizer<kFunction>(
-            &builder_, UnwrapSimdReg(result), GetFlagsRegister(), UnwrapSimdReg(args)...)) {
+            &builder_, result, GetFlagsRegister(), args...)) {
       return result;
     }
 
@@ -361,25 +321,13 @@ class HeavyOptimizerFrontend {
   void ExitGeneratedCode(GuestAddr target);
   void ExitRegionIndirect(Register target);
 
+  void GenRecoveryBlockForLastInsn();
+
   void ResolveJumps();
   void ReplaceJumpWithBranch(MachineBasicBlock* bb, MachineBasicBlock* target_bb);
   void UpdateBranchTargetsAfterSplit(GuestAddr addr,
                                      const MachineBasicBlock* old_bb,
                                      MachineBasicBlock* new_bb);
-
-  template <typename T>
-  static constexpr auto UnwrapSimdReg(T r) {
-    if constexpr (std::is_same_v<T, SimdReg>) {
-      return r.machine_reg();
-    } else {
-      return r;
-    }
-  }
-
-  template <typename T, typename U>
-  static constexpr auto UnwrapSimdReg(std::tuple<T, U> regs) {
-    return std::make_tuple(UnwrapSimdReg(std::get<0>(regs)), UnwrapSimdReg(std::get<1>(regs)));
-  }
 
   void StartRegion() {
     auto* region_entry_bb = builder_.ir()->NewBasicBlock();
