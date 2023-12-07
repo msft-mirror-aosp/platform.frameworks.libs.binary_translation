@@ -591,6 +591,9 @@ class Interpreter {
                           ElementType,
                           vlmul,
                           vta>(args.dst, args.src, args.imm);
+      case Decoder::VOpViOpcode::kVsllvi:
+        return OpVectorvx<intrinsics::Vsllvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src, args.imm);
       default:
         Unimplemented();
     }
@@ -640,6 +643,9 @@ class Interpreter {
                           ElementType,
                           vlmul,
                           vta>(args.dst, args.src1, args.src2);
+      case Decoder::VOpVvOpcode::kVsllvv:
+        return OpVectorvv<intrinsics::Vsllvv<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -702,6 +708,9 @@ class Interpreter {
                           ElementType,
                           vlmul,
                           vta>(args.dst, args.src1, arg2);
+      case Decoder::VOpVxOpcode::kVsllvx:
+        return OpVectorvx<intrinsics::Vsllvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, arg2);
       default:
         Unimplemented();
     }
@@ -816,6 +825,9 @@ class Interpreter {
                           vlmul,
                           vta,
                           vma>(args.dst, args.src, args.imm);
+      case Decoder::VOpViOpcode::kVsllvi:
+        return OpVectorvx<intrinsics::Vsllvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src, args.imm);
       default:
         Unimplemented();
     }
@@ -878,6 +890,9 @@ class Interpreter {
                           vlmul,
                           vta,
                           vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpVvOpcode::kVsllvv:
+        return OpVectorvv<intrinsics::Vsllvvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -955,6 +970,9 @@ class Interpreter {
                           vlmul,
                           vta,
                           vma>(args.dst, args.src1, arg2);
+      case Decoder::VOpVxOpcode::kVsllvx:
+        return OpVectorvx<intrinsics::Vsllvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
       default:
         Unimplemented();
     }
