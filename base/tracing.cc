@@ -120,7 +120,7 @@ void Tracing::InitImpl() {
   ScopedErrno scoped_errno;
 
   auto env = GetTracingConfig();
-  if (!env) {
+  if (!env || !env[0]) {
     return;
   }
 
