@@ -232,6 +232,10 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
@@ -243,6 +247,10 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+
   template <typename... Types>
   void TestOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -253,6 +261,10 @@ class TESTSUITE : public ::testing::Test {
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestOpImm(uint32_t insn_bytes,
                  std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
@@ -279,11 +291,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestBranch(uint32_t insn_bytes,
                   std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
@@ -329,10 +336,6 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
   void TestStore(uint32_t insn_bytes, uint64_t expected_result) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
@@ -342,6 +345,10 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(store_area_, expected_result);
   }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   template <typename... Types>
   void TestFma(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
@@ -1251,6 +1258,10 @@ TEST_F(TESTSUITE, FsrRegister) {
   }
 }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
 TEST_F(TESTSUITE, OpInstructions) {
   // Add
   TestOp(0x003100b3, {{19, 23, 42}});
@@ -1263,7 +1274,7 @@ TEST_F(TESTSUITE, OpInstructions) {
   // Xor
   TestOp(0x003140b3, {{0b0101, 0b0011, 0b0110}});
   // Sll
-  TestOp(0x003110b3, {{0b1010, 3, 0b1010'000}});
+  TestOp(0x003110b3, {{0b1010, 3, 0b0101'0000}});
   // Srl
   TestOp(0x003150b3, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
   // Sra
@@ -1487,6 +1498,10 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   TestOpImm(0x0801109b, {{0x0000'0000'f000'000fULL, 4, 0x0000'000f'0000'00f0}});
 }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+
 TEST_F(TESTSUITE, OpFpInstructions) {
   // FAdd.S
   TestOpFp(0x003100d3, {std::tuple{1.0f, 2.0f, 3.0f}});
@@ -1584,16 +1599,18 @@ TEST_F(TESTSUITE, OpFpInstructions) {
             {-0.0, 1.0, 1.0}});
 }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
 TEST_F(TESTSUITE, UpperImmInstructions) {
   // Auipc
   TestAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
   // Lui
   TestLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
 }
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 TEST_F(TESTSUITE, TestBranchInstructions) {
   // Beq
   TestBranch(0x00208463,
@@ -1687,10 +1704,7 @@ TEST_F(TESTSUITE, JumpAndLinkRegisterInstructions) {
   // Jr offset=5 - must properly align the target to even.
   TestJumpAndLinkRegister<0>(0x00510067, 38, 42);
 }
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
 
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 TEST_F(TESTSUITE, LoadInstructions) {
   // Offset is always 8.
   // Lbu
@@ -1720,6 +1734,11 @@ TEST_F(TESTSUITE, StoreInstructions) {
   // Sd
   TestStore(0x0020b423, kDataToStore);
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, FmaInstructions) {
   // Fmadd.S
