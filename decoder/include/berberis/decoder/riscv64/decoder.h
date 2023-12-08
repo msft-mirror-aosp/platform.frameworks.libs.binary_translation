@@ -265,7 +265,7 @@ class Decoder {
     kMaxValue = 0b111111111111'11111'111'11111,
   };
 
-  enum class VOpViOpcode {
+  enum class VOpIViOpcode {
     kVaddvi = 0b000000,
     kVrsubvi = 0b000011,
     kVandvi = 0b001001,
@@ -298,7 +298,7 @@ class Decoder {
     kMaxValue = 0b111111,
   };
 
-  enum class VOpVvOpcode {
+  enum class VOpIVvOpcode {
     kVaddvv = 0b000000,
     kVsubvv = 0b000010,
     kVminuvv = 0b000100,
@@ -340,7 +340,7 @@ class Decoder {
     kMaxValue = 0b111111
   };
 
-  enum class VOpVxOpcode {
+  enum class VOpIVxOpcode {
     kVaddvx = 0b000000,
     kVsubvx = 0b000010,
     kVrsubvx = 0b000011,
@@ -620,24 +620,24 @@ class Decoder {
   using OpImmArgs = OpImmArgsTemplate<OpImmOpcode>;
   using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
 
-  struct VOpViArgs {
-    VOpViOpcode opcode;
+  struct VOpIViArgs {
+    VOpIViOpcode opcode;
     bool vm;
     uint8_t dst;
     uint8_t src;
     int8_t imm;
   };
 
-  struct VOpVvArgs {
-    VOpVvOpcode opcode;
+  struct VOpIVvArgs {
+    VOpIVvOpcode opcode;
     bool vm;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
   };
 
-  struct VOpVxArgs {
-    VOpVxOpcode opcode;
+  struct VOpIVxArgs {
+    VOpIVxOpcode opcode;
     bool vm;
     uint8_t dst;
     uint8_t src1;
@@ -1711,8 +1711,8 @@ class Decoder {
     uint8_t src2 = GetBits<uint8_t, 15, 5>();
     switch (low_opcode) {
       case 0b000: {
-        const VOpVvArgs args = {
-            .opcode = VOpVvOpcode(opcode),
+        const VOpIVvArgs args = {
+            .opcode = VOpIVvOpcode(opcode),
             .vm = vm,
             .dst = dst,
             .src1 = src1,
@@ -1721,8 +1721,8 @@ class Decoder {
         return insn_consumer_->OpVector(args);
       }
       case 0b011: {
-        const VOpViArgs args = {
-            .opcode = VOpViOpcode(opcode),
+        const VOpIViArgs args = {
+            .opcode = VOpIViOpcode(opcode),
             .vm = vm,
             .dst = dst,
             .src = src1,
@@ -1731,8 +1731,8 @@ class Decoder {
         return insn_consumer_->OpVector(args);
       }
       case 0b100: {
-        const VOpVxArgs args = {
-            .opcode = VOpVxOpcode(opcode),
+        const VOpIVxArgs args = {
+            .opcode = VOpIVxOpcode(opcode),
             .vm = vm,
             .dst = dst,
             .src1 = src1,
