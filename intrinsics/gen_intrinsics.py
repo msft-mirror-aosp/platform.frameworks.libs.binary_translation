@@ -950,7 +950,7 @@ def _gen_c_intrinsic(name,
   yield '              %s>(),' % (
     ',\n              '.join(
         [name_label,
-         _get_asm_reference(asm, gen_builder),
+         _get_asm_reference(asm),
          mnemo_label,
          _get_builder_reference(intr, asm) if gen_builder else 'void',
          cpuid_restriction,
@@ -997,7 +997,7 @@ def _get_asm_operand_type(arg, prefix=''):
   assert False
 
 
-def _get_asm_reference(asm, gen_builder):
+def _get_asm_reference(asm):
   # Because of misfeature of Itanium C++ ABI we couldn't just use MacroAssembler
   # to static cast these references if we want to use them as template argument:
   # https://ibob.bg/blog/2018/08/18/a-bug-in-the-cpp-standard/
@@ -1015,14 +1015,8 @@ def _get_asm_reference(asm, gen_builder):
   #       &Assembler_common_x86::Lzcntl)
   if 'arch' in asm:
     assembler = 'Assembler_%s' % asm['arch']
-  elif gen_builder:
-    assembler = 'std::tuple_element_t<0, MacroAssembler>'
-  elif any(arg['class'].startswith('Imm') for arg in asm['args']):
-    assembler = 'MacroAssembler'
   else:
-    return '&MacroAssembler::%s%s' % (
-        'template ' if '<' in asm['asm'] else '',
-        asm['asm'])
+    assembler = 'std::tuple_element_t<%s, MacroAssembler>' % asm['macroassembler']
   return 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
       assembler,
       _get_asm_type(asm, 'typename %s::' % assembler),
@@ -1054,11 +1048,14 @@ def _load_intrs_arch_def(intrs_defs):
   return json_data
 
 
-def _load_macro_def(intrs, arch_intrs, insns_def):
+def _load_macro_def(intrs, arch_intrs, insns_def, macroassembler):
   arch, insns = asm_defs.load_asm_defs(insns_def)
   if arch is not None:
     for insn in insns:
       insn['arch'] = arch
+  else:
+    for insn in insns:
+      insn['macroassembler'] = macroassembler
   insns_map = dict((insn['name'], insn) for insn in insns)
   unprocessed_intrs = []
   for arch_intr in arch_intrs:
@@ -1136,10 +1133,13 @@ def _open_asm_def_files(def_files, arch_def_files, asm_def_files, need_archs=Tru
   expanded_intrs = _expand_template_intrinsics(intrs)
   arch_intrs = _load_intrs_arch_def(arch_def_files)
   archs = []
+  macro_assemblers = 0
   for macro_def in asm_def_files:
-    arch, arch_intrs = _load_macro_def(expanded_intrs, arch_intrs, macro_def)
+    arch, arch_intrs = _load_macro_def(expanded_intrs, arch_intrs, macro_def, macro_assemblers)
     if arch is not None:
       archs.append(arch)
+    else:
+      macro_assemblers += 1
   # Make sure that all intrinsics were found during processing of arch_intrs.
   assert arch_intrs == []
   if need_archs:
