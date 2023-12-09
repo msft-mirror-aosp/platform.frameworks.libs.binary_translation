@@ -93,13 +93,13 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
       result.Set<ElementType>(lambda(VectorElement<ElementType>(source, index)...), index);
     }
   } else {
-    #pragma clang loop unroll(disable)
+#pragma clang loop unroll(disable)
     for (int index = vstart; index < vl; ++index) {
       result.Set<ElementType>(lambda(VectorElement<ElementType>(source, index)...), index);
     }
     if constexpr (vta == TailProcessing::kAgnostic) {
       if (vl < static_cast<int>(16 / sizeof(ElementType))) {
-        #pragma clang loop unroll(disable)
+#pragma clang loop unroll(disable)
         for (int index = vl; index < 16 / static_cast<int>(sizeof(ElementType)); ++index) {
           result.Set<ElementType>(fill_value, index);
         }
@@ -137,7 +137,7 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
   if (vl > static_cast<int>(16 / sizeof(ElementType))) {
     vl = 16 / sizeof(ElementType);
   }
-  #pragma clang loop unroll(disable)
+#pragma clang loop unroll(disable)
   for (int index = vstart; index < vl; ++index) {
     if (mask & (1 << index)) {
       result.Set<ElementType>(lambda(VectorElement<ElementType>(source, index)...), index);
@@ -147,13 +147,29 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
   }
   if constexpr (vta == TailProcessing::kAgnostic) {
     if (vl < static_cast<int>(16 / sizeof(ElementType))) {
-      #pragma clang loop unroll(disable)
+#pragma clang loop unroll(disable)
       for (int index = vl; index < 16 / static_cast<int>(sizeof(ElementType)); ++index) {
         result.Set<ElementType>(fill_value, index);
       }
     }
   }
   return result;
+}
+
+template <typename ElementType>
+inline ElementType mask_bits(ElementType val) {
+  // Return only the low n-bits of val, where n is log2(SEW) and SEW is standard element width.
+  if constexpr (sizeof(ElementType) <= sizeof(uint8_t)) {
+    return val & ((1 << 3) - 1);
+  } else if constexpr (sizeof(ElementType) <= sizeof(uint16_t)) {
+    return val & ((1 << 4) - 1);
+  } else if constexpr (sizeof(ElementType) <= sizeof(uint32_t)) {
+    return val & ((1 << 5) - 1);
+  } else if constexpr (sizeof(ElementType) <= sizeof(uint64_t)) {
+    return val & ((1 << 6) - 1);
+  } else {
+    static_assert(kDependentTypeFalse<ElementType>, "Unsupported vector element type");
+  }
 }
 
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
@@ -226,6 +242,10 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mslt, (args < ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(msle, (args <= ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msle, (args <= ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msgt, (args > ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sll, auto [arg1, arg2] = std::tuple{args...};
+                                   (arg1 << mask_bits(arg2)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sll, auto [arg1, arg2] = std::tuple{args...};
+                                   (arg1 << mask_bits(arg2)))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
