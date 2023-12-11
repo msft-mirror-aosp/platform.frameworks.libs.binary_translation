@@ -51,7 +51,7 @@ class Decoder {
   // Note: that value is not used anywhere in the code, it exists solely to make conversion of not
   // yet known to decoder RISC-V instructions robust.
 
-  enum class AmoOpcode {
+  enum class AmoOpcode : uint8_t {
     kLr = 0b00010,
     kSc = 0b00011,
     kAmoswap = 0b00001,
@@ -66,7 +66,7 @@ class Decoder {
     kMaxValue = 0b11111,
   };
 
-  enum class BranchOpcode {
+  enum class BranchOpcode : uint8_t {
     kBeq = 0b000,
     kBne = 0b001,
     kBlt = 0b100,
@@ -76,21 +76,21 @@ class Decoder {
     kMaxValue = 0b111,
   };
 
-  enum class CsrOpcode {
+  enum class CsrOpcode : uint8_t {
     kCsrrw = 0b01,
     kCsrrs = 0b10,
     kCsrrc = 0b11,
     kMaxValue = 0b11,
   };
 
-  enum class CsrImmOpcode {
+  enum class CsrImmOpcode : uint8_t {
     kCsrrwi = 0b01,
     kCsrrsi = 0b10,
     kCsrrci = 0b11,
     kMaxValue = 0b11,
   };
 
-  enum class FmaOpcode {
+  enum class FmaOpcode : uint8_t {
     kFmadd = 0b00,
     kFmsub = 0b01,
     kFnmsub = 0b10,
@@ -98,13 +98,13 @@ class Decoder {
     kMaxValue = 0b11,
   };
 
-  enum class FenceOpcode {
+  enum class FenceOpcode : uint8_t {
     kFence = 0b0000,
     kFenceTso = 0b1000,
     kMaxValue = 0b1111,
   };
 
-  enum class OpOpcode {
+  enum class OpOpcode : uint16_t {
     kAdd = 0b0000'000'000,
     kSub = 0b0100'000'000,
     kSll = 0b0000'000'001,
@@ -142,7 +142,7 @@ class Decoder {
     kMaxValue = 0b1111'111'111,
   };
 
-  enum class Op32Opcode {
+  enum class Op32Opcode : uint16_t {
     kAddw = 0b0000'000'000,
     kAdduw = 0b0000'100'000,
     kSubw = 0b0100'000'000,
@@ -162,24 +162,24 @@ class Decoder {
     kMaxValue = 0b1111'111'111,
   };
 
-  enum class OpSingleInputOpcode {
+  enum class OpSingleInputOpcode : uint16_t {
     kZexth = 0b0000'100'100,
     kMaxValue = 0b1111'111'111,
   };
 
-  enum class OpFpGpRegisterTargetNoRoundingOpcode {
+  enum class OpFpGpRegisterTargetNoRoundingOpcode : uint8_t {
     kFle = 0b00'000,
     kFlt = 0b00'001,
     kFeq = 0b00'010,
     kMaxValue = 0b11'111,
   };
 
-  enum class OpFpGpRegisterTargetSingleInputNoRoundingOpcode {
+  enum class OpFpGpRegisterTargetSingleInputNoRoundingOpcode : uint16_t {
     kFclass = 0b00'00000'001,
     kMaxValue = 0b11'11111'111,
   };
 
-  enum class OpFpNoRoundingOpcode {
+  enum class OpFpNoRoundingOpcode : uint8_t {
     kFSgnj = 0b00'000,
     kFSgnjn = 0b00'001,
     kFSgnjx = 0b00'010,
@@ -188,7 +188,7 @@ class Decoder {
     kMaxValue = 0b11'111,
   };
 
-  enum class OpFpOpcode {
+  enum class OpFpOpcode : uint8_t {
     kFAdd = 0b00,
     kFSub = 0b01,
     kFMul = 0b10,
@@ -196,16 +196,16 @@ class Decoder {
     kMaxValue = 0b11,
   };
 
-  enum class OpFpSingleInputOpcode {
+  enum class OpFpSingleInputOpcode : uint8_t {
     kFSqrt = 0b11'00000,
     kMaxValue = 0b11'11111,
   };
 
-  enum class OpFpSingleInputNoRoundingOpcode {
+  enum class OpFpSingleInputNoRoundingOpcode : uint8_t {
     kFmv,
   };
 
-  enum class OpImmOpcode {
+  enum class OpImmOpcode : uint8_t {
     kAddi = 0b000,
     kSlti = 0b010,
     kSltiu = 0b011,
@@ -215,26 +215,26 @@ class Decoder {
     kMaxValue = 0b111,
   };
 
-  enum class OpImm32Opcode {
+  enum class OpImm32Opcode : uint8_t {
     kAddiw = 0b000,
     kMaxValue = 0b111,
   };
 
-  enum class ShiftImmOpcode {
+  enum class ShiftImmOpcode : uint8_t {
     kSlli = 0b000000'001,
     kSrli = 0b000000'101,
     kSrai = 0b010000'101,
     kMaxValue = 0b11111'111,
   };
 
-  enum class ShiftImm32Opcode {
+  enum class ShiftImm32Opcode : uint16_t {
     kSlliw = 0b0000000'001,
     kSrliw = 0b0000000'101,
     kSraiw = 0b0100000'101,
     kMaxValue = 0b111111'111,
   };
 
-  enum class BitmanipImmOpcode {
+  enum class BitmanipImmOpcode : uint16_t {
     kClz = 0b0110000'00000'001,
     kCpop = 0b0110000'00010'001,
     kCtz = 0b0110000'00001'001,
@@ -250,7 +250,7 @@ class Decoder {
     kMaxValue = 0b111111'111111'111,
   };
 
-  enum class BitmanipImm32Opcode {
+  enum class BitmanipImm32Opcode : uint16_t {
     kClzw = 0b0110000'00000'001,
     kCpopw = 0b0110000'00010'001,
     kCtzw = 0b0110000'00001'001,
@@ -259,13 +259,13 @@ class Decoder {
     kMaxValue = 0b1111111'111111'111,
   };
 
-  enum class SystemOpcode {
+  enum class SystemOpcode : uint32_t {
     kEcall = 0b000000000000'00000'000'00000,
     kEbreak = 0b000000000001'00000'000'00000,
     kMaxValue = 0b111111111111'11111'111'11111,
   };
 
-  enum class VOpIViOpcode {
+  enum class VOpIViOpcode : uint8_t {
     kVaddvi = 0b000000,
     kVrsubvi = 0b000011,
     kVandvi = 0b001001,
@@ -298,7 +298,7 @@ class Decoder {
     kMaxValue = 0b111111,
   };
 
-  enum class VOpIVvOpcode {
+  enum class VOpIVvOpcode : uint8_t {
     kVaddvv = 0b000000,
     kVsubvv = 0b000010,
     kVminuvv = 0b000100,
@@ -340,7 +340,7 @@ class Decoder {
     kMaxValue = 0b111111
   };
 
-  enum class VOpIVxOpcode {
+  enum class VOpIVxOpcode : uint8_t {
     kVaddvx = 0b000000,
     kVsubvx = 0b000010,
     kVrsubvx = 0b000011,
@@ -1306,8 +1306,8 @@ class Decoder {
 
   template <typename OpcodeType>
   void DecodeOp() {
-    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
-    uint16_t high_opcode = GetBits<uint16_t, 25, 7>();
+    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+    uint8_t high_opcode = GetBits<uint8_t, 25, 7>();
     uint16_t opcode_bits = int16_t(low_opcode | (high_opcode << 3));
     OpcodeType opcode{opcode_bits};
     OpSingleInputOpcode single_input_opcode{opcode_bits};
@@ -1341,8 +1341,8 @@ class Decoder {
   }
 
   void DecodeAmo() {
-    uint16_t low_opcode = GetBits<uint16_t, 12, 3>();
-    uint16_t high_opcode = GetBits<uint16_t, 27, 5>();
+    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+    uint8_t high_opcode = GetBits<uint8_t, 27, 5>();
     // lr instruction must have rs2 == 0
     if (high_opcode == 0b00010 && GetBits<uint8_t, 20, 5>() != 0) {
       return Undefined();
@@ -1463,7 +1463,8 @@ class Decoder {
                0) {  // For Canonical Shift Instructions from RV64G the opcode contains all
                      // zeros except for the 30th (second highest) bit.
       uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
-      ShiftOcodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
+      ShiftOcodeType opcode{
+          static_cast<std::underlying_type_t<ShiftOcodeType>>(low_opcode | (high_opcode << 3))};
 
       const ShiftImmArgsTemplate<ShiftOcodeType> args = {
           .opcode = opcode,
@@ -1475,7 +1476,7 @@ class Decoder {
     } else {
       uint8_t shamt = GetBits<uint8_t, 20, kShiftFieldSize>();
       uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
-      BitmanipOpCodeType opcode{int16_t(low_opcode | (high_opcode << 3))};
+      BitmanipOpCodeType opcode{static_cast<uint16_t>(low_opcode | (high_opcode << 3))};
       bool has_shamt = false;
 
       switch ((BitmanipImmOpcode)opcode) {
@@ -1501,7 +1502,7 @@ class Decoder {
       // TODO(b/291851792): Refactor instructions with shamt into ShiftImmArgs
       if (!has_shamt) {
         high_opcode = GetBits<uint16_t, 20, 12>();
-        opcode = {low_opcode | (high_opcode << 3)};
+        opcode = BitmanipOpCodeType{static_cast<uint16_t>(low_opcode | (high_opcode << 3))};
         shamt = 0;
       }
       const BitmanipImmArgsTemplate<BitmanipOpCodeType> args = {
