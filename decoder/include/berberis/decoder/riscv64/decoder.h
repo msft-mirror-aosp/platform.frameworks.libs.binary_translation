@@ -1058,7 +1058,7 @@ class Decoder {
         .opcode = BranchOpcode(GetBits<uint8_t, 13, 1>()),
         .src1 = uint8_t(8 + rs),
         .src2 = 0,
-        .offset = int16_t(SignExtend<9>(kBHigh[high_imm] + kBLow[low_imm])),
+        .offset = static_cast<int16_t>(SignExtend<9>(kBHigh[high_imm] + kBLow[low_imm])),
     };
     insn_consumer_->CompareAndBranch(args);
   }
@@ -1308,7 +1308,7 @@ class Decoder {
   void DecodeOp() {
     uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
     uint8_t high_opcode = GetBits<uint8_t, 25, 7>();
-    uint16_t opcode_bits = int16_t(low_opcode | (high_opcode << 3));
+    uint16_t opcode_bits = static_cast<int16_t>(low_opcode | (high_opcode << 3));
     OpcodeType opcode{opcode_bits};
     OpSingleInputOpcode single_input_opcode{opcode_bits};
 
@@ -1434,15 +1434,15 @@ class Decoder {
     const StoreArgsTemplate<OperandTypeEnum> args = {
         .operand_type = operand_type,
         .src = GetBits<uint8_t, 15, 5>(),
-        .offset = SignExtend<12>(int16_t(low_imm | (high_imm << 5))),
+        .offset = SignExtend<12>(static_cast<int16_t>(low_imm | (high_imm << 5))),
         .data = GetBits<uint8_t, 20, 5>(),
     };
     insn_consumer_->Store(args);
   }
 
   template <typename OpOpcodeType,
-            typename ShiftOcodeType,
-            typename BitmanipOpCodeType,
+            typename ShiftOpcodeType,
+            typename BitmanipOpcodeType,
             uint32_t kShiftFieldSize>
   void DecodeOp() {
     uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
@@ -1463,10 +1463,10 @@ class Decoder {
                0) {  // For Canonical Shift Instructions from RV64G the opcode contains all
                      // zeros except for the 30th (second highest) bit.
       uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
-      ShiftOcodeType opcode{
-          static_cast<std::underlying_type_t<ShiftOcodeType>>(low_opcode | (high_opcode << 3))};
+      ShiftOpcodeType opcode{
+          static_cast<std::underlying_type_t<ShiftOpcodeType>>(low_opcode | (high_opcode << 3))};
 
-      const ShiftImmArgsTemplate<ShiftOcodeType> args = {
+      const ShiftImmArgsTemplate<ShiftOpcodeType> args = {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .src = GetBits<uint8_t, 15, 5>(),
@@ -1476,7 +1476,7 @@ class Decoder {
     } else {
       uint8_t shamt = GetBits<uint8_t, 20, kShiftFieldSize>();
       uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
-      BitmanipOpCodeType opcode{static_cast<uint16_t>(low_opcode | (high_opcode << 3))};
+      BitmanipOpcodeType opcode{static_cast<uint16_t>(low_opcode | (high_opcode << 3))};
       bool has_shamt = false;
 
       switch ((BitmanipImmOpcode)opcode) {
@@ -1502,10 +1502,10 @@ class Decoder {
       // TODO(b/291851792): Refactor instructions with shamt into ShiftImmArgs
       if (!has_shamt) {
         high_opcode = GetBits<uint16_t, 20, 12>();
-        opcode = BitmanipOpCodeType{static_cast<uint16_t>(low_opcode | (high_opcode << 3))};
+        opcode = BitmanipOpcodeType{static_cast<uint16_t>(low_opcode | (high_opcode << 3))};
         shamt = 0;
       }
-      const BitmanipImmArgsTemplate<BitmanipOpCodeType> args = {
+      const BitmanipImmArgsTemplate<BitmanipOpcodeType> args = {
           .opcode = opcode,
           .dst = GetBits<uint8_t, 7, 5>(),
           .src = GetBits<uint8_t, 15, 5>(),
@@ -1531,7 +1531,7 @@ class Decoder {
         .src1 = GetBits<uint8_t, 15, 5>(),
         .src2 = GetBits<uint8_t, 20, 5>(),
         // The offset is encoded as 2-byte units, we need to multiply by 2.
-        .offset = SignExtend<13>(int16_t(offset * 2)),
+        .offset = SignExtend<13>(static_cast<int16_t>(offset * 2)),
     };
     insn_consumer_->CompareAndBranch(args);
   }
