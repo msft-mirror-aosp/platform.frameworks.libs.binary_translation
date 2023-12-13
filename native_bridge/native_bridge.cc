@@ -21,10 +21,16 @@
 #include <stdio.h>
 #include <sys/system_properties.h>
 
+#include <deque>
+#include <map>
+#include <mutex>
+#include <set>
+#include <string>
 #include <string_view>
 
 #include "procinfo/process_map.h"
 
+#include "berberis/base/algorithm.h"
 #include "berberis/base/bit_util.h"
 #include "berberis/base/config_globals.h"
 #include "berberis/base/logging.h"
@@ -42,6 +48,39 @@
 
 #define LOG_NB ALOGV  // redefine to ALOGD for debugging
 
+extern "C" {
+
+// Extended android loader functions for namespace management
+
+bool android_init_anonymous_namespace(const char* shared_libs_sonames,
+                                      const char* library_search_path);
+
+struct android_namespace_t* android_create_namespace(const char* name,
+                                                     const char* ld_library_path,
+                                                     const char* default_library_path,
+                                                     uint64_t type,
+                                                     const char* permitted_when_isolated_path,
+                                                     struct android_namespace_t* parent);
+
+bool android_link_namespaces(struct android_namespace_t* from,
+                             struct android_namespace_t* to,
+                             const char* shared_libs_sonames);
+
+struct android_namespace_t* android_get_exported_namespace(const char* name);
+
+}  // extern "C"
+
+namespace android {
+
+// We maintain host namespace here to provide ability to open host
+// libraries via native bridge. See http://b/308371292 for details.
+struct native_bridge_namespace_t {
+  android_namespace_t* guest_namespace;
+  android_namespace_t* host_namespace;
+};
+
+}  // namespace android
+
 namespace {
 
 // See android/system/core/libnativebridge/native_bridge.cc
@@ -54,16 +93,11 @@ const constexpr uint32_t kNativeBridgeCallbackMaxVersion = kNativeBridgeCallback
 
 const android::NativeBridgeRuntimeCallbacks* g_runtime_callbacks = nullptr;
 
+using native_bridge_namespace_t = android::native_bridge_namespace_t;
+using GuestAddr = berberis::GuestAddr;
+
 // Treble uses "sphal" name for the vendor namespace.
 constexpr const char* kVendorNamespaceName = "sphal";
-
-android::native_bridge_namespace_t* ToNbNamespace(android_namespace_t* android_ns) {
-  return reinterpret_cast<android::native_bridge_namespace_t*>(android_ns);
-}
-
-android_namespace_t* ToAndroidNamespace(android::native_bridge_namespace_t* nb_ns) {
-  return reinterpret_cast<android_namespace_t*>(nb_ns);
-}
 
 class NdktNativeBridge {
  public:
@@ -72,26 +106,37 @@ class NdktNativeBridge {
 
   bool Initialize(std::string* error_msg);
   void* LoadLibrary(const char* libpath, int flags);
-  void* LoadLibrary(const char* libpath, int flags, const android_dlextinfo* extinfo);
-  berberis::GuestAddr DlSym(void* handle, const char* name);
+  void* LoadLibrary(const char* libpath, int flags, const native_bridge_namespace_t* ns);
+  GuestAddr DlSym(void* handle, const char* name);
   const char* DlError();
   bool InitAnonymousNamespace(const char* public_ns_sonames, const char* anon_ns_library_path);
-  android::native_bridge_namespace_t* CreateNamespace(
-      const char* name,
-      const char* ld_library_path,
-      const char* default_library_path,
-      uint64_t type,
-      const char* permitted_when_isolated_path,
-      android::native_bridge_namespace_t* parent_ns);
-  android::native_bridge_namespace_t* GetExportedNamespace(const char* name);
-  bool LinkNamespaces(android::native_bridge_namespace_t* from,
-                      android::native_bridge_namespace_t* to,
+  native_bridge_namespace_t* CreateNamespace(const char* name,
+                                             const char* ld_library_path,
+                                             const char* default_library_path,
+                                             uint64_t type,
+                                             const char* permitted_when_isolated_path,
+                                             native_bridge_namespace_t* parent_ns);
+  native_bridge_namespace_t* GetExportedNamespace(const char* name);
+  bool LinkNamespaces(native_bridge_namespace_t* from,
+                      native_bridge_namespace_t* to,
                       const char* shared_libs_sonames);
+
+  bool IsHostHandle(void* handle) const;
 
  private:
   bool FinalizeInit();
+  native_bridge_namespace_t* CreateNativeBridgeNamespace(android_namespace_t* host_namespace,
+                                                         android_namespace_t* guest_namespace);
+  void AddHostLibrary(void* handle);
 
   berberis::GuestLoader* guest_loader_;
+
+  mutable std::mutex host_libraries_lock_;
+  std::set<void*> host_libraries_;
+
+  std::mutex namespaces_lock_;
+  std::deque<native_bridge_namespace_t> namespaces_;
+  std::map<std::string, native_bridge_namespace_t> exported_namespaces_;
 };
 
 NdktNativeBridge::NdktNativeBridge() : guest_loader_(nullptr) {}
@@ -112,51 +157,139 @@ void* NdktNativeBridge::LoadLibrary(const char* libpath, int flags) {
 
 void* NdktNativeBridge::LoadLibrary(const char* libpath,
                                     int flags,
-                                    const android_dlextinfo* extinfo) {
+                                    const native_bridge_namespace_t* ns) {
   // We don't have a callback after all java initialization is finished. So we call the finalizing
   // routine from here, just before we load any app's native code.
   static bool init_finalized = FinalizeInit();
   UNUSED(init_finalized);
-  return guest_loader_->DlOpenExt(libpath, flags, extinfo);
+
+  android_dlextinfo extinfo_holder;
+  android_dlextinfo* extinfo = nullptr;
+
+  if (ns != nullptr) {
+    extinfo_holder.flags = ANDROID_DLEXT_USE_NAMESPACE;
+    extinfo_holder.library_namespace = ns->guest_namespace;
+    extinfo = &extinfo_holder;
+  }
+
+  void* handle = guest_loader_->DlOpenExt(libpath, flags, extinfo);
+  if (handle == nullptr) {
+    // Try falling back to host loader.
+    if (ns != nullptr) {
+      extinfo_holder.library_namespace = ns->host_namespace;
+    }
+    handle = android_dlopen_ext(libpath, flags, extinfo);
+    if (handle != nullptr) {
+      ALOGI("'%s' library was loaded for the host platform.", libpath);
+      AddHostLibrary(handle);
+    }
+  }
+
+  return handle;
 }
 
-berberis::GuestAddr NdktNativeBridge::DlSym(void* handle, const char* name) {
+void NdktNativeBridge::AddHostLibrary(void* handle) {
+  const std::lock_guard<std::mutex> guard(host_libraries_lock_);
+  host_libraries_.insert(handle);
+}
+
+bool NdktNativeBridge::IsHostHandle(void* handle) const {
+  const std::lock_guard<std::mutex> guard(host_libraries_lock_);
+  return berberis::Contains(host_libraries_, handle);
+}
+
+GuestAddr NdktNativeBridge::DlSym(void* handle, const char* name) {
+  CHECK(!IsHostHandle(handle));
   return guest_loader_->DlSym(handle, name);
 }
 
 const char* NdktNativeBridge::DlError() {
-  return guest_loader_->DlError();
+  // There is no good way of knowing where the error happened, - prioritize the guest loader.
+  const char* error = guest_loader_->DlError();
+  if (error != nullptr) {
+    return error;
+  }
+
+  return dlerror();
 }
 
-android::native_bridge_namespace_t* NdktNativeBridge::CreateNamespace(
+native_bridge_namespace_t* NdktNativeBridge::CreateNamespace(
     const char* name,
     const char* ld_library_path,
     const char* default_library_path,
     uint64_t type,
     const char* permitted_when_isolated_path,
-    android::native_bridge_namespace_t* parent_ns) {
-  return ToNbNamespace(guest_loader_->CreateNamespace(name,
-                                                      ld_library_path,
-                                                      default_library_path,
-                                                      type,
-                                                      permitted_when_isolated_path,
-                                                      ToAndroidNamespace(parent_ns)));
+    native_bridge_namespace_t* parent_ns) {
+  // Android SDK libraries do not have a good mechanism for using JNI libraries.
+  // The only way to make it work is to put them to system search path and make
+  // the library public (visible from apps). See http://b/308371292 for details.
+  //
+  // Since `ClassLoader.findLibrary` is looking for the library in 'java.library.path'
+  // in addition to paths used here it is able to find a JNI library located in system
+  // library path. If then such a library appears to be a public library, the android
+  // loader will be able to load it from the system linker namespace.
+  //
+  // It could also happen so that the app puts different architecture libraries
+  // in the same folder (say x86_64 libraries to arm64 folder), in which case
+  // they will work if the architecture happens to match with host one. This is
+  // why we preserve guest search path for the host namespace.
+  auto* host_namespace = android_create_namespace(name,
+                                                  ld_library_path,
+                                                  default_library_path,
+                                                  type,
+                                                  permitted_when_isolated_path,
+                                                  parent_ns->host_namespace);
+
+  auto* guest_namespace = guest_loader_->CreateNamespace(name,
+                                                         ld_library_path,
+                                                         default_library_path,
+                                                         type,
+                                                         permitted_when_isolated_path,
+                                                         parent_ns->guest_namespace);
+
+  return CreateNativeBridgeNamespace(host_namespace, guest_namespace);
 }
 
-android::native_bridge_namespace_t* NdktNativeBridge::GetExportedNamespace(const char* name) {
-  return ToNbNamespace(guest_loader_->GetExportedNamespace(name));
+native_bridge_namespace_t* NdktNativeBridge::GetExportedNamespace(const char* name) {
+  const std::lock_guard<std::mutex> guard(namespaces_lock_);
+  auto it = exported_namespaces_.find(name);
+  if (it != exported_namespaces_.end()) {
+    return &it->second;
+  }
+
+  auto host_namespace = android_get_exported_namespace(name);
+  auto guest_namespace = guest_loader_->GetExportedNamespace(name);
+
+  auto [insert_it, inserted] =
+      exported_namespaces_.try_emplace(std::string(name),
+                                       native_bridge_namespace_t{.guest_namespace = guest_namespace,
+                                                                 .host_namespace = host_namespace});
+  CHECK(inserted);
+
+  return &insert_it->second;
 }
 
 bool NdktNativeBridge::InitAnonymousNamespace(const char* public_ns_sonames,
                                               const char* anon_ns_library_path) {
-  return guest_loader_->InitAnonymousNamespace(public_ns_sonames, anon_ns_library_path);
+  return guest_loader_->InitAnonymousNamespace(public_ns_sonames, anon_ns_library_path) &&
+         android_init_anonymous_namespace(public_ns_sonames, anon_ns_library_path);
 }
 
-bool NdktNativeBridge::LinkNamespaces(android::native_bridge_namespace_t* from,
-                                      android::native_bridge_namespace_t* to,
+bool NdktNativeBridge::LinkNamespaces(native_bridge_namespace_t* from,
+                                      native_bridge_namespace_t* to,
                                       const char* shared_libs_sonames) {
   return guest_loader_->LinkNamespaces(
-      ToAndroidNamespace(from), ToAndroidNamespace(to), shared_libs_sonames);
+             from->guest_namespace, to->guest_namespace, shared_libs_sonames) &&
+         android_link_namespaces(from->host_namespace, to->host_namespace, shared_libs_sonames);
+}
+
+native_bridge_namespace_t* NdktNativeBridge::CreateNativeBridgeNamespace(
+    android_namespace_t* host_namespace,
+    android_namespace_t* guest_namespace) {
+  const std::lock_guard<std::mutex> guard(namespaces_lock_);
+  namespaces_.emplace_back(native_bridge_namespace_t{.guest_namespace = guest_namespace,
+                                                     .host_namespace = host_namespace});
+  return &namespaces_.back();
 }
 
 void ProtectMappingsFromGuest() {
@@ -293,7 +426,11 @@ void* native_bridge_getTrampolineWithJNICallType(void* handle,
       len,
       jni_call_type);
 
-  berberis::GuestAddr guest_addr = g_ndkt_native_bridge.DlSym(handle, name);
+  if (g_ndkt_native_bridge.IsHostHandle(handle)) {
+    return dlsym(handle, name);
+  }
+
+  GuestAddr guest_addr = g_ndkt_native_bridge.DlSym(handle, name);
   if (!guest_addr) {
     return nullptr;
   }
@@ -374,20 +511,19 @@ bool native_bridge_initAnonymousNamespace(const char* public_ns_sonames,
   return g_ndkt_native_bridge.InitAnonymousNamespace(public_ns_sonames, anon_ns_library_path);
 }
 
-android::native_bridge_namespace_t* native_bridge_createNamespace(
-    const char* name,
-    const char* ld_library_path,
-    const char* default_library_path,
-    uint64_t type,
-    const char* permitted_when_isolated_path,
-    android::native_bridge_namespace_t* parent_ns) {
+native_bridge_namespace_t* native_bridge_createNamespace(const char* name,
+                                                         const char* ld_library_path,
+                                                         const char* default_library_path,
+                                                         uint64_t type,
+                                                         const char* permitted_when_isolated_path,
+                                                         native_bridge_namespace_t* parent_ns) {
   LOG_NB("native_bridge_createNamespace(name=%s, path=%s)", name, ld_library_path);
   return g_ndkt_native_bridge.CreateNamespace(
       name, ld_library_path, default_library_path, type, permitted_when_isolated_path, parent_ns);
 }
 
-bool native_bridge_linkNamespaces(android::native_bridge_namespace_t* from,
-                                  android::native_bridge_namespace_t* to,
+bool native_bridge_linkNamespaces(native_bridge_namespace_t* from,
+                                  native_bridge_namespace_t* to,
                                   const char* shared_libs_sonames) {
   LOG_NB("native_bridge_linkNamespaces(from=%p, to=%p, shared_libs=%s)",
          from,
@@ -397,25 +533,19 @@ bool native_bridge_linkNamespaces(android::native_bridge_namespace_t* from,
   return g_ndkt_native_bridge.LinkNamespaces(from, to, shared_libs_sonames);
 }
 
-void* native_bridge_loadLibraryExt(const char* libpath,
-                                   int flag,
-                                   android::native_bridge_namespace_t* ns) {
+void* native_bridge_loadLibraryExt(const char* libpath, int flag, native_bridge_namespace_t* ns) {
   LOG_NB("native_bridge_loadLibraryExt(path=%s)", libpath);
 
-  android_dlextinfo extinfo;
-  extinfo.flags = ANDROID_DLEXT_USE_NAMESPACE;
-  extinfo.library_namespace = ToAndroidNamespace(ns);
-
-  return g_ndkt_native_bridge.LoadLibrary(libpath, flag, &extinfo);
+  return g_ndkt_native_bridge.LoadLibrary(libpath, flag, ns);
 }
 
-android::native_bridge_namespace_t* native_bridge_getVendorNamespace() {
+native_bridge_namespace_t* native_bridge_getVendorNamespace() {
   LOG_NB("native_bridge_getVendorNamespace()");
   // This method is retained for backwards compatibility.
   return g_ndkt_native_bridge.GetExportedNamespace(kVendorNamespaceName);
 }
 
-android::native_bridge_namespace_t* native_bridge_getExportedNamespace(const char* name) {
+native_bridge_namespace_t* native_bridge_getExportedNamespace(const char* name) {
   LOG_NB("native_bridge_getExportedNamespace(name=%s)", name);
   return g_ndkt_native_bridge.GetExportedNamespace(name);
 }
