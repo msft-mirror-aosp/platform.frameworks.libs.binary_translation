@@ -734,7 +734,7 @@ class Decoder {
   }
 
   uint8_t DecodeCompressedInstruction() {
-    CompressedOpcode opcode_bits{(GetBits<uint8_t, 13, 3>() << 2) | GetBits<uint8_t, 0, 2>()};
+    CompressedOpcode opcode_bits{(GetBits<13, 3>() << 2) | GetBits<0, 2>()};
 
     switch (opcode_bits) {
       case CompressedOpcode::kAddi4spn:
@@ -811,9 +811,9 @@ class Decoder {
   }
 
   void DecodeCompressedLi() {
-    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
-    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
-    uint8_t rd = GetBits<uint8_t, 7, 5>();
+    uint8_t low_imm = GetBits<2, 5>();
+    uint8_t high_imm = GetBits<12, 1>();
+    uint8_t rd = GetBits<7, 5>();
     int8_t imm = SignExtend<6>((high_imm << 5) + low_imm);
     const OpImmArgs args = {
         .opcode = OpImmOpcode::kAddi,
@@ -825,11 +825,11 @@ class Decoder {
   }
 
   void DecodeCompressedMiscAlu() {
-    uint8_t r = GetBits<uint8_t, 7, 3>() + 8;
-    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
-    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t r = GetBits<7, 3>() + 8;
+    uint8_t low_imm = GetBits<2, 5>();
+    uint8_t high_imm = GetBits<12, 1>();
     uint8_t imm = (high_imm << 5) + low_imm;
-    switch (GetBits<uint8_t, 10, 2>()) {
+    switch (GetBits<10, 2>()) {
       case 0b00: {
         const ShiftImmArgs args = {
             .opcode = ShiftImmOpcode::kSrli,
@@ -858,10 +858,10 @@ class Decoder {
         return insn_consumer_->OpImm(args);
       }
     }
-    uint8_t rs2 = GetBits<uint8_t, 2, 3>() + 8;
-    if (GetBits<uint8_t, 12, 1>() == 0) {
+    uint8_t rs2 = GetBits<2, 3>() + 8;
+    if (GetBits<12, 1>() == 0) {
       OpOpcode opcode;
-      switch (GetBits<uint8_t, 5, 2>()) {
+      switch (GetBits<5, 2>()) {
         case 0b00:
           opcode = OpOpcode::kSub;
           break;
@@ -884,7 +884,7 @@ class Decoder {
       return insn_consumer_->Op(args);
     } else {
       Op32Opcode opcode;
-      switch (GetBits<uint8_t, 5, 2>()) {
+      switch (GetBits<5, 2>()) {
         case 0b00:
           opcode = Op32Opcode::kSubw;
           break;
@@ -906,8 +906,8 @@ class Decoder {
 
   template <auto kOperandType>
   void DecodeCompressedStoresp() {
-    uint8_t raw_imm = GetBits<uint8_t, 7, 6>();
-    uint8_t rs2 = GetBits<uint8_t, 2, 5>();
+    uint8_t raw_imm = GetBits<7, 6>();
+    uint8_t rs2 = GetBits<2, 5>();
     constexpr uint8_t k32bit[64] = {
         0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03,
         0x13, 0x23, 0x33, 0x04, 0x14, 0x24, 0x34, 0x05, 0x15, 0x25, 0x35, 0x06, 0x16,
@@ -931,9 +931,9 @@ class Decoder {
   }
 
   void DecodeCompressedLuiAddi16sp() {
-    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
-    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
-    uint8_t rd = GetBits<uint8_t, 7, 5>();
+    uint8_t low_imm = GetBits<2, 5>();
+    uint8_t high_imm = GetBits<12, 1>();
+    uint8_t rd = GetBits<7, 5>();
     if (rd != 2) {
       int32_t imm = SignExtend<18>((high_imm << 17) + (low_imm << 12));
       const UpperImmArgs args = {
@@ -960,8 +960,8 @@ class Decoder {
 
   template <enum LoadStore kLoadStore, auto kOperandType>
   void DecodeCompressedLoadStore() {
-    uint8_t low_imm = GetBits<uint8_t, 5, 2>();
-    uint8_t high_imm = GetBits<uint8_t, 10, 3>();
+    uint8_t low_imm = GetBits<5, 2>();
+    uint8_t high_imm = GetBits<10, 3>();
     uint8_t imm;
     if constexpr ((uint8_t(kOperandType) & 1) == 0) {
       constexpr uint8_t kLwLow[4] = {0x0, 0x40, 0x04, 0x44};
@@ -969,8 +969,8 @@ class Decoder {
     } else {
       imm = (low_imm << 6 | high_imm << 3);
     }
-    uint8_t rd = GetBits<uint8_t, 2, 3>();
-    uint8_t rs = GetBits<uint8_t, 7, 3>();
+    uint8_t rd = GetBits<2, 3>();
+    uint8_t rs = GetBits<7, 3>();
     if constexpr (kLoadStore == LoadStore::kStore) {
       const StoreArgsTemplate<decltype(kOperandType)> args = {
           .operand_type = kOperandType,
@@ -992,9 +992,9 @@ class Decoder {
 
   template <auto kOperandType>
   void DecodeCompressedLoadsp() {
-    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
-    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
-    uint8_t rd = GetBits<uint8_t, 7, 5>();
+    uint8_t low_imm = GetBits<2, 5>();
+    uint8_t high_imm = GetBits<12, 1>();
+    uint8_t rd = GetBits<7, 5>();
     constexpr uint8_t k32bitLow[32] = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31,
                                        0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33,
                                        0x04, 0x14, 0x24, 0x34, 0x05, 0x15, 0x25, 0x35,
@@ -1015,10 +1015,10 @@ class Decoder {
   }
 
   void DecodeCompressedAddi() {
-    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
-    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t low_imm = GetBits<2, 5>();
+    uint8_t high_imm = GetBits<12, 1>();
     int8_t imm = SignExtend<6>(high_imm << 5 | low_imm);
-    uint8_t r = GetBits<uint8_t, 7, 5>();
+    uint8_t r = GetBits<7, 5>();
     if (r == 0 || imm == 0) {
       insn_consumer_->Nop();
     }
@@ -1032,10 +1032,10 @@ class Decoder {
   }
 
   void DecodeCompressedAddiw() {
-    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
-    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t low_imm = GetBits<2, 5>();
+    uint8_t high_imm = GetBits<12, 1>();
     int8_t imm = SignExtend<6>(high_imm << 5 | low_imm);
-    uint8_t r = GetBits<uint8_t, 7, 5>();
+    uint8_t r = GetBits<7, 5>();
     const OpImm32Args args = {
         .opcode = OpImm32Opcode::kAddiw,
         .dst = r,
@@ -1050,12 +1050,12 @@ class Decoder {
     constexpr uint8_t kBLow[32] = {0x00, 0x20, 0x02, 0x22, 0x04, 0x24, 0x06, 0x26, 0x40, 0x60, 0x42,
                                    0x62, 0x44, 0x64, 0x46, 0x66, 0x80, 0xa0, 0x82, 0xa2, 0x84, 0xa4,
                                    0x86, 0xa6, 0xc0, 0xe0, 0xc2, 0xe2, 0xc4, 0xe4, 0xc6, 0xe6};
-    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
-    uint8_t high_imm = GetBits<uint8_t, 10, 3>();
-    uint8_t rs = GetBits<uint8_t, 7, 3>();
+    uint8_t low_imm = GetBits<2, 5>();
+    uint8_t high_imm = GetBits<10, 3>();
+    uint8_t rs = GetBits<7, 3>();
 
     const BranchArgs args = {
-        .opcode = BranchOpcode(GetBits<uint8_t, 13, 1>()),
+        .opcode = BranchOpcode(GetBits<13, 1>()),
         .src1 = uint8_t(8 + rs),
         .src2 = 0,
         .offset = static_cast<int16_t>(SignExtend<9>(kBHigh[high_imm] + kBLow[low_imm])),
@@ -1078,8 +1078,7 @@ class Decoder {
     };
     const JumpAndLinkArgs args = {
         .dst = 0,
-        .offset =
-            bit_cast<int16_t>(kJHigh[GetBits<uint16_t, 8, 5>()]) | kJLow[GetBits<uint16_t, 2, 6>()],
+        .offset = bit_cast<int16_t>(kJHigh[GetBits<8, 5>()]) | kJLow[GetBits<2, 6>()],
         .insn_len = 2,
     };
     insn_consumer_->JumpAndLink(args);
@@ -1090,8 +1089,7 @@ class Decoder {
         0x0, 0x40, 0x80, 0xc0, 0x4, 0x44, 0x84, 0xc4, 0x8, 0x48, 0x88, 0xc8, 0xc, 0x4c, 0x8c, 0xcc};
     constexpr uint8_t kAddi4spnLow[16] = {
         0x0, 0x2, 0x1, 0x3, 0x10, 0x12, 0x11, 0x13, 0x20, 0x22, 0x21, 0x23, 0x30, 0x32, 0x31, 0x33};
-    int16_t imm = (kAddi4spnHigh[GetBits<uint8_t, 9, 4>()] | kAddi4spnLow[GetBits<uint8_t, 5, 4>()])
-                  << 2;
+    int16_t imm = (kAddi4spnHigh[GetBits<9, 4>()] | kAddi4spnLow[GetBits<5, 4>()]) << 2;
     // If immediate is zero then this instruction is treated as unimplemented.
     // This includes RISC-V dedicated 16bit “unimplemented instruction” 0x0000.
     if (imm == 0) {
@@ -1099,7 +1097,7 @@ class Decoder {
     }
     const OpImmArgs args = {
         .opcode = OpImmOpcode::kAddi,
-        .dst = uint8_t(8 + GetBits<uint8_t, 2, 3>()),
+        .dst = uint8_t(8 + GetBits<2, 3>()),
         .src = 2,
         .imm = imm,
     };
@@ -1107,9 +1105,9 @@ class Decoder {
   }
 
   void DecodeCompressedJr_Jalr_Mv_Add() {
-    uint8_t r = GetBits<uint8_t, 7, 5>();
-    uint8_t rs2 = GetBits<uint8_t, 2, 5>();
-    if (GetBits<uint8_t, 12, 1>()) {
+    uint8_t r = GetBits<7, 5>();
+    uint8_t rs2 = GetBits<2, 5>();
+    if (GetBits<12, 1>()) {
       if (r == 0 && rs2 == 0) {
         const SystemArgs args = {
             .opcode = SystemOpcode::kEbreak,
@@ -1154,9 +1152,9 @@ class Decoder {
   }
 
   void DecodeCompressedSlli() {
-    uint8_t r = GetBits<uint8_t, 7, 5>();
-    uint8_t low_imm = GetBits<uint8_t, 2, 5>();
-    uint8_t high_imm = GetBits<uint8_t, 12, 1>();
+    uint8_t r = GetBits<7, 5>();
+    uint8_t low_imm = GetBits<2, 5>();
+    uint8_t high_imm = GetBits<12, 1>();
     uint8_t imm = (high_imm << 5) + low_imm;
     const ShiftImmArgs args = {
         .opcode = ShiftImmOpcode::kSlli,
@@ -1168,7 +1166,7 @@ class Decoder {
   }
 
   uint8_t DecodeBaseInstruction() {
-    BaseOpcode opcode_bits{GetBits<uint8_t, 2, 5>()};
+    BaseOpcode opcode_bits{GetBits<2, 5>()};
 
     switch (opcode_bits) {
       case BaseOpcode::kLoad:
@@ -1238,11 +1236,13 @@ class Decoder {
   }
 
  private:
-  template <typename ResultType, uint32_t start, uint32_t size>
-  ResultType GetBits() {
-    static_assert(std::is_unsigned_v<ResultType>, "Only unsigned types are supported");
-    static_assert(sizeof(ResultType) * CHAR_BIT >= size, "Too small ResultType for size");
+  template <uint32_t start, uint32_t size>
+  auto GetBits() {
     static_assert((start + size) <= 32 && size > 0, "Invalid start or size value");
+    using ResultType = std::conditional_t<
+        size == 1,
+        bool,
+        std::conditional_t<size <= 8, uint8_t, std::conditional_t<size <= 16, uint16_t, uint32_t>>>;
     uint32_t shifted_val = code_ << (32 - start - size);
     return static_cast<ResultType>(shifted_val >> (32 - size));
   }
@@ -1268,32 +1268,32 @@ class Decoder {
   }
 
   void DecodeMiscMem() {
-    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+    uint8_t low_opcode = GetBits<12, 3>();
     switch (low_opcode) {
       case 0b000: {
-        uint8_t high_opcode = GetBits<uint8_t, 28, 4>();
+        uint8_t high_opcode = GetBits<28, 4>();
         FenceOpcode opcode = FenceOpcode{high_opcode};
         const FenceArgs args = {
             .opcode = opcode,
-            .dst = GetBits<uint8_t, 7, 5>(),
-            .src = GetBits<uint8_t, 15, 5>(),
-            .sw = bool(GetBits<uint8_t, 20, 1>()),
-            .sr = bool(GetBits<uint8_t, 21, 1>()),
-            .so = bool(GetBits<uint8_t, 22, 1>()),
-            .si = bool(GetBits<uint8_t, 23, 1>()),
-            .pw = bool(GetBits<uint8_t, 24, 1>()),
-            .pr = bool(GetBits<uint8_t, 25, 1>()),
-            .po = bool(GetBits<uint8_t, 26, 1>()),
-            .pi = bool(GetBits<uint8_t, 27, 1>()),
+            .dst = GetBits<7, 5>(),
+            .src = GetBits<15, 5>(),
+            .sw = GetBits<20, 1>(),
+            .sr = GetBits<21, 1>(),
+            .so = GetBits<22, 1>(),
+            .si = GetBits<23, 1>(),
+            .pw = GetBits<24, 1>(),
+            .pr = GetBits<25, 1>(),
+            .po = GetBits<26, 1>(),
+            .pi = GetBits<27, 1>(),
         };
         insn_consumer_->Fence(args);
         break;
       }
       case 0b001: {
-        uint16_t imm = GetBits<uint16_t, 20, 12>();
+        uint16_t imm = GetBits<20, 12>();
         const FenceIArgs args = {
-            .dst = GetBits<uint8_t, 7, 5>(),
-            .src = GetBits<uint8_t, 15, 5>(),
+            .dst = GetBits<7, 5>(),
+            .src = GetBits<15, 5>(),
             .imm = SignExtend<12>(imm),
         };
         insn_consumer_->FenceI(args);
@@ -1306,8 +1306,8 @@ class Decoder {
 
   template <typename OpcodeType>
   void DecodeOp() {
-    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
-    uint8_t high_opcode = GetBits<uint8_t, 25, 7>();
+    uint8_t low_opcode = GetBits<12, 3>();
+    uint8_t high_opcode = GetBits<25, 7>();
     uint16_t opcode_bits = static_cast<int16_t>(low_opcode | (high_opcode << 3));
     OpcodeType opcode{opcode_bits};
     OpSingleInputOpcode single_input_opcode{opcode_bits};
@@ -1322,29 +1322,29 @@ class Decoder {
     }
     const OpArgsTemplate<OpcodeType> args = {
         .opcode = opcode,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
+        .dst = GetBits<7, 5>(),
+        .src1 = GetBits<15, 5>(),
+        .src2 = GetBits<20, 5>(),
     };
     insn_consumer_->Op(args);
   }
 
   void DecodeSingleInputOp(OpSingleInputOpcode opcode) {
-    uint8_t src1 = GetBits<uint8_t, 15, 5>();
-    uint8_t src2 = GetBits<uint8_t, 20, 5>();
+    uint8_t src1 = GetBits<15, 5>();
+    uint8_t src2 = GetBits<20, 5>();
 
     if (src2 != 0) {
       return Undefined();
     }
-    const OpSingleInputArgs args = {.opcode = opcode, .dst = GetBits<uint8_t, 7, 5>(), .src = src1};
+    const OpSingleInputArgs args = {.opcode = opcode, .dst = GetBits<7, 5>(), .src = src1};
     insn_consumer_->OpSingleInput(args);
   }
 
   void DecodeAmo() {
-    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
-    uint8_t high_opcode = GetBits<uint8_t, 27, 5>();
+    uint8_t low_opcode = GetBits<12, 3>();
+    uint8_t high_opcode = GetBits<27, 5>();
     // lr instruction must have rs2 == 0
-    if (high_opcode == 0b00010 && GetBits<uint8_t, 20, 5>() != 0) {
+    if (high_opcode == 0b00010 && GetBits<20, 5>() != 0) {
       return Undefined();
     }
     AmoOpcode opcode = AmoOpcode{high_opcode};
@@ -1352,43 +1352,43 @@ class Decoder {
     const AmoArgs args = {
         .opcode = opcode,
         .operand_type = operand_type,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
-        .rl = bool(GetBits<uint8_t, 25, 1>()),
-        .aq = bool(GetBits<uint8_t, 26, 1>()),
+        .dst = GetBits<7, 5>(),
+        .src1 = GetBits<15, 5>(),
+        .src2 = GetBits<20, 5>(),
+        .rl = GetBits<25, 1>(),
+        .aq = GetBits<26, 1>(),
     };
     insn_consumer_->Amo(args);
   }
 
   void DecodeFma() {
-    uint8_t operand_type = GetBits<uint8_t, 25, 2>();
-    uint8_t opcode_bits = GetBits<uint8_t, 2, 2>();
+    uint8_t operand_type = GetBits<25, 2>();
+    uint8_t opcode_bits = GetBits<2, 2>();
     const FmaArgs args = {
         .opcode = FmaOpcode(opcode_bits),
         .operand_type = FloatOperandType(operand_type),
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
-        .src3 = GetBits<uint8_t, 27, 5>(),
-        .rm = GetBits<uint8_t, 12, 3>(),
+        .dst = GetBits<7, 5>(),
+        .src1 = GetBits<15, 5>(),
+        .src2 = GetBits<20, 5>(),
+        .src3 = GetBits<27, 5>(),
+        .rm = GetBits<12, 3>(),
     };
     insn_consumer_->Fma(args);
   }
 
   void DecodeLui() {
-    int32_t imm = GetBits<uint32_t, 12, 20>();
+    int32_t imm = GetBits<12, 20>();
     const UpperImmArgs args = {
-        .dst = GetBits<uint8_t, 7, 5>(),
+        .dst = GetBits<7, 5>(),
         .imm = imm << 12,
     };
     insn_consumer_->Lui(args);
   }
 
   void DecodeAuipc() {
-    int32_t imm = GetBits<uint32_t, 12, 20>();
+    int32_t imm = GetBits<12, 20>();
     const UpperImmArgs args = {
-        .dst = GetBits<uint8_t, 7, 5>(),
+        .dst = GetBits<7, 5>(),
         .imm = imm << 12,
     };
     insn_consumer_->Auipc(args);
@@ -1398,19 +1398,19 @@ class Decoder {
   void DecodeLoad() {
     OperandTypeEnum operand_type;
     if constexpr (std::is_same_v<OperandTypeEnum, FloatOperandType>) {
-      auto decoded_operand_type = kLoadStoreWidthToFloatOperandType[GetBits<uint8_t, 12, 3>()];
+      auto decoded_operand_type = kLoadStoreWidthToFloatOperandType[GetBits<12, 3>()];
       if (!decoded_operand_type.has_value()) {
         return Undefined();
       }
       operand_type = *decoded_operand_type;
     } else {
-      operand_type = OperandTypeEnum{GetBits<uint8_t, 12, 3>()};
+      operand_type = OperandTypeEnum{GetBits<12, 3>()};
     }
     const LoadArgsTemplate<OperandTypeEnum> args = {
         .operand_type = operand_type,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src = GetBits<uint8_t, 15, 5>(),
-        .offset = SignExtend<12>(GetBits<uint16_t, 20, 12>()),
+        .dst = GetBits<7, 5>(),
+        .src = GetBits<15, 5>(),
+        .offset = SignExtend<12>(GetBits<20, 12>()),
     };
     insn_consumer_->Load(args);
   }
@@ -1419,23 +1419,23 @@ class Decoder {
   void DecodeStore() {
     OperandTypeEnum operand_type;
     if constexpr (std::is_same_v<OperandTypeEnum, FloatOperandType>) {
-      auto decoded_operand_type = kLoadStoreWidthToFloatOperandType[GetBits<uint8_t, 12, 3>()];
+      auto decoded_operand_type = kLoadStoreWidthToFloatOperandType[GetBits<12, 3>()];
       if (!decoded_operand_type.has_value()) {
         return Undefined();
       }
       operand_type = *decoded_operand_type;
     } else {
-      operand_type = OperandTypeEnum{GetBits<uint8_t, 12, 3>()};
+      operand_type = OperandTypeEnum{GetBits<12, 3>()};
     }
 
-    uint16_t low_imm = GetBits<uint16_t, 7, 5>();
-    uint16_t high_imm = GetBits<uint16_t, 25, 7>();
+    uint16_t low_imm = GetBits<7, 5>();
+    uint16_t high_imm = GetBits<25, 7>();
 
     const StoreArgsTemplate<OperandTypeEnum> args = {
         .operand_type = operand_type,
-        .src = GetBits<uint8_t, 15, 5>(),
+        .src = GetBits<15, 5>(),
         .offset = SignExtend<12>(static_cast<int16_t>(low_imm | (high_imm << 5))),
-        .data = GetBits<uint8_t, 20, 5>(),
+        .data = GetBits<20, 5>(),
     };
     insn_consumer_->Store(args);
   }
@@ -1445,37 +1445,36 @@ class Decoder {
             typename BitmanipOpcodeType,
             uint32_t kShiftFieldSize>
   void DecodeOp() {
-    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
+    uint8_t low_opcode = GetBits<12, 3>();
     if (low_opcode != 0b001 && low_opcode != 0b101) {
       OpOpcodeType opcode{low_opcode};
 
-      uint16_t imm = GetBits<uint16_t, 20, 12>();
+      uint16_t imm = GetBits<20, 12>();
 
       const OpImmArgsTemplate<OpOpcodeType> args = {
           .opcode = opcode,
-          .dst = GetBits<uint8_t, 7, 5>(),
-          .src = GetBits<uint8_t, 15, 5>(),
+          .dst = GetBits<7, 5>(),
+          .src = GetBits<15, 5>(),
           .imm = SignExtend<12>(imm),
       };
       insn_consumer_->OpImm(args);
-    } else if ((GetBits<uint16_t, 31, 1>() +
-                GetBits<uint16_t, 20 + kShiftFieldSize, 10 - kShiftFieldSize>()) ==
+    } else if ((GetBits<31, 1>() + GetBits<20 + kShiftFieldSize, 10 - kShiftFieldSize>()) ==
                0) {  // For Canonical Shift Instructions from RV64G the opcode contains all
                      // zeros except for the 30th (second highest) bit.
-      uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
+      uint16_t high_opcode = GetBits<20 + kShiftFieldSize, 12 - kShiftFieldSize>();
       ShiftOpcodeType opcode{
           static_cast<std::underlying_type_t<ShiftOpcodeType>>(low_opcode | (high_opcode << 3))};
 
       const ShiftImmArgsTemplate<ShiftOpcodeType> args = {
           .opcode = opcode,
-          .dst = GetBits<uint8_t, 7, 5>(),
-          .src = GetBits<uint8_t, 15, 5>(),
-          .imm = GetBits<uint8_t, 20, kShiftFieldSize>(),
+          .dst = GetBits<7, 5>(),
+          .src = GetBits<15, 5>(),
+          .imm = GetBits<20, kShiftFieldSize>(),
       };
       insn_consumer_->OpImm(args);
     } else {
-      uint8_t shamt = GetBits<uint8_t, 20, kShiftFieldSize>();
-      uint16_t high_opcode = GetBits<uint16_t, 20 + kShiftFieldSize, 12 - kShiftFieldSize>();
+      uint8_t shamt = GetBits<20, kShiftFieldSize>();
+      uint16_t high_opcode = GetBits<20 + kShiftFieldSize, 12 - kShiftFieldSize>();
       BitmanipOpcodeType opcode{static_cast<uint16_t>(low_opcode | (high_opcode << 3))};
       bool has_shamt = false;
 
@@ -1501,14 +1500,14 @@ class Decoder {
       }
       // TODO(b/291851792): Refactor instructions with shamt into ShiftImmArgs
       if (!has_shamt) {
-        high_opcode = GetBits<uint16_t, 20, 12>();
+        high_opcode = GetBits<20, 12>();
         opcode = BitmanipOpcodeType{static_cast<uint16_t>(low_opcode | (high_opcode << 3))};
         shamt = 0;
       }
       const BitmanipImmArgsTemplate<BitmanipOpcodeType> args = {
           .opcode = opcode,
-          .dst = GetBits<uint8_t, 7, 5>(),
-          .src = GetBits<uint8_t, 15, 5>(),
+          .dst = GetBits<7, 5>(),
+          .src = GetBits<15, 5>(),
           .shamt = shamt,
       };
       insn_consumer_->OpImm(args);
@@ -1516,20 +1515,20 @@ class Decoder {
   }
 
   void DecodeBranch() {
-    BranchOpcode opcode{GetBits<uint8_t, 12, 3>()};
+    BranchOpcode opcode{GetBits<12, 3>()};
 
     // Decode the offset.
-    auto low_imm = GetBits<uint16_t, 8, 4>();
-    auto mid_imm = GetBits<uint16_t, 25, 6>();
-    auto bit11_imm = GetBits<uint16_t, 7, 1>();
-    auto bit12_imm = GetBits<uint16_t, 31, 1>();
+    auto low_imm = GetBits<8, 4>();
+    auto mid_imm = GetBits<25, 6>();
+    auto bit11_imm = GetBits<7, 1>();
+    auto bit12_imm = GetBits<31, 1>();
     auto offset =
         static_cast<int16_t>(low_imm | (mid_imm << 4) | (bit11_imm << 10) | (bit12_imm << 11));
 
     const BranchArgs args = {
         .opcode = opcode,
-        .src1 = GetBits<uint8_t, 15, 5>(),
-        .src2 = GetBits<uint8_t, 20, 5>(),
+        .src1 = GetBits<15, 5>(),
+        .src2 = GetBits<20, 5>(),
         // The offset is encoded as 2-byte units, we need to multiply by 2.
         .offset = SignExtend<13>(static_cast<int16_t>(offset * 2)),
     };
@@ -1538,15 +1537,15 @@ class Decoder {
 
   void DecodeJumpAndLink() {
     // Decode the offset.
-    auto low_imm = GetBits<uint32_t, 21, 10>();
-    auto mid_imm = GetBits<uint32_t, 12, 8>();
-    auto bit11_imm = GetBits<uint32_t, 20, 1>();
-    auto bit20_imm = GetBits<uint32_t, 31, 1>();
+    auto low_imm = GetBits<21, 10>();
+    auto mid_imm = GetBits<12, 8>();
+    auto bit11_imm = GetBits<20, 1>();
+    auto bit20_imm = GetBits<31, 1>();
     auto offset =
         static_cast<int32_t>(low_imm | (bit11_imm << 10) | (mid_imm << 11) | (bit20_imm << 19));
 
     const JumpAndLinkArgs args = {
-        .dst = GetBits<uint8_t, 7, 5>(),
+        .dst = GetBits<7, 5>(),
         // The offset is encoded as 2-byte units, we need to multiply by 2.
         .offset = SignExtend<21>(offset * 2),
         .insn_len = 4,
@@ -1558,13 +1557,13 @@ class Decoder {
     // Bit #29 = 1: means rm is an opcode extension and not operand.
     // Bit #30 = 1: means rs2 is an opcode extension and not operand.
     // Bit #31 = 1: selects general purpose register instead of floating point register as target.
-    uint8_t operand_type = GetBits<uint8_t, 25, 2>();
-    uint8_t opcode_bits = GetBits<uint8_t, 27, 2>();
-    uint8_t rd = GetBits<uint8_t, 7, 5>();
-    uint8_t rs1 = GetBits<uint8_t, 15, 5>();
-    uint8_t rs2 = GetBits<uint8_t, 20, 5>();
-    uint8_t rm = GetBits<uint8_t, 12, 3>();
-    switch (GetBits<uint8_t, 29, 3>()) {
+    uint8_t operand_type = GetBits<25, 2>();
+    uint8_t opcode_bits = GetBits<27, 2>();
+    uint8_t rd = GetBits<7, 5>();
+    uint8_t rs1 = GetBits<15, 5>();
+    uint8_t rs2 = GetBits<20, 5>();
+    uint8_t rm = GetBits<12, 3>();
+    switch (GetBits<29, 3>()) {
       case 0b000: {
         const OpFpArgs args = {
             .opcode = OpFpOpcode(opcode_bits),
@@ -1702,14 +1701,14 @@ class Decoder {
   }
 
   void DecodeOpV() {
-    uint8_t low_opcode = GetBits<uint8_t, 12, 3>();
-    bool vm = GetBits<uint8_t, 25, 1>();
-    uint8_t opcode = GetBits<uint8_t, 26, 6>();
-    uint8_t dst = GetBits<uint8_t, 7, 5>();
+    uint8_t low_opcode = GetBits<12, 3>();
+    bool vm = GetBits<25, 1>();
+    uint8_t opcode = GetBits<26, 6>();
+    uint8_t dst = GetBits<7, 5>();
     // Note: in vector instructions vs2 field is 2nd operand while vs1 field is 2rd operand.
     // FMA instructions are exception, but there are not that many of these.
-    uint8_t src1 = GetBits<uint8_t, 20, 5>();
-    uint8_t src2 = GetBits<uint8_t, 15, 5>();
+    uint8_t src1 = GetBits<20, 5>();
+    uint8_t src2 = GetBits<15, 5>();
     switch (low_opcode) {
       case 0b000: {
         const VOpIVvArgs args = {
@@ -1742,25 +1741,25 @@ class Decoder {
         return insn_consumer_->OpVector(args);
       }
       case 0b111:
-        if (GetBits<uint8_t, 31, 1>() == 0) {
+        if (GetBits<31, 1>() == 0) {
           const VsetvliArgs args = {
-              .dst = GetBits<uint8_t, 7, 5>(),
-              .src = GetBits<uint8_t, 15, 5>(),
-              .vtype = GetBits<uint16_t, 20, 11>(),
+              .dst = GetBits<7, 5>(),
+              .src = GetBits<15, 5>(),
+              .vtype = GetBits<20, 11>(),
           };
           return insn_consumer_->Vsetvli(args);
-        } else if (GetBits<uint8_t, 30, 1>() == 1) {
+        } else if (GetBits<30, 1>() == 1) {
           const VsetivliArgs args = {
-              .dst = GetBits<uint8_t, 7, 5>(),
-              .avl = GetBits<uint8_t, 15, 5>(),
-              .vtype = GetBits<uint16_t, 20, 10>(),
+              .dst = GetBits<7, 5>(),
+              .avl = GetBits<15, 5>(),
+              .vtype = GetBits<20, 10>(),
           };
           return insn_consumer_->Vsetivli(args);
-        } else if (GetBits<uint8_t, 25, 6>() == 0) {
+        } else if (GetBits<25, 6>() == 0) {
           const VsetvlArgs args = {
-              .dst = GetBits<uint8_t, 7, 5>(),
-              .src1 = GetBits<uint8_t, 15, 5>(),
-              .src2 = GetBits<uint8_t, 20, 5>(),
+              .dst = GetBits<7, 5>(),
+              .src1 = GetBits<15, 5>(),
+              .src2 = GetBits<20, 5>(),
           };
           return insn_consumer_->Vsetvl(args);
         }
@@ -1768,46 +1767,46 @@ class Decoder {
   }
 
   void DecodeSystem() {
-    uint8_t low_opcode = GetBits<uint8_t, 12, 2>();
+    uint8_t low_opcode = GetBits<12, 2>();
     if (low_opcode == 0b00) {
-      int32_t opcode = GetBits<uint32_t, 7, 25>();
+      int32_t opcode = GetBits<7, 25>();
       const SystemArgs args = {
           .opcode = SystemOpcode(opcode),
       };
       return insn_consumer_->System(args);
     }
-    if (GetBits<uint8_t, 14, 1>()) {
+    if (GetBits<14, 1>()) {
       CsrImmOpcode opcode = CsrImmOpcode(low_opcode);
       const CsrImmArgs args = {
           .opcode = opcode,
-          .dst = GetBits<uint8_t, 7, 5>(),
-          .imm = GetBits<uint8_t, 15, 5>(),
-          .csr = GetBits<uint16_t, 20, 12>(),
+          .dst = GetBits<7, 5>(),
+          .imm = GetBits<15, 5>(),
+          .csr = GetBits<20, 12>(),
       };
       return insn_consumer_->Csr(args);
     }
     CsrOpcode opcode = CsrOpcode(low_opcode);
     const CsrArgs args = {
         .opcode = opcode,
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .src = GetBits<uint8_t, 15, 5>(),
-        .csr = GetBits<uint16_t, 20, 12>(),
+        .dst = GetBits<7, 5>(),
+        .src = GetBits<15, 5>(),
+        .csr = GetBits<20, 12>(),
     };
     return insn_consumer_->Csr(args);
   }
 
   void DecodeJumpAndLinkRegister() {
-    if (GetBits<uint8_t, 12, 3>() != 0b000) {
+    if (GetBits<12, 3>() != 0b000) {
       Undefined();
       return;
     }
     // Decode sign-extend offset.
-    int16_t offset = GetBits<uint16_t, 20, 12>();
+    int16_t offset = GetBits<20, 12>();
     offset = static_cast<int16_t>(offset << 4) >> 4;
 
     const JumpAndLinkRegisterArgs args = {
-        .dst = GetBits<uint8_t, 7, 5>(),
-        .base = GetBits<uint8_t, 15, 5>(),
+        .dst = GetBits<7, 5>(),
+        .base = GetBits<15, 5>(),
         .offset = offset,
         .insn_len = 4,
     };
