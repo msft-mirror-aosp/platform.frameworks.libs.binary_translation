@@ -268,7 +268,9 @@ Register HeavyOptimizerFrontend::GetReg(uint8_t reg) {
 
 void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
   CHECK_LT(reg, kNumGuestRegs);
-  builder_.GenPut(GetThreadStateRegOffset(reg), value);
+  if (success()) {
+    builder_.GenPut(GetThreadStateRegOffset(reg), value);
+  }
 }
 
 FpRegister HeavyOptimizerFrontend::GetFpReg(uint8_t reg) {

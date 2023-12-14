@@ -259,8 +259,10 @@ class HeavyOptimizerFrontend {
   template <typename FloatType>
   void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
     CHECK_LE(reg, kNumGuestFpRegs);
-    NanBoxFpReg<FloatType>(value);
-    builder_.GenSetSimd<8>(GetThreadStateFRegOffset(reg), value.machine_reg());
+    if (success()) {
+      NanBoxFpReg<FloatType>(value);
+      builder_.GenSetSimd<8>(GetThreadStateFRegOffset(reg), value.machine_reg());
+    }
   }
 
   template <typename DataType>
