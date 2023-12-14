@@ -217,6 +217,10 @@ void TranslateRegion(GuestAddr pc) {
   } else if (g_translation_mode == TranslationMode::kTwoGear && kGear == TranslationGear::kFirst) {
     std::tie(success, host_code_piece, size, kind) = TryLiteTranslateAndInstallRegion(
         pc, {.enable_self_profiling = true, .counter_location = &(entry->invocation_counter)});
+    if (!success) {
+      std::tie(host_code_piece, size, kind) =
+          std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
+    }
   } else {
     LOG_ALWAYS_FATAL("Unsupported translation mode %u", g_translation_mode);
   }
