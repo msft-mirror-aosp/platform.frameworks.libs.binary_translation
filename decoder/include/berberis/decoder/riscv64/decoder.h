@@ -341,7 +341,10 @@ class Decoder {
   };
 
   enum class VOpMVvOpcode : uint8_t {
+    kVmaddvv = 0b101001,
+    kVnmsubvv = 0b101011,
     kVmaccvv = 0b101101,
+    kVnmsacvv = 0b101111,
     kMaxValue = 0b111111
   };
 
@@ -390,7 +393,10 @@ class Decoder {
   };
 
   enum class VOpMVxOpcode : uint8_t {
+    kVmaddvx = 0b101001,
+    kVnmsubvx = 0b101011,
     kVmaccvx = 0b101101,
+    kVnmsacvx = 0b101111,
     kMaxValue = 0b111111
   };
 
@@ -1731,7 +1737,7 @@ class Decoder {
     bool vm = GetBits<25, 1>();
     uint8_t opcode = GetBits<26, 6>();
     uint8_t dst = GetBits<7, 5>();
-    // Note: in vector instructions vs2 field is 2nd operand while vs1 field is 2rd operand.
+    // Note: in vector instructions vs2 field is 2nd operand while vs1 field is 3rd operand.
     // FMA instructions are exception, but there are not that many of these.
     uint8_t src1 = GetBits<20, 5>();
     uint8_t src2 = GetBits<15, 5>();
