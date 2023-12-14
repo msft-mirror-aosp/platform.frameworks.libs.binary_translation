@@ -340,6 +340,11 @@ class Decoder {
     kMaxValue = 0b111111
   };
 
+  enum class VOpMVvOpcode : uint8_t {
+    kVmaccvv = 0b101101,
+    kMaxValue = 0b111111
+  };
+
   enum class VOpIVxOpcode : uint8_t {
     kVaddvx = 0b000000,
     kVsubvx = 0b000010,
@@ -381,6 +386,11 @@ class Decoder {
     kVnsravx = 0b101101,
     kVnclipuvx = 0b101110,
     kVnclipvx = 0b101111,
+    kMaxValue = 0b111111
+  };
+
+  enum class VOpMVxOpcode : uint8_t {
+    kVmaccvx = 0b101101,
     kMaxValue = 0b111111
   };
 
@@ -636,8 +646,24 @@ class Decoder {
     uint8_t src2;
   };
 
+  struct VOpMVvArgs {
+    VOpMVvOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
   struct VOpIVxArgs {
     VOpIVxOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
+  struct VOpMVxArgs {
+    VOpMVxOpcode opcode;
     bool vm;
     uint8_t dst;
     uint8_t src1;
@@ -1721,6 +1747,16 @@ class Decoder {
         };
         return insn_consumer_->OpVector(args);
       }
+      case 0b010: {
+        const VOpMVvArgs args = {
+            .opcode = VOpMVvOpcode(opcode),
+            .vm = vm,
+            .dst = dst,
+            .src1 = src1,
+            .src2 = src2,
+        };
+        return insn_consumer_->OpVector(args);
+      }
       case 0b011: {
         const VOpIViArgs args = {
             .opcode = VOpIViOpcode(opcode),
@@ -1734,6 +1770,16 @@ class Decoder {
       case 0b100: {
         const VOpIVxArgs args = {
             .opcode = VOpIVxOpcode(opcode),
+            .vm = vm,
+            .dst = dst,
+            .src1 = src1,
+            .src2 = src2,
+        };
+        return insn_consumer_->OpVector(args);
+      }
+      case 0b110: {
+        const VOpMVxArgs args = {
+            .opcode = VOpMVxOpcode(opcode),
             .vm = vm,
             .dst = dst,
             .src1 = src1,
