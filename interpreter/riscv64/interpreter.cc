@@ -652,6 +652,26 @@ class Interpreter {
   }
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
+  void OpVector(const Decoder::VOpMVvArgs& args) {
+    switch (args.opcode) {
+      case Decoder::VOpMVvOpcode::kVmaddvv:
+        return OpVectorvv<intrinsics::Vmaddvv<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVnmsubvv:
+        return OpVectorvv<intrinsics::Vnmsubvv<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmaccvv:
+        return OpVectorvv<intrinsics::Vmaccvv<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVnmsacvv:
+        return OpVectorvv<intrinsics::Vnmsacvv<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      default:
+        Unimplemented();
+    }
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpIVxArgs& args, Register arg2) {
     switch (args.opcode) {
       case Decoder::VOpIVxOpcode::kVaddvx:
@@ -710,6 +730,26 @@ class Interpreter {
                           vta>(args.dst, args.src1, arg2);
       case Decoder::VOpIVxOpcode::kVsllvx:
         return OpVectorvx<intrinsics::Vsllvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, arg2);
+      default:
+        Unimplemented();
+    }
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
+  void OpVector(const Decoder::VOpMVxArgs& args, Register arg2) {
+    switch (args.opcode) {
+      case Decoder::VOpMVxOpcode::kVmaddvx:
+        return OpVectorvx<intrinsics::Vmaddvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpMVxOpcode::kVnmsubvx:
+        return OpVectorvx<intrinsics::Vnmsubvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpMVxOpcode::kVmaccvx:
+        return OpVectorvx<intrinsics::Vmaccvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpMVxOpcode::kVnmsacvx:
+        return OpVectorvx<intrinsics::Vnmsacvx<ElementType, vta>, ElementType, vlmul, vta>(
             args.dst, args.src1, arg2);
       default:
         Unimplemented();
@@ -902,6 +942,41 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             InactiveProcessing vma>
+  void OpVector(const Decoder::VOpMVvArgs& args) {
+    switch (args.opcode) {
+      case Decoder::VOpMVvOpcode::kVmaddvv:
+        return OpVectorvv<intrinsics::Vmaddvvm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVnmsubvv:
+        return OpVectorvv<intrinsics::Vnmsubvvm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmaccvv:
+        return OpVectorvv<intrinsics::Vmaccvvm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVnmsacvv:
+        return OpVectorvv<intrinsics::Vnmsacvvm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      default:
+        Unimplemented();
+    }
+  }
+
+  template <typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            InactiveProcessing vma>
   void OpVector(const Decoder::VOpIVxArgs& args, Register arg2) {
     switch (args.opcode) {
       case Decoder::VOpIVxOpcode::kVaddvx:
@@ -973,6 +1048,41 @@ class Interpreter {
       case Decoder::VOpIVxOpcode::kVsllvx:
         return OpVectorvx<intrinsics::Vsllvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, arg2);
+      default:
+        Unimplemented();
+    }
+  }
+
+  template <typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            InactiveProcessing vma>
+  void OpVector(const Decoder::VOpMVxArgs& args, Register arg2) {
+    switch (args.opcode) {
+      case Decoder::VOpMVxOpcode::kVmaddvx:
+        return OpVectorvx<intrinsics::Vmaddvxm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, arg2);
+      case Decoder::VOpMVxOpcode::kVnmsubvx:
+        return OpVectorvx<intrinsics::Vnmsubvxm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, arg2);
+      case Decoder::VOpMVxOpcode::kVmaccvx:
+        return OpVectorvx<intrinsics::Vmaccvxm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, arg2);
+      case Decoder::VOpMVxOpcode::kVnmsacvx:
+        return OpVectorvx<intrinsics::Vnmsacvxm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, arg2);
       default:
         Unimplemented();
     }
