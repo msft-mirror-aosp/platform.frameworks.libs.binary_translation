@@ -920,12 +920,11 @@ void HeavyOptimizerFrontend::MemoryRegionReservationLoad(Register aligned_addr) 
                           {x86_64::kMachineRegRBP, x86_64::CallImm::kIntRegType},
                       }});
 
-  // Load monitor value and store it in CPUState.
-  auto monitor = AllocTempSimdReg();
-  MachineReg reservation_reg = monitor.machine_reg();
-  Gen<x86_64::MovqRegMemBaseDisp>(reservation_reg, aligned_addr, 0);
+  // Load reservation value and store it in CPUState.
+  auto reservation = AllocTempReg();
+  Gen<x86_64::MovqRegMemBaseDisp>(reservation, aligned_addr, 0);
   int32_t value_offset = GetThreadStateReservationValueOffset();
-  Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, value_offset, reservation_reg);
+  Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, value_offset, reservation);
 }
 
 Register HeavyOptimizerFrontend::MemoryRegionReservationExchange(Register aligned_addr,
