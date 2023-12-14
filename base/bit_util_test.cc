@@ -27,6 +27,62 @@ static_assert(BitUtilLog2(1) == 0);
 static_assert(BitUtilLog2(16) == 4);
 static_assert(BitUtilLog2(sizeof(void*)) > 0);
 
+static_assert(SatInt8{127} + SatInt8{1} == SatInt8{127});
+static_assert(Int8{127} + Int8{1} == Int8{-128});
+
+static_assert(SatUInt8{255} + SatUInt8{1} == SatUInt8{255});
+static_assert(UInt8{255} + UInt8{1} == UInt8{0});
+
+static_assert(SatInt8{-128} - SatInt8{1} == SatInt8{-128});
+static_assert(Int8{-128} - Int8{1} == Int8{127});
+
+static_assert(SatUInt8{0} - SatUInt8{1} == SatUInt8{0});
+static_assert(UInt8{0} - UInt8{1} == UInt8{255});
+
+static_assert(SatInt8{-128} * SatInt8{-128} == SatInt8{127});
+static_assert(SatInt8{-128} * SatInt8{127} == SatInt8{-128});
+static_assert(SatInt8{127} * SatInt8{-128} == SatInt8{-128});
+static_assert(SatInt8{127} * SatInt8{127} == SatInt8{127});
+static_assert(Int8{-128} * Int8{-128} == Int8{0});
+static_assert(Int8{-128} * Int8{127} == Int8{-128});
+static_assert(Int8{127} * Int8{-128} == Int8{-128});
+static_assert(Int8{127} * Int8{127} == Int8{1});
+
+static_assert(SatUInt8{255} * SatUInt8{255} == SatUInt8{255});
+static_assert(UInt8{255} * UInt8{255} == UInt8{1});
+
+static_assert(SatInt8{-128} / SatInt8{-1} == SatInt8{127});
+static_assert(Int8{-128} / Int8{-1} == Int8{-128});
+
+static_assert(SatUInt8{255} / SatUInt8{1} == SatUInt8{255});
+static_assert(UInt8{255} / UInt8{1} == UInt8{255});
+
+static_assert((Int8{123} << Int8{8}) == Int8{123});
+static_assert((Int8{123} << Int8{65}) == Int8{-10});
+
+static_assert((UInt8{123} << UInt8{8}) == UInt8{123});
+static_assert((UInt8{123} << UInt8{65}) == UInt8{246});
+
+static_assert((Int8{123} >> Int8{8}) == Int8{123});
+static_assert((Int8{123} >> Int8{65}) == Int8{61});
+
+static_assert((UInt8{123} >> UInt8{8}) == UInt8{123});
+static_assert((UInt8{123} >> UInt8{65}) == UInt8{61});
+
+static_assert(SatInt8{1} == SatInt8{Int8{1}});
+
+// Verify that types are correctly expaned when needed.
+// Note: attept to use signed and unsigned types in the same expression
+// or mix saturating types and wrapping types trigger a compile-time error.
+static_assert(SatInt16{1} + SatInt8{1} == SatInt16{2});
+static_assert(Int16{1} + Int8{1} == Int16{2});
+
+static_assert(SatInt8{1} + SatInt32{1} == SatInt32{2});
+static_assert(Int8{1} + Int32{1} == Int32{2});
+
+static_assert((Int16{1} << Int8{8}) == Int16{256});
+static_assert((Int8{1} << Int16{8}) == Int16{256});
+
 }  // namespace
 
 }  // namespace berberis
