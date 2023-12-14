@@ -250,9 +250,21 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sll, auto [arg1, arg2] = std::tuple{args...};
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sll, auto [arg1, arg2] = std::tuple{args...};
                                    (arg1 << mask_bits(arg2)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(macc, auto [arg1, arg2] = std::tuple{args...};
-                                   ((arg1 * arg2) + vd));
+                                   ((arg2 * arg1) + vd))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(macc, auto [arg1, arg2] = std::tuple{args...};
-                                   ((arg1 * arg2) + vd));
+                                   ((arg2 * arg1) + vd))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(nmsac, auto [arg1, arg2] = std::tuple{args...};
+                                   (-(arg2 * arg1) + vd))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(nmsac, auto [arg1, arg2] = std::tuple{args...};
+                                   (-(arg2 * arg1) + vd))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(madd, auto [arg1, arg2] = std::tuple{args...};
+                                   ((arg2 * vd) + arg1))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(madd, auto [arg1, arg2] = std::tuple{args...};
+                                   ((arg2 * vd) + arg1))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(nmsub, auto [arg1, arg2] = std::tuple{args...};
+                                   (-(arg2 * vd) + arg1))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(nmsub, auto [arg1, arg2] = std::tuple{args...};
+                                   (-(arg2 * vd) + arg1))
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
 
