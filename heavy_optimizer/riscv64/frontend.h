@@ -499,9 +499,8 @@ template <>
 HeavyOptimizerFrontend::GetCsr<CsrName::kFCsr>() {
   auto csr_reg = AllocTempReg();
   auto tmp = AllocTempReg();
-  bool inline_successful = TryInlineIntrinsicForHeavyOptimizer<&intrinsics::FeGetExceptions>(
+  InlineIntrinsicForHeavyOptimizer<&intrinsics::FeGetExceptions>(
       &builder_, tmp, GetFlagsRegister());
-  CHECK(inline_successful);
   Gen<x86_64::MovzxbqRegMemBaseDisp>(
       csr_reg, x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>);
   Gen<x86_64::ShlbRegImm>(csr_reg, 5, GetFlagsRegister());
@@ -540,52 +539,38 @@ HeavyOptimizerFrontend::GetCsr<CsrName::kVxsat>() {
 }
 
 template <>
-inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFCsr>(uint8_t /* imm */) {
-  Unimplemented();
-  // TODO(b/291126436) Figure out how to pass Mem arg to FeSetExceptionsAndRoundImmTranslate.
-  // // Note: instructions Csrrci or Csrrsi couldn't affect Frm because immediate only has five
-  // bits.
-  // // But these instruction don't pass their immediate-specified argument into `SetCsr`, they
-  // combine
-  // // it with register first. Fixing that can only be done by changing code in the semantics
-  // player.
-  // //
-  // // But Csrrwi may clear it.  And we actually may only arrive here from Csrrwi.
-  // // Thus, technically, we know that imm >> 5 is always zero, but it doesn't look like a good
-  // idea
-  // // to rely on that: it's very subtle and it only affects code generation speed.
-  // Gen<x86_64::MovbMemBaseDispImm>(x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>,
-  // static_cast<int8_t>(imm >> 5)); bool successful =
-  // TryInlineIntrinsicForHeavyOptimizer<&intrinsics::FeSetExceptionsAndRoundImmTranslate>(
-  //     &builder_,
-  //     GetFlagsRegister(),
-  //     x86_64::kMachineRegRBP,
-  //     static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area)),
-  //     imm);
-  // CHECK(successful);
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFCsr>(uint8_t imm) {
+  // Note: instructions Csrrci or Csrrsi couldn't affect Frm because immediate only has five bits.
+  // But these instruction don't pass their immediate-specified argument into `SetCsr`, they combine
+  // it with register first. Fixing that can only be done by changing code in the semantics player.
+  //
+  // But Csrrwi may clear it.  And we actually may only arrive here from Csrrwi.
+  // Thus, technically, we know that imm >> 5 is always zero, but it doesn't look like a good idea
+  // to rely on that: it's very subtle and it only affects code generation speed.
+  Gen<x86_64::MovbMemBaseDispImm>(
+      x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>, static_cast<int8_t>(imm >> 5));
+  InlineIntrinsicForHeavyOptimizerVoid<&intrinsics::FeSetExceptionsAndRoundImm>(
+      &builder_, GetFlagsRegister(), imm);
 }
 
 template <>
-inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFCsr>(Register /* arg */) {
-  Unimplemented();
-  // TODO(b/291126436) Figure out how to pass Mem arg to FeSetExceptionsAndRoundTranslate.
-  // auto tmp1 = AllocTempReg();
-  // auto tmp2 = AllocTempReg();
-  // Gen<PseudoCopy>(tmp1, arg, 1);
-  // Gen<x86_64::AndlRegImm>(tmp1, 0b1'1111, GetFlagsRegister());
-  // Gen<x86_64::ShldlRegRegImm>(tmp2, arg, int8_t{32 - 5}, GetFlagsRegister());
-  // Gen<x86_64::AndbRegImm>(tmp2, kCsrMask<CsrName::kFrm>, GetFlagsRegister());
-  // Gen<x86_64::MovbMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>,
-  //                  tmp2);
-  // bool successful =
-  // TryInlineIntrinsicForHeavyOptimizer<&intrinsics::FeSetExceptionsAndRoundTranslate>(
-  //     &builder_,
-  //     GetFlagsRegister(),
-  //     tmp1,
-  //     x86_64::kMachineRegRBP,
-  //     static_cast<int>(offsetof(ThreadState, intrinsics_scratch_area)),
-  //     tmp1);
-  // CHECK(successful);
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFCsr>(Register arg) {
+  // Check size to be sure we can use Andb and Movb below.
+  static_assert(sizeof(kCsrMask<CsrName::kFrm>) == 1);
+
+  auto exceptions = AllocTempReg();
+  auto rounding_mode = AllocTempReg();
+  Gen<PseudoCopy>(exceptions, arg, 1);
+  Gen<x86_64::AndlRegImm>(exceptions, 0b1'1111, GetFlagsRegister());
+  // We don't care about the data in rounding_mode because we will shift in the
+  // data we need.
+  Gen<PseudoDefReg>(rounding_mode);
+  Gen<x86_64::ShldlRegRegImm>(rounding_mode, arg, int8_t{32 - 5}, GetFlagsRegister());
+  Gen<x86_64::AndbRegImm>(rounding_mode, kCsrMask<CsrName::kFrm>, GetFlagsRegister());
+  Gen<x86_64::MovbMemBaseDispReg>(
+      x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>, rounding_mode);
+  InlineIntrinsicForHeavyOptimizerVoid<&intrinsics::FeSetExceptionsAndRound>(
+      &builder_, GetFlagsRegister(), exceptions, rounding_mode);
 }
 
 template <>

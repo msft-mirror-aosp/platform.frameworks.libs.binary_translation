@@ -785,7 +785,9 @@ def _gen_opcode_generators(intrs):
 
 def _gen_opcode_generator(asm, opcode_generators):
   name = asm['name']
-  opcode = 'Undefined' if any([arg.get('class').startswith("Mem") and arg.get('usage') == 'def_early_clobber' for arg in asm['args']]) else name
+  num_mem_args = sum(1 for arg in asm['args'] if arg.get('class').startswith("Mem") and arg.get('usage') == 'def_early_clobber')
+  opcode = 'Undefined' if num_mem_args > 2 else (asm_defs.get_mem_macro_name(asm, '').replace("Mem", "MemBaseDisp")) if num_mem_args > 0 else name
+
   if name not in opcode_generators:
     opcode_generators[name] = True
     yield """

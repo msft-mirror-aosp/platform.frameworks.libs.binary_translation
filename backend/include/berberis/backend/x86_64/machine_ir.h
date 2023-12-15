@@ -43,6 +43,7 @@ enum MachineOpcode : int {
   kMachineOpPseudoJump,
   kMachineOpPseudoReadFlags,
   kMachineOpPseudoWriteFlags,
+#include "berberis/backend/x86_64/machine_opcode_guest-inl.h"
 #include "machine_opcode_x86_64-inl.h"  // NOLINT generated file!
 };
 
