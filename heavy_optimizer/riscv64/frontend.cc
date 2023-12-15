@@ -262,13 +262,13 @@ void HeavyOptimizerFrontend::UpdateBranchTargetsAfterSplit(GuestAddr addr,
 Register HeavyOptimizerFrontend::GetReg(uint8_t reg) {
   CHECK_LT(reg, kNumGuestRegs);
   Register dst = AllocTempReg();
-  builder_.GenGetOffset(dst, GetThreadStateRegOffset(reg));
+  builder_.GenGet(dst, GetThreadStateRegOffset(reg));
   return dst;
 }
 
 void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
   CHECK_LT(reg, kNumGuestRegs);
-  builder_.GenPutOffset(GetThreadStateRegOffset(reg), value);
+  builder_.GenPut(GetThreadStateRegOffset(reg), value);
 }
 
 FpRegister HeavyOptimizerFrontend::GetFpReg(uint8_t reg) {
@@ -830,7 +830,7 @@ Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrOpcode opcode, Register a
       Unimplemented();
       return {};
   }
-  return arg;
+  return res;
 }
 
 Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrImmOpcode opcode,

@@ -225,8 +225,22 @@
     "out": []
   },
   {
+    "name": "FeSetExceptionsAndRound",
+    "insn": "MacroFeSetExceptionsAndRoundTranslate",
+    "usage": "translate-only",
+    "in": [ 0, 3 ],
+    "out": []
+  },
+  {
     "name": "FeSetExceptionsImm",
     "insn": "MacroFeSetExceptionsImmTranslate",
+    "usage": "translate-only",
+    "in": [ 1 ],
+    "out": []
+  },
+  {
+    "name": "FeSetExceptionsAndRoundImm",
+    "insn": "MacroFeSetExceptionsAndRoundImmTranslate",
     "usage": "translate-only",
     "in": [ 1 ],
     "out": []

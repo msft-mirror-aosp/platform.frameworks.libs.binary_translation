@@ -345,7 +345,23 @@
     "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
     "has_side_effects": true
   },
+  "FeSetExceptionsAndRound": {
+    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint8_t" ],
+    "out": [],
+    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
   "FeSetExceptionsImm": {
+    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
+    "class": "scalar",
+    "in": [ "uimm8" ],
+    "out": [],
+    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
+  "FeSetExceptionsAndRoundImm": {
     "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
     "class": "scalar",
     "in": [ "uimm8" ],
@@ -357,13 +373,15 @@
     "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
     "class": "scalar",
     "in": [ "uint64_t" ],
-    "out": []
+    "out": [],
+    "has_side_effects": true
   },
   "FeSetRoundImm": {
     "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
     "class": "scalar",
     "in": [ "uimm8" ],
-    "out": []
+    "out": [],
+    "has_side_effects": true
   },
   "FMAdd": {
     "comment": "Fused multiply-addition",
