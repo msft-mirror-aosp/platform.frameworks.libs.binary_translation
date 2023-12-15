@@ -70,8 +70,9 @@ constexpr bool IsAligned(T* p, size_t align) {
 template <typename T>
 constexpr T BitUtilLog2(T x) {
   static_assert(std::is_integral_v<T>, "Log2: T must be integral");
-  DCHECK(IsPowerOf2(x));
-  return x == 1 ? 0 : BitUtilLog2(x >> 1) + 1;
+  CHECK(IsPowerOf2(x));
+  // TODO(b/260725458): Use std::countr_zero after C++20 becomes available
+  return __builtin_ctz(x);
 }
 
 // Verify that argument value fits into a target.
