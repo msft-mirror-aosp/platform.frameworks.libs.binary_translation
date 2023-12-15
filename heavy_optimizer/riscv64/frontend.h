@@ -388,7 +388,8 @@ class HeavyOptimizerFrontend {
             typename... AssemblerArgType,
             std::enable_if_t<std::is_same_v<std::decay_t<AssemblerResType>, void>, bool> = true>
   void CallIntrinsic(AssemblerArgType... args) {
-    if (TryInlineIntrinsicForHeavyOptimizer<kFunction>(&builder_, GetFlagsRegister(), args...)) {
+    if (TryInlineIntrinsicForHeavyOptimizerVoid<kFunction>(
+            &builder_, GetFlagsRegister(), args...)) {
       return;
     }
 
@@ -499,7 +500,7 @@ HeavyOptimizerFrontend::GetCsr<CsrName::kFCsr>() {
   auto csr_reg = AllocTempReg();
   auto tmp = AllocTempReg();
   bool inline_successful = TryInlineIntrinsicForHeavyOptimizer<&intrinsics::FeGetExceptions>(
-      &builder_, GetFlagsRegister(), tmp);
+      &builder_, tmp, GetFlagsRegister());
   CHECK(inline_successful);
   Gen<x86_64::MovzxbqRegMemBaseDisp>(
       csr_reg, x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>);
