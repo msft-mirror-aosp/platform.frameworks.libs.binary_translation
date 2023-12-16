@@ -17,8 +17,10 @@
 #ifndef BERBERIS_BASE_BIT_UTIL_H_
 #define BERBERIS_BASE_BIT_UTIL_H_
 
+#include <climits>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <type_traits>
 
 #include "berberis/base/checks.h"
@@ -70,8 +72,9 @@ constexpr bool IsAligned(T* p, size_t align) {
 template <typename T>
 constexpr T BitUtilLog2(T x) {
   static_assert(std::is_integral_v<T>, "Log2: T must be integral");
-  DCHECK(IsPowerOf2(x));
-  return x == 1 ? 0 : BitUtilLog2(x >> 1) + 1;
+  CHECK(IsPowerOf2(x));
+  // TODO(b/260725458): Use std::countr_zero after C++20 becomes available
+  return __builtin_ctz(x);
 }
 
 // Verify that argument value fits into a target.
@@ -110,6 +113,260 @@ inline Dest bit_cast(const Source& source) {
   memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
+
+// Saturating and wrapping integers.
+//   1. Never trigger UB, even in case of overflow.
+//   2. Only support mixed types when both are of the same type (e.g. SatInt8 and SatInt16 or
+//      Int8 and Int64 are allowed, but SatInt8 and Int8 are forbidden and Int32 and Uint32
+//      require explicit casting, too).
+//   3. Results are performed after type expansion.
+
+template <typename BaseType>
+class Wrapping;
+
+template <typename BaseType>
+class Saturating {
+ public:
+  static_assert(std::is_integral_v<BaseType>);
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(IntType) == sizeof(BaseType)>>
+  [[nodiscard]] constexpr operator IntType() const {
+    return static_cast<IntType>(value);
+  }
+  template <
+      typename IntType,
+      typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                  ((sizeof(BaseType) < sizeof(IntType) &&
+                                    std::is_signed_v<IntType> == std::is_signed_v<BaseType>) ||
+                                   (sizeof(BaseType) == sizeof(IntType))) &&
+                                  !std::is_same_v<IntType, BaseType>>>
+  [[nodiscard]] constexpr operator Saturating<IntType>() const {
+    return {static_cast<IntType>(value)};
+  }
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(BaseType) == sizeof(IntType)>>
+  [[nodiscard]] constexpr operator Wrapping<IntType>() const {
+    return {static_cast<IntType>(value)};
+  }
+
+  [[nodiscard]] friend constexpr bool operator==(Saturating lhs, Saturating rhs) {
+    return lhs.value == rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator!=(Saturating lhs, Saturating rhs) {
+    return lhs.value != rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator<(Saturating lhs, Saturating rhs) {
+    return lhs.value < rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator<=(Saturating lhs, Saturating rhs) {
+    return lhs.value <= rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator>(Saturating lhs, Saturating rhs) {
+    return lhs.value > rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator>=(Saturating lhs, Saturating rhs) {
+    return lhs.value >= rhs.value;
+  }
+  [[nodiscard]] friend constexpr Saturating& operator+=(Saturating& lhs, Saturating rhs) {
+    lhs = lhs + rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Saturating operator+(Saturating lhs, Saturating rhs) {
+    BaseType result;
+    bool overflow = __builtin_add_overflow(lhs.value, rhs.value, &result);
+    if (overflow) {
+      if constexpr (std::is_signed_v<BaseType>) {
+        if (result < 0) {
+          result = std::numeric_limits<BaseType>::max();
+        } else {
+          result = std::numeric_limits<BaseType>::min();
+        }
+      } else {
+        result = std::numeric_limits<BaseType>::max();
+      }
+    }
+    return {result};
+  }
+  [[nodiscard]] friend constexpr Saturating& operator-=(Saturating& lhs, Saturating rhs) {
+    lhs = lhs - rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs, Saturating rhs) {
+    BaseType result;
+    bool overflow = __builtin_sub_overflow(lhs.value, rhs.value, &result);
+    if (overflow) {
+      if constexpr (std::is_signed_v<BaseType>) {
+        if (result < 0) {
+          result = std::numeric_limits<BaseType>::max();
+        } else {
+          result = std::numeric_limits<BaseType>::min();
+        }
+      } else {
+        result = 0;
+      }
+    }
+    return {result};
+  }
+  [[nodiscard]] friend constexpr Saturating& operator*=(Saturating& lhs, Saturating rhs) {
+    lhs = lhs * rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Saturating operator*(Saturating lhs, Saturating rhs) {
+    BaseType result;
+    bool overflow = __builtin_mul_overflow(lhs.value, rhs.value, &result);
+    if (overflow) {
+      if constexpr (std::is_signed_v<BaseType>) {
+        if (lhs.value < 0 != rhs.value < 0) {
+          result = std::numeric_limits<BaseType>::min();
+        } else {
+          result = std::numeric_limits<BaseType>::max();
+        }
+      } else {
+        result = std::numeric_limits<BaseType>::max();
+      }
+    }
+    return {result};
+  }
+  [[nodiscard]] friend constexpr Saturating& operator/=(Saturating& lhs, Saturating rhs) {
+    lhs = lhs / rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Saturating operator/(Saturating lhs, Saturating rhs) {
+    if constexpr (std::is_signed_v<BaseType>) {
+      if (lhs.value == std::numeric_limits<BaseType>::min() && rhs.value == -1) {
+        return {std::numeric_limits<BaseType>::max()};
+      }
+    }
+    return {BaseType(lhs.value / rhs.value)};
+  }
+  BaseType value = 0;
+};
+
+template <typename BaseType>
+class Wrapping {
+ public:
+  static_assert(std::is_integral_v<BaseType>);
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(IntType) == sizeof(BaseType)>>
+  [[nodiscard]] constexpr operator IntType() const {
+    return static_cast<IntType>(value);
+  }
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(BaseType) == sizeof(IntType)>>
+  [[nodiscard]] constexpr operator Saturating<IntType>() const {
+    return {static_cast<IntType>(value)};
+  }
+  template <
+      typename IntType,
+      typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                  ((sizeof(BaseType) < sizeof(IntType) &&
+                                    std::is_signed_v<IntType> == std::is_signed_v<BaseType>) ||
+                                   (sizeof(BaseType) == sizeof(IntType))) &&
+                                  !std::is_same_v<IntType, BaseType>>>
+  [[nodiscard]] constexpr operator Wrapping<IntType>() const {
+    return {static_cast<IntType>(value)};
+  }
+
+  [[nodiscard]] friend constexpr bool operator==(Wrapping lhs, Wrapping rhs) {
+    return lhs.value == rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator!=(Wrapping lhs, Wrapping rhs) {
+    return lhs.value != rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator<(Wrapping lhs, Wrapping rhs) {
+    return lhs.value < rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator<=(Wrapping lhs, Wrapping rhs) {
+    return lhs.value <= rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator>(Wrapping lhs, Wrapping rhs) {
+    return lhs.value > rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator>=(Wrapping lhs, Wrapping rhs) {
+    return lhs.value >= rhs.value;
+  }
+  // Note:
+  //   1. We use __builtin_xxx_overflow instead of simple +, -, or * operators because
+  //      __builtin_xxx_overflow produces well-defined result in case of overflow while
+  //      +, -, * are triggering undefined behavior conditions.
+  //   2. All operator xxx= are implemented in terms of opernator xxx
+  [[nodiscard]] friend constexpr Wrapping& operator+=(Wrapping& lhs, Wrapping rhs) {
+    lhs = lhs + rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Wrapping operator+(Wrapping lhs, Wrapping rhs) {
+    BaseType result;
+    __builtin_add_overflow(lhs.value, rhs.value, &result);
+    return {result};
+  }
+  [[nodiscard]] friend constexpr Wrapping& operator-=(Wrapping& lhs, Wrapping rhs) {
+    lhs = lhs - rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Wrapping operator-(Wrapping lhs, Wrapping rhs) {
+    BaseType result;
+    __builtin_sub_overflow(lhs.value, rhs.value, &result);
+    return {result};
+  }
+  [[nodiscard]] friend constexpr Wrapping& operator*=(Wrapping& lhs, Wrapping rhs) {
+    lhs = lhs * rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Wrapping operator*(Wrapping lhs, Wrapping rhs) {
+    BaseType result;
+    __builtin_mul_overflow(lhs.value, rhs.value, &result);
+    return {result};
+  }
+  [[nodiscard]] friend constexpr Wrapping& operator/=(Wrapping& lhs, Wrapping rhs) {
+    lhs = lhs / rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Wrapping operator/(Wrapping lhs, Wrapping rhs) {
+    if constexpr (std::is_signed_v<BaseType>) {
+      if (lhs.value == std::numeric_limits<BaseType>::min() && rhs.value == -1) {
+        return {std::numeric_limits<BaseType>::min()};
+      }
+    }
+    return {BaseType(lhs.value / rhs.value)};
+  }
+  [[nodiscard]] friend constexpr Wrapping& operator<<=(Wrapping& lhs, Wrapping rhs) {
+    lhs = lhs << rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Wrapping operator<<(Wrapping lhs, Wrapping rhs) {
+    return {BaseType(lhs.value << (rhs.value & (sizeof(BaseType) * CHAR_BIT - 1)))};
+  }
+  [[nodiscard]] friend constexpr Wrapping& operator>>=(Wrapping& lhs, Wrapping rhs) {
+    lhs = lhs >> rhs;
+    return lhs;
+  }
+  [[nodiscard]] friend constexpr Wrapping operator>>(Wrapping lhs, Wrapping rhs) {
+    return {BaseType(lhs.value >> (rhs.value & (sizeof(BaseType) * CHAR_BIT - 1)))};
+  }
+  BaseType value = 0;
+};
+
+using SatInt8 = Saturating<int8_t>;
+using SatUInt8 = Saturating<uint8_t>;
+using SatInt16 = Saturating<int16_t>;
+using SatUInt16 = Saturating<uint16_t>;
+using SatInt32 = Saturating<int32_t>;
+using SatUInt32 = Saturating<uint32_t>;
+using SatInt64 = Saturating<int64_t>;
+using SatUInt64 = Saturating<uint64_t>;
+
+using Int8 = Wrapping<int8_t>;
+using UInt8 = Wrapping<uint8_t>;
+using Int16 = Wrapping<int16_t>;
+using UInt16 = Wrapping<uint16_t>;
+using Int32 = Wrapping<int32_t>;
+using UInt32 = Wrapping<uint32_t>;
+using Int64 = Wrapping<int64_t>;
+using UInt64 = Wrapping<uint64_t>;
 
 }  // namespace berberis
 

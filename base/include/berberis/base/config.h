@@ -34,6 +34,10 @@ namespace berberis::config {
 // TODO(b/232598137): 12 is what we get on x86-32 after stack alignment, update
 // with, say, 90-percentile of (dynamic) frame size.
 inline constexpr uint32_t kFrameSizeAtTranslatedCode = sizeof(size_t) == 4 ? 12u : 8u;
+// Attention: This flag traces every entry to RunGeneratedCode which
+// may be *very* slow especially if kAllJumpsExitGeneratedCode flag is
+// enabled.
+inline constexpr bool kTraceGeneratedCode = false;
 // Setting this to true enables instrumentation of every executed region in the
 // main execution loop (ExecuteGuest).
 inline constexpr bool kAllJumpsExitGeneratedCode = false;

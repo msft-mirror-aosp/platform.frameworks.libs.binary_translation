@@ -133,6 +133,11 @@ class GuestParamsAndReturn<ReturnType(ParamType...) noexcept(kNoexcept), kCallin
     return {conv, return_loc, param_locs};
   }
 
+  constexpr static riscv64::ArgLocation ReturnInfoHelper() {
+    riscv64::CallingConventions conv;
+    return ReturnInfoHelper(conv);
+  }
+
   constexpr static riscv64::ArgLocation ReturnInfoHelper(riscv64::CallingConventions& conv) {
     using ReturnInfo = GuestArgumentInfo<ReturnType, kCallingConventionsVariant>;
     if constexpr (std::is_same_v<ReturnType, void>) {
@@ -153,7 +158,7 @@ class GuestParamsAndReturn<ReturnType(ParamType...) noexcept(kNoexcept), kCallin
 
   constexpr static riscv64::CallingConventions kVaStartBase = std::get<0>(ParamsInfoHelper());
 
-  constexpr static riscv64::ArgLocation kReturnLocation = std::get<1>(ParamsInfoHelper());
+  constexpr static riscv64::ArgLocation kReturnLocation = ReturnInfoHelper();
 
   constexpr static std::array<riscv64::ArgLocation, sizeof...(ParamType)> kParamsLocations =
       std::get<2>(ParamsInfoHelper());

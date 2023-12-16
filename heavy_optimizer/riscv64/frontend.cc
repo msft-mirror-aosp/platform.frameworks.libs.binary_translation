@@ -262,18 +262,18 @@ void HeavyOptimizerFrontend::UpdateBranchTargetsAfterSplit(GuestAddr addr,
 Register HeavyOptimizerFrontend::GetReg(uint8_t reg) {
   CHECK_LT(reg, kNumGuestRegs);
   Register dst = AllocTempReg();
-  builder_.GenGet(dst, reg);
+  builder_.GenGetOffset(dst, GetThreadStateRegOffset(reg));
   return dst;
 }
 
 void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
   CHECK_LT(reg, kNumGuestRegs);
-  builder_.GenPut(reg, value);
+  builder_.GenPutOffset(GetThreadStateRegOffset(reg), value);
 }
 
 FpRegister HeavyOptimizerFrontend::GetFpReg(uint8_t reg) {
   FpRegister result = AllocTempSimdReg();
-  builder_.GenGetSimd(result.machine_reg(), reg);
+  builder_.GenGetSimd<8>(result.machine_reg(), GetThreadStateFRegOffset(reg));
   return result;
 }
 
@@ -604,7 +604,23 @@ void HeavyOptimizerFrontend::Store(Decoder::StoreOperandType operand_type,
                                    int16_t offset,
                                    Register data) {
   int32_t sx_offset{offset};
-  StoreWithoutRecovery(operand_type, arg, sx_offset, data);
+  switch (operand_type) {
+    case Decoder::StoreOperandType::k8bit:
+      Gen<x86_64::MovbMemBaseDispReg>(arg, sx_offset, data);
+      break;
+    case Decoder::StoreOperandType::k16bit:
+      Gen<x86_64::MovwMemBaseDispReg>(arg, sx_offset, data);
+      break;
+    case Decoder::StoreOperandType::k32bit:
+      Gen<x86_64::MovlMemBaseDispReg>(arg, sx_offset, data);
+      break;
+    case Decoder::StoreOperandType::k64bit:
+      Gen<x86_64::MovqMemBaseDispReg>(arg, sx_offset, data);
+      break;
+    default:
+      return Unimplemented();
+  }
+
   GenRecoveryBlockForLastInsn();
 }
 
@@ -612,7 +628,34 @@ Register HeavyOptimizerFrontend::Load(Decoder::LoadOperandType operand_type,
                                       Register arg,
                                       int16_t offset) {
   int32_t sx_offset{offset};
-  auto res = LoadWithoutRecovery(operand_type, arg, sx_offset);
+  auto res = AllocTempReg();
+  switch (operand_type) {
+    case Decoder::LoadOperandType::k8bitUnsigned:
+      Gen<x86_64::MovzxblRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k16bitUnsigned:
+      Gen<x86_64::MovzxwlRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k32bitUnsigned:
+      Gen<x86_64::MovlRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k64bit:
+      Gen<x86_64::MovqRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k8bitSigned:
+      Gen<x86_64::MovsxbqRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k16bitSigned:
+      Gen<x86_64::MovsxwqRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    case Decoder::LoadOperandType::k32bitSigned:
+      Gen<x86_64::MovsxlqRegMemBaseDisp>(res, arg, sx_offset);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+
   GenRecoveryBlockForLastInsn();
   return res;
 }
