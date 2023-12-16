@@ -80,8 +80,20 @@ static_assert(Int16{1} + Int8{1} == Int16{2});
 static_assert(SatInt8{1} + SatInt32{1} == SatInt32{2});
 static_assert(Int8{1} + Int32{1} == Int32{2});
 
+// Note: shifts use type of first operand to determine the result type.
+// Wrapping also depends on the size of left operand only.
 static_assert((Int16{1} << Int8{8}) == Int16{256});
-static_assert((Int8{1} << Int16{8}) == Int16{256});
+static_assert((Int8{1} << Int16{8}) == Int8{1});
+
+static_assert(std::is_same_v<Int16, Int16::SignedType>);
+static_assert(std::is_same_v<Int16, UInt16::SignedType>);
+static_assert(std::is_same_v<UInt16, Int16::UnsignedType>);
+static_assert(std::is_same_v<UInt16, UInt16::UnsignedType>);
+
+static_assert(std::is_same_v<SatInt16, SatInt16::SignedType>);
+static_assert(std::is_same_v<SatInt16, SatUInt16::SignedType>);
+static_assert(std::is_same_v<SatUInt16, SatInt16::UnsignedType>);
+static_assert(std::is_same_v<SatUInt16, SatUInt16::UnsignedType>);
 
 }  // namespace
 
