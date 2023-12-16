@@ -1,4 +1,4 @@
-/*
+/*'
  * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -212,25 +212,25 @@ class Interpreter {
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
     switch (opcode) {
       case Decoder::Op32Opcode::kAddw:
-        return int32_t(arg1) + int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) + TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kSubw:
-        return int32_t(arg1) - int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) - TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kSllw:
-        return int32_t(arg1) << int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) << TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kSrlw:
-        return bit_cast<int32_t>(uint32_t(arg1) >> uint32_t(arg2));
+        return Int64{Int32{TruncateTo<UInt32>(arg1) >> TruncateTo<Int32>(arg2)}};
       case Decoder::Op32Opcode::kSraw:
-        return int32_t(arg1) >> int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) >> TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kMulw:
-        return int32_t(arg1) * int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) * TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kDivw:
-        return int32_t(arg1) / int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) / TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kDivuw:
-        return static_cast<int32_t>(uint32_t(arg1) / uint32_t(arg2));
+        return Int64{Int32{TruncateTo<UInt32>(arg1) / TruncateTo<UInt32>(arg2)}};
       case Decoder::Op32Opcode::kRemw:
-        return int32_t(arg1) % int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) % TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kRemuw:
-        return static_cast<int32_t>(uint32_t(arg1) % uint32_t(arg2));
+        return Int64{Int32{TruncateTo<UInt32>(arg1) % TruncateTo<UInt32>(arg2)}};
       default:
         Unimplemented();
         return {};
@@ -310,8 +310,13 @@ class Interpreter {
     }
   }
 
-  Register Ecall(Register syscall_nr, Register arg0, Register arg1, Register arg2, Register arg3,
-                 Register arg4, Register arg5) {
+  Register Ecall(Register syscall_nr,
+                 Register arg0,
+                 Register arg1,
+                 Register arg2,
+                 Register arg3,
+                 Register arg4,
+                 Register arg5) {
     CHECK(!exception_raised_);
     return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
   }
@@ -594,6 +599,12 @@ class Interpreter {
       case Decoder::VOpIViOpcode::kVsllvi:
         return OpVectorvx<intrinsics::Vsllvx<ElementType, vta>, ElementType, vlmul, vta>(
             args.dst, args.src, args.imm);
+      case Decoder::VOpIViOpcode::kVsrlvi:
+        return OpVectorvx<intrinsics::Vsrlvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src, args.imm);
+      case Decoder::VOpIViOpcode::kVsravi:
+        return OpVectorvx<intrinsics::Vsravx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src, args.imm);
       default:
         Unimplemented();
     }
@@ -645,6 +656,12 @@ class Interpreter {
                           vta>(args.dst, args.src1, args.src2);
       case Decoder::VOpIVvOpcode::kVsllvv:
         return OpVectorvv<intrinsics::Vsllvv<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVsrlvv:
+        return OpVectorvv<intrinsics::Vsrlvv<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVsravv:
+        return OpVectorvv<intrinsics::Vsravv<ElementType, vta>, ElementType, vlmul, vta>(
             args.dst, args.src1, args.src2);
       default:
         Unimplemented();
@@ -730,6 +747,12 @@ class Interpreter {
                           vta>(args.dst, args.src1, arg2);
       case Decoder::VOpIVxOpcode::kVsllvx:
         return OpVectorvx<intrinsics::Vsllvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpIVxOpcode::kVsrlvx:
+        return OpVectorvx<intrinsics::Vsrlvx<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpIVxOpcode::kVsravx:
+        return OpVectorvx<intrinsics::Vsravx<ElementType, vta>, ElementType, vlmul, vta>(
             args.dst, args.src1, arg2);
       default:
         Unimplemented();
@@ -818,8 +841,11 @@ class Interpreter {
         return OpVectorvx<intrinsics::Vaddvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src, args.imm);
       case Decoder::VOpIViOpcode::kVrsubvi:
-        return OpVectorvx<intrinsics::Vrsubvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src, args.imm);
+        return OpVectorvx<intrinsics::Vrsubvxm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src, args.imm);
       case Decoder::VOpIViOpcode::kVandvi:
         return OpVectorvx<intrinsics::Vandvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src, args.imm);
@@ -867,6 +893,12 @@ class Interpreter {
                           vma>(args.dst, args.src, args.imm);
       case Decoder::VOpIViOpcode::kVsllvi:
         return OpVectorvx<intrinsics::Vsllvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src, args.imm);
+      case Decoder::VOpIViOpcode::kVsrlvi:
+        return OpVectorvx<intrinsics::Vsrlvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src, args.imm);
+      case Decoder::VOpIViOpcode::kVsravi:
+        return OpVectorvx<intrinsics::Vsravxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src, args.imm);
       default:
         Unimplemented();
@@ -933,6 +965,12 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVsllvv:
         return OpVectorvv<intrinsics::Vsllvvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVsrlvv:
+        return OpVectorvv<intrinsics::Vsrlvvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVsravv:
+        return OpVectorvv<intrinsics::Vsravvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -986,8 +1024,11 @@ class Interpreter {
         return OpVectorvx<intrinsics::Vsubvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, arg2);
       case Decoder::VOpIVxOpcode::kVrsubvx:
-        return OpVectorvx<intrinsics::Vrsubvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src1, arg2);
+        return OpVectorvx<intrinsics::Vrsubvxm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, arg2);
       case Decoder::VOpIVxOpcode::kVandvx:
         return OpVectorvx<intrinsics::Vandvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, arg2);
@@ -1047,6 +1088,12 @@ class Interpreter {
                           vma>(args.dst, args.src1, arg2);
       case Decoder::VOpIVxOpcode::kVsllvx:
         return OpVectorvx<intrinsics::Vsllvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpIVxOpcode::kVsrlvx:
+        return OpVectorvx<intrinsics::Vsrlvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpIVxOpcode::kVsravx:
+        return OpVectorvx<intrinsics::Vsravxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, arg2);
       default:
         Unimplemented();
