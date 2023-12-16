@@ -1,4 +1,4 @@
-/*
+/*'
  * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -212,25 +212,25 @@ class Interpreter {
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
     switch (opcode) {
       case Decoder::Op32Opcode::kAddw:
-        return int32_t(arg1) + int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) + TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kSubw:
-        return int32_t(arg1) - int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) - TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kSllw:
-        return int32_t(arg1) << int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) << TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kSrlw:
-        return bit_cast<int32_t>(uint32_t(arg1) >> uint32_t(arg2));
+        return Int64{Int32{TruncateTo<UInt32>(arg1) >> TruncateTo<Int32>(arg2)}};
       case Decoder::Op32Opcode::kSraw:
-        return int32_t(arg1) >> int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) >> TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kMulw:
-        return int32_t(arg1) * int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) * TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kDivw:
-        return int32_t(arg1) / int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) / TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kDivuw:
-        return static_cast<int32_t>(uint32_t(arg1) / uint32_t(arg2));
+        return Int64{Int32{TruncateTo<UInt32>(arg1) / TruncateTo<UInt32>(arg2)}};
       case Decoder::Op32Opcode::kRemw:
-        return int32_t(arg1) % int32_t(arg2);
+        return Int64{TruncateTo<Int32>(arg1) % TruncateTo<Int32>(arg2)};
       case Decoder::Op32Opcode::kRemuw:
-        return static_cast<int32_t>(uint32_t(arg1) % uint32_t(arg2));
+        return Int64{Int32{TruncateTo<UInt32>(arg1) % TruncateTo<UInt32>(arg2)}};
       default:
         Unimplemented();
         return {};
