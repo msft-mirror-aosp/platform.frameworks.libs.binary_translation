@@ -22,16 +22,12 @@
 #include <cstdint>
 #include <tuple>
 
+#include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/vector_intrinsics.h"
 
 namespace berberis::intrinsics {
 
 namespace {
-
-using UInt8 = uint8_t;
-using UInt16 = uint16_t;
-using UInt32 = uint32_t;
-using UInt64 = uint64_t;
 
 // Easily recognizable bit pattern for target register.
 constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
