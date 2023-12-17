@@ -402,15 +402,15 @@ TEST(MachineIR, PutsInSuccessorsKillPut) {
 
   auto vreg = machine_ir.AllocVReg();
   builder.StartBasicBlock(bb1);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, bb2, bb3, x86_64::kMachineRegFLAGS);
 
   builder.StartBasicBlock(bb2);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   builder.StartBasicBlock(bb3);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
@@ -435,11 +435,11 @@ TEST(MachineIR, PutInOneOfTwoSuccessorsDoesNotKillPut) {
 
   auto vreg = machine_ir.AllocVReg();
   builder.StartBasicBlock(bb1);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, bb2, bb3, x86_64::kMachineRegFLAGS);
 
   builder.StartBasicBlock(bb2);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   builder.StartBasicBlock(bb3);
@@ -468,18 +468,18 @@ TEST(MachineIR, MultiplePutsCanBeKilled) {
   auto vreg1 = machine_ir.AllocVReg();
   auto vreg2 = machine_ir.AllocVReg();
   builder.StartBasicBlock(bb1);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
-  builder.GenPutOffset(GetThreadStateRegOffset(1), vreg2);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg1);
+  builder.GenPut(GetThreadStateRegOffset(1), vreg2);
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, bb2, bb3, x86_64::kMachineRegFLAGS);
 
   builder.StartBasicBlock(bb2);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
-  builder.GenPutOffset(GetThreadStateRegOffset(1), vreg2);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg1);
+  builder.GenPut(GetThreadStateRegOffset(1), vreg2);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   builder.StartBasicBlock(bb3);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
-  builder.GenPutOffset(GetThreadStateRegOffset(1), vreg2);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg1);
+  builder.GenPut(GetThreadStateRegOffset(1), vreg2);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
@@ -504,16 +504,16 @@ TEST(MachineIR, GetInOneOfTheSuccessorsMakesPutLive) {
 
   auto vreg = machine_ir.AllocVReg();
   builder.StartBasicBlock(bb1);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoBranch>(bb2);
 
   builder.StartBasicBlock(bb2);
-  builder.GenGetOffset(vreg, GetThreadStateRegOffset(0));
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenGet(vreg, GetThreadStateRegOffset(0));
+  builder.GenPut(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   builder.StartBasicBlock(bb3);
-  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPut(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);

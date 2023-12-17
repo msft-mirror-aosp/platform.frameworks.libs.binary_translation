@@ -80,9 +80,9 @@ std::size_t GetThreadStateVRegOffset(int vreg) {
   return offsetof(ThreadState, cpu.v[vreg]);
 }
 
-std::size_t GetThreadStateSimdRegOffset(int simd_reg) {
-  // TODO(b/291126259) Switch to CHECK(false) after we switch frontend to F regs.
-  return offsetof(ThreadState, cpu.v[simd_reg]);
+std::size_t GetThreadStateSimdRegOffset(int /* simd_reg */) {
+  // RISCV64 does not have simd registers.
+  UNREACHABLE();
 }
 
 std::size_t GetThreadStateReservationAddressOffset() {
@@ -111,8 +111,7 @@ bool DoesCpuStateHaveDedicatedVecRegs() {
 }
 
 bool DoesCpuStateHaveDedicatedSimdRegs() {
-  // TODO(b/291126259) Return false after we switch frontend to F regs.
-  return true;
+  return false;
 }
 
 std::size_t GetThreadStateFlagOffset() {

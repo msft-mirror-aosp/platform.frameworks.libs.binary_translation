@@ -23,6 +23,7 @@
 #include <tuple>
 #include <type_traits>
 
+#include "berberis/base/bit_util.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/intrinsics.h"        // PreferredIntrinsicsImplementation
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64
@@ -163,11 +164,27 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
   return result;
 }
 
+// TODO(b/314796836): Replace bitwise shift helper functions with Wrapping primitives to avoid
+// undefined behavior.
 template <typename Type>
-inline Type MaskBits(Type val) {
+inline Type MaskBitsForShift(Type val) {
   static_assert(std::is_integral_v<Type>);
   // Return only the low n-bits of val, where n is log2(SEW) and SEW is standard element width.
   return val & ((sizeof(Type) * CHAR_BIT) - 1);
+}
+
+template <typename ElementType>
+inline ElementType ShiftRightLogical(ElementType src, ElementType shift) {
+  using UnsignedElementType = std::make_unsigned_t<ElementType>;
+  return bit_cast<ElementType>(static_cast<UnsignedElementType>(
+      bit_cast<UnsignedElementType>(src) >> MaskBitsForShift(shift)));
+}
+
+template <typename ElementType>
+inline ElementType ShiftRightArithmetic(ElementType src, ElementType shift) {
+  using SignedElementType = std::make_signed_t<ElementType>;
+  return bit_cast<ElementType>(
+      static_cast<SignedElementType>(bit_cast<SignedElementType>(src) >> MaskBitsForShift(shift)));
 }
 
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
@@ -241,9 +258,13 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(msle, (args <= ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msle, (args <= ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msgt, (args > ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sll, auto [arg1, arg2] = std::tuple{args...};
-                                   (arg1 << MaskBits(arg2)))
+                                   (arg1 << MaskBitsForShift(arg2)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sll, auto [arg1, arg2] = std::tuple{args...};
-                                   (arg1 << MaskBits(arg2)))
+                                   (arg1 << MaskBitsForShift(arg2)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(srl, ShiftRightLogical(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(srl, ShiftRightLogical(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sra, ShiftRightArithmetic(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sra, ShiftRightArithmetic(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(macc, auto [arg1, arg2] = std::tuple{args...};
                                    ((arg2 * arg1) + vd))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(macc, auto [arg1, arg2] = std::tuple{args...};
