@@ -85,6 +85,20 @@ static_assert(Int8{1} + Int32{1} == Int32{2});
 static_assert((Int16{1} << Int8{8}) == Int16{256});
 static_assert((Int8{1} << Int16{8}) == Int8{1});
 
+static_assert(MaybeTruncateTo<SatInt8>(SatInt8{127}) == SatInt8{127});
+static_assert(MaybeTruncateTo<SatInt8>(SatInt16{32767}) == SatInt8{-1});
+static_assert(TruncateTo<SatInt8>(SatInt16{32767}) == SatInt8{-1});
+static_assert(MaybeTruncateTo<SatInt8>(SatInt8{-128}) == SatInt8{-128});
+static_assert(MaybeTruncateTo<SatInt8>(SatInt16{-32768}) == SatInt8{0});
+static_assert(TruncateTo<SatInt8>(SatInt16{-32768}) == SatInt8{0});
+
+static_assert(MaybeTruncateTo<Int8>(Int8{127}) == Int8{127});
+static_assert(MaybeTruncateTo<Int8>(Int16{32767}) == Int8{-1});
+static_assert(TruncateTo<Int8>(Int16{32767}) == Int8{-1});
+static_assert(MaybeTruncateTo<Int8>(Int8{-128}) == Int8{-128});
+static_assert(MaybeTruncateTo<Int8>(Int16{-32768}) == Int8{0});
+static_assert(TruncateTo<Int8>(Int16{-32768}) == Int8{0});
+
 static_assert(std::is_same_v<Int16, Int16::SignedType>);
 static_assert(std::is_same_v<Int16, UInt16::SignedType>);
 static_assert(std::is_same_v<UInt16, Int16::UnsignedType>);
