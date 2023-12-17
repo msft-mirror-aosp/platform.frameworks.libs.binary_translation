@@ -76,14 +76,9 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
                                                     SourceType... source) {
   static_assert(((std::is_same_v<SourceType, SIMD128Register> ||
                   std::is_same_v<SourceType, ElementType>)&&...));
-  constexpr auto fill_value = [] {
-    if constexpr (std::is_integral_v<ElementType>) {
-      return std::numeric_limits<std::make_unsigned_t<ElementType>>::max();
-    } else {
-      return std::numeric_limits<
-          std::make_unsigned_t<typename TypeTraits<ElementType>::Int>>::max();
-    }
-  }();
+  using UnsignedType = typename ElementType::UnsignedType;
+  constexpr ElementType fill_value =
+      UnsignedType{std::numeric_limits<typename UnsignedType::BaseType>::max()};
   if (vstart < 0) {
     vstart = 0;
   }
@@ -129,14 +124,9 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
                                                     SourceType... source) {
   static_assert(((std::is_same_v<SourceType, SIMD128Register> ||
                   std::is_same_v<SourceType, ElementType>)&&...));
-  constexpr auto fill_value = [] {
-    if constexpr (std::is_integral_v<ElementType>) {
-      return std::numeric_limits<std::make_unsigned_t<ElementType>>::max();
-    } else {
-      return std::numeric_limits<
-          std::make_unsigned_t<typename TypeTraits<ElementType>::Int>>::max();
-    }
-  }();
+  using UnsignedType = typename ElementType::UnsignedType;
+  constexpr ElementType fill_value =
+      UnsignedType{std::numeric_limits<typename UnsignedType::BaseType>::max()};
   if (vstart < 0) {
     vstart = 0;
   }
@@ -162,29 +152,6 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
     }
   }
   return result;
-}
-
-// TODO(b/314796836): Replace bitwise shift helper functions with Wrapping primitives to avoid
-// undefined behavior.
-template <typename Type>
-inline Type MaskBitsForShift(Type val) {
-  static_assert(std::is_integral_v<Type>);
-  // Return only the low n-bits of val, where n is log2(SEW) and SEW is standard element width.
-  return val & ((sizeof(Type) * CHAR_BIT) - 1);
-}
-
-template <typename ElementType>
-inline ElementType ShiftRightLogical(ElementType src, ElementType shift) {
-  using UnsignedElementType = std::make_unsigned_t<ElementType>;
-  return bit_cast<ElementType>(static_cast<UnsignedElementType>(
-      bit_cast<UnsignedElementType>(src) >> MaskBitsForShift(shift)));
-}
-
-template <typename ElementType>
-inline ElementType ShiftRightArithmetic(ElementType src, ElementType shift) {
-  using SignedElementType = std::make_signed_t<ElementType>;
-  return bit_cast<ElementType>(
-      static_cast<SignedElementType>(bit_cast<SignedElementType>(src) >> MaskBitsForShift(shift)));
 }
 
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
@@ -248,23 +215,37 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(xor, (args ^ ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(xor, (args ^ ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mseq, (args == ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mseq, (args == ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(msne, (args != ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msne, (args != ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mslt, (args < ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mslt, (args < ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(msle, (args <= ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msle, (args <= ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msgt, (args > ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sll, auto [arg1, arg2] = std::tuple{args...};
-                                   (arg1 << MaskBitsForShift(arg2)))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sll, auto [arg1, arg2] = std::tuple{args...};
-                                   (arg1 << MaskBitsForShift(arg2)))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(srl, ShiftRightLogical(args...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(srl, ShiftRightLogical(args...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sra, ShiftRightArithmetic(args...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sra, ShiftRightArithmetic(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mseq,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args == ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mseq,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args == ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(msne,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args != ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msne,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args != ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mslt,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args < ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mslt,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args < ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(msle,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args <= ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msle,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args <= ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msgt,
+                                   ElementType{
+                                       static_cast<typename ElementType::BaseType>((args > ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sl, auto [arg1, arg2] = std::tuple{args...}; (arg1 << arg2))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sl, auto [arg1, arg2] = std::tuple{args...}; (arg1 << arg2))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sr, auto [arg1, arg2] = std::tuple{args...}; (arg1 >> arg2))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sr, auto [arg1, arg2] = std::tuple{args...}; (arg1 >> arg2))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(macc, auto [arg1, arg2] = std::tuple{args...};
                                    ((arg2 * arg1) + vd))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(macc, auto [arg1, arg2] = std::tuple{args...};
