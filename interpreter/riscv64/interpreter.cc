@@ -2,7 +2,7 @@
  * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * you may not use this file excenaupt in compliance with the License.
  * You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
@@ -159,50 +159,49 @@ class Interpreter {
   }
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
-    using uint128_t = unsigned __int128;
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
-        return arg1 + arg2;
+        return Int64(arg1) + Int64(arg2);
       case Decoder::OpOpcode::kSub:
-        return arg1 - arg2;
+        return Int64(arg1) - Int64(arg2);
       case Decoder::OpOpcode::kAnd:
-        return arg1 & arg2;
+        return Int64(arg1) & Int64(arg2);
       case Decoder::OpOpcode::kOr:
-        return arg1 | arg2;
+        return Int64(arg1) | Int64(arg2);
       case Decoder::OpOpcode::kXor:
-        return arg1 ^ arg2;
+        return Int64(arg1) ^ Int64(arg2);
       case Decoder::OpOpcode::kSll:
-        return arg1 << arg2;
+        return Int64(arg1) << Int64(arg2);
       case Decoder::OpOpcode::kSrl:
-        return arg1 >> arg2;
+        return UInt64(arg1) >> Int64(arg2);
       case Decoder::OpOpcode::kSra:
-        return bit_cast<int64_t>(arg1) >> arg2;
+        return Int64(arg1) >> Int64(arg2);
       case Decoder::OpOpcode::kSlt:
-        return bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2) ? 1 : 0;
+        return Int64(arg1) < Int64(arg2) ? 1 : 0;
       case Decoder::OpOpcode::kSltu:
-        return arg1 < arg2 ? 1 : 0;
+        return UInt64(arg1) < UInt64(arg2) ? 1 : 0;
       case Decoder::OpOpcode::kMul:
-        return arg1 * arg2;
+        return Int64(arg1) * Int64(arg2);
       case Decoder::OpOpcode::kMulh:
-        return (__int128{bit_cast<int64_t>(arg1)} * __int128{bit_cast<int64_t>(arg2)}) >> 64;
+        return NarrowTopHalf(Widen(Int64(arg1)) * Widen(Int64(arg2)));
       case Decoder::OpOpcode::kMulhsu:
-        return (__int128{bit_cast<int64_t>(arg1)} * uint128_t{arg2}) >> 64;
+        return NarrowTopHalf(UInt128{Widen(Int64(arg1))} * Widen(UInt64(arg2)));
       case Decoder::OpOpcode::kMulhu:
-        return (uint128_t{arg1} * uint128_t{arg2}) >> 64;
+        return NarrowTopHalf(Widen(UInt64(arg1)) * Widen(UInt64(arg2)));
       case Decoder::OpOpcode::kDiv:
-        return bit_cast<int64_t>(arg1) / bit_cast<int64_t>(arg2);
+        return Int64(arg1) / Int64(arg2);
       case Decoder::OpOpcode::kDivu:
-        return arg1 / arg2;
+        return UInt64(arg1) / UInt64(arg2);
       case Decoder::OpOpcode::kRem:
-        return bit_cast<int64_t>(arg1) % bit_cast<int64_t>(arg2);
+        return Int64(arg1) % Int64(arg2);
       case Decoder::OpOpcode::kRemu:
-        return arg1 % arg2;
+        return UInt64(arg1) % UInt64(arg2);
       case Decoder::OpOpcode::kAndn:
-        return arg1 & (~arg2);
+        return Int64(arg1) & (~Int64(arg2));
       case Decoder::OpOpcode::kOrn:
-        return arg1 | (~arg2);
+        return Int64(arg1) | (~Int64(arg2));
       case Decoder::OpOpcode::kXnor:
-        return ~(arg1 ^ arg2);
+        return ~(Int64(arg1) ^ Int64(arg2));
       default:
         Unimplemented();
         return {};
