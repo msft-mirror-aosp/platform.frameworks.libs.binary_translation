@@ -453,7 +453,7 @@ using UInt128 = Wrapping<unsigned __int128>;
 #endif
 
 template <typename ResultType, typename IntType>
-auto MaybeTruncateTo(IntType src)
+[[nodiscard]] auto constexpr MaybeTruncateTo(IntType src)
     -> std::enable_if_t<std::is_integral_v<IntType> &&
                             sizeof(typename ResultType::BaseType) <= sizeof(IntType),
                         ResultType> {
@@ -461,11 +461,43 @@ auto MaybeTruncateTo(IntType src)
 }
 
 template <typename ResultType, typename IntType>
-auto TruncateTo(IntType src)
+[[nodiscard]] auto constexpr MaybeTruncateTo(Saturating<IntType> src)
+    -> std::enable_if_t<std::is_integral_v<IntType> &&
+                            sizeof(typename ResultType::BaseType) <= sizeof(IntType),
+                        ResultType> {
+  return ResultType{static_cast<ResultType::BaseType>(src.value)};
+}
+
+template <typename ResultType, typename IntType>
+[[nodiscard]] auto constexpr MaybeTruncateTo(Wrapping<IntType> src)
+    -> std::enable_if_t<std::is_integral_v<IntType> &&
+                            sizeof(typename ResultType::BaseType) <= sizeof(IntType),
+                        ResultType> {
+  return ResultType{static_cast<ResultType::BaseType>(src.value)};
+}
+
+template <typename ResultType, typename IntType>
+[[nodiscard]] auto constexpr TruncateTo(IntType src)
     -> std::enable_if_t<std::is_integral_v<IntType> &&
                             sizeof(typename ResultType::BaseType) < sizeof(IntType),
                         ResultType> {
   return ResultType{static_cast<ResultType::BaseType>(src)};
+}
+
+template <typename ResultType, typename IntType>
+[[nodiscard]] auto constexpr TruncateTo(Saturating<IntType> src)
+    -> std::enable_if_t<std::is_integral_v<IntType> &&
+                            sizeof(typename ResultType::BaseType) < sizeof(IntType),
+                        ResultType> {
+  return ResultType{static_cast<ResultType::BaseType>(src.value)};
+}
+
+template <typename ResultType, typename IntType>
+[[nodiscard]] auto constexpr TruncateTo(Wrapping<IntType> src)
+    -> std::enable_if_t<std::is_integral_v<IntType> &&
+                            sizeof(typename ResultType::BaseType) < sizeof(IntType),
+                        ResultType> {
+  return ResultType{static_cast<ResultType::BaseType>(src.value)};
 }
 
 template <typename T>
@@ -501,6 +533,25 @@ template <typename BaseType>
 [[nodiscard]] constexpr auto Narrow(Wrapping<BaseType> source)
     -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
   return {static_cast<typename TypeTraits<BaseType>::Narrow>(source.value)};
+}
+
+// While `Narrow` returns value reduced to smaller data type there are centain algorithms
+// which require the top half, too (most ofthen in the context of widening multiplication
+// where top half of the product is produced).
+// NannowHigh return top half of the value narrowed down to smaller type (overflow is not
+// possible in that case).
+template <typename BaseType>
+[[nodiscard]] constexpr auto NarrowTopHalf(Saturating<BaseType> source)
+    -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
+  return {static_cast<typename TypeTraits<BaseType>::Narrow>(
+      source.value >> (sizeof(typename TypeTraits<BaseType>::Narrow) * CHAR_BIT))};
+}
+
+template <typename BaseType>
+[[nodiscard]] constexpr auto NarrowTopHalf(Wrapping<BaseType> source)
+    -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
+  return {static_cast<typename TypeTraits<BaseType>::Narrow>(
+      source.value >> (sizeof(typename TypeTraits<BaseType>::Narrow) * CHAR_BIT))};
 }
 
 }  // namespace berberis
