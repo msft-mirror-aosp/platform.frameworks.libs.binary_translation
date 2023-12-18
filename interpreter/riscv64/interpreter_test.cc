@@ -107,6 +107,22 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   // Vector instructions.
+  template <size_t kNFfields>
+  void TestVle(uint32_t insn_bytes) {
+    const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&kVectorComparisonSource));
+    for (size_t index = 0; index < 8; index++) {
+      state_.cpu.v[8 + index] = kUndisturbedValue;
+    }
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    for (size_t index = 0; index < 8; index++) {
+      EXPECT_EQ(state_.cpu.v[8 + index],
+                (index >= kNFfields
+                     ? kUndisturbedValue
+                     : SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>()));
+    }
+  }
 
   void TestVectorInstruction(uint32_t insn_bytes,
                              const __v16qu (&expected_result_int8)[8],
@@ -444,6 +460,27 @@ TEST_F(Riscv64InterpreterTest, AtomicStoreInstructionDifferentLoadFailure) {
 
   // Scd
   TestAtomicStoreDifferentLoadFailure(0x1820b1af);
+}
+TEST_F(Riscv64InterpreterTest, TestVle) {
+  TestVle<1>(0x2808407);   // vl1re8.v v8, (x1)
+  TestVle<2>(0x22808407);  // vl2re8.v v8, (x1)
+  TestVle<4>(0x62808407);  // vl4re8.v v8, (x1)
+  TestVle<8>(0xe2808407);  // vl8re8.v v8, (x1)
+
+  TestVle<1>(0x280d407);   // vl1re16.v v8, (x1)
+  TestVle<2>(0x2280d407);  // vl2re16.v v8, (x1)
+  TestVle<4>(0x6280d407);  // vl4re16.v v8, (x1)
+  TestVle<8>(0xe280d407);  // vl8re16.v v8, (x1)
+
+  TestVle<1>(0x280e407);   // vl1re32.v v8, (x1)
+  TestVle<2>(0x2280e407);  // vl2re32.v v8, (x1)
+  TestVle<4>(0x6280e407);  // vl4re32.v v8, (x1)
+  TestVle<8>(0xe280e407);  // vl8re32.v v8, (x1)
+
+  TestVle<1>(0x280f407);   // vl1re64.v v8, (x1)
+  TestVle<2>(0x2280f407);  // vl2re64.v v8, (x1)
+  TestVle<4>(0x6280f407);  // vl4re64.v v8, (x1)
+  TestVle<8>(0xe280f407);  // vl8re64.v v8, (x1)
 }
 
 TEST_F(Riscv64InterpreterTest, TestVadd) {
