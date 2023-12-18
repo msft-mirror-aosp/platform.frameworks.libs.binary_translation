@@ -467,6 +467,25 @@ class Interpreter {
 
   template <typename VOpArgs, typename... ExtraArgs>
   void OpVector(const VOpArgs& args, ExtraArgs... extra_args) {
+    // Note: whole register instructions are not dependent on vtype and are supposed to work even
+    // if vill is set!  Handle them before processing other instructions.
+    // Note: other tupes of loads and store are not special and would be processed as usual.
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadUnitStrideArgs>) {
+      if (args.opcode == Decoder::VLoadUnitStrideOpcode::kVlₓreₓₓ) {
+        if (!IsPowerOf2(args.nf + 1)) {
+          return Unimplemented();
+        }
+        if ((args.dst & args.nf) != 0) {
+          return Unimplemented();
+        }
+        auto [src] = std::tuple{extra_args...};
+        __uint128_t* ptr = bit_cast<__uint128_t*>(src);
+        for (size_t index = 0; index <= args.nf; index++) {
+          state_->cpu.v[args.dst + index] = ptr[index];
+        }
+        return;
+      }
+    }
     // RISC-V V extensions are using 8bit “opcode extension” vtype Csr to make sure 32bit encoding
     // would be usable.
     //
@@ -550,6 +569,11 @@ class Interpreter {
       return OpVector<ElementType, vlmul, vta, InactiveProcessing::kAgnostic>(args, extra_args...);
     }
     return OpVector<ElementType, vlmul, vta, InactiveProcessing::kUndisturbed>(args, extra_args...);
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
+  void OpVector(const Decoder::VLoadUnitStrideArgs& /*args*/, Register /*src*/) {
+    return Unimplemented();
   }
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
@@ -807,6 +831,14 @@ class Interpreter {
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            InactiveProcessing vma>
+  void OpVector(const Decoder::VLoadUnitStrideArgs& /*args*/, Register /*src*/) {
+    Unimplemented();
   }
 
   template <typename ElementType,
