@@ -536,17 +536,10 @@ template <typename BaseType>
 }
 
 // While `Narrow` returns value reduced to smaller data type there are centain algorithms
-// which require the top half, too (most ofthen in the context of widening multiplication
+// which require the top half, too (most ofhen in the context of widening multiplication
 // where top half of the product is produced).
-// NannowHigh return top half of the value narrowed down to smaller type (overflow is not
+// `NarrowTopHalf` returns top half of the value narrowed down to smaller type (overflow is not
 // possible in that case).
-template <typename BaseType>
-[[nodiscard]] constexpr auto NarrowTopHalf(Saturating<BaseType> source)
-    -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
-  return {static_cast<typename TypeTraits<BaseType>::Narrow>(
-      source.value >> (sizeof(typename TypeTraits<BaseType>::Narrow) * CHAR_BIT))};
-}
-
 template <typename BaseType>
 [[nodiscard]] constexpr auto NarrowTopHalf(Wrapping<BaseType> source)
     -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
