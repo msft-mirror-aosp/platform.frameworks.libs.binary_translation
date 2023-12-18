@@ -265,6 +265,11 @@ class Decoder {
     kMaxValue = 0b111111111111'11111'111'11111,
   };
 
+  enum class VLoadUnitStrideOpcode : uint8_t {
+    kVlₓreₓₓ = 0b01000,
+    kMaxValue = 0b11111,
+  };
+
   enum class VOpIViOpcode : uint8_t {
     kVaddvi = 0b000000,
     kVrsubvi = 0b000011,
@@ -635,6 +640,15 @@ class Decoder {
 
   using OpImmArgs = OpImmArgsTemplate<OpImmOpcode>;
   using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
+
+  struct VLoadUnitStrideArgs {
+    VLoadUnitStrideOpcode opcode;
+    StoreOperandType width;
+    bool vm;
+    uint8_t nf;
+    uint8_t dst;
+    uint8_t src;
+  };
 
   struct VOpIViArgs {
     VOpIViOpcode opcode;
@@ -1430,11 +1444,29 @@ class Decoder {
   void DecodeLoad() {
     OperandTypeEnum operand_type;
     if constexpr (std::is_same_v<OperandTypeEnum, FloatOperandType>) {
-      auto decoded_operand_type = kLoadStoreWidthToFloatOperandType[GetBits<12, 3>()];
-      if (!decoded_operand_type.has_value()) {
+      auto decoded_operand_type = kLoadStoreWidthToOperandType[GetBits<12, 3>()];
+      if (decoded_operand_type.is_vector_instruction) {
+        if (GetBits<28, 1>() == 1) {
+          return Undefined();
+        }
+        switch (GetBits<26, 2>()) {
+          case 0b00: {
+            const VLoadUnitStrideArgs args = {
+                .opcode = VLoadUnitStrideOpcode(GetBits<20, 5>()),
+                .width = decoded_operand_type.eew,
+                .vm = GetBits<25, 1>(),
+                .nf = GetBits<29, 3>(),
+                .dst = GetBits<7, 5>(),
+                .src = GetBits<15, 5>(),
+            };
+            return insn_consumer_->OpVector(args);
+          }
+          default:
+            return Undefined();
+        }
         return Undefined();
       }
-      operand_type = *decoded_operand_type;
+      operand_type = decoded_operand_type.size;
     } else {
       operand_type = OperandTypeEnum{GetBits<12, 3>()};
     }
@@ -1451,11 +1483,11 @@ class Decoder {
   void DecodeStore() {
     OperandTypeEnum operand_type;
     if constexpr (std::is_same_v<OperandTypeEnum, FloatOperandType>) {
-      auto decoded_operand_type = kLoadStoreWidthToFloatOperandType[GetBits<12, 3>()];
-      if (!decoded_operand_type.has_value()) {
+      auto decoded_operand_type = kLoadStoreWidthToOperandType[GetBits<12, 3>()];
+      if (decoded_operand_type.is_vector_instruction) {
         return Undefined();
       }
-      operand_type = *decoded_operand_type;
+      operand_type = decoded_operand_type.size;
     } else {
       operand_type = OperandTypeEnum{GetBits<12, 3>()};
     }
@@ -1931,15 +1963,21 @@ class Decoder {
     kMaxValue = 0b111'11,
   };
 
-  static constexpr std::optional<FloatOperandType> kLoadStoreWidthToFloatOperandType[8] = {
-      {},
-      {FloatOperandType::kHalf},
-      {FloatOperandType::kFloat},
-      {FloatOperandType::kDouble},
-      {FloatOperandType::kQuad},
-      {},
-      {},
-      {}};
+  static constexpr struct {
+    bool is_vector_instruction;
+    union {
+      FloatOperandType size;
+      StoreOperandType eew;
+    };
+  } kLoadStoreWidthToOperandType[8] = {
+      {.is_vector_instruction = true, .eew = StoreOperandType::k8bit},
+      {.is_vector_instruction = false, .size = FloatOperandType::kHalf},
+      {.is_vector_instruction = false, .size = FloatOperandType::kFloat},
+      {.is_vector_instruction = false, .size = FloatOperandType::kDouble},
+      {.is_vector_instruction = false, .size = FloatOperandType::kQuad},
+      {.is_vector_instruction = true, .eew = StoreOperandType::k16bit},
+      {.is_vector_instruction = true, .eew = StoreOperandType::k32bit},
+      {.is_vector_instruction = true, .eew = StoreOperandType::k64bit}};
 
   InsnConsumer* insn_consumer_;
   uint32_t code_;
