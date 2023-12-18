@@ -566,8 +566,8 @@ void native_bridge_preZygoteFork() {
 
   // TODO(b/188923523): Consider moving to berberis::GuestPreZygoteFork().
   void* liblog = g_ndkt_native_bridge.LoadLibrary("liblog.so", RTLD_NOLOAD);
-  // Nothing to close if the library hasn't been loaded.
-  if (liblog) {
+  // Nothing to close if the guest library hasn't been loaded.
+  if (liblog && !g_ndkt_native_bridge.IsHostHandle(liblog)) {
     auto addr = g_ndkt_native_bridge.DlSym(liblog, "__android_log_close");
     CHECK_NE(addr, berberis::kNullGuestAddr);
     berberis::GuestCall call;
