@@ -29,6 +29,7 @@
 #include "berberis/backend/x86_64/machine_insn_intrinsics.h"
 #include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/backend/x86_64/machine_ir_builder.h"
+#include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
 #include "berberis/intrinsics/intrinsics.h"
@@ -159,8 +160,10 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
                                                   ResTypeForFriend result,
                                                   FlagRegisterForFriend flag_register,
                                                   ArgTypeForFriend... args);
-  template <auto kFunctionForFriend>
-  friend bool TryInlineIntrinsicForHeavyOptimizer(x86_64::MachineIRBuilder* builder);
+  template <auto kFunctionForFriend, typename FlagRegisterForFriend, typename... ArgTypeForFriend>
+  friend bool TryInlineIntrinsicForHeavyOptimizerVoid(x86_64::MachineIRBuilder* builder,
+                                                      FlagRegisterForFriend flag_register,
+                                                      ArgTypeForFriend... args);
 
   template <auto kFunc,
             typename Assembler_common_x86,
@@ -259,8 +262,12 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
       static_assert(berberis::kDependentValueFalse<AsmCallInfo::kCPUIDRestriction>);
     }
 
-    using MachineInsn =
-        typename AsmCallInfo::template MachineInsn<berberis::x86_64::MachineInsn, MachineOpcode>;
+    // constructor_args_t here is used to generate a tuple of constructor args from the AsmCallInfo
+    // bindings. The tuple parameter pack will be expanded by the tuple specialization on the
+    // MachineInsn in machine_insn_intrinsics.h.
+    using MachineInsn = typename AsmCallInfo::template MachineInsn<berberis::x86_64::MachineInsn,
+                                                                   x86_64::constructor_args_t,
+                                                                   MachineOpcode>;
     std::apply(MachineInsn::kGenFunc,
                std::tuple_cat(std::tuple<x86_64::MachineIRBuilder&>{*builder_},
                               UnwrapSimdReg(AsmCallInfo::template MakeTuplefromBindings<
@@ -335,13 +342,20 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
       static_assert(!std::is_same_v<ResType, std::monostate>);
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                     std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
-      static_assert(!RegisterClass::kIsImplicitReg);
       if constexpr (RegisterClass::kAsRegister == 'x') {
         CHECK(xmm_result_reg_.IsInvalidReg());
         xmm_result_reg_ = AllocVReg();
         return std::tuple{xmm_result_reg_};
       } else if constexpr (kNumOut > 1) {
         return std::tuple{std::get<arg_info.to>(result_)};
+      } else if constexpr (RegisterClass::kIsImplicitReg) {
+        if constexpr (RegisterClass::kAsRegister == 0) {
+          return std::tuple{flag_register_};
+        } else {
+          CHECK(implicit_result_reg_.IsInvalidReg());
+          implicit_result_reg_ = AllocVReg();
+          return std::tuple{implicit_result_reg_};
+        }
       } else {
         return std::tuple{result_};
       }
@@ -349,7 +363,13 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
       static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                     std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
       if constexpr (RegisterClass::kAsRegister == 'm') {
-        static_assert(kDependentTypeFalse<RegisterClass>);
+        static_assert(std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
+        if (scratch_arg_ >= 2) {
+          FATAL("Only two scratch registers are supported for now");
+        }
+        return std::tuple{x86_64::kMachineRegRBP,
+                          static_cast<int32_t>(offsetof(ThreadState, intrinsics_scratch_area) +
+                                               config::kScratchAreaSlotSize * scratch_arg_++)};
       } else if constexpr (RegisterClass::kIsImplicitReg) {
         if constexpr (RegisterClass::kAsRegister == 0) {
           return std::tuple{flag_register_};
@@ -402,13 +422,22 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
 
   template <typename ArgBinding, typename AsmCallInfo>
   void ProcessBindingResult() {
-    using RegisterClass = typename ArgTraits<ArgBinding>::RegisterClass;
-    static constexpr const auto& arg_info = ArgTraits<ArgBinding>::arg_info;
-    if constexpr ((arg_info.arg_type == ArgInfo::IN_OUT_ARG ||
-                   arg_info.arg_type == ArgInfo::OUT_ARG) &&
-                  RegisterClass::kAsRegister == 'x') {
-      CHECK(!xmm_result_reg_.IsInvalidReg());
-      MovToResult<RegisterClass>(builder_, result_, xmm_result_reg_);
+    if constexpr (ArgTraits<ArgBinding>::Class::kIsImmediate) {
+      return;
+    } else {
+      using RegisterClass = typename ArgTraits<ArgBinding>::RegisterClass;
+      static constexpr const auto& arg_info = ArgTraits<ArgBinding>::arg_info;
+      if constexpr (RegisterClass::kAsRegister == 'm' || RegisterClass::kAsRegister == 0) {
+        return;
+      } else if constexpr ((arg_info.arg_type == ArgInfo::IN_OUT_ARG ||
+                            arg_info.arg_type == ArgInfo::OUT_ARG) &&
+                           RegisterClass::kAsRegister == 'x') {
+        CHECK(!xmm_result_reg_.IsInvalidReg());
+        MovToResult<RegisterClass>(builder_, result_, xmm_result_reg_);
+      } else if constexpr (arg_info.arg_type == ArgInfo::OUT_ARG && RegisterClass::kIsImplicitReg) {
+        CHECK(!implicit_result_reg_.IsInvalidReg());
+        MovToResult<RegisterClass>(builder_, result_, implicit_result_reg_);
+      }
     }
   }
 
@@ -438,8 +467,10 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
   x86_64::MachineIRBuilder* builder_;
   ResType result_;
   MachineReg xmm_result_reg_;
+  MachineReg implicit_result_reg_;
   FlagRegister flag_register_;
   std::tuple<ArgType...> input_args_;
+  uint32_t scratch_arg_ = 0;
   bool success_;
 };
 
@@ -460,14 +491,17 @@ bool TryInlineIntrinsicForHeavyOptimizer(x86_64::MachineIRBuilder* builder,
 }
 
 template <auto kFunction, typename FlagRegister, typename... ArgType>
-bool TryInlineIntrinsicForHeavyOptimizer(x86_64::MachineIRBuilder* builder,
-                                         FlagRegister flag_register,
-                                         ArgType... args) {
+bool TryInlineIntrinsicForHeavyOptimizerVoid(x86_64::MachineIRBuilder* builder,
+                                             FlagRegister flag_register,
+                                             ArgType... args) {
   if (InlineIntrinsic<kFunction>::TryInline(builder, flag_register, args...)) {
     return true;
   }
 
-  return TryBindingBasedInlineIntrinsicForHeavyOptimizer<kFunction, std::monostate, std::monostate>(
+  return TryBindingBasedInlineIntrinsicForHeavyOptimizer<kFunction,
+                                                         std::monostate,
+                                                         FlagRegister,
+                                                         ArgType...>(
       builder, std::monostate{}, flag_register, args...);
 }
 
