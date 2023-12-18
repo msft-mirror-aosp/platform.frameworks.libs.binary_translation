@@ -17,8 +17,8 @@
 #ifndef BERBERIS_INTRINSICS_RISCV64_VECTOR_INTRINSICS_H_
 #define BERBERIS_INTRINSICS_RISCV64_VECTOR_INTRINSICS_H_
 
-#include <climits>  // CHAR_BIT
 #include <algorithm>
+#include <climits>  // CHAR_BIT
 #include <cstdint>
 #include <limits>
 #include <tuple>
@@ -175,62 +175,29 @@ SIMD128Register VectorMasking(int vstart,
                               int vl,
                               int mask,
                               SIMD128Register dest,
-                              SIMD128Register result) {
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
-  if (vstart < 0) {
-    vstart = 0;
-  }
-  if (vl < 0) {
-    vl = 0;
-  }
-  if (vl > kElementsCount) {
-    vl = kElementsCount;
-  }
+                              SIMD128Register result,
+                              SIMD128Register result_mask) {
   SIMD128Register simd_mask = BitMaskToSimdMask<ElementType>(mask);
-  if (vstart == 0) [[likely]] {
-    SIMD128Register tail_bitmask = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
-    if constexpr (vta == TailProcessing::kAgnostic) {
-      if constexpr (vma == InactiveProcessing::kAgnostic) {
-        dest = result | ~simd_mask | tail_bitmask;
-      } else {
-        dest = (dest & ~simd_mask) | (result & simd_mask) | tail_bitmask;
-      }
-    } else {
-      if constexpr (vma == InactiveProcessing::kAgnostic) {
-        dest = (dest & tail_bitmask) | ((result | ~simd_mask) & ~tail_bitmask);
-      } else {
-        dest = (dest & (~simd_mask | tail_bitmask)) | (result & simd_mask & ~tail_bitmask);
-      }
-    }
-  } else if (vstart > vl) [[unlikely]] {
-    if (vl == 16) [[likely]] {
-      return dest;
-    }
-    if constexpr (vta == TailProcessing::kAgnostic) {
-      SIMD128Register tail_bitmask = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
-      dest |= tail_bitmask;
-    }
+  if (vma == InactiveProcessing::kAgnostic) {
+    result |= ~simd_mask;
   } else {
-    SIMD128Register start_bitmask = MakeBitmaskFromVl(vstart * sizeof(ElementType) * 8);
-    SIMD128Register tail_bitmask = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
-    if constexpr (vta == TailProcessing::kAgnostic) {
-      if constexpr (vma == InactiveProcessing::kAgnostic) {
-        dest = (dest & ~start_bitmask) | ((result | ~simd_mask) & start_bitmask) | tail_bitmask;
-      } else {
-        dest = (dest & (~simd_mask | ~start_bitmask)) | (result & simd_mask & start_bitmask) |
-               tail_bitmask;
-      }
-    } else {
-      if constexpr (vma == InactiveProcessing::kAgnostic) {
-        dest = (dest & (~start_bitmask | tail_bitmask)) |
-               ((result | ~simd_mask) & start_bitmask & ~tail_bitmask);
-      } else {
-        dest = (dest & (~simd_mask | ~start_bitmask | tail_bitmask)) |
-               (result & simd_mask & start_bitmask & ~tail_bitmask);
-      }
-    }
+    result = (result & simd_mask) | (result_mask & ~simd_mask);
   }
-  return dest;
+  return VectorMasking<ElementType, vta>(vstart, vl, dest, result);
+}
+
+template <typename ElementType, TailProcessing vta, InactiveProcessing vma>
+SIMD128Register VectorMasking(int vstart,
+                              int vl,
+                              int mask,
+                              SIMD128Register dest,
+                              SIMD128Register result) {
+  return VectorMasking<ElementType, vta, vma>(vstart,
+                                              vl,
+                                              mask,
+                                              dest,
+                                              result,
+                                              /*result_mask=*/dest);
 }
 
 // TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
@@ -340,6 +307,8 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, (std::min(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, (std::min(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, (std::max(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(max, (std::max(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(merge, auto [arg1, arg2] = std::tuple{args...}; arg2)
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(merge, auto [arg1, arg2] = std::tuple{args...}; arg2)
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redsum, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redand, (args & ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redor, (args | ...))
