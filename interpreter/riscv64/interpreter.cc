@@ -185,7 +185,7 @@ class Interpreter {
       case Decoder::OpOpcode::kMulh:
         return NarrowTopHalf(Widen(Int64(arg1)) * Widen(Int64(arg2)));
       case Decoder::OpOpcode::kMulhsu:
-        return NarrowTopHalf(UInt128{Widen(Int64(arg1))} * Widen(UInt64(arg2)));
+        return NarrowTopHalf(Widen(Int64(arg1)) * BitCastToSigned(Widen(UInt64(arg2))));
       case Decoder::OpOpcode::kMulhu:
         return NarrowTopHalf(Widen(UInt64(arg1)) * Widen(UInt64(arg2)));
       case Decoder::OpOpcode::kDiv:
@@ -211,25 +211,25 @@ class Interpreter {
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
     switch (opcode) {
       case Decoder::Op32Opcode::kAddw:
-        return Int64{TruncateTo<Int32>(arg1) + TruncateTo<Int32>(arg2)};
+        return Widen(TruncateTo<Int32>(arg1) + TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kSubw:
-        return Int64{TruncateTo<Int32>(arg1) - TruncateTo<Int32>(arg2)};
+        return Widen(TruncateTo<Int32>(arg1) - TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kSllw:
-        return Int64{TruncateTo<Int32>(arg1) << TruncateTo<Int32>(arg2)};
+        return Widen(TruncateTo<Int32>(arg1) << TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kSrlw:
-        return Int64{Int32{TruncateTo<UInt32>(arg1) >> TruncateTo<Int32>(arg2)}};
+        return Widen(BitCastToSigned(TruncateTo<UInt32>(arg1) >> TruncateTo<Int32>(arg2)));
       case Decoder::Op32Opcode::kSraw:
-        return Int64{TruncateTo<Int32>(arg1) >> TruncateTo<Int32>(arg2)};
+        return Widen(TruncateTo<Int32>(arg1) >> TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kMulw:
-        return Int64{TruncateTo<Int32>(arg1) * TruncateTo<Int32>(arg2)};
+        return Widen(TruncateTo<Int32>(arg1) * TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kDivw:
-        return Int64{TruncateTo<Int32>(arg1) / TruncateTo<Int32>(arg2)};
+        return Widen(TruncateTo<Int32>(arg1) / TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kDivuw:
-        return Int64{Int32{TruncateTo<UInt32>(arg1) / TruncateTo<UInt32>(arg2)}};
+        return Widen(BitCastToSigned(TruncateTo<UInt32>(arg1) / TruncateTo<UInt32>(arg2)));
       case Decoder::Op32Opcode::kRemw:
-        return Int64{TruncateTo<Int32>(arg1) % TruncateTo<Int32>(arg2)};
+        return Widen(TruncateTo<Int32>(arg1) % TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kRemuw:
-        return Int64{Int32{TruncateTo<UInt32>(arg1) % TruncateTo<UInt32>(arg2)}};
+        return Widen(BitCastToSigned(TruncateTo<UInt32>(arg1) % TruncateTo<UInt32>(arg2)));
       default:
         Unimplemented();
         return {};
