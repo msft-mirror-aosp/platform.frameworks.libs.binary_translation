@@ -438,8 +438,15 @@ class AsmCallInfo<kIntrinsicTemplateName,
   using IntrinsicType = std::conditional_t<std::tuple_size_v<OutputArguments> == 0,
                                            void (*)(InputArgumentsTypes...),
                                            OutputArguments (*)(InputArgumentsTypes...)>;
-  template <template <typename, auto, auto, typename...> typename MachineInsnType, typename Opcode>
-  using MachineInsn = MachineInsnType<AsmCallInfo, kMnemo, kOpcode<Opcode>, BindingsTypes...>;
+  template <template <typename, auto, auto, typename...> typename MachineInsnType,
+            template <typename...>
+            typename ConstructorArgs,
+            typename Opcode>
+  using MachineInsn = MachineInsnType<AsmCallInfo,
+                                      kMnemo,
+                                      kOpcode<Opcode>,
+                                      ConstructorArgs<BindingsTypes...>,
+                                      BindingsTypes...>;
 };
 
 }  // namespace berberis::intrinsics::bindings
