@@ -29,6 +29,7 @@
 #include "berberis/backend/x86_64/machine_insn_intrinsics.h"
 #include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/backend/x86_64/machine_ir_builder.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
@@ -490,6 +491,16 @@ bool TryInlineIntrinsicForHeavyOptimizer(x86_64::MachineIRBuilder* builder,
       builder, result, flag_register, args...);
 }
 
+template <auto kFunction, typename ResType, typename FlagRegister, typename... ArgType>
+void InlineIntrinsicForHeavyOptimizer(x86_64::MachineIRBuilder* builder,
+                                      ResType result,
+                                      FlagRegister flag_register,
+                                      ArgType... args) {
+  bool success = TryInlineIntrinsicForHeavyOptimizer<kFunction, ResType, FlagRegister, ArgType...>(
+      builder, result, flag_register, args...);
+  CHECK(success);
+}
+
 template <auto kFunction, typename FlagRegister, typename... ArgType>
 bool TryInlineIntrinsicForHeavyOptimizerVoid(x86_64::MachineIRBuilder* builder,
                                              FlagRegister flag_register,
@@ -503,6 +514,15 @@ bool TryInlineIntrinsicForHeavyOptimizerVoid(x86_64::MachineIRBuilder* builder,
                                                          FlagRegister,
                                                          ArgType...>(
       builder, std::monostate{}, flag_register, args...);
+}
+
+template <auto kFunction, typename FlagRegister, typename... ArgType>
+void InlineIntrinsicForHeavyOptimizerVoid(x86_64::MachineIRBuilder* builder,
+                                          FlagRegister flag_register,
+                                          ArgType... args) {
+  bool success = TryInlineIntrinsicForHeavyOptimizerVoid<kFunction, FlagRegister, ArgType...>(
+      builder, flag_register, args...);
+  CHECK(success);
 }
 
 }  // namespace berberis
