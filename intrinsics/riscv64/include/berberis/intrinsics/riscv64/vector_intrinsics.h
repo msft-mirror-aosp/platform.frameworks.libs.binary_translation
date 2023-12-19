@@ -76,9 +76,7 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
                                                     SourceType... source) {
   static_assert(((std::is_same_v<SourceType, SIMD128Register> ||
                   std::is_same_v<SourceType, ElementType>)&&...));
-  using UnsignedType = typename ElementType::UnsignedType;
-  constexpr ElementType fill_value =
-      UnsignedType{std::numeric_limits<typename UnsignedType::BaseType>::max()};
+  constexpr ElementType fill_value = ~ElementType{0};
   if (vstart < 0) {
     vstart = 0;
   }
@@ -124,9 +122,7 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
                                                     SourceType... source) {
   static_assert(((std::is_same_v<SourceType, SIMD128Register> ||
                   std::is_same_v<SourceType, ElementType>)&&...));
-  using UnsignedType = typename ElementType::UnsignedType;
-  constexpr ElementType fill_value =
-      UnsignedType{std::numeric_limits<typename UnsignedType::BaseType>::max()};
+  constexpr ElementType fill_value = ~ElementType{0};
   if (vstart < 0) {
     vstart = 0;
   }
