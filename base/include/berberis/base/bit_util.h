@@ -452,6 +452,30 @@ using Int128 = Wrapping<__int128>;
 using UInt128 = Wrapping<unsigned __int128>;
 #endif
 
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToSigned(Saturating<IntType> src) ->
+    typename Saturating<IntType>::SignedType {
+  return {static_cast<std::make_signed_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToUnigned(Saturating<IntType> src) ->
+    typename Saturating<IntType>::UnsignedType {
+  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToSigned(Wrapping<IntType> src) ->
+    typename Wrapping<IntType>::SignedType {
+  return {static_cast<std::make_signed_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToUnigned(Wrapping<IntType> src) ->
+    typename Wrapping<IntType>::UnsignedType {
+  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
+}
+
 template <typename ResultType, typename IntType>
 [[nodiscard]] auto constexpr MaybeTruncateTo(IntType src)
     -> std::enable_if_t<std::is_integral_v<IntType> &&
