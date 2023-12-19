@@ -143,11 +143,9 @@ class Saturating {
     return static_cast<IntType>(value);
   }
   template <typename IntType,
-            typename = std::enable_if_t<std::is_integral_v<IntType> &&
-                                        ((sizeof(BaseType) < sizeof(IntType) &&
-                                          std::is_signed_v<IntType> == kIsSigned) ||
-                                         (sizeof(BaseType) == sizeof(IntType))) &&
-                                        !std::is_same_v<IntType, BaseType>>>
+            typename = std::enable_if_t<
+                std::is_integral_v<IntType> && sizeof(BaseType) <= sizeof(IntType) &&
+                std::is_signed_v<IntType> == kIsSigned && !std::is_same_v<IntType, BaseType>>>
   [[nodiscard]] constexpr operator Saturating<IntType>() const {
     return {static_cast<IntType>(value)};
   }
@@ -297,11 +295,9 @@ class Wrapping {
     return {static_cast<IntType>(value)};
   }
   template <typename IntType,
-            typename = std::enable_if_t<std::is_integral_v<IntType> &&
-                                        ((sizeof(BaseType) < sizeof(IntType) &&
-                                          std::is_signed_v<IntType> == kIsSigned) ||
-                                         (sizeof(BaseType) == sizeof(IntType))) &&
-                                        !std::is_same_v<IntType, BaseType>>>
+            typename = std::enable_if_t<
+                std::is_integral_v<IntType> && sizeof(BaseType) <= sizeof(IntType) &&
+                std::is_signed_v<IntType> == kIsSigned && !std::is_same_v<IntType, BaseType>>>
   [[nodiscard]] constexpr operator Wrapping<IntType>() const {
     return {static_cast<IntType>(value)};
   }
