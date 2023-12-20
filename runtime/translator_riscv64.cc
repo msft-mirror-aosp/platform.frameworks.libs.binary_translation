@@ -227,6 +227,7 @@ void TranslateRegion(GuestAddr pc) {
     if (!success) {
       // Heavy supports more insns than lite, so try to heavy optimize. If that fails, then
       // fallback to interpret.
+      std::tie(success, host_code_piece, size, kind) = HeavyOptimizeRegion(pc);
       if (!success) {
         std::tie(host_code_piece, size, kind) =
             std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
