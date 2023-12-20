@@ -76,9 +76,7 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
                                                     SourceType... source) {
   static_assert(((std::is_same_v<SourceType, SIMD128Register> ||
                   std::is_same_v<SourceType, ElementType>)&&...));
-  using UnsignedType = typename ElementType::UnsignedType;
-  constexpr ElementType fill_value =
-      UnsignedType{std::numeric_limits<typename UnsignedType::BaseType>::max()};
+  constexpr ElementType fill_value = ~ElementType{0};
   if (vstart < 0) {
     vstart = 0;
   }
@@ -87,22 +85,22 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
   }
   if (vstart == 0 && vl == static_cast<int>(16 / sizeof(ElementType))) {
     for (int index = vstart; index < vl; ++index) {
-      result.Set<ElementType>(lambda(VectorElement<ElementType>(result, index),
-                                     VectorElement<ElementType>(source, index)...),
-                              index);
+      result.Set(lambda(VectorElement<ElementType>(result, index),
+                        VectorElement<ElementType>(source, index)...),
+                 index);
     }
   } else {
 #pragma clang loop unroll(disable)
     for (int index = vstart; index < vl; ++index) {
-      result.Set<ElementType>(lambda(VectorElement<ElementType>(result, index),
-                                     VectorElement<ElementType>(source, index)...),
-                              index);
+      result.Set(lambda(VectorElement<ElementType>(result, index),
+                        VectorElement<ElementType>(source, index)...),
+                 index);
     }
     if constexpr (vta == TailProcessing::kAgnostic) {
       if (vl < static_cast<int>(16 / sizeof(ElementType))) {
 #pragma clang loop unroll(disable)
         for (int index = vl; index < 16 / static_cast<int>(sizeof(ElementType)); ++index) {
-          result.Set<ElementType>(fill_value, index);
+          result.Set(fill_value, index);
         }
       }
     }
@@ -124,9 +122,7 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
                                                     SourceType... source) {
   static_assert(((std::is_same_v<SourceType, SIMD128Register> ||
                   std::is_same_v<SourceType, ElementType>)&&...));
-  using UnsignedType = typename ElementType::UnsignedType;
-  constexpr ElementType fill_value =
-      UnsignedType{std::numeric_limits<typename UnsignedType::BaseType>::max()};
+  constexpr ElementType fill_value = ~ElementType{0};
   if (vstart < 0) {
     vstart = 0;
   }
@@ -136,18 +132,18 @@ inline std::tuple<SIMD128Register> VectorArithmetic(Lambda lambda,
 #pragma clang loop unroll(disable)
   for (int index = vstart; index < vl; ++index) {
     if (mask & (1 << index)) {
-      result.Set<ElementType>(lambda(VectorElement<ElementType>(result, index),
-                                     VectorElement<ElementType>(source, index)...),
-                              index);
+      result.Set(lambda(VectorElement<ElementType>(result, index),
+                        VectorElement<ElementType>(source, index)...),
+                 index);
     } else if constexpr (vma == InactiveProcessing::kAgnostic) {
-      result.Set<ElementType>(fill_value, index);
+      result.Set(fill_value, index);
     }
   }
   if constexpr (vta == TailProcessing::kAgnostic) {
     if (vl < static_cast<int>(16 / sizeof(ElementType))) {
 #pragma clang loop unroll(disable)
       for (int index = vl; index < 16 / static_cast<int>(sizeof(ElementType)); ++index) {
-        result.Set<ElementType>(fill_value, index);
+        result.Set(fill_value, index);
       }
     }
   }

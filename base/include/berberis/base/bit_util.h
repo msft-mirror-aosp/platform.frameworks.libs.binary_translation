@@ -143,11 +143,9 @@ class Saturating {
     return static_cast<IntType>(value);
   }
   template <typename IntType,
-            typename = std::enable_if_t<std::is_integral_v<IntType> &&
-                                        ((sizeof(BaseType) < sizeof(IntType) &&
-                                          std::is_signed_v<IntType> == kIsSigned) ||
-                                         (sizeof(BaseType) == sizeof(IntType))) &&
-                                        !std::is_same_v<IntType, BaseType>>>
+            typename = std::enable_if_t<
+                std::is_integral_v<IntType> && sizeof(BaseType) <= sizeof(IntType) &&
+                std::is_signed_v<IntType> == kIsSigned && !std::is_same_v<IntType, BaseType>>>
   [[nodiscard]] constexpr operator Saturating<IntType>() const {
     return {static_cast<IntType>(value)};
   }
@@ -297,11 +295,9 @@ class Wrapping {
     return {static_cast<IntType>(value)};
   }
   template <typename IntType,
-            typename = std::enable_if_t<std::is_integral_v<IntType> &&
-                                        ((sizeof(BaseType) < sizeof(IntType) &&
-                                          std::is_signed_v<IntType> == kIsSigned) ||
-                                         (sizeof(BaseType) == sizeof(IntType))) &&
-                                        !std::is_same_v<IntType, BaseType>>>
+            typename = std::enable_if_t<
+                std::is_integral_v<IntType> && sizeof(BaseType) <= sizeof(IntType) &&
+                std::is_signed_v<IntType> == kIsSigned && !std::is_same_v<IntType, BaseType>>>
   [[nodiscard]] constexpr operator Wrapping<IntType>() const {
     return {static_cast<IntType>(value)};
   }
@@ -452,6 +448,30 @@ using Int128 = Wrapping<__int128>;
 using UInt128 = Wrapping<unsigned __int128>;
 #endif
 
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToSigned(Saturating<IntType> src) ->
+    typename Saturating<IntType>::SignedType {
+  return {static_cast<std::make_signed_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToUnigned(Saturating<IntType> src) ->
+    typename Saturating<IntType>::UnsignedType {
+  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToSigned(Wrapping<IntType> src) ->
+    typename Wrapping<IntType>::SignedType {
+  return {static_cast<std::make_signed_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToUnigned(Wrapping<IntType> src) ->
+    typename Wrapping<IntType>::UnsignedType {
+  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
+}
+
 template <typename ResultType, typename IntType>
 [[nodiscard]] auto constexpr MaybeTruncateTo(IntType src)
     -> std::enable_if_t<std::is_integral_v<IntType> &&
@@ -536,17 +556,10 @@ template <typename BaseType>
 }
 
 // While `Narrow` returns value reduced to smaller data type there are centain algorithms
-// which require the top half, too (most ofthen in the context of widening multiplication
+// which require the top half, too (most ofhen in the context of widening multiplication
 // where top half of the product is produced).
-// NannowHigh return top half of the value narrowed down to smaller type (overflow is not
+// `NarrowTopHalf` returns top half of the value narrowed down to smaller type (overflow is not
 // possible in that case).
-template <typename BaseType>
-[[nodiscard]] constexpr auto NarrowTopHalf(Saturating<BaseType> source)
-    -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
-  return {static_cast<typename TypeTraits<BaseType>::Narrow>(
-      source.value >> (sizeof(typename TypeTraits<BaseType>::Narrow) * CHAR_BIT))};
-}
-
 template <typename BaseType>
 [[nodiscard]] constexpr auto NarrowTopHalf(Wrapping<BaseType> source)
     -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
