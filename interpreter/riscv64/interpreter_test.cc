@@ -68,41 +68,41 @@ class Riscv64InterpreterTest : public ::testing::Test {
 
   template <typename T>
   void TestAtomicStore(uint32_t insn_bytes, T expected_result) {
-    store_area_ = ~uint64_t{0};
+    store_area_[0] = ~uint64_t{0};
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
-    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<2>(state_.cpu, kScalarDataToStore);
     SetXReg<3>(state_.cpu, 0xdeadbeef);
     state_.cpu.reservation_address = ToGuestAddr(&store_area_);
-    state_.cpu.reservation_value = store_area_;
+    state_.cpu.reservation_value = store_area_[0];
     MemoryRegionReservation::SetOwner(ToGuestAddr(&store_area_), &state_.cpu);
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(static_cast<T>(store_area_), expected_result);
+    EXPECT_EQ(static_cast<T>(store_area_[0]), expected_result);
     EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
   }
 
   void TestAtomicStoreNoLoadFailure(uint32_t insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
-    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<2>(state_.cpu, kScalarDataToStore);
     SetXReg<3>(state_.cpu, 0xdeadbeef);
-    store_area_ = 0;
+    store_area_[0] = 0;
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(store_area_[0], 0u);
     EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
   }
 
   void TestAtomicStoreDifferentLoadFailure(uint32_t insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
-    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<2>(state_.cpu, kScalarDataToStore);
     SetXReg<3>(state_.cpu, 0xdeadbeef);
-    state_.cpu.reservation_address = ToGuestAddr(&kDataToStore);
+    state_.cpu.reservation_address = ToGuestAddr(&kScalarDataToStore);
     state_.cpu.reservation_value = 0;
-    MemoryRegionReservation::SetOwner(ToGuestAddr(&kDataToStore), &state_.cpu);
-    store_area_ = 0;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&kScalarDataToStore), &state_.cpu);
+    store_area_[0] = 0;
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(store_area_[0], 0u);
     EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
   }
 
@@ -365,9 +365,11 @@ class Riscv64InterpreterTest : public ::testing::Test {
   // Undisturbed result is put in registers v8, v9, …, v15 and is expected to get read back.
   static constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 
-  static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
-  static constexpr uint64_t kDataToStore = kDataToLoad;
-  uint64_t store_area_;
+  static constexpr uint64_t kScalarDataToLoad{0xffffeeeeddddccccULL};
+  static constexpr uint64_t kScalarDataToStore = kScalarDataToLoad;
+  // Store area for store instructions.  We need at least 16 uint64_t to handle 8×128bit registers,
+  // plus 2× of that to test strided instructions.
+  alignas(16) uint64_t store_area_[32];
   ThreadState state_;
 };
 
@@ -435,15 +437,15 @@ TEST_F(Riscv64InterpreterTest, AtomicLoadInstructions) {
   TestAtomicLoad(0x1000a12f, &kNegative32BitValue, kSignExtendedNegative);
 
   // Lrd
-  TestAtomicLoad(0x1000b12f, &kDataToLoad, kDataToLoad);
+  TestAtomicLoad(0x1000b12f, &kScalarDataToLoad, kScalarDataToLoad);
 }
 
 TEST_F(Riscv64InterpreterTest, AtomicStoreInstructions) {
   // Scw
-  TestAtomicStore(0x1820a1af, static_cast<uint32_t>(kDataToStore));
+  TestAtomicStore(0x1820a1af, static_cast<uint32_t>(kScalarDataToStore));
 
   // Scd
-  TestAtomicStore(0x1820b1af, kDataToStore);
+  TestAtomicStore(0x1820b1af, kScalarDataToStore);
 }
 
 TEST_F(Riscv64InterpreterTest, AtomicStoreInstructionNoLoadFailure) {
