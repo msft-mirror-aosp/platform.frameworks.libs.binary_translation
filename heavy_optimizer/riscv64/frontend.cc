@@ -602,23 +602,7 @@ void HeavyOptimizerFrontend::Store(Decoder::StoreOperandType operand_type,
                                    int16_t offset,
                                    Register data) {
   int32_t sx_offset{offset};
-  switch (operand_type) {
-    case Decoder::StoreOperandType::k8bit:
-      Gen<x86_64::MovbMemBaseDispReg>(arg, sx_offset, data);
-      break;
-    case Decoder::StoreOperandType::k16bit:
-      Gen<x86_64::MovwMemBaseDispReg>(arg, sx_offset, data);
-      break;
-    case Decoder::StoreOperandType::k32bit:
-      Gen<x86_64::MovlMemBaseDispReg>(arg, sx_offset, data);
-      break;
-    case Decoder::StoreOperandType::k64bit:
-      Gen<x86_64::MovqMemBaseDispReg>(arg, sx_offset, data);
-      break;
-    default:
-      return Unimplemented();
-  }
-
+  StoreWithoutRecovery(operand_type, arg, sx_offset, data);
   GenRecoveryBlockForLastInsn();
 }
 
@@ -626,34 +610,7 @@ Register HeavyOptimizerFrontend::Load(Decoder::LoadOperandType operand_type,
                                       Register arg,
                                       int16_t offset) {
   int32_t sx_offset{offset};
-  auto res = AllocTempReg();
-  switch (operand_type) {
-    case Decoder::LoadOperandType::k8bitUnsigned:
-      Gen<x86_64::MovzxblRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k16bitUnsigned:
-      Gen<x86_64::MovzxwlRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k32bitUnsigned:
-      Gen<x86_64::MovlRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k64bit:
-      Gen<x86_64::MovqRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k8bitSigned:
-      Gen<x86_64::MovsxbqRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k16bitSigned:
-      Gen<x86_64::MovsxwqRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k32bitSigned:
-      Gen<x86_64::MovsxlqRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    default:
-      Unimplemented();
-      return {};
-  }
-
+  auto res = LoadWithoutRecovery(operand_type, arg, sx_offset);
   GenRecoveryBlockForLastInsn();
   return res;
 }
@@ -731,6 +688,130 @@ void HeavyOptimizerFrontend::Finalize(GuestAddr stop_pc) {
   }
 
   ResolveJumps();
+}
+
+Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType operand_type,
+                                                     Register base,
+                                                     int32_t disp) {
+  auto res = AllocTempReg();
+  switch (operand_type) {
+    case Decoder::LoadOperandType::k8bitUnsigned:
+      Gen<x86_64::MovzxblRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k16bitUnsigned:
+      Gen<x86_64::MovzxwlRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k32bitUnsigned:
+      Gen<x86_64::MovlRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k64bit:
+      Gen<x86_64::MovqRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k8bitSigned:
+      Gen<x86_64::MovsxbqRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k16bitSigned:
+      Gen<x86_64::MovsxwqRegMemBaseDisp>(res, base, disp);
+      break;
+    case Decoder::LoadOperandType::k32bitSigned:
+      Gen<x86_64::MovsxlqRegMemBaseDisp>(res, base, disp);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+
+  return res;
+}
+
+Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType operand_type,
+                                                     Register base,
+                                                     Register index,
+                                                     int32_t disp) {
+  auto res = AllocTempReg();
+  switch (operand_type) {
+    case Decoder::LoadOperandType::k8bitUnsigned:
+      Gen<x86_64::MovzxblRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k16bitUnsigned:
+      Gen<x86_64::MovzxwlRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k32bitUnsigned:
+      Gen<x86_64::MovlRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k64bit:
+      Gen<x86_64::MovqRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k8bitSigned:
+      Gen<x86_64::MovsxbqRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k16bitSigned:
+      Gen<x86_64::MovsxwqRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    case Decoder::LoadOperandType::k32bitSigned:
+      Gen<x86_64::MovsxlqRegMemBaseIndexDisp>(
+          res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
+void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+                                                  Register base,
+                                                  int32_t disp,
+                                                  Register data) {
+  switch (operand_type) {
+    case Decoder::StoreOperandType::k8bit:
+      Gen<x86_64::MovbMemBaseDispReg>(base, disp, data);
+      break;
+    case Decoder::StoreOperandType::k16bit:
+      Gen<x86_64::MovwMemBaseDispReg>(base, disp, data);
+      break;
+    case Decoder::StoreOperandType::k32bit:
+      Gen<x86_64::MovlMemBaseDispReg>(base, disp, data);
+      break;
+    case Decoder::StoreOperandType::k64bit:
+      Gen<x86_64::MovqMemBaseDispReg>(base, disp, data);
+      break;
+    default:
+      return Unimplemented();
+  }
+}
+
+void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+                                                  Register base,
+                                                  Register index,
+                                                  int32_t disp,
+                                                  Register data) {
+  switch (operand_type) {
+    case Decoder::StoreOperandType::k8bit:
+      Gen<x86_64::MovbMemBaseIndexDispReg>(
+          base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
+      break;
+    case Decoder::StoreOperandType::k16bit:
+      Gen<x86_64::MovwMemBaseIndexDispReg>(
+          base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
+      break;
+    case Decoder::StoreOperandType::k32bit:
+      Gen<x86_64::MovlMemBaseIndexDispReg>(
+          base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
+      break;
+    case Decoder::StoreOperandType::k64bit:
+      Gen<x86_64::MovqMemBaseIndexDispReg>(
+          base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
+      break;
+    default:
+      return Unimplemented();
+  }
 }
 
 }  // namespace berberis
