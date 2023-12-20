@@ -17,7 +17,7 @@
 #ifndef BERBERIS_INTRINSICS_SIMD_REGISTER_H_
 #define BERBERIS_INTRINSICS_SIMD_REGISTER_H_
 
-#if defined(__i386__) || defined(__x86_64)
+#if defined(__i386__) || defined(__x86_64__)
 #include "xmmintrin.h"
 #endif
 
@@ -133,6 +133,34 @@ class SIMD128Register {
       return lhs.Get<T>() != rhs;
     }
   }
+#if defined(__i386__) || defined(__x86_64__)
+  friend bool operator==(SIMD128Register lhs, SIMD128Register rhs) {
+    // Note comparison of two vectors return vector of the same type. In such a case we need to
+    // merge many bools that we got.
+    // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
+    // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
+    return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) == 0xffff;
+  }
+  friend bool operator!=(SIMD128Register lhs, SIMD128Register rhs) {
+    // Note comparison of two vectors return vector of the same type. In such a case we need to
+    // merge many bools that we got.
+    // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
+    // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
+    return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) != 0xffff;
+  }
+  friend SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs) {
+    return lhs.Get<__m128i>() & rhs.Get<__m128i>();
+  }
+  friend SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs) {
+    return lhs.Get<__m128i>() | rhs.Get<__m128i>();
+  }
+  friend SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs) {
+    return lhs.Get<__m128i>() ^ rhs.Get<__m128i>();
+  }
+  friend SIMD128Register operator~(SIMD128Register lhs) {
+    return ~lhs.Get<__m128i>();
+  }
+#endif
 
  private:
   union {
@@ -148,7 +176,7 @@ class SIMD128Register {
     [[gnu::vector_size(16), gnu::may_alias]] uint32_t uint32;
     [[gnu::vector_size(16), gnu::may_alias]] int64_t int64;
     [[gnu::vector_size(16), gnu::may_alias]] uint64_t uint64;
-#if defined(__x86_64)
+#if defined(__x86_64__)
     [[gnu::vector_size(16), gnu::may_alias]] __int128_t int128;
     [[gnu::vector_size(16), gnu::may_alias]] __uint128_t uint128;
 #endif
@@ -170,7 +198,7 @@ static_assert(sizeof(SIMD128Register) == 16, "Unexpected size of SIMD128Register
 
 #if defined(__i386__)
 static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
-#elif defined(__x86_64)
+#elif defined(__x86_64__)
 static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
 #else
 #error Unsupported architecture
@@ -188,7 +216,7 @@ static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Regist
  * For other compilers one will need to use memcpy to guarantee safety.
  */
 #ifdef __GNUC__
-#define SIMD_128_REGISTER_GETTER_SETTER(TYPE, MEMBER)                                 \
+#define SIMD_128_STDINT_REGISTER_GETTER_SETTER(TYPE, MEMBER)                          \
   template <>                                                                         \
   inline TYPE SIMD128RegisterGet<TYPE>(const SIMD128Register* reg, int index) {       \
     CHECK_LT(unsigned(index), sizeof(*reg) / sizeof(TYPE));                           \
@@ -199,18 +227,18 @@ static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Regist
     CHECK_LT(unsigned(index), sizeof(*reg) / sizeof(TYPE));                           \
     return reg->MEMBER[index] = elem;                                                 \
   }
-#define SIMD_128_FULL_REGISTER_GETTER_SETTER(TYPE, MEMBER)                            \
+#define SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(TYPE, MEMBER)                         \
   template <>                                                                         \
   inline TYPE SIMD128RegisterGet<TYPE>(const SIMD128Register* reg, int index) {       \
-    CHECK_EQ(index, 0);                                                               \
-    return reg->MEMBER;                                                               \
+    CHECK_LT(unsigned(index), sizeof(*reg) / sizeof(TYPE));                           \
+    return {reg->MEMBER[index]};                                                      \
   }                                                                                   \
   template <>                                                                         \
   inline TYPE SIMD128RegisterSet<TYPE>(SIMD128Register * reg, TYPE elem, int index) { \
-    CHECK_EQ(index, 0);                                                               \
-    return reg->MEMBER = elem;                                                        \
+    CHECK_LT(unsigned(index), sizeof(*reg) / sizeof(TYPE));                           \
+    return {reg->MEMBER[index] = elem};                                               \
   }
-#define SIMD_128_REGISTER_GETTER_SETTЕR(TYPE, MEMBER_TYPE, MEMBER)                    \
+#define SIMD_128_FLOAT_REGISTER_GETTER_SETTER(TYPE, MEMBER_TYPE, MEMBER)              \
   template <>                                                                         \
   inline TYPE SIMD128RegisterGet<TYPE>(const SIMD128Register* reg, int index) {       \
     CHECK_LT(unsigned(index), sizeof(*reg) / sizeof(TYPE));                           \
@@ -234,18 +262,49 @@ static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Regist
     reg->MEMBER[index] = melem;                                                       \
     return elem;                                                                      \
   }
+#define SIMD_128_FULL_REGISTER_GETTER_SETTER(TYPE, MEMBER)                            \
+  template <>                                                                         \
+  inline TYPE SIMD128RegisterGet<TYPE>(const SIMD128Register* reg, int index) {       \
+    CHECK_EQ(index, 0);                                                               \
+    return reg->MEMBER;                                                               \
+  }                                                                                   \
+  template <>                                                                         \
+  inline TYPE SIMD128RegisterSet<TYPE>(SIMD128Register * reg, TYPE elem, int index) { \
+    CHECK_EQ(index, 0);                                                               \
+    return reg->MEMBER = elem;                                                        \
+  }
 #endif
-SIMD_128_REGISTER_GETTER_SETTER(int8_t, int8);
-SIMD_128_REGISTER_GETTER_SETTER(uint8_t, uint8);
-SIMD_128_REGISTER_GETTER_SETTER(int16_t, int16);
-SIMD_128_REGISTER_GETTER_SETTER(uint16_t, uint16);
-SIMD_128_REGISTER_GETTER_SETTER(int32_t, int32);
-SIMD_128_REGISTER_GETTER_SETTER(uint32_t, uint32);
-SIMD_128_REGISTER_GETTER_SETTER(int64_t, int64);
-SIMD_128_REGISTER_GETTER_SETTER(uint64_t, uint64);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(int8_t, int8);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(Int8, int8);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatInt8, int8);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(uint8_t, uint8);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(UInt8, uint8);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatUInt8, uint8);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(int16_t, int16);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(Int16, int16);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatInt16, int16);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(uint16_t, uint16);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(UInt16, uint16);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatUInt16, uint16);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(int32_t, int32);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(Int32, int32);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatInt32, int32);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(uint32_t, uint32);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(UInt32, uint32);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatUInt32, uint32);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(int64_t, int64);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(Int64, int64);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatInt64, int64);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(uint64_t, uint64);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(UInt64, uint64);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatUInt64, uint64);
 #if defined(__x86_64__)
-SIMD_128_REGISTER_GETTER_SETTER(__int128_t, int128);
-SIMD_128_REGISTER_GETTER_SETTER(__uint128_t, uint128);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(__int128_t, int128);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(Int128, int128);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatInt128, int128);
+SIMD_128_STDINT_REGISTER_GETTER_SETTER(__uint128_t, uint128);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(UInt128, uint128);
+SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatUInt128, uint128);
 #endif
 #if defined(__i386__) || defined(__x86_64__)
 SIMD_128_FULL_REGISTER_GETTER_SETTER(__v16qi, int8);
@@ -259,10 +318,12 @@ SIMD_128_FULL_REGISTER_GETTER_SETTER(__v2df, float64);
 SIMD_128_FULL_REGISTER_GETTER_SETTER(__m128i, int64);
 SIMD_128_FULL_REGISTER_GETTER_SETTER(__m128, float32);
 #endif
-SIMD_128_REGISTER_GETTER_SETTЕR(intrinsics::Float32, float, float32);
-SIMD_128_REGISTER_GETTER_SETTЕR(intrinsics::Float64, double, float64);
+SIMD_128_FLOAT_REGISTER_GETTER_SETTER(intrinsics::Float32, float, float32);
+SIMD_128_FLOAT_REGISTER_GETTER_SETTER(intrinsics::Float64, double, float64);
 #undef SIMD_128_FULL_REGISTER_GETTER_SETTER
-#undef SIMD_128_REGISTER_GETTER_SETTER
+#undef SIMD_128_fLOAT_REGISTER_GETTER_SETTER
+#undef SIMD_128_SAFEINT_REGISTER_GETTER_SETTER
+#undef SIMD_128_STDINT_REGISTER_GETTER_SETTER
 
 }  // namespace berberis
 
