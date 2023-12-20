@@ -674,6 +674,18 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVsravv:
         return OpVectorvv<intrinsics::Vsrvv<SignedType, vta>, SignedType, vlmul, vta>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVminuvv:
+        return OpVectorvv<intrinsics::Vminvv<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVminvv:
+        return OpVectorvv<intrinsics::Vminvv<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVmaxuvv:
+        return OpVectorvv<intrinsics::Vmaxvv<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVmaxvv:
+        return OpVectorvv<intrinsics::Vmaxvv<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -754,6 +766,18 @@ class Interpreter {
             args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       case Decoder::VOpIVxOpcode::kVsravx:
         return OpVectorvx<intrinsics::Vsrvx<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVminuvx:
+        return OpVectorvx<intrinsics::Vminvx<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVminvx:
+        return OpVectorvx<intrinsics::Vminvx<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVmaxuvx:
+        return OpVectorvx<intrinsics::Vmaxvx<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVmaxvx:
+        return OpVectorvx<intrinsics::Vmaxvx<SignedType, vta>, SignedType, vlmul, vta>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       default:
         Unimplemented();
@@ -975,6 +999,18 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVsravv:
         return OpVectorvv<intrinsics::Vsrvvm<SignedType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVminuvv:
+        return OpVectorvv<intrinsics::Vminvvm<UnsignedType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVminvv:
+        return OpVectorvv<intrinsics::Vminvvm<SignedType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVmaxuvv:
+        return OpVectorvv<intrinsics::Vmaxvvm<UnsignedType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVmaxvv:
+        return OpVectorvv<intrinsics::Vmaxvvm<SignedType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -1094,6 +1130,18 @@ class Interpreter {
                           vma>(args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       case Decoder::VOpIVxOpcode::kVsravx:
         return OpVectorvx<intrinsics::Vsrvxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVminuvx:
+        return OpVectorvx<intrinsics::Vminvxm<UnsignedType, vta, vma>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVminvx:
+        return OpVectorvx<intrinsics::Vminvxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVmaxuvx:
+        return OpVectorvx<intrinsics::Vmaxvxm<UnsignedType, vta, vma>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVmaxvx:
+        return OpVectorvx<intrinsics::Vmaxvxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       default:
         Unimplemented();
