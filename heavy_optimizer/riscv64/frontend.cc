@@ -787,7 +787,7 @@ Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrOpcode opcode, Register a
       Unimplemented();
       return {};
   }
-  return arg;
+  return res;
 }
 
 Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrImmOpcode opcode,
