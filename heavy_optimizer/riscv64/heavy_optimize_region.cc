@@ -47,6 +47,10 @@ std::tuple<GuestAddr, bool, size_t> HeavyOptimizeRegion(GuestAddr pc,
          !frontend.IsRegionEndReached()) {
     frontend.StartInsn();
     auto size = decoder.Decode(ToHostAddr<uint16_t>(frontend.GetInsnAddr()));
+    if (!frontend.success()) {
+      // Do not increment the insn counter if we could not generate the instruction.
+      break;
+    }
     frontend.IncrementInsnAddr(size);
     number_of_instructions++;
   }
