@@ -17,7 +17,7 @@
 #ifndef BERBERIS_INTRINSICS_SIMD_REGISTER_H_
 #define BERBERIS_INTRINSICS_SIMD_REGISTER_H_
 
-#if defined(__i386__) || defined(__x86_64)
+#if defined(__i386__) || defined(__x86_64__)
 #include "xmmintrin.h"
 #endif
 
@@ -133,6 +133,34 @@ class SIMD128Register {
       return lhs.Get<T>() != rhs;
     }
   }
+#if defined(__i386__) || defined(__x86_64__)
+  friend bool operator==(SIMD128Register lhs, SIMD128Register rhs) {
+    // Note comparison of two vectors return vector of the same type. In such a case we need to
+    // merge many bools that we got.
+    // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
+    // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
+    return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) == 0xffff;
+  }
+  friend bool operator!=(SIMD128Register lhs, SIMD128Register rhs) {
+    // Note comparison of two vectors return vector of the same type. In such a case we need to
+    // merge many bools that we got.
+    // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
+    // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
+    return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) != 0xffff;
+  }
+  friend SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs) {
+    return lhs.Get<__m128i>() & rhs.Get<__m128i>();
+  }
+  friend SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs) {
+    return lhs.Get<__m128i>() | rhs.Get<__m128i>();
+  }
+  friend SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs) {
+    return lhs.Get<__m128i>() ^ rhs.Get<__m128i>();
+  }
+  friend SIMD128Register operator~(SIMD128Register lhs) {
+    return ~lhs.Get<__m128i>();
+  }
+#endif
 
  private:
   union {
@@ -148,7 +176,7 @@ class SIMD128Register {
     [[gnu::vector_size(16), gnu::may_alias]] uint32_t uint32;
     [[gnu::vector_size(16), gnu::may_alias]] int64_t int64;
     [[gnu::vector_size(16), gnu::may_alias]] uint64_t uint64;
-#if defined(__x86_64)
+#if defined(__x86_64__)
     [[gnu::vector_size(16), gnu::may_alias]] __int128_t int128;
     [[gnu::vector_size(16), gnu::may_alias]] __uint128_t uint128;
 #endif
@@ -170,7 +198,7 @@ static_assert(sizeof(SIMD128Register) == 16, "Unexpected size of SIMD128Register
 
 #if defined(__i386__)
 static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
-#elif defined(__x86_64)
+#elif defined(__x86_64__)
 static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
 #else
 #error Unsupported architecture
