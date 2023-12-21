@@ -264,19 +264,33 @@ class HeavyOptimizerFrontend {
   }
 
   template <typename DataType>
-  FpRegister LoadFp(Register /* arg */, int16_t /* offset */) {
-    Unimplemented();
-    return {};
+  FpRegister LoadFp(Register arg, int16_t offset) {
+    auto res = AllocTempSimdReg();
+    if constexpr (std::is_same_v<DataType, Float32>) {
+      Gen<x86_64::MovssXRegMemBaseDisp>(res.machine_reg(), arg, offset);
+    } else if constexpr (std::is_same_v<DataType, Float64>) {
+      Gen<x86_64::MovsdXRegMemBaseDisp>(res.machine_reg(), arg, offset);
+    } else {
+      static_assert(kDependentTypeFalse<DataType>);
+    }
+    return res;
   }
 
   template <typename DataType>
-  void StoreFp(Register /* arg */, int16_t /* offset */, FpRegister /* data */) {
-    Unimplemented();
+  void StoreFp(Register arg, int16_t offset, FpRegister data) {
+    if constexpr (std::is_same_v<DataType, Float32>) {
+      Gen<x86_64::MovssMemBaseDispXReg>(arg, offset, data.machine_reg());
+    } else if constexpr (std::is_same_v<DataType, Float64>) {
+      Gen<x86_64::MovsdMemBaseDispXReg>(arg, offset, data.machine_reg());
+    } else {
+      static_assert(kDependentTypeFalse<DataType>);
+    }
   }
 
-  FpRegister Fmv(FpRegister /* arg */) {
-    Unimplemented();
-    return {};
+  FpRegister Fmv(FpRegister arg) {
+    auto res = AllocTempSimdReg();
+    Gen<PseudoCopy>(res.machine_reg(), arg.machine_reg(), 16);
+    return res;
   }
 
   //

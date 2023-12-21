@@ -214,6 +214,10 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(state_.cpu.frm, expected_cpustate_frm);
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
   void TestFFlags(uint32_t insn_bytes, uint8_t fflags_to_set, uint8_t expected_fflags) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -221,10 +225,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<2>(state_.cpu), expected_fflags);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestFrm(uint32_t insn_bytes, uint8_t frm_to_set, uint8_t expected_rm) {
     auto code_start = ToGuestAddr(&insn_bytes);
@@ -247,10 +247,6 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
   template <typename... Types>
   void TestOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -261,10 +257,6 @@ class TESTSUITE : public ::testing::Test {
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestOpImm(uint32_t insn_bytes,
                  std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
@@ -346,10 +338,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(store_area_, expected_result);
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
   template <typename... Types>
   void TestFma(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, arg3, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -361,10 +349,6 @@ class TESTSUITE : public ::testing::Test {
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestAmo(uint32_t insn_bytes,
                uint64_t arg1,
@@ -393,10 +377,6 @@ class TESTSUITE : public ::testing::Test {
             0xffff'eeee'dddd'ccccULL,
             expected_memory);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   template <typename... Types>
   void TestFmvFloatToInteger(uint32_t insn_bytes,
@@ -504,7 +484,8 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
 
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
@@ -1204,6 +1185,10 @@ TEST_F(TESTSUITE, FCsrRegister) {
   EXPECT_EQ(fesetenv(&saved_environment), 0);
 }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
 TEST_F(TESTSUITE, FFlagsRegister) {
   fenv_t saved_environment;
   EXPECT_EQ(fegetenv(&saved_environment), 0);
@@ -1273,10 +1258,6 @@ TEST_F(TESTSUITE, FsrRegister) {
     }
   }
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
 TEST_F(TESTSUITE, OpInstructions) {
   // Add
@@ -1514,10 +1495,6 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   TestOpImm(0x0801109b, {{0x0000'0000'f000'000fULL, 4, 0x0000'000f'0000'00f0}});
 }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
 TEST_F(TESTSUITE, OpFpInstructions) {
   // FAdd.S
   TestOpFp(0x003100d3, {std::tuple{1.0f, 2.0f, 3.0f}});
@@ -1614,11 +1591,6 @@ TEST_F(TESTSUITE, OpFpInstructions) {
             {+0.0, 1.0, 1.0},
             {-0.0, 1.0, 1.0}});
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
 TEST_F(TESTSUITE, UpperImmInstructions) {
   // Auipc
@@ -1750,11 +1722,6 @@ TEST_F(TESTSUITE, StoreInstructions) {
   // Sd
   TestStore(0x0020b423, kDataToStore);
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
 TEST_F(TESTSUITE, FmaInstructions) {
   // Fmadd.S
   TestFma(0x203170c3, {std::tuple{1.0f, 2.0f, 3.0f, 5.0f}});
@@ -1773,10 +1740,6 @@ TEST_F(TESTSUITE, FmaInstructions) {
   // Fnmadd.D
   TestFma(0x223170cf, {std::tuple{1.0, 2.0, 3.0, -5.0}});
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
 TEST_F(TESTSUITE, AmoInstructions) {
   // Verifying that all aq and rl combinations work for Amoswap, but only test relaxed one for most
@@ -1818,10 +1781,6 @@ TEST_F(TESTSUITE, AmoInstructions) {
   // AmomaxuW/AmomaxuD
   TestAmo(0xe03120af, 0xe03130af, 0xffff'eeee'dddd'ccccULL);
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, OpFpSingleInputInstructions) {
   // FSqrt.S
@@ -2047,6 +2006,10 @@ TEST_F(TESTSUITE, StoreFpInstructions) {
   // Fsd
   TestStoreFp(0x0020b427, kDataToStore);
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, TestVsetvl) {
   constexpr uint64_t kVill =
