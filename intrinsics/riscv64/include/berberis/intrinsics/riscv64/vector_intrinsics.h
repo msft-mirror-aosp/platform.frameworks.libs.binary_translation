@@ -18,6 +18,7 @@
 #define BERBERIS_INTRINSICS_RISCV64_VECTOR_INTRINSICS_H_
 
 #include <climits>  // CHAR_BIT
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <tuple>
@@ -258,6 +259,11 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(nmsub, auto [arg1, arg2] = std::tuple{args...
                                    (-(arg2 * vd) + arg1))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(nmsub, auto [arg1, arg2] = std::tuple{args...};
                                    (-(arg2 * vd) + arg1))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, (std::min(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, (std::min(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, (std::max(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(max, (std::max(args...)))
+
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
 
