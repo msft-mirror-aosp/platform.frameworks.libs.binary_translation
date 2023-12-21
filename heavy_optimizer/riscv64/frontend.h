@@ -248,13 +248,18 @@ class HeavyOptimizerFrontend {
   }
 
   template <typename FloatType>
-  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
-    CHECK_LE(reg, kNumGuestFpRegs);
+  void NanBoxFpReg(FpRegister value) {
     if (host_platform::kHasAVX) {
       builder_.Gen<x86_64::MacroNanBoxFloat32AVX>(value.machine_reg(), value.machine_reg());
     } else {
       builder_.Gen<x86_64::MacroNanBoxFloat32>(value.machine_reg());
     }
+  }
+
+  template <typename FloatType>
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
+    CHECK_LE(reg, kNumGuestFpRegs);
+    NanBoxFpReg<FloatType>(value);
     builder_.GenSetSimd<8>(GetThreadStateFRegOffset(reg), value.machine_reg());
   }
 
@@ -464,6 +469,15 @@ class HeavyOptimizerFrontend {
   // i.e. it's basic block (position.first) is nullptr.
   ArenaMap<GuestAddr, MachineInsnPosition> branch_targets_;
 };
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::FpRegister
+HeavyOptimizerFrontend::GetFRegAndUnboxNan<intrinsics::Float64>(uint8_t reg) {
+  return GetFpReg(reg);
+}
+
+template <>
+inline void HeavyOptimizerFrontend::NanBoxFpReg<intrinsics::Float64>(FpRegister) {}
 
 template <>
 [[nodiscard]] inline HeavyOptimizerFrontend::Register
