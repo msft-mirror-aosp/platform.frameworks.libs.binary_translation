@@ -172,7 +172,7 @@ class HeavyOptimizerFrontend {
     Register aligned_addr = AllocTempReg();
     Gen<PseudoCopy>(aligned_addr, addr, 8);
     // The immediate is sign extended to 64-bit.
-    Gen<x86_64::AndqRegImm>(aligned_addr, ~int32_t{0xf}, GetFlagsRegister());
+    Gen<x86_64::AndqRegImm>(aligned_addr, ~int32_t{sizeof(Reservation) - 1}, GetFlagsRegister());
 
     MemoryRegionReservationLoad(aligned_addr);
 
@@ -193,7 +193,7 @@ class HeavyOptimizerFrontend {
     auto aligned_addr = AllocTempReg();
     Gen<PseudoCopy>(aligned_addr, addr, 8);
     // The immediate is sign extended to 64-bit.
-    Gen<x86_64::AndqRegImm>(aligned_addr, ~int32_t{0xf}, GetFlagsRegister());
+    Gen<x86_64::AndqRegImm>(aligned_addr, ~int32_t{sizeof(Reservation) - 1}, GetFlagsRegister());
 
     // Load current monitor value before we clobber it.
     auto reservation_value = AllocTempReg();
