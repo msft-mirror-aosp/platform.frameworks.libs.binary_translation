@@ -23,6 +23,7 @@
 #include "berberis/backend/common/machine_ir_builder.h"
 #include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/base/logging.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis::x86_64 {
