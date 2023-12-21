@@ -83,6 +83,7 @@
         "TestqRegReg",
         "TestwRegImm",
         "TestwRegReg",
+        "LockCmpXchgqRegMemRegInsns",
         "LockCmpXchg16bRegRegRegRegMemInsns",
         "Mfence",
         "MovbMemRegInsns",

@@ -108,6 +108,22 @@ class HeavyOptimizerFrontend {
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
 
+  // Versions without recovery can be used to access non-guest memory (e.g. CPUState).
+  Register LoadWithoutRecovery(Decoder::LoadOperandType operand_type, Register base, int32_t disp);
+  Register LoadWithoutRecovery(Decoder::LoadOperandType operand_type,
+                               Register base,
+                               Register index,
+                               int32_t disp);
+  void StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+                            Register base,
+                            int32_t disp,
+                            Register val);
+  void StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+                            Register base,
+                            Register index,
+                            int32_t disp,
+                            Register val);
+
   //
   // Atomic extensions.
   //
