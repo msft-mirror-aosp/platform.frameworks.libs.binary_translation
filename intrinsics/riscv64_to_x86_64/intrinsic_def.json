@@ -373,13 +373,15 @@
     "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
     "class": "scalar",
     "in": [ "uint64_t" ],
-    "out": []
+    "out": [],
+    "has_side_effects": true
   },
   "FeSetRoundImm": {
     "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
     "class": "scalar",
     "in": [ "uimm8" ],
-    "out": []
+    "out": [],
+    "has_side_effects": true
   },
   "FMAdd": {
     "comment": "Fused multiply-addition",
