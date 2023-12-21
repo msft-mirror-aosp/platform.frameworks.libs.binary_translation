@@ -1126,8 +1126,6 @@ TEST_F(TESTSUITE, CsrInstructions) {
   TestFrm(0x0020f173, 0, 0);
 }
 
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
 TEST_F(TESTSUITE, FCsrRegister) {
   fenv_t saved_environment;
   EXPECT_EQ(fegetenv(&saved_environment), 0);
@@ -1170,8 +1168,6 @@ TEST_F(TESTSUITE, FCsrRegister) {
 
   EXPECT_EQ(fesetenv(&saved_environment), 0);
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, FFlagsRegister) {
   fenv_t saved_environment;
