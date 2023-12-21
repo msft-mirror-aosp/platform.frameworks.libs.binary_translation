@@ -20,6 +20,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <variant>
 
 #include "berberis/backend/code_emitter.h"
 #include "berberis/backend/common/machine_ir.h"
@@ -51,6 +52,62 @@ using has_usage_t = has_usage_impl<T>;
 template <template <typename> typename Predicate, typename... Ts>
 using filter_t =
     tuple_cat_t<std::conditional_t<Predicate<Ts>::value, std::tuple<Ts>, std::tuple<>>...>;
+
+// Convert Binding into constructor argument(s).
+template <typename T, typename = void>
+struct ConstructorArg;
+
+// Immediates expand into their class type.
+template <typename T>
+struct ConstructorArg<ArgTraits<T>, std::enable_if_t<ArgTraits<T>::Class::kIsImmediate, void>> {
+  using type = std::tuple<typename ArgTraits<T>::Class::Type>;
+};
+
+// Mem ops expand into base register and disp.
+template <typename T>
+struct ConstructorArg<ArgTraits<T>,
+                      std::enable_if_t<!ArgTraits<T>::Class::kIsImmediate &&
+                                           ArgTraits<T>::RegisterClass::kAsRegister == 'm',
+                                       void>> {
+  static_assert(
+      std::is_same_v<typename ArgTraits<T>::Usage, intrinsics::bindings::DefEarlyClobber>);
+  // Need to emit base register AND disp.
+  using type = std::tuple<MachineReg, int32_t>;
+};
+
+// Everything else expands into a MachineReg.
+template <typename T>
+struct ConstructorArg<ArgTraits<T>,
+                      std::enable_if_t<!ArgTraits<T>::Class::kIsImmediate &&
+                                           ArgTraits<T>::RegisterClass::kAsRegister != 'm',
+                                       void>> {
+  using type = std::tuple<MachineReg>;
+};
+
+template <typename T>
+using constructor_one_arg_t = typename ConstructorArg<ArgTraits<T>>::type;
+
+// Use this alias to generate constructor Args from bindings via the AsmCallInfo::MachineInsn
+// alias. The tuple args will be extracted by the tuple specialization on MachineInsn below.
+template <typename... T>
+using constructor_args_t = tuple_cat_t<constructor_one_arg_t<T>...>;
+
+// Predicate to determine whether type T is a memory access arg.
+template <class, class = void>
+struct is_mem_impl : std::false_type {};
+template <class T>
+struct is_mem_impl<
+    T,
+    std::enable_if_t<!T::Class::kIsImmediate && T::RegisterClass::kAsRegister == 'm', void>>
+    : std::true_type {};
+template <typename T>
+using is_mem_t = is_mem_impl<T>;
+
+template <typename... Bindings>
+constexpr size_t mem_count_v = std::tuple_size_v<filter_t<is_mem_t, ArgTraits<Bindings>...>>;
+
+template <size_t N, typename... Bindings>
+constexpr bool has_n_mem_v = mem_count_v<Bindings...> > (N - 1);
 
 template <typename AsmCallInfo, auto kMnemo, auto kOpcode, typename... Bindings>
 class MachineInsn final : public MachineInsnX86_64 {
