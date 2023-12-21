@@ -72,7 +72,16 @@ std::size_t GetThreadStateRegOffset(int reg) {
   return offsetof(ThreadState, cpu.x[reg]);
 }
 
+std::size_t GetThreadStateFRegOffset(int freg) {
+  return offsetof(ThreadState, cpu.f[freg]);
+}
+
+std::size_t GetThreadStateVRegOffset(int vreg) {
+  return offsetof(ThreadState, cpu.v[vreg]);
+}
+
 std::size_t GetThreadStateSimdRegOffset(int simd_reg) {
+  // TODO(b/291126259) Switch to CHECK(false) after we switch frontend to F regs.
   return offsetof(ThreadState, cpu.v[simd_reg]);
 }
 
@@ -91,6 +100,19 @@ bool IsSimdOffset(size_t offset) {
 
 bool DoesCpuStateHaveFlags() {
   return false;
+}
+
+bool DoesCpuStateHaveDedicatedFpRegs() {
+  return true;
+}
+
+bool DoesCpuStateHaveDedicatedVecRegs() {
+  return true;
+}
+
+bool DoesCpuStateHaveDedicatedSimdRegs() {
+  // TODO(b/291126259) Return false after we switch frontend to F regs.
+  return true;
 }
 
 std::size_t GetThreadStateFlagOffset() {
