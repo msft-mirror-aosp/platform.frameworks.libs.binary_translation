@@ -145,7 +145,7 @@ class MachineInsnX86_64 : public MachineInsn {
 
   bool IsCPUStateGet() {
     if (opcode() != kMachineOpMovqRegMemBaseDisp && opcode() != kMachineOpMovdqaXRegMemBaseDisp &&
-        opcode() != kMachineOpMovwRegMemBaseDisp) {
+        opcode() != kMachineOpMovwRegMemBaseDisp && opcode() != kMachineOpMovsdXRegMemBaseDisp) {
       return false;
     }
 
@@ -168,7 +168,7 @@ class MachineInsnX86_64 : public MachineInsn {
 
   bool IsCPUStatePut() {
     if (opcode() != kMachineOpMovqMemBaseDispReg && opcode() != kMachineOpMovdqaMemBaseDispXReg &&
-        opcode() != kMachineOpMovwMemBaseDispReg) {
+        opcode() != kMachineOpMovwMemBaseDispReg && opcode() != kMachineOpMovsdMemBaseDispXReg) {
       return false;
     }
 

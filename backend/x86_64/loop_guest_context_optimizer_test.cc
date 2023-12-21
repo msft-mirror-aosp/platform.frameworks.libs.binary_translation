@@ -114,6 +114,9 @@ TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetPutAndUpdateMap) {
 }
 
 TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetSimdAndUpdateMap) {
+  if (!DoesCpuStateHaveDedicatedSimdRegs()) {
+    GTEST_SKIP() << "Guest CPU doesn't have SIMD registers";
+  }
   Arena arena;
   MachineIR machine_ir(&arena);
 
@@ -139,6 +142,9 @@ TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetSimdAndUpdateMap) {
 }
 
 TEST(MachineIRLoopGuestContextOptimizer, ReplacePutSimdAndUpdateMap) {
+  if (!DoesCpuStateHaveDedicatedSimdRegs()) {
+    GTEST_SKIP() << "Guest CPU doesn't have SIMD registers";
+  }
   Arena arena;
   MachineIR machine_ir(&arena);
 
@@ -160,6 +166,118 @@ TEST(MachineIRLoopGuestContextOptimizer, ReplacePutSimdAndUpdateMap) {
   auto mapped_reg = CheckCopyPutInsnAndObtainMappedReg(copy_insn, reg1);
 
   auto offset = GetThreadStateSimdRegOffset(0);
+  CheckMemRegMap(mem_reg_map, offset, mapped_reg, MovType::kMovdqa, true);
+}
+
+TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetFAndUpdateMap) {
+  if (!DoesCpuStateHaveDedicatedFpRegs()) {
+    GTEST_SKIP() << "Guest CPU doesn't have dedicated Fp registers";
+  }
+  Arena arena;
+  MachineIR machine_ir(&arena);
+
+  MachineIRBuilder builder(&machine_ir);
+
+  auto bb = machine_ir.NewBasicBlock();
+  builder.StartBasicBlock(bb);
+  auto reg1 = machine_ir.AllocVReg();
+  builder.GenGetSimd<8>(reg1, GetThreadStateFRegOffset(0));
+  builder.Gen<PseudoJump>(kNullGuestAddr);
+
+  auto insn_it = bb->insn_list().begin();
+  MemRegMap mem_reg_map(sizeof(CPUState), std::nullopt, machine_ir.arena());
+  ReplaceGetAndUpdateMap(&machine_ir, insn_it, mem_reg_map);
+  ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  EXPECT_EQ(bb->insn_list().size(), 2UL);
+  auto* copy_insn = *bb->insn_list().begin();
+  auto mapped_reg = CheckCopyGetInsnAndObtainMappedReg(copy_insn, reg1);
+
+  auto offset = GetThreadStateFRegOffset(0);
+  CheckMemRegMap(mem_reg_map, offset, mapped_reg, MovType::kMovsd, false);
+}
+
+TEST(MachineIRLoopGuestContextOptimizer, ReplacePutFAndUpdateMap) {
+  if (!DoesCpuStateHaveDedicatedFpRegs()) {
+    GTEST_SKIP() << "Guest CPU doesn't have dedicated Fp registers";
+  }
+  Arena arena;
+  MachineIR machine_ir(&arena);
+
+  MachineIRBuilder builder(&machine_ir);
+
+  auto bb = machine_ir.NewBasicBlock();
+  builder.StartBasicBlock(bb);
+  auto reg1 = machine_ir.AllocVReg();
+  builder.GenSetSimd<8>(GetThreadStateFRegOffset(0), reg1);
+  builder.Gen<PseudoJump>(kNullGuestAddr);
+
+  auto insn_it = bb->insn_list().begin();
+  MemRegMap mem_reg_map(sizeof(CPUState), std::nullopt, machine_ir.arena());
+  ReplacePutAndUpdateMap(&machine_ir, insn_it, mem_reg_map);
+  ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  EXPECT_EQ(bb->insn_list().size(), 2UL);
+  auto* copy_insn = *bb->insn_list().begin();
+  auto mapped_reg = CheckCopyPutInsnAndObtainMappedReg(copy_insn, reg1);
+
+  auto offset = GetThreadStateFRegOffset(0);
+  CheckMemRegMap(mem_reg_map, offset, mapped_reg, MovType::kMovsd, true);
+}
+
+TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetVAndUpdateMap) {
+  if (!DoesCpuStateHaveDedicatedVecRegs()) {
+    GTEST_SKIP() << "Guest CPU doesn't have Vector registers";
+  }
+  Arena arena;
+  MachineIR machine_ir(&arena);
+
+  MachineIRBuilder builder(&machine_ir);
+
+  auto bb = machine_ir.NewBasicBlock();
+  builder.StartBasicBlock(bb);
+  auto reg1 = machine_ir.AllocVReg();
+  builder.GenGetSimd<16>(reg1, GetThreadStateVRegOffset(0));
+  builder.Gen<PseudoJump>(kNullGuestAddr);
+
+  auto insn_it = bb->insn_list().begin();
+  MemRegMap mem_reg_map(sizeof(CPUState), std::nullopt, machine_ir.arena());
+  ReplaceGetAndUpdateMap(&machine_ir, insn_it, mem_reg_map);
+  ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  EXPECT_EQ(bb->insn_list().size(), 2UL);
+  auto* copy_insn = *bb->insn_list().begin();
+  auto mapped_reg = CheckCopyGetInsnAndObtainMappedReg(copy_insn, reg1);
+
+  auto offset = GetThreadStateVRegOffset(0);
+  CheckMemRegMap(mem_reg_map, offset, mapped_reg, MovType::kMovdqa, false);
+}
+
+TEST(MachineIRLoopGuestContextOptimizer, ReplacePutVAndUpdateMap) {
+  if (!DoesCpuStateHaveDedicatedVecRegs()) {
+    GTEST_SKIP() << "Guest CPU doesn't have Vector registers";
+  }
+  Arena arena;
+  MachineIR machine_ir(&arena);
+
+  MachineIRBuilder builder(&machine_ir);
+
+  auto bb = machine_ir.NewBasicBlock();
+  builder.StartBasicBlock(bb);
+  auto reg1 = machine_ir.AllocVReg();
+  builder.GenSetSimd<16>(GetThreadStateVRegOffset(0), reg1);
+  builder.Gen<PseudoJump>(kNullGuestAddr);
+
+  auto insn_it = bb->insn_list().begin();
+  MemRegMap mem_reg_map(sizeof(CPUState), std::nullopt, machine_ir.arena());
+  ReplacePutAndUpdateMap(&machine_ir, insn_it, mem_reg_map);
+  ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  EXPECT_EQ(bb->insn_list().size(), 2UL);
+  auto* copy_insn = *bb->insn_list().begin();
+  auto mapped_reg = CheckCopyPutInsnAndObtainMappedReg(copy_insn, reg1);
+
+  auto offset = GetThreadStateVRegOffset(0);
   CheckMemRegMap(mem_reg_map, offset, mapped_reg, MovType::kMovdqa, true);
 }
 
@@ -225,26 +343,49 @@ TEST(MachineIRLoopGuestContextOptimizer, GenerateGetInsns) {
   auto reg1 = machine_ir.AllocVReg();
   auto reg2 = machine_ir.AllocVReg();
   auto reg3 = machine_ir.AllocVReg();
+  auto reg4 = machine_ir.AllocVReg();
   MappedRegInfo mapped_reg1 = {reg1, MovType::kMovq, false};
   MappedRegInfo mapped_reg2 = {reg2, MovType::kMovdqa, false};
-  MappedRegInfo mapped_reg3 = {reg3, MovType::kMovw, true};
+  MappedRegInfo mapped_reg3 = {reg3, MovType::kMovsd, false};
+  MappedRegInfo mapped_reg4 = {reg4, MovType::kMovw, true};
   mem_reg_map[GetThreadStateRegOffset(0)] = mapped_reg1;
-  mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    mem_reg_map[GetThreadStateVRegOffset(0)] = mapped_reg2;
+  }
+  if (DoesCpuStateHaveDedicatedFpRegs()) {
+    mem_reg_map[GetThreadStateFRegOffset(0)] = mapped_reg3;
+  }
   if (DoesCpuStateHaveFlags()) {
-    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg3;
+    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg4;
   }
 
   GenerateGetInsns(&machine_ir, bb, mem_reg_map);
 
-  EXPECT_EQ(bb->insn_list().size(), DoesCpuStateHaveFlags() ? 3UL : 2UL);
+  EXPECT_EQ(
+      bb->insn_list().size(),
+      (DoesCpuStateHaveFlags() ? 2UL : 1UL) + (DoesCpuStateHaveDedicatedFpRegs() ? 1UL : 0UL) +
+          ((DoesCpuStateHaveDedicatedSimdRegs() || DoesCpuStateHaveDedicatedVecRegs()) ? 1UL
+                                                                                       : 0UL));
   auto insn_it = bb->insn_list().begin();
   CheckGetInsn(*insn_it, kMachineOpMovqRegMemBaseDisp, reg1, GetThreadStateRegOffset(0));
   std::advance(insn_it, 1);
   if (DoesCpuStateHaveFlags()) {
-    CheckGetInsn(*insn_it, kMachineOpMovwRegMemBaseDisp, reg3, GetThreadStateFlagOffset());
+    CheckGetInsn(*insn_it, kMachineOpMovwRegMemBaseDisp, reg4, GetThreadStateFlagOffset());
     std::advance(insn_it, 1);
   }
-  CheckGetInsn(*insn_it, kMachineOpMovdqaXRegMemBaseDisp, reg2, GetThreadStateSimdRegOffset(0));
+  if (DoesCpuStateHaveDedicatedFpRegs()) {
+    CheckGetInsn(*insn_it, kMachineOpMovsdXRegMemBaseDisp, reg3, GetThreadStateFRegOffset(0));
+    std::advance(insn_it, 1);
+  }
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    CheckGetInsn(*insn_it, kMachineOpMovdqaXRegMemBaseDisp, reg2, GetThreadStateSimdRegOffset(0));
+    std::advance(insn_it, 1);
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    CheckGetInsn(*insn_it, kMachineOpMovdqaXRegMemBaseDisp, reg2, GetThreadStateVRegOffset(0));
+    std::advance(insn_it, 1);
+  }
 }
 
 TEST(MachineIRLoopGuestContextOptimizer, GeneratePutInsns) {
@@ -258,26 +399,49 @@ TEST(MachineIRLoopGuestContextOptimizer, GeneratePutInsns) {
   auto reg1 = machine_ir.AllocVReg();
   auto reg2 = machine_ir.AllocVReg();
   auto reg3 = machine_ir.AllocVReg();
+  auto reg4 = machine_ir.AllocVReg();
   MappedRegInfo mapped_reg1 = {reg1, MovType::kMovq, true};
   MappedRegInfo mapped_reg2 = {reg2, MovType::kMovdqa, true};
-  MappedRegInfo mapped_reg3 = {reg3, MovType::kMovw, true};
+  MappedRegInfo mapped_reg3 = {reg3, MovType::kMovsd, true};
+  MappedRegInfo mapped_reg4 = {reg4, MovType::kMovw, true};
   mem_reg_map[GetThreadStateRegOffset(0)] = mapped_reg1;
-  mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    mem_reg_map[GetThreadStateVRegOffset(0)] = mapped_reg2;
+  }
+  if (DoesCpuStateHaveDedicatedFpRegs()) {
+    mem_reg_map[GetThreadStateFRegOffset(0)] = mapped_reg3;
+  }
   if (DoesCpuStateHaveFlags()) {
-    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg3;
+    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg4;
   }
 
   GeneratePutInsns(&machine_ir, bb, mem_reg_map);
 
-  EXPECT_EQ(bb->insn_list().size(), DoesCpuStateHaveFlags() ? 3UL : 2UL);
+  EXPECT_EQ(
+      bb->insn_list().size(),
+      (DoesCpuStateHaveFlags() ? 2UL : 1UL) + (DoesCpuStateHaveDedicatedFpRegs() ? 1UL : 0UL) +
+          ((DoesCpuStateHaveDedicatedSimdRegs() || DoesCpuStateHaveDedicatedVecRegs()) ? 1UL
+                                                                                       : 0UL));
   auto insn_it = bb->insn_list().begin();
   CheckPutInsn(*insn_it, kMachineOpMovqMemBaseDispReg, reg1, GetThreadStateRegOffset(0));
   std::advance(insn_it, 1);
   if (DoesCpuStateHaveFlags()) {
-    CheckPutInsn(*insn_it, kMachineOpMovwMemBaseDispReg, reg3, GetThreadStateFlagOffset());
+    CheckPutInsn(*insn_it, kMachineOpMovwMemBaseDispReg, reg4, GetThreadStateFlagOffset());
     std::advance(insn_it, 1);
   }
-  CheckPutInsn(*insn_it, kMachineOpMovdqaMemBaseDispXReg, reg2, GetThreadStateSimdRegOffset(0));
+  if (DoesCpuStateHaveDedicatedFpRegs()) {
+    CheckPutInsn(*insn_it, kMachineOpMovsdMemBaseDispXReg, reg3, GetThreadStateFRegOffset(0));
+    std::advance(insn_it, 1);
+  }
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    CheckPutInsn(*insn_it, kMachineOpMovdqaMemBaseDispXReg, reg2, GetThreadStateSimdRegOffset(0));
+    std::advance(insn_it, 1);
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    CheckPutInsn(*insn_it, kMachineOpMovdqaMemBaseDispXReg, reg2, GetThreadStateVRegOffset(0));
+    std::advance(insn_it, 1);
+  }
 }
 
 TEST(MachineIRLoopGuestContextOptimizer, GeneratePreloop) {
@@ -307,27 +471,50 @@ TEST(MachineIRLoopGuestContextOptimizer, GeneratePreloop) {
   auto reg1 = machine_ir.AllocVReg();
   auto reg2 = machine_ir.AllocVReg();
   auto reg3 = machine_ir.AllocVReg();
+  auto reg4 = machine_ir.AllocVReg();
   MappedRegInfo mapped_reg1 = {reg1, MovType::kMovq, false};
   MappedRegInfo mapped_reg2 = {reg2, MovType::kMovdqa, false};
-  MappedRegInfo mapped_reg3 = {reg3, MovType::kMovw, true};
+  MappedRegInfo mapped_reg3 = {reg3, MovType::kMovsd, false};
+  MappedRegInfo mapped_reg4 = {reg4, MovType::kMovw, true};
   mem_reg_map[GetThreadStateRegOffset(0)] = mapped_reg1;
-  mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    mem_reg_map[GetThreadStateVRegOffset(0)] = mapped_reg2;
+  }
+  if (DoesCpuStateHaveDedicatedFpRegs()) {
+    mem_reg_map[GetThreadStateFRegOffset(0)] = mapped_reg3;
+  }
   if (DoesCpuStateHaveFlags()) {
-    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg3;
+    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg4;
   }
 
   GenerateGetsInPreloop(&machine_ir, &loop, mem_reg_map);
   ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
 
-  EXPECT_EQ(preloop->insn_list().size(), DoesCpuStateHaveFlags() ? 4UL : 3UL);
+  EXPECT_EQ(
+      preloop->insn_list().size(),
+      (DoesCpuStateHaveFlags() ? 3UL : 2UL) + (DoesCpuStateHaveDedicatedFpRegs() ? 1UL : 0UL) +
+          ((DoesCpuStateHaveDedicatedSimdRegs() || DoesCpuStateHaveDedicatedVecRegs()) ? 1UL
+                                                                                       : 0UL));
   auto insn_it = preloop->insn_list().begin();
   CheckGetInsn(*insn_it, kMachineOpMovqRegMemBaseDisp, reg1, GetThreadStateRegOffset(0));
   std::advance(insn_it, 1);
   if (DoesCpuStateHaveFlags()) {
-    CheckGetInsn(*insn_it, kMachineOpMovwRegMemBaseDisp, reg3, GetThreadStateFlagOffset());
+    CheckGetInsn(*insn_it, kMachineOpMovwRegMemBaseDisp, reg4, GetThreadStateFlagOffset());
     std::advance(insn_it, 1);
   }
-  CheckGetInsn(*insn_it, kMachineOpMovdqaXRegMemBaseDisp, reg2, GetThreadStateSimdRegOffset(0));
+  if (DoesCpuStateHaveDedicatedFpRegs()) {
+    CheckGetInsn(*insn_it, kMachineOpMovsdXRegMemBaseDisp, reg3, GetThreadStateFRegOffset(0));
+    std::advance(insn_it, 1);
+  }
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    CheckGetInsn(*insn_it, kMachineOpMovdqaXRegMemBaseDisp, reg2, GetThreadStateSimdRegOffset(0));
+    std::advance(insn_it, 1);
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    CheckGetInsn(*insn_it, kMachineOpMovdqaXRegMemBaseDisp, reg2, GetThreadStateVRegOffset(0));
+    std::advance(insn_it, 1);
+  }
 }
 
 TEST(MachineIRLoopGuestContextOptimizer, GenerateAfterloop) {
@@ -357,27 +544,50 @@ TEST(MachineIRLoopGuestContextOptimizer, GenerateAfterloop) {
   auto reg1 = machine_ir.AllocVReg();
   auto reg2 = machine_ir.AllocVReg();
   auto reg3 = machine_ir.AllocVReg();
+  auto reg4 = machine_ir.AllocVReg();
   MappedRegInfo mapped_reg1 = {reg1, MovType::kMovq, true};
   MappedRegInfo mapped_reg2 = {reg2, MovType::kMovdqa, true};
-  MappedRegInfo mapped_reg3 = {reg3, MovType::kMovw, true};
+  MappedRegInfo mapped_reg3 = {reg3, MovType::kMovsd, true};
+  MappedRegInfo mapped_reg4 = {reg4, MovType::kMovw, true};
   mem_reg_map[GetThreadStateRegOffset(0)] = mapped_reg1;
-  mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    mem_reg_map[GetThreadStateSimdRegOffset(0)] = mapped_reg2;
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    mem_reg_map[GetThreadStateVRegOffset(0)] = mapped_reg2;
+  }
+  if (DoesCpuStateHaveDedicatedFpRegs()) {
+    mem_reg_map[GetThreadStateFRegOffset(0)] = mapped_reg3;
+  }
   if (DoesCpuStateHaveFlags()) {
-    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg3;
+    mem_reg_map[GetThreadStateFlagOffset()] = mapped_reg4;
   }
 
   GeneratePutsInPostloop(&machine_ir, &loop, mem_reg_map);
   ASSERT_EQ(CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
 
-  EXPECT_EQ(afterloop->insn_list().size(), DoesCpuStateHaveFlags() ? 4UL : 3UL);
+  EXPECT_EQ(
+      afterloop->insn_list().size(),
+      (DoesCpuStateHaveFlags() ? 3UL : 2UL) + (DoesCpuStateHaveDedicatedFpRegs() ? 1UL : 0UL) +
+          ((DoesCpuStateHaveDedicatedSimdRegs() || DoesCpuStateHaveDedicatedVecRegs()) ? 1UL
+                                                                                       : 0UL));
   auto insn_it = afterloop->insn_list().begin();
   CheckPutInsn(*insn_it, kMachineOpMovqMemBaseDispReg, reg1, GetThreadStateRegOffset(0));
   std::advance(insn_it, 1);
   if (DoesCpuStateHaveFlags()) {
-    CheckPutInsn(*insn_it, kMachineOpMovwMemBaseDispReg, reg3, GetThreadStateFlagOffset());
+    CheckPutInsn(*insn_it, kMachineOpMovwMemBaseDispReg, reg4, GetThreadStateFlagOffset());
     std::advance(insn_it, 1);
   }
-  CheckPutInsn(*insn_it, kMachineOpMovdqaMemBaseDispXReg, reg2, GetThreadStateSimdRegOffset(0));
+  if (DoesCpuStateHaveDedicatedFpRegs()) {
+    CheckPutInsn(*insn_it, kMachineOpMovsdMemBaseDispXReg, reg3, GetThreadStateFRegOffset(0));
+    std::advance(insn_it, 1);
+  }
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    CheckPutInsn(*insn_it, kMachineOpMovdqaMemBaseDispXReg, reg2, GetThreadStateSimdRegOffset(0));
+    std::advance(insn_it, 1);
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    CheckPutInsn(*insn_it, kMachineOpMovdqaMemBaseDispXReg, reg2, GetThreadStateVRegOffset(0));
+    std::advance(insn_it, 1);
+  }
 }
 
 TEST(MachineIRLoopGuestContextOptimizer, GenerateMultiplePreloops) {
@@ -688,20 +898,32 @@ TEST(MachineIRLoopGuestContextOptimizer, CountGuestRegAccesses) {
 
   builder.StartBasicBlock(body1);
   builder.GenPut(GetThreadStateRegOffset(0), vreg1);
-  builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(0));
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(0));
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    builder.GenGetSimd<16>(vreg2, GetThreadStateVRegOffset(0));
+  }
   builder.Gen<PseudoBranch>(body2);
 
   builder.StartBasicBlock(body2);
   builder.GenGet(vreg1, GetThreadStateRegOffset(1));
   builder.GenPut(GetThreadStateRegOffset(1), vreg1);
-  builder.GenSetSimd<16>(GetThreadStateSimdRegOffset(0), vreg2);
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    builder.GenSetSimd<16>(GetThreadStateSimdRegOffset(0), vreg2);
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    builder.GenSetSimd<16>(GetThreadStateVRegOffset(0), vreg2);
+  }
   builder.Gen<PseudoBranch>(body1);
 
   Loop loop({body1, body2}, machine_ir.arena());
   auto guest_access_count = CountGuestRegAccesses(&machine_ir, &loop);
   EXPECT_EQ(guest_access_count[GetThreadStateRegOffset(0)], 1);
   EXPECT_EQ(guest_access_count[GetThreadStateRegOffset(1)], 2);
-  EXPECT_EQ(guest_access_count[GetThreadStateSimdRegOffset(0)], 2);
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    EXPECT_EQ(guest_access_count[GetThreadStateSimdRegOffset(0)], 2);
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    EXPECT_EQ(guest_access_count[GetThreadStateVRegOffset(0)], 2);
+  }
 }
 
 TEST(MachineIRLoopGuestContextOptimizer, GetOffsetCounters) {
@@ -774,11 +996,19 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   builder.GenGet(vreg1, GetThreadStateRegOffset(0));
   builder.GenGet(vreg1, GetThreadStateRegOffset(1));
 
-  // Simd reg 0 has 2 uses.
-  // Simd reg 1 has 1 use.
-  builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(0));
-  builder.GenSetSimd<16>(GetThreadStateSimdRegOffset(0), vreg2);
-  builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(1));
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    // Simd reg 0 has 2 uses.
+    // Simd reg 1 has 1 use.
+    builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(0));
+    builder.GenSetSimd<16>(GetThreadStateSimdRegOffset(0), vreg2);
+    builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(1));
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    // Vector reg 0 has 2 uses.
+    // Vector reg 1 has 1 use.
+    builder.GenGetSimd<16>(vreg2, GetThreadStateVRegOffset(0));
+    builder.GenSetSimd<16>(GetThreadStateVRegOffset(0), vreg2);
+    builder.GenGetSimd<16>(vreg2, GetThreadStateVRegOffset(1));
+  }
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, body, afterloop, kMachineRegFLAGS);
 
   builder.StartBasicBlock(afterloop);
@@ -804,9 +1034,13 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   EXPECT_EQ(get_insn_2->opcode(), kMachineOpMovdqaXRegMemBaseDisp);
   auto mapped_reg_2 = get_insn_2->RegAt(0);
   auto disp_2 = AsMachineInsnX86_64(get_insn_2)->disp();
-  EXPECT_EQ(disp_2, GetThreadStateSimdRegOffset(0));
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    EXPECT_EQ(disp_2, GetThreadStateSimdRegOffset(0));
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    EXPECT_EQ(disp_2, GetThreadStateVRegOffset(0));
+  }
 
-  // Since regular reg limit is 1 only reg 0 is optimized. Same for simd regs.
+  // Since regular reg limit is 1 only reg 0 is optimized. Same for simd/vector regs.
   EXPECT_EQ(body->insn_list().size(), 8UL);
   auto insn_it = body->insn_list().begin();
   EXPECT_EQ(mapped_reg_1, CheckCopyGetInsnAndObtainMappedReg(*insn_it++, vreg1));
@@ -821,8 +1055,13 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   auto* put_insn_1 = afterloop->insn_list().front();
   CheckPutInsn(put_insn_1, kMachineOpMovqMemBaseDispReg, mapped_reg_1, GetThreadStateRegOffset(0));
   auto* put_insn_2 = *std::next(afterloop->insn_list().begin());
-  CheckPutInsn(
-      put_insn_2, kMachineOpMovdqaMemBaseDispXReg, mapped_reg_2, GetThreadStateSimdRegOffset(0));
+  if (DoesCpuStateHaveDedicatedSimdRegs()) {
+    CheckPutInsn(
+        put_insn_2, kMachineOpMovdqaMemBaseDispXReg, mapped_reg_2, GetThreadStateSimdRegOffset(0));
+  } else if (DoesCpuStateHaveDedicatedVecRegs()) {
+    CheckPutInsn(
+        put_insn_2, kMachineOpMovdqaMemBaseDispXReg, mapped_reg_2, GetThreadStateVRegOffset(0));
+  }
 }
 
 TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetFlagsAndUpdateMap) {
