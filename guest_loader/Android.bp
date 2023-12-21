@@ -54,6 +54,11 @@ filegroup {
     ],
 }
 
+filegroup {
+    name: "_libberberis_guest_loader_tests_srcs",
+    srcs: ["guest_loader_test.cc"],
+}
+
 cc_defaults {
     name: "libberberis_guest_loader_defaults",
     host_supported: true,
@@ -93,21 +98,33 @@ cc_library_static {
     ],
 }
 
-cc_test {
-    name: "berberis_guest_loader_riscv64_tests",
-    defaults: ["berberis_defaults_64"],
+cc_defaults {
+    name: "libberberis_guest_loader_tests_defaults",
     host_supported: false,
-    srcs: ["guest_loader_test.cc"],
     header_libs: [
         "libberberis_runtime_headers",
     ],
+    srcs: [":_libberberis_guest_loader_tests_srcs"],
     static_libs: [
         "libbase",
+    ],
+    shared_libs: [
+        "liblog",
+    ],
+
+}
+
+cc_test {
+    name: "berberis_guest_loader_riscv64_tests",
+    defaults: [
+        "berberis_defaults_64",
+        "libberberis_guest_loader_tests_defaults",
+    ],
+    static_libs: [
         "libberberis_guest_loader_riscv64",
         "libberberis_runtime_riscv64_to_x86_64",
     ],
     shared_libs: [
         "libberberis_riscv64",
-        "liblog",
     ],
 }
