@@ -58,7 +58,7 @@ TEST(MachineIRContextLivenessAnalyzerTest, PutKillsLiveIn) {
 
   auto vreg = machine_ir.AllocVReg();
   builder.StartBasicBlock(bb);
-  builder.GenPut(0, vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
@@ -79,11 +79,11 @@ TEST(MachineIRContextLivenessAnalyzerTest, GetRevivesLiveInKilledByPut) {
 
   auto vreg = machine_ir.AllocVReg();
   builder.StartBasicBlock(bb1);
-  builder.GenGet(vreg, 0);
+  builder.GenGetOffset(vreg, GetThreadStateRegOffset(0));
   builder.Gen<PseudoBranch>(bb2);
 
   builder.StartBasicBlock(bb2);
-  builder.GenPut(0, vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
@@ -106,13 +106,13 @@ TEST(MachineIRContextLivenessAnalyzerTest,
 
   auto vreg = machine_ir.AllocVReg();
   builder.StartBasicBlock(bb1);
-  builder.GenGet(vreg, 1);
+  builder.GenGetOffset(vreg, GetThreadStateRegOffset(1));
   builder.Gen<PseudoBranch>(bb2);
 
   builder.StartBasicBlock(bb2);
-  builder.GenPut(0, vreg);
-  builder.GenPut(1, vreg);
-  builder.GenPut(2, vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(1), vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(2), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
@@ -139,13 +139,13 @@ TEST(MachineIRContextLivenessAnalyzerTest, ContextWritesOnlyKillLiveInIfHappenIn
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, bb2, bb3, x86_64::kMachineRegFLAGS);
 
   builder.StartBasicBlock(bb2);
-  builder.GenPut(0, vreg);
-  builder.GenPut(1, vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(1), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   builder.StartBasicBlock(bb3);
-  builder.GenPut(0, vreg);
-  builder.GenPut(2, vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg);
+  builder.GenPutOffset(GetThreadStateRegOffset(2), vreg);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   EXPECT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);

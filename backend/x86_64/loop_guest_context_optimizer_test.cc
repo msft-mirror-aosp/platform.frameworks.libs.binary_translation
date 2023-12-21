@@ -41,7 +41,7 @@ TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetAndUpdateMap) {
   auto bb = machine_ir.NewBasicBlock();
   builder.StartBasicBlock(bb);
   auto reg1 = machine_ir.AllocVReg();
-  builder.GenGet(reg1, 0);
+  builder.GenGetOffset(reg1, GetThreadStateRegOffset(0));
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   auto insn_it = bb->insn_list().begin();
@@ -66,7 +66,7 @@ TEST(MachineIRLoopGuestContextOptimizer, ReplacePutAndUpdateMap) {
   auto bb = machine_ir.NewBasicBlock();
   builder.StartBasicBlock(bb);
   auto reg1 = machine_ir.AllocVReg();
-  builder.GenPut(1, reg1);
+  builder.GenPutOffset(GetThreadStateRegOffset(1), reg1);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   auto insn_it = bb->insn_list().begin();
@@ -92,8 +92,8 @@ TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetPutAndUpdateMap) {
   builder.StartBasicBlock(bb);
   auto reg1 = machine_ir.AllocVReg();
   auto reg2 = machine_ir.AllocVReg();
-  builder.GenGet(reg1, 1);
-  builder.GenPut(1, reg2);
+  builder.GenGetOffset(reg1, GetThreadStateRegOffset(1));
+  builder.GenPutOffset(GetThreadStateRegOffset(1), reg2);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   auto insn_it = bb->insn_list().begin();
@@ -122,7 +122,7 @@ TEST(MachineIRLoopGuestContextOptimizer, ReplaceGetSimdAndUpdateMap) {
   auto bb = machine_ir.NewBasicBlock();
   builder.StartBasicBlock(bb);
   auto reg1 = machine_ir.AllocVReg();
-  builder.GenGetSimd(reg1, 0);
+  builder.GenGetSimd<16>(reg1, GetThreadStateSimdRegOffset(0));
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   auto insn_it = bb->insn_list().begin();
@@ -147,7 +147,7 @@ TEST(MachineIRLoopGuestContextOptimizer, ReplacePutSimdAndUpdateMap) {
   auto bb = machine_ir.NewBasicBlock();
   builder.StartBasicBlock(bb);
   auto reg1 = machine_ir.AllocVReg();
-  builder.GenSetSimd(0, reg1);
+  builder.GenSetSimd<16>(GetThreadStateSimdRegOffset(0), reg1);
   builder.Gen<PseudoJump>(kNullGuestAddr);
 
   auto insn_it = bb->insn_list().begin();
@@ -493,7 +493,7 @@ TEST(MachineIRLoopGuestContextOptimizer, RemovePutInSelfLoop) {
   builder.Gen<PseudoBranch>(body);
 
   builder.StartBasicBlock(body);
-  builder.GenPut(0, vreg1);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, body, afterloop, kMachineRegFLAGS);
 
   builder.StartBasicBlock(afterloop);
@@ -537,7 +537,7 @@ TEST(MachineIRLoopGuestContextOptimizer, RemoveGetInSelfLoop) {
   builder.Gen<PseudoBranch>(body);
 
   builder.StartBasicBlock(body);
-  builder.GenGet(vreg1, 0);
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(0));
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, body, afterloop, kMachineRegFLAGS);
 
   builder.StartBasicBlock(afterloop);
@@ -580,8 +580,8 @@ TEST(MachineIRLoopGuestContextOptimizer, RemoveGetPutInSelfLoop) {
   builder.Gen<PseudoBranch>(body);
 
   builder.StartBasicBlock(body);
-  builder.GenGet(vreg1, 0);
-  builder.GenPut(0, vreg2);
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(0));
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg2);
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, body, afterloop, kMachineRegFLAGS);
 
   builder.StartBasicBlock(afterloop);
@@ -634,7 +634,7 @@ TEST(MachineIRLoopGuestContextOptimizer, RemovePutInLoopWithMultipleExits) {
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, body2, afterloop1, kMachineRegFLAGS);
 
   builder.StartBasicBlock(body2);
-  builder.GenPut(0, vreg1);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, body1, afterloop2, kMachineRegFLAGS);
 
   builder.StartBasicBlock(afterloop1);
@@ -687,14 +687,14 @@ TEST(MachineIRLoopGuestContextOptimizer, CountGuestRegAccesses) {
   builder.Gen<PseudoBranch>(body1);
 
   builder.StartBasicBlock(body1);
-  builder.GenPut(0, vreg1);
-  builder.GenGetSimd(vreg2, 0);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
+  builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(0));
   builder.Gen<PseudoBranch>(body2);
 
   builder.StartBasicBlock(body2);
-  builder.GenGet(vreg1, 1);
-  builder.GenPut(1, vreg1);
-  builder.GenSetSimd(0, vreg2);
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(1));
+  builder.GenPutOffset(GetThreadStateRegOffset(1), vreg1);
+  builder.GenSetSimd<16>(GetThreadStateSimdRegOffset(0), vreg2);
   builder.Gen<PseudoBranch>(body1);
 
   Loop loop({body1, body2}, machine_ir.arena());
@@ -723,15 +723,15 @@ TEST(MachineIRLoopGuestContextOptimizer, GetOffsetCounters) {
   builder.Gen<PseudoBranch>(body1);
 
   builder.StartBasicBlock(body1);
-  builder.GenPut(0, vreg1);
-  builder.GenGet(vreg1, 0);
-  builder.GenGet(vreg1, 1);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(0));
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(1));
   builder.Gen<PseudoBranch>(body2);
 
   builder.StartBasicBlock(body2);
-  builder.GenGet(vreg1, 2);
-  builder.GenPut(2, vreg1);
-  builder.GenPut(0, vreg1);
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(2));
+  builder.GenPutOffset(GetThreadStateRegOffset(2), vreg1);
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
   builder.Gen<PseudoBranch>(body1);
 
   Loop loop({body1, body2}, machine_ir.arena());
@@ -769,16 +769,16 @@ TEST(MachineIRLoopGuestContextOptimizer, OptimizeLoopWithPriority) {
   // Regular reg 0 has 3 uses.
   // Regular reg 1 has 1 use.
   builder.StartBasicBlock(body);
-  builder.GenGet(vreg1, 0);
-  builder.GenPut(0, vreg1);
-  builder.GenGet(vreg1, 0);
-  builder.GenGet(vreg1, 1);
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(0));
+  builder.GenPutOffset(GetThreadStateRegOffset(0), vreg1);
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(0));
+  builder.GenGetOffset(vreg1, GetThreadStateRegOffset(1));
 
   // Simd reg 0 has 2 uses.
   // Simd reg 1 has 1 use.
-  builder.GenGetSimd(vreg2, 0);
-  builder.GenSetSimd(0, vreg2);
-  builder.GenGetSimd(vreg2, 1);
+  builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(0));
+  builder.GenSetSimd<16>(GetThreadStateSimdRegOffset(0), vreg2);
+  builder.GenGetSimd<16>(vreg2, GetThreadStateSimdRegOffset(1));
   builder.Gen<PseudoCondBranch>(CodeEmitter::Condition::kZero, body, afterloop, kMachineRegFLAGS);
 
   builder.StartBasicBlock(afterloop);

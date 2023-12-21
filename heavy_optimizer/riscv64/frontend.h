@@ -235,7 +235,7 @@ class HeavyOptimizerFrontend {
   [[nodiscard]] FpRegister GetFRegAndUnboxNan(uint8_t reg) {
     CHECK_LE(reg, kNumGuestFpRegs);
     FpRegister result = AllocTempSimdReg();
-    builder_.GenGetSimd(result.machine_reg(), reg);
+    builder_.GenGetSimd<8>(result.machine_reg(), GetThreadStateFRegOffset(reg));
     FpRegister unboxed_result = AllocTempSimdReg();
     if (host_platform::kHasAVX) {
       builder_.Gen<x86_64::MacroUnboxNanFloat32AVX>(unboxed_result.machine_reg(),
@@ -255,8 +255,7 @@ class HeavyOptimizerFrontend {
     } else {
       builder_.Gen<x86_64::MacroNanBoxFloat32>(value.machine_reg());
     }
-
-    builder_.GenSetSimd(reg, value.machine_reg());
+    builder_.GenSetSimd<8>(GetThreadStateFRegOffset(reg), value.machine_reg());
   }
 
   template <typename DataType>
