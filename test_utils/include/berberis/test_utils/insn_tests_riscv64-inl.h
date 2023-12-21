@@ -222,6 +222,10 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<2>(state_.cpu), expected_fflags);
   }
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
   void TestFrm(uint32_t insn_bytes, uint8_t frm_to_set, uint8_t expected_rm) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
@@ -231,10 +235,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
     EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
@@ -1143,6 +1143,10 @@ TEST_F(TESTSUITE, CJalr) {
 
 // Tests for Non-Compressed Instructions.
 
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
+    defined(TESTING_HEAVY_OPTIMIZER)
+
 TEST_F(TESTSUITE, CsrInstructions) {
   ScopedRoundingMode scoped_rounding_mode;
   // Csrrw x2, frm, 2
@@ -1152,6 +1156,10 @@ TEST_F(TESTSUITE, CsrInstructions) {
   // Csrrci x2, frm, 1
   TestFrm(0x0020f173, 0, 0);
 }
+
+#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
+        // defined(TESTING_HEAVY_OPTIMIZER)
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, FCsrRegister) {
   fenv_t saved_environment;

@@ -767,6 +767,52 @@ Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType op
   return res;
 }
 
+Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
+  Register res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::CsrOpcode::kCsrrs:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::OrqRegReg>(res, csr, GetFlagsRegister());
+      break;
+    case Decoder::CsrOpcode::kCsrrc:
+      if (host_platform::kHasBMI) {
+        Gen<x86_64::AndnqRegRegReg>(res, arg, csr, GetFlagsRegister());
+      } else {
+        Gen<PseudoCopy>(res, arg, 8);
+        Gen<x86_64::NotqReg>(res);
+        Gen<x86_64::AndqRegReg>(res, csr, GetFlagsRegister());
+      }
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return arg;
+}
+
+Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrImmOpcode opcode,
+                                           uint8_t imm,
+                                           Register csr) {
+  Register res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::CsrImmOpcode::kCsrrwi:
+      Gen<x86_64::MovlRegImm>(res, imm);
+      break;
+    case Decoder::CsrImmOpcode::kCsrrsi:
+      Gen<x86_64::MovlRegImm>(res, imm);
+      Gen<x86_64::OrqRegReg>(res, csr, GetFlagsRegister());
+      break;
+    case Decoder::CsrImmOpcode::kCsrrci:
+      Gen<x86_64::MovqRegImm>(res, static_cast<int8_t>(~imm));
+      Gen<x86_64::AndqRegReg>(res, csr, GetFlagsRegister());
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
 void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
                                                   Register base,
                                                   int32_t disp,
