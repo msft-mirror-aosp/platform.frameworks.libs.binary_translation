@@ -347,6 +347,62 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+#if (defined(TESTING_INTERPRETER) || defined(TESTING_HEAVY_OPTIMIZER))
+
+  void TestAtomicLoad(uint32_t insn_bytes,
+                      const uint64_t* const data_to_load,
+                      uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(data_to_load));
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
+    EXPECT_EQ(state_.cpu.reservation_address, ToGuestAddr(data_to_load));
+    // We always reserve the full 64-bit range of the reservation address.
+    EXPECT_EQ(state_.cpu.reservation_value, *data_to_load);
+  }
+
+  template <typename T>
+  void TestAtomicStore(uint32_t insn_bytes, T expected_result) {
+    store_area_ = ~uint64_t{0};
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    state_.cpu.reservation_address = ToGuestAddr(&store_area_);
+    state_.cpu.reservation_value = store_area_;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&store_area_), &state_.cpu);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(static_cast<T>(store_area_), expected_result);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
+  }
+
+  void TestAtomicStoreNoLoadFailure(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
+  }
+
+  void TestAtomicStoreDifferentLoadFailure(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    state_.cpu.reservation_address = ToGuestAddr(&kDataToStore);
+    state_.cpu.reservation_value = 0;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&kDataToStore), &state_.cpu);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
+  }
+
+#endif  // (defined(TESTING_INTERPRETER) || defined(TESTING_HEAVY_OPTIMIZER))
+
   void TestAmo(uint32_t insn_bytes,
                uint64_t arg1,
                uint64_t arg2,
@@ -1126,8 +1182,6 @@ TEST_F(TESTSUITE, CsrInstructions) {
   TestFrm(0x0020f173, 0, 0);
 }
 
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
 TEST_F(TESTSUITE, FCsrRegister) {
   fenv_t saved_environment;
   EXPECT_EQ(fegetenv(&saved_environment), 0);
@@ -1170,8 +1224,6 @@ TEST_F(TESTSUITE, FCsrRegister) {
 
   EXPECT_EQ(fesetenv(&saved_environment), 0);
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, FFlagsRegister) {
   fenv_t saved_environment;
@@ -1724,6 +1776,51 @@ TEST_F(TESTSUITE, FmaInstructions) {
   // Fnmadd.D
   TestFma(0x223170cf, {std::tuple{1.0, 2.0, 3.0, -5.0}});
 }
+
+#if (defined(TESTING_INTERPRETER) || defined(TESTING_HEAVY_OPTIMIZER))
+
+TEST_F(TESTSUITE, AtomicLoadInstructions) {
+  // Validate sign-extension of returned value.
+  const uint64_t kNegative32BitValue = 0x0000'0000'8000'0000ULL;
+  const uint64_t kSignExtendedNegative = 0xffff'ffff'8000'0000ULL;
+  const uint64_t kPositive32BitValue = 0xffff'ffff'0000'0000ULL;
+  const uint64_t kSignExtendedPositive = 0ULL;
+  static_assert(static_cast<int32_t>(kSignExtendedPositive) >= 0);
+  static_assert(static_cast<int32_t>(kSignExtendedNegative) < 0);
+
+  // Lrw - sign extends from 32 to 64.
+  TestAtomicLoad(0x1000a12f, &kPositive32BitValue, kSignExtendedPositive);
+  TestAtomicLoad(0x1000a12f, &kNegative32BitValue, kSignExtendedNegative);
+
+  // Lrd
+  TestAtomicLoad(0x1000b12f, &kDataToLoad, kDataToLoad);
+}
+
+TEST_F(TESTSUITE, AtomicStoreInstructions) {
+  // Scw
+  TestAtomicStore(0x1820a1af, static_cast<uint32_t>(kDataToStore));
+
+  // Scd
+  TestAtomicStore(0x1820b1af, kDataToStore);
+}
+
+TEST_F(TESTSUITE, AtomicStoreInstructionNoLoadFailure) {
+  // Scw
+  TestAtomicStoreNoLoadFailure(0x1820a1af);
+
+  // Scd
+  TestAtomicStoreNoLoadFailure(0x1820b1af);
+}
+
+TEST_F(TESTSUITE, AtomicStoreInstructionDifferentLoadFailure) {
+  // Scw
+  TestAtomicStoreDifferentLoadFailure(0x1820a1af);
+
+  // Scd
+  TestAtomicStoreDifferentLoadFailure(0x1820b1af);
+}
+
+#endif  // (defined(TESTING_INTERPRETER) || defined(TESTING_HEAVY_OPTIMIZER))
 
 TEST_F(TESTSUITE, AmoInstructions) {
   // Verifying that all aq and rl combinations work for Amoswap, but only test relaxed one for most
