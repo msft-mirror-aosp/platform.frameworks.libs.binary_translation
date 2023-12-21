@@ -17,8 +17,9 @@
 #ifndef RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
 #define RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
 
-#include "berberis/base/bit_util.h"
-#include "berberis/intrinsics/macro_assembler.h"
+#include <cinttypes>
+
+#include "berberis/intrinsics/common/intrinsics_float.h"
 
 namespace berberis::constants_pool {
 
@@ -169,6 +170,8 @@ inline const int32_t kWidthInBits<int64_t> = kConst<uint64_t{64}>;
 
 extern const int32_t kRiscVToX87Exceptions;
 extern const int32_t kX87ToRiscVExceptions;
+
+extern const int32_t kBitMaskTable;
 
 }  // namespace berberis::constants_pool
 
