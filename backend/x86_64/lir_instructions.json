@@ -118,6 +118,8 @@
         "MovqRegXReg",
         "MovqXRegMemInsns",
         "MovqXRegReg",
+        "MovsdMemXRegInsns",
+        "MovsdXRegMemInsns",
         "MovsdXRegXReg",
         "MovssXRegXReg",
         "MovsxbqRegMemInsns",
