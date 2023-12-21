@@ -24,6 +24,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/lite_translator/lite_translate_region.h"
+#include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/test_utils/scoped_exec_region.h"
 #include "berberis/test_utils/testing_run_generated_code.h"
 
