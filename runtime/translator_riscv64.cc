@@ -51,6 +51,8 @@ GuestCodeEntry::Kind kHeavyOptimized = GuestCodeEntry::Kind::kHeavyOptimized;
 enum class TranslationMode {
   kInterpretOnly,
   kLiteTranslateOrFallbackToInterpret,
+  kHeavyOptimizeOrFallbackToInterpret,
+  kHeavyOptimizeOrFallbackToLiteTranslator,
   kLightTranslateThenHeavyOptimize,
   kTwoGear = kLightTranslateThenHeavyOptimize,
   kNumModes
@@ -60,8 +62,11 @@ TranslationMode g_translation_mode = TranslationMode::kLiteTranslateOrFallbackTo
 
 void UpdateTranslationMode() {
   // Indices must match TranslationMode enum.
-  constexpr const char* kTranslationModeNames[] = {
-      "interpret-only", "lite-translate-or-interpret", "two-gear"};
+  constexpr const char* kTranslationModeNames[] = {"interpret-only",
+                                                   "lite-translate-or-interpret",
+                                                   "heavy-optimize-or-interpret",
+                                                   "heavy-optimize-or-lite-translate",
+                                                   "two-gear"};
   static_assert(static_cast<int>(TranslationMode::kNumModes) ==
                 sizeof(kTranslationModeNames) / sizeof(char*));
 
@@ -165,19 +170,21 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> HeavyOptimizeRegio
     return {false, {}, 0, {}};
   }
 
-  // TODO(b/286247146) fallback to lite translator or interpreter?
-  return {false, {}, 0, {}};
+  // Report success because we at least translated some instructions.
+  return {true, InstallTranslated(&machine_code, pc, size, "heavy"), size, kHeavyOptimized};
 }
 
 template <TranslationGear kGear = TranslationGear::kFirst>
 void TranslateRegion(GuestAddr pc) {
-  // kSecond is not supported yet.
-  CHECK(kGear != TranslationGear::kSecond);
-
   TranslationCache* cache = TranslationCache::GetInstance();
 
   GuestCodeEntry* entry;
-  entry = cache->AddAndLockForTranslation(pc, 0);
+  if constexpr (kGear == TranslationGear::kFirst) {
+    entry = cache->AddAndLockForTranslation(pc, 0);
+  } else {
+    CHECK(g_translation_mode == TranslationMode::kTwoGear);
+    entry = cache->LockForGearUpTranslation(pc);
+  }
   if (!entry) {
     return;
   }
@@ -218,8 +225,33 @@ void TranslateRegion(GuestAddr pc) {
     std::tie(success, host_code_piece, size, kind) = TryLiteTranslateAndInstallRegion(
         pc, {.enable_self_profiling = true, .counter_location = &(entry->invocation_counter)});
     if (!success) {
-      std::tie(host_code_piece, size, kind) =
-          std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
+      // Heavy supports more insns than lite, so try to heavy optimize. If that fails, then
+      // fallback to interpret.
+      if (!success) {
+        std::tie(host_code_piece, size, kind) =
+            std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
+      }
+    }
+  } else if (g_translation_mode == TranslationMode::kHeavyOptimizeOrFallbackToInterpret ||
+             g_translation_mode == TranslationMode::kHeavyOptimizeOrFallbackToLiteTranslator ||
+             (g_translation_mode == TranslationMode::kTwoGear &&
+              kGear == TranslationGear::kSecond)) {
+    std::tie(success, host_code_piece, size, kind) = HeavyOptimizeRegion(pc);
+    if (!success) {
+      if (g_translation_mode == TranslationMode::kHeavyOptimizeOrFallbackToInterpret ||
+          // Lite might fail since not all insns are implemented. Fallback to interpret.
+          (g_translation_mode == TranslationMode::kTwoGear && kGear == TranslationGear::kSecond)) {
+        std::tie(host_code_piece, size, kind) =
+            std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
+      } else if (g_translation_mode == TranslationMode::kHeavyOptimizeOrFallbackToLiteTranslator) {
+        std::tie(success, host_code_piece, size, kind) =
+            TryLiteTranslateAndInstallRegion(pc, {.enable_self_profiling = false});
+        // Lite might fail since not all insns are implemented. Fallback to interpret.
+        if (!success) {
+          std::tie(host_code_piece, size, kind) =
+              std::make_tuple(HostCodePiece{kEntryInterpret, 0}, first_insn_size, kInterpreted);
+        }
+      }
     }
   } else {
     LOG_ALWAYS_FATAL("Unsupported translation mode %u", g_translation_mode);
