@@ -125,6 +125,7 @@ class SemanticsPlayer {
         Register arg = listener_->GetReg(args.src);
         SetCsr(static_cast<CsrName>(args.csr), arg);
         listener_->SetReg(args.dst, csr);
+        return;
       }
       Register arg = listener_->GetReg(args.src);
       if (!SetCsr(static_cast<CsrName>(args.csr), arg)) {
