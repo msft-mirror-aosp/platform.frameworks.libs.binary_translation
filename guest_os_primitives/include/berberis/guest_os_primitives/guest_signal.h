@@ -68,22 +68,6 @@ inline void ConvertToBigSigset(const SmallSigset& small_sigset, BigSigset* big_s
   memcpy(big_sigset, &small_sigset, sizeof(SmallSigset));
 }
 
-// TODO(b/283697533): Define Guest_sigaction differently depending on guest platform.
-// Guest struct (__kernel_)sigaction, as expected by rt_sigaction syscall.
-struct Guest_sigaction {
-  // Prefix avoids conflict with original 'sa_sigaction' defined as macro.
-  GuestAddr guest_sa_sigaction;
-  unsigned long sa_flags;
-  Guest_sigset_t sa_mask;
-};
-#if defined(BERBERIS_GUEST_LP64)
-CHECK_STRUCT_LAYOUT(Guest_sigaction, 192, 64);
-CHECK_FIELD_LAYOUT(Guest_sigaction, guest_sa_sigaction, 0, 64);
-CHECK_FIELD_LAYOUT(Guest_sigaction, sa_flags, 64, 64);
-CHECK_FIELD_LAYOUT(Guest_sigaction, sa_mask, 128, 64);
-#endif
-// TODO(b/283352810): Add checks for ILP32 guest data model.
-
 size_t GetGuest_MINSIGSTKSZ();
 
 struct Guest_sigaction;
