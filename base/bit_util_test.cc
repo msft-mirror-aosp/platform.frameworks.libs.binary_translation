@@ -99,11 +99,12 @@ static_assert(MaybeTruncateTo<Int8>(Int8{-128}) == Int8{-128});
 static_assert(MaybeTruncateTo<Int8>(Int16{-32768}) == Int8{0});
 static_assert(TruncateTo<Int8>(Int16{-32768}) == Int8{0});
 
-// BitCastToSigned and BitCastToUnigned don't change the bits of integer, they just treat them differently.
+// BitCastToSigned and BitCastToUnsigned don't change the bits of integer, they just treat them
+// differently.
 static_assert(BitCastToSigned(SatUInt8{128}) == SatInt8{-128});
 static_assert(BitCastToSigned(UInt8{128}) == Int8{-128});
-static_assert(BitCastToUnigned(SatInt8{-128}) == SatUInt8{128});
-static_assert(BitCastToUnigned(Int8{-128}) == UInt8{128});
+static_assert(BitCastToUnsigned(SatInt8{-128}) == SatUInt8{128});
+static_assert(BitCastToUnsigned(Int8{-128}) == UInt8{128});
 
 static_assert(std::is_same_v<Int16, Int16::SignedType>);
 static_assert(std::is_same_v<Int16, UInt16::SignedType>);
