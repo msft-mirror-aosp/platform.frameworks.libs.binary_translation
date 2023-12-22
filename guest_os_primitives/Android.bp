@@ -34,6 +34,15 @@ cc_library_headers {
     ],
 }
 
+// Local headers for compiling guest_os_primitives modules only.
+// Don't depend on these headers in other modules.
+cc_library_headers {
+    name: "_libberberis_guest_os_primitives_private_headers",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    export_include_dirs: ["."],
+}
+
 cc_library_headers {
     name: "libberberis_guest_os_primitives_riscv64_headers",
     defaults: ["berberis_defaults"],
