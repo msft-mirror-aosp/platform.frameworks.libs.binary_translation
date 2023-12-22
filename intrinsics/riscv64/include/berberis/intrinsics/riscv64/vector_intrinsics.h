@@ -58,6 +58,21 @@ int MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence)
   }
 }
 
+// Naïve implementation for tests.  Also use on not-x86 platforms.
+inline SIMD128Register MakeBitmaskFromVlForTests(size_t vl) {
+  if (vl == 128) {
+    return SIMD128Register(__int128(0));
+  } else {
+    return SIMD128Register((~__int128(0)) << vl);
+  }
+}
+
+#ifndef __x86_64__
+inline SIMD128Register MakeBitmaskFromVl(size_t vl) {
+  return MakeBitmaskFromVlForTests(vl);
+}
+#endif
+
 template <typename ElementType>
 inline ElementType VectorElement(SIMD128Register src, int index) {
   return src.Get<ElementType>(index);
