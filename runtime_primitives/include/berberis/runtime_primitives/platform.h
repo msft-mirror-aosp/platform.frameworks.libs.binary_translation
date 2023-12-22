@@ -35,14 +35,17 @@ inline constexpr bool kIsX86 = (kIsX86_32 || kIsX86_64);
 
 #if defined(__i386__) || defined(__x86_64__)
 extern const struct PlatformCapabilities {
+  bool kIsAuthenticAMD;
   bool kHasAES;
   bool kHasAVX;
   bool kHasBMI;
+  bool kHasBMI2;
   bool kHasCLMUL;
   bool kHasF16C;
   bool kHasFMA;
   bool kHasFMA4;
   bool kHasLZCNT;
+  bool kHasPDEP;
   bool kHasPOPCNT;
   bool kHasSHA;
   bool kHasSSE3;
@@ -54,15 +57,18 @@ extern const struct PlatformCapabilities {
 // These are "runtime constants": they can not be determined at compile
 // time but each particular CPU has them set to true or false and that
 // value can not ever change in the lifetime of a program.
+inline const bool& kIsAuthenticAMD = kPlatformCapabilities.kIsAuthenticAMD;
 inline const bool& kHasAES = kPlatformCapabilities.kHasAES;
 inline const bool& kHasAVX = kPlatformCapabilities.kHasAVX;
-inline const bool& kHasCLMUL = kPlatformCapabilities.kHasCLMUL;
 inline const bool& kHasBMI = kPlatformCapabilities.kHasBMI;
+inline const bool& kHasBMI2 = kPlatformCapabilities.kHasBMI2;
+inline const bool& kHasCLMUL = kPlatformCapabilities.kHasCLMUL;
 inline const bool& kHasF16C = kPlatformCapabilities.kHasF16C;
 inline const bool& kHasFMA = kPlatformCapabilities.kHasFMA;
 inline const bool& kHasFMA4 = kPlatformCapabilities.kHasFMA4;
-inline const bool& kHasPOPCNT = kPlatformCapabilities.kHasPOPCNT;
 inline const bool& kHasLZCNT = kPlatformCapabilities.kHasLZCNT;
+inline const bool& kHasPDEP = kPlatformCapabilities.kHasPDEP;
+inline const bool& kHasPOPCNT = kPlatformCapabilities.kHasPOPCNT;
 inline const bool& kHasSHA = kPlatformCapabilities.kHasSHA;
 inline const bool& kHasSSE3 = kPlatformCapabilities.kHasSSE3;
 inline const bool& kHasSSSE3 = kPlatformCapabilities.kHasSSSE3;
