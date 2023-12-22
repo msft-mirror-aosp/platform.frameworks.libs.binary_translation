@@ -108,7 +108,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
             // result.
             if (vlmul == 2) {
               state_.cpu.vstart = vlmax / 8;
-              state_.cpu.vl = (vlmax * 7) / 8;
+              state_.cpu.vl = (vlmax * 5) / 8;
             } else {
               state_.cpu.vstart = 0;
               state_.cpu.vl = vlmax;
@@ -133,7 +133,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
                                 ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[index] &
                                  ~kFractionMaskInt8[3])}
                                 .Get<__uint128_t>());
-                } else if (index == 3 && vlmul == 2) {
+                } else if (index == 2 && vlmul == 2) {
                   EXPECT_EQ(
                       state_.cpu.v[8 + index],
                       SIMD128Register{
@@ -142,6 +142,10 @@ class Riscv64InterpreterTest : public ::testing::Test {
                            kFractionMaskInt8[3]) |
                           ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])}
                           .Get<__uint128_t>());
+                } else if (index == 3 && vlmul == 2 && vta) {
+                  EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kAgnosticResult});
+                } else if (index == 3 && vlmul == 2) {
+                  EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kUndisturbedResult});
                 } else {
                   EXPECT_EQ(
                       state_.cpu.v[8 + index],
@@ -164,7 +168,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
             if (vlmul == 2) {
               // Every vector instruction must set vstart to 0, but shouldn't touch vl.
               EXPECT_EQ(state_.cpu.vstart, 0);
-              EXPECT_EQ(state_.cpu.vl, (vlmax * 7) / 8);
+              EXPECT_EQ(state_.cpu.vl, (vlmax * 5) / 8);
             }
           }
         }
