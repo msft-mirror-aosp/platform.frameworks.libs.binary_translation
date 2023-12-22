@@ -29,6 +29,12 @@ namespace berberis::intrinsics {
 
 namespace {
 
+TEST(VectorIntrinsics, MakeBitmaskFromVl) {
+  for (size_t vl = 0; vl < 128; ++vl) {
+    ASSERT_EQ(MakeBitmaskFromVlForTests(vl), MakeBitmaskFromVl(vl));
+  }
+}
+
 // Easily recognizable bit pattern for target register.
 constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 

@@ -346,6 +346,14 @@ class Decoder {
   };
 
   enum class VOpMVvOpcode : uint8_t {
+    kVmandnmm = 0b011000,
+    kVmandmm = 0b011001,
+    kVmormm = 0b011010,
+    kVmxormm = 0b011011,
+    kVmornmm = 0b011100,
+    kVmnandmm = 0b011101,
+    kVmnormm = 0b011110,
+    kVmxnormm = 0b011111,
     kVmaddvv = 0b101001,
     kVnmsubvv = 0b101011,
     kVmaccvv = 0b101101,
