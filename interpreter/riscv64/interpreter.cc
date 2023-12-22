@@ -694,6 +694,30 @@ class Interpreter {
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpMVvArgs& args) {
     switch (args.opcode) {
+      case Decoder::VOpMVvOpcode::kVmandnmm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs & ~rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmandmm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs & rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmormm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs | rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmxormm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs ^ rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmornmm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs | ~rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmnandmm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return ~(lhs & rhs); }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmnormm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return ~(lhs | rhs); }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmxnormm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return ~(lhs ^ rhs); }>(
+            args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVmaddvv:
         return OpVectorvv<intrinsics::Vmaddvv<ElementType, vta>, ElementType, vlmul, vta>(
             args.dst, args.src1, args.src2);
@@ -802,6 +826,30 @@ class Interpreter {
       default:
         Unimplemented();
     }
+  }
+
+  template <auto Intrinsic>
+  void OpVectormm(uint8_t dst, uint8_t src1, uint8_t src2) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    SIMD128Register result, arg1, arg2;
+    arg1.Set(state_->cpu.v[src1]);
+    arg2.Set(state_->cpu.v[src2]);
+    if (vstart > 0) [[unlikely]] {
+      if (vstart > vl) [[unlikely]] {
+        result.Set(state_->cpu.v[dst]);
+        result = result | intrinsics::MakeBitmaskFromVl(vl);
+      } else {
+        SIMD128Register start_mask = intrinsics::MakeBitmaskFromVl(vstart);
+        result.Set(state_->cpu.v[dst]);
+        result = (result & ~start_mask) | (Intrinsic(arg1, arg2) & start_mask) |
+                 intrinsics::MakeBitmaskFromVl(vl);
+      }
+      SetCsr<CsrName::kVstart>(0);
+    } else {
+      result = Intrinsic(arg1, arg2) | intrinsics::MakeBitmaskFromVl(vl);
+    }
+    state_->cpu.v[dst] = result.Get<__uint128_t>();
   }
 
   template <auto Intrinsic,
