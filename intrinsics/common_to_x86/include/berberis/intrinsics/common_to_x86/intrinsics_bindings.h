@@ -356,6 +356,9 @@ enum CPUIDRestriction : int {
   kHasFMA4,
   kHasFXSAVE,
   kHasLZCNT,
+  // BMI2 is set and PDEP/PEXT are ok to use. See more here:
+  //   https://twitter.com/instlatx64/status/1322503571288559617
+  kHashPDEP,
   kHasPOPCNT,
   kHasRDSEED,
   kHasSERIALIZE,
