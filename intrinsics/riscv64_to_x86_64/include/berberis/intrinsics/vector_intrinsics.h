@@ -17,6 +17,25 @@
 #ifndef RISCV64_TO_X86_64_BERBERIS_INTRINSICS_VECTOR_INTRINSICS_H_
 #define RISCV64_TO_X86_64_BERBERIS_INTRINSICS_VECTOR_INTRINSICS_H_
 
+#include <xmmintrin.h>
+
+#include "berberis/intrinsics/macro_assembler_constants_pool.h"
+#include "berberis/intrinsics/simd_register.h"
+
+// Define function to use in host-agnostic code.
+
+namespace berberis::intrinsics {
+
+inline SIMD128Register MakeBitmaskFromVl(size_t vl) {
+  return _mm_loadu_si128(reinterpret_cast<__m128i_u const*>(
+      bit_cast<const uint8_t*>(static_cast<uintptr_t>(constants_pool::kBitMaskTable)) +
+      (vl & 7U) * 32 + 16 - ((vl & (~7ULL)) >> 3)));
+}
+
+}  // namespace berberis::intrinsics
+
+// Include host-agnostic code.
+
 #include "berberis/intrinsics/riscv64/vector_intrinsics.h"
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_VECTOR_INTRINSICS_H_
