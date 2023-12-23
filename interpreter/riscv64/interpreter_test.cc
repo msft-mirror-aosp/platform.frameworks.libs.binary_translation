@@ -352,7 +352,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
   // Undisturbed result is put in registers v8, v9, …, v15 and is expected to get read back.
   static constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 
-  uint64_t store_area_;
+  alignas(16) uint64_t store_area_[32];
   ThreadState state_;
 };
 
