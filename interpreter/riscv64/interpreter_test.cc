@@ -247,7 +247,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
-      {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}};
+      {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1},
+  };
 
   static constexpr __v2du kVectorComparisonSource[16] = {
       {0xfff5'fff5'fff5'fff5, 0xfff5'fff5'fff5'fff5},
@@ -266,7 +267,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
-      {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}};
+      {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1},
+  };
 
   // Right shift tests should use inputs with 1s in the most significant bit to differentiate
   // between logical and arithmetic right shifts.
@@ -287,7 +289,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
-      {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}};
+      {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1},
+  };
 
   // Mask in form suitable for storing in v0 and use in v0.t form.
   static constexpr __v2du kMask = {0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5};
@@ -300,7 +303,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
       {255, 0, 255, 0, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 255, 0},
       {255, 0, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 255, 0, 255, 255},
       {255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 255, 0, 255, 0, 255, 0},
-      {255, 255, 255, 0, 255, 255, 255, 255, 0, 255, 0, 255, 0, 255, 255, 0}};
+      {255, 255, 255, 0, 255, 255, 255, 255, 0, 255, 0, 255, 0, 255, 255, 0},
+  };
   // Mask used with vsew = 1 (16bit) elements.
   static constexpr __v8hu kMaskInt16[8] = {
       {0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff},
@@ -310,16 +314,19 @@ class Riscv64InterpreterTest : public ::testing::Test {
       {0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff},
       {0x0000, 0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff},
       {0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff},
-      {0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff}};
+      {0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff},
+  };
   // Mask used with vsew = 2 (32bit) elements.
-  static constexpr __v4su kMaskInt32[8] = {{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
-                                           {0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff},
-                                           {0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0x0000'0000},
-                                           {0xffff'ffff, 0xffff'ffff, 0x0000'0000, 0xffff'ffff},
-                                           {0xffff'ffff, 0xffff'ffff, 0x0000'0000, 0xffff'ffff},
-                                           {0x0000'0000, 0xffff'ffff, 0xffff'ffff, 0x0000'0000},
-                                           {0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
-                                           {0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff}};
+  static constexpr __v4su kMaskInt32[8] = {
+      {0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
+      {0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff},
+      {0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0x0000'0000},
+      {0xffff'ffff, 0xffff'ffff, 0x0000'0000, 0xffff'ffff},
+      {0xffff'ffff, 0xffff'ffff, 0x0000'0000, 0xffff'ffff},
+      {0x0000'0000, 0xffff'ffff, 0xffff'ffff, 0x0000'0000},
+      {0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
+      {0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff},
+  };
   // Mask used with vsew = 3 (64bit) elements.
   static constexpr __v2du kMaskInt64[8] = {
       {0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000},
@@ -340,13 +347,15 @@ class Riscv64InterpreterTest : public ::testing::Test {
       {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
       {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
       {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
-      {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}};
+      {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255},
+  };
   // Half of sub-register lmul.
   static constexpr __v16qu kFractionMaskInt8[4] = {
       {255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},        // Half of ⅛ reg = ¹⁄₁₆
       {255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},      // Half of ¼ reg = ⅛
       {255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},  // Half of ½ reg = ¼
-      {255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0}};  // Half of full reg = ½
+      {255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0},  // Half of full reg = ½
+  };
   // Agnostic result is -1 on RISC-V, not 0.
   static constexpr __m128i kAgnosticResult = {-1, -1};
   // Undisturbed result is put in registers v8, v9, …, v15 and is expected to get read back.
