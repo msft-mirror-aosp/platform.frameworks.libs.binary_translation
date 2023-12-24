@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/common/intrinsics_float.h"
 
 namespace berberis {
@@ -35,9 +36,16 @@ class SIMD128Register;
  * it's not allowed for class members.  Use helper functions instead.
  */
 template <typename T>
-T SIMD128RegisterGet(const SIMD128Register* reg, int index) = delete;
+[[nodiscard]] constexpr T SIMD128RegisterGet(const SIMD128Register* reg, int index) = delete;
 template <typename T>
-T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index) = delete;
+constexpr T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index) = delete;
+
+[[nodiscard]] constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs);
+[[nodiscard]] constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs);
+[[nodiscard]] constexpr SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs);
+[[nodiscard]] constexpr SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs);
+[[nodiscard]] constexpr SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs);
+[[nodiscard]] constexpr SIMD128Register operator~(SIMD128Register lhs);
 
 class SIMD128Register {
  public:
@@ -47,41 +55,64 @@ class SIMD128Register {
   explicit SIMD128Register(T elem) {
     Set<T>(elem, 0);
   }
-  template <typename T,
-            typename = std::enable_if_t<sizeof(T) == 16 &&
-                                        !std::is_same_v<std::decay_t<T>, SIMD128Register>>>
-  SIMD128Register(T&& elem) {
-    Set<T>(elem);
-  }
   SIMD128Register() = default;
   SIMD128Register(const SIMD128Register&) = default;
   SIMD128Register(SIMD128Register&&) = default;
   SIMD128Register& operator=(const SIMD128Register&) = default;
   SIMD128Register& operator=(SIMD128Register&&) = default;
+  // Note that all other constructos are not constexpr because they not compatible with notion of
+  // “active union member”.
+  // Attribute gnu::may_alias prevents UB at runtime, but doesn't make it possible to make “active
+  // union member” diffused in constexpr.
+#if defined(__x86_64__)
+  constexpr SIMD128Register(__int128_t elem) : int128{(elem)} {}
+  constexpr SIMD128Register(Int128 elem) : int128{(elem.value)} {}
+  constexpr SIMD128Register(SatInt128 elem) : int128{(elem.value)} {}
+  constexpr SIMD128Register(__uint128_t elem) : uint128{(elem)} {}
+  constexpr SIMD128Register(UInt128 elem) : uint128{(elem.value)} {}
+  constexpr SIMD128Register(SatUInt128 elem) : uint128{(elem.value)} {}
+#endif
+#if defined(__i386__) || defined(__x86_64__)
+  // Note: we couldn't use elem's below to directly initialize SIMD128Register (even if it works
+  // fine with __int128_t and __uint128_t), but Set works correctly if we pick correct “active
+  // union member” first.
+  constexpr SIMD128Register(__v16qi elem) : int8{} { Set(elem); }
+  constexpr SIMD128Register(__v16qu elem) : uint8{} { Set(elem); }
+  constexpr SIMD128Register(__v8hi elem) : int16{} { Set(elem); }
+  constexpr SIMD128Register(__v8hu elem) : uint16{} { Set(elem); }
+  constexpr SIMD128Register(__v4si elem) : int32{} { Set(elem); }
+  constexpr SIMD128Register(__v4su elem) : uint32{} { Set(elem); }
+  constexpr SIMD128Register(__v2du elem) : uint64{} { Set(elem); }
+  constexpr SIMD128Register(__v2df elem) : float64{} { Set(elem); }
+  constexpr SIMD128Register(__m128i elem) : int64{} { Set(elem); }
+  constexpr SIMD128Register(__m128 elem) : float32{} { Set(elem); }
+#endif
 
   template <typename T>
-  auto Get(int index) const -> std::enable_if_t<sizeof(T) < 16, std::decay_t<T>> {
+  [[nodiscard]] constexpr auto Get(int index) const
+      -> std::enable_if_t<sizeof(T) < 16, std::decay_t<T>> {
     return SIMD128RegisterGet<std::decay_t<T>>(this, index);
   }
   template <typename T>
-  auto Set(T elem, int index) -> std::enable_if_t<sizeof(T) < 16, std::decay_t<T>> {
+  constexpr auto Set(T elem, int index) -> std::enable_if_t<sizeof(T) < 16, std::decay_t<T>> {
     return SIMD128RegisterSet<T>(this, elem, index);
   }
   template <typename T>
-  auto Get() const -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
+  [[nodiscard]] constexpr auto Get() const -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
     return SIMD128RegisterGet<std::decay_t<T>>(this, 0);
   }
   template <typename T>
-  auto Get(int index) const -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
+  [[nodiscard]] constexpr auto Get(int index) const
+      -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
     CHECK_EQ(index, 0);
     return SIMD128RegisterGet<std::decay_t<T>>(this, 0);
   }
   template <typename T>
-  auto Set(T elem) -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
+  constexpr auto Set(T elem) -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
     return SIMD128RegisterSet<std::decay_t<T>>(this, elem, 0);
   }
   template <typename T>
-  auto Set(T elem, int index) -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
+  constexpr auto Set(T elem, int index) -> std::enable_if_t<sizeof(T) == 16, std::decay_t<T>> {
     CHECK_EQ(index, 0);
     return SIMD128RegisterSet<std::decay_t<T>>(this, elem, 0);
   }
@@ -134,32 +165,15 @@ class SIMD128Register {
     }
   }
 #if defined(__i386__) || defined(__x86_64__)
-  friend bool operator==(SIMD128Register lhs, SIMD128Register rhs) {
-    // Note comparison of two vectors return vector of the same type. In such a case we need to
-    // merge many bools that we got.
-    // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
-    // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-    return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) == 0xffff;
-  }
-  friend bool operator!=(SIMD128Register lhs, SIMD128Register rhs) {
-    // Note comparison of two vectors return vector of the same type. In such a case we need to
-    // merge many bools that we got.
-    // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
-    // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-    return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) != 0xffff;
-  }
-  friend SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs) {
-    return lhs.Get<__m128i>() & rhs.Get<__m128i>();
-  }
-  friend SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs) {
-    return lhs.Get<__m128i>() | rhs.Get<__m128i>();
-  }
-  friend SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs) {
-    return lhs.Get<__m128i>() ^ rhs.Get<__m128i>();
-  }
-  friend SIMD128Register operator~(SIMD128Register lhs) {
-    return ~lhs.Get<__m128i>();
-  }
+  friend constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs);
+  friend constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs);
+  friend constexpr SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs);
+  constexpr SIMD128Register& operator&=(SIMD128Register other) { return *this = *this & other; }
+  friend constexpr SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs);
+  constexpr SIMD128Register& operator|=(SIMD128Register other) { return *this = *this | other; }
+  friend constexpr SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs);
+  constexpr SIMD128Register& operator^=(SIMD128Register other) { return *this = *this ^ other; }
+  friend constexpr SIMD128Register operator~(SIMD128Register lhs);
 #endif
 
  private:
@@ -189,9 +203,9 @@ class SIMD128Register {
 #endif
   };
   template <typename T>
-  friend T SIMD128RegisterGet(const SIMD128Register* reg, int index);
+  friend constexpr T SIMD128RegisterGet(const SIMD128Register* reg, int index);
   template <typename T>
-  friend T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index);
+  friend constexpr T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index);
 };
 
 static_assert(sizeof(SIMD128Register) == 16, "Unexpected size of SIMD128Register");
@@ -262,16 +276,16 @@ static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Regist
     reg->MEMBER[index] = melem;                                                       \
     return elem;                                                                      \
   }
-#define SIMD_128_FULL_REGISTER_GETTER_SETTER(TYPE, MEMBER)                            \
-  template <>                                                                         \
-  inline TYPE SIMD128RegisterGet<TYPE>(const SIMD128Register* reg, int index) {       \
-    CHECK_EQ(index, 0);                                                               \
-    return reg->MEMBER;                                                               \
-  }                                                                                   \
-  template <>                                                                         \
-  inline TYPE SIMD128RegisterSet<TYPE>(SIMD128Register * reg, TYPE elem, int index) { \
-    CHECK_EQ(index, 0);                                                               \
-    return reg->MEMBER = elem;                                                        \
+#define SIMD_128_FULL_REGISTER_GETTER_SETTER(TYPE, MEMBER)                               \
+  template <>                                                                            \
+  constexpr TYPE SIMD128RegisterGet<TYPE>(const SIMD128Register* reg, int index) {       \
+    CHECK_EQ(index, 0);                                                                  \
+    return reg->MEMBER;                                                                  \
+  }                                                                                      \
+  template <>                                                                            \
+  constexpr TYPE SIMD128RegisterSet<TYPE>(SIMD128Register * reg, TYPE elem, int index) { \
+    CHECK_EQ(index, 0);                                                                  \
+    return reg->MEMBER = elem;                                                           \
   }
 #endif
 SIMD_128_STDINT_REGISTER_GETTER_SETTER(int8_t, int8);
@@ -324,6 +338,35 @@ SIMD_128_FLOAT_REGISTER_GETTER_SETTER(intrinsics::Float64, double, float64);
 #undef SIMD_128_fLOAT_REGISTER_GETTER_SETTER
 #undef SIMD_128_SAFEINT_REGISTER_GETTER_SETTER
 #undef SIMD_128_STDINT_REGISTER_GETTER_SETTER
+
+#if defined(__i386__) || defined(__x86_64__)
+[[nodiscard]] constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs) {
+  // Note comparison of two vectors return vector of the same type. In such a case we need to
+  // merge many bools that we got.
+  // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
+  // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
+  return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) == 0xffff;
+}
+[[nodiscard]] constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs) {
+  // Note comparison of two vectors return vector of the same type. In such a case we need to
+  // merge many bools that we got.
+  // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
+  // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
+  return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) != 0xffff;
+}
+[[nodiscard]] constexpr SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs) {
+  return lhs.Get<__m128i>() & rhs.Get<__m128i>();
+}
+[[nodiscard]] constexpr SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs) {
+  return lhs.Get<__m128i>() | rhs.Get<__m128i>();
+}
+[[nodiscard]] constexpr SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs) {
+  return lhs.Get<__m128i>() ^ rhs.Get<__m128i>();
+}
+[[nodiscard]] constexpr SIMD128Register operator~(SIMD128Register lhs) {
+  return ~lhs.Get<__m128i>();
+}
+#endif
 
 }  // namespace berberis
 
