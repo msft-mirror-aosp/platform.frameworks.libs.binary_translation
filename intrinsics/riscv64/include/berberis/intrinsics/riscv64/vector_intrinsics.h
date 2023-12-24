@@ -44,7 +44,7 @@ enum class InactiveProcessing {
 };
 
 template <typename ElementType>
-int MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence) {
+[[nodiscard]] int MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence) {
   if constexpr (sizeof(ElementType) == sizeof(uint8_t)) {
     return mask.Get<uint16_t>(register_in_sequence);
   } else if constexpr (sizeof(ElementType) == sizeof(uint16_t)) {
@@ -58,8 +58,8 @@ int MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence)
   }
 }
 
-// Naïve implementation for tests.  Also use on not-x86 platforms.
-inline SIMD128Register MakeBitmaskFromVlForTests(size_t vl) {
+// Naïve implementation for tests.  Also used on not-x86 platforms.
+[[nodiscard]] inline SIMD128Register MakeBitmaskFromVlForTests(size_t vl) {
   if (vl == 128) {
     return SIMD128Register(__int128(0));
   } else {
@@ -68,18 +68,42 @@ inline SIMD128Register MakeBitmaskFromVlForTests(size_t vl) {
 }
 
 #ifndef __x86_64__
-inline SIMD128Register MakeBitmaskFromVl(size_t vl) {
+[[nodiscard]] inline SIMD128Register MakeBitmaskFromVl(size_t vl) {
   return MakeBitmaskFromVlForTests(vl);
 }
 #endif
 
+// Naïve implementation for tests.  Also used on not-x86 platforms.
 template <typename ElementType>
-inline ElementType VectorElement(SIMD128Register src, int index) {
+[[nodiscard]] inline SIMD128Register BitMaskToSimdMaskForTests(size_t mask) {
+  constexpr ElementType kZeroValue = ElementType{0};
+  constexpr ElementType kFillValue = ~ElementType{0};
+  SIMD128Register result;
+  for (size_t index = 0; index < 16 / sizeof(ElementType); ++index) {
+    size_t bit = 1 << index;
+    if (mask & bit) {
+      result.Set(kFillValue, index);
+    } else {
+      result.Set(kZeroValue, index);
+    }
+  }
+  return result;
+}
+
+#ifndef __x86_64__
+template <typename ElementType>
+[[nodiscard]] inline SIMD128Register BitMaskToSimdMask(size_t mask) {
+  return BitMaskToSimdMaskForTests<ElementType>(mask);
+}
+#endif
+
+template <typename ElementType>
+[[nodiscard]] inline ElementType VectorElement(SIMD128Register src, int index) {
   return src.Get<ElementType>(index);
 }
 
 template <typename ElementType>
-inline ElementType VectorElement(ElementType src, int) {
+[[nodiscard]] inline ElementType VectorElement(ElementType src, int) {
   return src;
 }
 
