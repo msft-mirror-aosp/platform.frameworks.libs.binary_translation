@@ -485,6 +485,26 @@ class Interpreter {
         return;
       }
     }
+
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VStoreUnitStrideArgs>) {
+      if (args.opcode == Decoder::VStoreUnitStrideOpcode::kVsₓ) {
+        if (args.width != Decoder::StoreOperandType::k8bit) {
+          return Unimplemented();
+        }
+        if (!IsPowerOf2(args.nf + 1)) {
+          return Unimplemented();
+        }
+        if ((args.data & args.nf) != 0) {
+          return Unimplemented();
+        }
+        auto [src] = std::tuple{extra_args...};
+        __uint128_t* ptr = bit_cast<__uint128_t*>(src);
+        for (size_t index = 0; index <= args.nf; index++) {
+          ptr[index] = state_->cpu.v[args.data + index];
+        }
+        return;
+      }
+    }
     // RISC-V V extensions are using 8bit “opcode extension” vtype Csr to make sure 32bit encoding
     // would be usable.
     //
@@ -826,6 +846,11 @@ class Interpreter {
       default:
         Unimplemented();
     }
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
+  void OpVector(const Decoder::VStoreUnitStrideArgs& /*args*/, Register /*src*/) {
+    return Unimplemented();
   }
 
   template <auto Intrinsic>
@@ -1229,6 +1254,14 @@ class Interpreter {
       default:
         Unimplemented();
     }
+  }
+
+  template <typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            InactiveProcessing vma>
+  void OpVector(const Decoder::VStoreUnitStrideArgs& /*args*/, Register /*src*/) {
+    Unimplemented();
   }
 
   template <auto Intrinsic,
