@@ -829,6 +829,13 @@ class SemanticsPlayer {
     listener_->OpVector(args, arg2);
   }
 
+  void OpVector(const typename Decoder::VStoreUnitStrideArgs& args) {
+    // TODO(300690740): develop and implement strategy which would allow us to support vector
+    // intrinsics not just in the interpreter.
+    Register arg2 = GetRegOrZero(args.src);
+    listener_->OpVector(args, arg2);
+  }
+
   void Vsetivli(const typename Decoder::VsetivliArgs& args) {
     // Note: it's unclear whether args.avl should be treated similarly to x0 in Vsetvli or not.
     // Keep implementation separate from Vsetvli to make it easier to adjust that code.
