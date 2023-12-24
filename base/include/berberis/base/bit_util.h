@@ -455,22 +455,28 @@ template <typename IntType>
 }
 
 template <typename IntType>
-[[nodiscard]] auto constexpr BitCastToUnigned(Saturating<IntType> src) ->
-    typename Saturating<IntType>::UnsignedType {
-  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
-}
-
-template <typename IntType>
 [[nodiscard]] auto constexpr BitCastToSigned(Wrapping<IntType> src) ->
     typename Wrapping<IntType>::SignedType {
   return {static_cast<std::make_signed_t<IntType>>(src.value)};
 }
 
+template <typename T>
+using SignedType = decltype(BitCastToSigned(std::declval<T>()));
+
 template <typename IntType>
-[[nodiscard]] auto constexpr BitCastToUnigned(Wrapping<IntType> src) ->
+[[nodiscard]] auto constexpr BitCastToUnsigned(Saturating<IntType> src) ->
+    typename Saturating<IntType>::UnsignedType {
+  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToUnsigned(Wrapping<IntType> src) ->
     typename Wrapping<IntType>::UnsignedType {
   return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
 }
+
+template <typename T>
+using UnsignedType = decltype(BitCastToUnsigned(std::declval<T>()));
 
 template <typename ResultType, typename IntType>
 [[nodiscard]] auto constexpr MaybeTruncateTo(IntType src)
@@ -535,6 +541,9 @@ template <typename BaseType>
   return {source.value};
 }
 
+template <typename T>
+using WideType = decltype(Widen(std::declval<T>()));
+
 template <typename BaseType>
 [[nodiscard]] constexpr auto Narrow(Saturating<BaseType> source)
     -> Saturating<typename TypeTraits<BaseType>::Narrow> {
@@ -554,6 +563,9 @@ template <typename BaseType>
     -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
   return {static_cast<typename TypeTraits<BaseType>::Narrow>(source.value)};
 }
+
+template <typename T>
+using NarrowType = decltype(Narrow(std::declval<T>()));
 
 // While `Narrow` returns value reduced to smaller data type there are centain algorithms
 // which require the top half, too (most ofhen in the context of widening multiplication

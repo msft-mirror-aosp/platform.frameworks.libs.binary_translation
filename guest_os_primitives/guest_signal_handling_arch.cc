@@ -22,6 +22,7 @@
 #include "berberis/base/host_signal.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_abi/guest_call.h"
+#include "berberis/guest_os_primitives/guest_signal_arch.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 
 #include "guest_context_arch.h"
