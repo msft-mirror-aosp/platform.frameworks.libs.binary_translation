@@ -172,6 +172,9 @@ extern const int32_t kRiscVToX87Exceptions;
 extern const int32_t kX87ToRiscVExceptions;
 
 extern const int32_t kBitMaskTable;
+extern const int32_t kBitMaskTo8bitMask;
+extern const int32_t kBitMaskTo16bitMask;
+extern const int32_t kBitMaskTo32bitMask;
 
 }  // namespace berberis::constants_pool
 
