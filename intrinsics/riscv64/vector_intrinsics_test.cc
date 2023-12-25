@@ -29,6 +29,36 @@ namespace berberis::intrinsics {
 
 namespace {
 
+TEST(VectorIntrinsics, MakeBitmaskFromVl) {
+  for (size_t vl = 0; vl < 128; ++vl) {
+    ASSERT_EQ(MakeBitmaskFromVlForTests(vl), MakeBitmaskFromVl(vl));
+  }
+}
+
+TEST(VectorIntrinsics, Make8bitMaskFromBitmask) {
+  for (size_t mask = 0; mask < 131071; ++mask) {
+    ASSERT_EQ(BitMaskToSimdMaskForTests<Int8>(mask), BitMaskToSimdMask<Int8>(mask));
+  }
+}
+
+TEST(VectorIntrinsics, Make16bitMaskFromBitmask) {
+  for (size_t mask = 0; mask < 511; ++mask) {
+    ASSERT_EQ(BitMaskToSimdMaskForTests<Int16>(mask), BitMaskToSimdMask<Int16>(mask));
+  }
+}
+
+TEST(VectorIntrinsics, Make32bitMaskFromBitmask) {
+  for (size_t mask = 0; mask < 31; ++mask) {
+    ASSERT_EQ(BitMaskToSimdMaskForTests<Int32>(mask), BitMaskToSimdMask<Int32>(mask));
+  }
+}
+
+TEST(VectorIntrinsics, Make64bitMaskFromBitmask) {
+  for (size_t mask = 0; mask < 7; ++mask) {
+    ASSERT_EQ(BitMaskToSimdMaskForTests<Int64>(mask), BitMaskToSimdMask<Int64>(mask));
+  }
+}
+
 // Easily recognizable bit pattern for target register.
 constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 

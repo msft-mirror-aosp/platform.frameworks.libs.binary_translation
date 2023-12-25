@@ -89,7 +89,6 @@ class TESTSUITE : public ::testing::Test {
       : state_{
             .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
 
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
@@ -143,23 +142,19 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
-
   void TestCBeqzBnez(uint16_t insn_bytes, uint64_t value, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
+    if (expected_offset == 0) {
+      // Emit pending signal so we don't get stuck in an infinite loop.
+      state_.pending_signals_status = kPendingSignalsPresent;
+    } else {
+      state_.pending_signals_status = kPendingSignalsDisabled;
+    }
     SetXReg<9>(state_.cpu, value);
     EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + expected_offset));
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   void TestCMiscAlu(uint16_t insn_bytes,
                     std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
@@ -183,6 +178,12 @@ class TESTSUITE : public ::testing::Test {
   void TestCJ(uint16_t insn_bytes, int16_t expected_offset) {
     auto code_start = ToGuestAddr(&insn_bytes);
     state_.cpu.insn_addr = code_start;
+    if (expected_offset == 0) {
+      // Emit pending signal so we don't get stuck in an infinite loop.
+      state_.pending_signals_status = kPendingSignalsPresent;
+    } else {
+      state_.pending_signals_status = kPendingSignalsDisabled;
+    }
     EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + expected_offset));
     EXPECT_EQ(state_.cpu.insn_addr, code_start + expected_offset);
   }
@@ -232,10 +233,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
-
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
@@ -247,10 +244,6 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
   template <typename... Types>
   void TestOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -261,10 +254,6 @@ class TESTSUITE : public ::testing::Test {
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
   void TestOpImm(uint32_t insn_bytes,
                  std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
@@ -346,10 +335,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_EQ(store_area_, expected_result);
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
   template <typename... Types>
   void TestFma(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, arg3, expected_result] : TupleMap(args, kFPValueToFPReg)) {
@@ -362,9 +347,61 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
+#if (defined(TESTING_INTERPRETER) || defined(TESTING_HEAVY_OPTIMIZER))
+
+  void TestAtomicLoad(uint32_t insn_bytes,
+                      const uint64_t* const data_to_load,
+                      uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(data_to_load));
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
+    EXPECT_EQ(state_.cpu.reservation_address, ToGuestAddr(data_to_load));
+    // We always reserve the full 64-bit range of the reservation address.
+    EXPECT_EQ(state_.cpu.reservation_value, *data_to_load);
+  }
+
+  template <typename T>
+  void TestAtomicStore(uint32_t insn_bytes, T expected_result) {
+    store_area_ = ~uint64_t{0};
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    state_.cpu.reservation_address = ToGuestAddr(&store_area_);
+    state_.cpu.reservation_value = store_area_;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&store_area_), &state_.cpu);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(static_cast<T>(store_area_), expected_result);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
+  }
+
+  void TestAtomicStoreNoLoadFailure(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
+  }
+
+  void TestAtomicStoreDifferentLoadFailure(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    state_.cpu.reservation_address = ToGuestAddr(&kDataToStore);
+    state_.cpu.reservation_value = 0;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&kDataToStore), &state_.cpu);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
+  }
+
+#endif  // (defined(TESTING_INTERPRETER) || defined(TESTING_HEAVY_OPTIMIZER))
 
   void TestAmo(uint32_t insn_bytes,
                uint64_t arg1,
@@ -393,10 +430,6 @@ class TESTSUITE : public ::testing::Test {
             0xffff'eeee'dddd'ccccULL,
             expected_memory);
   }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
   template <typename... Types>
   void TestFmvFloatToInteger(uint32_t insn_bytes,
@@ -504,16 +537,12 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
   uint64_t store_area_;
   ThreadState state_;
 };
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 // Tests for Compressed Instructions.
 template <uint16_t opcode, auto execute_instruction_func>
@@ -1266,10 +1295,6 @@ TEST_F(TESTSUITE, FsrRegister) {
   }
 }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
-
 TEST_F(TESTSUITE, OpInstructions) {
   // Add
   TestOp(0x003100b3, {{19, 23, 42}});
@@ -1506,10 +1531,6 @@ TEST_F(TESTSUITE, OpImm32Instructions) {
   TestOpImm(0x0801109b, {{0x0000'0000'f000'000fULL, 4, 0x0000'000f'0000'00f0}});
 }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
 TEST_F(TESTSUITE, OpFpInstructions) {
   // FAdd.S
   TestOpFp(0x003100d3, {std::tuple{1.0f, 2.0f, 3.0f}});
@@ -1606,11 +1627,6 @@ TEST_F(TESTSUITE, OpFpInstructions) {
             {+0.0, 1.0, 1.0},
             {-0.0, 1.0, 1.0}});
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
 
 TEST_F(TESTSUITE, UpperImmInstructions) {
   // Auipc
@@ -1742,11 +1758,6 @@ TEST_F(TESTSUITE, StoreInstructions) {
   // Sd
   TestStore(0x0020b423, kDataToStore);
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-
 TEST_F(TESTSUITE, FmaInstructions) {
   // Fmadd.S
   TestFma(0x203170c3, {std::tuple{1.0f, 2.0f, 3.0f, 5.0f}});
@@ -1766,9 +1777,50 @@ TEST_F(TESTSUITE, FmaInstructions) {
   TestFma(0x223170cf, {std::tuple{1.0, 2.0, 3.0, -5.0}});
 }
 
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) || \
-    defined(TESTING_HEAVY_OPTIMIZER)
+#if (defined(TESTING_INTERPRETER) || defined(TESTING_HEAVY_OPTIMIZER))
+
+TEST_F(TESTSUITE, AtomicLoadInstructions) {
+  // Validate sign-extension of returned value.
+  const uint64_t kNegative32BitValue = 0x0000'0000'8000'0000ULL;
+  const uint64_t kSignExtendedNegative = 0xffff'ffff'8000'0000ULL;
+  const uint64_t kPositive32BitValue = 0xffff'ffff'0000'0000ULL;
+  const uint64_t kSignExtendedPositive = 0ULL;
+  static_assert(static_cast<int32_t>(kSignExtendedPositive) >= 0);
+  static_assert(static_cast<int32_t>(kSignExtendedNegative) < 0);
+
+  // Lrw - sign extends from 32 to 64.
+  TestAtomicLoad(0x1000a12f, &kPositive32BitValue, kSignExtendedPositive);
+  TestAtomicLoad(0x1000a12f, &kNegative32BitValue, kSignExtendedNegative);
+
+  // Lrd
+  TestAtomicLoad(0x1000b12f, &kDataToLoad, kDataToLoad);
+}
+
+TEST_F(TESTSUITE, AtomicStoreInstructions) {
+  // Scw
+  TestAtomicStore(0x1820a1af, static_cast<uint32_t>(kDataToStore));
+
+  // Scd
+  TestAtomicStore(0x1820b1af, kDataToStore);
+}
+
+TEST_F(TESTSUITE, AtomicStoreInstructionNoLoadFailure) {
+  // Scw
+  TestAtomicStoreNoLoadFailure(0x1820a1af);
+
+  // Scd
+  TestAtomicStoreNoLoadFailure(0x1820b1af);
+}
+
+TEST_F(TESTSUITE, AtomicStoreInstructionDifferentLoadFailure) {
+  // Scw
+  TestAtomicStoreDifferentLoadFailure(0x1820a1af);
+
+  // Scd
+  TestAtomicStoreDifferentLoadFailure(0x1820b1af);
+}
+
+#endif  // (defined(TESTING_INTERPRETER) || defined(TESTING_HEAVY_OPTIMIZER))
 
 TEST_F(TESTSUITE, AmoInstructions) {
   // Verifying that all aq and rl combinations work for Amoswap, but only test relaxed one for most
@@ -1810,10 +1862,6 @@ TEST_F(TESTSUITE, AmoInstructions) {
   // AmomaxuW/AmomaxuD
   TestAmo(0xe03120af, 0xe03130af, 0xffff'eeee'dddd'ccccULL);
 }
-
-#endif  // defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR) ||
-        // defined(TESTING_HEAVY_OPTIMIZER)
-#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, OpFpSingleInputInstructions) {
   // FSqrt.S
@@ -2039,6 +2087,8 @@ TEST_F(TESTSUITE, StoreFpInstructions) {
   // Fsd
   TestStoreFp(0x0020b427, kDataToStore);
 }
+
+#if defined(TESTING_INTERPRETER) || defined(TESTING_LITE_TRANSLATOR)
 
 TEST_F(TESTSUITE, TestVsetvl) {
   constexpr uint64_t kVill =

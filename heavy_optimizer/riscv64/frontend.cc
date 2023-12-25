@@ -262,18 +262,20 @@ void HeavyOptimizerFrontend::UpdateBranchTargetsAfterSplit(GuestAddr addr,
 Register HeavyOptimizerFrontend::GetReg(uint8_t reg) {
   CHECK_LT(reg, kNumGuestRegs);
   Register dst = AllocTempReg();
-  builder_.GenGet(dst, reg);
+  builder_.GenGet(dst, GetThreadStateRegOffset(reg));
   return dst;
 }
 
 void HeavyOptimizerFrontend::SetReg(uint8_t reg, Register value) {
   CHECK_LT(reg, kNumGuestRegs);
-  builder_.GenPut(reg, value);
+  if (success()) {
+    builder_.GenPut(GetThreadStateRegOffset(reg), value);
+  }
 }
 
 FpRegister HeavyOptimizerFrontend::GetFpReg(uint8_t reg) {
   FpRegister result = AllocTempSimdReg();
-  builder_.GenGetSimd(result.machine_reg(), reg);
+  builder_.GenGetSimd<8>(result.machine_reg(), GetThreadStateFRegOffset(reg));
   return result;
 }
 
@@ -767,6 +769,52 @@ Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType op
   return res;
 }
 
+Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
+  Register res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::CsrOpcode::kCsrrs:
+      Gen<PseudoCopy>(res, arg, 8);
+      Gen<x86_64::OrqRegReg>(res, csr, GetFlagsRegister());
+      break;
+    case Decoder::CsrOpcode::kCsrrc:
+      if (host_platform::kHasBMI) {
+        Gen<x86_64::AndnqRegRegReg>(res, arg, csr, GetFlagsRegister());
+      } else {
+        Gen<PseudoCopy>(res, arg, 8);
+        Gen<x86_64::NotqReg>(res);
+        Gen<x86_64::AndqRegReg>(res, csr, GetFlagsRegister());
+      }
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
+Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrImmOpcode opcode,
+                                           uint8_t imm,
+                                           Register csr) {
+  Register res = AllocTempReg();
+  switch (opcode) {
+    case Decoder::CsrImmOpcode::kCsrrwi:
+      Gen<x86_64::MovlRegImm>(res, imm);
+      break;
+    case Decoder::CsrImmOpcode::kCsrrsi:
+      Gen<x86_64::MovlRegImm>(res, imm);
+      Gen<x86_64::OrqRegReg>(res, csr, GetFlagsRegister());
+      break;
+    case Decoder::CsrImmOpcode::kCsrrci:
+      Gen<x86_64::MovqRegImm>(res, static_cast<int8_t>(~imm));
+      Gen<x86_64::AndqRegReg>(res, csr, GetFlagsRegister());
+      break;
+    default:
+      Unimplemented();
+      return {};
+  }
+  return res;
+}
+
 void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
                                                   Register base,
                                                   int32_t disp,
@@ -829,12 +877,11 @@ void HeavyOptimizerFrontend::MemoryRegionReservationLoad(Register aligned_addr) 
                           {x86_64::kMachineRegRBP, x86_64::CallImm::kIntRegType},
                       }});
 
-  // Load monitor value and store it in CPUState.
-  auto monitor = AllocTempSimdReg();
-  MachineReg reservation_reg = monitor.machine_reg();
-  Gen<x86_64::MovqRegMemBaseDisp>(reservation_reg, aligned_addr, 0);
+  // Load reservation value and store it in CPUState.
+  auto reservation = AllocTempReg();
+  Gen<x86_64::MovqRegMemBaseDisp>(reservation, aligned_addr, 0);
   int32_t value_offset = GetThreadStateReservationValueOffset();
-  Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, value_offset, reservation_reg);
+  Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, value_offset, reservation);
 }
 
 Register HeavyOptimizerFrontend::MemoryRegionReservationExchange(Register aligned_addr,

@@ -43,6 +43,7 @@ enum MachineOpcode : int {
   kMachineOpPseudoJump,
   kMachineOpPseudoReadFlags,
   kMachineOpPseudoWriteFlags,
+#include "berberis/backend/x86_64/machine_opcode_guest-inl.h"
 #include "machine_opcode_x86_64-inl.h"  // NOLINT generated file!
 };
 
@@ -145,7 +146,7 @@ class MachineInsnX86_64 : public MachineInsn {
 
   bool IsCPUStateGet() {
     if (opcode() != kMachineOpMovqRegMemBaseDisp && opcode() != kMachineOpMovdqaXRegMemBaseDisp &&
-        opcode() != kMachineOpMovwRegMemBaseDisp) {
+        opcode() != kMachineOpMovwRegMemBaseDisp && opcode() != kMachineOpMovsdXRegMemBaseDisp) {
       return false;
     }
 
@@ -168,7 +169,7 @@ class MachineInsnX86_64 : public MachineInsn {
 
   bool IsCPUStatePut() {
     if (opcode() != kMachineOpMovqMemBaseDispReg && opcode() != kMachineOpMovdqaMemBaseDispXReg &&
-        opcode() != kMachineOpMovwMemBaseDispReg) {
+        opcode() != kMachineOpMovwMemBaseDispReg && opcode() != kMachineOpMovsdMemBaseDispXReg) {
       return false;
     }
 

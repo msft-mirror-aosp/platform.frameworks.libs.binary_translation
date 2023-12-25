@@ -20,6 +20,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <type_traits>
 
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
@@ -109,6 +110,8 @@ struct CPUState {
   // that x86-64 implements all five exceptions that RISC-V needs (and more).
   uint8_t frm;
 };
+
+static_assert(std::is_standard_layout_v<CPUState>);
 
 constexpr uint32_t kNumGuestRegs = std::size(CPUState{}.x);
 constexpr uint32_t kNumGuestFpRegs = std::size(CPUState{}.f);

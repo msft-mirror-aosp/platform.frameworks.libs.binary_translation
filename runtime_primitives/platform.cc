@@ -20,6 +20,8 @@
 #include <cpuid.h>
 #endif
 
+#include <cinttypes>
+
 namespace berberis::host_platform {
 
 namespace {
@@ -28,7 +30,25 @@ namespace {
 auto Init() {
   PlatformCapabilities platform_capabilities = {};
   unsigned int eax, ebx, ecx, edx;
-  __cpuid(1, eax, ebx, ecx, edx);
+  // Technically Zen,Zen+/Zen2 AMD CPUs support BMI2 and thus PDEP/PEXT instruction, but they are
+  // not usable there: https://twitter.com/instlatx64/status/1322503571288559617
+  // That's why we need special emulated CPUID flag for these instructions.
+  bool use_pdep_if_present = true;
+  __cpuid(0, eax, ebx, ecx, edx);
+  if (((ebx == signature_AMD_ebx && ecx == signature_AMD_ecx && edx == signature_AMD_edx) ||
+       (ebx == signature_HYGON_ebx && ecx == signature_HYGON_ecx && edx == signature_HYGON_edx))) {
+    platform_capabilities.kIsAuthenticAMD = true;
+    __cpuid(1, eax, ebx, ecx, edx);
+    uint8_t family = (eax >> 8) & 0b1111;
+    if (family == 0x1111) {
+      family += (eax >> 20) & 0b11111111;
+      if (family < 0x19) {
+        use_pdep_if_present = false;
+      }
+    }
+  } else {
+    __cpuid(1, eax, ebx, ecx, edx);
+  }
   platform_capabilities.kHasAES = ecx & bit_AES;
   platform_capabilities.kHasAVX = ecx & bit_AVX;
   platform_capabilities.kHasCLMUL = ecx & bit_PCLMUL;
@@ -45,6 +65,8 @@ auto Init() {
   platform_capabilities.kHasSSE4a = ecx & bit_SSE4a;
   __cpuid_count(7, 0, eax, ebx, ecx, edx);
   platform_capabilities.kHasBMI = ebx & bit_BMI;
+  platform_capabilities.kHasBMI2 = ebx & bit_BMI2;
+  platform_capabilities.kHasPDEP = ebx & bit_BMI2 && use_pdep_if_present;
   platform_capabilities.kHasSHA = ebx & bit_SHA;
   return platform_capabilities;
 }

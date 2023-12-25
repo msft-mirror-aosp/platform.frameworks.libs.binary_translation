@@ -20,6 +20,7 @@
 #include <functional>
 #include <tuple>
 
+#include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/base/algorithm.h"
 #include "berberis/base/logging.h"
 #include "berberis/guest_state/guest_state_opaque.h"
@@ -42,6 +43,9 @@ void ReplaceGetAndUpdateMap(MachineIR* ir,
       break;
     case kMachineOpMovwRegMemBaseDisp:
       regtype = MovType::kMovw;
+      break;
+    case kMachineOpMovsdXRegMemBaseDisp:
+      regtype = MovType::kMovsd;
       break;
     default:
       LOG_ALWAYS_FATAL("Unrecognized Get instruction opcode");
@@ -74,6 +78,9 @@ void ReplacePutAndUpdateMap(MachineIR* ir,
       break;
     case kMachineOpMovwMemBaseDispReg:
       regtype = MovType::kMovw;
+      break;
+    case kMachineOpMovsdMemBaseDispXReg:
+      regtype = MovType::kMovsd;
       break;
     default:
       LOG_ALWAYS_FATAL("Unrecognized Put instruction opcode");
@@ -122,6 +129,9 @@ void GenerateGetInsns(MachineIR* ir, MachineBasicBlock* bb, const MemRegMap& mem
       case MovType::kMovw:
         get_insn = ir->NewInsn<MovwRegMemBaseDisp>(reg_info.reg, kMachineRegRBP, disp);
         break;
+      case MovType::kMovsd:
+        get_insn = ir->NewInsn<MovsdXRegMemBaseDisp>(reg_info.reg, kMachineRegRBP, disp);
+        break;
     }
 
     bb->insn_list().insert(insert_it, get_insn);
@@ -153,6 +163,9 @@ void GeneratePutInsns(MachineIR* ir, MachineBasicBlock* bb, const MemRegMap& mem
         break;
       case MovType::kMovw:
         put_insn = ir->NewInsn<MovwMemBaseDispReg>(kMachineRegRBP, disp, reg_info.reg);
+        break;
+      case MovType::kMovsd:
+        put_insn = ir->NewInsn<MovsdMemBaseDispXReg>(kMachineRegRBP, disp, reg_info.reg);
         break;
     }
 
@@ -223,6 +236,7 @@ void OptimizeLoop(MachineIR* machine_ir, Loop* loop, const OptimizeLoopParams& p
   size_t general_reg_count = 0;
   size_t simd_reg_count = 0;
   for (auto [offset, unused_counter] : sorted_offsets) {
+    // TODO(b/232598137) Account for f and v register classes.
     // Simd regs.
     if (IsSimdOffset(offset)) {
       if (simd_reg_count++ < params.simd_reg_limit) {

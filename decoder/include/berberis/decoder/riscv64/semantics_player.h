@@ -125,6 +125,7 @@ class SemanticsPlayer {
         Register arg = listener_->GetReg(args.src);
         SetCsr(static_cast<CsrName>(args.csr), arg);
         listener_->SetReg(args.dst, csr);
+        return;
       }
       Register arg = listener_->GetReg(args.src);
       if (!SetCsr(static_cast<CsrName>(args.csr), arg)) {
@@ -825,6 +826,13 @@ class SemanticsPlayer {
     // TODO(300690740): develop and implement strategy which would allow us to support vector
     // intrinsics not just in the interpreter.
     Register arg2 = GetRegOrZero(args.src2);
+    listener_->OpVector(args, arg2);
+  }
+
+  void OpVector(const typename Decoder::VStoreUnitStrideArgs& args) {
+    // TODO(300690740): develop and implement strategy which would allow us to support vector
+    // intrinsics not just in the interpreter.
+    Register arg2 = GetRegOrZero(args.src);
     listener_->OpVector(args, arg2);
   }
 

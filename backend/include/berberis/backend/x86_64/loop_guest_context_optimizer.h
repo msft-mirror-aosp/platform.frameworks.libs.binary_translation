@@ -28,7 +28,7 @@
 namespace berberis::x86_64 {
 
 // Types exported for testing:
-enum class MovType { kMovq, kMovdqa, kMovw };
+enum class MovType { kMovq, kMovdqa, kMovw, kMovsd };
 
 struct MappedRegInfo {
   MachineReg reg;

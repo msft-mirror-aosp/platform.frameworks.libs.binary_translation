@@ -346,6 +346,14 @@ class Decoder {
   };
 
   enum class VOpMVvOpcode : uint8_t {
+    kVmandnmm = 0b011000,
+    kVmandmm = 0b011001,
+    kVmormm = 0b011010,
+    kVmxormm = 0b011011,
+    kVmornmm = 0b011100,
+    kVmnandmm = 0b011101,
+    kVmnormm = 0b011110,
+    kVmxnormm = 0b011111,
     kVmaddvv = 0b101001,
     kVnmsubvv = 0b101011,
     kVmaccvv = 0b101101,
@@ -403,6 +411,11 @@ class Decoder {
     kVmaccvx = 0b101101,
     kVnmsacvx = 0b101111,
     kMaxValue = 0b111111
+  };
+
+  enum class VStoreUnitStrideOpcode : uint8_t {
+    kVsₓ = 0b01000,
+    kMaxValue = 0b11111,
   };
 
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions
@@ -706,6 +719,15 @@ class Decoder {
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
+  };
+
+  struct VStoreUnitStrideArgs {
+    VStoreUnitStrideOpcode opcode;
+    StoreOperandType width;
+    bool vm;
+    uint8_t nf;
+    uint8_t src;
+    uint8_t data;
   };
 
   template <typename OperandTypeEnum>
@@ -1485,8 +1507,27 @@ class Decoder {
     if constexpr (std::is_same_v<OperandTypeEnum, FloatOperandType>) {
       auto decoded_operand_type = kLoadStoreWidthToOperandType[GetBits<12, 3>()];
       if (decoded_operand_type.is_vector_instruction) {
+        if (GetBits<28, 1>() == 1) {
+          return Undefined();
+        }
+        switch (GetBits<26, 2>()) {
+          case 0b00: {
+            const VStoreUnitStrideArgs args = {
+                .opcode = VStoreUnitStrideOpcode(GetBits<20, 5>()),
+                .width = decoded_operand_type.eew,
+                .vm = GetBits<25, 1>(),
+                .nf = GetBits<29, 3>(),
+                .src = GetBits<15, 5>(),
+                .data = GetBits<7, 5>(),
+            };
+            return insn_consumer_->OpVector(args);
+          }
+          default:
+            return Undefined();
+        }
         return Undefined();
       }
+
       operand_type = decoded_operand_type.size;
     } else {
       operand_type = OperandTypeEnum{GetBits<12, 3>()};

@@ -485,6 +485,26 @@ class Interpreter {
         return;
       }
     }
+
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VStoreUnitStrideArgs>) {
+      if (args.opcode == Decoder::VStoreUnitStrideOpcode::kVsₓ) {
+        if (args.width != Decoder::StoreOperandType::k8bit) {
+          return Unimplemented();
+        }
+        if (!IsPowerOf2(args.nf + 1)) {
+          return Unimplemented();
+        }
+        if ((args.data & args.nf) != 0) {
+          return Unimplemented();
+        }
+        auto [src] = std::tuple{extra_args...};
+        __uint128_t* ptr = bit_cast<__uint128_t*>(src);
+        for (size_t index = 0; index <= args.nf; index++) {
+          ptr[index] = state_->cpu.v[args.data + index];
+        }
+        return;
+      }
+    }
     // RISC-V V extensions are using 8bit “opcode extension” vtype Csr to make sure 32bit encoding
     // would be usable.
     //
@@ -577,48 +597,48 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpIViArgs& args) {
-    using SignedType = typename ElementType::SignedType;
-    using UnsignedType = typename ElementType::UnsignedType;
+    using SignedType = berberis::SignedType<ElementType>;
+    using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
       case Decoder::VOpIViOpcode::kVaddvi:
         return OpVectorvx<intrinsics::Vaddvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVrsubvi:
         return OpVectorvx<intrinsics::Vrsubvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVandvi:
         return OpVectorvx<intrinsics::Vandvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVorvi:
         return OpVectorvx<intrinsics::Vorvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVxorvi:
         return OpVectorvx<intrinsics::Vxorvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmseqvi:
         return OpVectorvx<intrinsics::Vmseqvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmsnevi:
         return OpVectorvx<intrinsics::Vmsnevx<ElementType, vta>, ElementType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmsleuvi:
         return OpVectorvx<intrinsics::Vmslevx<UnsignedType, vta>, UnsignedType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmslevi:
         return OpVectorvx<intrinsics::Vmslevx<SignedType, vta>, SignedType, vlmul, vta>(
             args.dst, args.src, SignedType{args.imm});
       case Decoder::VOpIViOpcode::kVmsgtuvi:
         return OpVectorvx<intrinsics::Vmsgtvx<UnsignedType, vta>, UnsignedType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmsgtvi:
         return OpVectorvx<intrinsics::Vmsgtvx<SignedType, vta>, SignedType, vlmul, vta>(
             args.dst, args.src, SignedType{args.imm});
       case Decoder::VOpIViOpcode::kVsllvi:
         return OpVectorvx<intrinsics::Vslvx<ElementType, vta>, ElementType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVsrlvi:
         return OpVectorvx<intrinsics::Vsrvx<UnsignedType, vta>, UnsignedType, vlmul, vta>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVsravi:
         return OpVectorvx<intrinsics::Vsrvx<SignedType, vta>, SignedType, vlmul, vta>(
             args.dst, args.src, SignedType{args.imm});
@@ -629,8 +649,8 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpIVvArgs& args) {
-    using SignedType = typename ElementType::SignedType;
-    using UnsignedType = typename ElementType::UnsignedType;
+    using SignedType = berberis::SignedType<ElementType>;
+    using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
       case Decoder::VOpIVvOpcode::kVaddvv:
         return OpVectorvv<intrinsics::Vaddvv<ElementType, vta>, ElementType, vlmul, vta>(
@@ -674,6 +694,18 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVsravv:
         return OpVectorvv<intrinsics::Vsrvv<SignedType, vta>, SignedType, vlmul, vta>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVminuvv:
+        return OpVectorvv<intrinsics::Vminvv<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVminvv:
+        return OpVectorvv<intrinsics::Vminvv<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVmaxuvv:
+        return OpVectorvv<intrinsics::Vmaxvv<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVmaxvv:
+        return OpVectorvv<intrinsics::Vmaxvv<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -682,6 +714,30 @@ class Interpreter {
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpMVvArgs& args) {
     switch (args.opcode) {
+      case Decoder::VOpMVvOpcode::kVmandnmm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs & ~rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmandmm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs & rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmormm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs | rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmxormm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs ^ rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmornmm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs | ~rhs; }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmnandmm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return ~(lhs & rhs); }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmnormm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return ~(lhs | rhs); }>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVmxnormm:
+        return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return ~(lhs ^ rhs); }>(
+            args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVmaddvv:
         return OpVectorvv<intrinsics::Vmaddvv<ElementType, vta>, ElementType, vlmul, vta>(
             args.dst, args.src1, args.src2);
@@ -701,8 +757,8 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpIVxArgs& args, Register arg2) {
-    using SignedType = typename ElementType::SignedType;
-    using UnsignedType = typename ElementType::UnsignedType;
+    using SignedType = berberis::SignedType<ElementType>;
+    using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
       case Decoder::VOpIVxOpcode::kVaddvx:
         return OpVectorvx<intrinsics::Vaddvx<ElementType, vta>, ElementType, vlmul, vta>(
@@ -755,6 +811,18 @@ class Interpreter {
       case Decoder::VOpIVxOpcode::kVsravx:
         return OpVectorvx<intrinsics::Vsrvx<SignedType, vta>, SignedType, vlmul, vta>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVminuvx:
+        return OpVectorvx<intrinsics::Vminvx<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVminvx:
+        return OpVectorvx<intrinsics::Vminvx<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVmaxuvx:
+        return OpVectorvx<intrinsics::Vmaxvx<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVmaxvx:
+        return OpVectorvx<intrinsics::Vmaxvx<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       default:
         Unimplemented();
     }
@@ -778,6 +846,35 @@ class Interpreter {
       default:
         Unimplemented();
     }
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
+  void OpVector(const Decoder::VStoreUnitStrideArgs& /*args*/, Register /*src*/) {
+    return Unimplemented();
+  }
+
+  template <auto Intrinsic>
+  void OpVectormm(uint8_t dst, uint8_t src1, uint8_t src2) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    SIMD128Register result, arg1, arg2;
+    arg1.Set(state_->cpu.v[src1]);
+    arg2.Set(state_->cpu.v[src2]);
+    if (vstart > 0) [[unlikely]] {
+      if (vstart > vl) [[unlikely]] {
+        result.Set(state_->cpu.v[dst]);
+        result = result | intrinsics::MakeBitmaskFromVl(vl);
+      } else {
+        SIMD128Register start_mask = intrinsics::MakeBitmaskFromVl(vstart);
+        result.Set(state_->cpu.v[dst]);
+        result = (result & ~start_mask) | (Intrinsic(arg1, arg2) & start_mask) |
+                 intrinsics::MakeBitmaskFromVl(vl);
+      }
+      SetCsr<CsrName::kVstart>(0);
+    } else {
+      result = Intrinsic(arg1, arg2) | intrinsics::MakeBitmaskFromVl(vl);
+    }
+    state_->cpu.v[dst] = result.Get<__uint128_t>();
   }
 
   template <auto Intrinsic,
@@ -845,45 +942,45 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVector(const Decoder::VOpIViArgs& args) {
-    using SignedType = typename ElementType::SignedType;
-    using UnsignedType = typename ElementType::UnsignedType;
+    using SignedType = berberis::SignedType<ElementType>;
+    using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
       case Decoder::VOpIViOpcode::kVaddvi:
         return OpVectorvx<intrinsics::Vaddvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVrsubvi:
         return OpVectorvx<intrinsics::Vrsubvxm<ElementType, vta, vma>,
                           ElementType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+                          vma>(args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVandvi:
         return OpVectorvx<intrinsics::Vandvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVorvi:
         return OpVectorvx<intrinsics::Vorvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVxorvi:
         return OpVectorvx<intrinsics::Vxorvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmseqvi:
         return OpVectorvx<intrinsics::Vmseqvxm<ElementType, vta, vma>,
                           ElementType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+                          vma>(args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmsnevi:
         return OpVectorvx<intrinsics::Vmsnevxm<ElementType, vta, vma>,
                           ElementType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+                          vma>(args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmsleuvi:
         return OpVectorvx<intrinsics::Vmslevxm<UnsignedType, vta, vma>,
                           UnsignedType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+                          vma>(args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmslevi:
         return OpVectorvx<intrinsics::Vmslevxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
             args.dst, args.src, SignedType{args.imm});
@@ -892,19 +989,19 @@ class Interpreter {
                           UnsignedType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+                          vma>(args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVmsgtvi:
         return OpVectorvx<intrinsics::Vmsgtvxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
             args.dst, args.src, SignedType{args.imm});
       case Decoder::VOpIViOpcode::kVsllvi:
         return OpVectorvx<intrinsics::Vslvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVsrlvi:
         return OpVectorvx<intrinsics::Vsrvxm<UnsignedType, vta, vma>,
                           UnsignedType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src, BitCastToUnigned(SignedType{args.imm}));
+                          vma>(args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       case Decoder::VOpIViOpcode::kVsravi:
         return OpVectorvx<intrinsics::Vsrvxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
             args.dst, args.src, SignedType{args.imm});
@@ -918,8 +1015,8 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVector(const Decoder::VOpIVvArgs& args) {
-    using SignedType = typename ElementType::SignedType;
-    using UnsignedType = typename ElementType::UnsignedType;
+    using SignedType = berberis::SignedType<ElementType>;
+    using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
       case Decoder::VOpIVvOpcode::kVaddvv:
         return OpVectorvv<intrinsics::Vaddvvm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
@@ -975,6 +1072,18 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVsravv:
         return OpVectorvv<intrinsics::Vsrvvm<SignedType, vta, vma>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVminuvv:
+        return OpVectorvv<intrinsics::Vminvvm<UnsignedType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVminvv:
+        return OpVectorvv<intrinsics::Vminvvm<SignedType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVmaxuvv:
+        return OpVectorvv<intrinsics::Vmaxvvm<UnsignedType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVmaxvv:
+        return OpVectorvv<intrinsics::Vmaxvvm<SignedType, vta, vma>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -1020,8 +1129,8 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVector(const Decoder::VOpIVxArgs& args, Register arg2) {
-    using SignedType = typename ElementType::SignedType;
-    using UnsignedType = typename ElementType::UnsignedType;
+    using SignedType = berberis::SignedType<ElementType>;
+    using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
       case Decoder::VOpIVxOpcode::kVaddvx:
         return OpVectorvx<intrinsics::Vaddvxm<ElementType, vta, vma>, ElementType, vlmul, vta, vma>(
@@ -1095,6 +1204,18 @@ class Interpreter {
       case Decoder::VOpIVxOpcode::kVsravx:
         return OpVectorvx<intrinsics::Vsrvxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVminuvx:
+        return OpVectorvx<intrinsics::Vminvxm<UnsignedType, vta, vma>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVminvx:
+        return OpVectorvx<intrinsics::Vminvxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVmaxuvx:
+        return OpVectorvx<intrinsics::Vmaxvxm<UnsignedType, vta, vma>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVmaxvx:
+        return OpVectorvx<intrinsics::Vmaxvxm<SignedType, vta, vma>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       default:
         Unimplemented();
     }
@@ -1133,6 +1254,14 @@ class Interpreter {
       default:
         Unimplemented();
     }
+  }
+
+  template <typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            InactiveProcessing vma>
+  void OpVector(const Decoder::VStoreUnitStrideArgs& /*args*/, Register /*src*/) {
+    Unimplemented();
   }
 
   template <auto Intrinsic,
