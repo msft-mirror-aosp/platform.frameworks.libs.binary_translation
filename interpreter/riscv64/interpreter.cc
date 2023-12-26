@@ -714,6 +714,9 @@ class Interpreter {
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpMVvArgs& args) {
     switch (args.opcode) {
+      case Decoder::VOpMVvOpcode::kVredsumvs:
+        return OpVectorvs<intrinsics::Vredsumvs<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVmandnmm:
         return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs & ~rhs; }>(
             args.dst, args.src1, args.src2);
@@ -875,6 +878,37 @@ class Interpreter {
       result = Intrinsic(arg1, arg2) | intrinsics::MakeBitmaskFromVl(vl);
     }
     state_->cpu.v[dst] = result.Get<__uint128_t>();
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta>
+  void OpVectorvs(uint8_t dst, uint8_t src1, uint8_t src2) {
+    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
+    if ((dst & (registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0 ||
+        (src2 & (registers_involved - 1)) != 0) {
+      return Unimplemented();
+    }
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    if (vstart != 0) {
+      return Unimplemented();
+    }
+    SIMD128Register result, arg1, arg2, accumulator;
+    result.Set(state_->cpu.v[dst]);
+    accumulator.Set(state_->cpu.v[src1]);
+    for (size_t index = 0; index < registers_involved; ++index) {
+      arg1 = accumulator;
+      arg2.Set(state_->cpu.v[src2 + index]);
+      std::tie(result) = Intrinsic(vl - index * (16 / sizeof(ElementType)),
+                                   result,
+                                   arg1,
+                                   arg2);
+      accumulator = result;
+    }
+    state_->cpu.v[dst] = result.Get<__uint128_t>();
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -1117,6 +1151,12 @@ class Interpreter {
             InactiveProcessing vma>
   void OpVector(const Decoder::VOpMVvArgs& args) {
     switch (args.opcode) {
+      case Decoder::VOpMVvOpcode::kVredsumvs:
+        return OpVectorvs<intrinsics::Vredsumvsm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVmaddvv:
         return OpVectorvvv<intrinsics::Vmaddvv<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
@@ -1239,6 +1279,40 @@ class Interpreter {
             InactiveProcessing vma>
   void OpVector(const Decoder::VStoreUnitStrideArgs& /*args*/, Register /*src*/) {
     Unimplemented();
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            InactiveProcessing vma>
+  void OpVectorvs(uint8_t dst, uint8_t src1, uint8_t src2) {
+    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
+    if ((dst & (registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0 ||
+        (src2 & (registers_involved - 1)) != 0) {
+      return Unimplemented();
+    }
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    if (vstart != 0) {
+      return Unimplemented();
+    }
+    SIMD128Register mask, result, arg1, arg2, accumulator;
+    mask.Set(state_->cpu.v[0]);
+    result.Set(state_->cpu.v[dst]);
+    accumulator.Set(state_->cpu.v[src1]);
+    for (size_t index = 0; index < registers_involved; ++index) {
+      arg1 = accumulator;
+      arg2.Set(state_->cpu.v[src2 + index]);
+      std::tie(result) = Intrinsic(vl - index * (16 / sizeof(ElementType)),
+                                   intrinsics::MaskForRegisterInSequence<ElementType>(mask, index),
+                                   result,
+                                   arg1,
+                                   arg2);
+      accumulator = result;
+    }
+    state_->cpu.v[dst] = result.Get<__uint128_t>();
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
