@@ -81,10 +81,100 @@ struct MacroAssemblerConstants {
       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffc0, 0xffff'ffff'ffff'ffff},
       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000, 0xffff'ffff'ffff'ff80, 0xffff'ffff'ffff'ffff},
   };
+  alignas(16) const uint64_t kBitMaskTo32bitMask[4] = {
+      0x0000'0000'0000'0000,
+      0x0000'0000'ffff'ffff,
+      0xffff'ffff'0000'0000,
+      0xffff'ffff'ffff'ffff,
+  };
+  alignas(16) const uint64_t kBitMaskTo16bitMask[16] = {
+      0x0000'0000'0000'0000,
+      0x0000'0000'0000'ffff,
+      0x0000'0000'ffff'0000,
+      0x0000'0000'ffff'ffff,
+      0x0000'ffff'0000'0000,
+      0x0000'ffff'0000'ffff,
+      0x0000'ffff'ffff'0000,
+      0x0000'ffff'ffff'ffff,
+      0xffff'0000'0000'0000,
+      0xffff'0000'0000'ffff,
+      0xffff'0000'ffff'0000,
+      0xffff'0000'ffff'ffff,
+      0xffff'ffff'0000'0000,
+      0xffff'ffff'0000'ffff,
+      0xffff'ffff'ffff'0000,
+      0xffff'ffff'ffff'ffff,
+  };
+  alignas(16) const uint64_t kBitMaskTo8bitMask[256] = {
+      0x0000'0000'0000'0000, 0x0000'0000'0000'00ff, 0x0000'0000'0000'ff00, 0x0000'0000'0000'ffff,
+      0x0000'0000'00ff'0000, 0x0000'0000'00ff'00ff, 0x0000'0000'00ff'ff00, 0x0000'0000'00ff'ffff,
+      0x0000'0000'ff00'0000, 0x0000'0000'ff00'00ff, 0x0000'0000'ff00'ff00, 0x0000'0000'ff00'ffff,
+      0x0000'0000'ffff'0000, 0x0000'0000'ffff'00ff, 0x0000'0000'ffff'ff00, 0x0000'0000'ffff'ffff,
+      0x0000'00ff'0000'0000, 0x0000'00ff'0000'00ff, 0x0000'00ff'0000'ff00, 0x0000'00ff'0000'ffff,
+      0x0000'00ff'00ff'0000, 0x0000'00ff'00ff'00ff, 0x0000'00ff'00ff'ff00, 0x0000'00ff'00ff'ffff,
+      0x0000'00ff'ff00'0000, 0x0000'00ff'ff00'00ff, 0x0000'00ff'ff00'ff00, 0x0000'00ff'ff00'ffff,
+      0x0000'00ff'ffff'0000, 0x0000'00ff'ffff'00ff, 0x0000'00ff'ffff'ff00, 0x0000'00ff'ffff'ffff,
+      0x0000'ff00'0000'0000, 0x0000'ff00'0000'00ff, 0x0000'ff00'0000'ff00, 0x0000'ff00'0000'ffff,
+      0x0000'ff00'00ff'0000, 0x0000'ff00'00ff'00ff, 0x0000'ff00'00ff'ff00, 0x0000'ff00'00ff'ffff,
+      0x0000'ff00'ff00'0000, 0x0000'ff00'ff00'00ff, 0x0000'ff00'ff00'ff00, 0x0000'ff00'ff00'ffff,
+      0x0000'ff00'ffff'0000, 0x0000'ff00'ffff'00ff, 0x0000'ff00'ffff'ff00, 0x0000'ff00'ffff'ffff,
+      0x0000'ffff'0000'0000, 0x0000'ffff'0000'00ff, 0x0000'ffff'0000'ff00, 0x0000'ffff'0000'ffff,
+      0x0000'ffff'00ff'0000, 0x0000'ffff'00ff'00ff, 0x0000'ffff'00ff'ff00, 0x0000'ffff'00ff'ffff,
+      0x0000'ffff'ff00'0000, 0x0000'ffff'ff00'00ff, 0x0000'ffff'ff00'ff00, 0x0000'ffff'ff00'ffff,
+      0x0000'ffff'ffff'0000, 0x0000'ffff'ffff'00ff, 0x0000'ffff'ffff'ff00, 0x0000'ffff'ffff'ffff,
+      0x00ff'0000'0000'0000, 0x00ff'0000'0000'00ff, 0x00ff'0000'0000'ff00, 0x00ff'0000'0000'ffff,
+      0x00ff'0000'00ff'0000, 0x00ff'0000'00ff'00ff, 0x00ff'0000'00ff'ff00, 0x00ff'0000'00ff'ffff,
+      0x00ff'0000'ff00'0000, 0x00ff'0000'ff00'00ff, 0x00ff'0000'ff00'ff00, 0x00ff'0000'ff00'ffff,
+      0x00ff'0000'ffff'0000, 0x00ff'0000'ffff'00ff, 0x00ff'0000'ffff'ff00, 0x00ff'0000'ffff'ffff,
+      0x00ff'00ff'0000'0000, 0x00ff'00ff'0000'00ff, 0x00ff'00ff'0000'ff00, 0x00ff'00ff'0000'ffff,
+      0x00ff'00ff'00ff'0000, 0x00ff'00ff'00ff'00ff, 0x00ff'00ff'00ff'ff00, 0x00ff'00ff'00ff'ffff,
+      0x00ff'00ff'ff00'0000, 0x00ff'00ff'ff00'00ff, 0x00ff'00ff'ff00'ff00, 0x00ff'00ff'ff00'ffff,
+      0x00ff'00ff'ffff'0000, 0x00ff'00ff'ffff'00ff, 0x00ff'00ff'ffff'ff00, 0x00ff'00ff'ffff'ffff,
+      0x00ff'ff00'0000'0000, 0x00ff'ff00'0000'00ff, 0x00ff'ff00'0000'ff00, 0x00ff'ff00'0000'ffff,
+      0x00ff'ff00'00ff'0000, 0x00ff'ff00'00ff'00ff, 0x00ff'ff00'00ff'ff00, 0x00ff'ff00'00ff'ffff,
+      0x00ff'ff00'ff00'0000, 0x00ff'ff00'ff00'00ff, 0x00ff'ff00'ff00'ff00, 0x00ff'ff00'ff00'ffff,
+      0x00ff'ff00'ffff'0000, 0x00ff'ff00'ffff'00ff, 0x00ff'ff00'ffff'ff00, 0x00ff'ff00'ffff'ffff,
+      0x00ff'ffff'0000'0000, 0x00ff'ffff'0000'00ff, 0x00ff'ffff'0000'ff00, 0x00ff'ffff'0000'ffff,
+      0x00ff'ffff'00ff'0000, 0x00ff'ffff'00ff'00ff, 0x00ff'ffff'00ff'ff00, 0x00ff'ffff'00ff'ffff,
+      0x00ff'ffff'ff00'0000, 0x00ff'ffff'ff00'00ff, 0x00ff'ffff'ff00'ff00, 0x00ff'ffff'ff00'ffff,
+      0x00ff'ffff'ffff'0000, 0x00ff'ffff'ffff'00ff, 0x00ff'ffff'ffff'ff00, 0x00ff'ffff'ffff'ffff,
+      0xff00'0000'0000'0000, 0xff00'0000'0000'00ff, 0xff00'0000'0000'ff00, 0xff00'0000'0000'ffff,
+      0xff00'0000'00ff'0000, 0xff00'0000'00ff'00ff, 0xff00'0000'00ff'ff00, 0xff00'0000'00ff'ffff,
+      0xff00'0000'ff00'0000, 0xff00'0000'ff00'00ff, 0xff00'0000'ff00'ff00, 0xff00'0000'ff00'ffff,
+      0xff00'0000'ffff'0000, 0xff00'0000'ffff'00ff, 0xff00'0000'ffff'ff00, 0xff00'0000'ffff'ffff,
+      0xff00'00ff'0000'0000, 0xff00'00ff'0000'00ff, 0xff00'00ff'0000'ff00, 0xff00'00ff'0000'ffff,
+      0xff00'00ff'00ff'0000, 0xff00'00ff'00ff'00ff, 0xff00'00ff'00ff'ff00, 0xff00'00ff'00ff'ffff,
+      0xff00'00ff'ff00'0000, 0xff00'00ff'ff00'00ff, 0xff00'00ff'ff00'ff00, 0xff00'00ff'ff00'ffff,
+      0xff00'00ff'ffff'0000, 0xff00'00ff'ffff'00ff, 0xff00'00ff'ffff'ff00, 0xff00'00ff'ffff'ffff,
+      0xff00'ff00'0000'0000, 0xff00'ff00'0000'00ff, 0xff00'ff00'0000'ff00, 0xff00'ff00'0000'ffff,
+      0xff00'ff00'00ff'0000, 0xff00'ff00'00ff'00ff, 0xff00'ff00'00ff'ff00, 0xff00'ff00'00ff'ffff,
+      0xff00'ff00'ff00'0000, 0xff00'ff00'ff00'00ff, 0xff00'ff00'ff00'ff00, 0xff00'ff00'ff00'ffff,
+      0xff00'ff00'ffff'0000, 0xff00'ff00'ffff'00ff, 0xff00'ff00'ffff'ff00, 0xff00'ff00'ffff'ffff,
+      0xff00'ffff'0000'0000, 0xff00'ffff'0000'00ff, 0xff00'ffff'0000'ff00, 0xff00'ffff'0000'ffff,
+      0xff00'ffff'00ff'0000, 0xff00'ffff'00ff'00ff, 0xff00'ffff'00ff'ff00, 0xff00'ffff'00ff'ffff,
+      0xff00'ffff'ff00'0000, 0xff00'ffff'ff00'00ff, 0xff00'ffff'ff00'ff00, 0xff00'ffff'ff00'ffff,
+      0xff00'ffff'ffff'0000, 0xff00'ffff'ffff'00ff, 0xff00'ffff'ffff'ff00, 0xff00'ffff'ffff'ffff,
+      0xffff'0000'0000'0000, 0xffff'0000'0000'00ff, 0xffff'0000'0000'ff00, 0xffff'0000'0000'ffff,
+      0xffff'0000'00ff'0000, 0xffff'0000'00ff'00ff, 0xffff'0000'00ff'ff00, 0xffff'0000'00ff'ffff,
+      0xffff'0000'ff00'0000, 0xffff'0000'ff00'00ff, 0xffff'0000'ff00'ff00, 0xffff'0000'ff00'ffff,
+      0xffff'0000'ffff'0000, 0xffff'0000'ffff'00ff, 0xffff'0000'ffff'ff00, 0xffff'0000'ffff'ffff,
+      0xffff'00ff'0000'0000, 0xffff'00ff'0000'00ff, 0xffff'00ff'0000'ff00, 0xffff'00ff'0000'ffff,
+      0xffff'00ff'00ff'0000, 0xffff'00ff'00ff'00ff, 0xffff'00ff'00ff'ff00, 0xffff'00ff'00ff'ffff,
+      0xffff'00ff'ff00'0000, 0xffff'00ff'ff00'00ff, 0xffff'00ff'ff00'ff00, 0xffff'00ff'ff00'ffff,
+      0xffff'00ff'ffff'0000, 0xffff'00ff'ffff'00ff, 0xffff'00ff'ffff'ff00, 0xffff'00ff'ffff'ffff,
+      0xffff'ff00'0000'0000, 0xffff'ff00'0000'00ff, 0xffff'ff00'0000'ff00, 0xffff'ff00'0000'ffff,
+      0xffff'ff00'00ff'0000, 0xffff'ff00'00ff'00ff, 0xffff'ff00'00ff'ff00, 0xffff'ff00'00ff'ffff,
+      0xffff'ff00'ff00'0000, 0xffff'ff00'ff00'00ff, 0xffff'ff00'ff00'ff00, 0xffff'ff00'ff00'ffff,
+      0xffff'ff00'ffff'0000, 0xffff'ff00'ffff'00ff, 0xffff'ff00'ffff'ff00, 0xffff'ff00'ffff'ffff,
+      0xffff'ffff'0000'0000, 0xffff'ffff'0000'00ff, 0xffff'ffff'0000'ff00, 0xffff'ffff'0000'ffff,
+      0xffff'ffff'00ff'0000, 0xffff'ffff'00ff'00ff, 0xffff'ffff'00ff'ff00, 0xffff'ffff'00ff'ffff,
+      0xffff'ffff'ff00'0000, 0xffff'ffff'ff00'00ff, 0xffff'ffff'ff00'ff00, 0xffff'ffff'ff00'ffff,
+      0xffff'ffff'ffff'0000, 0xffff'ffff'ffff'00ff, 0xffff'ffff'ffff'ff00, 0xffff'ffff'ffff'ffff,
+  };
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 3584, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 21248, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
@@ -97,6 +187,9 @@ CHECK_FIELD_LAYOUT(MacroAssemblerConstants, k0x8000_0000_0000_00ff, 704, 64);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kRiscVToX87Exceptions, 768, 256);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kX87ToRiscVExceptions, 1024, 512);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTable, 1536, 2048);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo32bitMask, 3584, 256);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo16bitMask, 3840, 1024);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo8bitMask, 4864, 16384);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -166,5 +259,11 @@ const int32_t kRiscVToX87Exceptions =
 const int32_t kX87ToRiscVExceptions =
     GetConstants() + offsetof(MacroAssemblerConstants, kX87ToRiscVExceptions);
 const int32_t kBitMaskTable = GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTable);
+const int32_t kBitMaskTo8bitMask =
+    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTo8bitMask);
+const int32_t kBitMaskTo16bitMask =
+    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTo16bitMask);
+const int32_t kBitMaskTo32bitMask =
+    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTo32bitMask);
 
-}  // namespace berberis::constant_pool
+}  // namespace berberis::constants_pool
