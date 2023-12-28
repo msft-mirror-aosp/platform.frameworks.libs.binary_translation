@@ -713,9 +713,32 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta>
   void OpVector(const Decoder::VOpMVvArgs& args) {
+    using SignedType = berberis::SignedType<ElementType>;
+    using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
       case Decoder::VOpMVvOpcode::kVredsumvs:
         return OpVectorvs<intrinsics::Vredsumvs<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredandvs:
+        return OpVectorvs<intrinsics::Vredandvs<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredorvs:
+        return OpVectorvs<intrinsics::Vredorvs<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredxorvs:
+        return OpVectorvs<intrinsics::Vredxorvs<ElementType, vta>, ElementType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredminuvs:
+        return OpVectorvs<intrinsics::Vredminvs<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredminvs:
+        return OpVectorvs<intrinsics::Vredminvs<SignedType, vta>, SignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredmaxuvs:
+        return OpVectorvs<intrinsics::Vredmaxvs<UnsignedType, vta>, UnsignedType, vlmul, vta>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredmaxvs:
+        return OpVectorvs<intrinsics::Vredmaxvs<SignedType, vta>, SignedType, vlmul, vta>(
             args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVmandnmm:
         return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs & ~rhs; }>(
@@ -1150,10 +1173,54 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVector(const Decoder::VOpMVvArgs& args) {
+    using SignedType = berberis::SignedType<ElementType>;
+    using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
       case Decoder::VOpMVvOpcode::kVredsumvs:
         return OpVectorvs<intrinsics::Vredsumvsm<ElementType, vta, vma>,
                           ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredandvs:
+        return OpVectorvs<intrinsics::Vredandvsm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredorvs:
+        return OpVectorvs<intrinsics::Vredorvsm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredxorvs:
+        return OpVectorvs<intrinsics::Vredxorvsm<ElementType, vta, vma>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredminuvs:
+        return OpVectorvs<intrinsics::Vredminvsm<UnsignedType, vta, vma>,
+                          UnsignedType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredminvs:
+        return OpVectorvs<intrinsics::Vredminvsm<SignedType, vta, vma>,
+                          SignedType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredmaxuvs:
+        return OpVectorvs<intrinsics::Vredmaxvsm<UnsignedType, vta, vma>,
+                          UnsignedType,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVredmaxvs:
+        return OpVectorvs<intrinsics::Vredmaxvsm<SignedType, vta, vma>,
+                          SignedType,
                           vlmul,
                           vta,
                           vma>(args.dst, args.src1, args.src2);
