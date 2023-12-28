@@ -51,7 +51,6 @@ filegroup {
 
 cc_defaults {
     name: "berberis_guest_state_defaults",
-    defaults: ["berberis_defaults"],
     host_supported: true,
     srcs: [":berberis_guest_state_srcs"],
     header_libs: [
