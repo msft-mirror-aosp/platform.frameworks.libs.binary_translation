@@ -62,6 +62,39 @@ TEST(VectorIntrinsics, Make64bitMaskFromBitmask) {
 // Easily recognizable bit pattern for target register.
 constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 
+template <auto kElement>
+void TestVectorMaskedElementTo() {
+  size_t max_mask = sizeof(kElement) == sizeof(uint8_t)    ? 131071
+                    : sizeof(kElement) == sizeof(uint16_t) ? 511
+                    : sizeof(kElement) == sizeof(uint32_t) ? 31
+                                                           : 7;
+  for (size_t mask = 0; mask < max_mask; ++mask) {
+    const SIMD128Register src = kUndisturbedResult;
+    const SIMD128Register simd_mask = BitMaskToSimdMask<decltype(kElement)>(mask);
+    ASSERT_EQ(VectorMaskedElementToForTests<kElement>(simd_mask, src),
+              VectorMaskedElementTo<kElement>(simd_mask, src));
+  }
+}
+
+TEST(VectorIntrinsics, VectorMaskedElementTo) {
+  TestVectorMaskedElementTo<std::numeric_limits<int8_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int8_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint8_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint8_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int16_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int16_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint16_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint16_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int32_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int32_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint32_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint32_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int64_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int64_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint64_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint64_t>::max()>();
+}
+
 TEST(VectorIntrinsics, Vaddvv) {
   auto Verify = [](auto Vaddvv, auto Vaddvvm, SIMD128Register arg2, auto result_to_check) {
     ASSERT_EQ(Vaddvv(0, 16, kUndisturbedResult, __m128i{-1, -1}, arg2),

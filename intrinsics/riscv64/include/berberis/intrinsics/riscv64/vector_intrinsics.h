@@ -97,6 +97,27 @@ template <typename ElementType>
 }
 #endif
 
+template <auto kElement>
+[[nodiscard]] inline SIMD128Register VectorMaskedElementToForTests(SIMD128Register simd_mask,
+                                                                   SIMD128Register result) {
+  using ElementType = decltype(kElement);
+  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  for (int index = 0; index < kElementsCount; ++index) {
+    if (!simd_mask.Get<ElementType>(index)) {
+      result.Set(kElement, index);
+    }
+  }
+  return result;
+}
+
+#ifndef __x86_64__
+template <typename ElementType>
+[[nodiscard]] inline SIMD128Register VectorMaskedElementTo(SIMD128Register simd_mask,
+                                                           SIMD128Register result) {
+  return VectorMaskedElementToForTests(simd_mask, result);
+}
+#endif
+
 template <typename ElementType>
 [[nodiscard]] inline ElementType VectorElement(SIMD128Register src, int index) {
   return src.Get<ElementType>(index);
