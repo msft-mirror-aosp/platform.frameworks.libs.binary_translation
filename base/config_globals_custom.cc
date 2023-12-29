@@ -35,6 +35,12 @@ std::string ToString(ConfigFlag flag) {
       return "verbose-translation";
     case kAccurateSigsegv:
       return "accurate-sigsegv";
+    case kTopByteIgnore:
+      return "top-byte-ignore";
+    case kDisableRegMap:
+      return "disable-reg-map";
+    case kEnableDisjointRegionsTranslation:
+      return "enable-disjoint-regions-translation";
     case kNumConfigFlags:
       break;
   }
