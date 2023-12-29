@@ -104,7 +104,6 @@ cc_library_shared {
     ],
     whole_static_libs: [
         "libberberis_proxy_loader",
-        "libberberis_runtime",
     ],
     export_static_lib_headers: [
         "libberberis_proxy_loader",
@@ -126,13 +125,13 @@ cc_library_shared {
                 "libberberis_macro_assembler_riscv64_to_x86_64",
                 "libberberis_intrinsics_riscv64",
                 "libberberis_runtime_primitives_riscv64",
-                "libberberis_runtime_riscv64_to_x86_64",
             ],
             whole_static_libs: [
                 "libberberis_guest_loader_riscv64",
                 // Proxy libraries reference symbols from guest_os_primitives,
                 // so we need to keep them all.
                 "libberberis_guest_os_primitives_riscv64",
+                "libberberis_runtime_riscv64_to_x86_64",
             ],
             export_static_lib_headers: [
                 "libberberis_guest_loader_riscv64",
