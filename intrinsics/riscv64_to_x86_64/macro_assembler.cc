@@ -40,6 +40,42 @@ struct MacroAssemblerConstants {
                                                          0x7fc'00000};
   alignas(16) const uint64_t kCanonicalNansFloat64[2] = {0x7ff8'0000'0000'0000,
                                                          0x7ff8'0000'0000'0000};
+  alignas(16) const int8_t kMinInt8[16] = {
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+      -128,
+  };
+  alignas(16) const int8_t kMaxInt8[16] =
+      {127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127};
+  alignas(16) const int16_t kMinInt16[8] =
+      {-0x8000, -0x8000, -0x8000, -0x8000, -0x8000, -0x8000, -0x8000, -0x8000};
+  alignas(16)
+      const int16_t kMaxInt16[8] = {0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff};
+  alignas(16) const int32_t kMinInt32[4] = {
+      static_cast<int32_t>(-0x8000'0000),
+      static_cast<int32_t>(-0x8000'0000),
+      static_cast<int32_t>(-0x8000'0000),
+      static_cast<int32_t>(-0x8000'0000),
+  };
+  alignas(16) const int32_t kMaxInt32[4] = {0x7fff'ffff, 0x7fff'ffff, 0x7fff'ffff, 0x7fff'ffff};
+  alignas(16) const int64_t kMinInt64[2] = {
+      static_cast<int64_t>(-0x8000'0000'0000'0000),
+      static_cast<int64_t>(-0x8000'0000'0000'0000),
+  };
+  alignas(16) const int64_t kMaxInt64[2] = {0x7fff'ffff'ffff'ffff, 0x7fff'ffff'ffff'ffff};
   int64_t kBsrToClzInt64 = 127;
   int64_t kWidthInBits64 = 64;
   int32_t kBsrToClzInt32 = 63;
@@ -174,22 +210,30 @@ struct MacroAssemblerConstants {
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 21248, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 22272, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat64, 384, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt64, 512, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits64, 576, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt32, 640, 32);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits32, 672, 32);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, k0x8000_0000_0000_00ff, 704, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kRiscVToX87Exceptions, 768, 256);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kX87ToRiscVExceptions, 1024, 512);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTable, 1536, 2048);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo32bitMask, 3584, 256);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo16bitMask, 3840, 1024);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo8bitMask, 4864, 16384);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMinInt8, 512, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxInt8, 640, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMinInt16, 768, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxInt16, 896, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMinInt32, 1024, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxInt32, 1152, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMinInt64, 1280, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxInt64, 1408, 128);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt64, 1536, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits64, 1600, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt32, 1664, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits32, 1696, 32);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, k0x8000_0000_0000_00ff, 1728, 64);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kRiscVToX87Exceptions, 1792, 256);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kX87ToRiscVExceptions, 2048, 512);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTable, 2560, 2048);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo32bitMask, 4608, 256);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo16bitMask, 4864, 1024);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo8bitMask, 5888, 16384);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -221,6 +265,30 @@ int32_t GetConstants() {
 
 extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
 const int32_t kBerberisMacroAssemblerConstantsRelocated = GetConstants();
+template <>
+extern const int32_t kVectorConst<int8_t{-128}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kMinInt8);
+template <>
+extern const int32_t kVectorConst<int8_t{127}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kMaxInt8);
+template <>
+extern const int32_t kVectorConst<int16_t{-0x8000}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kMinInt16);
+template <>
+extern const int32_t kVectorConst<int16_t{0x7fff}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kMaxInt16);
+template <>
+extern const int32_t kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kMinInt32);
+template <>
+extern const int32_t kVectorConst<int32_t{0x7fff'ffff}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kMaxInt32);
+template <>
+extern const int32_t kVectorConst<int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kMinInt64);
+template <>
+extern const int32_t kVectorConst<int64_t{0x7fff'ffff'ffff'ffff}> =
+    GetConstants() + offsetof(MacroAssemblerConstants, kMaxInt64);
 template <>
 const int32_t kVectorConst<uint64_t{0x0000'0000'0000'0000}> =
     GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTable);
