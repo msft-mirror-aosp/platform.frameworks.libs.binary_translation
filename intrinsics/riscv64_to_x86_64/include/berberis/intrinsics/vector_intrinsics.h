@@ -68,6 +68,22 @@ template <typename ElementType>
   return result;
 }
 
+template <auto kElement>
+[[nodiscard]] inline SIMD128Register VectorMaskedElementTo(SIMD128Register simd_mask,
+                                                           SIMD128Register src) {
+  using ElementType = decltype(kElement);
+  if constexpr (kElement == ElementType{0}) {
+    return src & simd_mask;
+  } else if constexpr (kElement == static_cast<ElementType>(~ElementType{0})) {
+    return src | ~simd_mask;
+  } else {
+    return (*bit_cast<const SIMD128Register*>(
+                static_cast<uintptr_t>(constants_pool::kVectorConst<kElement>)) &
+            ~simd_mask) |
+           (src & simd_mask);
+  }
+}
+
 }  // namespace berberis::intrinsics
 
 // Include host-agnostic code.

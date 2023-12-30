@@ -27,6 +27,22 @@ namespace berberis::constants_pool {
 template <auto Value>
 extern const int32_t kVectorConst;
 template <>
+extern const int32_t kVectorConst<int8_t{-128}>;
+template <>
+extern const int32_t kVectorConst<int8_t{127}>;
+template <>
+extern const int32_t kVectorConst<int16_t{-0x8000}>;
+template <>
+extern const int32_t kVectorConst<int16_t{0x7fff}>;
+template <>
+extern const int32_t kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}>;
+template <>
+extern const int32_t kVectorConst<int32_t{0x7fff'ffff}>;
+template <>
+extern const int32_t kVectorConst<int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}>;
+template <>
+extern const int32_t kVectorConst<int64_t{0x7fff'ffff'ffff'ffff}>;
+template <>
 extern const int32_t kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
 template <>
 inline const int32_t& kVectorConst<int8_t{0x00}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
