@@ -2786,6 +2786,161 @@ TEST_F(Riscv64InterpreterTest, TestVredsum) {
       kVectorCalculationsSource);
 }
 
+TEST_F(Riscv64InterpreterTest, TestVredand) {
+  TestVectorReductionInstruction(
+      0x50c2457,  //vredand.vs v8,v16,v24,v0.t
+      /* expected_result_vd0_int8 */
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      /* expected_result_vd0_int16 */
+      {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+      /* expected_result_vd0_int32 */
+      {0x2000000, 0x2000000, 0x2000000, 0x2000000, 0x0, 0x2000000, 0x2000000, 0x2000000},
+      /* expected_result_vd0_int64 */
+      {0x604000002000000, 0x604000002000000, 0x604000002000000, 0x604000002000000, 0x0, 0x604000002000000, 0x604000002000000, 0x604000002000000},
+      /* expected_result_vd0_with_mask_int8 */
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      /* expected_result_vd0_with_mask_int16 */
+      {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+      /* expected_result_vd0_with_mask_int32 */
+      {0x2000000, 0x2000000, 0x2000000, 0x2000000, 0x0, 0x2000000, 0x2000000, 0x2000000},
+      /* expected_result_vd0_with_mask_int64 */
+      {0x604000002000000, 0x604000002000000, 0x604000002000000, 0x604000002000000, 0x0, 0x604000002000000, 0x604000002000000, 0x604000002000000},
+      kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVredor) {
+  TestVectorReductionInstruction(
+      0x90c2457,  //vredor.vs v8,v16,v24,v0.t
+      /* expected_result_vd0_int8 */
+      {31, 63, 127, 255, 0, 2, 6, 15},
+      /* expected_result_vd0_int16 */
+      {0x1f1d, 0x3f3d, 0x7f7d, 0xfffd, 0x0, 0x300, 0x704, 0xf0d},
+      /* expected_result_vd0_int32 */
+      {0x1f1e1b19, 0x3f3e3b39, 0x7f7e7b79, 0xfffefbf9, 0x0, 0x7060300, 0x7060300, 0xf0e0b09},
+      /* expected_result_vd0_int64 */
+      {0x1f1e1f1d17161311, 0x3f3e3f3d37363331, 0x7f7e7f7d77767371, 0xfffefffdf7f6f3f1, 0x0, 0xf0e0f0d07060300, 0xf0e0f0d07060300, 0xf0e0f0d07060300},
+      /* expected_result_vd0_with_mask_int8 */
+      {31, 63, 127, 255, 0, 0, 6, 14},
+      /* expected_result_vd0_with_mask_int16 */
+      {0x1f1d, 0x3f3d, 0x7f7d, 0xfffd, 0x0, 0x300, 0x300, 0xf0d},
+      /* expected_result_vd0_with_mask_int32 */
+      {0x1f1e1b19, 0x3f3e3b39, 0x7f7e7b79, 0xfffefbf9, 0x0, 0x7060300, 0x7060300, 0x7060300},
+      /* expected_result_vd0_with_mask_int64 */
+      {0xf0e0f0d07060300, 0x3f3e3f3d37363331, 0x7f7e7f7d77767371, 0xfffefffdf7f6f3f1, 0x0, 0xf0e0f0d07060300, 0xf0e0f0d07060300, 0xf0e0f0d07060300},
+      kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVredxor) {
+  TestVectorReductionInstruction(
+      0xd0c2457,  //vredxor.vs v8,v16,v24,v0.t
+      /* expected_result_vd0_int8 */
+      {0, 0, 0, 0, 0, 2, 0, 1},
+      /* expected_result_vd0_int16 */
+      {0x100, 0x100, 0x100, 0x100, 0x0, 0x300, 0x504, 0x101},
+      /* expected_result_vd0_int32 */
+      {0x3020100, 0x3020100, 0x3020100, 0x3020100, 0x0, 0x5060300, 0x5060300, 0xb0a0909},
+      /* expected_result_vd0_int64 */
+      {0x1716151513121111, 0x706050403020100, 0x706050403020100, 0x706050403020100, 0x0, 0x90a0f0d05060300, 0x90a0f0d05060300, 0x90a0f0d05060300},
+      /* expected_result_vd0_with_mask_int8 */
+      {31, 10, 6, 187, 0, 0, 2, 6},
+      /* expected_result_vd0_with_mask_int16 */
+      {0xf0d, 0x3d3d, 0x1514, 0xd0d, 0x0, 0x300, 0x300, 0x705},
+      /* expected_result_vd0_with_mask_int32 */
+      {0xd0e0b09, 0x1d1e1b18, 0x7b7a7978, 0x2b2a2929, 0x0, 0x5060300, 0x5060300, 0x5060300},
+      /* expected_result_vd0_with_mask_int64 */
+      {0x90a0f0d05060300, 0x191a1f1c15161311, 0x393a3f3c35363331, 0xf7f6f5f5f3f2f1f1, 0x0, 0x90a0f0d05060300, 0x90a0f0d05060300, 0x90a0f0d05060300},
+      kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVredminu) {
+  TestVectorReductionInstruction(
+      0x110c2457,  //vredminu.vs v8,v16,v24,v0.t
+      /* expected_result_vd0_int8 */
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      /* expected_result_vd0_int16 */
+      {0x100, 0x100, 0x100, 0x100, 0x0, 0x100, 0x100, 0x100},
+      /* expected_result_vd0_int32 */
+      {0x3020100, 0x3020100, 0x3020100, 0x3020100, 0x0, 0x3020100, 0x3020100, 0x3020100},
+      /* expected_result_vd0_int64 */
+      {0x706050403020100, 0x706050403020100, 0x706050403020100, 0x706050403020100, 0x0, 0x706050403020100, 0x706050403020100, 0x706050403020100},
+      /* expected_result_vd0_with_mask_int8 */
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      /* expected_result_vd0_with_mask_int16 */
+      {0x100, 0x100, 0x100, 0x100, 0x0, 0x100, 0x100, 0x100},
+      /* expected_result_vd0_with_mask_int32 */
+      {0x3020100, 0x3020100, 0x3020100, 0x3020100, 0x0, 0x3020100, 0x3020100, 0x3020100},
+      /* expected_result_vd0_with_mask_int64 */
+      {0x706050403020100, 0x706050403020100, 0x706050403020100, 0x706050403020100, 0x0, 0x706050403020100, 0x706050403020100, 0x706050403020100},
+      kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVredmin) {
+  TestVectorReductionInstruction(
+      0x150c2457,  //vredmin.vs v8,v16,v24,v0.t
+      /* expected_result_vd0_int8 */
+      {0, 0, 0, 128, 0, 0, 0, 0},
+      /* expected_result_vd0_int16 */
+      {0x100, 0x100, 0x100, 0x8280, 0x0, 0x100, 0x100, 0x100},
+      /* expected_result_vd0_int32 */
+      {0x3020100, 0x3020100, 0x3020100, 0x86848280, 0x0, 0x3020100, 0x3020100, 0x3020100},
+      /* expected_result_vd0_int64 */
+      {0x706050403020100, 0x706050403020100, 0x706050403020100, 0x8e8c8a8986848280, 0x0, 0x706050403020100, 0x706050403020100, 0x706050403020100},
+      /* expected_result_vd0_with_mask_int8 */
+      {0, 0, 0, 128, 0, 0, 0, 0},
+      /* expected_result_vd0_with_mask_int16 */
+      {0x100, 0x100, 0x100, 0x8280, 0x0, 0x100, 0x100, 0x100},
+      /* expected_result_vd0_with_mask_int32 */
+      {0x3020100, 0x3020100, 0x3020100, 0x86848280, 0x0, 0x3020100, 0x3020100, 0x3020100},
+      /* expected_result_vd0_with_mask_int64 */
+      {0x706050403020100, 0x706050403020100, 0x706050403020100, 0x8e8c8a8986848280, 0x0, 0x706050403020100, 0x706050403020100, 0x706050403020100},
+      kVectorCalculationsSource);
+}
+
+
+TEST_F(Riscv64InterpreterTest, TestVredmaxu) {
+  TestVectorReductionInstruction(
+      0x190c2457,  //vredmaxu.vs v8,v16,v24,v0.t
+      /* expected_result_vd0_int8 */
+      {30, 62, 126, 254, 0, 2, 6, 14},
+      /* expected_result_vd0_int16 */
+      {0x1e1c, 0x3e3c, 0x7e7c, 0xfefc, 0x0, 0x200, 0x604, 0xe0c},
+      /* expected_result_vd0_int32 */
+      {0x1e1c1a18, 0x3e3c3a38, 0x7e7c7a78, 0xfefcfaf8, 0x0, 0x6040200, 0x6040200, 0xe0c0a09},
+      /* expected_result_vd0_int64 */
+      {0x1e1c1a1816141211, 0x3e3c3a3836343231, 0x7e7c7a7876747271, 0xfefcfaf8f6f4f2f1, 0x0, 0xe0c0a0906040200, 0xe0c0a0906040200, 0xe0c0a0906040200},
+      /* expected_result_vd0_with_mask_int8 */
+      {30, 62, 126, 252, 0, 0, 6, 14},
+      /* expected_result_vd0_with_mask_int16 */
+      {0x1e1c, 0x3e3c, 0x7e7c, 0xfefc, 0x0, 0x200, 0x200, 0xe0c},
+      /* expected_result_vd0_with_mask_int32 */
+      {0x1e1c1a18, 0x3e3c3a38, 0x7e7c7a78, 0xfefcfaf8, 0x0, 0x6040200, 0x6040200, 0x6040200},
+      /* expected_result_vd0_with_mask_int64 */
+      {0xe0c0a0906040200, 0x3e3c3a3836343231, 0x7e7c7a7876747271, 0xfefcfaf8f6f4f2f1, 0x0, 0xe0c0a0906040200, 0xe0c0a0906040200, 0xe0c0a0906040200},
+      kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVredmax) {
+  TestVectorReductionInstruction(
+      0x1d0c2457,  //vredmax.vs v8,v16,v24,v0.t
+      /* expected_result_vd0_int8 */
+      {30, 62, 126, 126, 0, 2, 6, 14},
+      /* expected_result_vd0_int16 */
+      {0x1e1c, 0x3e3c, 0x7e7c, 0x7e7c, 0x0, 0x200, 0x604, 0xe0c},
+      /* expected_result_vd0_int32 */
+      {0x1e1c1a18, 0x3e3c3a38, 0x7e7c7a78, 0x7e7c7a78, 0x0, 0x6040200, 0x6040200, 0xe0c0a09},
+      /* expected_result_vd0_int64 */
+      {0x1e1c1a1816141211, 0x3e3c3a3836343231, 0x7e7c7a7876747271, 0x7e7c7a7876747271, 0x0, 0xe0c0a0906040200, 0xe0c0a0906040200, 0xe0c0a0906040200},
+      /* expected_result_vd0_with_mask_int8 */
+      {30, 62, 126, 126, 0, 0, 6, 14},
+      /* expected_result_vd0_with_mask_int16 */
+      {0x1e1c, 0x3e3c, 0x7e7c, 0x7e7c, 0x0, 0x200, 0x200, 0xe0c},
+      /* expected_result_vd0_with_mask_int32 */
+      {0x1e1c1a18, 0x3e3c3a38, 0x7e7c7a78, 0x7e7c7a78, 0x0, 0x6040200, 0x6040200, 0x6040200},
+      /* expected_result_vd0_with_mask_int64 */
+      {0xe0c0a0906040200, 0x3e3c3a3836343231, 0x7e7c7a7876747271, 0x7e7c7a7876747271, 0x0, 0xe0c0a0906040200, 0xe0c0a0906040200, 0xe0c0a0906040200},
+      kVectorCalculationsSource);
+}
+
 }  // namespace
 
 }  // namespace berberis
