@@ -251,6 +251,96 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void TestVectorReductionInstruction(uint32_t insn_bytes,
+                                      const uint8_t (&expected_result_vd0_int8)[8],
+                                      const uint16_t (&expected_result_vd0_int16)[8],
+                                      const uint32_t (&expected_result_vd0_int32)[8],
+                                      const uint64_t (&expected_result_vd0_int64)[8],
+                                      const uint8_t (&expected_result_vd0_with_mask_int8)[8],
+                                      const uint16_t (&expected_result_vd0_with_mask_int16)[8],
+                                      const uint32_t (&expected_result_vd0_with_mask_int32)[8],
+                                      const uint64_t (&expected_result_vd0_with_mask_int64)[8],
+                                      const __v2du (&source)[16]) {
+    // Each expected_result input to this function is the vd[0] value of the reduction, for each
+    // of the possible vlmul, i.e. expected_result_vd0_int8[n] = vd[0], int8, no mask, vlmul=n.
+    //
+    // As vlmul=4 is reserved, expected_result_vd0_*[4] is ignored.
+    auto Verify = [this, &source](uint32_t insn_bytes,
+                                  uint8_t vsew,
+                                  uint8_t vlmul,
+                                  const auto& expected_result) {
+      // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
+      // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
+      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
+      for (size_t index = 0; index < std::size(source); ++index) {
+        state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
+      }
+      for (uint8_t vta = 0; vta < 2; ++vta) {
+        for (uint8_t vma = 0; vma < 2; ++vma) {
+          auto [vlmax, vtype] =
+              intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
+          // Incompatible vsew and vlmax. Skip it.
+          if (vlmax == 0) {
+            continue;
+          }
+
+          // Vector reduction instructions must always have a vstart=0.
+          state_.cpu.vstart = 0;
+          state_.cpu.vl = vlmax;
+          state_.cpu.vtype = vtype;
+
+          // Set expected_result vector registers into 0b01010101… pattern.
+          for (size_t index = 0; index < 8; ++index) {
+            state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+          }
+
+          state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+          EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+
+          // Reduction instructions are unique in that they produce a scalar
+          // output to a single vector register as opposed to a register group.
+          // This allows us to take some short-cuts when validating:
+          //
+          // - The mask setting is only useful during computation, as the body
+          // of the destination is always only element 0, which will always be
+          // written to, regardless of mask setting.
+          // - The tail is guaranteed to be 1..VLEN/SEW, so the vlmul setting
+          // does not affect the elements that the tail policy applies to in the
+          // destination register.
+
+          // Verify that the destination register holds the reduction in the
+          // first element and the tail policy applies to the remaining.
+          size_t vsew_bits = 8 << vsew;
+          __uint128_t expected_result_register =
+            SIMD128Register{vta ? kAgnosticResult : kUndisturbedResult}.Get<__uint128_t>();
+          expected_result_register = (expected_result_register >> vsew_bits) << vsew_bits;
+          expected_result_register |= expected_result;
+          EXPECT_EQ(state_.cpu.v[8], expected_result_register);
+
+          // Verify all non-destination registers are undisturbed.
+          for (size_t index = 1; index < 8; ++index) {
+            EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kUndisturbedResult}.Get<__uint128_t>());
+          }
+
+          // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+          EXPECT_EQ(state_.cpu.vstart, 0);
+          EXPECT_EQ(state_.cpu.vl, vlmax);
+        }
+      }
+    };
+
+    for (int vlmul = 0; vlmul < 8; vlmul++) {
+      Verify(insn_bytes, 0, vlmul, expected_result_vd0_with_mask_int8[vlmul]);
+      Verify(insn_bytes, 1, vlmul, expected_result_vd0_with_mask_int16[vlmul]);
+      Verify(insn_bytes, 2, vlmul, expected_result_vd0_with_mask_int32[vlmul]);
+      Verify(insn_bytes, 3, vlmul, expected_result_vd0_with_mask_int64[vlmul]);
+      Verify(insn_bytes | (1 << 25), 0, vlmul, expected_result_vd0_int8[vlmul]);
+      Verify(insn_bytes | (1 << 25), 1, vlmul, expected_result_vd0_int16[vlmul]);
+      Verify(insn_bytes | (1 << 25), 2, vlmul, expected_result_vd0_int32[vlmul]);
+      Verify(insn_bytes | (1 << 25), 3, vlmul, expected_result_vd0_int64[vlmul]);
+    }
+  }
+
  protected:
   static constexpr __v2du kVectorCalculationsSource[16] = {
       {0x0706'0504'0302'0100, 0x0f0e'0d0c'0b0a'0908},
@@ -2665,6 +2755,34 @@ TEST_F(Riscv64InterpreterTest, TestVmax) {
        {0x5756'5554'5352'5150, 0x5f5e'5d5c'5b5a'5958},
        {0x6766'6564'6362'6160, 0x6f6e'6d6c'6b6a'6968},
        {0x7776'7574'7372'7170, 0x7f7e'7d7c'7b7a'7978}},
+      kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVredsum) {
+  TestVectorReductionInstruction(
+      0x10c2457,  // vredsum.vs v8,v16,v24,v0.t
+      /* expected_result_vd0_int8 */
+      {242, 228, 200, 144, 0 /* unused */, 2, 12, 57},
+      /* expected_result_vd0_int16 */
+      {0x8172, 0x02e4, 0x08c8, 0x2090, 0x0000 /* unused */, 0x0300, 0x0904, 0x2119},
+      /* expected_result_vd0_int32 */
+      {0x4b42'3932, 0x1402'f1e4, 0x2705'e4c8, 0x5311'd090,
+       0x0000'0000 /* unused */, 0x0906'0300, 0x0906'0300, 0x1712'0d09},
+      /* expected_result_vd0_int64 */
+      {0x332e'2925'1f1a'1511, 0x9f96'8d86'7b72'6962, 0x0392'8170'9f4e'3d2c4,
+       0x6f4e'2d13'eac9'a888, 0x0000'0000'0000'000 /* unused */,
+       0x1512'0f0d'0906'0300, 0x1512'0f0d'0906'0300, 0x1512'0f0d'0906'0300},
+      /* expected_result_vd0_with_mask_int8 */
+      {151, 104, 222, 75, 0 /* unused */, 0, 10, 34},
+      /* expected_result_vd0_with_mask_int16 */
+      {0x4f45, 0x422f, 0xf9d0, 0x18bf, 0x0000 /* unused */, 0x0300, 0x0300, 0x1b15},
+      /* expected_result_vd0_with_mask_int32 */
+      {0x3d36'2f29, 0xa99e'938a, 0x9984'6f5c, 0x1cf3'caa1,
+       0x0000'0000 /* unused */, 0x0906'0300, 0x0906'0300, 0x0906'0300},
+      /* expected_result_vd0_with_mask_int64 */
+      {0x1512'0f0d'0906'0300, 0x817a'736e'655e'5751, 0x5e53'483f'3227'1c13,
+       0x4833'1e0d'f3de'c9b5, 0x0000'0000'0000'0000 /* unused */,
+       0x1512'0f0d'0906'0300, 0x1512'0f0d'0906'0300, 0x1512'0f0d'0906'0300},
       kVectorCalculationsSource);
 }
 
