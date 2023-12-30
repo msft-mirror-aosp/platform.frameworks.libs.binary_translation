@@ -30,9 +30,9 @@ namespace berberis {
 // Maximum number of signals for the guest kernel.
 constexpr int Guest__KERNEL__NSIG = 64;
 
-const GuestAddr Guest_SIG_DFL = 0;
-const GuestAddr Guest_SIG_IGN = 1;
-const GuestAddr Guest_SIG_ERR = -1;
+const GuestAddr Guest_SIG_DFL = GuestAddr{0U};
+const GuestAddr Guest_SIG_IGN = GuestAddr{1U};
+const GuestAddr Guest_SIG_ERR = GuestAddr{~0U};
 
 // Guest siginfo_t, as expected by guest rt_sigqueueinfo syscall.
 using Guest_siginfo_t = siginfo_t;
