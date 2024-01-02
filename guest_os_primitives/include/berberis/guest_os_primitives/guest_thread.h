@@ -48,7 +48,7 @@ void RunGuestPthreadKeyDtor(GuestAddr pc, GuestArgumentBuffer* buf);
 
 struct GuestCallExecution {
   GuestCallExecution* parent = nullptr;
-  GuestAddr sp = 0;
+  GuestAddr sp = {};
   jmp_buf buf;
 };
 
@@ -116,13 +116,13 @@ class GuestThread {
   size_t stack_size_ = 0;
   size_t guard_size_ = 0;
   size_t mmap_size_ = 0;
-  GuestAddr stack_top_ = 0;
+  GuestAddr stack_top_ = {};
 
   void* static_tls_ = nullptr;
 
   // Shadow call stack.
   void* scs_region_ = nullptr;
-  GuestAddr scs_base_ = 0;
+  GuestAddr scs_base_ = {};
 
   ThreadState* state_ = nullptr;
 
