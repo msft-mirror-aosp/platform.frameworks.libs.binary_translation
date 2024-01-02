@@ -96,7 +96,6 @@ cc_library_shared {
         "libbase",
         "libberberis_assembler",
         "libberberis_base",
-        "libberberis_config_globals",
         "libberberis_instrument",
         "libberberis_intrinsics",
         "libberberis_runtime_primitives",
@@ -159,7 +158,6 @@ cc_test_host {
     static_libs: [
         "libberberis_assembler",
         "libberberis_base",
-        "libberberis_config_globals",
         "libberberis_intrinsics",
         "libberberis_instrument",
         "libberberis_runtime_primitives",
