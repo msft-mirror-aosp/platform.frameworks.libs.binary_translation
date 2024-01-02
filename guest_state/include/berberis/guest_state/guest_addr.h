@@ -24,7 +24,7 @@ namespace berberis {
 // TODO(b/265372622): Make it configurable for specific guest arch.
 using GuestAddr = uintptr_t;
 
-constexpr GuestAddr kNullGuestAddr{0};
+constexpr GuestAddr kNullGuestAddr = {};
 
 template <typename T>
 inline GuestAddr ToGuestAddr(T* addr) {
