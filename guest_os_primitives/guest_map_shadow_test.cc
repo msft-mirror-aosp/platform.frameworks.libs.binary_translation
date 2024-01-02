@@ -34,8 +34,8 @@ class GuestMapShadowTest : public ::testing::Test {
   }
 };
 
-constexpr GuestAddr kGuestAddr = 0x7f018000;
-constexpr size_t kGuestRegionSize = 0x00020000;
+constexpr GuestAddr kGuestAddr = GuestAddr{0x7f018000};
+constexpr size_t kGuestRegionSize = GuestAddr{0x00020000};
 
 TEST_F(GuestMapShadowTest, smoke) {
   auto shadow = std::make_unique<GuestMapShadow>();
