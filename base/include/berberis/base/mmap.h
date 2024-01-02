@@ -32,17 +32,17 @@ constexpr size_t kPageSize = 1 << kPageSizeLog2;
 
 template <typename T>
 constexpr T AlignDownPageSize(T x) {
-  return AlignDown(x, kPageSize);
+  return AlignDown<kPageSize>(x);
 }
 
 template <typename T>
 constexpr T AlignUpPageSize(T x) {
-  return AlignUp(x, kPageSize);
+  return AlignUp<kPageSize>(x);
 }
 
 template <typename T>
 constexpr bool IsAlignedPageSize(T x) {
-  return IsAligned(x, kPageSize);
+  return IsAligned<kPageSize>(x);
 }
 
 struct MmapImplArgs {
