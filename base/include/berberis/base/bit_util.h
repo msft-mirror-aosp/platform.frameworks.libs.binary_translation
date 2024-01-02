@@ -27,11 +27,43 @@
 
 namespace berberis {
 
+template <typename BaseType>
+class Raw;
+
+template <typename BaseType>
+class Saturating;
+
+template <typename BaseType>
+class Wrapping;
+
 template <typename T>
 constexpr bool IsPowerOf2(T x) {
   static_assert(std::is_integral_v<T>, "IsPowerOf2: T must be integral");
   DCHECK(x != 0);
   return (x & (x - 1)) == 0;
+}
+
+template <typename T>
+constexpr bool IsPowerOf2(Raw<T> x) {
+  return IsPowerOf2(x.value);
+}
+
+template <typename T>
+constexpr bool IsPowerOf2(Saturating<T> x) {
+  return IsPowerOf2(x.value);
+}
+
+template <typename T>
+constexpr bool IsPowerOf2(Wrapping<T> x) {
+  return IsPowerOf2(x.value);
+}
+
+template <size_t kAlign, typename T>
+constexpr T AlignDown(T x) {
+  static_assert(std::is_integral_v<T>);
+  static_assert(IsPowerOf2(kAlign));
+  static_assert(static_cast<T>(kAlign) > 0);
+  return x & ~(kAlign - 1);
 }
 
 template <typename T>
@@ -41,9 +73,71 @@ constexpr T AlignDown(T x, size_t align) {
   return x & ~(align - 1);
 }
 
+template <size_t kAlign, typename T>
+constexpr Raw<T> AlignDown(Raw<T> x) {
+  return {AlignDown<kAlign>(x.value)};
+}
+
+template <size_t kAlign, typename T>
+constexpr Saturating<T> AlignDown(Saturating<T> x) {
+  return {AlignDown<kAlign>(x.value)};
+}
+
+template <size_t kAlign, typename T>
+constexpr Wrapping<T> AlignDown(Wrapping<T> x) {
+  return {AlignDown<kAlign>(x.value)};
+}
+
+// Helper to align pointers.
+template <size_t kAlign, typename T>
+constexpr T* AlignDown(T* p) {
+  return reinterpret_cast<T*>(AlignDown<kAlign>(reinterpret_cast<uintptr_t>(p)));
+}
+
+template <typename T>
+constexpr T* AlignDown(T* p, size_t align) {
+  return reinterpret_cast<T*>(AlignDown(reinterpret_cast<uintptr_t>(p), align));
+}
+
+template <size_t kAlign, typename T>
+constexpr T AlignUp(T x) {
+  return AlignDown<kAlign>(x + kAlign - 1);
+}
+
 template <typename T>
 constexpr T AlignUp(T x, size_t align) {
   return AlignDown(x + align - 1, align);
+}
+
+template <size_t kAlign, typename T>
+constexpr Raw<T> AlignUp(Raw<T> x) {
+  return {AlignUp<kAlign>(x.value)};
+}
+
+template <size_t kAlign, typename T>
+constexpr Saturating<T> AlignUp(Saturating<T> x) {
+  return {AlignUp<kAlign>(x.value)};
+}
+
+template <size_t kAlign, typename T>
+constexpr Wrapping<T> AlignUp(Wrapping<T> x) {
+  return {AlignUp<kAlign>(x.value)};
+}
+
+// Helper to align pointers.
+template <size_t kAlign, typename T>
+constexpr T* AlignUp(T* p) {
+  return reinterpret_cast<T*>(AlignUp<kAlign>(reinterpret_cast<uintptr_t>(p)));
+}
+
+template <typename T>
+constexpr T* AlignUp(T* p, size_t align) {
+  return reinterpret_cast<T*>(AlignUp(reinterpret_cast<uintptr_t>(p), align));
+}
+
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(T x) {
+  return AlignDown<kAlign>(x) == x;
 }
 
 template <typename T>
@@ -51,19 +145,27 @@ constexpr bool IsAligned(T x, size_t align) {
   return AlignDown(x, align) == x;
 }
 
-// Helper to align pointers.
-template <typename T>
-constexpr T* AlignDown(T* p, size_t align) {
-  return reinterpret_cast<T*>(AlignDown(reinterpret_cast<uintptr_t>(p), align));
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(Raw<T> x) {
+  return IsAligned<kAlign>(x.value);
+}
+
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(Saturating<T> x) {
+  return IsAligned<kAlign>(x.value);
+}
+
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(Wrapping<T> x) {
+  return IsAligned<kAlign>(x.value);
 }
 
 // Helper to align pointers.
-template <typename T>
-constexpr T* AlignUp(T* p, size_t align) {
-  return reinterpret_cast<T*>(AlignUp(reinterpret_cast<uintptr_t>(p), align));
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(T* p, size_t align) {
+  return IsAligned<kAlign>(reinterpret_cast<uintptr_t>(p), align);
 }
 
-// Helper to align pointers.
 template <typename T>
 constexpr bool IsAligned(T* p, size_t align) {
   return IsAligned(reinterpret_cast<uintptr_t>(p), align);
@@ -113,12 +215,6 @@ inline Dest bit_cast(const Source& source) {
   memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
-
-template <typename Base>
-class Saturating;
-
-template <typename Base>
-class Wrapping;
 
 namespace intrinsics {
 
@@ -186,6 +282,14 @@ class Raw {
       -> std::enable_if_t<sizeof(typename ResultType::BaseType) < sizeof(BaseType), ResultType> {
     return ResultType{static_cast<ResultType::BaseType>(src.value)};
   }
+
+  [[nodiscard]] friend constexpr bool operator==(Raw lhs, Raw rhs) {
+    return lhs.value == rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator!=(Raw lhs, Raw rhs) {
+    return lhs.value != rhs.value;
+  }
+
   BaseType value = 0;
 };
 
