@@ -95,6 +95,7 @@ cc_library_static {
         "libberberis_runtime_headers",
     ],
     srcs: [
+        "berberis_common.cc",
         "execute_guest.cc",
         "execute_guest_call.cc",
         "runtime_library.cc",
