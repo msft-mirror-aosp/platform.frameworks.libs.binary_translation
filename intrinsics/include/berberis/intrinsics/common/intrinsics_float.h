@@ -58,6 +58,15 @@ class WrappedFloatType {
   WrappedFloatType& operator=(const WrappedFloatType& other) = default;
   WrappedFloatType& operator=(WrappedFloatType&& other) noexcept = default;
   ~WrappedFloatType() = default;
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<BaseType> &&
+                                        sizeof(BaseType) == sizeof(IntType)>>
+  [[nodiscard]] constexpr operator Raw<IntType>() const {
+    // Can't use bit_cast here because of IA32 ABI!
+    Raw<IntType> result;
+    memcpy(&result, &value_, sizeof(BaseType));
+    return result;
+  }
   explicit constexpr operator int16_t() const { return value_; }
   explicit constexpr operator uint16_t() const { return value_; }
   explicit constexpr operator int32_t() const { return value_; }

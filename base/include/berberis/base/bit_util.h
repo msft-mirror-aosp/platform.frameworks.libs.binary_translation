@@ -27,11 +27,43 @@
 
 namespace berberis {
 
+template <typename BaseType>
+class Raw;
+
+template <typename BaseType>
+class Saturating;
+
+template <typename BaseType>
+class Wrapping;
+
 template <typename T>
 constexpr bool IsPowerOf2(T x) {
   static_assert(std::is_integral_v<T>, "IsPowerOf2: T must be integral");
   DCHECK(x != 0);
   return (x & (x - 1)) == 0;
+}
+
+template <typename T>
+constexpr bool IsPowerOf2(Raw<T> x) {
+  return IsPowerOf2(x.value);
+}
+
+template <typename T>
+constexpr bool IsPowerOf2(Saturating<T> x) {
+  return IsPowerOf2(x.value);
+}
+
+template <typename T>
+constexpr bool IsPowerOf2(Wrapping<T> x) {
+  return IsPowerOf2(x.value);
+}
+
+template <size_t kAlign, typename T>
+constexpr T AlignDown(T x) {
+  static_assert(std::is_integral_v<T>);
+  static_assert(IsPowerOf2(kAlign));
+  static_assert(static_cast<T>(kAlign) > 0);
+  return x & ~(kAlign - 1);
 }
 
 template <typename T>
@@ -41,9 +73,71 @@ constexpr T AlignDown(T x, size_t align) {
   return x & ~(align - 1);
 }
 
+template <size_t kAlign, typename T>
+constexpr Raw<T> AlignDown(Raw<T> x) {
+  return {AlignDown<kAlign>(x.value)};
+}
+
+template <size_t kAlign, typename T>
+constexpr Saturating<T> AlignDown(Saturating<T> x) {
+  return {AlignDown<kAlign>(x.value)};
+}
+
+template <size_t kAlign, typename T>
+constexpr Wrapping<T> AlignDown(Wrapping<T> x) {
+  return {AlignDown<kAlign>(x.value)};
+}
+
+// Helper to align pointers.
+template <size_t kAlign, typename T>
+constexpr T* AlignDown(T* p) {
+  return reinterpret_cast<T*>(AlignDown<kAlign>(reinterpret_cast<uintptr_t>(p)));
+}
+
+template <typename T>
+constexpr T* AlignDown(T* p, size_t align) {
+  return reinterpret_cast<T*>(AlignDown(reinterpret_cast<uintptr_t>(p), align));
+}
+
+template <size_t kAlign, typename T>
+constexpr T AlignUp(T x) {
+  return AlignDown<kAlign>(x + kAlign - 1);
+}
+
 template <typename T>
 constexpr T AlignUp(T x, size_t align) {
   return AlignDown(x + align - 1, align);
+}
+
+template <size_t kAlign, typename T>
+constexpr Raw<T> AlignUp(Raw<T> x) {
+  return {AlignUp<kAlign>(x.value)};
+}
+
+template <size_t kAlign, typename T>
+constexpr Saturating<T> AlignUp(Saturating<T> x) {
+  return {AlignUp<kAlign>(x.value)};
+}
+
+template <size_t kAlign, typename T>
+constexpr Wrapping<T> AlignUp(Wrapping<T> x) {
+  return {AlignUp<kAlign>(x.value)};
+}
+
+// Helper to align pointers.
+template <size_t kAlign, typename T>
+constexpr T* AlignUp(T* p) {
+  return reinterpret_cast<T*>(AlignUp<kAlign>(reinterpret_cast<uintptr_t>(p)));
+}
+
+template <typename T>
+constexpr T* AlignUp(T* p, size_t align) {
+  return reinterpret_cast<T*>(AlignUp(reinterpret_cast<uintptr_t>(p), align));
+}
+
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(T x) {
+  return AlignDown<kAlign>(x) == x;
 }
 
 template <typename T>
@@ -51,19 +145,27 @@ constexpr bool IsAligned(T x, size_t align) {
   return AlignDown(x, align) == x;
 }
 
-// Helper to align pointers.
-template <typename T>
-constexpr T* AlignDown(T* p, size_t align) {
-  return reinterpret_cast<T*>(AlignDown(reinterpret_cast<uintptr_t>(p), align));
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(Raw<T> x) {
+  return IsAligned<kAlign>(x.value);
+}
+
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(Saturating<T> x) {
+  return IsAligned<kAlign>(x.value);
+}
+
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(Wrapping<T> x) {
+  return IsAligned<kAlign>(x.value);
 }
 
 // Helper to align pointers.
-template <typename T>
-constexpr T* AlignUp(T* p, size_t align) {
-  return reinterpret_cast<T*>(AlignUp(reinterpret_cast<uintptr_t>(p), align));
+template <size_t kAlign, typename T>
+constexpr bool IsAligned(T* p, size_t align) {
+  return IsAligned<kAlign>(reinterpret_cast<uintptr_t>(p), align);
 }
 
-// Helper to align pointers.
 template <typename T>
 constexpr bool IsAligned(T* p, size_t align) {
   return IsAligned(reinterpret_cast<uintptr_t>(p), align);
@@ -114,15 +216,89 @@ inline Dest bit_cast(const Source& source) {
   return dest;
 }
 
+namespace intrinsics {
+
+template <typename BaseType>
+class WrappedFloatType;
+
+}  // namespace intrinsics
+
+// Raw integers.  Used to carry payload, which may be be EXPLICITLY converted to Saturating
+// integer, Wrapping integer, or WrappedFloatType.
+//
+// 𝐃𝐨𝐞𝐬𝐧'𝐭 suppopt any actual operations, arithmetic, etc.
+// Use bitcast or convert to one of three types listed above!
+
+template <typename Base>
+class Raw {
+ public:
+  using BaseType = Base;
+
+  static_assert(std::is_integral_v<BaseType>);
+  static_assert(!std::is_signed_v<BaseType>);
+
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(IntType) == sizeof(BaseType)>>
+  [[nodiscard]] constexpr operator IntType() const {
+    return static_cast<IntType>(value);
+  }
+  template <typename IntType,
+            typename = std::enable_if_t<
+                std::is_integral_v<IntType> && sizeof(BaseType) == sizeof(IntType) &&
+                !std::is_signed_v<IntType> && !std::is_same_v<IntType, BaseType>>>
+  [[nodiscard]] constexpr operator Raw<IntType>() const {
+    return {static_cast<IntType>(value)};
+  }
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(BaseType) == sizeof(IntType)>>
+  [[nodiscard]] constexpr operator Saturating<IntType>() const {
+    return {static_cast<IntType>(value)};
+  }
+  template <typename FloatType,
+            typename = std::enable_if_t<!std::numeric_limits<FloatType>::is_exact &&
+                                        sizeof(BaseType) == sizeof(FloatType)>>
+  [[nodiscard]] constexpr operator intrinsics::WrappedFloatType<FloatType>() const {
+    // Can't use bit_cast here because of IA32 ABI!
+    intrinsics::WrappedFloatType<FloatType> result;
+    memcpy(&result, &value, sizeof(BaseType));
+    return result;
+  }
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(BaseType) == sizeof(IntType)>>
+  [[nodiscard]] constexpr operator Wrapping<IntType>() const {
+    return {static_cast<IntType>(value)};
+  }
+
+  template <typename ResultType>
+  friend auto constexpr MaybeTruncateTo(Raw src)
+      -> std::enable_if_t<sizeof(typename ResultType::BaseType) <= sizeof(BaseType), ResultType> {
+    return ResultType{static_cast<ResultType::BaseType>(src.value)};
+  }
+  template <typename ResultType>
+  friend auto constexpr TruncateTo(Raw src)
+      -> std::enable_if_t<sizeof(typename ResultType::BaseType) < sizeof(BaseType), ResultType> {
+    return ResultType{static_cast<ResultType::BaseType>(src.value)};
+  }
+
+  [[nodiscard]] friend constexpr bool operator==(Raw lhs, Raw rhs) {
+    return lhs.value == rhs.value;
+  }
+  [[nodiscard]] friend constexpr bool operator!=(Raw lhs, Raw rhs) {
+    return lhs.value != rhs.value;
+  }
+
+  BaseType value = 0;
+};
+
 // Saturating and wrapping integers.
 //   1. Never trigger UB, even in case of overflow.
 //   2. Only support mixed types when both are of the same type (e.g. SatInt8 and SatInt16 or
 //      Int8 and Int64 are allowed, but SatInt8 and Int8 are forbidden and Int32 and Uint32
 //      require explicit casting, too).
 //   3. Results are performed after type expansion.
-
-template <typename Base>
-class Wrapping;
 
 template <typename Base>
 class Saturating {
@@ -141,6 +317,12 @@ class Saturating {
                                          sizeof(IntType) == sizeof(BaseType))>>
   [[nodiscard]] constexpr operator IntType() const {
     return static_cast<IntType>(value);
+  }
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(BaseType) == sizeof(IntType)>>
+  [[nodiscard]] constexpr operator Raw<IntType>() const {
+    return {static_cast<IntType>(value)};
   }
   template <typename IntType,
             typename = std::enable_if_t<
@@ -291,6 +473,12 @@ class Wrapping {
   template <typename IntType,
             typename = std::enable_if_t<std::is_integral_v<IntType> &&
                                         sizeof(BaseType) == sizeof(IntType)>>
+  [[nodiscard]] constexpr operator Raw<IntType>() const {
+    return {static_cast<IntType>(value)};
+  }
+  template <typename IntType,
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
+                                        sizeof(BaseType) == sizeof(IntType)>>
   [[nodiscard]] constexpr operator Saturating<IntType>() const {
     return {static_cast<IntType>(value)};
   }
@@ -422,6 +610,14 @@ class Wrapping {
   BaseType value = 0;
 };
 
+using RawInt8 = Raw<uint8_t>;
+using RawInt16 = Raw<uint16_t>;
+using RawInt32 = Raw<uint32_t>;
+using RawInt64 = Raw<uint64_t>;
+#if defined(__x86_64__)
+using RawInt128 = Raw<unsigned __int128>;
+#endif
+
 using SatInt8 = Saturating<int8_t>;
 using SatUInt8 = Saturating<uint8_t>;
 using SatInt16 = Saturating<int16_t>;
@@ -443,6 +639,8 @@ using Int32 = Wrapping<int32_t>;
 using UInt32 = Wrapping<uint32_t>;
 using Int64 = Wrapping<int64_t>;
 using UInt64 = Wrapping<uint64_t>;
+using IntPtr = Wrapping<intptr_t>;
+using UIntPtr = Wrapping<uintptr_t>;
 #if defined(__x86_64__)
 using Int128 = Wrapping<__int128>;
 using UInt128 = Wrapping<unsigned __int128>;

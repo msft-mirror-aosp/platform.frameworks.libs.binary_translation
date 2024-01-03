@@ -40,7 +40,7 @@ auto Init() {
     platform_capabilities.kIsAuthenticAMD = true;
     __cpuid(1, eax, ebx, ecx, edx);
     uint8_t family = (eax >> 8) & 0b1111;
-    if (family == 0x1111) {
+    if (family == 0b1111) {
       family += (eax >> 20) & 0b11111111;
       if (family < 0x19) {
         use_pdep_if_present = false;
