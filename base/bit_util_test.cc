@@ -23,6 +23,33 @@ namespace {
 static_assert(IsPowerOf2(sizeof(void*)));
 static_assert(!IsPowerOf2(sizeof(void*) + 1));
 
+static_assert(IsPowerOf2(RawInt8(4)));
+static_assert(IsPowerOf2(SatInt8(4)));
+static_assert(IsPowerOf2(Int8(4)));
+
+static_assert(AlignUp(6, 4) == 8);
+static_assert(AlignUp<4>(6) == 8);
+static_assert(AlignUp<4>(RawInt8(6)) == RawInt8(8));
+static_assert(AlignUp<4>(SatInt8(6)) == SatInt8(8));
+static_assert(AlignUp<4>(Int8(6)) == Int8(8));
+
+static_assert(AlignDown(6, 4) == 4);
+static_assert(AlignDown<4>(6) == 4);
+static_assert(AlignDown<4>(RawInt8(6)) == RawInt8(4));
+static_assert(AlignDown<4>(SatInt8(6)) == SatInt8(4));
+static_assert(AlignDown<4>(Int8(6)) == Int8(4));
+
+static_assert(IsAligned(6, 2));
+static_assert(!IsAligned(6, 4));
+static_assert(IsAligned<2>(6));
+static_assert(!IsAligned<4>(6));
+static_assert(IsAligned<2>(RawInt8(6)));
+static_assert(!IsAligned<4>(RawInt8(6)));
+static_assert(IsAligned<2>(SatInt8(6)));
+static_assert(!IsAligned<4>(SatInt8(6)));
+static_assert(IsAligned<2>(Int8(6)));
+static_assert(!IsAligned<4>(Int8(6)));
+
 static_assert(BitUtilLog2(1) == 0);
 static_assert(BitUtilLog2(16) == 4);
 static_assert(BitUtilLog2(sizeof(void*)) > 0);
