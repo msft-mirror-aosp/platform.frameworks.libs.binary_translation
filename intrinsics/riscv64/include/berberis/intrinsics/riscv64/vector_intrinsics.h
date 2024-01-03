@@ -246,58 +246,6 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
   return result;
 }
 
-// TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
-template <typename ElementType, TailProcessing vta, typename Lambda>
-inline std::tuple<SIMD128Register> VectorArithmeticReduction(Lambda lambda,
-                                                             int vl,
-                                                             SIMD128Register dest,
-                                                             SIMD128Register src1,
-                                                             SIMD128Register src2) {
-  SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
-  if (vl == 0) {
-    return dest;
-  }
-  if (vl > kElementsCount) {
-    vl = kElementsCount;
-  }
-  result.Set(VectorElement<ElementType>(src1, 0), 0);
-  for (int index = 0; index < vl; ++index) {
-    result.Set(lambda(VectorElement<ElementType>(result, 0),
-                      VectorElement<ElementType>(src2, index)), 0 /* index */);
-  }
-  return {VectorMasking<ElementType, vta>(0 /* vstart */, 1 /* vl */, dest, result)};
-}
-
-// TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
-template <typename ElementType,
-          TailProcessing vta,
-          InactiveProcessing vma,
-          typename Lambda>
-inline std::tuple<SIMD128Register> VectorArithmeticReduction(Lambda lambda,
-                                                             int vl,
-                                                             int mask,
-                                                             SIMD128Register dest,
-                                                             SIMD128Register src1,
-                                                             SIMD128Register src2) {
-  SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
-  if (vl == 0) {
-    return dest;
-  }
-  if (vl > kElementsCount) {
-    vl = kElementsCount;
-  }
-  result.Set(VectorElement<ElementType>(src1, 0), 0);
-  for (int index = 0; index < vl; ++index) {
-    if (mask & (1 << index)) {
-      result.Set(lambda(VectorElement<ElementType>(result, 0),
-                        VectorElement<ElementType>(src2, index)), 0 /* index */);
-    }
-  }
-  return {VectorMasking<ElementType, vta>(0 /* vstart */, 1 /* vl */, dest, result)};
-}
-
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
 #define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, arguments)                      \
                                                                                                   \
@@ -312,48 +260,9 @@ inline std::tuple<SIMD128Register> VectorArithmeticReduction(Lambda lambda,
         DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                     \
   }
 
-#define DEFINE_ARITHMETIC_REDUCTION_INTRINSIC(Name, arithmetic)                                   \
-                                                                                                  \
-  template <typename ElementType,                                                                 \
-            TailProcessing vta,                                                                   \
-            enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>       \
-  inline std::tuple<SIMD128Register> Name(int vl,                                                 \
-                                          SIMD128Register dest,                                   \
-                                          SIMD128Register src1,                                   \
-                                          SIMD128Register src2) {                                 \
-    return VectorArithmeticReduction<ElementType, vta>(                                           \
-        []([[maybe_unused]] auto vd, auto arg2) {                                                 \
-          static_assert((std::is_same_v<decltype(arg2), ElementType>));                           \
-          arithmetic;                                                                             \
-        },                                                                                        \
-        vl,                                                                                       \
-        dest,                                                                                     \
-        src1,                                                                                     \
-        src2);                                                                                    \
-  }                                                                                               \
-                                                                                                  \
-  template <typename ElementType,                                                                 \
-            TailProcessing vta,                                                                   \
-            InactiveProcessing vma,                                                               \
-            enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>       \
-  inline std::tuple<SIMD128Register> Name##m(                                                     \
-      int vl,                                                                                     \
-      int mask,                                                                                   \
-      SIMD128Register dest,                                                                       \
-      SIMD128Register src1,                                                                       \
-      SIMD128Register src2) {                                                                     \
-    return VectorArithmeticReduction<ElementType, vta, vma>(                                      \
-        []([[maybe_unused]] auto vd, auto arg2) {                                                 \
-          static_assert((std::is_same_v<decltype(arg2), ElementType>));                           \
-          arithmetic;                                                                             \
-        },                                                                                        \
-        vl,                                                                                       \
-        mask,                                                                                     \
-        dest,                                                                                     \
-        src1,                                                                                     \
-        src2);                                                                                    \
-  }
-
+#define DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##vs, return ({ __VA_ARGS__; }); \
+                              , (ElementType src1, ElementType src2), (src1, src2))
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##vv, return ({ __VA_ARGS__; }); \
                               , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
@@ -368,8 +277,6 @@ inline std::tuple<SIMD128Register> VectorArithmeticReduction(Lambda lambda,
   DEFINE_ARITHMETIC_INTRINSIC(                        \
       V##name##vx, return ({ __VA_ARGS__; });         \
       , (SIMD128Register src1, ElementType src2, SIMD128Register src3), (src1, src2, src3))
-#define DEFINE_2OP_ARITHMETIC_REDUCTION_INTRINSIC_VS(name, ...)       \
-  DEFINE_ARITHMETIC_REDUCTION_INTRINSIC(V##name##vs, return ({ __VA_ARGS__; }));
 
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
@@ -433,21 +340,20 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, (std::min(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, (std::min(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, (std::max(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(max, (std::max(args...)))
-DEFINE_2OP_ARITHMETIC_REDUCTION_INTRINSIC_VS(redsum, (vd + arg2))
-DEFINE_2OP_ARITHMETIC_REDUCTION_INTRINSIC_VS(redand, (vd & arg2))
-DEFINE_2OP_ARITHMETIC_REDUCTION_INTRINSIC_VS(redor, (vd | arg2))
-DEFINE_2OP_ARITHMETIC_REDUCTION_INTRINSIC_VS(redxor, (vd ^ arg2))
-DEFINE_2OP_ARITHMETIC_REDUCTION_INTRINSIC_VS(redmin, (std::min(vd, arg2)))
-DEFINE_2OP_ARITHMETIC_REDUCTION_INTRINSIC_VS(redmax, (std::max(vd, arg2)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redsum, (args + ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redand, (args & ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redor, (args | ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redxor, (args ^ ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redmin, std::min(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redmax, std::max(args...))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
-#undef DEFINE_ARITHMETIC_INTRINSIC_REDUCTION
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
+#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VS
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VX
-#undef DEFINE_2OP_ARITHMETIC_REDUCTION_INTRINSIC_VS
 
 }  // namespace berberis::intrinsics
 
