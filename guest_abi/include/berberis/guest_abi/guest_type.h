@@ -169,7 +169,7 @@ class GuestType<void*> {
   }
 
  private:
-  GuestAddr value_ = 0;
+  GuestAddr value_ = {};
 };
 
 template <>
@@ -195,7 +195,7 @@ class GuestType<void* const> {
   }
 
  private:
-  const GuestAddr value_ = 0;
+  const GuestAddr value_ = {};
 };
 
 template <>
@@ -221,7 +221,7 @@ class GuestType<const void*> {
   }
 
  private:
-  GuestAddr value_ = 0;
+  GuestAddr value_ = {};
 };
 
 template <>
@@ -247,7 +247,7 @@ class GuestType<const void* const> {
   }
 
  private:
-  const GuestAddr value_ = 0;
+  const GuestAddr value_ = {};
 };
 
 template <typename PointeeType>
@@ -271,7 +271,7 @@ class GuestType<PointeeType*> {
   constexpr Type operator->() { return ToHostAddr<PointeeType>(value_); }
 
  private:
-  GuestAddr value_ = 0;
+  GuestAddr value_ = {};
 };
 
 template <typename PointeeType>
@@ -295,7 +295,7 @@ class GuestType<PointeeType* const> {
   constexpr Type operator->() { return ToHostAddr<PointeeType>(value_); }
 
  private:
-  const GuestAddr value_ = 0;
+  const GuestAddr value_ = {};
 };
 
 // Pointer to function could be implicitly converted to GuestAddr.  It couldn't be called without
@@ -321,7 +321,7 @@ class GuestType<ResultType (*)(ArgumentType...)> {
   }
 
  private:
-  GuestAddr value_ = 0;
+  GuestAddr value_ = {};
 };
 
 template <typename ResultType, typename... ArgumentType>
@@ -344,7 +344,7 @@ class GuestType<ResultType (*const)(ArgumentType...)> {
   }
 
  private:
-  const GuestAddr value_ = 0;
+  const GuestAddr value_ = {};
 };
 
 // Const cast conversion routine for most GuestTypes. If a certain type is not compatible for some

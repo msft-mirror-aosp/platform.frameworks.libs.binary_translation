@@ -55,7 +55,9 @@ cc_library_static {
     ],
     host_supported: true,
     srcs: [
-        "execute_guest.cc",
+        // TODO(b/288435635): Implement full initialization and move
+        // berberis.cc to berberis_runtime.
+        "berberis.cc",
         "run_guest_call_riscv64.cc",
         "translator_riscv64.cc",
     ],
@@ -93,7 +95,8 @@ cc_library_static {
         "libberberis_runtime_headers",
     ],
     srcs: [
-        "berberis.cc",
+        "berberis_common.cc",
+        "execute_guest.cc",
         "execute_guest_call.cc",
         "runtime_library.cc",
         "translator.cc",

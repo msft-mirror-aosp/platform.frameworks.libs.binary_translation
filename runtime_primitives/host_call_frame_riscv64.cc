@@ -24,7 +24,7 @@
 
 namespace berberis {
 
-GuestAddr ScopedHostCallFrame::g_host_call_frame_guest_pc_ = 0;
+GuestAddr ScopedHostCallFrame::g_host_call_frame_guest_pc_ = {};
 
 // For RISC-V, guest function preserves at least sp and returns by jumping
 // to address provided in ra. So here ctor emulates the following code:

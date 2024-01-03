@@ -51,8 +51,4 @@ void InitBerberis() {
   UNUSED(initialized);
 }
 
-void PreZygoteForkUnsafe() {
-  TranslationCache::GetInstance()->PreZygoteForkUnsafe();
-}
-
 }  // namespace berberis
