@@ -54,6 +54,21 @@ static_assert(BitUtilLog2(1) == 0);
 static_assert(BitUtilLog2(16) == 4);
 static_assert(BitUtilLog2(sizeof(void*)) > 0);
 
+static_assert(Popcount(~int32_t{1}) == 31);
+static_assert(Popcount(RawInt32{~Int32{1}}) == RawInt32{31});
+static_assert(Popcount(SatInt32{~Int32{1}}) == SatInt32{31});
+static_assert(Popcount(~Int32{1}) == Int32{31});
+static_assert(Popcount(~int64_t{1}) == 63);
+static_assert(Popcount(RawInt64{~Int64{1}}) == RawInt64{63});
+static_assert(Popcount(SatInt64{~Int64{1}}) == SatInt64{63});
+static_assert(Popcount(~Int64{1}) == Int64{63});
+#if defined(__x86_64__)
+static_assert(Popcount(~__int128_t{1}) == 127);
+static_assert(Popcount(RawInt128{~Int128{1}}) == RawInt128{127});
+static_assert(Popcount(SatInt128{~Int128{1}}) == SatInt128{127});
+static_assert(Popcount(~Int128{1}) == Int128{127});
+#endif
+
 static_assert(SatInt8{127} + SatInt8{1} == SatInt8{127});
 static_assert(Int8{127} + Int8{1} == Int8{-128});
 
