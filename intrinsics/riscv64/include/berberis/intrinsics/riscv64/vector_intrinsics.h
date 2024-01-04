@@ -346,6 +346,18 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redor, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redxor, (args ^ ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redmin, std::min(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redmax, std::max(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mul, auto [arg1, arg2] = std::tuple{args...}; (arg2 * arg1))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mul, auto [arg1, arg2] = std::tuple{args...}; (arg2 * arg1))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulh, auto [arg1, arg2] = std::tuple{args...};
+                                   NarrowTopHalf(Widen(arg2) * Widen(arg1)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulh, auto [arg1, arg2] = std::tuple{args...};
+                                   NarrowTopHalf(Widen(arg2) * Widen(arg1)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulhsu, auto [arg1, arg2] = std::tuple{args...};
+                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
+                                                 Widen(BitCastToUnsigned(arg1))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args...};
+                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
+                                                 Widen(BitCastToUnsigned(arg1))))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
