@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-#include "berberis/runtime_primitives/translation_cache.h"
+#ifndef BERBERIS_RUNTIME_INIT_GUEST_ARCH_H_
+#define BERBERIS_RUNTIME_INIT_GUEST_ARCH_H_
+
+#include "berberis/guest_state/guest_addr.h"
 
 namespace berberis {
 
-void PreZygoteForkUnsafe() {
-  TranslationCache::GetInstance()->PreZygoteForkUnsafe();
-}
+void InitGuestArch();
 
 }  // namespace berberis
+
+#endif  // BERBERIS_RUNTIME_INIT_GUEST_ARCH_H_
