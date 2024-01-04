@@ -260,6 +260,9 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
         DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                     \
   }
 
+#define DEFINE_1OP_ARITHMETIC_INTRINSIC_M(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##m, return ({ __VA_ARGS__; }); \
+                              , (Int128 src), (src))
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##vs, return ({ __VA_ARGS__; }); \
                               , (ElementType src1, ElementType src2), (src1, src2))
@@ -358,9 +361,15 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulhsu, auto [arg1, arg2] = std::tuple{args..
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args...};
                                    NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
                                                  Widen(BitCastToUnsigned(arg1))))
+DEFINE_1OP_ARITHMETIC_INTRINSIC_M(cpop, Popcount(args...))
+DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
+                                  (arg == Int128{0})
+                                  ? Int128{-1}
+                                  : Popcount(arg ^ (arg - Int128{1})))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
+#undef DEFINE_1OP_ARITHMETIC_INTRINSIC_M
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VS
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
