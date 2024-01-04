@@ -24,6 +24,7 @@
 #include <type_traits>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/dependent_false.h"
 
 namespace berberis {
 
@@ -198,6 +199,39 @@ inline bool IsInRange(ArgumentType x) {
   // in the destination type; otherwise, the value is implementation-defined.
 
   return static_cast<ResultType>(x) == x;
+}
+
+template <typename T>
+[[nodiscard]] constexpr T Popcount(T x) {
+  // We couldn't use std::popcount yet ( http://b/318678905 ) for __uint128_t .
+  // Switch to std::popcount when/if that bug would be fixed.
+#if defined(__x86_64__)
+  if constexpr (sizeof(T) == sizeof(unsigned __int128)) {
+    return __builtin_popcountll(x) + __builtin_popcountll(x >> 64);
+  } else
+#endif
+      if constexpr (sizeof(T) == sizeof(uint64_t)) {
+    return __builtin_popcountll(x);
+  } else if constexpr (sizeof(T) == sizeof(uint32_t)) {
+    return __builtin_popcount(x);
+  } else {
+    static_assert(kDependentTypeFalse<T>);
+  }
+}
+
+template <typename T>
+[[nodiscard]] constexpr Raw<T> Popcount(Raw<T> x) {
+  return {Popcount(x.value)};
+}
+
+template <typename T>
+[[nodiscard]] constexpr Saturating<T> Popcount(Saturating<T> x) {
+  return {Popcount(x.value)};
+}
+
+template <typename T>
+[[nodiscard]] constexpr Wrapping<T> Popcount(Wrapping<T> x) {
+  return {Popcount(x.value)};
 }
 
 // bit_cast<Dest, Source> is a well-defined equivalent of address-casting:
