@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/runtime/init_guest_arch.h"
 #include "berberis/runtime/translator.h"
 #include "berberis/runtime_primitives/crash_reporter.h"
 #include "berberis/runtime_primitives/guest_function_wrapper_impl.h"
@@ -40,6 +41,7 @@ bool InitBerberisUnsafe() {
   InitGuestFunctionWrapper(&IsAddressGuestExecutable);
   InitTranslator();
   InitCrashReporter();
+  InitGuestArch();
   return true;
 }
 
@@ -49,6 +51,10 @@ void InitBerberis() {
   // C++11 guarantees this is called only once and is thread-safe.
   static bool initialized = InitBerberisUnsafe();
   UNUSED(initialized);
+}
+
+void PreZygoteForkUnsafe() {
+  TranslationCache::GetInstance()->PreZygoteForkUnsafe();
 }
 
 }  // namespace berberis
