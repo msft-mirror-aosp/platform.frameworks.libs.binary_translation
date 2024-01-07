@@ -251,6 +251,33 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void TestVₓmₓsInstruction(uint32_t insn_bytes,
+                            const uint64_t (&expected_result_no_mask)[129],
+                            const uint64_t (&expected_result_with_mask)[129],
+                            const __v2du source) {
+    auto Verify = [this, &source](uint32_t insn_bytes,
+                                  const uint64_t (&expected_result)[129]) {
+      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
+
+      auto [vlmax, vtype] = intrinsics::Vsetvl(~0ULL, 3);
+      state_.cpu.vtype = vtype;
+      state_.cpu.vstart = 0;
+      state_.cpu.v[16] = SIMD128Register{source}.Get<__uint128_t>();
+
+      for (uint8_t vl = 0; vl <= vlmax; ++vl) {
+        state_.cpu.vl = vl;
+        SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
+
+        state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+        EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+        EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result[vl]) << std::to_string(vl);
+      }
+    };
+
+    Verify(insn_bytes, expected_result_with_mask);
+    Verify(insn_bytes | (1 << 25), expected_result_no_mask);
+  }
+
   void TestVectorReductionInstruction(uint32_t insn_bytes,
                                       const uint8_t (&expected_result_vd0_int8)[8],
                                       const uint16_t (&expected_result_vd0_int16)[8],
@@ -3243,6 +3270,40 @@ TEST_F(Riscv64InterpreterTest, TestVmulhsu) {
        {0xb2dd'b389'0989'b4df, 0xb030'5b86'5c31'b232},
        {0xad83'0383'aed9'af84, 0xaad5'ab81'0181'acd7}},
       kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVcpopm) {
+  TestVₓmₓsInstruction(
+      0x410820d7,  // vcpop.m x1, v16, v0.t
+      { 0, /* default value when vl=0 */
+        0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  2,
+        2,  3,  3,  3,  3,  3,  3,  3,  4,  5,  5,  5,  5,  5,  5,  6,
+        6,  6,  7,  7,  7,  7,  7,  7,  8,  8,  9,  9,  9,  9,  9, 10,
+       10, 11, 12, 12, 12, 12, 12, 12, 13, 14, 15, 15, 15, 15, 15, 16,
+       16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20,
+       20, 21, 21, 22, 22, 22, 22, 22, 23, 24, 24, 25, 25, 25, 25, 26,
+       26, 26, 27, 28, 28, 28, 28, 28, 29, 29, 30, 31, 31, 31, 31, 32,
+       32, 33, 34, 35, 35, 35, 35, 35, 36, 37, 38, 39, 39, 39, 39, 40},
+      { 0, /* default value when vl=0 */
+        0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  2,
+        2,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  4,  4,  5,
+        5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  8,
+        8,  8,  9,  9,  9,  9,  9,  9, 10, 10, 11, 11, 11, 11, 11, 12,
+       12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 14, 14, 14, 14, 14,
+       14, 14, 14, 15, 15, 15, 15, 15, 15, 16, 16, 17, 17, 17, 17, 18,
+       18, 18, 18, 19, 19, 19, 19, 19, 20, 20, 21, 21, 21, 21, 21, 21,
+       21, 22, 23, 23, 23, 23, 23, 23, 23, 24, 24, 25, 25, 25, 25, 25},
+      kVectorCalculationsSource[0]);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfirstm) {
+  TestVₓmₓsInstruction(
+      0x4108a0d7,  // vfirst.m x1, v16, v0.t
+      { [0 ... 8] = ~0ULL,
+        [9 ... 128] = 9 },
+      { [0 ... 8] = ~0ULL,
+        [9 ... 128] = 9 },
+      kVectorCalculationsSource[0]);
 }
 
 }  // namespace
