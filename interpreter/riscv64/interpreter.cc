@@ -1,4 +1,4 @@
-/*'
+/*
  * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -740,6 +740,15 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVredmaxvs:
         return OpVectorvs<intrinsics::Vredmaxvs<SignedType>, SignedType, vlmul, vta>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVₓmₓs:
+        switch (args.subopcode) {
+          case Decoder::VₓmₓsOpcode::kVcpopm:
+            return OpVectorVₓmₓs<intrinsics::Vcpopm<Int128>>(args.dst, args.src1);
+          case Decoder::VₓmₓsOpcode::kVfirstm:
+            return OpVectorVₓmₓs<intrinsics::Vfirstm<Int128>>(args.dst, args.src1);
+          default:
+              return Unimplemented();
+        }
       case Decoder::VOpMVvOpcode::kVmandnmm:
         return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs & ~rhs; }>(
             args.dst, args.src1, args.src2);
@@ -927,6 +936,39 @@ class Interpreter {
       result = Intrinsic(arg1, arg2) | intrinsics::MakeBitmaskFromVl(vl);
     }
     state_->cpu.v[dst] = result.Get<__uint128_t>();
+  }
+
+  template <auto Intrinsic>
+  void OpVectorVₓmₓs(uint8_t dst, uint8_t src1) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    if (vstart != 0) {
+      return Unimplemented();
+    }
+    SIMD128Register arg1, result;
+    arg1.Set(state_->cpu.v[src1]);
+    arg1 &= ~intrinsics::MakeBitmaskFromVl(vl);
+    result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
+    SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <auto Intrinsic,
+            InactiveProcessing vma>
+  void OpVectorVₓmₓs(uint8_t dst, uint8_t src1) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    if (vstart != 0) {
+      return Unimplemented();
+    }
+    SIMD128Register mask, arg1, result;
+    mask.Set(state_->cpu.v[0]);
+    arg1.Set(state_->cpu.v[src1]);
+    arg1 &= mask;
+    arg1 &= ~intrinsics::MakeBitmaskFromVl(vl);
+    result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
+    SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -1224,6 +1266,15 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVredmaxuvs:
         return OpVectorvs<intrinsics::Vredmaxvs<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVₓmₓs:
+        switch (args.subopcode) {
+          case Decoder::VₓmₓsOpcode::kVcpopm:
+            return OpVectorVₓmₓs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
+          case Decoder::VₓmₓsOpcode::kVfirstm:
+            return OpVectorVₓmₓs<intrinsics::Vfirstm<Int128>, vma>(args.dst, args.src1);
+          default:
+              return Unimplemented();
+        }
       case Decoder::VOpMVvOpcode::kVredmaxvs:
         return OpVectorvs<intrinsics::Vredmaxvs<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
