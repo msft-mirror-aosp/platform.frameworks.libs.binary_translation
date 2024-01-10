@@ -362,10 +362,19 @@ class Decoder {
     kVmnandmm = 0b011101,
     kVmnormm = 0b011110,
     kVmxnormm = 0b011111,
+    kVₓmₓs = 0b010000,
+    kVmulhuvv = 0b100100,
+    kVmulvv = 0b100101,
+    kVmulhsuvv = 0b100110,
+    kVmulhvv = 0b100111,
     kVmaddvv = 0b101001,
     kVnmsubvv = 0b101011,
     kVmaccvv = 0b101101,
     kVnmsacvv = 0b101111,
+    kVwadduvv = 0b110000,
+    kVwaddvv = 0b110001,
+    kVwsubuvv = 0b110010,
+    kVwsubvv = 0b110011,
     kMaxValue = 0b111111
   };
 
@@ -414,6 +423,10 @@ class Decoder {
   };
 
   enum class VOpMVxOpcode : uint8_t {
+    kVmulhuvx = 0b100100,
+    kVmulvx = 0b100101,
+    kVmulhsuvx = 0b100110,
+    kVmulhvx = 0b100111,
     kVmaddvx = 0b101001,
     kVnmsubvx = 0b101011,
     kVmaccvx = 0b101101,
@@ -423,6 +436,12 @@ class Decoder {
 
   enum class VStoreUnitStrideOpcode : uint8_t {
     kVsₓ = 0b01000,
+    kMaxValue = 0b11111,
+  };
+
+  enum class VₓmₓsOpcode : uint8_t {
+    kVcpopm = 0b10000,
+    kVfirstm = 0b10001,
     kMaxValue = 0b11111,
   };
 
@@ -692,7 +711,10 @@ class Decoder {
     bool vm;
     uint8_t dst;
     uint8_t src1;
-    uint8_t src2;
+    union {
+      VₓmₓsOpcode subopcode;
+      uint8_t src2;
+    };
   };
 
   struct VOpIVxArgs {
