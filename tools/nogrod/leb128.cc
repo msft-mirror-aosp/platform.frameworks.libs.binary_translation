@@ -16,6 +16,7 @@
 
 #include "leb128.h"
 
+#include <cstring>
 #include <inttypes.h>
 #include <limits.h>
 
