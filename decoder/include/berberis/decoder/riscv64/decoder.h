@@ -362,7 +362,7 @@ class Decoder {
     kVmnandmm = 0b011101,
     kVmnormm = 0b011110,
     kVmxnormm = 0b011111,
-    kVₓmₓs  = 0b010000,
+    kVₓmₓs = 0b010000,
     kVmulhuvv = 0b100100,
     kVmulvv = 0b100101,
     kVmulhsuvv = 0b100110,
@@ -371,6 +371,10 @@ class Decoder {
     kVnmsubvv = 0b101011,
     kVmaccvv = 0b101101,
     kVnmsacvv = 0b101111,
+    kVwadduvv = 0b110000,
+    kVwaddvv = 0b110001,
+    kVwsubuvv = 0b110010,
+    kVwsubvv = 0b110011,
     kMaxValue = 0b111111
   };
 
