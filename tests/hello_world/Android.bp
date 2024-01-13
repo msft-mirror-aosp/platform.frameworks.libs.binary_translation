@@ -39,3 +39,27 @@ cc_test {
     defaults: ["berberis_hello_world_defaults"],
     static_executable: true,
 }
+
+cc_defaults {
+    name: "berberis_hello_world_arm64_nocrt_defaults",
+    native_bridge_supported: true,
+    enabled: false,
+    arch: {
+        arm64: {
+            enabled: true,
+            srcs: ["main_arm64.S"],
+        },
+    },
+    nocrt: true,
+}
+
+cc_test {
+    name: "berberis_hello_world_arm64_nocrt",
+    defaults: ["berberis_hello_world_arm64_nocrt_defaults"],
+}
+
+cc_test {
+    name: "berberis_hello_world_arm64_nocrt_static",
+    defaults: ["berberis_hello_world_arm64_nocrt_defaults"],
+    static_executable: true,
+}
