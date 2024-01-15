@@ -34,7 +34,7 @@
 // <android/dlext.h>
 struct android_namespace_t;
 
-typedef struct {
+struct android_dlextinfo {
   uint64_t flags;
   void* reserved_addr;
   size_t reserved_size;
@@ -42,35 +42,35 @@ typedef struct {
   int library_fd;
   off64_t library_fd_offset;
   struct android_namespace_t* library_namespace;
-} android_dlextinfo;
+};
 #endif
 
 namespace berberis {
 
 struct LinkerCallbacks {
-  typedef android_namespace_t* (*android_create_namespace_fn_t)(
-      const char* name,
-      const char* ld_library_path,
-      const char* default_library_path,
-      uint64_t type,
-      const char* permitted_when_isolated_path,
-      android_namespace_t* parent_namespace,
-      const void* caller_addr);
-  typedef void* (*android_dlopen_ext_fn_t)(const char* filename,
-                                           int flags,
-                                           const android_dlextinfo* extinfo,
-                                           const void* caller_addr);
-  typedef android_namespace_t* (*android_get_exported_namespace_fn_t)(const char* name);
-  typedef bool (*android_init_anonymous_namespace_fn_t)(const char* shared_libs_sonames,
-                                                        const char* library_search_path);
-  typedef bool (*android_link_namespaces_fn_t)(android_namespace_t* namespace_from,
-                                               android_namespace_t* namespace_to,
-                                               const char* shared_libs_sonames);
-  typedef void (*android_set_application_target_sdk_version_fn_t)(int target);
-  typedef uintptr_t (*dl_unwind_find_exidx_fn_t)(uintptr_t pc, int* pcount);
-  typedef int (*dladdr_fn_t)(const void* addr, Dl_info* info);
-  typedef char* (*dlerror_fn_t)();
-  typedef void* (*dlsym_fn_t)(void* handle, const char* symbol, const void* caller_addr);
+  using android_create_namespace_fn_t =
+      android_namespace_t* (*)(const char* name,
+                               const char* ld_library_path,
+                               const char* default_library_path,
+                               uint64_t type,
+                               const char* permitted_when_isolated_path,
+                               android_namespace_t* parent_namespace,
+                               const void* caller_addr);
+  using android_dlopen_ext_fn_t = void* (*)(const char* filename,
+                                            int flags,
+                                            const android_dlextinfo* extinfo,
+                                            const void* caller_addr);
+  using android_get_exported_namespace_fn_t = android_namespace_t* (*)(const char* name);
+  using android_init_anonymous_namespace_fn_t = bool (*)(const char* shared_libs_sonames,
+                                                         const char* library_search_path);
+  using android_link_namespaces_fn_t = bool (*)(android_namespace_t* namespace_from,
+                                                android_namespace_t* namespace_to,
+                                                const char* shared_libs_sonames);
+  using android_set_application_target_sdk_version_fn_t = void (*)(int target);
+  using dl_unwind_find_exidx_fn_t = uintptr_t (*)(uintptr_t pc, int* pcount);
+  using dladdr_fn_t = int (*)(const void* addr, Dl_info* info);
+  using dlerror_fn_t = char* (*)();
+  using dlsym_fn_t = void* (*)(void* handle, const char* symbol, const void* caller_addr);
 
   android_create_namespace_fn_t create_namespace_fn_ = nullptr;
   android_dlopen_ext_fn_t dlopen_ext_fn_ = nullptr;

@@ -135,7 +135,7 @@ T* NewArrayInArena(Arena* arena, size_t size) {
 template <class T>
 class ArenaAllocator {
  public:
-  typedef T value_type;
+  using value_type = T;
 
   // Allow passing arena as allocator arg of STL container ctor.
   ArenaAllocator(Arena* arena) : arena_(arena) {}  // NOLINT(runtime/explicit)

@@ -259,7 +259,7 @@ TEST(File, PositionalPrintf) {
 
 TEST(File, FdPrintf) {
   TempFile f;
-  typedef int (*FdPrintf)(int fd, const char* format, ...);
+  using FdPrintf = int (*)(int fd, const char* format, ...);
   FdPrintf fdprintf = reinterpret_cast<FdPrintf>(dlsym(RTLD_DEFAULT, "fdprintf"));
   ASSERT_GT(fdprintf(f.fd(), "%.1lf %d %lld\n", 1.0, 2, 3LL), 0);
   ASSERT_EQ(fseek(f.get(), 0, SEEK_SET), 0);
