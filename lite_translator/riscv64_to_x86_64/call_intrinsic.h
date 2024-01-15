@@ -180,8 +180,8 @@ class ConstExprCheckAssembler {
 // Helper wrapper to pass the intrinsic type down the generic lambda.
 template <typename T, typename U>
 struct ArgWrap {
-  typedef T AssemblerType;
-  typedef U IntrinsicType;
+  using AssemblerType = T;
+  using IntrinsicType = U;
   AssemblerType value;
 };
 

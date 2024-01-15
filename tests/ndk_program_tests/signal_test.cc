@@ -214,7 +214,7 @@ TEST(Signal, RecoverFromNoExec) {
   ScopedSigaction scoped_sa(SIGSEGV, &sa);
 
   if (setjmp(g_recover_no_exec) == 0) {
-    typedef void (*Func)();
+    using Func = void (*)();
     (reinterpret_cast<Func>(kNoExecAddr))();
     // Signal handler should longjmp out!
     FAIL();

@@ -34,7 +34,7 @@ class ContextLivenessAnalyzer {
   bool IsLiveIn(const MachineBasicBlock* bb, uint32_t offset) const;
 
  private:
-  typedef std::bitset<sizeof(CPUState)> ContextLiveness;
+  using ContextLiveness = std::bitset<sizeof(CPUState)>;
 
   bool VisitBasicBlock(const MachineBasicBlock* bb);
 

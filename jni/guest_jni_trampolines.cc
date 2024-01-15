@@ -73,7 +73,7 @@ void GuestCall_uloc_setDefault(GuestAddr addr, const char* tag) {
 }
 
 // from external/icu/icu4c/source/common/unicode/uversion.h
-typedef uint8_t UVersionInfo[4];
+using UVersionInfo = uint8_t[4];
 
 void GuestCall_u_getVersion(GuestAddr addr, UVersionInfo version_info) {
   CHECK_NE(addr, berberis::kNullGuestAddr);

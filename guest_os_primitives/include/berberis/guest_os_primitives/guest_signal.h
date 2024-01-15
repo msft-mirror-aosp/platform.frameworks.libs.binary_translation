@@ -39,16 +39,16 @@ using Guest_siginfo_t = siginfo_t;
 
 // Guest sigset_t, as expected by guest rt_sigprocmask syscall.
 #if defined(BERBERIS_GUEST_LP64)
-typedef struct {
+struct Guest_sigset_t {
   unsigned long __bits[1];
-} Guest_sigset_t;
+};
 CHECK_STRUCT_LAYOUT(Guest_sigset_t, 64, 64);
 #else
 // TODO(b/283352810): Explicitly support ILP32 guest data model.
 // This condition currently assumes ILP32 support.
-typedef struct {
+struct Guest_sigset_t {
   unsigned long __bits[2];
-} Guest_sigset_t;
+};
 CHECK_STRUCT_LAYOUT(Guest_sigset_t, 64, 32);
 #endif
 
