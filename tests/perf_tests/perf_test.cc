@@ -89,7 +89,7 @@ TEST(BerberisPerf, Pi) {
 }
 
 TEST(BerberisPerf, FuncPtr) {
-  typedef int (*FuncPtr)(void);
+  using FuncPtr = int (*)(void);
   static const FuncPtr fptrs[4] = {f0, f1, f2, f3};
 
   // Call functions with their pointers 100 million times.

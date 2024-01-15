@@ -32,13 +32,13 @@ constexpr int kSupportedElfClass = ELFCLASS64;
 constexpr int kSupportedElfClass = ELFCLASS32;
 #endif
 
-typedef ElfW(Addr) ElfAddr;
-typedef ElfW(Dyn) ElfDyn;
-typedef ElfW(Ehdr) ElfEhdr;
-typedef ElfW(Half) ElfHalf;
-typedef ElfW(Phdr) ElfPhdr;
-typedef ElfW(Shdr) ElfShdr;
-typedef ElfW(Sym) ElfSym;
-typedef ElfW(Word) ElfWord;
+using ElfAddr = ElfW(Addr);
+using ElfDyn = ElfW(Dyn);
+using ElfEhdr = ElfW(Ehdr);
+using ElfHalf = ElfW(Half);
+using ElfPhdr = ElfW(Phdr);
+using ElfShdr = ElfW(Shdr);
+using ElfSym = ElfW(Sym);
+using ElfWord = ElfW(Word);
 
 #endif  // BERBERIS_TINY_LOADER_ELF_TYPES_H_

@@ -43,7 +43,7 @@ bool LoadProxyLibrary(ProxyLibraryBuilder* builder,
     return false;
   }
 
-  typedef void (*InitProxyLibraryFunc)(ProxyLibraryBuilder*);
+  using InitProxyLibraryFunc = void (*)(ProxyLibraryBuilder*);
   InitProxyLibraryFunc init =
       reinterpret_cast<InitProxyLibraryFunc>(dlsym(proxy, "InitProxyLibrary"));
   if (!init) {
@@ -66,7 +66,7 @@ void InterceptGuestSymbol(GuestAddr addr,
   static std::mutex g_guard_mutex;
   std::lock_guard<std::mutex> guard(g_guard_mutex);
 
-  typedef std::map<std::string, ProxyLibraryBuilder> Libraries;
+  using Libraries = std::map<std::string, ProxyLibraryBuilder>;
   static Libraries g_libraries;
 
   auto res = g_libraries.insert({library_name, {}});
