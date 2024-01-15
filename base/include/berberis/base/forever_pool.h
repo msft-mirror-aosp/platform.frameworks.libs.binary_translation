@@ -61,7 +61,7 @@ LockFreeStack<typename ForeverPool<T>::Node> ForeverPool<T>::g_free_list_;
 template <class T>
 class ForeverPoolAllocator {
  public:
-  typedef T value_type;
+  using value_type = T;
 
   ForeverPoolAllocator() {}
 

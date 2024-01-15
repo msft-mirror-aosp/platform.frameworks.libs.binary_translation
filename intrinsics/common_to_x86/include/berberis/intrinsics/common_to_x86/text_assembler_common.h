@@ -282,13 +282,13 @@ class TextAssemblerX86 {
   };
 
   constexpr static char kSpl[] = "%%spl";
-  typedef RegisterTemplate<kSpl, 'b'> Register8Bit;
+  using Register8Bit = RegisterTemplate<kSpl, 'b'>;
   constexpr static char kSp[] = "%%sp";
-  typedef RegisterTemplate<kSp, 'w'> Register16Bit;
+  using Register16Bit = RegisterTemplate<kSp, 'w'>;
   constexpr static char kEsp[] = "%%esp";
-  typedef RegisterTemplate<kEsp, 'k'> Register32Bit;
+  using Register32Bit = RegisterTemplate<kEsp, 'k'>;
   constexpr static char kRsp[] = "%%rsp";
-  typedef RegisterTemplate<kRsp, 'q'> Register64Bit;
+  using Register64Bit = RegisterTemplate<kRsp, 'q'>;
 
   void SetRequiredFeatureAVX() {
     need_avx = true;

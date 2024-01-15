@@ -64,7 +64,7 @@ TEST(RuntimeCodePatching, PatchCodeInCurrentThread) {
   // ATTENTION: flush insn cache! Otherwise just mmaped page might remain cached with wrong prot!
   ClearInsnCache(code, code + 1024);
 
-  typedef int32_t (*Func)();
+  using Func = int32_t (*)();
   int32_t result = (reinterpret_cast<Func>(code))();
   EXPECT_EQ(result, 11);
 
@@ -95,7 +95,7 @@ TEST(RuntimeCodePatching, PatchCodeInOtherThread) {
 
   volatile int func_thread_started = 0;
 
-  typedef void* (*Func)(void*);
+  using Func = void* (*)(void*);
   pthread_t func_thread;
   ASSERT_EQ(pthread_create(&func_thread,
                            nullptr,
