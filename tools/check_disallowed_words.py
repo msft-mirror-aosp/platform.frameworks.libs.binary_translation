@@ -33,6 +33,7 @@ def check_disallowed_words(commit):
       'NDK translation',
       'NdkTranslation',
       'ndk_translation',
+      'typedef',
   ]
 
   for line in output.splitlines():
