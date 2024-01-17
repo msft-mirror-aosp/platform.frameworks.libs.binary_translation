@@ -48,7 +48,7 @@ TEST(Syscall, CacheFlush) {
   memcpy(start, code_template, sizeof(code_template));
   uint8_t* end = start + sizeof(code_template);
   ASSERT_EQ(syscall(kCacheFlushSyscall, start, end, 0), 0);
-  typedef int (*TestFunc)(void);
+  using TestFunc = int (*)(void);
   TestFunc func = reinterpret_cast<TestFunc>(start);
   ASSERT_EQ(func(), 0x1);
   *reinterpret_cast<uint32_t*>(start) = 0xe3000011;  // movw r0, #0x11

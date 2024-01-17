@@ -29,9 +29,9 @@
 #include "berberis/test_utils/scoped_exec_region.h"
 
 #if defined(__i386__)
-typedef berberis::x86_32::Assembler CodeEmitter;
+using CodeEmitter = berberis::x86_32::Assembler;
 #elif defined(__amd64__)
-typedef berberis::x86_64::Assembler CodeEmitter;
+using CodeEmitter = berberis::x86_64::Assembler;
 #else
 #error "Unsupported platform"
 #endif
@@ -166,7 +166,7 @@ bool CondTest1() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc(int, int);
+  using TestFunc = uint32_t(int, int);
   auto target_func = exec.get<TestFunc>();
   uint32_t result = target_func(1, 2);
   if (result != 0xcccccc00) {
@@ -196,7 +196,7 @@ bool CondTest2() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc(int, int);
+  using TestFunc = uint32_t(int, int);
   auto target_func = exec.get<TestFunc>();
   uint32_t result = target_func(0x11, 1);
   if (result != 0x1) {
@@ -243,7 +243,7 @@ bool JccTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef int TestFunc(int, int);
+  using TestFunc = int(int, int);
   auto target_func = exec.get<TestFunc>();
   int result = target_func(1, 1);
   if (result != 0) {
@@ -276,7 +276,7 @@ bool ShiftTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc(uint32_t);
+  using TestFunc = uint32_t(uint32_t);
   uint32_t result = exec.get<TestFunc>()(22);
   return result == (22 << 4);
 }
@@ -294,7 +294,7 @@ bool LogicTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc(uint32_t);
+  using TestFunc = uint32_t(uint32_t);
   uint32_t result = exec.get<TestFunc>()(239);
   return result == ((239 ^ 1) & 0xf);
 }
@@ -312,7 +312,7 @@ bool BsrTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc(uint32_t arg);
+  using TestFunc = uint32_t(uint32_t arg);
   auto func = exec.get<TestFunc>();
   return func(0) == 239 && func(1 << 15) == 15;
 }
@@ -331,7 +331,7 @@ bool CallFPTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc();
+  using TestFunc = uint32_t();
   uint32_t result = exec.get<TestFunc>()();
   return result == 0x3f800000;
 }
@@ -350,7 +350,7 @@ bool XmmTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc();
+  using TestFunc = uint32_t();
   uint32_t result = exec.get<TestFunc>()();
   return result == 0x40400000;
 }
@@ -372,7 +372,7 @@ bool ReadGlobalTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef void TestFunc(void*, void*);
+  using TestFunc = void(void*, void*);
   uint8_t res1[8];
   uint8_t res2[16];
   exec.get<TestFunc>()(res1, res2);
@@ -452,7 +452,7 @@ bool LabelTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef int TestFunc();
+  using TestFunc = int();
   int result = exec.get<TestFunc>()();
   return result == uint8_t(239 + 0xc3) + 12;
 }
@@ -470,7 +470,7 @@ bool CondTest1() {
 
   std::string code_str;
   code.AsString(&code_str);
-  typedef uint32_t TestFunc(int, int);
+  using TestFunc = uint32_t(int, int);
   auto target_func = exec.get<TestFunc>();
   uint32_t result;
   result = target_func(1, 2);
@@ -503,7 +503,7 @@ bool CondTest2() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc(int, int);
+  using TestFunc = uint32_t(int, int);
   auto target_func = exec.get<TestFunc>();
   uint32_t result = target_func(0x11, 1);
   if (result != 0x1) {
@@ -548,7 +548,7 @@ bool JccTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef int TestFunc(int, int);
+  using TestFunc = int(int, int);
   auto target_func = exec.get<TestFunc>();
   int result;
   result = target_func(1, 1);
@@ -583,7 +583,7 @@ bool ReadWriteTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc(uint8_t*, uint32_t*);
+  using TestFunc = uint32_t(uint8_t*, uint32_t*);
   uint8_t p1[4] = {0x12, 0x34, 0x56, 0x78};
   uint32_t p2 = 0x239;
   uint32_t result = exec.get<TestFunc>()(p1, &p2);
@@ -604,7 +604,7 @@ bool CallFPTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc();
+  using TestFunc = uint32_t();
   uint32_t result = exec.get<TestFunc>()();
   return result == 0x3f800000;
 }
@@ -626,7 +626,7 @@ bool XmmTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc();
+  using TestFunc = uint32_t();
   uint32_t result = exec.get<TestFunc>()();
   return result == 0x40c00000;
 }
@@ -649,7 +649,7 @@ bool XmmMemTest() {
   char bits[16], *p = bits + 5;
   memcpy(p, &d, sizeof(d));
 
-  typedef uint64_t TestFunc(char* p);
+  using TestFunc = uint64_t(char* p);
   uint64_t result = exec.get<TestFunc>()(p);
   uint64_t doubled = *reinterpret_cast<uint64_t*>(p);
   return result == 0x406de00000000000ULL && doubled == 0x407de00000000000ULL;
@@ -669,7 +669,7 @@ bool MovsxblRexTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc();
+  using TestFunc = uint32_t();
   uint32_t result = exec.get<TestFunc>()();
 
   return result == 0xffffffff;
@@ -689,7 +689,7 @@ bool MovzxblRexTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc();
+  using TestFunc = uint32_t();
   uint32_t result = exec.get<TestFunc>()();
 
   return result == 0x000000ff;
@@ -718,7 +718,7 @@ bool ShldlRexTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc();
+  using TestFunc = uint32_t();
   uint32_t result = exec.get<TestFunc>()();
 
   return result == 0x1212;
@@ -747,7 +747,7 @@ bool ShrdlRexTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef uint32_t TestFunc();
+  using TestFunc = uint32_t();
   uint32_t result = exec.get<TestFunc>()();
 
   return result == 0x78780000;
@@ -774,7 +774,7 @@ bool ReadGlobalTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef void TestFunc(void*, void*);
+  using TestFunc = void(void*, void*);
   uint8_t res1[8];
   uint8_t res2[16];
   exec.get<TestFunc>()(res1, res2);
@@ -801,7 +801,7 @@ bool MemShiftTest() {
 
   ScopedExecRegion exec(&code);
 
-  typedef int TestFunc(int x);
+  using TestFunc = int(int x);
   int result = exec.get<TestFunc>()(0x10);
 
   return result == 0x20;

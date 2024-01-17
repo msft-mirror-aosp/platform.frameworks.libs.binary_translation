@@ -35,13 +35,13 @@ TEST(HandleNotExecutable, NotExecutable) {
                                                     MAP_PRIVATE | MAP_ANONYMOUS,
                                                     -1,
                                                     0));
-  typedef void (*Func)();
+  using Func = void (*)();
   ASSERT_EXIT((reinterpret_cast<Func>(code))(), testing::KilledBySignal(SIGSEGV), "");
   munmap(code, sysconf(_SC_PAGESIZE));
 }
 
 TEST(HandleNotExecutable, PcLessThan4096) {
-  typedef void (*Func)();
+  using Func = void (*)();
   ASSERT_EXIT((reinterpret_cast<Func>(const_cast<void*>(g_null_addr)))(),
               testing::KilledBySignal(SIGSEGV),
               "");
@@ -99,7 +99,7 @@ TEST(HandleNotExecutable, ExecutableToNotExecutablePageCrossing) {
   uint32_t* start_addr = second_page - kFirstPageInsnNum;
   memcpy(start_addr, kPageCrossingCode, sizeof(kPageCrossingCode));
 
-  typedef void (*Func)(void (*)());
+  using Func = void (*)(void (*)());
   ASSERT_EXIT((reinterpret_cast<Func>(start_addr))(&FirstPageExecutionHelper),
               testing::KilledBySignal(SIGSEGV),
               "First page has executed");

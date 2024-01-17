@@ -69,7 +69,7 @@ TEST(Ctype, CharType) {
   EXPECT_FALSE(isascii(-1));
 }
 
-typedef int (*CharTypeFunc)(int chr);
+using CharTypeFunc = int (*)(int chr);
 
 // The ctype functions must not be inlined to test their function trampolines.  To prevent inlining,
 // make an indirect call through a volatile function pointer.
