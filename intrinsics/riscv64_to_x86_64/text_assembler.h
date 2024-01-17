@@ -38,7 +38,7 @@ class TextAssembler : public TextAssemblerX86<TextAssembler> {
   static constexpr char kNamespaceName[] = "berberis";
 
  protected:
-  typedef RegisterTemplate<kRsp, 'q'> RegisterDefaultBit;
+  using RegisterDefaultBit = RegisterTemplate<kRsp, 'q'>;
 
  private:
   using Assembler = TextAssembler;
