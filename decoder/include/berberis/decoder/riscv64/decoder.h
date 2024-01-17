@@ -1352,7 +1352,7 @@ class Decoder {
   static auto SignExtend(const Type val) {
     static_assert(std::is_integral_v<Type>, "Only integral types are supported");
     static_assert(size > 0 && size < (sizeof(Type) * CHAR_BIT), "Invalid size value");
-    typedef std::make_signed_t<Type> SignedType;
+    using SignedType = std::make_signed_t<Type>;
     struct {
       SignedType val : size;
     } holder = {.val = static_cast<SignedType>(val)};

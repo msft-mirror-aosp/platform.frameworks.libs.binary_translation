@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,38 +55,32 @@ constexpr uint32_t kPageCrossingCode[] = {
     // First page
     //
 
-    // addi sp, sp, -16
-    0xff010113,
-    // sd ra, 8(sp) (push ra)
+    // push {lr}
     //
-    // We may need ra for graceful return if SIGSEGV doesn't happen.
-    0x00113423,
-    // jalr a0
+    // We may need lr for graceful return if SIGSEGV doesn't happen.
+    0xe52de004,
+    // blx r0
     //
     // The only way to check that this was executed (i.e. SIGSEGV didn't happen too early) is to
     // print something to stderr. Call FirstPageExecutionHelper for this.
-    0x000500e7,
+    0xe12fff30,
     // nop
     //
-    // Make sure we cross pages without jumps (i.e. we don't return from jalr directly to the second
-    // page).
-    0x00000013,
+    // Make sure we cross pages without jumps (i.e. we don't
+    // return from blx directly to the second page).
+    0xe320f000,
 
     //
     // Second page
     //
 
-    // ld ra, 8(sp) (pop ra)
+    // pop {pc}
     //
     // If SIGSEGV doesn't happen, make sure we return cleanly.
-    0x00813083,
-    // addi sp, sp, 16
-    0x01010113,
-    // ret
-    0x00008067,
+    0xe49df004,
 };
 
-constexpr size_t kFirstPageInsnNum = 4;
+constexpr size_t kFirstPageInsnNum = 3;
 
 void FirstPageExecutionHelper() {
   fprintf(stderr, "First page has executed");

@@ -175,7 +175,7 @@ TEST(CodeGenLib, GenWrapGuestFunction_Run10Int) {
 
   ScopedExecRegion exec(&machine_code);
 
-  typedef int Func(int, int, int, int, int, int, int, int, int, int);
+  using Func = int(int, int, int, int, int, int, int, int, int, int);
   int res = exec.get<Func>()(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
   ASSERT_EQ(45, res);
 }
@@ -221,7 +221,7 @@ TEST(CodeGenLib, GenWrapGuestFunction_Run10Fp) {
 
   ScopedExecRegion exec(&machine_code);
 
-  typedef float Func(float, float, float, float, float, float, float, float, float, float);
+  using Func = float(float, float, float, float, float, float, float, float, float, float);
   float res = exec.get<Func>()(0.0f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f, 7.7f, 8.8f, 9.9f);
   ASSERT_FLOAT_EQ(45.45f, res);
 }

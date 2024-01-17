@@ -56,8 +56,8 @@ struct Node {
   explicit Node(unsigned e) : elem1(e), elem2(e + 11) {}
 };
 
-typedef ArenaList<Node*> FastList;
-typedef ArenaVector<Node*> FastVector;
+using FastList = ArenaList<Node*>;
+using FastVector = ArenaVector<Node*>;
 
 TEST_F(ArenaTest, Smoke) {
   char* p;

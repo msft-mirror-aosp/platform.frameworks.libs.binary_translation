@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,45 +48,39 @@ TEST(HandleNotExecutable, PcLessThan4096) {
   ASSERT_EXIT((reinterpret_cast<Func>(4095))(), testing::KilledBySignal(SIGSEGV), "");
 }
 
-// Add some valid code to the end of the first page and graceful failure rescue at the beginning of
-// the second page.
 constexpr uint32_t kPageCrossingCode[] = {
     //
     // First page
     //
 
-    // addi sp, sp, -16
-    0xff010113,
-    // sd ra, 8(sp) (push ra)
+    // str lr, [sp, #-8]! (push lr)
     //
-    // We may need ra for graceful return if SIGSEGV doesn't happen.
-    0x00113423,
-    // jalr a0
+    // We may need lr for graceful return if SIGSEGV doesn't happen.
+    0xf81f8ffe,
+    // blr x0
     //
     // The only way to check that this was executed (i.e. SIGSEGV didn't happen too early) is to
     // print something to stderr. Call FirstPageExecutionHelper for this.
-    0x000500e7,
-    // nop
+    0xd63f0000,
+    // mov x0, x0
     //
-    // Make sure we cross pages without jumps (i.e. we don't return from jalr directly to the second
+    // Make sure we cross pages without jumps (i.e. we don't return from blx directly to the second
     // page).
-    0x00000013,
+    0xaa0003e0,
 
     //
     // Second page
     //
 
-    // ld ra, 8(sp) (pop ra)
+    // ldr lr, [sp], #8 (pop lr)
     //
     // If SIGSEGV doesn't happen, make sure we return cleanly.
-    0x00813083,
-    // addi sp, sp, 16
-    0x01010113,
+    0xf84087fe,
     // ret
-    0x00008067,
+    0xd65f03c0,
 };
 
-constexpr size_t kFirstPageInsnNum = 4;
+constexpr size_t kFirstPageInsnNum = 3;
 
 void FirstPageExecutionHelper() {
   fprintf(stderr, "First page has executed");
