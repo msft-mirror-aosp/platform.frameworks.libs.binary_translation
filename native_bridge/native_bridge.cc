@@ -105,8 +105,10 @@ class NdktNativeBridge {
   ~NdktNativeBridge();
 
   bool Initialize(std::string* error_msg);
-  void* LoadLibrary(const char* libpath, int flags);
-  void* LoadLibrary(const char* libpath, int flags, const native_bridge_namespace_t* ns);
+  void* LoadLibrary(const char* libpath, int flags, const native_bridge_namespace_t* ns = nullptr);
+  void* LoadGuestLibrary(const char* libpath,
+                         int flags,
+                         const native_bridge_namespace_t* ns = nullptr);
   GuestAddr DlSym(void* handle, const char* name);
   const char* DlError();
   bool InitAnonymousNamespace(const char* public_ns_sonames, const char* anon_ns_library_path);
@@ -151,10 +153,6 @@ bool NdktNativeBridge::Initialize(std::string* error_msg) {
   return guest_loader_ != nullptr;
 }
 
-void* NdktNativeBridge::LoadLibrary(const char* libpath, int flags) {
-  return LoadLibrary(libpath, flags, nullptr);
-}
-
 void* NdktNativeBridge::LoadLibrary(const char* libpath,
                                     int flags,
                                     const native_bridge_namespace_t* ns) {
@@ -163,6 +161,33 @@ void* NdktNativeBridge::LoadLibrary(const char* libpath,
   static bool init_finalized = FinalizeInit();
   UNUSED(init_finalized);
 
+  void* handle = LoadGuestLibrary(libpath, flags, ns);
+  if (handle != nullptr) {
+    return handle;
+  }
+
+  // Try falling back to host loader.
+  android_dlextinfo extinfo_holder;
+  android_dlextinfo* extinfo = nullptr;
+
+  if (ns != nullptr) {
+    extinfo_holder.flags = ANDROID_DLEXT_USE_NAMESPACE;
+    extinfo_holder.library_namespace = ns->host_namespace;
+    extinfo = &extinfo_holder;
+  }
+
+  handle = android_dlopen_ext(libpath, flags, extinfo);
+  if (handle != nullptr) {
+    ALOGI("'%s' library was loaded for the host platform.", libpath);
+    AddHostLibrary(handle);
+  }
+
+  return handle;
+}
+
+void* NdktNativeBridge::LoadGuestLibrary(const char* libpath,
+                                         int flags,
+                                         const native_bridge_namespace_t* ns) {
   android_dlextinfo extinfo_holder;
   android_dlextinfo* extinfo = nullptr;
 
@@ -172,20 +197,7 @@ void* NdktNativeBridge::LoadLibrary(const char* libpath,
     extinfo = &extinfo_holder;
   }
 
-  void* handle = guest_loader_->DlOpenExt(libpath, flags, extinfo);
-  if (handle == nullptr) {
-    // Try falling back to host loader.
-    if (ns != nullptr) {
-      extinfo_holder.library_namespace = ns->host_namespace;
-    }
-    handle = android_dlopen_ext(libpath, flags, extinfo);
-    if (handle != nullptr) {
-      ALOGI("'%s' library was loaded for the host platform.", libpath);
-      AddHostLibrary(handle);
-    }
-  }
-
-  return handle;
+  return guest_loader_->DlOpenExt(libpath, flags, extinfo);
 }
 
 void NdktNativeBridge::AddHostLibrary(void* handle) {
@@ -565,9 +577,9 @@ void native_bridge_preZygoteFork() {
   // after waitUntilAllThreadsStopped() in ART.
 
   // TODO(b/188923523): Consider moving to berberis::GuestPreZygoteFork().
-  void* liblog = g_ndkt_native_bridge.LoadLibrary("liblog.so", RTLD_NOLOAD);
+  void* liblog = g_ndkt_native_bridge.LoadGuestLibrary("liblog.so", RTLD_NOLOAD);
   // Nothing to close if the guest library hasn't been loaded.
-  if (liblog && !g_ndkt_native_bridge.IsHostHandle(liblog)) {
+  if (liblog) {
     auto addr = g_ndkt_native_bridge.DlSym(liblog, "__android_log_close");
     CHECK_NE(addr, berberis::kNullGuestAddr);
     berberis::GuestCall call;
