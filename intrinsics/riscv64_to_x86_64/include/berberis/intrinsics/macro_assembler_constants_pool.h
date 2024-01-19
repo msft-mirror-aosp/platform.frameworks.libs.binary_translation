@@ -192,6 +192,10 @@ extern const int32_t kBitMaskTo8bitMask;
 extern const int32_t kBitMaskTo16bitMask;
 extern const int32_t kBitMaskTo32bitMask;
 
+extern const int32_t kPMovmskwToPMovmskb;
+extern const int32_t kPMovmskdToPMovmskb;
+extern const int32_t kPMovmskqToPMovmskb;
+
 }  // namespace berberis::constants_pool
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
