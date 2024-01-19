@@ -97,6 +97,29 @@ template <typename ElementType>
 }
 #endif
 
+// Naïve implementation for tests.  Also used on not-x86 platforms.
+template <typename ElementType>
+[[nodiscard]] inline std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>
+SimdMaskToBitMaskForTests(SIMD128Register simd_mask) {
+  using ResultType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
+  ResultType mask{0};
+  constexpr ResultType kElementsCount{static_cast<uint8_t>(16 / sizeof(ElementType))};
+  for (ResultType index{0}; index < kElementsCount; index += ResultType{1}) {
+    if (simd_mask.Get<ElementType>(static_cast<int>(index)) != ElementType{0}) {
+      mask |= ResultType{1} << ResultType{index};
+    }
+  }
+  return mask;
+}
+
+#ifndef __SSSE3__
+template <typename ElementType>
+[[nodiscard]] inline std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>
+SimdMaskToBitMask(SIMD128Register simd_mask) {
+  return SimdMaskToBitMaskForTests<ElementType>(simd_mask);
+}
+#endif
+
 template <auto kElement>
 [[nodiscard]] inline SIMD128Register VectorMaskedElementToForTests(SIMD128Register simd_mask,
                                                                    SIMD128Register result) {

@@ -347,7 +347,8 @@ class Saturating {
   template <typename IntType,
             typename = std::enable_if_t<std::is_integral_v<IntType> &&
                                         ((sizeof(BaseType) < sizeof(IntType) &&
-                                          std::is_signed_v<IntType> == kIsSigned) ||
+                                          (std::is_signed_v<IntType> ||
+                                           kIsSigned == std::is_signed_v<IntType>)) ||
                                          sizeof(IntType) == sizeof(BaseType))>>
   [[nodiscard]] constexpr operator IntType() const {
     return static_cast<IntType>(value);
@@ -390,7 +391,7 @@ class Saturating {
   [[nodiscard]] friend constexpr bool operator>=(Saturating lhs, Saturating rhs) {
     return lhs.value >= rhs.value;
   }
-  [[nodiscard]] friend constexpr Saturating& operator+=(Saturating& lhs, Saturating rhs) {
+  friend constexpr Saturating& operator+=(Saturating& lhs, Saturating rhs) {
     lhs = lhs + rhs;
     return lhs;
   }
@@ -410,7 +411,7 @@ class Saturating {
     }
     return {result};
   }
-  [[nodiscard]] friend constexpr Saturating& operator-=(Saturating& lhs, Saturating rhs) {
+  friend constexpr Saturating& operator-=(Saturating& lhs, Saturating rhs) {
     lhs = lhs - rhs;
     return lhs;
   }
@@ -439,7 +440,7 @@ class Saturating {
     }
     return {result};
   }
-  [[nodiscard]] friend constexpr Saturating& operator*=(Saturating& lhs, Saturating rhs) {
+  friend constexpr Saturating& operator*=(Saturating& lhs, Saturating rhs) {
     lhs = lhs * rhs;
     return lhs;
   }
@@ -459,7 +460,7 @@ class Saturating {
     }
     return {result};
   }
-  [[nodiscard]] friend constexpr Saturating& operator/=(Saturating& lhs, Saturating rhs) {
+  friend constexpr Saturating& operator/=(Saturating& lhs, Saturating rhs) {
     lhs = lhs / rhs;
     return lhs;
   }
@@ -471,7 +472,7 @@ class Saturating {
     }
     return {BaseType(lhs.value / rhs.value)};
   }
-  [[nodiscard]] friend constexpr Saturating& operator%=(Saturating& lhs, Saturating rhs) {
+  friend constexpr Saturating& operator%=(Saturating& lhs, Saturating rhs) {
     lhs = lhs % rhs;
     return lhs;
   }
@@ -499,7 +500,8 @@ class Wrapping {
   template <typename IntType,
             typename = std::enable_if_t<std::is_integral_v<IntType> &&
                                         ((sizeof(BaseType) < sizeof(IntType) &&
-                                          std::is_signed_v<IntType> == kIsSigned) ||
+                                          (std::is_signed_v<IntType> ||
+                                           kIsSigned == std::is_signed_v<IntType>)) ||
                                          sizeof(IntType) == sizeof(BaseType))>>
   [[nodiscard]] constexpr operator IntType() const {
     return static_cast<IntType>(value);
@@ -547,7 +549,7 @@ class Wrapping {
   //      __builtin_xxx_overflow produces well-defined result in case of overflow while
   //      +, -, * are triggering undefined behavior conditions.
   //   2. All operator xxx= are implemented in terms of opernator xxx
-  [[nodiscard]] friend constexpr Wrapping& operator+=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator+=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs + rhs;
     return lhs;
   }
@@ -556,7 +558,7 @@ class Wrapping {
     __builtin_add_overflow(lhs.value, rhs.value, &result);
     return {result};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator-=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator-=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs - rhs;
     return lhs;
   }
@@ -570,7 +572,7 @@ class Wrapping {
     __builtin_sub_overflow(lhs.value, rhs.value, &result);
     return {result};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator*=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator*=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs * rhs;
     return lhs;
   }
@@ -579,7 +581,7 @@ class Wrapping {
     __builtin_mul_overflow(lhs.value, rhs.value, &result);
     return {result};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator/=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator/=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs / rhs;
     return lhs;
   }
@@ -591,7 +593,7 @@ class Wrapping {
     }
     return {BaseType(lhs.value / rhs.value)};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator%=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator%=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs % rhs;
     return lhs;
   }
@@ -603,7 +605,7 @@ class Wrapping {
     }
     return {BaseType(lhs.value % rhs.value)};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator<<=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator<<=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs << rhs;
     return lhs;
   }
@@ -611,7 +613,7 @@ class Wrapping {
   [[nodiscard]] friend constexpr Wrapping operator<<(Wrapping lhs, Wrapping<IntType> rhs) {
     return {BaseType(lhs.value << (rhs.value & (sizeof(BaseType) * CHAR_BIT - 1)))};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator>>=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator>>=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs >> rhs;
     return lhs;
   }
@@ -619,21 +621,21 @@ class Wrapping {
   [[nodiscard]] friend constexpr Wrapping operator>>(Wrapping lhs, Wrapping<IntType> rhs) {
     return {BaseType(lhs.value >> (rhs.value & (sizeof(BaseType) * CHAR_BIT - 1)))};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator&=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator&=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs & rhs;
     return lhs;
   }
   [[nodiscard]] friend constexpr Wrapping operator&(Wrapping lhs, Wrapping rhs) {
     return {BaseType(lhs.value & rhs.value)};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator|=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator|=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs | rhs;
     return lhs;
   }
   [[nodiscard]] friend constexpr Wrapping operator|(Wrapping lhs, Wrapping rhs) {
     return {BaseType(lhs.value | rhs.value)};
   }
-  [[nodiscard]] friend constexpr Wrapping& operator^=(Wrapping& lhs, Wrapping rhs) {
+  friend constexpr Wrapping& operator^=(Wrapping& lhs, Wrapping rhs) {
     lhs = lhs ^ rhs;
     return lhs;
   }
