@@ -2576,6 +2576,21 @@ TEST(Arm64InsnTest, RecipSqrtEstimateF32x4) {
   ASSERT_EQ(res, MakeF32x4(0.705078125f, 0.576171875f, 0.4990234375f, 0.4462890625f));
 }
 
+TEST(Arm64InsnTest, RecipSqrtEstimateF64) {
+  constexpr auto AsmFrsqrte = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("frsqrte %d0, %d1");
+  ASSERT_EQ(AsmFrsqrte(bit_cast<uint64_t>(2.0)), bit_cast<uint64_t>(0.705078125));
+  ASSERT_EQ(AsmFrsqrte(bit_cast<uint64_t>(3.0)), bit_cast<uint64_t>(0.576171875));
+  ASSERT_EQ(AsmFrsqrte(bit_cast<uint64_t>(4.0)), bit_cast<uint64_t>(0.4990234375));
+  ASSERT_EQ(AsmFrsqrte(bit_cast<uint64_t>(5.0)), bit_cast<uint64_t>(0.4462890625));
+}
+
+TEST(Arm64InsnTest, RecipSqrtEstimateF64x2) {
+  constexpr auto AsmFrsqrte = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("frsqrte %0.2d, %1.2d");
+  __uint128_t arg = MakeF64x2(2.0, 3.0);
+  __uint128_t res = AsmFrsqrte(arg);
+  ASSERT_EQ(res, MakeUInt128(bit_cast<uint64_t>(0.705078125), bit_cast<uint64_t>(0.576171875)));
+}
+
 TEST(Arm64InsnTest, RecipSqrtStepF32) {
   constexpr auto AsmFrsqrts = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("frsqrts %s0, %s1, %s2");
   __uint128_t res1 = AsmFrsqrts(bit_cast<uint32_t>(1.50f), bit_cast<uint32_t>(0.50f));

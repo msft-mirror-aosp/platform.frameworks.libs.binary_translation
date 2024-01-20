@@ -340,6 +340,7 @@ cc_test_library {
             ],
         },
         x86_64: {
+            cflags: ["-mssse3"],
             srcs: [
                 "common_to_x86/intrinsics_float_test.cc",
                 "common_to_x86_64/tuple_test.cc",
