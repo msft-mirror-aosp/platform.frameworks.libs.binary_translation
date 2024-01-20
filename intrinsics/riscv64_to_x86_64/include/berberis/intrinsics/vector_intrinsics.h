@@ -17,6 +17,7 @@
 #ifndef RISCV64_TO_X86_64_BERBERIS_INTRINSICS_VECTOR_INTRINSICS_H_
 #define RISCV64_TO_X86_64_BERBERIS_INTRINSICS_VECTOR_INTRINSICS_H_
 
+#include <tmmintrin.h>
 #include <xmmintrin.h>
 
 #include "berberis/base/dependent_false.h"
@@ -27,7 +28,7 @@
 
 namespace berberis::intrinsics {
 
-inline SIMD128Register MakeBitmaskFromVl(size_t vl) {
+[[nodiscard]] inline SIMD128Register MakeBitmaskFromVl(size_t vl) {
   return _mm_loadu_si128(reinterpret_cast<__m128i_u const*>(
       bit_cast<const uint8_t*>(static_cast<uintptr_t>(constants_pool::kBitMaskTable)) +
       (vl & 7U) * 32 + 16 - ((vl & (~7ULL)) >> 3)));
@@ -83,6 +84,25 @@ template <auto kElement>
            (src & simd_mask);
   }
 }
+
+#ifdef __SSSE3__
+template <typename ElementType>
+[[nodiscard]] inline std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>
+SimdMaskToBitMask(SIMD128Register simd_mask) {
+  if constexpr (sizeof(ElementType) == sizeof(Int8)) {
+    return {static_cast<uint16_t>(_mm_movemask_epi8(simd_mask.Get<__m128i>()))};
+  } else {
+    static_assert(sizeof(ElementType) == sizeof(Int16) || sizeof(ElementType) == sizeof(Int32) ||
+                  sizeof(ElementType) == sizeof(Int64));
+    const __m128i kPMovmskₓToPMovmskb = *bit_cast<const __m128i*>(static_cast<uintptr_t>(
+        sizeof(ElementType) == sizeof(Int16)   ? constants_pool::kPMovmskwToPMovmskb
+        : sizeof(ElementType) == sizeof(Int32) ? constants_pool::kPMovmskdToPMovmskb
+                                               : constants_pool::kPMovmskqToPMovmskb));
+    return {static_cast<uint8_t>(
+        _mm_movemask_epi8(_mm_shuffle_epi8(simd_mask.Get<__m128i>(), kPMovmskₓToPMovmskb)))};
+  }
+}
+#endif
 
 }  // namespace berberis::intrinsics
 
