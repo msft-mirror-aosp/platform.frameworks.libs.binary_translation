@@ -23,11 +23,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <berberis/base/bit_util.h>
-#include <berberis/base/checks.h>
-#include <berberis/base/macros.h>
-#include <berberis/base/mapped_file_fragment.h>
-#include <berberis/base/stringprintf.h>
+#include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
+#include "berberis/base/macros.h"
+#include "berberis/base/mapped_file_fragment.h"
+#include "berberis/base/stringprintf.h"
 
 #include "string_offset_table.h"
 #include "string_table.h"
@@ -76,9 +76,9 @@ class ElfFileImpl : public ElfFile {
  public:
   ~ElfFileImpl() override;
 
-  static std::unique_ptr<ElfFileImpl<ElfT>> Create(const char* path,
-                                                   int fd,
-                                                   std::string* error_msg);
+  [[nodiscard]] static std::unique_ptr<ElfFileImpl<ElfT>> Create(const char* path,
+                                                                 int fd,
+                                                                 std::string* error_msg);
 
   [[nodiscard]] bool ReadExportedSymbols(std::vector<std::string>* symbols,
                                          std::string* error_msg) override;
@@ -89,8 +89,8 @@ class ElfFileImpl : public ElfFile {
   [[nodiscard]] bool Init(std::string* error_msg);
   [[nodiscard]] bool ValidateShdrTable(std::string* error_msg);
 
-  const typename ElfT::Shdr* FindSectionHeaderByType(typename ElfT::Word sh_type);
-  const typename ElfT::Shdr* FindSectionHeaderByName(const char* name);
+  [[nodiscard]] const typename ElfT::Shdr* FindSectionHeaderByType(typename ElfT::Word sh_type);
+  [[nodiscard]] const typename ElfT::Shdr* FindSectionHeaderByName(const char* name);
 
   template <typename T>
   [[nodiscard]] const T* OffsetToAddr(typename ElfT::Off offset) const;
@@ -294,6 +294,12 @@ bool ElfFileImpl<ElfT>::ReadExportedSymbols(std::vector<std::string>* symbols,
                                             std::string* error_msg) {
   const typename ElfT::Shdr* dynsym_shdr = FindSectionHeaderByType(SHT_DYNSYM);
 
+  // This section is not expected to be compressed
+  if ((dynsym_shdr->sh_flags & SHF_COMPRESSED) != 0) {
+    *error_msg = "dynamic symbol section is not expected to be compressed";
+    return false;
+  }
+
   if (dynsym_shdr == nullptr) {
     *error_msg = "dynamic symbol section was not found";
     return false;
@@ -310,6 +316,12 @@ bool ElfFileImpl<ElfT>::ReadExportedSymbols(std::vector<std::string>* symbols,
   const auto* dynsyms = ShdrOffsetToAddr<const typename ElfT::Sym>(dynsym_shdr);
 
   const typename ElfT::Shdr* strtab_shdr = shdr_table_ + dynsym_shdr->sh_link;
+
+  // String table for .dynsym section is also not expected to be compressed
+  if ((strtab_shdr->sh_flags & SHF_COMPRESSED) != 0) {
+    *error_msg = "string table for dynamic symbol section is not expected to be compressed";
+    return false;
+  }
 
   const StringTable strtab(ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size);
 
