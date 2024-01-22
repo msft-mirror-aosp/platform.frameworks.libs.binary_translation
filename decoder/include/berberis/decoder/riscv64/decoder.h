@@ -266,7 +266,7 @@ class Decoder {
   };
 
   enum class VLoadUnitStrideOpcode : uint8_t {
-    kVlₓreₓₓ = 0b01000,
+    kVlXreXX = 0b01000,
     kMaxValue = 0b11111,
   };
 
@@ -362,7 +362,7 @@ class Decoder {
     kVmnandmm = 0b011101,
     kVmnormm = 0b011110,
     kVmxnormm = 0b011111,
-    kVₓmₓs = 0b010000,
+    kVXmXXs = 0b010000,
     kVmulhuvv = 0b100100,
     kVmulvv = 0b100101,
     kVmulhsuvv = 0b100110,
@@ -435,11 +435,11 @@ class Decoder {
   };
 
   enum class VStoreUnitStrideOpcode : uint8_t {
-    kVsₓ = 0b01000,
+    kVsX = 0b01000,
     kMaxValue = 0b11111,
   };
 
-  enum class VₓmₓsOpcode : uint8_t {
+  enum class VXmXXsOpcode : uint8_t {
     kVcpopm = 0b10000,
     kVfirstm = 0b10001,
     kMaxValue = 0b11111,
@@ -712,7 +712,7 @@ class Decoder {
     uint8_t dst;
     uint8_t src1;
     union {
-      VₓmₓsOpcode subopcode;
+      VXmXXsOpcode subopcode;
       uint8_t src2;
     };
   };
