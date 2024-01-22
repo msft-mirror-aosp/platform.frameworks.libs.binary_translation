@@ -57,7 +57,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
 
   // Vector instructions.
   template <size_t kNFfields>
-  void TestVlₓreₓₓ(uint32_t insn_bytes) {
+  void TestVlXreXX(uint32_t insn_bytes) {
     const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     SetXReg<1>(state_.cpu, ToGuestAddr(&kVectorComparisonSource));
@@ -74,7 +74,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <size_t kNFfields>
-  void TestVsₓ(uint32_t insn_bytes) {
+  void TestVsX(uint32_t insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
     for (size_t index = 0; index < 8; index++) {
@@ -450,7 +450,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     Verify(insn_bytes | (1 << 25), 3, expected_result_int64, kNoMask[0]);
   }
 
-  void TestVₓmₓsInstruction(uint32_t insn_bytes,
+  void TestVXmXXsInstruction(uint32_t insn_bytes,
                             const uint64_t (&expected_result_no_mask)[129],
                             const uint64_t (&expected_result_with_mask)[129],
                             const __v2du source) {
@@ -735,33 +735,33 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   close(pipefd[1]);
 }
 
-TEST_F(Riscv64InterpreterTest, TestVlₓreₓₓ) {
-  TestVlₓreₓₓ<1>(0x2808407);   // vl1re8.v v8, (x1)
-  TestVlₓreₓₓ<2>(0x22808407);  // vl2re8.v v8, (x1)
-  TestVlₓreₓₓ<4>(0x62808407);  // vl4re8.v v8, (x1)
-  TestVlₓreₓₓ<8>(0xe2808407);  // vl8re8.v v8, (x1)
+TEST_F(Riscv64InterpreterTest, TestVlXreXX) {
+  TestVlXreXX<1>(0x2808407);   // vl1re8.v v8, (x1)
+  TestVlXreXX<2>(0x22808407);  // vl2re8.v v8, (x1)
+  TestVlXreXX<4>(0x62808407);  // vl4re8.v v8, (x1)
+  TestVlXreXX<8>(0xe2808407);  // vl8re8.v v8, (x1)
 
-  TestVlₓreₓₓ<1>(0x280d407);   // vl1re16.v v8, (x1)
-  TestVlₓreₓₓ<2>(0x2280d407);  // vl2re16.v v8, (x1)
-  TestVlₓreₓₓ<4>(0x6280d407);  // vl4re16.v v8, (x1)
-  TestVlₓreₓₓ<8>(0xe280d407);  // vl8re16.v v8, (x1)
+  TestVlXreXX<1>(0x280d407);   // vl1re16.v v8, (x1)
+  TestVlXreXX<2>(0x2280d407);  // vl2re16.v v8, (x1)
+  TestVlXreXX<4>(0x6280d407);  // vl4re16.v v8, (x1)
+  TestVlXreXX<8>(0xe280d407);  // vl8re16.v v8, (x1)
 
-  TestVlₓreₓₓ<1>(0x280e407);   // vl1re32.v v8, (x1)
-  TestVlₓreₓₓ<2>(0x2280e407);  // vl2re32.v v8, (x1)
-  TestVlₓreₓₓ<4>(0x6280e407);  // vl4re32.v v8, (x1)
-  TestVlₓreₓₓ<8>(0xe280e407);  // vl8re32.v v8, (x1)
+  TestVlXreXX<1>(0x280e407);   // vl1re32.v v8, (x1)
+  TestVlXreXX<2>(0x2280e407);  // vl2re32.v v8, (x1)
+  TestVlXreXX<4>(0x6280e407);  // vl4re32.v v8, (x1)
+  TestVlXreXX<8>(0xe280e407);  // vl8re32.v v8, (x1)
 
-  TestVlₓreₓₓ<1>(0x280f407);   // vl1re64.v v8, (x1)
-  TestVlₓreₓₓ<2>(0x2280f407);  // vl2re64.v v8, (x1)
-  TestVlₓreₓₓ<4>(0x6280f407);  // vl4re64.v v8, (x1)
-  TestVlₓreₓₓ<8>(0xe280f407);  // vl8re64.v v8, (x1)
+  TestVlXreXX<1>(0x280f407);   // vl1re64.v v8, (x1)
+  TestVlXreXX<2>(0x2280f407);  // vl2re64.v v8, (x1)
+  TestVlXreXX<4>(0x6280f407);  // vl4re64.v v8, (x1)
+  TestVlXreXX<8>(0xe280f407);  // vl8re64.v v8, (x1)
 }
 
-TEST_F(Riscv64InterpreterTest, TestVsₓ) {
-  TestVsₓ<1>(0x2808427);   // vs1r.v v8, (x1)
-  TestVsₓ<2>(0x22808427);  // vs2r.v v8, (x1)
-  TestVsₓ<4>(0x62808427);  // vs4r.v v8, (x1)
-  TestVsₓ<8>(0xe2808427);  // vs8r.v v8, (x1)
+TEST_F(Riscv64InterpreterTest, TestVsX) {
+  TestVsX<1>(0x2808427);   // vs1r.v v8, (x1)
+  TestVsX<2>(0x22808427);  // vs2r.v v8, (x1)
+  TestVsX<4>(0x62808427);  // vs4r.v v8, (x1)
+  TestVsX<8>(0xe2808427);  // vs8r.v v8, (x1)
 }
 
 TEST_F(Riscv64InterpreterTest, TestVadd) {
@@ -3154,7 +3154,7 @@ TEST_F(Riscv64InterpreterTest, TestVwadd) {
 }
 
 TEST_F(Riscv64InterpreterTest, TestVcpopm) {
-  TestVₓmₓsInstruction(
+  TestVXmXXsInstruction(
       0x410820d7,  // vcpop.m x1, v16, v0.t
       { 0, /* default value when vl=0 */
         0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  2,
@@ -3178,7 +3178,7 @@ TEST_F(Riscv64InterpreterTest, TestVcpopm) {
 }
 
 TEST_F(Riscv64InterpreterTest, TestVfirstm) {
-  TestVₓmₓsInstruction(
+  TestVXmXXsInstruction(
       0x4108a0d7,  // vfirst.m x1, v16, v0.t
       { [0 ... 8] = ~0ULL,
         [9 ... 128] = 9 },
