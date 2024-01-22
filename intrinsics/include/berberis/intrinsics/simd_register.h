@@ -52,7 +52,7 @@ class SIMD128Register {
   // TODO(b/260725458): use explicit(sizeof(T) == 16) instead of three constructors when C++20 would
   // be available.
   template <typename T, typename = std::enable_if_t<sizeof(T) < 16>>
-  explicit SIMD128Register(T elem) {
+  explicit SIMD128Register(T elem) : int8{} {
     Set<T>(elem, 0);
   }
   SIMD128Register() = default;
