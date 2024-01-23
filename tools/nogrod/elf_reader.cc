@@ -379,7 +379,7 @@ std::unique_ptr<DwarfInfo> ElfFileImpl<ElfT>::ReadDwarfInfo(std::string* error_m
                     dwarf_abbrev_shdr->sh_size,
                     ShdrOffsetToAddr<const uint8_t>(dwarf_info_shdr),
                     dwarf_info_shdr->sh_size,
-                    string_table,
+                    std::move(string_table),
                     string_offsets_table));
 
   if (!dwarf_info->Parse(error_msg)) {
