@@ -35,7 +35,7 @@ class DwarfParser {
               size_t abbrev_size,
               const uint8_t* info,
               size_t info_size,
-              StringTable debug_str_table,
+              const StringTable* debug_str_table,
               std::optional<StringOffsetTable> string_offset_table)
       : abbrev_{abbrev},
         abbrev_size_{abbrev_size},
@@ -49,7 +49,7 @@ class DwarfParser {
       std::unordered_map<uint64_t, std::unique_ptr<DwarfDie>>* die_map,
       std::string* error_msg) {
     ByteInputStream bs(info_, info_size_);
-    DwarfContext context(&bs, &debug_str_table_, string_offset_table_);
+    DwarfContext context(&bs, debug_str_table_, string_offset_table_);
 
     while (bs.available()) {
       std::unique_ptr<DwarfCompilationUnit> cu = ReadCompilationUnit(&context, die_map, error_msg);
@@ -309,7 +309,7 @@ class DwarfParser {
   uint64_t abbrev_size_;
   const uint8_t* info_;
   uint64_t info_size_;
-  StringTable debug_str_table_;
+  const StringTable* debug_str_table_;
   std::optional<StringOffsetTable> string_offset_table_;
 
   std::unordered_map<uint64_t, std::unordered_map<uint64_t, DwarfAbbrev>> abbrevs_;
@@ -340,11 +340,12 @@ DwarfInfo::DwarfInfo(const uint8_t* abbrev,
       abbrev_size_{abbrev_size},
       info_{info},
       info_size_{info_size},
-      string_table_{string_table},
+      string_table_{std::move(string_table)},
       string_offset_table_{std::move(string_offset_table)} {}
 
 bool DwarfInfo::Parse(std::string* error_msg) {
-  DwarfParser parser(abbrev_, abbrev_size_, info_, info_size_, string_table_, string_offset_table_);
+  DwarfParser parser(
+      abbrev_, abbrev_size_, info_, info_size_, &string_table_, string_offset_table_);
   if (!parser.ReadDwarfInfo(&compilation_units_, &die_offset_map_, error_msg)) {
     return false;
   }

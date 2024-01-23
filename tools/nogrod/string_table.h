@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include <berberis/base/checks.h>
 #include <berberis/base/macros.h>
@@ -34,8 +35,15 @@ class StringTable {
     CHECK(strtab_[strtab_size_ - 1] == 0);
   }
 
-  StringTable(const StringTable&) = default;
-  StringTable& operator=(const StringTable&) = default;
+  explicit StringTable(std::vector<char> buffer) : buffer_{std::move(buffer)} {
+    strtab_ = buffer_.data();
+    strtab_size_ = buffer_.size();
+    // string table should be \0 terminated.
+    CHECK(strtab_[strtab_size_ - 1] == 0);
+  }
+
+  StringTable(const StringTable&) = delete;
+  StringTable& operator=(const StringTable&) = delete;
   StringTable(StringTable&&) = default;
   StringTable& operator=(StringTable&&) = default;
 
@@ -45,6 +53,7 @@ class StringTable {
   }
 
  private:
+  std::vector<char> buffer_;
   const char* strtab_;
   size_t strtab_size_;
 };
