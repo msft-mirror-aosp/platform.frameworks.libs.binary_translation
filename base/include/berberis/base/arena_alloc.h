@@ -25,15 +25,16 @@
 #include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
 #include "berberis/base/mmap_pool.h"
+#include "berberis/base/page_size.h"
 
 namespace berberis {
 
 namespace arena_internal {
 
 // TODO(eaeltsin): tune for each guest arch?
-inline constexpr size_t kDefaultArenaBlockSize = 32 * kPageSize;
+inline constexpr size_t kDefaultArenaBlockSize = 32 * 4096;
 inline constexpr size_t kMmapPoolSizeLimit = kDefaultArenaBlockSize * 16;
-inline constexpr size_t kMaxAllocSizeInDefaultArenaBlock = 16 * kPageSize;
+inline constexpr size_t kMaxAllocSizeInDefaultArenaBlock = 16 * 4096;
 
 using MmapPoolForArena = MmapPool<kDefaultArenaBlockSize, kMmapPoolSizeLimit>;
 
