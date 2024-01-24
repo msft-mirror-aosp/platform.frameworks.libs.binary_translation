@@ -97,6 +97,29 @@ template <typename ElementType>
 }
 #endif
 
+// Naïve implementation for tests.  Also used on not-x86 platforms.
+template <typename ElementType>
+[[nodiscard]] inline std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>
+SimdMaskToBitMaskForTests(SIMD128Register simd_mask) {
+  using ResultType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
+  ResultType mask{0};
+  constexpr ResultType kElementsCount{static_cast<uint8_t>(16 / sizeof(ElementType))};
+  for (ResultType index{0}; index < kElementsCount; index += ResultType{1}) {
+    if (simd_mask.Get<ElementType>(static_cast<int>(index)) != ElementType{0}) {
+      mask |= ResultType{1} << ResultType{index};
+    }
+  }
+  return mask;
+}
+
+#ifndef __SSSE3__
+template <typename ElementType>
+[[nodiscard]] inline std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>
+SimdMaskToBitMask(SIMD128Register simd_mask) {
+  return SimdMaskToBitMaskForTests<ElementType>(simd_mask);
+}
+#endif
+
 template <auto kElement>
 [[nodiscard]] inline SIMD128Register VectorMaskedElementToForTests(SIMD128Register simd_mask,
                                                                    SIMD128Register result) {
@@ -300,33 +323,37 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(xor, (args ^ ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(xor, (args ^ ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mseq,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args == ...))})
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mseq,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args == ...))})
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(msne,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args != ...))})
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msne,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args != ...))})
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mslt,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args < ...))})
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mslt,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args < ...))})
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(msle,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args <= ...))})
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msle,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args <= ...))})
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(msgt,
-                                   ElementType{
-                                       static_cast<typename ElementType::BaseType>((args > ...))})
+// SIMD mask either includes results with all bits set to 0 or all bits set to 1.
+// This way it may be used with VAnd and VAndN operations to perform masking.
+// Such comparison is effectively one instruction of x86-64 (via SSE or AVX) but
+// to achieve it we need to multiply bool result on (~ElementType{0}).
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
+    seq,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args == ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(
+    seq,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args == ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
+    sne,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args != ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(
+    sne,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args != ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
+    slt,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args < ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(
+    slt,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args < ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
+    sle,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args <= ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(
+    sle,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args <= ...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(
+    sgt,
+    (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args > ...))})
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sl, auto [arg1, arg2] = std::tuple{args...}; (arg1 << arg2))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sl, auto [arg1, arg2] = std::tuple{args...}; (arg1 << arg2))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sr, auto [arg1, arg2] = std::tuple{args...}; (arg1 >> arg2))

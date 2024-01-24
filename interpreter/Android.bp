@@ -40,6 +40,7 @@ cc_library_static {
     export_header_lib_headers: ["libberberis_interpreter_riscv64_headers"],
     arch: {
         x86_64: {
+            cflags: ["-mssse3"],
             srcs: ["riscv64/faulty_memory_accesses_x86_64.cc"],
         },
     },
