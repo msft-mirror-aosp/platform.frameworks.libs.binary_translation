@@ -109,12 +109,12 @@ TEST(VectorIntrinsics, Vaddvv) {
                     SIMD128Register arg2,
                     [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
-                  0, 16, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, 16)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kAgnostic>(
-                  0, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, 16, 0xffff)),
               result_to_check);
   };
   Verify(Vaddvv<UInt8>,
@@ -145,12 +145,12 @@ TEST(VectorIntrinsics, Vaddvx) {
                     SIMD128Register arg1,
                     [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
-                  0, 16, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, 16)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kAgnostic>(
-                  0, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, 16, 0xffff)),
               result_to_check);
   };
   Verify(Vaddvx<UInt8>,
@@ -188,34 +188,34 @@ TEST(VectorIntrinsics, VlArgForVv) {
                       gnu::may_alias]] ElementType result_to_check_undisturbed) {
     constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
-                  0, kHalfLen, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen)),
               result_to_check_agnostic);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kUndisturbed>(
-                  0, kHalfLen, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen)),
               result_to_check_undisturbed);
     ASSERT_EQ(
         (VectorMasking<Wrapping<ElementType>,
                        TailProcessing::kAgnostic,
                        InactiveProcessing::kAgnostic>(
-            0, kHalfLen, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+            kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen, 0xffff)),
         result_to_check_agnostic);
     ASSERT_EQ(
         (VectorMasking<Wrapping<ElementType>,
                        TailProcessing::kAgnostic,
                        InactiveProcessing::kUndisturbed>(
-            0, kHalfLen, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+            kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen, 0xffff)),
         result_to_check_agnostic);
     ASSERT_EQ(
         (VectorMasking<Wrapping<ElementType>,
                        TailProcessing::kUndisturbed,
                        InactiveProcessing::kAgnostic>(
-            0, kHalfLen, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+            kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen, 0xffff)),
         result_to_check_undisturbed);
     ASSERT_EQ(
         (VectorMasking<Wrapping<ElementType>,
                        TailProcessing::kUndisturbed,
                        InactiveProcessing::kUndisturbed>(
-            0, kHalfLen, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+            kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen, 0xffff)),
         result_to_check_undisturbed);
   };
   Verify(Vaddvv<UInt8>,
@@ -261,30 +261,30 @@ TEST(VectorIntrinsics, VlArgForVx) {
                       gnu::may_alias]] ElementType result_to_check_undisturbed) {
     constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
-                  0, kHalfLen, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen)),
               result_to_check_agnostic);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kUndisturbed>(
-                  0, kHalfLen, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen)),
               result_to_check_undisturbed);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kAgnostic>(
-                  0, kHalfLen, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen, 0xffff)),
               result_to_check_agnostic);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kUndisturbed>(
-                  0, kHalfLen, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen, 0xffff)),
               result_to_check_agnostic);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kUndisturbed,
                              InactiveProcessing::kAgnostic>(
-                  0, kHalfLen, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen, 0xffff)),
               result_to_check_undisturbed);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kUndisturbed,
                              InactiveProcessing::kUndisturbed>(
-                  0, kHalfLen, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen, 0xffff)),
               result_to_check_undisturbed);
   };
   Verify(Vaddvx<UInt8>,
@@ -338,25 +338,25 @@ TEST(VectorIntrinsics, VmaskArgForVvv) {
         (VectorMasking<Wrapping<ElementType>,
                        TailProcessing::kAgnostic,
                        InactiveProcessing::kAgnostic>(
-            0, kHalfLen, 0xfdda, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+            kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen, 0xfdda)),
         result_to_check_agnostic_agnostic);
     ASSERT_EQ(
         (VectorMasking<Wrapping<ElementType>,
                        TailProcessing::kAgnostic,
                        InactiveProcessing::kUndisturbed>(
-            0, kHalfLen, 0xfdda, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+            kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen, 0xfdda)),
         result_to_check_agnostic_undisturbed);
     ASSERT_EQ(
         (VectorMasking<Wrapping<ElementType>,
                        TailProcessing::kUndisturbed,
                        InactiveProcessing::kAgnostic>(
-            0, kHalfLen, 0xfdda, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+            kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen, 0xfdda)),
         result_to_check_undisturbed_agnostic);
     ASSERT_EQ(
         (VectorMasking<Wrapping<ElementType>,
                        TailProcessing::kUndisturbed,
                        InactiveProcessing::kUndisturbed>(
-            0, kHalfLen, 0xfdda, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+            kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen, 0xfdda)),
         result_to_check_undisturbed_undisturbed);
   };
   Verify(
@@ -428,22 +428,22 @@ TEST(VectorIntrinsics, VmaskArgForVvx) {
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kAgnostic>(
-                  0, kHalfLen, 0xfdda, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen, 0xfdda)),
               result_to_check_agnostic_agnostic);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kUndisturbed>(
-                  0, kHalfLen, 0xfdda, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen, 0xfdda)),
               result_to_check_agnostic_undisturbed);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kUndisturbed,
                              InactiveProcessing::kAgnostic>(
-                  0, kHalfLen, 0xfdda, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen, 0xfdda)),
               result_to_check_undisturbed_agnostic);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kUndisturbed,
                              InactiveProcessing::kUndisturbed>(
-                  0, kHalfLen, 0xfdda, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen, 0xfdda)),
               result_to_check_undisturbed_undisturbed);
   };
   Verify(
@@ -505,30 +505,30 @@ TEST(VectorIntrinsics, VstartArgVv) {
                     SIMD128Register arg2,
                     [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
-                  1, 16, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 1, 16)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kUndisturbed>(
-                  1, 16, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 1, 16)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kAgnostic>(
-                  1, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 1, 16, 0xffff)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kUndisturbed>(
-                  1, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 1, 16, 0xffff)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kUndisturbed,
                              InactiveProcessing::kAgnostic>(
-                  1, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 1, 16, 0xffff)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kUndisturbed,
                              InactiveProcessing::kUndisturbed>(
-                  1, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 1, 16, 0xffff)),
               result_to_check);
   };
   Verify(Vaddvv<UInt8>,
@@ -559,30 +559,30 @@ TEST(VectorIntrinsics, VstartArgVx) {
                     SIMD128Register arg1,
                     [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
-                  1, 16, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kUndisturbed>(
-                  1, 16, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kAgnostic>(
-                  1, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16, 0xffff)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kUndisturbed>(
-                  1, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16, 0xffff)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kUndisturbed,
                              InactiveProcessing::kAgnostic>(
-                  1, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16, 0xffff)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kUndisturbed,
                              InactiveProcessing::kUndisturbed>(
-                  1, 16, 0xffff, kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16, 0xffff)),
               result_to_check);
   };
   Verify(Vaddvx<UInt8>,
@@ -617,12 +617,12 @@ TEST(VectorIntrinsics, Vsubvv) {
                     SIMD128Register arg2,
                     [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
-                  0, 16, kUndisturbedResult, std::get<0>(Vsubvv(__m128i{0, 0}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vsubvv(__m128i{0, 0}, arg2)), 0, 16)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kAgnostic>(
-                  0, 16, 0xffff, kUndisturbedResult, std::get<0>(Vsubvv(__m128i{0, 0}, arg2)))),
+                  kUndisturbedResult, std::get<0>(Vsubvv(__m128i{0, 0}, arg2)), 0, 16, 0xffff)),
               result_to_check);
   };
   Verify(Vsubvv<UInt8>,
@@ -650,12 +650,12 @@ TEST(VectorIntrinsics, Vsubvx) {
                     SIMD128Register arg1,
                     [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
-                  0, 16, kUndisturbedResult, std::get<0>(Vsubvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vsubvx(arg1, UInt8{1})), 0, 16)),
               result_to_check);
     ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
                              TailProcessing::kAgnostic,
                              InactiveProcessing::kAgnostic>(
-                  0, 16, 0xffff, kUndisturbedResult, std::get<0>(Vsubvx(arg1, UInt8{1})))),
+                  kUndisturbedResult, std::get<0>(Vsubvx(arg1, UInt8{1})), 0, 16, 0xffff)),
               result_to_check);
   };
   Verify(Vsubvx<UInt8>,
