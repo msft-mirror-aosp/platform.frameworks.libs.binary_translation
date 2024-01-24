@@ -94,12 +94,12 @@ SimdMaskToBitMask(SIMD128Register simd_mask) {
   } else {
     static_assert(sizeof(ElementType) == sizeof(Int16) || sizeof(ElementType) == sizeof(Int32) ||
                   sizeof(ElementType) == sizeof(Int64));
-    const __m128i kPMovmskₓToPMovmskb = *bit_cast<const __m128i*>(static_cast<uintptr_t>(
+    const __m128i kPMovmskXToPMovmskb = *bit_cast<const __m128i*>(static_cast<uintptr_t>(
         sizeof(ElementType) == sizeof(Int16)   ? constants_pool::kPMovmskwToPMovmskb
         : sizeof(ElementType) == sizeof(Int32) ? constants_pool::kPMovmskdToPMovmskb
                                                : constants_pool::kPMovmskqToPMovmskb));
     return {static_cast<uint8_t>(
-        _mm_movemask_epi8(_mm_shuffle_epi8(simd_mask.Get<__m128i>(), kPMovmskₓToPMovmskb)))};
+        _mm_movemask_epi8(_mm_shuffle_epi8(simd_mask.Get<__m128i>(), kPMovmskXToPMovmskb)))};
   }
 }
 #endif

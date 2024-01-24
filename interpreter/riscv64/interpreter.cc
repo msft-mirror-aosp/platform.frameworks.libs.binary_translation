@@ -483,7 +483,7 @@ class Interpreter {
     // if vill is set!  Handle them before processing other instructions.
     // Note: other tupes of loads and store are not special and would be processed as usual.
     if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadUnitStrideArgs>) {
-      if (args.opcode == Decoder::VLoadUnitStrideOpcode::kVlₓreₓₓ) {
+      if (args.opcode == Decoder::VLoadUnitStrideOpcode::kVlXreXX) {
         if (!IsPowerOf2(args.nf + 1)) {
           return Unimplemented();
         }
@@ -500,7 +500,7 @@ class Interpreter {
     }
 
     if constexpr (std::is_same_v<VOpArgs, Decoder::VStoreUnitStrideArgs>) {
-      if (args.opcode == Decoder::VStoreUnitStrideOpcode::kVsₓ) {
+      if (args.opcode == Decoder::VStoreUnitStrideOpcode::kVsX) {
         if (args.width != Decoder::StoreOperandType::k8bit) {
           return Unimplemented();
         }
@@ -759,12 +759,12 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVredmaxvs:
         return OpVectorvs<intrinsics::Vredmaxvs<SignedType>, SignedType, vlmul, vta>(
             args.dst, args.src1, args.src2);
-      case Decoder::VOpMVvOpcode::kVₓmₓs:
+      case Decoder::VOpMVvOpcode::kVXmXXs:
         switch (args.subopcode) {
-          case Decoder::VₓmₓsOpcode::kVcpopm:
-            return OpVectorVₓmₓs<intrinsics::Vcpopm<Int128>>(args.dst, args.src1);
-          case Decoder::VₓmₓsOpcode::kVfirstm:
-            return OpVectorVₓmₓs<intrinsics::Vfirstm<Int128>>(args.dst, args.src1);
+          case Decoder::VXmXXsOpcode::kVcpopm:
+            return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>>(args.dst, args.src1);
+          case Decoder::VXmXXsOpcode::kVfirstm:
+            return OpVectorVXmXXs<intrinsics::Vfirstm<Int128>>(args.dst, args.src1);
           default:
               return Unimplemented();
         }
@@ -1025,7 +1025,7 @@ class Interpreter {
   }
 
   template <auto Intrinsic>
-  void OpVectorVₓmₓs(uint8_t dst, uint8_t src1) {
+  void OpVectorVXmXXs(uint8_t dst, uint8_t src1) {
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
@@ -1036,12 +1036,10 @@ class Interpreter {
     arg1 &= ~intrinsics::MakeBitmaskFromVl(vl);
     result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
     SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
-    SetCsr<CsrName::kVstart>(0);
   }
 
-  template <auto Intrinsic,
-            InactiveProcessing vma>
-  void OpVectorVₓmₓs(uint8_t dst, uint8_t src1) {
+  template <auto Intrinsic, InactiveProcessing vma>
+  void OpVectorVXmXXs(uint8_t dst, uint8_t src1) {
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
@@ -1054,7 +1052,6 @@ class Interpreter {
     arg1 &= ~intrinsics::MakeBitmaskFromVl(vl);
     result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
     SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -1414,12 +1411,12 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVredmaxuvs:
         return OpVectorvs<intrinsics::Vredmaxvs<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
-      case Decoder::VOpMVvOpcode::kVₓmₓs:
+      case Decoder::VOpMVvOpcode::kVXmXXs:
         switch (args.subopcode) {
-          case Decoder::VₓmₓsOpcode::kVcpopm:
-            return OpVectorVₓmₓs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
-          case Decoder::VₓmₓsOpcode::kVfirstm:
-            return OpVectorVₓmₓs<intrinsics::Vfirstm<Int128>, vma>(args.dst, args.src1);
+          case Decoder::VXmXXsOpcode::kVcpopm:
+              return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
+          case Decoder::VXmXXsOpcode::kVfirstm:
+              return OpVectorVXmXXs<intrinsics::Vfirstm<Int128>, vma>(args.dst, args.src1);
           default:
               return Unimplemented();
         }
