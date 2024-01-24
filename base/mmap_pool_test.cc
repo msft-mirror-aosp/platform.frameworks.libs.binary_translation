@@ -21,12 +21,13 @@
 
 #include "berberis/base/mmap.h"
 #include "berberis/base/mmap_pool.h"
+#include "berberis/base/page_size.h"
 
 namespace berberis {
 
 class MmapPoolTest : public ::testing::Test {
  protected:
-  static constexpr size_t kBlockSize = kPageSize;
+  static constexpr size_t kBlockSize = kMaxPageSize;
   static constexpr size_t kSizeLimit = 2 * kBlockSize;
   using Pool = MmapPool<kBlockSize, kSizeLimit>;
 
