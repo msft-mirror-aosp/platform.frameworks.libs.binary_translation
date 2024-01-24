@@ -535,6 +535,20 @@ class Interpreter {
     if (static_cast<std::make_signed_t<Register>>(vtype) < 0) {
       return Unimplemented();
     }
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadUnitStrideArgs>) {
+      switch (args.width) {
+        case Decoder::StoreOperandType::k8bit:
+          return OpVector<UInt8>(args, vtype, extra_args...);
+        case Decoder::StoreOperandType::k16bit:
+          return OpVector<UInt16>(args, vtype, extra_args...);
+        case Decoder::StoreOperandType::k32bit:
+          return OpVector<UInt32>(args, vtype, extra_args...);
+        case Decoder::StoreOperandType::k64bit:
+          return OpVector<UInt64>(args, vtype, extra_args...);
+        default:
+          return Unimplemented();
+      }
+    }
     switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
       case VectorSelectElementWidth::k8bit:
         return OpVector<UInt8>(args, vtype, extra_args...);
@@ -551,7 +565,18 @@ class Interpreter {
 
   template <typename ElementType, typename VOpArgs, typename... ExtraArgs>
   void OpVector(const VOpArgs& args, Register vtype, ExtraArgs... extra_args) {
-    switch (static_cast<VectorRegisterGroupMultiplier>(vtype & 0b111)) {
+    VectorRegisterGroupMultiplier vlmul = static_cast<VectorRegisterGroupMultiplier>(vtype & 0b111);
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadUnitStrideArgs>) {
+      int unconstrained_vemul = Decoder::SignExtend<3>(vtype & 0b111);
+      unconstrained_vemul += ((vtype >> 3) & 0b111);        // Multiply by SEW.
+      unconstrained_vemul -= static_cast<int>(args.width);  // Divide by EEW.
+      if (unconstrained_vemul < -3 || unconstrained_vemul > 3) {
+        return Unimplemented();
+      }
+      vlmul = static_cast<VectorRegisterGroupMultiplier>(unconstrained_vemul);
+    }
+
+    switch (vlmul) {
       case VectorRegisterGroupMultiplier::k1register:
         return OpVector<ElementType, VectorRegisterGroupMultiplier::k1register>(
             args, vtype, extra_args...);
