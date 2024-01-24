@@ -259,6 +259,26 @@ inline std::tuple<SIMD128Register> VectorArithmeticW(Lambda lambda, ParameterTyp
   return result;
 }
 
+template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vmsif(SIMD128Register simd_src) {
+  Int128 src = simd_src.Get<Int128>();
+  return {(src - Int128{1}) ^ src};
+}
+
+template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vmsbf(SIMD128Register simd_src) {
+  Int128 src = simd_src.Get<Int128>();
+  if (src == Int128{0}) {
+    return {~Int128{0}};
+  }
+  return {std::get<0>(Vmsif(simd_src)).Get<Int128>() >> Int128{1}};
+}
+
+template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vmsof(SIMD128Register simd_src) {
+  return {std::get<0>(Vmsbf(simd_src)) ^ std::get<0>(Vmsif(simd_src))};
+}
+
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
 #define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, arguments)                      \
                                                                                                   \

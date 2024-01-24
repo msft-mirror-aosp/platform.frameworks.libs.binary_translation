@@ -760,11 +760,22 @@ class Interpreter {
         return OpVectorvs<intrinsics::Vredmaxvs<SignedType>, SignedType, vlmul, vta>(
             args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVXmXXs:
-        switch (args.subopcode) {
+        switch (args.vXmXXs_opcode) {
           case Decoder::VXmXXsOpcode::kVcpopm:
             return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVfirstm:
             return OpVectorVXmXXs<intrinsics::Vfirstm<Int128>>(args.dst, args.src1);
+          default:
+              return Unimplemented();
+        }
+      case Decoder::VOpMVvOpcode::kVmsXf:
+        switch (args.vmsXf_opcode) {
+          case Decoder::VmsXfOpcode::kVmsbfm:
+              return OpVectorVmsXf<intrinsics::Vmsbf<>>(args.dst, args.src1);
+          case Decoder::VmsXfOpcode::kVmsofm:
+              return OpVectorVmsXf<intrinsics::Vmsof<>>(args.dst, args.src1);
+          case Decoder::VmsXfOpcode::kVmsifm:
+              return OpVectorVmsXf<intrinsics::Vmsif<>>(args.dst, args.src1);
           default:
               return Unimplemented();
         }
@@ -1052,6 +1063,44 @@ class Interpreter {
     arg1 &= ~intrinsics::MakeBitmaskFromVl(vl);
     result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
     SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
+  }
+
+  template <auto Intrinsic>
+  void OpVectorVmsXf(uint8_t dst, uint8_t src1) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    if (vstart != 0) {
+      return Unimplemented();
+    }
+    SIMD128Register arg1, result;
+    arg1.Set(state_->cpu.v[src1]);
+    SIMD128Register tail_mask = intrinsics::MakeBitmaskFromVl(vl);
+    arg1 &= ~tail_mask;
+    result = std::get<0>(Intrinsic(arg1.Get<Int128>())) | tail_mask;
+    state_->cpu.v[dst] = result.Get<__uint128_t>();
+  }
+
+  template <auto Intrinsic, InactiveProcessing vma>
+  void OpVectorVmsXf(uint8_t dst, uint8_t src1) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    if (vstart != 0) {
+      return Unimplemented();
+    }
+    SIMD128Register mask, arg1, result;
+    mask.Set(state_->cpu.v[0]);
+    arg1.Set(state_->cpu.v[src1]);
+    SIMD128Register tail_mask = intrinsics::MakeBitmaskFromVl(vl);
+    arg1 &= mask;
+    arg1 &= ~tail_mask;
+    result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
+    if (vma == InactiveProcessing::kUndisturbed) {
+      result = (result & mask) | (SIMD128Register(state_->cpu.v[dst]) & ~mask);
+    } else {
+      result |= ~mask;
+    }
+    result |= tail_mask;
+    state_->cpu.v[dst] = result.Get<__uint128_t>();
   }
 
   template <auto Intrinsic,
@@ -1412,11 +1461,22 @@ class Interpreter {
         return OpVectorvs<intrinsics::Vredmaxvs<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVXmXXs:
-        switch (args.subopcode) {
+        switch (args.vXmXXs_opcode) {
           case Decoder::VXmXXsOpcode::kVcpopm:
               return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVfirstm:
               return OpVectorVXmXXs<intrinsics::Vfirstm<Int128>, vma>(args.dst, args.src1);
+          default:
+              return Unimplemented();
+        }
+      case Decoder::VOpMVvOpcode::kVmsXf:
+        switch (args.vmsXf_opcode) {
+          case Decoder::VmsXfOpcode::kVmsbfm:
+              return OpVectorVmsXf<intrinsics::Vmsbf<>, vma>(args.dst, args.src1);
+          case Decoder::VmsXfOpcode::kVmsofm:
+              return OpVectorVmsXf<intrinsics::Vmsof<>, vma>(args.dst, args.src1);
+          case Decoder::VmsXfOpcode::kVmsifm:
+              return OpVectorVmsXf<intrinsics::Vmsif<>, vma>(args.dst, args.src1);
           default:
               return Unimplemented();
         }
