@@ -828,8 +828,13 @@ class Interpreter {
         return OpVectorvv<intrinsics::Vmulhvv<SignedType>, SignedType, vlmul, vta>(
             args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVwaddvv:
-        return OpVectorwvv<intrinsics::Vwaddvv<ElementType>, ElementType, vlmul, vta>(
-            args.dst, args.src1, args.src2);
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorwvv<intrinsics::Vwaddvv<ElementType>, ElementType, vlmul, vta>(
+              args.dst, args.src1, args.src2);
+        }
       default:
         Unimplemented();
     }
@@ -977,7 +982,7 @@ class Interpreter {
   template <auto Intrinsic, typename ElementType, VectorRegisterGroupMultiplier vlmul>
   void OpVectormvv(uint8_t dst, uint8_t src1, uint8_t src2) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    if (((src1 | src2) & (kRegistersInvolved - 1)) != 0) {
+    if (!IsAligned<kRegistersInvolved>(src1 | src2)) {
       return Unimplemented();
     }
     SIMD128Register original_result(state_->cpu.v[dst]);
@@ -1008,7 +1013,7 @@ class Interpreter {
   template <auto Intrinsic, typename ElementType, VectorRegisterGroupMultiplier vlmul>
   void OpVectormvx(uint8_t dst, uint8_t src1, ElementType arg2) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    if ((src1 & (kRegistersInvolved - 1)) != 0) {
+    if (!IsAligned<kRegistersInvolved>(src1)) {
       return Unimplemented();
     }
     SIMD128Register original_result(state_->cpu.v[dst]);
@@ -1108,9 +1113,8 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta>
   void OpVectorvs(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if ((dst & (registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0 ||
-        (src2 & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
@@ -1120,7 +1124,7 @@ class Interpreter {
     }
     SIMD128Register result, arg2;
     ElementType arg1 = SIMD128Register{state_->cpu.v[src1]}.Get<ElementType>(0);
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       const size_t element_count = std::min(static_cast<int>(16 / sizeof(ElementType)), vl);
       arg2.Set(state_->cpu.v[src2 + index]);
       for (size_t element_index = 0; element_index < element_count; ++element_index) {
@@ -1140,14 +1144,14 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta>
   void OpVectorvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if (((dst | src1 | src2) & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     SIMD128Register result, arg1, arg2;
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       result.Set(state_->cpu.v[dst + index]);
       arg1.Set(state_->cpu.v[src1 + index]);
       arg2.Set(state_->cpu.v[src2 + index]);
@@ -1166,15 +1170,14 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta>
   void OpVectorvvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if ((dst & (registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0 ||
-        (src2 & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     SIMD128Register result, arg1, arg2;
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       result.Set(state_->cpu.v[dst + index]);
       arg1.Set(state_->cpu.v[src1 + index]);
       arg2.Set(state_->cpu.v[src2 + index]);
@@ -1193,46 +1196,38 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta>
   void OpVectorwvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t dest_registers_involved = NumDestRegistersInvolvedForW(vlmul);
-    if (vlmul == VectorRegisterGroupMultiplier::k8registers) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    constexpr size_t kDestRegistersInvolved = NumDestRegistersInvolvedForW(vlmul);
+    if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kRegistersInvolved>(src1 | src2)) {
       return Unimplemented();
     }
-    if constexpr (sizeof(ElementType) >= sizeof(Int64)) {
-      return Unimplemented();
-    } else {
-      if ((dst & (dest_registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0 ||
-          (src2 & (registers_involved - 1)) != 0) {
-        return Unimplemented();
-      }
-      int vstart = GetCsr<CsrName::kVstart>();
-      int vl = GetCsr<CsrName::kVl>();
-      SIMD128Register result, arg1, arg2;
-      for (size_t index = 0; index < registers_involved; ++index) {
-        result.Set(state_->cpu.v[dst + 2 * index]);
-        arg1.Set(state_->cpu.v[src1 + index]);
-        arg2.Set(state_->cpu.v[src2 + index]);
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    SIMD128Register result, arg1, arg2;
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      result.Set(state_->cpu.v[dst + 2 * index]);
+      arg1.Set(state_->cpu.v[src1 + index]);
+      arg2.Set(state_->cpu.v[src2 + index]);
+      result = intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta>(
+          vstart - index * (16 / sizeof(ElementType)),
+          vl - index * (16 / sizeof(ElementType)),
+          result,
+          std::get<0>(Intrinsic(arg1, arg2)));
+      state_->cpu.v[dst + 2 * index] = result.Get<__uint128_t>();
+      if constexpr (kDestRegistersInvolved > 1) {  // if lmul is one full register or more
+        result.Set(state_->cpu.v[dst + 2 * index + 1]);
+        std::tie(arg1) = intrinsics::VMovTopHalfToBottom<ElementType>(arg1);
+        std::tie(arg2) = intrinsics::VMovTopHalfToBottom<ElementType>(arg2);
         result = intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta>(
-            vstart - index * (16 / sizeof(ElementType)),
-            vl - index * (16 / sizeof(ElementType)),
+            vstart - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
+            vl - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
             result,
             std::get<0>(Intrinsic(arg1, arg2)));
-        state_->cpu.v[dst + 2 * index] = result.Get<__uint128_t>();
-        if constexpr (dest_registers_involved > 1) {  // if lmul is one full register or more
-          result.Set(state_->cpu.v[dst + 2 * index + 1]);
-          std::tie(arg1) = intrinsics::VMovTopHalfToBottom<ElementType>(arg1);
-          std::tie(arg2) = intrinsics::VMovTopHalfToBottom<ElementType>(arg2);
-          result = intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta>(
-              vstart - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
-              vl - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
-              result,
-              std::get<0>(Intrinsic(arg1, arg2)));
 
-          state_->cpu.v[dst + 2 * index + 1] = result.Get<__uint128_t>();
-        }
+        state_->cpu.v[dst + 2 * index + 1] = result.Get<__uint128_t>();
       }
-      SetCsr<CsrName::kVstart>(0);
     }
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -1240,14 +1235,14 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta>
   void OpVectorvx(uint8_t dst, uint8_t src1, ElementType arg2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if (((dst | src1) & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     SIMD128Register result, arg1;
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       result.Set(state_->cpu.v[dst + index]);
       arg1.Set(state_->cpu.v[src1 + index]);
       result =
@@ -1265,14 +1260,14 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta>
   void OpVectorvxv(uint8_t dst, uint8_t src1, ElementType arg2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if ((dst & (registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     SIMD128Register result, arg1;
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       result.Set(state_->cpu.v[dst + index]);
       arg1.Set(state_->cpu.v[src1 + index]);
       result =
@@ -1508,8 +1503,13 @@ class Interpreter {
         return OpVectorvv<intrinsics::Vmulhvv<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVwaddvv:
-        return OpVectorwvv<intrinsics::Vwaddvv<ElementType>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src1, args.src2);
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorwvv<intrinsics::Vwaddvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
       default:
         Unimplemented();
     }
@@ -1650,7 +1650,7 @@ class Interpreter {
             InactiveProcessing vma>
   void OpVectormvv(uint8_t dst, uint8_t src1, uint8_t src2) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    if (((src1 | src2) & (kRegistersInvolved - 1)) != 0) {
+    if (!IsAligned<kRegistersInvolved>(src1 | src2)) {
       return Unimplemented();
     }
     SIMD128Register original_result(state_->cpu.v[dst]);
@@ -1690,7 +1690,7 @@ class Interpreter {
             InactiveProcessing vma>
   void OpVectormvx(uint8_t dst, uint8_t src1, ElementType arg2) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    if ((src1 & (kRegistersInvolved - 1)) != 0) {
+    if (!IsAligned<kRegistersInvolved>(src1)) {
       return Unimplemented();
     }
     SIMD128Register original_result(state_->cpu.v[dst]);
@@ -1729,9 +1729,8 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVectorvs(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if ((dst & (registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0 ||
-        (src2 & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
@@ -1743,7 +1742,7 @@ class Interpreter {
     SIMD128Register mask, result, arg2;
     mask.Set(state_->cpu.v[0]);
     ElementType arg1 = SIMD128Register{state_->cpu.v[src1]}.Get<ElementType>(0);
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       const size_t element_count = std::min(static_cast<int>(16 / sizeof(ElementType)), vl);
       const int mask_bits = intrinsics::MaskForRegisterInSequence<ElementType>(mask, index);
       arg2.Set(state_->cpu.v[src2 + index]);
@@ -1776,15 +1775,15 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVectorvvm(uint8_t dst, uint8_t dst_mask, uint8_t src1, uint8_t src2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if (((dst | dst_mask | src1 | src2) & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | dst_mask | src1 | src2)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     SIMD128Register mask, result, result_mask, arg1, arg2;
     mask.Set(state_->cpu.v[0]);
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       result.Set(state_->cpu.v[dst + index]);
       result_mask.Set(state_->cpu.v[dst_mask + index]);
       arg1.Set(state_->cpu.v[src1 + index]);
@@ -1807,16 +1806,15 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVectorvvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if ((dst & (registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0 ||
-        (src2 & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     SIMD128Register mask, result, arg1, arg2;
     mask.Set(state_->cpu.v[0]);
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       result.Set(state_->cpu.v[dst + index]);
       arg1.Set(state_->cpu.v[src1 + index]);
       arg2.Set(state_->cpu.v[src2 + index]);
@@ -1837,50 +1835,41 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVectorwvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t dest_registers_involved = NumDestRegistersInvolvedForW(vlmul);
-    if (vlmul == VectorRegisterGroupMultiplier::k8registers) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    constexpr size_t kDestRegistersInvolved = NumDestRegistersInvolvedForW(vlmul);
+    if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kRegistersInvolved>(src1 | src2)) {
       return Unimplemented();
     }
-    if constexpr (sizeof(ElementType) >= sizeof(Int64)) {
-      return Unimplemented();
-    } else {
-      if ((dst & (dest_registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0 ||
-          (src2 & (registers_involved - 1)) != 0) {
-        return Unimplemented();
-      }
-      int vstart = GetCsr<CsrName::kVstart>();
-      int vl = GetCsr<CsrName::kVl>();
-      SIMD128Register mask, result, arg1, arg2;
-      mask.Set(state_->cpu.v[0]);
-      for (size_t index = 0; index < registers_involved; ++index) {
-        result.Set(state_->cpu.v[dst + 2 * index]);
-        arg1.Set(state_->cpu.v[src1 + index]);
-        arg2.Set(state_->cpu.v[src2 + index]);
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    SIMD128Register mask, result, arg1, arg2;
+    mask.Set(state_->cpu.v[0]);
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      result.Set(state_->cpu.v[dst + 2 * index]);
+      arg1.Set(state_->cpu.v[src1 + index]);
+      arg2.Set(state_->cpu.v[src2 + index]);
+      result = intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta, vma>(
+          vstart - index * (16 / sizeof(ElementType)),
+          vl - index * (16 / sizeof(ElementType)),
+          intrinsics::MaskForRegisterInSequence<decltype(Widen(ElementType{0}))>(mask, (2 * index)),
+          result,
+          std::get<0>(Intrinsic(arg1, arg2)));
+      state_->cpu.v[dst + 2 * index] = result.Get<__uint128_t>();
+      if constexpr (kDestRegistersInvolved > 1) {  // if lmul is one full register or more
+        result.Set(state_->cpu.v[dst + 2 * index + 1]);
+        std::tie(arg1) = intrinsics::VMovTopHalfToBottom<ElementType>(arg1);
+        std::tie(arg2) = intrinsics::VMovTopHalfToBottom<ElementType>(arg2);
         result = intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta, vma>(
-            vstart - index * (16 / sizeof(ElementType)),
-            vl - index * (16 / sizeof(ElementType)),
+            vstart - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
+            vl - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
             intrinsics::MaskForRegisterInSequence<decltype(Widen(ElementType{0}))>(mask,
-                                                                                   (2 * index)),
+                                                                                   (2 * index) + 1),
             result,
             std::get<0>(Intrinsic(arg1, arg2)));
-        state_->cpu.v[dst + 2 * index] = result.Get<__uint128_t>();
-        if constexpr (dest_registers_involved > 1) {  // if lmul is one full register or more
-          result.Set(state_->cpu.v[dst + 2 * index + 1]);
-          std::tie(arg1) = intrinsics::VMovTopHalfToBottom<ElementType>(arg1);
-          std::tie(arg2) = intrinsics::VMovTopHalfToBottom<ElementType>(arg2);
-          result = intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta, vma>(
-              vstart - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
-              vl - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
-              intrinsics::MaskForRegisterInSequence<decltype(Widen(ElementType{0}))>(
-                  mask, (2 * index) + 1),
-              result,
-              std::get<0>(Intrinsic(arg1, arg2)));
-          state_->cpu.v[dst + 2 * index + 1] = result.Get<__uint128_t>();
-        }
+        state_->cpu.v[dst + 2 * index + 1] = result.Get<__uint128_t>();
       }
-      SetCsr<CsrName::kVstart>(0);
     }
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -1898,15 +1887,15 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVectorvxm(uint8_t dst, uint8_t dst_mask, uint8_t src1, ElementType arg2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if (((dst | dst_mask | src1) & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | dst_mask | src1)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     SIMD128Register mask, result, result_mask, arg1;
     mask.Set(state_->cpu.v[0]);
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       result.Set(state_->cpu.v[dst + index]);
       result_mask.Set(state_->cpu.v[dst_mask + index]);
       arg1.Set(state_->cpu.v[src1 + index]);
@@ -1928,15 +1917,15 @@ class Interpreter {
             TailProcessing vta,
             InactiveProcessing vma>
   void OpVectorvxv(uint8_t dst, uint8_t src1, ElementType arg2) {
-    constexpr size_t registers_involved = NumberOfRegistersInvolved(vlmul);
-    if ((dst & (registers_involved - 1)) != 0 || (src1 & (registers_involved - 1)) != 0) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     SIMD128Register mask, result, arg1;
     mask.Set(state_->cpu.v[0]);
-    for (size_t index = 0; index < registers_involved; ++index) {
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
       result.Set(state_->cpu.v[dst + index]);
       arg1.Set(state_->cpu.v[src1 + index]);
       result = intrinsics::VectorMasking<ElementType, vta, vma>(
