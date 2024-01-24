@@ -1040,69 +1040,46 @@ class Interpreter {
         (result_before_vl_masking | intrinsics::MakeBitmaskFromVl(vl)).Get<__uint128_t>();
   }
 
-  template <auto Intrinsic>
+  template <auto Intrinsic, auto vma = intrinsics::NoInactiveProcessing{}>
   void OpVectorVXmXXs(uint8_t dst, uint8_t src1) {
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
       return Unimplemented();
     }
-    SIMD128Register arg1, result;
-    arg1.Set(state_->cpu.v[src1]);
-    arg1 &= ~intrinsics::MakeBitmaskFromVl(vl);
-    result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
-    SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
-  }
-
-  template <auto Intrinsic, InactiveProcessing vma>
-  void OpVectorVXmXXs(uint8_t dst, uint8_t src1) {
-    int vstart = GetCsr<CsrName::kVstart>();
-    int vl = GetCsr<CsrName::kVl>();
-    if (vstart != 0) {
-      return Unimplemented();
+    SIMD128Register arg1(state_->cpu.v[src1]);
+    if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+      SIMD128Register mask(state_->cpu.v[0]);
+      arg1 &= mask;
     }
-    SIMD128Register mask, arg1, result;
-    mask.Set(state_->cpu.v[0]);
-    arg1.Set(state_->cpu.v[src1]);
-    arg1 &= mask;
     arg1 &= ~intrinsics::MakeBitmaskFromVl(vl);
-    result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
+    SIMD128Register result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
     SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
   }
 
-  template <auto Intrinsic>
+  template <auto Intrinsic, auto vma = intrinsics::NoInactiveProcessing{}>
   void OpVectorVmsXf(uint8_t dst, uint8_t src1) {
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
       return Unimplemented();
     }
-    SIMD128Register arg1, result;
-    arg1.Set(state_->cpu.v[src1]);
+    SIMD128Register arg1(state_->cpu.v[src1]);
     SIMD128Register tail_mask = intrinsics::MakeBitmaskFromVl(vl);
-    arg1 &= ~tail_mask;
-    result = std::get<0>(Intrinsic(arg1.Get<Int128>())) | tail_mask;
-    state_->cpu.v[dst] = result.Get<__uint128_t>();
-  }
-
-  template <auto Intrinsic, InactiveProcessing vma>
-  void OpVectorVmsXf(uint8_t dst, uint8_t src1) {
-    int vstart = GetCsr<CsrName::kVstart>();
-    int vl = GetCsr<CsrName::kVl>();
-    if (vstart != 0) {
-      return Unimplemented();
+    SIMD128Register mask;
+    if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+      mask.Set<__uint128_t>(state_->cpu.v[0]);
+      arg1 &= mask;
     }
-    SIMD128Register mask, arg1, result;
-    mask.Set(state_->cpu.v[0]);
-    arg1.Set(state_->cpu.v[src1]);
-    SIMD128Register tail_mask = intrinsics::MakeBitmaskFromVl(vl);
-    arg1 &= mask;
     arg1 &= ~tail_mask;
-    result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
-    if (vma == InactiveProcessing::kUndisturbed) {
-      result = (result & mask) | (SIMD128Register(state_->cpu.v[dst]) & ~mask);
-    } else {
-      result |= ~mask;
+    SIMD128Register result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
+    if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+      arg1 &= mask;
+      if (vma == InactiveProcessing::kUndisturbed) {
+        result = (result & mask) | (SIMD128Register(state_->cpu.v[dst]) & ~mask);
+      } else {
+        result |= ~mask;
+      }
     }
     result |= tail_mask;
     state_->cpu.v[dst] = result.Get<__uint128_t>();
@@ -1136,32 +1113,6 @@ class Interpreter {
     result.Set(arg1, 0);
     result = intrinsics::VectorMasking<ElementType, vta>(result, result, 0, 1);
     state_->cpu.v[dst] = result.Get<__uint128_t>();
-    SetCsr<CsrName::kVstart>(0);
-  }
-
-  template <auto Intrinsic,
-            typename ElementType,
-            VectorRegisterGroupMultiplier vlmul,
-            TailProcessing vta>
-  void OpVectorvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
-      return Unimplemented();
-    }
-    int vstart = GetCsr<CsrName::kVstart>();
-    int vl = GetCsr<CsrName::kVl>();
-    SIMD128Register result, arg1, arg2;
-    for (size_t index = 0; index < kRegistersInvolved; ++index) {
-      result.Set(state_->cpu.v[dst + index]);
-      arg1.Set(state_->cpu.v[src1 + index]);
-      arg2.Set(state_->cpu.v[src2 + index]);
-      result =
-          intrinsics::VectorMasking<ElementType, vta>(result,
-                                                      std::get<0>(Intrinsic(arg1, arg2)),
-                                                      vstart - index * (16 / sizeof(ElementType)),
-                                                      vl - index * (16 / sizeof(ElementType)));
-      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
-    }
     SetCsr<CsrName::kVstart>(0);
   }
 
@@ -1413,13 +1364,13 @@ class Interpreter {
         return OpVectorvv<intrinsics::Vmaxvv<SignedType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
       case Decoder::VOpIVvOpcode::kVmergevv:
-        return OpVectorvvm<intrinsics::Vmergevv<ElementType>,
-                           ElementType,
-                           vlmul,
-                           vta,
-                           // Always use "undisturbed" value from source register.
-                           InactiveProcessing::kUndisturbed>(
-            args.dst, /*dst_mask=*/args.src1, args.src1, args.src2);
+        return OpVectorvv<intrinsics::Vmergevv<ElementType>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          // Always use "undisturbed" value from source register.
+                          InactiveProcessing::kUndisturbed>(
+            args.dst, args.src1, args.src2, /*dst_mask=*/args.src1);
       default:
         Unimplemented();
     }
@@ -1763,30 +1714,31 @@ class Interpreter {
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
-            InactiveProcessing vma>
-  void OpVectorvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    OpVectorvvm<Intrinsic, ElementType, vlmul, vta, vma>(dst, /*dst_mask=*/dst, src1, src2);
-  }
-
-  template <auto Intrinsic,
-            typename ElementType,
-            VectorRegisterGroupMultiplier vlmul,
-            TailProcessing vta,
-            InactiveProcessing vma>
-  void OpVectorvvm(uint8_t dst, uint8_t dst_mask, uint8_t src1, uint8_t src2) {
+            auto vma = intrinsics::NoInactiveProcessing{},
+            typename... DstMaskType>
+  void OpVectorvv(uint8_t dst, uint8_t src1, uint8_t src2, DstMaskType... dst_mask) {
+    // Note: for the most instructions dst_mask is the same as dst and thus is not supplied
+    // separately, but for vmerge.vvm it's the same as src1.
+    // Since it's always one of dst, src1, or src2 there are no need to check alignment separately.
+    static_assert(sizeof...(dst_mask) <= 1);
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    if (!IsAligned<kRegistersInvolved>(dst | dst_mask | src1 | src2)) {
+    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
-    SIMD128Register mask, result, result_mask, arg1, arg2;
-    mask.Set(state_->cpu.v[0]);
+    auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
-      result.Set(state_->cpu.v[dst + index]);
-      result_mask.Set(state_->cpu.v[dst_mask + index]);
-      arg1.Set(state_->cpu.v[src1 + index]);
-      arg2.Set(state_->cpu.v[src2 + index]);
+      SIMD128Register result{state_->cpu.v[dst + index]};
+      SIMD128Register result_mask;
+      if constexpr (sizeof...(DstMaskType) == 0) {
+        result_mask.Set(state_->cpu.v[dst + index]);
+      } else {
+        uint8_t dst_mask_unpacked[1] = {dst_mask...};
+        result_mask.Set(state_->cpu.v[dst_mask_unpacked[0] + index]);
+      }
+      SIMD128Register arg1{state_->cpu.v[src1 + index]};
+      SIMD128Register arg2{state_->cpu.v[src2 + index]};
       result = intrinsics::VectorMasking<ElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2)),
@@ -2073,6 +2025,18 @@ class Interpreter {
   }
 
   void CheckFpRegIsValid(uint8_t reg) const { CHECK_LT(reg, std::size(state_->cpu.f)); }
+
+  template <auto vma = intrinsics::NoInactiveProcessing{}>
+  std::conditional_t<std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>,
+                     intrinsics::NoInactiveProcessing,
+                     SIMD128Register>
+  GetMaskForVectorOperations() {
+    if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+      return intrinsics::NoInactiveProcessing{};
+    } else {
+      return {state_->cpu.v[0]};
+    }
+  }
 
   ThreadState* state_;
   bool branch_taken_;
