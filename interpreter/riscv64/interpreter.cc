@@ -31,6 +31,7 @@
 #include "berberis/intrinsics/guest_fp_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
+#include "berberis/intrinsics/riscv64/vector_intrinsics.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
@@ -465,7 +466,7 @@ class Interpreter {
     }
   }
 
-  static constexpr size_t NumDestRegistersInvolvedForW(VectorRegisterGroupMultiplier vlmul) {
+  static constexpr size_t NumDestRegistersInvolvedForWiden(VectorRegisterGroupMultiplier vlmul) {
     switch (vlmul) {
       case VectorRegisterGroupMultiplier::k1register:
         return 2;
@@ -478,9 +479,9 @@ class Interpreter {
     }
   }
 
-  static constexpr size_t NumSourceRegistersInvolvedForN(VectorRegisterGroupMultiplier vlmul) {
+  static constexpr size_t NumSourceRegistersInvolvedForNarrow(VectorRegisterGroupMultiplier vlmul) {
     // It's the same, we just add a wrapper for readability.
-    return NumDestRegistersInvolvedForW(vlmul);
+    return NumDestRegistersInvolvedForWiden(vlmul);
   }
 
   template <typename VOpArgs, typename... ExtraArgs>
@@ -956,6 +957,9 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2), /*dst_mask=*/args.src1);
         }
+      case Decoder::VOpIVxOpcode::kVnsrlvx:
+        return OpVectornvx<intrinsics::Vnsrvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       default:
         Unimplemented();
     }
@@ -1265,7 +1269,7 @@ class Interpreter {
             auto vma>
   void OpVectorwvv(uint8_t dst, uint8_t src1, uint8_t src2) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kDestRegistersInvolved = NumDestRegistersInvolvedForW(vlmul);
+    constexpr size_t kDestRegistersInvolved = NumDestRegistersInvolvedForWiden(vlmul);
     if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kRegistersInvolved>(src1 | src2)) {
       return Unimplemented();
     }
@@ -1348,7 +1352,7 @@ class Interpreter {
             auto vma>
   void OpVectornvx(uint8_t dst, uint8_t src1, ElementType arg2) {
     constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kSrcRegistersInvolved = NumSourceRegistersInvolvedForN(vlmul);
+    constexpr size_t kSrcRegistersInvolved = NumSourceRegistersInvolvedForNarrow(vlmul);
     if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSrcRegistersInvolved>(src1)) {
       return Unimplemented();
     }
@@ -1363,7 +1367,8 @@ class Interpreter {
       if (kSrcRegistersInvolved > 1) {
         SIMD128Register arg1_high(state_->cpu.v[src1 + 2 * index + 1]);
         SIMD128Register result_high = std::get<0>(Intrinsic(arg1_high, arg2));
-        intrinsic_result.Set<uint64_t>(result_high.Get<uint64_t>(0), 1);
+        intrinsic_result = std::get<0>(
+            intrinsics::VMergeBottomHalfToTop<ElementType>(intrinsic_result, result_high));
       }
 
       auto result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
