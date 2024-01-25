@@ -3351,6 +3351,21 @@ TEST_F(Riscv64InterpreterTest, TestVnslr) {
                                   {0x0031'd1b1, 0x0033'd3b3, 0x0035'd5b5, 0x0037'd7b7},
                                   {0x0039'd9b9, 0x003b'dbbb, 0x003d'ddbd, 0x003f'dfbf}},
                                  kVectorCalculationsSource);
+  TestNarrowingVectorInstruction(
+      0xb10c0457,  // vnsrl.wx v8,v16,v24,v0.t
+      {{0, 48, 66, 8, 132, 176, 141, 8, 16, 49, 74, 9, 140, 177, 157, 9},
+       {32, 50, 82, 10, 148, 178, 173, 10, 48, 51, 90, 11, 156, 179, 189, 11},
+       {64, 52, 98, 12, 164, 180, 205, 12, 80, 53, 106, 13, 172, 181, 221, 13},
+       {96, 54, 114, 14, 180, 182, 237, 14, 112, 55, 122, 15, 188, 183, 253, 15}},
+      {{0x8100, 0x8342, 0x4585, 0x008f, 0x9110, 0x8b4a, 0x4d8d, 0x009f},
+       {0xa120, 0x9352, 0x5595, 0x00af, 0xb130, 0x9b5a, 0x5d9d, 0x00bf},
+       {0xc140, 0xa362, 0x65a5, 0x00cf, 0xd150, 0xab6a, 0x6dad, 0x00df},
+       {0xe160, 0xb372, 0x75b5, 0x00ef, 0xf170, 0xbb7a, 0x7dbd, 0x00ff}},
+      {{0x8302'8100, 0x4686'4585, 0x9716'9514, 0x0000'4f8f},
+       {0xa322'a120, 0x5696'5595, 0xb736'b534, 0x0000'5f9f},
+       {0xc342'c140, 0x66a6'65a5, 0xd756'd554, 0x0000'6faf},
+       {0xe362'e160, 0x76b6'75b5, 0xf776'f574, 0x0000'7fbf}},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVcpopm) {

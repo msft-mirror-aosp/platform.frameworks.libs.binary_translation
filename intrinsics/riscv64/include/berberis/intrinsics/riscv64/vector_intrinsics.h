@@ -387,6 +387,10 @@ inline std::tuple<SIMD128Register> Vmsof(SIMD128Register simd_src) {
   DEFINE_ARITHMETIC_INTRINSIC_W(V##name##vv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
 
+#define DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VV(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC_N(V##name##vv, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
+
 #define DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VX(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC_N(V##name##vx, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, ElementType src2), (src1, src2))
@@ -483,6 +487,7 @@ DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
                                   ? Int128{-1}
                                   : Popcount(arg ^ (arg - Int128{1})))
 DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV(wadd, (args + ...))
+DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VV(nsr, auto [arg1, arg2] = std::tuple{args...}; (arg1 >> arg2))
 DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VX(nsr, auto [arg1, arg2] = std::tuple{args...}; (arg1 >> arg2))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
@@ -496,6 +501,7 @@ DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VX(nsr, auto [arg1, arg2] = std::tuple{args...
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV
+#undef DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VV
 #undef DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VX
 
 }  // namespace berberis::intrinsics
