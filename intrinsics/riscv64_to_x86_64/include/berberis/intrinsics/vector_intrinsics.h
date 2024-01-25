@@ -28,14 +28,14 @@
 
 namespace berberis::intrinsics {
 
-[[nodiscard]] inline SIMD128Register MakeBitmaskFromVl(size_t vl) {
-  return _mm_loadu_si128(reinterpret_cast<__m128i_u const*>(
+[[nodiscard]] inline std::tuple<SIMD128Register> MakeBitmaskFromVl(size_t vl) {
+  return {_mm_loadu_si128(reinterpret_cast<__m128i_u const*>(
       bit_cast<const uint8_t*>(static_cast<uintptr_t>(constants_pool::kBitMaskTable)) +
-      (vl & 7U) * 32 + 16 - ((vl & (~7ULL)) >> 3)));
+      (vl & 7U) * 32 + 16 - ((vl & (~7ULL)) >> 3)))};
 }
 
 template <typename ElementType>
-[[nodiscard]] inline SIMD128Register BitMaskToSimdMask(size_t mask) {
+[[nodiscard]] inline std::tuple<SIMD128Register> BitMaskToSimdMask(size_t mask) {
   SIMD128Register result;
   if constexpr (sizeof(ElementType) == sizeof(Int8)) {
     uint64_t low_mask = bit_cast<const uint64_t*>(
@@ -66,7 +66,7 @@ template <typename ElementType>
     }
     result.Set(simd_half_mask);
   }
-  return result;
+  return {result};
 }
 
 template <auto kElement>
