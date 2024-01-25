@@ -70,27 +70,28 @@ template <typename ElementType>
 }
 
 template <auto kElement>
-[[nodiscard]] inline SIMD128Register VectorMaskedElementTo(SIMD128Register simd_mask,
-                                                           SIMD128Register src) {
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorMaskedElementTo(SIMD128Register simd_mask,
+                                                                       SIMD128Register src) {
   using ElementType = decltype(kElement);
   if constexpr (kElement == ElementType{0}) {
-    return src & simd_mask;
+    return {src & simd_mask};
   } else if constexpr (kElement == static_cast<ElementType>(~ElementType{0})) {
-    return src | ~simd_mask;
+    return {src | ~simd_mask};
   } else {
-    return (*bit_cast<const SIMD128Register*>(
-                static_cast<uintptr_t>(constants_pool::kVectorConst<kElement>)) &
-            ~simd_mask) |
-           (src & simd_mask);
+    return {(*bit_cast<const SIMD128Register*>(
+                 static_cast<uintptr_t>(constants_pool::kVectorConst<kElement>)) &
+             ~simd_mask) |
+            (src & simd_mask)};
   }
 }
 
 #ifdef __SSSE3__
 template <typename ElementType>
-[[nodiscard]] inline std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>
+[[nodiscard]] inline std::tuple<
+    std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>>
 SimdMaskToBitMask(SIMD128Register simd_mask) {
   if constexpr (sizeof(ElementType) == sizeof(Int8)) {
-    return {static_cast<uint16_t>(_mm_movemask_epi8(simd_mask.Get<__m128i>()))};
+    return {RawInt16{static_cast<uint16_t>(_mm_movemask_epi8(simd_mask.Get<__m128i>()))}};
   } else {
     static_assert(sizeof(ElementType) == sizeof(Int16) || sizeof(ElementType) == sizeof(Int32) ||
                   sizeof(ElementType) == sizeof(Int64));
@@ -98,8 +99,8 @@ SimdMaskToBitMask(SIMD128Register simd_mask) {
         sizeof(ElementType) == sizeof(Int16)   ? constants_pool::kPMovmskwToPMovmskb
         : sizeof(ElementType) == sizeof(Int32) ? constants_pool::kPMovmskdToPMovmskb
                                                : constants_pool::kPMovmskqToPMovmskb));
-    return {static_cast<uint8_t>(
-        _mm_movemask_epi8(_mm_shuffle_epi8(simd_mask.Get<__m128i>(), kPMovmskXToPMovmskb)))};
+    return {RawInt8{static_cast<uint8_t>(
+        _mm_movemask_epi8(_mm_shuffle_epi8(simd_mask.Get<__m128i>(), kPMovmskXToPMovmskb)))}};
   }
 }
 #endif

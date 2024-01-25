@@ -1378,7 +1378,8 @@ class Interpreter {
     std::conditional_t<sizeof(ElementType) < sizeof(UInt32), SIMD128Register, UInt32>
         bitmask_result{};
     for (UInt32 index = UInt32{0}; index < UInt32(kRegistersInvolved); index += UInt32{1}) {
-      auto raw_result = intrinsics::SimdMaskToBitMask<ElementType>(std::get<0>(intrinsic(index)));
+      const auto [raw_result] =
+          intrinsics::SimdMaskToBitMask<ElementType>(std::get<0>(intrinsic(index)));
       if constexpr (sizeof(ElementType) < sizeof(Int32)) {
         bitmask_result.Set(raw_result, index);
       } else {
