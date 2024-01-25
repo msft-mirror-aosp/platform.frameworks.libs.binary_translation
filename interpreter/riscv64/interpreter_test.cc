@@ -329,20 +329,26 @@ class Riscv64InterpreterTest : public ::testing::Test {
     Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int64, kNoMask);
   }
 
-  void TestVectorMaskInstruction(uint32_t insn_bytes, const __v2du expected_result) {
+  void TestVectorMaskInstruction(uint8_t max_vstart,
+                                 intrinsics::InactiveProcessing vma,
+                                 uint32_t insn_bytes,
+                                 const __v2du expected_result) {
     // Mask instructions don't look on vtype directly, but they still require valid one because it
     // affects vlmax;
+    auto [vlmax, vtype] = intrinsics::Vsetvl(~0ULL, 3 | (static_cast<uint8_t>(vma) << 7));
+    // We need mask with a few bits set for Vmsₓf instructions.  Inverse of normal kMask works.
+    const __uint128_t mask = SIMD128Register{~kMask}.Get<__uint128_t>();
     const __uint128_t undisturbed = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
     const __uint128_t src1 = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
     const __uint128_t src2 = SIMD128Register{kVectorCalculationsSource[8]}.Get<__uint128_t>();
     const __uint128_t expected = SIMD128Register{expected_result}.Get<__uint128_t>();
-    auto [vlmax, vtype] = intrinsics::Vsetvl(~0ULL, 3);
     state_.cpu.vtype = vtype;
     for (uint8_t vl = 0; vl <= vlmax; ++vl) {
       state_.cpu.vl = vl;
-      for (uint8_t vstart = 0; vstart <= 128; ++vstart) {
+      for (uint8_t vstart = 0; vstart <= max_vstart; ++vstart) {
         state_.cpu.vstart = vstart;
         // Set expected_result vector registers into 0b01010101… pattern.
+        state_.cpu.v[0] = mask;
         state_.cpu.v[8] = undisturbed;
         state_.cpu.v[16] = src1;
         state_.cpu.v[24] = src2;
@@ -873,22 +879,74 @@ TEST_F(Riscv64InterpreterTest, TestVadd) {
 }
 
 TEST_F(Riscv64InterpreterTest, TestVectorMaskInstructions) {
-  TestVectorMaskInstruction(0x630c2457,  // vmandn.mm v8, v16, v24
+  TestVectorMaskInstruction(128,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x630c2457,  // vmandn.mm v8, v16, v24
                             {0x8102'8504'8102'8100, 0x8102'8504'890a'8908});
-  TestVectorMaskInstruction(0x670c2457,  // vmand.mm v8, v16, v24
+  TestVectorMaskInstruction(128,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x670c2457,  // vmand.mm v8, v16, v24
                             {0x0604'0000'0200'0000, 0x0e0c'0808'0200'0000});
-  TestVectorMaskInstruction(0x6b0c2457,  // vmor.mm v8, v16, v24
+  TestVectorMaskInstruction(128,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x6b0c2457,  // vmor.mm v8, v16, v24
                             {0x8f0e'8f0d'8706'8300, 0x9f1e'9f1c'9f1e'9b19});
-  TestVectorMaskInstruction(0x6f0c2457,  // vmxor.mm v8, v16, v24
+  TestVectorMaskInstruction(128,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x6f0c2457,  // vmxor.mm v8, v16, v24
                             {0x890a'8f0d'8506'8300, 0x9112'9714'9d1e'9b19});
-  TestVectorMaskInstruction(0x730c2457,  // vmorn.mm v8, v16, v24
+  TestVectorMaskInstruction(128,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x730c2457,  // vmorn.mm v8, v16, v24
                             {0xf7f7'f5f6'fbfb'fdff, 0xefef'edef'ebeb'edee});
-  TestVectorMaskInstruction(0x770c2457,  // vmnand.mm v8, v16, v24
+  TestVectorMaskInstruction(128,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x770c2457,  // vmnand.mm v8, v16, v24
                             {0xf9fb'ffff'fdff'ffff, 0xf1f3'f7f7'fdff'ffff});
-  TestVectorMaskInstruction(0x7b0c2457,  // vmnor.mm v8, v16, v24
+  TestVectorMaskInstruction(128,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x7b0c2457,  // vmnor.mm v8, v16, v24
                             {0x70f1'70f2'78f9'7cff, 0x60e1'60e3'60e1'64e6});
-  TestVectorMaskInstruction(0x7f0c2457,  // vmxnor.mm v8, v16, v24
+  TestVectorMaskInstruction(128,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x7f0c2457,  // vmxnor.mm v8, v16, v24
                             {0x76f5'70f2'7af9'7cff, 0x6eed'68eb'62e1'64e6});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x5300a457,  // vmsbf.m v8, v16
+                            {0x0000'0000'0000'00ff, 000000'0000'0000'0000});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x53012457,  // vmsof.m v8, v16
+                            {0x0000'0000'0000'0100, 000000'0000'0000'0000});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x5301a457,  // vmsif.m v8, v16
+                            {0x0000'0000'0000'01ff, 000000'0000'0000'0000});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x5100a457,  // vmsbf.m v8, v16, v0.t
+                            {0xd5ad'd6b5'adff'ffff, 0x6af7'57bb'deed'7bb5});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x51012457,  // vmsof.m v8, v16, v0.t
+                            {0xd5ad'd6b5'af6b'b5ad, 0x6af7'57bb'deed'7bb5});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kAgnostic,
+                            0x5101a457,  // vmsif.m v8, v16, v0.t
+                            {0xd5ad'd6b5'afff'ffff, 0x6af7'57bb'deed'7bb5});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kUndisturbed,
+                            0x5100a457,  // vmsbf.m v8, v16, v0.t
+                            {0x5505'5415'05d5'5f57, 0x4055'5511'5445'5115});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kUndisturbed,
+                            0x51012457,  // vmsof.m v8, v16, v0.t
+                            {0x5505'5415'0741'1505, 0x4055'5511'5445'5115});
+  TestVectorMaskInstruction(0,
+                            intrinsics::InactiveProcessing::kUndisturbed,
+                            0x5101a457,  // vmsif.m v8, v16, v0.t
+                            {0x5505'5415'07d5'5f57, 0x4055'5511'5445'5115});
 }
 
 TEST_F(Riscv64InterpreterTest, TestVrsub) {

@@ -30,7 +30,7 @@ namespace berberis {
 
 namespace {
 
-constexpr size_t kThreadStatePageAlignedSize = AlignUpPageSize(sizeof(ThreadState));
+const size_t kThreadStatePageAlignedSize = AlignUpPageSize(sizeof(ThreadState));
 
 void InitThreadState(ThreadState* state) {
   // This is needed to set all flag values to 0.

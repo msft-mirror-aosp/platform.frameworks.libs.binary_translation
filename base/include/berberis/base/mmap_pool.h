@@ -23,6 +23,7 @@
 #include "berberis/base/checks.h"
 #include "berberis/base/lock_free_stack.h"
 #include "berberis/base/mmap.h"
+#include "berberis/base/page_size.h"
 
 namespace berberis {
 
@@ -31,7 +32,7 @@ namespace berberis {
 // Singleton interface (no non-static members).
 template <size_t kBlockSize, size_t kSizeLimit>
 class MmapPool {
-  static_assert(kBlockSize % kPageSize == 0);
+  static_assert(kBlockSize % kMaxPageSize == 0);
   static_assert(kBlockSize <= kSizeLimit);
 
  public:

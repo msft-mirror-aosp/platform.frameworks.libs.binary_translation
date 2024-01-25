@@ -43,6 +43,15 @@ enum class InactiveProcessing {
   kAgnostic = 1,
 };
 
+enum class NoInactiveProcessing {
+  kNoInactiveProcessing = 0,
+};
+
+template <typename ElementType>
+[[nodiscard]] NoInactiveProcessing MaskForRegisterInSequence(NoInactiveProcessing, size_t) {
+  return NoInactiveProcessing{};
+}
+
 template <typename ElementType>
 [[nodiscard]] int MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence) {
   if constexpr (sizeof(ElementType) == sizeof(uint8_t)) {
@@ -152,7 +161,7 @@ template <typename ElementType>
 }
 
 template <typename ElementType>
-std::tuple<SIMD128Register> VMovTopHalfToBottom(SIMD128Register src) {
+[[nodiscard]] inline std::tuple<SIMD128Register> VMovTopHalfToBottom(SIMD128Register src) {
   SIMD128Register result;
   constexpr int kMaxCount = 16 / sizeof(ElementType);
   for (int i = 0; i < kMaxCount / 2; ++i) {
@@ -161,8 +170,13 @@ std::tuple<SIMD128Register> VMovTopHalfToBottom(SIMD128Register src) {
   return result;
 }
 
-template <typename ElementType, TailProcessing vta>
-SIMD128Register VectorMasking(int vstart, int vl, SIMD128Register dest, SIMD128Register result) {
+template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoInactiveProcessing{}>
+[[nodiscard]] inline SIMD128Register VectorMasking(
+    SIMD128Register dest,
+    SIMD128Register result,
+    int vstart,
+    int vl,
+    NoInactiveProcessing /*mask*/ = NoInactiveProcessing{}) {
   constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
   if (vstart < 0) {
     vstart = 0;
@@ -203,34 +217,43 @@ SIMD128Register VectorMasking(int vstart, int vl, SIMD128Register dest, SIMD128R
   return dest;
 }
 
-template <typename ElementType, TailProcessing vta, InactiveProcessing vma>
-SIMD128Register VectorMasking(int vstart,
-                              int vl,
-                              int mask,
-                              SIMD128Register dest,
+template <typename ElementType,
+          TailProcessing vta,
+          auto vma = NoInactiveProcessing{},
+          typename MaskType = NoInactiveProcessing>
+SIMD128Register VectorMasking(SIMD128Register dest,
                               SIMD128Register result,
-                              SIMD128Register result_mask) {
-  SIMD128Register simd_mask = BitMaskToSimdMask<ElementType>(mask);
-  if (vma == InactiveProcessing::kAgnostic) {
-    result |= ~simd_mask;
-  } else {
-    result = (result & simd_mask) | (result_mask & ~simd_mask);
+                              SIMD128Register result_mask,
+                              int vstart,
+                              int vl,
+                              MaskType mask = NoInactiveProcessing{}) {
+  static_assert(
+      (std::is_same_v<decltype(vma), NoInactiveProcessing> &&
+       std::is_same_v<MaskType, NoInactiveProcessing>) ||
+      (std::is_same_v<decltype(vma), InactiveProcessing> && std::is_integral_v<MaskType>));
+  if constexpr (std::is_same_v<decltype(vma), InactiveProcessing>) {
+    SIMD128Register simd_mask = BitMaskToSimdMask<ElementType>(mask);
+    if (vma == InactiveProcessing::kAgnostic) {
+      result |= ~simd_mask;
+    } else {
+      result = (result & simd_mask) | (result_mask & ~simd_mask);
+    }
   }
-  return VectorMasking<ElementType, vta>(vstart, vl, dest, result);
+  return VectorMasking<ElementType, vta>(dest, result, vstart, vl);
 }
 
 template <typename ElementType, TailProcessing vta, InactiveProcessing vma>
-SIMD128Register VectorMasking(int vstart,
+SIMD128Register VectorMasking(SIMD128Register dest,
+                              SIMD128Register result,
+                              int vstart,
                               int vl,
-                              int mask,
-                              SIMD128Register dest,
-                              SIMD128Register result) {
-  return VectorMasking<ElementType, vta, vma>(vstart,
-                                              vl,
-                                              mask,
-                                              dest,
+                              int mask) {
+  return VectorMasking<ElementType, vta, vma>(dest,
                                               result,
-                                              /*result_mask=*/dest);
+                                              /*result_mask=*/dest,
+                                              vstart,
+                                              vl,
+                                              mask);
 }
 
 // TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
@@ -257,6 +280,26 @@ inline std::tuple<SIMD128Register> VectorArithmeticW(Lambda lambda, ParameterTyp
     result.Set(lambda(Widen(VectorElement<ElementType>(parameters, index))...), index);
   }
   return result;
+}
+
+template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vmsif(SIMD128Register simd_src) {
+  Int128 src = simd_src.Get<Int128>();
+  return {(src - Int128{1}) ^ src};
+}
+
+template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vmsbf(SIMD128Register simd_src) {
+  Int128 src = simd_src.Get<Int128>();
+  if (src == Int128{0}) {
+    return {~Int128{0}};
+  }
+  return {std::get<0>(Vmsif(simd_src)).Get<Int128>() >> Int128{1}};
+}
+
+template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vmsof(SIMD128Register simd_src) {
+  return {std::get<0>(Vmsbf(simd_src)) ^ std::get<0>(Vmsif(simd_src))};
 }
 
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
