@@ -162,11 +162,14 @@ template <typename ElementType>
 
 template <typename ElementType>
 [[nodiscard]] inline std::tuple<SIMD128Register> VMovTopHalfToBottom(SIMD128Register src) {
-  SIMD128Register result;
-  constexpr int kMaxCount = 16 / sizeof(ElementType);
-  for (int i = 0; i < kMaxCount / 2; ++i) {
-    result.Set<ElementType>(src.Get<ElementType>(kMaxCount / 2 + i), i);
-  }
+  return {SIMD128Register{src.Get<uint64_t>(1)}};
+}
+
+template <typename ElementType>
+[[nodiscard]] inline std::tuple<SIMD128Register> VMergeBottomHalfToTop(SIMD128Register bottom,
+                                                                       SIMD128Register top) {
+  SIMD128Register result{bottom};
+  result.Set<uint64_t>(top.Get<uint64_t>(0), 1);
   return result;
 }
 
@@ -271,7 +274,8 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
 
 // TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
 template <typename ElementType, typename Lambda, typename... ParameterType>
-inline std::tuple<SIMD128Register> VectorArithmeticW(Lambda lambda, ParameterType... parameters) {
+inline std::tuple<SIMD128Register> VectorArithmeticWiden(Lambda lambda,
+                                                         ParameterType... parameters) {
   static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
                   std::is_same_v<ParameterType, ElementType>)&&...));
   SIMD128Register result;
@@ -284,7 +288,8 @@ inline std::tuple<SIMD128Register> VectorArithmeticW(Lambda lambda, ParameterTyp
 
 // TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
 template <typename ElementType, typename Lambda, typename... ParameterType>
-inline std::tuple<SIMD128Register> VectorArithmeticN(Lambda lambda, ParameterType... parameters) {
+inline std::tuple<SIMD128Register> VectorArithmeticNarrow(Lambda lambda,
+                                                          ParameterType... parameters) {
   static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
                   std::is_same_v<ParameterType, ElementType>)&&...));
   SIMD128Register result;
@@ -342,7 +347,7 @@ inline std::tuple<SIMD128Register> Vmsof(SIMD128Register simd_src) {
   template <typename ElementType,                                                                  \
             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>        \
   inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) {  \
-    return VectorArithmeticW<ElementType>(                                                         \
+    return VectorArithmeticWiden<ElementType>(                                                     \
         [](auto... args) {                                                                         \
           static_assert((std::is_same_v<decltype(args), decltype(Widen(ElementType{0}))> && ...)); \
           arithmetic;                                                                              \
@@ -355,7 +360,7 @@ inline std::tuple<SIMD128Register> Vmsof(SIMD128Register simd_src) {
   template <typename ElementType,                                                                  \
             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>        \
   inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) {  \
-    return VectorArithmeticN<ElementType>(                                                         \
+    return VectorArithmeticNarrow<ElementType>(                                                    \
         [](auto... args) {                                                                         \
           static_assert((std::is_same_v<decltype(args), decltype(Widen(ElementType{0}))> && ...)); \
           arithmetic;                                                                              \
