@@ -676,6 +676,9 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}), /*dst_mask=*/args.src);
         }
+      case Decoder::VOpIViOpcode::kVnsravi:
+        return OpVectornvx<intrinsics::Vnsrvx<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src, SignedType{args.imm});
       case Decoder::VOpIViOpcode::kVnsrlvi:
         return OpVectornvx<intrinsics::Vnsrvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
@@ -756,6 +759,9 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src1, args.src2, /*dst_mask=*/args.src1);
         }
+      case Decoder::VOpIVvOpcode::kVnsravv:
+        return OpVectornvv<intrinsics::Vnsrvv<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       case Decoder::VOpIVvOpcode::kVnsrlvv:
         return OpVectornvv<intrinsics::Vnsrvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
@@ -960,6 +966,9 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2), /*dst_mask=*/args.src1);
         }
+      case Decoder::VOpIVxOpcode::kVnsravx:
+        return OpVectornvx<intrinsics::Vnsrvx<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       case Decoder::VOpIVxOpcode::kVnsrlvx:
         return OpVectornvx<intrinsics::Vnsrvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
