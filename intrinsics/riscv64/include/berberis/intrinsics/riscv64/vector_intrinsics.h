@@ -293,6 +293,20 @@ inline std::tuple<SIMD128Register> VectorArithmeticW(Lambda lambda, ParameterTyp
   return result;
 }
 
+// TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
+template <typename ElementType, typename Lambda, typename... ParameterType>
+inline std::tuple<SIMD128Register> VectorArithmeticN(Lambda lambda, ParameterType... parameters) {
+  static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
+                  std::is_same_v<ParameterType, ElementType>)&&...));
+  SIMD128Register result;
+  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
+  for (int index = 0; index < kElementsCount; ++index) {
+    result.Set(Narrow(lambda(VectorElement<decltype(Widen(ElementType{0}))>(parameters, index)...)),
+               index);
+  }
+  return result;
+}
+
 template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vmsif(SIMD128Register simd_src) {
   Int128 src = simd_src.Get<Int128>();
@@ -347,6 +361,19 @@ inline std::tuple<SIMD128Register> Vmsof(SIMD128Register simd_src) {
         DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                      \
   }
 
+#define DEFINE_ARITHMETIC_INTRINSIC_N(Name, arithmetic, parameters, arguments)                     \
+                                                                                                   \
+  template <typename ElementType,                                                                  \
+            enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>        \
+  inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) {  \
+    return VectorArithmeticN<ElementType>(                                                         \
+        [](auto... args) {                                                                         \
+          static_assert((std::is_same_v<decltype(args), decltype(Widen(ElementType{0}))> && ...)); \
+          arithmetic;                                                                              \
+        },                                                                                         \
+        DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                      \
+  }
+
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##vv, return ({ __VA_ARGS__; }); \
                               , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
@@ -365,6 +392,10 @@ inline std::tuple<SIMD128Register> Vmsof(SIMD128Register simd_src) {
 #define DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC_W(V##name##vv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
+
+#define DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VX(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC_N(V##name##vx, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, ElementType src2), (src1, src2))
 
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
@@ -458,8 +489,11 @@ DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
                                   ? Int128{-1}
                                   : Popcount(arg ^ (arg - Int128{1})))
 DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV(wadd, (args + ...))
+DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VX(nsr, auto [arg1, arg2] = std::tuple{args...}; (arg1 >> arg2))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
+#undef DEFINE_ARITHMETIC_INTRINSIC_W
+#undef DEFINE_ARITHMETIC_INTRINSIC_N
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_M
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VS
@@ -468,6 +502,7 @@ DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV(wadd, (args + ...))
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_2OP_ARITHMETIC_W_INTRINSIC_VV
+#undef DEFINE_2OP_ARITHMETIC_N_INTRINSIC_VX
 
 }  // namespace berberis::intrinsics
 

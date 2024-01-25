@@ -329,6 +329,116 @@ class Riscv64InterpreterTest : public ::testing::Test {
     Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int64, kNoMask);
   }
 
+  void TestNarrowingVectorInstruction(uint32_t insn_bytes,
+                                      const __v16qu (&expected_result_int8)[8],
+                                      const __v8hu (&expected_result_int16)[8],
+                                      const __v4su (&expected_result_int32)[8],
+                                      const __v2du (&source)[16]) {
+    auto Verify = [this, &source](uint32_t insn_bytes,
+                                  uint8_t vsew,
+                                  uint8_t vlmul_max,
+                                  const auto& expected_result,
+                                  auto mask) {
+      // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
+      // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
+      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
+      for (size_t index = 0; index < std::size(source); ++index) {
+        state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
+      }
+      // Set x1 for vx instructions.
+      SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
+      for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
+        // Incompatible vlmul for narrowing.
+        if (vlmul == 3) {
+          continue;
+        }
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          for (uint8_t vma = 0; vma < 2; ++vma) {
+            auto [vlmax, vtype] =
+                intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
+            // Incompatible vsew and vlmax. Skip it.
+            if (vlmax == 0) {
+              continue;
+            }
+            // To make tests quick enough we don't test vstart and vl change with small register
+            // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of
+            // first register and half of last register.
+            // Note, vlmul == 3 is incompatible with narrowing and is skipped above.
+            if (vlmul == 2) {
+              state_.cpu.vstart = vlmax / 8;
+              state_.cpu.vl = (vlmax * 7) / 8;
+            } else {
+              state_.cpu.vstart = 0;
+              state_.cpu.vl = vlmax;
+            }
+            state_.cpu.vtype = vtype;
+
+            // Set original result vector registers into 0b01010101… pattern.
+            for (size_t index = 0; index < 8; ++index) {
+              state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+            }
+
+            // Values for inactive elements (i.e. corresponding mask bit is 0).
+            const size_t n = std::size(source);
+            __m128i expected_inactive[n];
+            std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
+
+            state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+            EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+            if (vlmul < 4) {
+              for (size_t index = 0; index < (1 << vlmul); ++index) {
+                if (index == 0 && vlmul == 2) {
+                  EXPECT_EQ(state_.cpu.v[8 + index],
+                            SIMD128Register{
+                                (kUndisturbedResult & kFractionMaskInt8[3]) |
+                                (expected_result[index] & mask[index] & ~kFractionMaskInt8[3]) |
+                                (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])}
+                                .Get<__uint128_t>());
+                } else if (index == 3 && vlmul == 2) {
+                  EXPECT_EQ(
+                      state_.cpu.v[8 + index],
+                      SIMD128Register{
+                          (expected_result[index] & mask[index] & kFractionMaskInt8[3]) |
+                          (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
+                          ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])}
+                          .Get<__uint128_t>());
+                } else {
+                  EXPECT_EQ(
+                      state_.cpu.v[8 + index],
+                      SIMD128Register{(expected_result[index] & mask[index]) |
+                                      ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[index])}
+                          .Get<__uint128_t>());
+                }
+              }
+            } else {
+              EXPECT_EQ(
+                  state_.cpu.v[8],
+                  SIMD128Register{(expected_result[0] & mask[0] & kFractionMaskInt8[vlmul - 4]) |
+                                  ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[0] &
+                                   kFractionMaskInt8[vlmul - 4]) |
+                                  ((vta ? kAgnosticResult : kUndisturbedResult) &
+                                   ~kFractionMaskInt8[vlmul - 4])}
+                      .Get<__uint128_t>());
+            }
+
+            // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+            EXPECT_EQ(state_.cpu.vstart, 0);
+            if (vlmul == 2) {
+              EXPECT_EQ(state_.cpu.vl, (vlmax * 7) / 8);
+            }
+          }
+        }
+      }
+    };
+
+    Verify(insn_bytes, 0, 8, expected_result_int8, kMaskInt8);
+    Verify(insn_bytes, 1, 8, expected_result_int16, kMaskInt16);
+    Verify(insn_bytes, 2, 8, expected_result_int32, kMaskInt32);
+    Verify(insn_bytes | (1 << 25), 0, 8, expected_result_int8, kNoMask);
+    Verify(insn_bytes | (1 << 25), 1, 8, expected_result_int16, kNoMask);
+    Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int32, kNoMask);
+  }
+
   void TestVectorMaskInstruction(uint8_t max_vstart,
                                  intrinsics::InactiveProcessing vma,
                                  uint32_t insn_bytes,
@@ -3209,6 +3319,24 @@ TEST_F(Riscv64InterpreterTest, TestVwadd) {
                                  {0x0000'0001'1997'1390, 0x0000'0001'25a3'1f9d},
                                  {0x0000'0001'31af'2ba9, 0x0000'0001'3dbb'37b4}},
                                 kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVnslr) {
+  TestNarrowingVectorInstruction(
+      0xb101b457,  // vnsrl.wi v8,v16,3,v0.t
+      {{32, 96, 160, 224, 33, 97, 161, 225, 34, 98, 162, 226, 35, 99, 163, 227},
+       {36, 100, 164, 228, 37, 101, 165, 229, 38, 102, 166, 230, 39, 103, 167, 231},
+       {40, 104, 168, 232, 41, 105, 169, 233, 42, 106, 170, 234, 43, 107, 171, 235},
+       {44, 108, 172, 236, 45, 109, 173, 237, 46, 110, 174, 238, 47, 111, 175, 239}},
+      {{0x5020, 0xd0a0, 0x5121, 0xd1a1, 0x5222, 0xd2a2, 0x5323, 0xd3a3},
+       {0x5424, 0xd4a4, 0x5525, 0xd5a5, 0x5626, 0xd6a6, 0x5727, 0xd7a7},
+       {0x5828, 0xd8a8, 0x5929, 0xd9a9, 0x5a2a, 0xdaaa, 0x5b2b, 0xdbab},
+       {0x5c2c, 0xdcac, 0x5d2d, 0xddad, 0x5e2e, 0xdeae, 0x5f2f, 0xdfaf}},
+      {{0x9060'5020, 0x9161'5121, 0x9262'5222, 0x9363'5323},
+       {0x9464'5424, 0x9565'5525, 0x9666'5626, 0x9767'5727},
+       {0x9868'5828, 0x9969'5929, 0x9a6a'5a2a, 0x9b6b'5b2b},
+       {0x9c6c'5c2c, 0x9d6d'5d2d, 0x9e6e'5e2e, 0x9f6f'5f2f}},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVcpopm) {
