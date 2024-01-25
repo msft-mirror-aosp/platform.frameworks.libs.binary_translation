@@ -48,7 +48,7 @@ TEST(byte_input_stream, smoke) {
   ASSERT_TRUE(in.available());
   ASSERT_EQ(-63, in.ReadSleb128());
   ASSERT_TRUE(in.available());
-  ASSERT_STREQ("bar", in.ReadString());
+  ASSERT_EQ("bar", in.ReadString());
   ASSERT_TRUE(in.available());
   auto byte_vector = in.ReadBytes(3);
   ASSERT_EQ(3U, byte_vector.size());
