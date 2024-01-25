@@ -19,12 +19,11 @@
 
 #include <climits>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
-#include <optional>
 #include <type_traits>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
 
 namespace berberis {
 

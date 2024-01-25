@@ -31,6 +31,7 @@
 #include "berberis/intrinsics/guest_fp_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
+#include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 #include "berberis/runtime_primitives/interpret_helpers.h"
@@ -528,7 +529,7 @@ class Interpreter {
     // Currently we don't have support for multiple CPU mode in Berberis thus we can only handle
     // these instrtuctions in the interpreter.
     //
-    // TODO(300690740): develop and implement strategy which would allow us to support vector
+    // TODO(b/300690740): develop and implement strategy which would allow us to support vector
     // intrinsics not just in the interpreter. Move code from this function to semantics player.
     Register vtype = GetCsr<CsrName::kVtype>();
     if (static_cast<std::make_signed_t<Register>>(vtype) < 0) {
