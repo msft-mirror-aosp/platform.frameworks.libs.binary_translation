@@ -66,7 +66,22 @@ TEST(VectorIntrinsics, Make64bitMaskFromBitmask) {
     ASSERT_EQ(SimdMaskToBitMaskForTests<Int64>(simd_mask), SimdMaskToBitMask<Int64>(simd_mask));
   }
 }
-
+template <typename ElementType>
+void TestVidv() {
+  for (size_t index = 0; index < 8; ++index) {
+    ASSERT_EQ(VidvForTests<ElementType>(index), Vidv<ElementType>(index));
+  }
+}
+TEST(VectorIntrinsics, Vidv) {
+  TestVidv<Int8>();
+  TestVidv<Int16>();
+  TestVidv<Int32>();
+  TestVidv<Int64>();
+  TestVidv<UInt8>();
+  TestVidv<UInt16>();
+  TestVidv<UInt32>();
+  TestVidv<UInt64>();
+}
 // Easily recognizable bit pattern for target register.
 constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 

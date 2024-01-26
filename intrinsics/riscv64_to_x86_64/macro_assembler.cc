@@ -123,6 +123,50 @@ struct MacroAssemblerConstants {
       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffc0, 0xffff'ffff'ffff'ffff},
       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000, 0xffff'ffff'ffff'ff80, 0xffff'ffff'ffff'ffff},
   };
+  // RISC-V manual strongly implies that vid.v may be implemented similarly to viota.m
+  // This may be true for hardware implementation, but in software vid.v may be implemented with a
+  // simple precomputed table which implementation of viota.m is much more tricky and slow.
+  // Here are precomputed values for Vid.v
+  alignas(16) __m128i kVid64Bit[8] = {
+      {0, 1},
+      {2, 3},
+      {4, 5},
+      {6, 7},
+      {8, 9},
+      {10, 11},
+      {12, 13},
+      {14, 15},
+  };
+  alignas(16) __v4si kVid32Bit[8] = {
+      {0, 1, 2, 3},
+      {4, 5, 6, 7},
+      {8, 9, 10, 11},
+      {12, 13, 14, 15},
+      {16, 17, 18, 19},
+      {20, 21, 22, 23},
+      {24, 25, 26, 27},
+      {28, 29, 30, 31},
+  };
+  alignas(16) __v8hi kVid16Bit[8] = {
+      {0, 1, 2, 3, 4, 5, 6, 7},
+      {8, 9, 10, 11, 12, 13, 14, 15},
+      {16, 17, 18, 19, 20, 21, 22, 23},
+      {24, 25, 26, 27, 28, 29, 30, 31},
+      {32, 33, 34, 35, 36, 37, 38, 39},
+      {40, 41, 42, 43, 44, 45, 46, 47},
+      {48, 49, 50, 51, 52, 53, 54, 55},
+      {56, 57, 58, 59, 60, 61, 62, 63},
+  };
+  alignas(16) __v16qi kVid8Bit[8] = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+      {16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+      {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
+      {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+      {64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79},
+      {80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95},
+      {96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111},
+      {112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127},
+  };
   alignas(16) const uint64_t kBitMaskTo32bitMask[4] = {
       0x0000'0000'0000'0000,
       0x0000'0000'ffff'ffff,
@@ -216,7 +260,7 @@ struct MacroAssemblerConstants {
 };
 
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
-CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 22656, 128);
+CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 26752, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
@@ -237,9 +281,13 @@ CHECK_FIELD_LAYOUT(MacroAssemblerConstants, k0x8000_0000_0000_00ff, 1728, 64);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kRiscVToX87Exceptions, 2176, 256);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kX87ToRiscVExceptions, 2432, 512);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTable, 2944, 2048);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo32bitMask, 4992, 256);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo16bitMask, 5248, 1024);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo8bitMask, 6272, 16384);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kVid64Bit, 4992, 1024);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kVid32Bit, 6016, 1024);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kVid16Bit, 7040, 1024);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kVid8Bit, 8064, 1024);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo32bitMask, 9088, 256);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo16bitMask, 9344, 1024);
+CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo8bitMask, 10368, 16384);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
@@ -333,12 +381,16 @@ const int32_t kRiscVToX87Exceptions =
 const int32_t kX87ToRiscVExceptions =
     GetConstants() + offsetof(MacroAssemblerConstants, kX87ToRiscVExceptions);
 const int32_t kBitMaskTable = GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTable);
-const int32_t kBitMaskTo8bitMask =
-    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTo8bitMask);
-const int32_t kBitMaskTo16bitMask =
-    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTo16bitMask);
+const int32_t kVid64Bit = GetConstants() + offsetof(MacroAssemblerConstants, kVid64Bit);
+const int32_t kVid32Bit = GetConstants() + offsetof(MacroAssemblerConstants, kVid32Bit);
+const int32_t kVid16Bit = GetConstants() + offsetof(MacroAssemblerConstants, kVid16Bit);
+const int32_t kVid8Bit = GetConstants() + offsetof(MacroAssemblerConstants, kVid8Bit);
 const int32_t kBitMaskTo32bitMask =
     GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTo32bitMask);
+const int32_t kBitMaskTo16bitMask =
+    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTo16bitMask);
+const int32_t kBitMaskTo8bitMask =
+    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTo8bitMask);
 const int32_t kPMovmskwToPMovmskb =
     GetConstants() + offsetof(MacroAssemblerConstants, kPMovmskwToPMovmskb);
 const int32_t kPMovmskdToPMovmskb =
