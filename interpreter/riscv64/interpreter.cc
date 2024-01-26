@@ -466,7 +466,7 @@ class Interpreter {
     }
   }
 
-  static constexpr size_t NumDestRegistersInvolvedForWiden(VectorRegisterGroupMultiplier vlmul) {
+  static constexpr size_t NumRegistersInvolvedForWideOperand(VectorRegisterGroupMultiplier vlmul) {
     switch (vlmul) {
       case VectorRegisterGroupMultiplier::k1register:
         return 2;
@@ -477,11 +477,6 @@ class Interpreter {
       default:
         return 1;
     }
-  }
-
-  static constexpr size_t NumSourceRegistersInvolvedForNarrow(VectorRegisterGroupMultiplier vlmul) {
-    // It's the same, we just add a wrapper for readability.
-    return NumDestRegistersInvolvedForWiden(vlmul);
   }
 
   template <typename VOpArgs, typename... ExtraArgs>
@@ -701,11 +696,11 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}), /*dst_mask=*/args.src);
         }
-      case Decoder::VOpIViOpcode::kVnsravi:
-        return OpVectornvx<intrinsics::Vnsrvx<SignedType>, SignedType, vlmul, vta, vma>(
+      case Decoder::VOpIViOpcode::kVnsrawi:
+        return OpVectorNarrowwx<intrinsics::Vnsrwx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src, SignedType{args.imm});
-      case Decoder::VOpIViOpcode::kVnsrlvi:
-        return OpVectornvx<intrinsics::Vnsrvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+      case Decoder::VOpIViOpcode::kVnsrlwi:
+        return OpVectorNarrowwx<intrinsics::Vnsrwx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       default:
         Unimplemented();
@@ -784,11 +779,11 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src1, args.src2, /*dst_mask=*/args.src1);
         }
-      case Decoder::VOpIVvOpcode::kVnsravv:
-        return OpVectornvv<intrinsics::Vnsrvv<SignedType>, SignedType, vlmul, vta, vma>(
+      case Decoder::VOpIVvOpcode::kVnsrawv:
+        return OpVectorNarrowwv<intrinsics::Vnsrwv<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
-      case Decoder::VOpIVvOpcode::kVnsrlvv:
-        return OpVectornvv<intrinsics::Vnsrvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+      case Decoder::VOpIVvOpcode::kVnsrlwv:
+        return OpVectorNarrowwv<intrinsics::Vnsrwv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
       default:
         Unimplemented();
@@ -902,7 +897,7 @@ class Interpreter {
                       vlmul == VectorRegisterGroupMultiplier::k8registers) {
           return Unimplemented();
         } else {
-          return OpVectorwvv<intrinsics::Vwaddvv<ElementType>, ElementType, vlmul, vta, vma>(
+          return OpVectorWidenvv<intrinsics::Vwaddvv<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         }
       default:
@@ -991,11 +986,11 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2), /*dst_mask=*/args.src1);
         }
-      case Decoder::VOpIVxOpcode::kVnsravx:
-        return OpVectornvx<intrinsics::Vnsrvx<SignedType>, SignedType, vlmul, vta, vma>(
+      case Decoder::VOpIVxOpcode::kVnsrawx:
+        return OpVectorNarrowwx<intrinsics::Vnsrwx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
-      case Decoder::VOpIVxOpcode::kVnsrlvx:
-        return OpVectornvx<intrinsics::Vnsrvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+      case Decoder::VOpIVxOpcode::kVnsrlwx:
+        return OpVectorNarrowwx<intrinsics::Vnsrwx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       default:
         Unimplemented();
@@ -1299,14 +1294,16 @@ class Interpreter {
     SetCsr<CsrName::kVstart>(0);
   }
 
+  // 2*SEW = SEW op SEW
+  // Attention: not to confuse with to be done OpVectorWidenwv with 2*SEW = 2*SEW op SEW
   template <auto Intrinsic,
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
-  void OpVectorwvv(uint8_t dst, uint8_t src1, uint8_t src2) {
+  void OpVectorWidenvv(uint8_t dst, uint8_t src1, uint8_t src2) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kDestRegistersInvolved = NumDestRegistersInvolvedForWiden(vlmul);
+    constexpr size_t kDestRegistersInvolved = NumRegistersInvolvedForWideOperand(vlmul);
     if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kRegistersInvolved>(src1 | src2)) {
       return Unimplemented();
     }
@@ -1382,14 +1379,15 @@ class Interpreter {
     SetCsr<CsrName::kVstart>(0);
   }
 
+  // SEW = 2*SEW op SEW
   template <auto Intrinsic,
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
-  void OpVectornvx(uint8_t dst, uint8_t src1, ElementType arg2) {
+  void OpVectorNarrowwx(uint8_t dst, uint8_t src1, ElementType arg2) {
     constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kSrcRegistersInvolved = NumSourceRegistersInvolvedForNarrow(vlmul);
+    constexpr size_t kSrcRegistersInvolved = NumRegistersInvolvedForWideOperand(vlmul);
     if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSrcRegistersInvolved>(src1)) {
       return Unimplemented();
     }
@@ -1420,14 +1418,16 @@ class Interpreter {
     SetCsr<CsrName::kVstart>(0);
   }
 
+  // SEW = 2*SEW op SEW
+  // TODO(b/300690385): fix the implementation since it's currently SEW = 2*SEW op 2*SEW
   template <auto Intrinsic,
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
-  void OpVectornvv(uint8_t dst, uint8_t src1, uint8_t src2) {
+  void OpVectorNarrowwv(uint8_t dst, uint8_t src1, uint8_t src2) {
     constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kSrcRegistersInvolved = NumSourceRegistersInvolvedForNarrow(vlmul);
+    constexpr size_t kSrcRegistersInvolved = NumRegistersInvolvedForWideOperand(vlmul);
     if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSrcRegistersInvolved>(src1) ||
         !IsAligned<kSrcRegistersInvolved>(src2)) {
       return Unimplemented();

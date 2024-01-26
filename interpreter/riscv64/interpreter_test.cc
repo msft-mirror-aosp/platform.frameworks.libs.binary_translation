@@ -3293,7 +3293,7 @@ TEST_F(Riscv64InterpreterTest, TestVmulhsu) {
       kVectorCalculationsSource);
 }
 TEST_F(Riscv64InterpreterTest, TestVwadd) {
-  TestWideningVectorInstruction(0xc50c2457,
+  TestWideningVectorInstruction(0xc50c2457,  // vwadd.vv v8,v16,v24,v0.t
                                 {{0x0000, 0x0083, 0x0006, 0x0089, 0x000d, 0x008f, 0x0012, 0x0095},
                                  {0x0019, 0x009b, 0x001e, 0x00a1, 0x0024, 0x00a7, 0x002a, 0x00ad},
                                  {0x0030, 0x00b3, 0x0036, 0x00b9, 0x003d, 0x00bf, 0x0042, 0x00c5},
