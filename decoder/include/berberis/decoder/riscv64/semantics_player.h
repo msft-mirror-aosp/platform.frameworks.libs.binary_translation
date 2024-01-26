@@ -790,48 +790,31 @@ class SemanticsPlayer {
     SetRegOrIgnore(args.dst, result);
   }
 
+  // TODO(b/300690740): develop and implement strategy which would allow us to support vector
+  // intrinsics not just in the interpreter.
+
   void OpVector(const typename Decoder::VLoadUnitStrideArgs& args) {
-    // TODO(300690740): develop and implement strategy which would allow us to support vector
-    // intrinsics not just in the interpreter.
     Register arg2 = GetRegOrZero(args.src);
     listener_->OpVector(args, arg2);
   }
 
-  void OpVector(const typename Decoder::VOpIViArgs& args) {
-    // TODO(300690740): develop and implement strategy which would allow us to support vector
-    // intrinsics not just in the interpreter.
-    listener_->OpVector(args);
-  }
+  void OpVector(const typename Decoder::VOpIViArgs& args) { listener_->OpVector(args); }
 
-  void OpVector(const typename Decoder::VOpIVvArgs& args) {
-    // TODO(300690740): develop and implement strategy which would allow us to support vector
-    // intrinsics not just in the interpreter.
-    listener_->OpVector(args);
-  }
+  void OpVector(const typename Decoder::VOpIVvArgs& args) { listener_->OpVector(args); }
 
-  void OpVector(const typename Decoder::VOpMVvArgs& args) {
-    // TODO(300690740): develop and implement strategy which would allow us to support vector
-    // intrinsics not just in the interpreter.
-    listener_->OpVector(args);
-  }
+  void OpVector(const typename Decoder::VOpMVvArgs& args) { listener_->OpVector(args); }
 
   void OpVector(const typename Decoder::VOpIVxArgs& args) {
-    // TODO(300690740): develop and implement strategy which would allow us to support vector
-    // intrinsics not just in the interpreter.
     Register arg2 = GetRegOrZero(args.src2);
     listener_->OpVector(args, arg2);
   }
 
   void OpVector(const typename Decoder::VOpMVxArgs& args) {
-    // TODO(300690740): develop and implement strategy which would allow us to support vector
-    // intrinsics not just in the interpreter.
     Register arg2 = GetRegOrZero(args.src2);
     listener_->OpVector(args, arg2);
   }
 
   void OpVector(const typename Decoder::VStoreUnitStrideArgs& args) {
-    // TODO(300690740): develop and implement strategy which would allow us to support vector
-    // intrinsics not just in the interpreter.
     Register arg2 = GetRegOrZero(args.src);
     listener_->OpVector(args, arg2);
   }

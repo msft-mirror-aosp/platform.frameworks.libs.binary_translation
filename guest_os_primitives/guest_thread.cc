@@ -42,7 +42,7 @@ NativeBridgeStaticTlsConfig g_static_tls_config;
 
 namespace {
 
-constexpr size_t kGuestThreadPageAlignedSize = AlignUpPageSize(sizeof(GuestThread));
+const size_t kGuestThreadPageAlignedSize = AlignUpPageSize(sizeof(GuestThread));
 
 }  // namespace
 
