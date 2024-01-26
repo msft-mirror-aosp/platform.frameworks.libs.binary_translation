@@ -1176,7 +1176,7 @@ class Interpreter {
     }
     result.Set(state_->cpu.v[dst]);
     result.Set(arg1, 0);
-    result = intrinsics::VectorMasking<ElementType, vta>(result, result, 0, 1);
+    result = std::get<0>(intrinsics::VectorMasking<ElementType, vta>(result, result, 0, 1));
     state_->cpu.v[dst] = result.Get<__uint128_t>();
     SetCsr<CsrName::kVstart>(0);
   }
@@ -1210,13 +1210,13 @@ class Interpreter {
       }
       SIMD128Register arg1{state_->cpu.v[src1 + index]};
       SIMD128Register arg2{state_->cpu.v[src2 + index]};
-      result = intrinsics::VectorMasking<ElementType, vta, vma>(
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2)),
           result_mask,
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
-          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index)));
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
@@ -1239,12 +1239,12 @@ class Interpreter {
       SIMD128Register result(state_->cpu.v[dst + index]);
       SIMD128Register arg1(state_->cpu.v[src1 + index]);
       SIMD128Register arg2(state_->cpu.v[src2 + index]);
-      result = intrinsics::VectorMasking<ElementType, vta, vma>(
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2, result)),
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
-          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index)));
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
@@ -1268,25 +1268,25 @@ class Interpreter {
       SIMD128Register result(state_->cpu.v[dst + 2 * index]);
       SIMD128Register arg1(state_->cpu.v[src1 + index]);
       SIMD128Register arg2(state_->cpu.v[src2 + index]);
-      result = intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta, vma>(
+      result = std::get<0>(intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2)),
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<decltype(Widen(ElementType{0}))>(
-              mask, (2 * index))));
+              mask, (2 * index)))));
       state_->cpu.v[dst + 2 * index] = result.Get<__uint128_t>();
       if constexpr (kDestRegistersInvolved > 1) {  // if lmul is one full register or more
         result.Set(state_->cpu.v[dst + 2 * index + 1]);
         std::tie(arg1) = intrinsics::VMovTopHalfToBottom<ElementType>(arg1);
         std::tie(arg2) = intrinsics::VMovTopHalfToBottom<ElementType>(arg2);
-        result = intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta, vma>(
+        result = std::get<0>(intrinsics::VectorMasking<decltype(Widen(ElementType{0})), vta, vma>(
             result,
             std::get<0>(Intrinsic(arg1, arg2)),
             vstart - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
             vl - index * (16 / sizeof(ElementType)) - (8 / sizeof(ElementType)),
             std::get<0>(intrinsics::MaskForRegisterInSequence<decltype(Widen(ElementType{0}))>(
-                mask, (2 * index) + 1)));
+                mask, (2 * index) + 1))));
         state_->cpu.v[dst + 2 * index + 1] = result.Get<__uint128_t>();
       }
     }
@@ -1321,13 +1321,13 @@ class Interpreter {
         result_mask.Set(state_->cpu.v[dst_mask_unpacked[0] + index]);
       }
       SIMD128Register arg1(state_->cpu.v[src1 + index]);
-      result = intrinsics::VectorMasking<ElementType, vta, vma>(
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2)),
           result_mask,
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
-          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index)));
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
@@ -1349,12 +1349,12 @@ class Interpreter {
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result(state_->cpu.v[dst + index]);
       SIMD128Register arg1(state_->cpu.v[src1 + index]);
-      result = intrinsics::VectorMasking<ElementType, vta, vma>(
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2, result)),
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
-          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index)));
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
