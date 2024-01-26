@@ -299,7 +299,6 @@ inline std::tuple<SIMD128Register> VectorArithmeticWidenvv(Lambda lambda,
 }
 
 // SEW = 2*SEW op SEW
-// TODO(b/300690385): fix the implementation since it's currently SEW = 2*SEW op 2*SEW
 // TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
 template <typename ElementType, typename Lambda, typename... ParameterType>
 inline std::tuple<SIMD128Register> VectorArithmeticNarrowwv(Lambda lambda,
@@ -309,7 +308,9 @@ inline std::tuple<SIMD128Register> VectorArithmeticNarrowwv(Lambda lambda,
   SIMD128Register result;
   constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
   for (int index = 0; index < kElementsCount; ++index) {
-    result.Set(Narrow(lambda(VectorElement<decltype(Widen(ElementType{0}))>(parameters, index)...)),
+    auto [src1, src2] = std::tuple{parameters...};
+    result.Set(Narrow(lambda(VectorElement<decltype(Widen(ElementType{0}))>(src1, index),
+                             Widen(VectorElement<ElementType>(src2, index)))),
                index);
   }
   return result;

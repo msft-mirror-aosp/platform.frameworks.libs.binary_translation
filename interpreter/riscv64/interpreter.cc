@@ -1419,31 +1419,30 @@ class Interpreter {
   }
 
   // SEW = 2*SEW op SEW
-  // TODO(b/300690385): fix the implementation since it's currently SEW = 2*SEW op 2*SEW
   template <auto Intrinsic,
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
   void OpVectorNarrowwv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kSrcRegistersInvolved = NumRegistersInvolvedForWideOperand(vlmul);
-    if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSrcRegistersInvolved>(src1) ||
-        !IsAligned<kSrcRegistersInvolved>(src2)) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    constexpr size_t kFirstSrcRegistersInvolved = NumRegistersInvolvedForWideOperand(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src2) ||
+        !IsAligned<kFirstSrcRegistersInvolved>(src1)) {
       return Unimplemented();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
     auto mask = GetMaskForVectorOperations<vma>();
-    for (size_t index = 0; index < kDestRegistersInvolved; index++) {
+    for (size_t index = 0; index < kRegistersInvolved; index++) {
       SIMD128Register orig_result(state_->cpu.v[dst + index]);
       SIMD128Register arg1_low(state_->cpu.v[src1 + 2 * index]);
-      SIMD128Register arg2_low(state_->cpu.v[src2 + 2 * index]);
+      SIMD128Register arg2_low(state_->cpu.v[src2 + index]);
       SIMD128Register intrinsic_result = std::get<0>(Intrinsic(arg1_low, arg2_low));
 
-      if (kSrcRegistersInvolved > 1) {
+      if (kFirstSrcRegistersInvolved > 1) {
         SIMD128Register arg1_high(state_->cpu.v[src1 + 2 * index + 1]);
-        SIMD128Register arg2_high(state_->cpu.v[src2 + 2 * index + 1]);
+        SIMD128Register arg2_high(state_->cpu.v[src2 + index] >> 64);
         SIMD128Register result_high = std::get<0>(Intrinsic(arg1_high, arg2_high));
         intrinsic_result = std::get<0>(
             intrinsics::VMergeBottomHalfToTop<ElementType>(intrinsic_result, result_high));
