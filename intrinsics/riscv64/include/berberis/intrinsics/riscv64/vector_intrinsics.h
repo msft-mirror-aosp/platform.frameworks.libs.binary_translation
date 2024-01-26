@@ -114,7 +114,8 @@ template <typename ElementType>
 
 // Naïve implementation for tests.  Also used on not-x86 platforms.
 template <typename ElementType>
-[[nodiscard]] inline std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>
+[[nodiscard]] inline std::tuple<
+    std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>>
 SimdMaskToBitMaskForTests(SIMD128Register simd_mask) {
   using ResultType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
   ResultType mask{0};
@@ -129,15 +130,17 @@ SimdMaskToBitMaskForTests(SIMD128Register simd_mask) {
 
 #ifndef __SSSE3__
 template <typename ElementType>
-[[nodiscard]] inline std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>
+[[nodiscard]] inline std::tuple<
+    std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>>
 SimdMaskToBitMask(SIMD128Register simd_mask) {
   return SimdMaskToBitMaskForTests<ElementType>(simd_mask);
 }
 #endif
 
 template <auto kElement>
-[[nodiscard]] inline SIMD128Register VectorMaskedElementToForTests(SIMD128Register simd_mask,
-                                                                   SIMD128Register result) {
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorMaskedElementToForTests(
+    SIMD128Register simd_mask,
+    SIMD128Register result) {
   using ElementType = decltype(kElement);
   constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
   for (int index = 0; index < kElementsCount; ++index) {
@@ -150,8 +153,8 @@ template <auto kElement>
 
 #ifndef __x86_64__
 template <typename ElementType>
-[[nodiscard]] inline SIMD128Register VectorMaskedElementTo(SIMD128Register simd_mask,
-                                                           SIMD128Register result) {
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorMaskedElementTo(SIMD128Register simd_mask,
+                                                                       SIMD128Register result) {
   return VectorMaskedElementToForTests(simd_mask, result);
 }
 #endif
