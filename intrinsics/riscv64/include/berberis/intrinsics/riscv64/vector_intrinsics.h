@@ -48,20 +48,26 @@ enum class NoInactiveProcessing {
 };
 
 template <typename ElementType>
-[[nodiscard]] NoInactiveProcessing MaskForRegisterInSequence(NoInactiveProcessing, size_t) {
-  return NoInactiveProcessing{};
+[[nodiscard]] inline std::tuple<NoInactiveProcessing> MaskForRegisterInSequence(
+    NoInactiveProcessing,
+    size_t) {
+  return {NoInactiveProcessing{}};
 }
 
 template <typename ElementType>
-[[nodiscard]] int MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence) {
+[[nodiscard]] inline std::tuple<
+    std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>>
+MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence) {
   if constexpr (sizeof(ElementType) == sizeof(uint8_t)) {
-    return mask.Get<uint16_t>(register_in_sequence);
+    return {mask.Get<RawInt16>(register_in_sequence)};
   } else if constexpr (sizeof(ElementType) == sizeof(uint16_t)) {
-    return mask.Get<uint8_t>(register_in_sequence);
+    return {mask.Get<RawInt8>(register_in_sequence)};
   } else if constexpr (sizeof(ElementType) == sizeof(uint32_t)) {
-    return mask.Get<uint32_t>(0) >> (register_in_sequence * 4);
+    return {RawInt8{TruncateTo<UInt8>(mask.Get<UInt32>(0) >> UInt64(register_in_sequence * 4)) &
+                    UInt8{0b1111}}};
   } else if constexpr (sizeof(ElementType) == sizeof(uint64_t)) {
-    return mask.Get<uint32_t>(0) >> (register_in_sequence * 2);
+    return {RawInt8{TruncateTo<UInt8>(mask.Get<UInt32>(0) >> UInt64(register_in_sequence * 2)) &
+                    UInt8{0b11}}};
   } else {
     static_assert(kDependentTypeFalse<ElementType>, "Unsupported vector element type");
   }
@@ -227,12 +233,13 @@ SIMD128Register VectorMasking(SIMD128Register dest,
                               int vstart,
                               int vl,
                               MaskType mask = NoInactiveProcessing{}) {
-  static_assert(
-      (std::is_same_v<decltype(vma), NoInactiveProcessing> &&
-       std::is_same_v<MaskType, NoInactiveProcessing>) ||
-      (std::is_same_v<decltype(vma), InactiveProcessing> && std::is_integral_v<MaskType>));
+  static_assert((std::is_same_v<decltype(vma), NoInactiveProcessing> &&
+                 std::is_same_v<MaskType, NoInactiveProcessing>) ||
+                (std::is_same_v<decltype(vma), InactiveProcessing> &&
+                 (std::is_same_v<MaskType, RawInt8> || std::is_same_v<MaskType, RawInt16>)));
   if constexpr (std::is_same_v<decltype(vma), InactiveProcessing>) {
-    SIMD128Register simd_mask = BitMaskToSimdMask<ElementType>(mask);
+    SIMD128Register simd_mask =
+        BitMaskToSimdMask<ElementType>(static_cast<typename MaskType::BaseType>(mask));
     if (vma == InactiveProcessing::kAgnostic) {
       result |= ~simd_mask;
     } else {
@@ -242,12 +249,12 @@ SIMD128Register VectorMasking(SIMD128Register dest,
   return VectorMasking<ElementType, vta>(dest, result, vstart, vl);
 }
 
-template <typename ElementType, TailProcessing vta, InactiveProcessing vma>
+template <typename ElementType, TailProcessing vta, InactiveProcessing vma, typename MaskType>
 SIMD128Register VectorMasking(SIMD128Register dest,
                               SIMD128Register result,
                               int vstart,
                               int vl,
-                              int mask) {
+                              MaskType mask) {
   return VectorMasking<ElementType, vta, vma>(dest,
                                               result,
                                               /*result_mask=*/dest,
