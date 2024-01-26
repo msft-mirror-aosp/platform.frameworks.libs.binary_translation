@@ -180,7 +180,7 @@ template <typename ElementType>
 }
 
 template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoInactiveProcessing{}>
-[[nodiscard]] inline SIMD128Register VectorMasking(
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorMasking(
     SIMD128Register dest,
     SIMD128Register result,
     int vstart,
@@ -223,19 +223,20 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
       dest = (dest & (~start_bitmask | tail_bitmask)) | (result & start_bitmask & ~tail_bitmask);
     }
   }
-  return dest;
+  return {dest};
 }
 
 template <typename ElementType,
           TailProcessing vta,
           auto vma = NoInactiveProcessing{},
           typename MaskType = NoInactiveProcessing>
-SIMD128Register VectorMasking(SIMD128Register dest,
-                              SIMD128Register result,
-                              SIMD128Register result_mask,
-                              int vstart,
-                              int vl,
-                              MaskType mask = NoInactiveProcessing{}) {
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorMasking(
+    SIMD128Register dest,
+    SIMD128Register result,
+    SIMD128Register result_mask,
+    int vstart,
+    int vl,
+    MaskType mask = NoInactiveProcessing{}) {
   static_assert((std::is_same_v<decltype(vma), NoInactiveProcessing> &&
                  std::is_same_v<MaskType, NoInactiveProcessing>) ||
                 (std::is_same_v<decltype(vma), InactiveProcessing> &&
@@ -253,11 +254,11 @@ SIMD128Register VectorMasking(SIMD128Register dest,
 }
 
 template <typename ElementType, TailProcessing vta, InactiveProcessing vma, typename MaskType>
-SIMD128Register VectorMasking(SIMD128Register dest,
-                              SIMD128Register result,
-                              int vstart,
-                              int vl,
-                              MaskType mask) {
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorMasking(SIMD128Register dest,
+                                                               SIMD128Register result,
+                                                               int vstart,
+                                                               int vl,
+                                                               MaskType mask) {
   return VectorMasking<ElementType, vta, vma>(dest,
                                               result,
                                               /*result_mask=*/dest,
