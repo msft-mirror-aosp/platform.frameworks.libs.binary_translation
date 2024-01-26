@@ -38,7 +38,7 @@ TEST(VectorIntrinsics, MakeBitmaskFromVl) {
 TEST(VectorIntrinsics, Make8bitMaskFromBitmask) {
   for (size_t mask = 0; mask < 131071; ++mask) {
     ASSERT_EQ(BitMaskToSimdMaskForTests<Int8>(mask), BitMaskToSimdMask<Int8>(mask));
-    SIMD128Register simd_mask = BitMaskToSimdMask<Int8>(mask);
+    const auto [simd_mask] = BitMaskToSimdMask<Int8>(mask);
     ASSERT_EQ(SimdMaskToBitMaskForTests<Int8>(simd_mask), SimdMaskToBitMask<Int8>(simd_mask));
   }
 }
@@ -46,7 +46,7 @@ TEST(VectorIntrinsics, Make8bitMaskFromBitmask) {
 TEST(VectorIntrinsics, Make16bitMaskFromBitmask) {
   for (size_t mask = 0; mask < 511; ++mask) {
     ASSERT_EQ(BitMaskToSimdMaskForTests<Int16>(mask), BitMaskToSimdMask<Int16>(mask));
-    SIMD128Register simd_mask = BitMaskToSimdMask<Int16>(mask);
+    const auto [simd_mask] = BitMaskToSimdMask<Int16>(mask);
     ASSERT_EQ(SimdMaskToBitMaskForTests<Int16>(simd_mask), SimdMaskToBitMask<Int16>(simd_mask));
   }
 }
@@ -54,7 +54,7 @@ TEST(VectorIntrinsics, Make16bitMaskFromBitmask) {
 TEST(VectorIntrinsics, Make32bitMaskFromBitmask) {
   for (size_t mask = 0; mask < 31; ++mask) {
     ASSERT_EQ(BitMaskToSimdMaskForTests<Int32>(mask), BitMaskToSimdMask<Int32>(mask));
-    SIMD128Register simd_mask = BitMaskToSimdMask<Int32>(mask);
+    const auto [simd_mask] = BitMaskToSimdMask<Int32>(mask);
     ASSERT_EQ(SimdMaskToBitMaskForTests<Int32>(simd_mask), SimdMaskToBitMask<Int32>(simd_mask));
   }
 }
@@ -62,7 +62,7 @@ TEST(VectorIntrinsics, Make32bitMaskFromBitmask) {
 TEST(VectorIntrinsics, Make64bitMaskFromBitmask) {
   for (size_t mask = 0; mask < 7; ++mask) {
     ASSERT_EQ(BitMaskToSimdMaskForTests<Int64>(mask), BitMaskToSimdMask<Int64>(mask));
-    SIMD128Register simd_mask = BitMaskToSimdMask<Int64>(mask);
+    const auto [simd_mask] = BitMaskToSimdMask<Int64>(mask);
     ASSERT_EQ(SimdMaskToBitMaskForTests<Int64>(simd_mask), SimdMaskToBitMask<Int64>(simd_mask));
   }
 }
@@ -78,7 +78,7 @@ void TestVectorMaskedElementTo() {
                                                            : 7;
   for (size_t mask = 0; mask < max_mask; ++mask) {
     const SIMD128Register src = kUndisturbedResult;
-    const SIMD128Register simd_mask = BitMaskToSimdMask<decltype(kElement)>(mask);
+    const auto [simd_mask] = BitMaskToSimdMask<decltype(kElement)>(mask);
     ASSERT_EQ(VectorMaskedElementToForTests<kElement>(simd_mask, src),
               VectorMaskedElementTo<kElement>(simd_mask, src));
   }

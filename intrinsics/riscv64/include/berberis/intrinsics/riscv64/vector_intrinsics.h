@@ -74,23 +74,23 @@ MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence) {
 }
 
 // Naïve implementation for tests.  Also used on not-x86 platforms.
-[[nodiscard]] inline SIMD128Register MakeBitmaskFromVlForTests(size_t vl) {
+[[nodiscard]] inline std::tuple<SIMD128Register> MakeBitmaskFromVlForTests(size_t vl) {
   if (vl == 128) {
-    return SIMD128Register(__int128(0));
+    return {SIMD128Register(__int128(0))};
   } else {
-    return SIMD128Register((~__int128(0)) << vl);
+    return {SIMD128Register((~__int128(0)) << vl)};
   }
 }
 
 #ifndef __x86_64__
-[[nodiscard]] inline SIMD128Register MakeBitmaskFromVl(size_t vl) {
-  return MakeBitmaskFromVlForTests(vl);
+[[nodiscard]] inline std::tuple<SIMD128Register> MakeBitmaskFromVl(size_t vl) {
+  return {MakeBitmaskFromVlForTests(vl)};
 }
 #endif
 
 // Naïve implementation for tests.  Also used on not-x86 platforms.
 template <typename ElementType>
-[[nodiscard]] inline SIMD128Register BitMaskToSimdMaskForTests(size_t mask) {
+[[nodiscard]] inline std::tuple<SIMD128Register> BitMaskToSimdMaskForTests(size_t mask) {
   constexpr ElementType kZeroValue = ElementType{0};
   constexpr ElementType kFillValue = ~ElementType{0};
   SIMD128Register result;
@@ -102,13 +102,13 @@ template <typename ElementType>
       result.Set(kZeroValue, index);
     }
   }
-  return result;
+  return {result};
 }
 
 #ifndef __x86_64__
 template <typename ElementType>
-[[nodiscard]] inline SIMD128Register BitMaskToSimdMask(size_t mask) {
-  return BitMaskToSimdMaskForTests<ElementType>(mask);
+[[nodiscard]] inline std::tuple<SIMD128Register> BitMaskToSimdMask(size_t mask) {
+  return {BitMaskToSimdMaskForTests<ElementType>(mask)};
 }
 #endif
 
@@ -197,7 +197,7 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
     if (vl == 16) [[likely]] {
       return result;
     }
-    SIMD128Register tail_bitmask = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
+    const auto [tail_bitmask] = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
     if constexpr (vta == TailProcessing::kAgnostic) {
       dest = result | tail_bitmask;
     } else {
@@ -208,12 +208,12 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
       return dest;
     }
     if constexpr (vta == TailProcessing::kAgnostic) {
-      SIMD128Register tail_bitmask = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
+      const auto [tail_bitmask] = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
       dest |= tail_bitmask;
     }
   } else {
-    SIMD128Register start_bitmask = MakeBitmaskFromVl(vstart * sizeof(ElementType) * 8);
-    SIMD128Register tail_bitmask = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
+    const auto [start_bitmask] = MakeBitmaskFromVl(vstart * sizeof(ElementType) * 8);
+    const auto [tail_bitmask] = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
     if constexpr (vta == TailProcessing::kAgnostic) {
       dest = (dest & ~start_bitmask) | (result & start_bitmask) | tail_bitmask;
     } else {
@@ -238,7 +238,7 @@ SIMD128Register VectorMasking(SIMD128Register dest,
                 (std::is_same_v<decltype(vma), InactiveProcessing> &&
                  (std::is_same_v<MaskType, RawInt8> || std::is_same_v<MaskType, RawInt16>)));
   if constexpr (std::is_same_v<decltype(vma), InactiveProcessing>) {
-    SIMD128Register simd_mask =
+    const auto [simd_mask] =
         BitMaskToSimdMask<ElementType>(static_cast<typename MaskType::BaseType>(mask));
     if (vma == InactiveProcessing::kAgnostic) {
       result |= ~simd_mask;

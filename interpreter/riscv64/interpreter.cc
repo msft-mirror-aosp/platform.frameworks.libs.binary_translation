@@ -1004,7 +1004,8 @@ class Interpreter {
       SIMD128Register mask(state_->cpu.v[0]);
       arg1 &= mask;
     }
-    arg1 &= ~intrinsics::MakeBitmaskFromVl(vl);
+    const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
+    arg1 &= ~tail_mask;
     SIMD128Register result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
     SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
   }
@@ -1013,23 +1014,23 @@ class Interpreter {
   void OpVectormm(uint8_t dst, uint8_t src1, uint8_t src2) {
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
-    SIMD128Register result, arg1, arg2;
-    arg1.Set(state_->cpu.v[src1]);
-    arg2.Set(state_->cpu.v[src2]);
+    SIMD128Register arg1(state_->cpu.v[src1]);
+    SIMD128Register arg2(state_->cpu.v[src2]);
+    SIMD128Register result;
     if (vstart > 0) [[unlikely]] {
       if (vstart >= vl) [[unlikely]] {
         result.Set(state_->cpu.v[dst]);
-        result = result | intrinsics::MakeBitmaskFromVl(vl);
       } else {
-        SIMD128Register start_mask = intrinsics::MakeBitmaskFromVl(vstart);
+        const auto [start_mask] = intrinsics::MakeBitmaskFromVl(vstart);
         result.Set(state_->cpu.v[dst]);
-        result = (result & ~start_mask) | (Intrinsic(arg1, arg2) & start_mask) |
-                 intrinsics::MakeBitmaskFromVl(vl);
+        result = (result & ~start_mask) | (Intrinsic(arg1, arg2) & start_mask);
       }
       SetCsr<CsrName::kVstart>(0);
     } else {
-      result = Intrinsic(arg1, arg2) | intrinsics::MakeBitmaskFromVl(vl);
+      result = Intrinsic(arg1, arg2);
     }
+    const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
+    result = result | tail_mask;
     state_->cpu.v[dst] = result.Get<__uint128_t>();
   }
 
@@ -1041,12 +1042,12 @@ class Interpreter {
       return Unimplemented();
     }
     SIMD128Register arg1(state_->cpu.v[src1]);
-    SIMD128Register tail_mask = intrinsics::MakeBitmaskFromVl(vl);
     SIMD128Register mask;
     if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
       mask.Set<__uint128_t>(state_->cpu.v[0]);
       arg1 &= mask;
     }
+    const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
     arg1 &= ~tail_mask;
     SIMD128Register result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
     if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
@@ -1090,14 +1091,14 @@ class Interpreter {
         }
       }
       if (vstart > 0) [[unlikely]] {
-        SIMD128Register start_mask = intrinsics::MakeBitmaskFromVl(vstart);
+        const auto [start_mask] = intrinsics::MakeBitmaskFromVl(vstart);
         result_before_vl_masking =
             (original_result & ~start_mask) | (result_before_vl_masking & start_mask);
         SetCsr<CsrName::kVstart>(0);
       }
     }
-    state_->cpu.v[dst] =
-        (result_before_vl_masking | intrinsics::MakeBitmaskFromVl(vl)).Get<__uint128_t>();
+    const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
+    state_->cpu.v[dst] = (result_before_vl_masking | tail_mask).Get<__uint128_t>();
   }
 
   template <auto Intrinsic, typename ElementType, VectorRegisterGroupMultiplier vlmul, auto vma>
@@ -1128,14 +1129,14 @@ class Interpreter {
         }
       }
       if (vstart > 0) [[unlikely]] {
-        SIMD128Register start_mask = intrinsics::MakeBitmaskFromVl(vstart);
+        const auto [start_mask] = intrinsics::MakeBitmaskFromVl(vstart);
         result_before_vl_masking =
             (original_result & ~start_mask) | (result_before_vl_masking & start_mask);
         SetCsr<CsrName::kVstart>(0);
       }
     }
-    state_->cpu.v[dst] =
-        (result_before_vl_masking | intrinsics::MakeBitmaskFromVl(vl)).Get<__uint128_t>();
+    const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
+    state_->cpu.v[dst] = (result_before_vl_masking | tail_mask).Get<__uint128_t>();
   }
 
   template <auto Intrinsic,
