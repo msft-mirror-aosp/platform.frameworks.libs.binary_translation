@@ -756,9 +756,6 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src1, args.src2, /*dst_mask=*/args.src1);
         }
-      case Decoder::VOpIVvOpcode::kVnsrlvv:
-        return OpVectornvv<intrinsics::Vnsrvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
-            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -1366,47 +1363,6 @@ class Interpreter {
       if (kSrcRegistersInvolved > 1) {
         SIMD128Register arg1_high(state_->cpu.v[src1 + 2 * index + 1]);
         SIMD128Register result_high = std::get<0>(Intrinsic(arg1_high, arg2));
-        intrinsic_result = std::get<0>(
-            intrinsics::VMergeBottomHalfToTop<ElementType>(intrinsic_result, result_high));
-      }
-
-      auto result = intrinsics::VectorMasking<ElementType, vta, vma>(
-          orig_result,
-          intrinsic_result,
-          orig_result,
-          vstart - index * (16 / sizeof(ElementType)),
-          vl - index * (16 / sizeof(ElementType)),
-          intrinsics::MaskForRegisterInSequence<ElementType>(mask, index));
-      state_->cpu.v[dst + index] = result.template Get<__uint128_t>();
-    }
-    SetCsr<CsrName::kVstart>(0);
-  }
-
-  template <auto Intrinsic,
-            typename ElementType,
-            VectorRegisterGroupMultiplier vlmul,
-            TailProcessing vta,
-            auto vma>
-  void OpVectornvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kSrcRegistersInvolved = NumSourceRegistersInvolvedForNarrow(vlmul);
-    if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSrcRegistersInvolved>(src1) ||
-        !IsAligned<kSrcRegistersInvolved>(src2)) {
-      return Unimplemented();
-    }
-    int vstart = GetCsr<CsrName::kVstart>();
-    int vl = GetCsr<CsrName::kVl>();
-    auto mask = GetMaskForVectorOperations<vma>();
-    for (size_t index = 0; index < kDestRegistersInvolved; index++) {
-      SIMD128Register orig_result(state_->cpu.v[dst + index]);
-      SIMD128Register arg1_low(state_->cpu.v[src1 + 2 * index]);
-      SIMD128Register arg2_low(state_->cpu.v[src2 + 2 * index]);
-      SIMD128Register intrinsic_result = std::get<0>(Intrinsic(arg1_low, arg2_low));
-
-      if (kSrcRegistersInvolved > 1) {
-        SIMD128Register arg1_high(state_->cpu.v[src1 + 2 * index + 1]);
-        SIMD128Register arg2_high(state_->cpu.v[src2 + 2 * index + 1]);
-        SIMD128Register result_high = std::get<0>(Intrinsic(arg1_high, arg2_high));
         intrinsic_result = std::get<0>(
             intrinsics::VMergeBottomHalfToTop<ElementType>(intrinsic_result, result_high));
       }
