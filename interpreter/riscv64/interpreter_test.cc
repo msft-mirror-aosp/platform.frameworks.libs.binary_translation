@@ -427,12 +427,12 @@ class Riscv64InterpreterTest : public ::testing::Test {
             }
             // Mask registers are always processing tail like vta is set.
             if (vlmax != 128)
-              expected_result_in_register |=
-                  intrinsics::MakeBitmaskFromVl((vlmul == 2) ? (vlmax * 5) / 8 : vlmax);
+              expected_result_in_register |= std::get<0>(
+                  intrinsics::MakeBitmaskFromVl((vlmul == 2) ? (vlmax * 5) / 8 : vlmax));
             if (vlmul == 2) {
-              SIMD128Register start_mask = ~intrinsics::MakeBitmaskFromVl(vlmax / 8);
-              expected_result_in_register = (SIMD128Register{kUndisturbedResult} & start_mask) |
-                                            (expected_result_in_register & ~start_mask);
+              const auto [start_mask] = intrinsics::MakeBitmaskFromVl(vlmax / 8);
+              expected_result_in_register = (SIMD128Register{kUndisturbedResult} & ~start_mask) |
+                                            (expected_result_in_register & start_mask);
             }
             EXPECT_EQ(state_.cpu.v[8], expected_result_in_register);
 
