@@ -865,11 +865,16 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVmsXf:
         switch (args.vmsXf_opcode) {
           case Decoder::VmsXfOpcode::kVmsbfm:
-              return OpVectorVmsXf<intrinsics::Vmsbf<>, vma>(args.dst, args.src1);
+              return OpVectorVmsXf<intrinsics::Vmsbfm<>, vma>(args.dst, args.src1);
           case Decoder::VmsXfOpcode::kVmsofm:
-              return OpVectorVmsXf<intrinsics::Vmsof<>, vma>(args.dst, args.src1);
+              return OpVectorVmsXf<intrinsics::Vmsofm<>, vma>(args.dst, args.src1);
           case Decoder::VmsXfOpcode::kVmsifm:
-              return OpVectorVmsXf<intrinsics::Vmsif<>, vma>(args.dst, args.src1);
+              return OpVectorVmsXf<intrinsics::Vmsifm<>, vma>(args.dst, args.src1);
+          case Decoder::VmsXfOpcode::kVidv:
+              if (args.src1) {
+                return Unimplemented();
+              }
+              return OpVectorVidv<ElementType, vlmul, vta, vma>(args.dst);
           default:
               return Unimplemented();
         }
@@ -1039,6 +1044,28 @@ class Interpreter {
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVector(const Decoder::VStoreUnitStrideArgs& /*args*/, Register /*src*/) {
     Unimplemented();
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
+  void OpVectorVidv(uint8_t dst) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst)) {
+      return Unimplemented();
+    }
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    auto mask = GetMaskForVectorOperations<vma>();
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      SIMD128Register result{state_->cpu.v[dst + index]};
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
+          result,
+          std::get<0>(intrinsics::Vidv<ElementType>(index)),
+          vstart - index * (16 / sizeof(ElementType)),
+          vl - index * (16 / sizeof(ElementType)),
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic, auto vma>
