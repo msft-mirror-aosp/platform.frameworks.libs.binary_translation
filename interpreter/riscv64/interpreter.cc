@@ -31,6 +31,7 @@
 #include "berberis/intrinsics/guest_fp_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
+#include "berberis/intrinsics/riscv64/vector_intrinsics.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
@@ -465,7 +466,7 @@ class Interpreter {
     }
   }
 
-  static constexpr size_t NumDestRegistersInvolvedForW(VectorRegisterGroupMultiplier vlmul) {
+  static constexpr size_t NumDestRegistersInvolvedForWiden(VectorRegisterGroupMultiplier vlmul) {
     switch (vlmul) {
       case VectorRegisterGroupMultiplier::k1register:
         return 2;
@@ -476,6 +477,11 @@ class Interpreter {
       default:
         return 1;
     }
+  }
+
+  static constexpr size_t NumSourceRegistersInvolvedForNarrow(VectorRegisterGroupMultiplier vlmul) {
+    // It's the same, we just add a wrapper for readability.
+    return NumDestRegistersInvolvedForWiden(vlmul);
   }
 
   template <typename VOpArgs, typename... ExtraArgs>
@@ -695,6 +701,12 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}), /*dst_mask=*/args.src);
         }
+      case Decoder::VOpIViOpcode::kVnsravi:
+        return OpVectornvx<intrinsics::Vnsrvx<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src, SignedType{args.imm});
+      case Decoder::VOpIViOpcode::kVnsrlvi:
+        return OpVectornvx<intrinsics::Vnsrvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       default:
         Unimplemented();
     }
@@ -772,6 +784,12 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src1, args.src2, /*dst_mask=*/args.src1);
         }
+      case Decoder::VOpIVvOpcode::kVnsravv:
+        return OpVectornvv<intrinsics::Vnsrvv<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVnsrlvv:
+        return OpVectornvv<intrinsics::Vnsrvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -973,6 +991,12 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2), /*dst_mask=*/args.src1);
         }
+      case Decoder::VOpIVxOpcode::kVnsravx:
+        return OpVectornvx<intrinsics::Vnsrvx<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVnsrlvx:
+        return OpVectornvx<intrinsics::Vnsrvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       default:
         Unimplemented();
     }
@@ -1282,7 +1306,7 @@ class Interpreter {
             auto vma>
   void OpVectorwvv(uint8_t dst, uint8_t src1, uint8_t src2) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kDestRegistersInvolved = NumDestRegistersInvolvedForW(vlmul);
+    constexpr size_t kDestRegistersInvolved = NumDestRegistersInvolvedForWiden(vlmul);
     if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kRegistersInvolved>(src1 | src2)) {
       return Unimplemented();
     }
@@ -1354,6 +1378,85 @@ class Interpreter {
           vl - index * (16 / sizeof(ElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma>
+  void OpVectornvx(uint8_t dst, uint8_t src1, ElementType arg2) {
+    constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    constexpr size_t kSrcRegistersInvolved = NumSourceRegistersInvolvedForNarrow(vlmul);
+    if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSrcRegistersInvolved>(src1)) {
+      return Unimplemented();
+    }
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    auto mask = GetMaskForVectorOperations<vma>();
+    for (size_t index = 0; index < kDestRegistersInvolved; index++) {
+      SIMD128Register orig_result(state_->cpu.v[dst + index]);
+      SIMD128Register arg1_low(state_->cpu.v[src1 + 2 * index]);
+      SIMD128Register intrinsic_result = std::get<0>(Intrinsic(arg1_low, arg2));
+
+      if (kSrcRegistersInvolved > 1) {
+        SIMD128Register arg1_high(state_->cpu.v[src1 + 2 * index + 1]);
+        SIMD128Register result_high = std::get<0>(Intrinsic(arg1_high, arg2));
+        intrinsic_result = std::get<0>(
+            intrinsics::VMergeBottomHalfToTop<ElementType>(intrinsic_result, result_high));
+      }
+
+      auto result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
+          orig_result,
+          intrinsic_result,
+          orig_result,
+          vstart - index * (16 / sizeof(ElementType)),
+          vl - index * (16 / sizeof(ElementType)),
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+      state_->cpu.v[dst + index] = result.template Get<__uint128_t>();
+    }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma>
+  void OpVectornvv(uint8_t dst, uint8_t src1, uint8_t src2) {
+    constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    constexpr size_t kSrcRegistersInvolved = NumSourceRegistersInvolvedForNarrow(vlmul);
+    if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSrcRegistersInvolved>(src1) ||
+        !IsAligned<kSrcRegistersInvolved>(src2)) {
+      return Unimplemented();
+    }
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    auto mask = GetMaskForVectorOperations<vma>();
+    for (size_t index = 0; index < kDestRegistersInvolved; index++) {
+      SIMD128Register orig_result(state_->cpu.v[dst + index]);
+      SIMD128Register arg1_low(state_->cpu.v[src1 + 2 * index]);
+      SIMD128Register arg2_low(state_->cpu.v[src2 + 2 * index]);
+      SIMD128Register intrinsic_result = std::get<0>(Intrinsic(arg1_low, arg2_low));
+
+      if (kSrcRegistersInvolved > 1) {
+        SIMD128Register arg1_high(state_->cpu.v[src1 + 2 * index + 1]);
+        SIMD128Register arg2_high(state_->cpu.v[src2 + 2 * index + 1]);
+        SIMD128Register result_high = std::get<0>(Intrinsic(arg1_high, arg2_high));
+        intrinsic_result = std::get<0>(
+            intrinsics::VMergeBottomHalfToTop<ElementType>(intrinsic_result, result_high));
+      }
+
+      auto result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
+          orig_result,
+          intrinsic_result,
+          orig_result,
+          vstart - index * (16 / sizeof(ElementType)),
+          vl - index * (16 / sizeof(ElementType)),
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+      state_->cpu.v[dst + index] = result.template Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
   }
