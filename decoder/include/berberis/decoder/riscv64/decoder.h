@@ -1340,18 +1340,6 @@ class Decoder {
     return 4;
   }
 
- private:
-  template <uint32_t start, uint32_t size>
-  auto GetBits() {
-    static_assert((start + size) <= 32 && size > 0, "Invalid start or size value");
-    using ResultType = std::conditional_t<
-        size == 1,
-        bool,
-        std::conditional_t<size <= 8, uint8_t, std::conditional_t<size <= 16, uint16_t, uint32_t>>>;
-    uint32_t shifted_val = code_ << (32 - start - size);
-    return static_cast<ResultType>(shifted_val >> (32 - size));
-  }
-
   // Signextend bits from size to the corresponding signed type of sizeof(Type) size.
   // If the result of this function is assigned to a wider signed type it'll automatically
   // sign-extend.
@@ -1365,6 +1353,18 @@ class Decoder {
     } holder = {.val = static_cast<SignedType>(val)};
     // Compiler takes care of sign-extension of the field with the specified bit-length.
     return static_cast<SignedType>(holder.val);
+  }
+
+ private:
+  template <uint32_t start, uint32_t size>
+  auto GetBits() {
+    static_assert((start + size) <= 32 && size > 0, "Invalid start or size value");
+    using ResultType = std::conditional_t<
+        size == 1,
+        bool,
+        std::conditional_t<size <= 8, uint8_t, std::conditional_t<size <= 16, uint16_t, uint32_t>>>;
+    uint32_t shifted_val = code_ << (32 - start - size);
+    return static_cast<ResultType>(shifted_val >> (32 - size));
   }
 
   void Undefined() {
