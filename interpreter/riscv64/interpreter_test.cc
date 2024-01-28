@@ -74,6 +74,21 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <size_t kNFfields>
+  void TestVmvXr(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    for (size_t index = 0; index < 16; index++) {
+      state_.cpu.v[8 + index] = SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>();
+    }
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    for (size_t index = 0; index < 8; index++) {
+      EXPECT_EQ(state_.cpu.v[8 + index],
+                (index >= kNFfields
+                     ? SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>()
+                     : SIMD128Register{kVectorComparisonSource[8 + index]}.Get<__uint128_t>()));
+    }
+  }
+
+  template <size_t kNFfields>
   void TestVsX(uint32_t insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
@@ -871,6 +886,13 @@ TEST_F(Riscv64InterpreterTest, TestVlXreXX) {
   TestVlXreXX<2>(0x2280f407);  // vl2re64.v v8, (x1)
   TestVlXreXX<4>(0x6280f407);  // vl4re64.v v8, (x1)
   TestVlXreXX<8>(0xe280f407);  // vl8re64.v v8, (x1)
+}
+
+TEST_F(Riscv64InterpreterTest, TestVmXr) {
+  TestVmvXr<1>(0x9f003457);  // Vmv1r.v v8, v16
+  TestVmvXr<2>(0x9f00b457);  // Vmv2r.v v8, v16
+  TestVmvXr<4>(0x9f01b457);  // Vmv4r.v v8, v16
+  TestVmvXr<8>(0x9f03b457);  // Vmv8r.v v8, v16
 }
 
 TEST_F(Riscv64InterpreterTest, TestVsX) {
