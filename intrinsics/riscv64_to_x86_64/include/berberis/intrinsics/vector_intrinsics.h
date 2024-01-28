@@ -21,6 +21,7 @@
 #include <xmmintrin.h>
 
 #include "berberis/base/dependent_false.h"
+#include "berberis/intrinsics/common/intrinsics.h"
 #include "berberis/intrinsics/macro_assembler_constants_pool.h"
 #include "berberis/intrinsics/simd_register.h"
 
@@ -104,6 +105,20 @@ SimdMaskToBitMask(SIMD128Register simd_mask) {
   }
 }
 #endif
+
+template <typename ElementType,
+          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vidv(size_t index) {
+  static_assert(sizeof(ElementType) == sizeof(UInt8) || sizeof(ElementType) == sizeof(UInt16) ||
+                sizeof(ElementType) == sizeof(UInt32) || sizeof(ElementType) == sizeof(UInt64));
+  const int32_t kVid = (sizeof(ElementType) == sizeof(UInt8))    ? constants_pool::kVid8Bit
+                       : (sizeof(ElementType) == sizeof(UInt16)) ? constants_pool::kVid16Bit
+                       : (sizeof(ElementType) == sizeof(UInt32)) ? constants_pool::kVid32Bit
+                                                                 : constants_pool::kVid64Bit;
+  const SIMD128Register* const kVidPtr =
+      bit_cast<const SIMD128Register*>(static_cast<uintptr_t>(kVid));
+  return kVidPtr[index];
+}
 
 }  // namespace berberis::intrinsics
 
