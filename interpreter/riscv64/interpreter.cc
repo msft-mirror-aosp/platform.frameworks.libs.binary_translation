@@ -484,6 +484,7 @@ class Interpreter {
     // Note: whole register instructions are not dependent on vtype and are supposed to work even
     // if vill is set!  Handle them before processing other instructions.
     // Note: other tupes of loads and store are not special and would be processed as usual.
+    // TODO(khim): Handle vstart properly.
     if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadUnitStrideArgs>) {
       if (args.opcode == Decoder::VLoadUnitStrideOpcode::kVlXreXX) {
         if (!IsPowerOf2(args.nf + 1)) {
@@ -516,6 +517,21 @@ class Interpreter {
         __uint128_t* ptr = bit_cast<__uint128_t*>(src);
         for (size_t index = 0; index <= args.nf; index++) {
           ptr[index] = state_->cpu.v[args.data + index];
+        }
+        return;
+      }
+    }
+
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VOpIViArgs>) {
+      if (args.opcode == Decoder::VOpIViOpcode::kVmvvi) {
+        if (!IsPowerOf2(args.imm + 1)) {
+          return Unimplemented();
+        }
+        if (((args.dst | args.src) & args.imm) != 0) {
+          return Unimplemented();
+        }
+        for (int index = 0; index <= args.imm; index++) {
+          state_->cpu.v[args.dst + index] = state_->cpu.v[args.src + index];
         }
         return;
       }
