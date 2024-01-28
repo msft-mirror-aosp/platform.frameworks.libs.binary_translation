@@ -187,10 +187,15 @@ inline const int32_t kWidthInBits<int64_t> = kConst<uint64_t{64}>;
 extern const int32_t kRiscVToX87Exceptions;
 extern const int32_t kX87ToRiscVExceptions;
 
+extern const int32_t kVid64Bit;
+extern const int32_t kVid32Bit;
+extern const int32_t kVid16Bit;
+extern const int32_t kVid8Bit;
+
 extern const int32_t kBitMaskTable;
-extern const int32_t kBitMaskTo8bitMask;
-extern const int32_t kBitMaskTo16bitMask;
 extern const int32_t kBitMaskTo32bitMask;
+extern const int32_t kBitMaskTo16bitMask;
+extern const int32_t kBitMaskTo8bitMask;
 
 extern const int32_t kPMovmskwToPMovmskb;
 extern const int32_t kPMovmskdToPMovmskb;
