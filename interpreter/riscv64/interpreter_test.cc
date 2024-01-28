@@ -73,18 +73,42 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
-  template <size_t kNFfields>
+  template <int kNFfields>
   void TestVmvXr(uint32_t insn_bytes) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    for (size_t index = 0; index < 16; index++) {
-      state_.cpu.v[8 + index] = SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>();
-    }
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    for (size_t index = 0; index < 8; index++) {
-      EXPECT_EQ(state_.cpu.v[8 + index],
-                (index >= kNFfields
-                     ? SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>()
-                     : SIMD128Register{kVectorComparisonSource[8 + index]}.Get<__uint128_t>()));
+    TestVmvXr<Int8, kNFfields>(insn_bytes);
+    TestVmvXr<Int16, kNFfields>(insn_bytes);
+    TestVmvXr<Int32, kNFfields>(insn_bytes);
+    TestVmvXr<Int64, kNFfields>(insn_bytes);
+  }
+
+  template <typename ElementType, int kNFfields>
+  void TestVmvXr(uint32_t insn_bytes) {
+    // Note that VmvXr actually DOES depend on vtype, contrary to what RISC-V V 1.0 manual says:
+    //   https://github.com/riscv/riscv-v-spec/pull/872
+    state_.cpu.vtype = BitUtilLog2(sizeof(ElementType)) << 3;
+    state_.cpu.vl = 0;
+    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    for (int vstart = 0; vstart <= kElementsCount * kNFfields; ++vstart) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      state_.cpu.vstart = vstart;
+      for (size_t index = 0; index < 16; ++index) {
+        state_.cpu.v[8 + index] =
+            SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>();
+      }
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      for (int index = 0; index < 8; ++index) {
+        SIMD128Register expected_state{kVectorComparisonSource[index]};
+        SIMD128Register source_value{kVectorComparisonSource[index + 8]};
+        if (index < kNFfields) {
+          for (int element_index = 0; element_index < kElementsCount; ++element_index) {
+            if (element_index + index * kElementsCount >= vstart) {
+              expected_state.Set(source_value.Get<ElementType>(element_index), element_index);
+            }
+          }
+        }
+        EXPECT_EQ(state_.cpu.v[8 + index], expected_state.Get<__uint128_t>());
+      }
+      EXPECT_EQ(state_.cpu.vstart, 0);
     }
   }
 
