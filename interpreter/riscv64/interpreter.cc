@@ -866,6 +866,11 @@ class Interpreter {
             args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVXmXXs:
         switch (args.vXmXXs_opcode) {
+          case Decoder::VXmXXsOpcode::kVmvxs:
+            if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+              return Unimplemented();
+            }
+            return OpvectorVmvxs<SignedType>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVcpopm:
               return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVfirstm:
@@ -1023,6 +1028,16 @@ class Interpreter {
     using SignedType = berberis::SignedType<ElementType>;
     using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
+      case Decoder::VOpMVxOpcode::kVXmXXx:
+        switch (args.vXmXXx_opcode) {
+          case Decoder::VXmXXxOpcode::kVmvsx:
+              if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+                return Unimplemented();
+              }
+              return OpvectorVmvsx<SignedType, vta>(args.dst, args.src2);
+          default:
+              return Unimplemented();
+        }
       case Decoder::VOpMVxOpcode::kVmaddvx:
         return OpVectorvxv<intrinsics::Vmaddvx<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
@@ -1076,6 +1091,37 @@ class Interpreter {
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <typename ElementType, TailProcessing vta>
+  void OpvectorVmvsx(uint8_t dst, uint8_t src1) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    // Documentation doesn't specify what happenes when vstart is non-zero but less than vl.
+    // But at least one hardware implementation treats it as NOP:
+    //   https://github.com/riscv/riscv-v-spec/issues/937
+    // We are doing the same here.
+    if (vstart == 0 && vl != 0) [[likely]] {
+      ElementType element = MaybeTruncateTo<ElementType>(GetRegOrZero(src1));
+      SIMD128Register result;
+      if constexpr (vta == intrinsics::TailProcessing::kAgnostic) {
+        result = ~SIMD128Register{};
+      } else {
+        result.Set(state_->cpu.v[dst]);
+      }
+      result.Set(element, 0);
+      state_->cpu.v[dst] = result.Get<Int128>();
+    }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <typename ElementType>
+  void OpvectorVmvxs(uint8_t dst, uint8_t src1) {
+    static_assert(ElementType::kIsSigned);
+    // Conversion to Int64 would perform sign-extension if source element is signed.
+    Register element = Int64{SIMD128Register{state_->cpu.v[src1]}.Get<ElementType>(0)};
+    SetRegOrIgnore(dst, element);
     SetCsr<CsrName::kVstart>(0);
   }
 
@@ -1579,6 +1625,8 @@ class Interpreter {
     CheckRegIsValid(reg);
     return state_->cpu.x[reg];
   }
+
+  Register GetRegOrZero(uint8_t reg) { return reg == 0 ? 0 : GetReg(reg); }
 
   void SetReg(uint8_t reg, Register value) {
     if (exception_raised_) {
