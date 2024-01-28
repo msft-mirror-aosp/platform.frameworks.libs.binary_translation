@@ -179,6 +179,20 @@ constexpr T BitUtilLog2(T x) {
   // TODO(b/260725458): Use std::countr_zero after C++20 becomes available
   return __builtin_ctz(x);
 }
+// Signextend bits from size to the corresponding signed type of sizeof(Type) size.
+// If the result of this function is assigned to a wider signed type it'll automatically
+// sign-extend.
+template <unsigned size, typename Type>
+static auto SignExtend(const Type val) {
+  static_assert(std::is_integral_v<Type>, "Only integral types are supported");
+  static_assert(size > 0 && size < (sizeof(Type) * CHAR_BIT), "Invalid size value");
+  using SignedType = std::make_signed_t<Type>;
+  struct {
+    SignedType val : size;
+  } holder = {.val = static_cast<SignedType>(val)};
+  // Compiler takes care of sign-extension of the field with the specified bit-length.
+  return static_cast<SignedType>(holder.val);
+}
 
 // Verify that argument value fits into a target.
 template <typename ResultType, typename ArgumentType>
