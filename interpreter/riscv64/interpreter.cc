@@ -522,20 +522,6 @@ class Interpreter {
       }
     }
 
-    if constexpr (std::is_same_v<VOpArgs, Decoder::VOpIViArgs>) {
-      if (args.opcode == Decoder::VOpIViOpcode::kVmvvi) {
-        if (!IsPowerOf2(args.imm + 1)) {
-          return Unimplemented();
-        }
-        if (((args.dst | args.src) & args.imm) != 0) {
-          return Unimplemented();
-        }
-        for (int index = 0; index <= args.imm; index++) {
-          state_->cpu.v[args.dst + index] = state_->cpu.v[args.src + index];
-        }
-        return;
-      }
-    }
     // RISC-V V extensions are using 8bit “opcode extension” vtype Csr to make sure 32bit encoding
     // would be usable.
     //
@@ -711,6 +697,12 @@ class Interpreter {
                             // Always use "undisturbed" value from source register.
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}), /*dst_mask=*/args.src);
+        }
+      case Decoder::VOpIViOpcode::kVmvvi:
+        if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+          return OpvectorVmvXr<ElementType>(args.dst, args.src, static_cast<uint8_t>(args.imm));
+        } else {
+          return Unimplemented();
         }
       case Decoder::VOpIViOpcode::kVnsrawi:
         return OpVectorNarrowwx<intrinsics::Vnsrwx<SignedType>, SignedType, vlmul, vta, vma>(
@@ -1147,6 +1139,42 @@ class Interpreter {
     }
     result |= tail_mask;
     state_->cpu.v[dst] = result.Get<__uint128_t>();
+  }
+
+  template <typename ElementType>
+  void OpvectorVmvXr(uint8_t dst, uint8_t src, uint8_t nf) {
+    if (!IsPowerOf2(nf + 1)) {
+      return Unimplemented();
+    }
+    if (((dst | src) & nf) != 0) {
+      return Unimplemented();
+    }
+    int vstart = GetCsr<CsrName::kVstart>();
+    if (vstart == 0) [[likely]] {
+      for (int index = 0; index <= nf; ++index) {
+        state_->cpu.v[dst + index] = state_->cpu.v[src + index];
+      }
+      return;
+    }
+    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    for (int index = 0; index <= nf; ++index) {
+      if (vstart >= kElementsCount) {
+        vstart -= kElementsCount;
+        continue;
+      }
+      if (vstart == 0) [[likely]] {
+        state_->cpu.v[dst + index] = state_->cpu.v[src + index];
+      } else {
+        SIMD128Register destination{state_->cpu.v[dst + index]};
+        SIMD128Register source{state_->cpu.v[src + index]};
+        for (int element_index = vstart; element_index < kElementsCount; ++element_index) {
+            destination.Set(source.Get<ElementType>(element_index), element_index);
+        }
+        state_->cpu.v[dst + index] = destination.Get<__uint128_t>();
+        vstart = 0;
+      }
+    }
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic, typename ElementType, VectorRegisterGroupMultiplier vlmul, auto vma>
