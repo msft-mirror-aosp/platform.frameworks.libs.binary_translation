@@ -1094,7 +1094,7 @@ class Interpreter {
     const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
     arg1 &= ~tail_mask;
     SIMD128Register result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
-    SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
+    SetRegOrIgnore(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
   }
 
   template <auto Intrinsic>
@@ -1587,6 +1587,12 @@ class Interpreter {
     }
     CheckRegIsValid(reg);
     state_->cpu.x[reg] = value;
+  }
+
+  void SetRegOrIgnore(uint8_t reg, Register value) {
+    if (reg != 0) {
+      SetReg(reg, value);
+    }
   }
 
   FpRegister GetFpReg(uint8_t reg) const {
