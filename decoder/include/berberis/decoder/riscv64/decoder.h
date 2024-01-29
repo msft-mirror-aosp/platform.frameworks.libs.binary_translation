@@ -695,6 +695,26 @@ class Decoder {
   using OpImmArgs = OpImmArgsTemplate<OpImmOpcode>;
   using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
 
+  struct VLoadIndexedArgs {
+    StoreOperandType width;
+    bool vm;
+    bool ordered;
+    uint8_t nf;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t idx;
+  };
+
+  struct VLoadStrideArgs {
+    StoreOperandType width;
+    bool vm;
+    bool ordered;
+    uint8_t nf;
+    uint8_t dst;
+    uint8_t src;
+    uint8_t std;
+  };
+
   struct VLoadUnitStrideArgs {
     VLoadUnitStrideOpcode opcode;
     StoreOperandType width;
@@ -767,6 +787,26 @@ class Decoder {
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
+  };
+
+  struct VStoreIndexedArgs {
+    StoreOperandType width;
+    bool vm;
+    bool ordered;
+    uint8_t nf;
+    uint8_t src;
+    uint8_t idx;
+    uint8_t data;
+  };
+
+  struct VStoreStrideArgs {
+    StoreOperandType width;
+    bool vm;
+    bool ordered;
+    uint8_t nf;
+    uint8_t src;
+    uint8_t std;
+    uint8_t data;
   };
 
   struct VStoreUnitStrideArgs {
@@ -1531,6 +1571,31 @@ class Decoder {
             };
             return insn_consumer_->OpVector(args);
           }
+          case 0b01:
+          case 0b11: {
+            const VLoadIndexedArgs args = {
+                .width = decoded_operand_type.eew,
+                .vm = GetBits<25, 1>(),
+                .ordered = GetBits<27, 1>(),
+                .nf = GetBits<29, 3>(),
+                .dst = GetBits<7, 5>(),
+                .src = GetBits<15, 5>(),
+                .idx = GetBits<20, 5>(),
+            };
+            return insn_consumer_->OpVector(args);
+          }
+          case 0b10: {
+            const VLoadStrideArgs args = {
+                .width = decoded_operand_type.eew,
+                .vm = GetBits<25, 1>(),
+                .ordered = GetBits<27, 1>(),
+                .nf = GetBits<29, 3>(),
+                .dst = GetBits<7, 5>(),
+                .src = GetBits<15, 5>(),
+                .std = GetBits<20, 5>(),
+            };
+            return insn_consumer_->OpVector(args);
+          }
           default:
             return Undefined();
         }
@@ -1566,6 +1631,31 @@ class Decoder {
                 .vm = GetBits<25, 1>(),
                 .nf = GetBits<29, 3>(),
                 .src = GetBits<15, 5>(),
+                .data = GetBits<7, 5>(),
+            };
+            return insn_consumer_->OpVector(args);
+          }
+          case 0b01:
+          case 0b11: {
+            const VStoreIndexedArgs args = {
+                .width = decoded_operand_type.eew,
+                .vm = GetBits<25, 1>(),
+                .ordered = GetBits<27, 1>(),
+                .nf = GetBits<29, 3>(),
+                .src = GetBits<15, 5>(),
+                .idx = GetBits<20, 5>(),
+                .data = GetBits<7, 5>(),
+            };
+            return insn_consumer_->OpVector(args);
+          }
+          case 0b10: {
+            const VStoreStrideArgs args = {
+                .width = decoded_operand_type.eew,
+                .vm = GetBits<25, 1>(),
+                .ordered = GetBits<27, 1>(),
+                .nf = GetBits<29, 3>(),
+                .src = GetBits<15, 5>(),
+                .std = GetBits<20, 5>(),
                 .data = GetBits<7, 5>(),
             };
             return insn_consumer_->OpVector(args);
