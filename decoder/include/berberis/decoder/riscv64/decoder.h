@@ -423,6 +423,7 @@ class Decoder {
   };
 
   enum class VOpMVxOpcode : uint8_t {
+    kVXmXXx = 0b010000,
     kVmulhuvx = 0b100100,
     kVmulvx = 0b100101,
     kVmulhsuvx = 0b100110,
@@ -439,7 +440,13 @@ class Decoder {
     kMaxValue = 0b11111,
   };
 
+  enum class VXmXXxOpcode : uint8_t {
+    kVmvsx = 0b00000,
+    kMaxValue = 0b11111,
+  };
+
   enum class VXmXXsOpcode : uint8_t {
+    kVmvxs = 0b00000,
     kVcpopm = 0b10000,
     kVfirstm = 0b10001,
     kMaxValue = 0b11111,
@@ -737,7 +744,10 @@ class Decoder {
     VOpMVxOpcode opcode;
     bool vm;
     uint8_t dst;
-    uint8_t src1;
+    union {
+      VXmXXxOpcode vXmXXx_opcode;
+      uint8_t src1;
+    };
     uint8_t src2;
   };
 
