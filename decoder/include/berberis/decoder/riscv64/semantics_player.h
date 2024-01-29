@@ -793,6 +793,17 @@ class SemanticsPlayer {
   // TODO(b/300690740): develop and implement strategy which would allow us to support vector
   // intrinsics not just in the interpreter.
 
+  void OpVector(const typename Decoder::VLoadIndexedArgs& args) {
+    Register arg2 = GetRegOrZero(args.src);
+    listener_->OpVector(args, arg2);
+  }
+
+  void OpVector(const typename Decoder::VLoadStrideArgs& args) {
+    Register arg2 = GetRegOrZero(args.src);
+    Register arg3 = GetRegOrZero(args.std);
+    listener_->OpVector(args, arg2, arg3);
+  }
+
   void OpVector(const typename Decoder::VLoadUnitStrideArgs& args) {
     Register arg2 = GetRegOrZero(args.src);
     listener_->OpVector(args, arg2);
@@ -812,6 +823,17 @@ class SemanticsPlayer {
   void OpVector(const typename Decoder::VOpMVxArgs& args) {
     Register arg2 = GetRegOrZero(args.src2);
     listener_->OpVector(args, arg2);
+  }
+
+  void OpVector(const typename Decoder::VStoreIndexedArgs& args) {
+    Register arg2 = GetRegOrZero(args.src);
+    listener_->OpVector(args, arg2);
+  }
+
+  void OpVector(const typename Decoder::VStoreStrideArgs& args) {
+    Register arg2 = GetRegOrZero(args.src);
+    Register arg3 = GetRegOrZero(args.std);
+    listener_->OpVector(args, arg2, arg3);
   }
 
   void OpVector(const typename Decoder::VStoreUnitStrideArgs& args) {
