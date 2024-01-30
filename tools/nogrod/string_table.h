@@ -34,7 +34,7 @@ class StringTable {
 
   StringTable(Buffer<char> strtab) : strtab_(std::move(strtab)) {
     // string table should be \0 terminated.
-    CHECK(strtab_.data()[strtab_.size() - 1] == 0);
+    CHECK_EQ(strtab_.data()[strtab_.size() - 1], 0);
   }
 
   StringTable(const StringTable&) = delete;
@@ -43,7 +43,7 @@ class StringTable {
   StringTable& operator=(StringTable&&) = default;
 
   [[nodiscard]] const char* GetString(size_t index) const {
-    CHECK(index < strtab_.size());
+    CHECK_LT(index, strtab_.size());
     return strtab_.data() + index;
   }
 
