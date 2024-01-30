@@ -73,19 +73,82 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
-  template <size_t kNFfields>
+  template <int kNFfields>
   void TestVmvXr(uint32_t insn_bytes) {
+    TestVmvXr<Int8, kNFfields>(insn_bytes);
+    TestVmvXr<Int16, kNFfields>(insn_bytes);
+    TestVmvXr<Int32, kNFfields>(insn_bytes);
+    TestVmvXr<Int64, kNFfields>(insn_bytes);
+  }
+
+  template <typename ElementType, int kNFfields>
+  void TestVmvXr(uint32_t insn_bytes) {
+    // Note that VmvXr actually DOES depend on vtype, contrary to what RISC-V V 1.0 manual says:
+    //   https://github.com/riscv/riscv-v-spec/pull/872
+    state_.cpu.vtype = BitUtilLog2(sizeof(ElementType)) << 3;
+    state_.cpu.vl = 0;
+    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    for (int vstart = 0; vstart <= kElementsCount * kNFfields; ++vstart) {
+      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+      state_.cpu.vstart = vstart;
+      for (size_t index = 0; index < 16; ++index) {
+        state_.cpu.v[8 + index] =
+            SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>();
+      }
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      for (int index = 0; index < 8; ++index) {
+        SIMD128Register expected_state{kVectorComparisonSource[index]};
+        SIMD128Register source_value{kVectorComparisonSource[index + 8]};
+        if (index < kNFfields) {
+          for (int element_index = 0; element_index < kElementsCount; ++element_index) {
+            if (element_index + index * kElementsCount >= vstart) {
+              expected_state.Set(source_value.Get<ElementType>(element_index), element_index);
+            }
+          }
+        }
+        EXPECT_EQ(state_.cpu.v[8 + index], expected_state.Get<__uint128_t>());
+      }
+      EXPECT_EQ(state_.cpu.vstart, 0);
+    }
+  }
+
+  template <typename ElementType>
+  void TestVmvsx(uint32_t insn_bytes) {
+    for (uint8_t vstart = 0; vstart < 2; ++vstart) {
+      for (uint8_t vl = 0; vl < 2; ++vl) {
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          state_.cpu.vtype = (vta << 6) | (BitUtilLog2(sizeof(ElementType)) << 3);
+          state_.cpu.vstart = vstart;
+          state_.cpu.vl = vl;
+          state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+          state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+          SetXReg<1>(state_.cpu, 0x5555'5555'5555'5555);
+          EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+          if (vstart == 0 && vl != 0) {
+            SIMD128Register expected_result =
+                vta ? ~SIMD128Register{} : SIMD128Register{kVectorCalculationsSource[0]};
+            expected_result.Set<ElementType>(MaybeTruncateTo<ElementType>(0x5555'5555'5555'5555),
+                                             0);
+            EXPECT_EQ(state_.cpu.v[8], expected_result);
+          } else {
+            EXPECT_EQ(state_.cpu.v[8],
+                      SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>());
+          }
+        }
+      }
+    }
+  }
+
+  template <typename ElementType>
+  void TestVmvxs(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.vtype = BitUtilLog2(sizeof(ElementType)) << 3;
+    state_.cpu.vstart = 0;
+    state_.cpu.vl = 0;
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    for (size_t index = 0; index < 16; index++) {
-      state_.cpu.v[8 + index] = SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>();
-    }
+    state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+    SetXReg<1>(state_.cpu, 0x5555'5555'5555'5555);
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    for (size_t index = 0; index < 8; index++) {
-      EXPECT_EQ(state_.cpu.v[8 + index],
-                (index >= kNFfields
-                     ? SIMD128Register{kVectorComparisonSource[index]}.Get<__uint128_t>()
-                     : SIMD128Register{kVectorComparisonSource[8 + index]}.Get<__uint128_t>()));
-    }
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
   template <size_t kNFfields>
@@ -893,6 +956,20 @@ TEST_F(Riscv64InterpreterTest, TestVmXr) {
   TestVmvXr<2>(0x9f00b457);  // Vmv2r.v v8, v16
   TestVmvXr<4>(0x9f01b457);  // Vmv4r.v v8, v16
   TestVmvXr<8>(0x9f03b457);  // Vmv8r.v v8, v16
+}
+
+TEST_F(Riscv64InterpreterTest, TestVmvsx) {
+  TestVmvsx<Int8>(0x4200e457);   // Vmv.s.x v8, x1
+  TestVmvsx<Int16>(0x4200e457);  // Vmv.s.x v8, x1
+  TestVmvsx<Int32>(0x4200e457);  // Vmv.s.x v8, x1
+  TestVmvsx<Int64>(0x4200e457);  // Vmv.s.x v8, x1
+}
+
+TEST_F(Riscv64InterpreterTest, TestVmvxs) {
+  TestVmvxs<Int8>(0x428020d7, 0);                       // Vmv.x.s x1, v8
+  TestVmvxs<Int16>(0x428020d7, 0xffff'ffff'ffff'8100);  // Vmv.x.s x1, v8
+  TestVmvxs<Int32>(0x428020d7, 0xffff'ffff'8302'8100);  // Vmv.x.s x1, v8
+  TestVmvxs<Int64>(0x428020d7, 0x8706'8504'8302'8100);  // Vmv.x.s x1, v8
 }
 
 TEST_F(Riscv64InterpreterTest, TestVsX) {

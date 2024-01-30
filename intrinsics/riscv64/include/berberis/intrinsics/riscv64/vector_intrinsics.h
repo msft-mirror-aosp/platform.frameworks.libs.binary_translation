@@ -88,6 +88,11 @@ MaskForRegisterInSequence(SIMD128Register mask, size_t register_in_sequence) {
 }
 #endif
 
+template <typename ElementType>
+[[nodiscard]] inline std::tuple<SIMD128Register> MakeBitmaskFromVl(size_t vl) {
+  return MakeBitmaskFromVl(vl * sizeof(ElementType) * CHAR_BIT);
+}
+
 // Naïve implementation for tests.  Also used on not-x86 platforms.
 template <typename ElementType>
 [[nodiscard]] inline std::tuple<SIMD128Register> BitMaskToSimdMaskForTests(size_t mask) {
@@ -203,7 +208,7 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
     if (vl == 16) [[likely]] {
       return result;
     }
-    const auto [tail_bitmask] = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
+    const auto [tail_bitmask] = MakeBitmaskFromVl<ElementType>(vl);
     if constexpr (vta == TailProcessing::kAgnostic) {
       dest = result | tail_bitmask;
     } else {
@@ -214,12 +219,12 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
       return dest;
     }
     if constexpr (vta == TailProcessing::kAgnostic) {
-      const auto [tail_bitmask] = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
+      const auto [tail_bitmask] = MakeBitmaskFromVl<ElementType>(vl);
       dest |= tail_bitmask;
     }
   } else {
-    const auto [start_bitmask] = MakeBitmaskFromVl(vstart * sizeof(ElementType) * 8);
-    const auto [tail_bitmask] = MakeBitmaskFromVl(vl * sizeof(ElementType) * 8);
+    const auto [start_bitmask] = MakeBitmaskFromVl<ElementType>(vstart);
+    const auto [tail_bitmask] = MakeBitmaskFromVl<ElementType>(vl);
     if constexpr (vta == TailProcessing::kAgnostic) {
       dest = (dest & ~start_bitmask) | (result & start_bitmask) | tail_bitmask;
     } else {
