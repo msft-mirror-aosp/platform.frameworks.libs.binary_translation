@@ -522,20 +522,6 @@ class Interpreter {
       }
     }
 
-    if constexpr (std::is_same_v<VOpArgs, Decoder::VOpIViArgs>) {
-      if (args.opcode == Decoder::VOpIViOpcode::kVmvvi) {
-        if (!IsPowerOf2(args.imm + 1)) {
-          return Unimplemented();
-        }
-        if (((args.dst | args.src) & args.imm) != 0) {
-          return Unimplemented();
-        }
-        for (int index = 0; index <= args.imm; index++) {
-          state_->cpu.v[args.dst + index] = state_->cpu.v[args.src + index];
-        }
-        return;
-      }
-    }
     // RISC-V V extensions are using 8bit “opcode extension” vtype Csr to make sure 32bit encoding
     // would be usable.
     //
@@ -712,6 +698,12 @@ class Interpreter {
                             InactiveProcessing::kUndisturbed>(
               args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}), /*dst_mask=*/args.src);
         }
+      case Decoder::VOpIViOpcode::kVmvvi:
+        if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+          return OpvectorVmvXr<ElementType>(args.dst, args.src, static_cast<uint8_t>(args.imm));
+        } else {
+          return Unimplemented();
+        }
       case Decoder::VOpIViOpcode::kVnsrawi:
         return OpVectorNarrowwx<intrinsics::Vnsrwx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src, SignedType{args.imm});
@@ -866,6 +858,11 @@ class Interpreter {
             args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVXmXXs:
         switch (args.vXmXXs_opcode) {
+          case Decoder::VXmXXsOpcode::kVmvxs:
+            if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+              return Unimplemented();
+            }
+            return OpvectorVmvxs<SignedType>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVcpopm:
               return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVfirstm:
@@ -1023,6 +1020,16 @@ class Interpreter {
     using SignedType = berberis::SignedType<ElementType>;
     using UnsignedType = berberis::UnsignedType<ElementType>;
     switch (args.opcode) {
+      case Decoder::VOpMVxOpcode::kVXmXXx:
+        switch (args.vXmXXx_opcode) {
+          case Decoder::VXmXXxOpcode::kVmvsx:
+              if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+                return Unimplemented();
+              }
+              return OpvectorVmvsx<SignedType, vta>(args.dst, args.src2);
+          default:
+              return Unimplemented();
+        }
       case Decoder::VOpMVxOpcode::kVmaddvx:
         return OpVectorvxv<intrinsics::Vmaddvx<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
@@ -1079,6 +1086,37 @@ class Interpreter {
     SetCsr<CsrName::kVstart>(0);
   }
 
+  template <typename ElementType, TailProcessing vta>
+  void OpvectorVmvsx(uint8_t dst, uint8_t src1) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    // Documentation doesn't specify what happenes when vstart is non-zero but less than vl.
+    // But at least one hardware implementation treats it as NOP:
+    //   https://github.com/riscv/riscv-v-spec/issues/937
+    // We are doing the same here.
+    if (vstart == 0 && vl != 0) [[likely]] {
+      ElementType element = MaybeTruncateTo<ElementType>(GetRegOrZero(src1));
+      SIMD128Register result;
+      if constexpr (vta == intrinsics::TailProcessing::kAgnostic) {
+        result = ~SIMD128Register{};
+      } else {
+        result.Set(state_->cpu.v[dst]);
+      }
+      result.Set(element, 0);
+      state_->cpu.v[dst] = result.Get<Int128>();
+    }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <typename ElementType>
+  void OpvectorVmvxs(uint8_t dst, uint8_t src1) {
+    static_assert(ElementType::kIsSigned);
+    // Conversion to Int64 would perform sign-extension if source element is signed.
+    Register element = Int64{SIMD128Register{state_->cpu.v[src1]}.Get<ElementType>(0)};
+    SetRegOrIgnore(dst, element);
+    SetCsr<CsrName::kVstart>(0);
+  }
+
   template <auto Intrinsic, auto vma>
   void OpVectorVXmXXs(uint8_t dst, uint8_t src1) {
     int vstart = GetCsr<CsrName::kVstart>();
@@ -1094,7 +1132,7 @@ class Interpreter {
     const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
     arg1 &= ~tail_mask;
     SIMD128Register result = std::get<0>(Intrinsic(arg1.Get<Int128>()));
-    SetReg(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
+    SetRegOrIgnore(dst, TruncateTo<UInt64>(BitCastToUnsigned(result.Get<Int128>())));
   }
 
   template <auto Intrinsic>
@@ -1147,6 +1185,42 @@ class Interpreter {
     }
     result |= tail_mask;
     state_->cpu.v[dst] = result.Get<__uint128_t>();
+  }
+
+  template <typename ElementType>
+  void OpvectorVmvXr(uint8_t dst, uint8_t src, uint8_t nf) {
+    if (!IsPowerOf2(nf + 1)) {
+      return Unimplemented();
+    }
+    if (((dst | src) & nf) != 0) {
+      return Unimplemented();
+    }
+    int vstart = GetCsr<CsrName::kVstart>();
+    if (vstart == 0) [[likely]] {
+      for (int index = 0; index <= nf; ++index) {
+        state_->cpu.v[dst + index] = state_->cpu.v[src + index];
+      }
+      return;
+    }
+    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    for (int index = 0; index <= nf; ++index) {
+      if (vstart >= kElementsCount) {
+        vstart -= kElementsCount;
+        continue;
+      }
+      if (vstart == 0) [[likely]] {
+        state_->cpu.v[dst + index] = state_->cpu.v[src + index];
+      } else {
+        SIMD128Register destination{state_->cpu.v[dst + index]};
+        SIMD128Register source{state_->cpu.v[src + index]};
+        for (int element_index = vstart; element_index < kElementsCount; ++element_index) {
+            destination.Set(source.Get<ElementType>(element_index), element_index);
+        }
+        state_->cpu.v[dst + index] = destination.Get<__uint128_t>();
+        vstart = 0;
+      }
+    }
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic, typename ElementType, VectorRegisterGroupMultiplier vlmul, auto vma>
@@ -1580,6 +1654,8 @@ class Interpreter {
     return state_->cpu.x[reg];
   }
 
+  Register GetRegOrZero(uint8_t reg) { return reg == 0 ? 0 : GetReg(reg); }
+
   void SetReg(uint8_t reg, Register value) {
     if (exception_raised_) {
       // Do not produce side effects.
@@ -1587,6 +1663,12 @@ class Interpreter {
     }
     CheckRegIsValid(reg);
     state_->cpu.x[reg] = value;
+  }
+
+  void SetRegOrIgnore(uint8_t reg, Register value) {
+    if (reg != 0) {
+      SetReg(reg, value);
+    }
   }
 
   FpRegister GetFpReg(uint8_t reg) const {
