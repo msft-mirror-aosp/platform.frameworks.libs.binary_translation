@@ -49,6 +49,7 @@ cc_test_host {
     defaults: ["nogrod_defaults"],
     srcs: [
         "byte_input_stream_tests.cc",
+        "buffer_tests.cc",
         "leb128_tests.cc",
         "string_offset_table_tests.cc",
     ],
