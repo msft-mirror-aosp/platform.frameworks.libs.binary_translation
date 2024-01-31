@@ -29,6 +29,7 @@
 #include "berberis/base/mapped_file_fragment.h"
 #include "berberis/base/stringprintf.h"
 
+#include "buffer.h"
 #include "string_offset_table.h"
 #include "string_table.h"
 
@@ -374,13 +375,14 @@ std::unique_ptr<DwarfInfo> ElfFileImpl<ElfT>::ReadDwarfInfo(std::string* error_m
                                  debug_str_offsets_shdr->sh_size);
   }
 
-  std::unique_ptr<DwarfInfo> dwarf_info(
-      new DwarfInfo(ShdrOffsetToAddr<const uint8_t>(dwarf_abbrev_shdr),
-                    dwarf_abbrev_shdr->sh_size,
-                    ShdrOffsetToAddr<const uint8_t>(dwarf_info_shdr),
-                    dwarf_info_shdr->sh_size,
-                    std::move(string_table),
-                    string_offsets_table));
+  Buffer dwarf_abbrev_buf{ShdrOffsetToAddr<const uint8_t>(dwarf_abbrev_shdr),
+                          dwarf_abbrev_shdr->sh_size};
+  Buffer dwarf_info_buf{ShdrOffsetToAddr<const uint8_t>(dwarf_info_shdr), dwarf_info_shdr->sh_size};
+
+  std::unique_ptr<DwarfInfo> dwarf_info(new DwarfInfo(std::move(dwarf_abbrev_buf),
+                                                      std::move(dwarf_info_buf),
+                                                      std::move(string_table),
+                                                      std::move(string_offsets_table)));
 
   if (!dwarf_info->Parse(error_msg)) {
     return nullptr;

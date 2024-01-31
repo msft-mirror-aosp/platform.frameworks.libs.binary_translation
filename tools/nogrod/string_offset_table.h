@@ -30,8 +30,15 @@ using berberis::bit_cast;
 // The class provides assess to .debug_str_offsets section of the elf-file
 class StringOffsetTable {
  public:
+  StringOffsetTable() : table_{nullptr}, size_{0}, format_{DwarfFormat::k32Bit} {}
   explicit StringOffsetTable(const uint8_t* table, size_t size)
-      : table_{table}, size_{size}, format_{DetectDwarfFormat(table, size)} {}
+      : table_{table}, size_{size}, format_{DetectDwarfFormat(table_, size_)} {}
+
+  StringOffsetTable(const StringOffsetTable&) = delete;
+  StringOffsetTable& operator=(const StringOffsetTable&) = delete;
+
+  StringOffsetTable(StringOffsetTable&&) = default;
+  StringOffsetTable& operator=(StringOffsetTable&&) = default;
 
   // According to DWARF5 spec (7.26) DW_AT_str_offsets_base attribute
   // points to the first entry following the header which is 8 for 32bit
@@ -73,8 +80,8 @@ class StringOffsetTable {
   }
 
   const uint8_t* table_;
-  const size_t size_;
-  const DwarfFormat format_;
+  size_t size_;
+  DwarfFormat format_;
 };
 
 }  // namespace nogrod
