@@ -251,7 +251,7 @@ bool ElfFileImpl<ElfT>::Init(std::string* error_msg) {
 
   const typename ElfT::Shdr* strtab_shdr = &shdr_table_[header_->e_shstrndx];
 
-  strtab_ = StringTable(ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size);
+  strtab_ = StringTable(Buffer{ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size});
 
   return true;
 }
@@ -324,7 +324,7 @@ bool ElfFileImpl<ElfT>::ReadExportedSymbols(std::vector<std::string>* symbols,
     return false;
   }
 
-  const StringTable strtab(ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size);
+  const StringTable strtab(Buffer{ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size});
 
   for (size_t i = 0; i < dynsym_num; ++i) {
     const typename ElfT::Sym* sym = dynsyms + i;
@@ -365,14 +365,15 @@ std::unique_ptr<DwarfInfo> ElfFileImpl<ElfT>::ReadDwarfInfo(std::string* error_m
     return nullptr;
   }
 
-  StringTable string_table{ShdrOffsetToAddr<const char>(dwarf_str_shdr), dwarf_str_shdr->sh_size};
+  StringTable string_table{
+      Buffer{ShdrOffsetToAddr<const char>(dwarf_str_shdr), dwarf_str_shdr->sh_size}};
 
   // This section is optional (at least as of now)
   const typename ElfT::Shdr* debug_str_offsets_shdr = FindSectionHeaderByName(".debug_str_offsets");
   std::optional<StringOffsetTable> string_offsets_table;
   if (debug_str_offsets_shdr != nullptr) {
-    string_offsets_table.emplace(ShdrOffsetToAddr<const uint8_t>(debug_str_offsets_shdr),
-                                 debug_str_offsets_shdr->sh_size);
+    string_offsets_table.emplace(Buffer{ShdrOffsetToAddr<const uint8_t>(debug_str_offsets_shdr),
+                                        debug_str_offsets_shdr->sh_size});
   }
 
   Buffer dwarf_abbrev_buf{ShdrOffsetToAddr<const uint8_t>(dwarf_abbrev_shdr),
