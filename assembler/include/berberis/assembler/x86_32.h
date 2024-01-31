@@ -225,12 +225,6 @@ class Assembler : public AssemblerX86<Assembler> {
     // There is no REX in 32-bit mode thus we don't need to do anything here.
   }
 
-  template <typename RegisterType>
-  [[nodiscard]] static bool IsSwapProfitable(RegisterType /*rm_arg*/, RegisterType /*vex_arg*/) {
-    // In 32bit mode swapping register to shorten VEX prefix is not possible.
-    return false;
-  }
-
   template <uint8_t byte1,
             uint8_t byte2,
             uint8_t byte3,
