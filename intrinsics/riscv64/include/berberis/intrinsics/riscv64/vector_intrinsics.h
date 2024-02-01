@@ -366,6 +366,38 @@ inline std::tuple<SIMD128Register> VectorSlideUp(size_t offset,
   return result;
 }
 
+// Handles "slide down" for a single destination register. Effectively copies the elements in
+// [offset, kElementsCount) of src1 followed by the [0, kElementsCount - offset) elements of src2
+// into the result.
+//
+// This leaves result looking like
+//
+//     result = {
+//         [0] = src1[offset+0],
+//         [1] = src1[offset+1],
+//         ...,
+//         [kElementsCount-offset-1] = src1[kElementsCount-1],
+//         [kElementsCount-offset] = src2[0],
+//         [kElementsCount-offset+1] = src2[1],
+//         ...,
+//         [kElementsCount-offset+(offset-1)] = src2[kElementsCount-offset-1]
+//     };
+template <typename ElementType>
+inline std::tuple<SIMD128Register> VectorSlideDown(size_t offset,
+                                                   SIMD128Register src1,
+                                                   SIMD128Register src2) {
+  SIMD128Register result;
+  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  CHECK_LT(offset, kElementsCount);
+  for (size_t index = 0; index < kElementsCount - offset; ++index) {
+    result.Set(VectorElement<ElementType>(src1, offset + index), index);
+  }
+  for (size_t index = kElementsCount - offset; index < kElementsCount; ++index) {
+    result.Set(VectorElement<ElementType>(src2, index - (kElementsCount - offset)), index);
+  }
+  return result;
+}
+
 #ifndef __x86_64__
 template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
