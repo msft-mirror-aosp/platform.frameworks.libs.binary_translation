@@ -48,6 +48,28 @@ enum class NoInactiveProcessing {
 };
 
 template <typename ElementType>
+[[nodiscard]] inline std::tuple<NoInactiveProcessing> FullMaskForRegister(NoInactiveProcessing) {
+  return {NoInactiveProcessing{}};
+}
+
+template <typename ElementType>
+[[nodiscard]] inline std::tuple<
+    std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>>
+FullMaskForRegister(SIMD128Register) {
+  if constexpr (sizeof(ElementType) == sizeof(uint8_t)) {
+    return {{0xffff}};
+  } else if constexpr (sizeof(ElementType) == sizeof(uint16_t)) {
+    return {{0xff}};
+  } else if constexpr (sizeof(ElementType) == sizeof(uint32_t)) {
+    return {{0xf}};
+  } else if constexpr (sizeof(ElementType) == sizeof(uint64_t)) {
+    return {{0x3}};
+  } else {
+    static_assert(kDependentTypeFalse<ElementType>, "Unsupported vector element type");
+  }
+}
+
+template <typename ElementType>
 [[nodiscard]] inline std::tuple<NoInactiveProcessing> MaskForRegisterInSequence(
     NoInactiveProcessing,
     size_t) {
