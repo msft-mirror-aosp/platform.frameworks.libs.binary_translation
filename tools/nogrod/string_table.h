@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef __NOGROD_STRING_TABLE_
-#define __NOGROD_STRING_TABLE_
+#ifndef NOGROD_STRING_TABLE_
+#define NOGROD_STRING_TABLE_
 
 #include <cstdint>
 #include <string>
@@ -24,22 +24,17 @@
 #include <berberis/base/checks.h>
 #include <berberis/base/macros.h>
 
+#include "buffer.h"
+
 namespace nogrod {
 
 class StringTable {
  public:
-  StringTable() : strtab_(nullptr), strtab_size_(0) {}
+  StringTable() = default;
 
-  StringTable(const char* strtab, size_t strtab_size) : strtab_(strtab), strtab_size_(strtab_size) {
+  StringTable(Buffer<char> strtab) : strtab_(std::move(strtab)) {
     // string table should be \0 terminated.
-    CHECK(strtab_[strtab_size_ - 1] == 0);
-  }
-
-  explicit StringTable(std::vector<char> buffer) : buffer_{std::move(buffer)} {
-    strtab_ = buffer_.data();
-    strtab_size_ = buffer_.size();
-    // string table should be \0 terminated.
-    CHECK(strtab_[strtab_size_ - 1] == 0);
+    CHECK_EQ(strtab_.data()[strtab_.size() - 1], 0);
   }
 
   StringTable(const StringTable&) = delete;
@@ -48,15 +43,13 @@ class StringTable {
   StringTable& operator=(StringTable&&) = default;
 
   [[nodiscard]] const char* GetString(size_t index) const {
-    CHECK(index < strtab_size_);
-    return strtab_ + index;
+    CHECK_LT(index, strtab_.size());
+    return strtab_.data() + index;
   }
 
  private:
-  std::vector<char> buffer_;
-  const char* strtab_;
-  size_t strtab_size_;
+  Buffer<char> strtab_;
 };
 
 }  // namespace nogrod
-#endif  // __NOGROD_STRING_TABLE_
+#endif  // NOGROD_STRING_TABLE_
