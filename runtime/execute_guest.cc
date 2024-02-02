@@ -17,6 +17,7 @@
 #include "berberis/runtime/execute_guest.h"
 
 #include "berberis/base/checks.h"
+#include "berberis/base/config.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -51,6 +52,10 @@ void ExecuteGuest(ThreadState* state) {
     auto code = cache->GetHostCodePtr(pc)->load();
     if (code == kEntryStop) {
       break;
+    }
+
+    if (config::kTraceGeneratedCode) {
+      TRACE("RunGeneratedCode @ 0x%zx", pc);
     }
 
     // ATTENTION: this should be the only place to run translated code!

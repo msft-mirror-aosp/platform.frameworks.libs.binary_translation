@@ -55,7 +55,7 @@ cc_library_static {
     ],
     host_supported: true,
     srcs: [
-        "execute_guest.cc",
+        "init_guest_arch.cc",
         "run_guest_call_riscv64.cc",
         "translator_riscv64.cc",
     ],
@@ -94,6 +94,7 @@ cc_library_static {
     ],
     srcs: [
         "berberis.cc",
+        "execute_guest.cc",
         "execute_guest_call.cc",
         "runtime_library.cc",
         "translator.cc",

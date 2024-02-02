@@ -21,7 +21,7 @@
 namespace berberis {
 
 // Pointer to host executable machine code.
-typedef const void* HostCode;
+using HostCode = const void*;
 
 template <typename T>
 inline HostCode AsHostCode(T ptr) {

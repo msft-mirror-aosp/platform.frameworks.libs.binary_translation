@@ -334,9 +334,13 @@ cc_test_library {
     host_supported: true,
     arch: {
         x86: {
-            srcs: ["common_to_x86/intrinsics_float_test.cc"],
+            srcs: [
+                "common_to_x86/intrinsics_float_test.cc",
+                "common_to_x86/simd_register_test.cc",
+            ],
         },
         x86_64: {
+            cflags: ["-mssse3"],
             srcs: [
                 "common_to_x86/intrinsics_float_test.cc",
                 "common_to_x86_64/tuple_test.cc",

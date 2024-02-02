@@ -23,12 +23,9 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/macros.h"
+#include "berberis/base/page_size.h"
 
 namespace berberis {
-
-// TODO(b/232598137): make a runtime CHECK against sysconf(_SC_PAGE_SIZE)!
-constexpr size_t kPageSizeLog2 = 12;  // 4096
-constexpr size_t kPageSize = 1 << kPageSizeLog2;
 
 template <typename T>
 constexpr T AlignDownPageSize(T x) {

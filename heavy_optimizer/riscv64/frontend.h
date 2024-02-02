@@ -20,13 +20,16 @@
 #include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/backend/x86_64/machine_ir_builder.h"
 #include "berberis/base/arena_map.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_arch.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/macro_assembler.h"
+#include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/runtime_primitives/platform.h"
 
 #include "call_intrinsic.h"
@@ -108,20 +111,103 @@ class HeavyOptimizerFrontend {
   void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
 
+  template <typename IntType>
+  constexpr Decoder::LoadOperandType ToLoadOperandType() {
+    if constexpr (std::is_same_v<IntType, int8_t>) {
+      return Decoder::LoadOperandType::k8bitSigned;
+    } else if constexpr (std::is_same_v<IntType, int16_t>) {
+      return Decoder::LoadOperandType::k16bitSigned;
+    } else if constexpr (std::is_same_v<IntType, int32_t>) {
+      return Decoder::LoadOperandType::k32bitSigned;
+    } else if constexpr (std::is_same_v<IntType, int64_t> || std::is_same_v<IntType, uint64_t>) {
+      return Decoder::LoadOperandType::k64bit;
+    } else if constexpr (std::is_same_v<IntType, uint8_t>) {
+      return Decoder::LoadOperandType::k8bitUnsigned;
+    } else if constexpr (std::is_same_v<IntType, uint16_t>) {
+      return Decoder::LoadOperandType::k16bitUnsigned;
+    } else if constexpr (std::is_same_v<IntType, uint32_t>) {
+      return Decoder::LoadOperandType::k32bitUnsigned;
+    } else {
+      static_assert(kDependentTypeFalse<IntType>);
+    }
+  }
+
+  template <typename IntType>
+  constexpr Decoder::StoreOperandType ToStoreOperandType() {
+    if constexpr (std::is_same_v<IntType, int8_t> || std::is_same_v<IntType, uint8_t>) {
+      return Decoder::StoreOperandType::k8bit;
+    } else if constexpr (std::is_same_v<IntType, int16_t> || std::is_same_v<IntType, uint16_t>) {
+      return Decoder::StoreOperandType::k16bit;
+    } else if constexpr (std::is_same_v<IntType, int32_t> || std::is_same_v<IntType, uint32_t>) {
+      return Decoder::StoreOperandType::k32bit;
+    } else if constexpr (std::is_same_v<IntType, int64_t> || std::is_same_v<IntType, uint64_t>) {
+      return Decoder::StoreOperandType::k64bit;
+    } else {
+      static_assert(kDependentTypeFalse<IntType>);
+    }
+  }
+
+  // Versions without recovery can be used to access non-guest memory (e.g. CPUState).
+  Register LoadWithoutRecovery(Decoder::LoadOperandType operand_type, Register base, int32_t disp);
+  Register LoadWithoutRecovery(Decoder::LoadOperandType operand_type,
+                               Register base,
+                               Register index,
+                               int32_t disp);
+  void StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+                            Register base,
+                            int32_t disp,
+                            Register val);
+  void StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+                            Register base,
+                            Register index,
+                            int32_t disp,
+                            Register val);
+
   //
   // Atomic extensions.
   //
 
   template <typename IntType, bool aq, bool rl>
-  Register Lr(Register /* addr */) {
-    Unimplemented();
-    return {};
+  Register Lr(Register addr) {
+    Register aligned_addr = AllocTempReg();
+    Gen<PseudoCopy>(aligned_addr, addr, 8);
+    // The immediate is sign extended to 64-bit.
+    Gen<x86_64::AndqRegImm>(aligned_addr, ~int32_t{sizeof(Reservation) - 1}, GetFlagsRegister());
+
+    MemoryRegionReservationLoad(aligned_addr);
+
+    Register addr_offset = AllocTempReg();
+    Gen<PseudoCopy>(addr_offset, addr, 8);
+    Gen<x86_64::SubqRegReg>(addr_offset, aligned_addr, GetFlagsRegister());
+
+    // Load the requested part from CPUState.
+    return LoadWithoutRecovery(ToLoadOperandType<IntType>(),
+                               x86_64::kMachineRegRBP,
+                               addr_offset,
+                               GetThreadStateReservationValueOffset());
   }
 
   template <typename IntType, bool aq, bool rl>
-  Register Sc(Register /* addr */, Register /* data */) {
-    Unimplemented();
-    return {};
+  Register Sc(Register addr, Register data) {
+    // Compute aligned_addr.
+    auto aligned_addr = AllocTempReg();
+    Gen<PseudoCopy>(aligned_addr, addr, 8);
+    // The immediate is sign extended to 64-bit.
+    Gen<x86_64::AndqRegImm>(aligned_addr, ~int32_t{sizeof(Reservation) - 1}, GetFlagsRegister());
+
+    // Load current monitor value before we clobber it.
+    auto reservation_value = AllocTempReg();
+    int32_t value_offset = GetThreadStateReservationValueOffset();
+    Gen<x86_64::MovqRegMemBaseDisp>(reservation_value, x86_64::kMachineRegRBP, value_offset);
+    Register addr_offset = AllocTempReg();
+    Gen<PseudoCopy>(addr_offset, addr, 8);
+    Gen<x86_64::SubqRegReg>(addr_offset, aligned_addr, GetFlagsRegister());
+    // It's okay to clobber reservation_value since we clear out reservation_address in
+    // MemoryRegionReservationExchange anyway.
+    StoreWithoutRecovery(
+        ToStoreOperandType<IntType>(), x86_64::kMachineRegRBP, addr_offset, value_offset, data);
+
+    return MemoryRegionReservationExchange(aligned_addr, reservation_value);
   }
 
   void Fence(Decoder::FenceOpcode /*opcode*/,
@@ -149,7 +235,7 @@ class HeavyOptimizerFrontend {
   [[nodiscard]] FpRegister GetFRegAndUnboxNan(uint8_t reg) {
     CHECK_LE(reg, kNumGuestFpRegs);
     FpRegister result = AllocTempSimdReg();
-    builder_.GenGetSimd(result.machine_reg(), reg);
+    builder_.GenGetSimd<8>(result.machine_reg(), GetThreadStateFRegOffset(reg));
     FpRegister unboxed_result = AllocTempSimdReg();
     if (host_platform::kHasAVX) {
       builder_.Gen<x86_64::MacroUnboxNanFloat32AVX>(unboxed_result.machine_reg(),
@@ -162,31 +248,51 @@ class HeavyOptimizerFrontend {
   }
 
   template <typename FloatType>
-  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
-    CHECK_LE(reg, kNumGuestFpRegs);
+  void NanBoxFpReg(FpRegister value) {
     if (host_platform::kHasAVX) {
       builder_.Gen<x86_64::MacroNanBoxFloat32AVX>(value.machine_reg(), value.machine_reg());
     } else {
       builder_.Gen<x86_64::MacroNanBoxFloat32>(value.machine_reg());
     }
+  }
 
-    builder_.GenSetSimd(reg, value.machine_reg());
+  template <typename FloatType>
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value) {
+    CHECK_LE(reg, kNumGuestFpRegs);
+    if (success()) {
+      NanBoxFpReg<FloatType>(value);
+      builder_.GenSetSimd<8>(GetThreadStateFRegOffset(reg), value.machine_reg());
+    }
   }
 
   template <typename DataType>
-  FpRegister LoadFp(Register /* arg */, int16_t /* offset */) {
-    Unimplemented();
-    return {};
+  FpRegister LoadFp(Register arg, int16_t offset) {
+    auto res = AllocTempSimdReg();
+    if constexpr (std::is_same_v<DataType, Float32>) {
+      Gen<x86_64::MovssXRegMemBaseDisp>(res.machine_reg(), arg, offset);
+    } else if constexpr (std::is_same_v<DataType, Float64>) {
+      Gen<x86_64::MovsdXRegMemBaseDisp>(res.machine_reg(), arg, offset);
+    } else {
+      static_assert(kDependentTypeFalse<DataType>);
+    }
+    return res;
   }
 
   template <typename DataType>
-  void StoreFp(Register /* arg */, int16_t /* offset */, FpRegister /* data */) {
-    Unimplemented();
+  void StoreFp(Register arg, int16_t offset, FpRegister data) {
+    if constexpr (std::is_same_v<DataType, Float32>) {
+      Gen<x86_64::MovssMemBaseDispXReg>(arg, offset, data.machine_reg());
+    } else if constexpr (std::is_same_v<DataType, Float64>) {
+      Gen<x86_64::MovsdMemBaseDispXReg>(arg, offset, data.machine_reg());
+    } else {
+      static_assert(kDependentTypeFalse<DataType>);
+    }
   }
 
-  FpRegister Fmv(FpRegister /* arg */) {
-    Unimplemented();
-    return {};
+  FpRegister Fmv(FpRegister arg) {
+    auto res = AllocTempSimdReg();
+    Gen<PseudoCopy>(res.machine_reg(), arg.machine_reg(), 16);
+    return res;
   }
 
   //
@@ -204,15 +310,8 @@ class HeavyOptimizerFrontend {
   // Csr
   //
 
-  Register UpdateCsr(Decoder::CsrOpcode /* opcode */, Register /* arg */, Register /* csr */) {
-    Unimplemented();
-    return {};
-  }
-
-  Register UpdateCsr(Decoder::CsrImmOpcode /* opcode */, uint8_t /* imm */, Register /* csr */) {
-    Unimplemented();
-    return {};
-  }
+  Register UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr);
+  Register UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr);
 
   [[nodiscard]] bool success() const { return success_; }
 
@@ -240,18 +339,48 @@ class HeavyOptimizerFrontend {
 
   template <CsrName kName>
   [[nodiscard]] Register GetCsr() {
-    Unimplemented();
-    return {};
+    auto csr_reg = AllocTempReg();
+    if constexpr (std::is_same_v<CsrFieldType<kName>, uint8_t>) {
+      Gen<x86_64::MovzxblRegMemBaseDisp>(csr_reg, x86_64::kMachineRegRBP, kCsrFieldOffset<kName>);
+    } else if constexpr (std::is_same_v<CsrFieldType<kName>, uint64_t>) {
+      Gen<x86_64::MovqRegMemBaseDisp>(csr_reg, x86_64::kMachineRegRBP, kCsrFieldOffset<kName>);
+    } else {
+      static_assert(kDependentTypeFalse<CsrFieldType<kName>>);
+    }
+    return csr_reg;
   }
 
   template <CsrName kName>
-  void SetCsr(uint8_t /* imm */) {
-    Unimplemented();
+  void SetCsr(uint8_t imm) {
+    // Note: csr immediate only have 5 bits in RISC-V encoding which guarantess us that
+    // “imm & kCsrMask<kName>”can be used as 8-bit immediate.
+    if constexpr (std::is_same_v<CsrFieldType<kName>, uint8_t>) {
+      Gen<x86_64::MovbMemBaseDispImm>(x86_64::kMachineRegRBP,
+                                      kCsrFieldOffset<kName>,
+                                      static_cast<int8_t>(imm & kCsrMask<kName>));
+    } else if constexpr (std::is_same_v<CsrFieldType<kName>, uint64_t>) {
+      Gen<x86_64::MovbMemBaseDispImm>(x86_64::kMachineRegRBP,
+                                      kCsrFieldOffset<kName>,
+                                      static_cast<int8_t>(imm & kCsrMask<kName>));
+    } else {
+      static_assert(kDependentTypeFalse<CsrFieldType<kName>>);
+    }
   }
 
   template <CsrName kName>
-  void SetCsr(Register /* arg */) {
-    Unimplemented();
+  void SetCsr(Register arg) {
+    auto tmp = AllocTempReg();
+    Gen<PseudoCopy>(tmp, arg, sizeof(CsrFieldType<kName>));
+    if constexpr (sizeof(CsrFieldType<kName>) == 1) {
+      Gen<x86_64::AndbRegImm>(tmp, kCsrMask<kName>, GetFlagsRegister());
+      Gen<x86_64::MovbMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<kName>, tmp);
+    } else if constexpr (sizeof(CsrFieldType<kName>) == 8) {
+      Gen<x86_64::AndqRegImm>(
+          tmp, constants_pool::kConst<uint64_t{kCsrMask<kName>}>, GetFlagsRegister());
+      Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<kName>, tmp);
+    } else {
+      static_assert(kDependentTypeFalse<CsrFieldType<kName>>);
+    }
   }
 
  private:
@@ -261,7 +390,8 @@ class HeavyOptimizerFrontend {
             typename... AssemblerArgType,
             std::enable_if_t<std::is_same_v<std::decay_t<AssemblerResType>, void>, bool> = true>
   void CallIntrinsic(AssemblerArgType... args) {
-    if (TryInlineIntrinsicForHeavyOptimizer<kFunction>(&builder_, GetFlagsRegister(), args...)) {
+    if (TryInlineIntrinsicForHeavyOptimizerVoid<kFunction>(
+            &builder_, GetFlagsRegister(), args...)) {
       return;
     }
 
@@ -304,6 +434,13 @@ class HeavyOptimizerFrontend {
     CallIntrinsicImpl(&builder_, kFunction, result, GetFlagsRegister(), args...);
     return result;
   }
+
+  void MemoryRegionReservationLoad(Register aligned_addr);
+  Register MemoryRegionReservationExchange(Register aligned_addr, Register curr_reservation_value);
+  void MemoryRegionReservationSwapWithLockedOwner(Register aligned_addr,
+                                                  Register curr_reservation_value,
+                                                  Register new_reservation_value,
+                                                  MachineBasicBlock* failure_bb);
 
   // Syntax sugar.
   template <typename InsnType, typename... Args>
@@ -349,6 +486,172 @@ class HeavyOptimizerFrontend {
   // i.e. it's basic block (position.first) is nullptr.
   ArenaMap<GuestAddr, MachineInsnPosition> branch_targets_;
 };
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::FpRegister
+HeavyOptimizerFrontend::GetFRegAndUnboxNan<intrinsics::Float64>(uint8_t reg) {
+  return GetFpReg(reg);
+}
+
+template <>
+inline void HeavyOptimizerFrontend::NanBoxFpReg<intrinsics::Float64>(FpRegister) {}
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::Register
+HeavyOptimizerFrontend::GetCsr<CsrName::kFCsr>() {
+  auto csr_reg = AllocTempReg();
+  auto tmp = AllocTempReg();
+  InlineIntrinsicForHeavyOptimizer<&intrinsics::FeGetExceptions>(
+      &builder_, tmp, GetFlagsRegister());
+  Gen<x86_64::MovzxbqRegMemBaseDisp>(
+      csr_reg, x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>);
+  Gen<x86_64::ShlbRegImm>(csr_reg, 5, GetFlagsRegister());
+  Gen<x86_64::OrbRegReg>(csr_reg, tmp, GetFlagsRegister());
+  return csr_reg;
+}
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::Register
+HeavyOptimizerFrontend::GetCsr<CsrName::kFFlags>() {
+  return FeGetExceptions();
+}
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::Register
+HeavyOptimizerFrontend::GetCsr<CsrName::kVlenb>() {
+  return GetImm(16);
+}
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::Register
+HeavyOptimizerFrontend::GetCsr<CsrName::kVxrm>() {
+  auto reg = AllocTempReg();
+  Gen<x86_64::MovzxbqRegMemBaseDisp>(reg, x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>);
+  Gen<x86_64::AndbRegImm>(reg, 0b11, GetFlagsRegister());
+  return reg;
+}
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::Register
+HeavyOptimizerFrontend::GetCsr<CsrName::kVxsat>() {
+  auto reg = AllocTempReg();
+  Gen<x86_64::MovzxbqRegMemBaseDisp>(reg, x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>);
+  Gen<x86_64::ShrbRegImm>(reg, 2, GetFlagsRegister());
+  return reg;
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFCsr>(uint8_t imm) {
+  // Note: instructions Csrrci or Csrrsi couldn't affect Frm because immediate only has five bits.
+  // But these instruction don't pass their immediate-specified argument into `SetCsr`, they combine
+  // it with register first. Fixing that can only be done by changing code in the semantics player.
+  //
+  // But Csrrwi may clear it.  And we actually may only arrive here from Csrrwi.
+  // Thus, technically, we know that imm >> 5 is always zero, but it doesn't look like a good idea
+  // to rely on that: it's very subtle and it only affects code generation speed.
+  Gen<x86_64::MovbMemBaseDispImm>(
+      x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>, static_cast<int8_t>(imm >> 5));
+  InlineIntrinsicForHeavyOptimizerVoid<&intrinsics::FeSetExceptionsAndRoundImm>(
+      &builder_, GetFlagsRegister(), imm);
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFCsr>(Register arg) {
+  // Check size to be sure we can use Andb and Movb below.
+  static_assert(sizeof(kCsrMask<CsrName::kFrm>) == 1);
+
+  auto exceptions = AllocTempReg();
+  auto rounding_mode = AllocTempReg();
+  Gen<PseudoCopy>(exceptions, arg, 1);
+  Gen<x86_64::AndlRegImm>(exceptions, 0b1'1111, GetFlagsRegister());
+  // We don't care about the data in rounding_mode because we will shift in the
+  // data we need.
+  Gen<PseudoDefReg>(rounding_mode);
+  Gen<x86_64::ShldlRegRegImm>(rounding_mode, arg, int8_t{32 - 5}, GetFlagsRegister());
+  Gen<x86_64::AndbRegImm>(rounding_mode, kCsrMask<CsrName::kFrm>, GetFlagsRegister());
+  Gen<x86_64::MovbMemBaseDispReg>(
+      x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>, rounding_mode);
+  InlineIntrinsicForHeavyOptimizerVoid<&intrinsics::FeSetExceptionsAndRound>(
+      &builder_, GetFlagsRegister(), exceptions, rounding_mode);
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFFlags>(uint8_t imm) {
+  FeSetExceptionsImm(static_cast<int8_t>(imm & 0b1'1111));
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFFlags>(Register arg) {
+  auto tmp = AllocTempReg();
+  Gen<PseudoCopy>(tmp, arg, 1);
+  Gen<x86_64::AndlRegImm>(tmp, 0b1'1111, GetFlagsRegister());
+  FeSetExceptions(tmp);
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFrm>(uint8_t imm) {
+  Gen<x86_64::MovbMemBaseDispImm>(x86_64::kMachineRegRBP,
+                                  kCsrFieldOffset<CsrName::kFrm>,
+                                  static_cast<int8_t>(imm & kCsrMask<CsrName::kFrm>));
+  FeSetRoundImm(static_cast<int8_t>(imm & kCsrMask<CsrName::kFrm>));
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kFrm>(Register arg) {
+  // Use RCX as temporary register. We know it would be used by FeSetRound, too.
+  auto tmp = AllocTempReg();
+  Gen<PseudoCopy>(tmp, arg, 1);
+  Gen<x86_64::AndbRegImm>(tmp, kCsrMask<CsrName::kFrm>, GetFlagsRegister());
+  Gen<x86_64::MovbMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kFrm>, tmp);
+  FeSetRound(tmp);
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kVxrm>(uint8_t imm) {
+  imm &= 0b11;
+  if (imm != 0b11) {
+    Gen<x86_64::AndbMemBaseDispImm>(
+        x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>, 0b100, GetFlagsRegister());
+  }
+  if (imm != 0b00) {
+    Gen<x86_64::OrbMemBaseDispImm>(
+        x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>, imm, GetFlagsRegister());
+  }
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kVxrm>(Register arg) {
+  Gen<x86_64::AndbMemBaseDispImm>(
+      x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>, 0b100, GetFlagsRegister());
+  Gen<x86_64::AndbRegImm>(arg, 0b11, GetFlagsRegister());
+  Gen<x86_64::OrbMemBaseDispReg>(
+      x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>, arg, GetFlagsRegister());
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kVxsat>(uint8_t imm) {
+  if (imm & 0b1) {
+    Gen<x86_64::OrbMemBaseDispImm>(
+        x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>, 0b100, GetFlagsRegister());
+  } else {
+    Gen<x86_64::AndbMemBaseDispImm>(
+        x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>, 0b11, GetFlagsRegister());
+  }
+}
+
+template <>
+inline void HeavyOptimizerFrontend::SetCsr<CsrName::kVxsat>(Register arg) {
+  using Condition = x86_64::Assembler::Condition;
+  Gen<x86_64::AndbMemBaseDispImm>(
+      x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>, 0b11, GetFlagsRegister());
+  Gen<x86_64::TestbRegImm>(arg, 1, GetFlagsRegister());
+  auto tmp = AllocTempReg();
+  Gen<x86_64::SetccReg>(Condition::kNotZero, tmp, GetFlagsRegister());
+  Gen<x86_64::MovzxbqRegReg>(tmp, tmp);
+  Gen<x86_64::ShlbRegImm>(tmp, int8_t{2}, GetFlagsRegister());
+  Gen<x86_64::OrbMemBaseDispReg>(
+      x86_64::kMachineRegRBP, kCsrFieldOffset<CsrName::kVcsr>, tmp, GetFlagsRegister());
+}
 
 }  // namespace berberis
 

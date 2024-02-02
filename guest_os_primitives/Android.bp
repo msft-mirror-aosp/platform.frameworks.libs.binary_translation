@@ -34,11 +34,30 @@ cc_library_headers {
     ],
 }
 
-// Common sources to be shared across arch-specific libraries.
-cc_library_static {
-    name: "libberberis_guest_os_primitives_common",
+// Local headers for compiling guest_os_primitives modules only.
+// Don't depend on these headers in other modules.
+cc_library_headers {
+    name: "_libberberis_guest_os_primitives_private_headers",
     defaults: ["berberis_defaults"],
     host_supported: true,
+    export_include_dirs: ["."],
+}
+
+cc_library_headers {
+    name: "libberberis_guest_os_primitives_riscv64_headers",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    export_include_dirs: ["riscv64/include"],
+    header_libs: [
+        "libberberis_guest_os_primitives_headers",
+    ],
+    export_header_lib_headers: [
+        "libberberis_guest_os_primitives_headers",
+    ],
+}
+
+filegroup {
+    name: "libberberis_guest_os_primitives_common_srcs",
     srcs: [
         "guest_map_shadow.cc",
         "guest_signal_action.cc",
@@ -50,12 +69,30 @@ cc_library_static {
         "guest_thread_map.cc",
         "guest_thread_pthread_create.cc",
     ],
+}
+
+filegroup {
+    name: "libberberis_guest_os_primitives_common_x86_32_srcs",
+    srcs: ["unmap_and_exit_x86_32.S"],
+}
+
+filegroup {
+    name: "libberberis_guest_os_primitives_common_x86_64_srcs",
+    srcs: ["unmap_and_exit_x86_64.S"],
+}
+
+// Common sources to be shared across arch-specific libraries.
+cc_defaults {
+    name: "libberberis_guest_os_primitives_common_defaults",
+    defaults: ["berberis_defaults"],
+    host_supported: true,
+    srcs: [":libberberis_guest_os_primitives_common_srcs"],
     arch: {
         x86: {
-            srcs: ["unmap_and_exit_x86_32.S"],
+            srcs: [":libberberis_guest_os_primitives_common_x86_32_srcs"],
         },
         x86_64: {
-            srcs: ["unmap_and_exit_x86_64.S"],
+            srcs: [":libberberis_guest_os_primitives_common_x86_64_srcs"],
         },
     },
     header_libs: [
@@ -112,12 +149,10 @@ cc_library_static {
     name: "libberberis_guest_os_primitives_riscv64",
     defaults: [
         "berberis_defaults_64",
+        "libberberis_guest_os_primitives_common_defaults",
         "libberberis_guest_os_primitives_common_arch_defaults",
     ],
     host_supported: true,
-    whole_static_libs: [
-        "libberberis_guest_os_primitives_common",
-    ],
     srcs: [
         "riscv64/guest_setjmp.cc",
         "riscv64/guest_signal.cc",
@@ -126,21 +161,42 @@ cc_library_static {
     header_libs: [
         "libberberis_guest_abi_riscv64_headers",
         "libberberis_guest_os_primitives_headers",
+        "libberberis_guest_os_primitives_riscv64_headers",
         "libberberis_guest_state_headers",
         "libberberis_guest_state_riscv64_headers",
     ],
-    export_header_lib_headers: ["libberberis_guest_os_primitives_headers"],
+    export_header_lib_headers: [
+        "libberberis_guest_os_primitives_headers",
+        "libberberis_guest_os_primitives_riscv64_headers",
+    ],
 }
 
-cc_test_library {
-    name: "libberberis_guest_os_primitives_unit_tests",
-    defaults: ["berberis_test_library_defaults"],
+filegroup {
+    name: "libberberis_guest_os_primitives_unit_tests_srcs",
     srcs: [
         "guest_map_shadow_test.cc",
+        "guest_signal_action_test.cc",
+        "guest_thread_test.cc",
     ],
+}
+
+cc_defaults {
+    name: "libberberis_guest_os_primitives_unit_tests_defaults",
+    srcs: [":libberberis_guest_os_primitives_unit_tests_srcs"],
     header_libs: [
         "libberberis_base_headers",
         "libberberis_guest_os_primitives_headers",
         "libberberis_guest_state_headers",
+    ],
+}
+
+cc_test_library {
+    name: "libberberis_guest_os_primitives_unit_tests",
+    defaults: [
+        "berberis_test_library_defaults_64",
+        "libberberis_guest_os_primitives_unit_tests_defaults",
+    ],
+    header_libs: [
+        "libberberis_guest_os_primitives_riscv64_headers",
     ],
 }

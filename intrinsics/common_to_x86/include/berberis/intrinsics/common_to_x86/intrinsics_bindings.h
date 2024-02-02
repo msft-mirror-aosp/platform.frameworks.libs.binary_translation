@@ -356,6 +356,9 @@ enum CPUIDRestriction : int {
   kHasFMA4,
   kHasFXSAVE,
   kHasLZCNT,
+  // BMI2 is set and PDEP/PEXT are ok to use. See more here:
+  //   https://twitter.com/instlatx64/status/1322503571288559617
+  kHashPDEP,
   kHasPOPCNT,
   kHasRDSEED,
   kHasSERIALIZE,
@@ -438,8 +441,15 @@ class AsmCallInfo<kIntrinsicTemplateName,
   using IntrinsicType = std::conditional_t<std::tuple_size_v<OutputArguments> == 0,
                                            void (*)(InputArgumentsTypes...),
                                            OutputArguments (*)(InputArgumentsTypes...)>;
-  template <template <typename, auto, auto, typename...> typename MachineInsnType, typename Opcode>
-  using MachineInsn = MachineInsnType<AsmCallInfo, kMnemo, kOpcode<Opcode>, BindingsTypes...>;
+  template <template <typename, auto, auto, typename...> typename MachineInsnType,
+            template <typename...>
+            typename ConstructorArgs,
+            typename Opcode>
+  using MachineInsn = MachineInsnType<AsmCallInfo,
+                                      kMnemo,
+                                      kOpcode<Opcode>,
+                                      ConstructorArgs<BindingsTypes...>,
+                                      BindingsTypes...>;
 };
 
 }  // namespace berberis::intrinsics::bindings

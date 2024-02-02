@@ -21,6 +21,7 @@
 
 #include "berberis/base/host_signal.h"
 #include "berberis/guest_abi/function_wrappers.h"  // WrapHostFunction
+#include "berberis/guest_os_primitives/guest_signal_arch.h"
 #include "berberis/guest_state/guest_addr.h"       // ToGuestAddr, ToHostAddr
 
 namespace berberis {

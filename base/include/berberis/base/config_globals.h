@@ -48,7 +48,14 @@ const char* GetProfilingConfig();
 
 uintptr_t GetEntryPointOverride();
 
-enum ConfigFlag { kVerboseTranslation, kAccurateSigsegv, kNumConfigFlags };
+enum ConfigFlag {
+  kTopByteIgnore,
+  kDisableRegMap,
+  kEnableDisjointRegionsTranslation,
+  kVerboseTranslation,
+  kAccurateSigsegv,
+  kNumConfigFlags
+};
 
 [[nodiscard]] bool IsConfigFlagSet(ConfigFlag flag);
 

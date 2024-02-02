@@ -17,14 +17,31 @@
 #ifndef RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
 #define RISCV64_TO_X86_64_BERBERIS_INTRINSICS_MACRO_ASSEMBLER_CONSTANTS_POOL_H_
 
-#include "berberis/base/bit_util.h"
-#include "berberis/intrinsics/macro_assembler.h"
+#include <cinttypes>
+
+#include "berberis/intrinsics/common/intrinsics_float.h"
 
 namespace berberis::constants_pool {
 
 // Vector constants, that is: constants are repeated to fill 128bit SIMD register.
 template <auto Value>
 extern const int32_t kVectorConst;
+template <>
+extern const int32_t kVectorConst<int8_t{-128}>;
+template <>
+extern const int32_t kVectorConst<int8_t{127}>;
+template <>
+extern const int32_t kVectorConst<int16_t{-0x8000}>;
+template <>
+extern const int32_t kVectorConst<int16_t{0x7fff}>;
+template <>
+extern const int32_t kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}>;
+template <>
+extern const int32_t kVectorConst<int32_t{0x7fff'ffff}>;
+template <>
+extern const int32_t kVectorConst<int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}>;
+template <>
+extern const int32_t kVectorConst<int64_t{0x7fff'ffff'ffff'ffff}>;
 template <>
 extern const int32_t kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
 template <>
@@ -169,6 +186,20 @@ inline const int32_t kWidthInBits<int64_t> = kConst<uint64_t{64}>;
 
 extern const int32_t kRiscVToX87Exceptions;
 extern const int32_t kX87ToRiscVExceptions;
+
+extern const int32_t kVid64Bit;
+extern const int32_t kVid32Bit;
+extern const int32_t kVid16Bit;
+extern const int32_t kVid8Bit;
+
+extern const int32_t kBitMaskTable;
+extern const int32_t kBitMaskTo32bitMask;
+extern const int32_t kBitMaskTo16bitMask;
+extern const int32_t kBitMaskTo8bitMask;
+
+extern const int32_t kPMovmskwToPMovmskb;
+extern const int32_t kPMovmskdToPMovmskb;
+extern const int32_t kPMovmskqToPMovmskb;
 
 }  // namespace berberis::constants_pool
 

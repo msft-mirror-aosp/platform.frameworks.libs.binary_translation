@@ -22,6 +22,7 @@
 #include "berberis/base/checks.h"
 #include "berberis/base/macros.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
+#include "berberis/guest_os_primitives/guest_signal_arch.h"
 
 namespace berberis {
 
@@ -29,7 +30,7 @@ namespace berberis {
 // is a wrapper that invokes guest code (or suspends handling until region exit).
 class GuestSignalAction {
  public:
-  typedef void (*host_sa_sigaction_t)(int, siginfo_t*, void*);
+  using host_sa_sigaction_t = void (*)(int, siginfo_t*, void*);
 
   constexpr GuestSignalAction()
       : claimed_guest_sa_{.guest_sa_sigaction = Guest_SIG_DFL, .sa_flags = 0, .sa_mask = {}} {}

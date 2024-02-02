@@ -22,394 +22,445 @@
 #include <cstdint>
 #include <tuple>
 
+#include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/vector_intrinsics.h"
 
 namespace berberis::intrinsics {
 
 namespace {
 
+TEST(VectorIntrinsics, MakeBitmaskFromVl) {
+  for (size_t vl = 0; vl < 128; ++vl) {
+    ASSERT_EQ(MakeBitmaskFromVlForTests(vl), MakeBitmaskFromVl(vl));
+  }
+}
+
+TEST(VectorIntrinsics, Make8bitMaskFromBitmask) {
+  for (size_t mask = 0; mask < 131071; ++mask) {
+    ASSERT_EQ(BitMaskToSimdMaskForTests<Int8>(mask), BitMaskToSimdMask<Int8>(mask));
+    const auto [simd_mask] = BitMaskToSimdMask<Int8>(mask);
+    ASSERT_EQ(SimdMaskToBitMaskForTests<Int8>(simd_mask), SimdMaskToBitMask<Int8>(simd_mask));
+  }
+}
+
+TEST(VectorIntrinsics, Make16bitMaskFromBitmask) {
+  for (size_t mask = 0; mask < 511; ++mask) {
+    ASSERT_EQ(BitMaskToSimdMaskForTests<Int16>(mask), BitMaskToSimdMask<Int16>(mask));
+    const auto [simd_mask] = BitMaskToSimdMask<Int16>(mask);
+    ASSERT_EQ(SimdMaskToBitMaskForTests<Int16>(simd_mask), SimdMaskToBitMask<Int16>(simd_mask));
+  }
+}
+
+TEST(VectorIntrinsics, Make32bitMaskFromBitmask) {
+  for (size_t mask = 0; mask < 31; ++mask) {
+    ASSERT_EQ(BitMaskToSimdMaskForTests<Int32>(mask), BitMaskToSimdMask<Int32>(mask));
+    const auto [simd_mask] = BitMaskToSimdMask<Int32>(mask);
+    ASSERT_EQ(SimdMaskToBitMaskForTests<Int32>(simd_mask), SimdMaskToBitMask<Int32>(simd_mask));
+  }
+}
+
+TEST(VectorIntrinsics, Make64bitMaskFromBitmask) {
+  for (size_t mask = 0; mask < 7; ++mask) {
+    ASSERT_EQ(BitMaskToSimdMaskForTests<Int64>(mask), BitMaskToSimdMask<Int64>(mask));
+    const auto [simd_mask] = BitMaskToSimdMask<Int64>(mask);
+    ASSERT_EQ(SimdMaskToBitMaskForTests<Int64>(simd_mask), SimdMaskToBitMask<Int64>(simd_mask));
+  }
+}
+template <typename ElementType>
+void TestVidv() {
+  for (size_t index = 0; index < 8; ++index) {
+    ASSERT_EQ(VidvForTests<ElementType>(index), Vidv<ElementType>(index));
+  }
+}
+TEST(VectorIntrinsics, Vidv) {
+  TestVidv<Int8>();
+  TestVidv<Int16>();
+  TestVidv<Int32>();
+  TestVidv<Int64>();
+  TestVidv<UInt8>();
+  TestVidv<UInt16>();
+  TestVidv<UInt32>();
+  TestVidv<UInt64>();
+}
 // Easily recognizable bit pattern for target register.
 constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 
+template <auto kElement>
+void TestVectorMaskedElementTo() {
+  size_t max_mask = sizeof(kElement) == sizeof(uint8_t)    ? 131071
+                    : sizeof(kElement) == sizeof(uint16_t) ? 511
+                    : sizeof(kElement) == sizeof(uint32_t) ? 31
+                                                           : 7;
+  for (size_t mask = 0; mask < max_mask; ++mask) {
+    const SIMD128Register src = kUndisturbedResult;
+    const auto [simd_mask] = BitMaskToSimdMask<decltype(kElement)>(mask);
+    ASSERT_EQ(VectorMaskedElementToForTests<kElement>(simd_mask, src),
+              VectorMaskedElementTo<kElement>(simd_mask, src));
+  }
+}
+
+TEST(VectorIntrinsics, VectorMaskedElementTo) {
+  TestVectorMaskedElementTo<std::numeric_limits<int8_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int8_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint8_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint8_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int16_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int16_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint16_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint16_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int32_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int32_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint32_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint32_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int64_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<int64_t>::max()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint64_t>::min()>();
+  TestVectorMaskedElementTo<std::numeric_limits<uint64_t>::max()>();
+}
+
 TEST(VectorIntrinsics, Vaddvv) {
-  auto Verify = [](auto Vaddvv, auto Vaddvvm, SIMD128Register arg2, auto result_to_check) {
-    ASSERT_EQ(Vaddvv(0, 16, kUndisturbedResult, __m128i{-1, -1}, arg2),
+  auto Verify = []<typename ElementType>(
+                    auto Vaddvv,
+                    SIMD128Register arg2,
+                    [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, 16)),
               std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvvm(0, 16, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                      0,
+                                                      16,
+                                                      RawInt16{0xffff})),
+        std::tuple{result_to_check});
   };
-  Verify(Vaddvv<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvv<UInt8>,
          __v16qu{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
          __v16qu{255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0});
-  Verify(Vaddvv<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvv<UInt8>,
          __v16qu{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
          __v16qu{0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255});
-  Verify(Vaddvv<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvv<UInt16>,
          __v8hu{0, 1, 0, 1, 0, 1, 0, 1},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000});
-  Verify(Vaddvv<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvv<UInt16>,
          __v8hu{1, 0, 1, 0, 1, 0, 1, 0},
          __v8hu{0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff});
-  Verify(Vaddvv<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvv<UInt32>,
          __v4su{0, 1, 0, 1},
          __v4su{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0x0000'0000});
-  Verify(Vaddvv<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvv<UInt32>,
          __v4su{1, 0, 1, 0},
          __v4su{0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff});
-  Verify(Vaddvv<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         __v2du{0, 1},
-         __v2du{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000});
-  Verify(Vaddvv<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         __v2du{1, 0},
-         __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff});
+  Verify(Vaddvv<UInt64>, __v2du{0, 1}, __v2du{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000});
+  Verify(Vaddvv<UInt64>, __v2du{1, 0}, __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff});
 }
 
 TEST(VectorIntrinsics, Vaddvx) {
-  auto Verify = [](auto Vaddvx, auto Vaddvxm, SIMD128Register arg1, auto result_to_check) {
-    ASSERT_EQ(Vaddvx(0, 16, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvxm(0, 16, 0xffff, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
+  auto Verify = []<typename ElementType>(
+                    auto Vaddvx,
+                    SIMD128Register arg1,
+                    [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, 16)),
+              std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kAgnostic>(
+            kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, 16, RawInt16{0xffff})),
+        std::tuple{result_to_check});
   };
-  Verify(Vaddvx<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvx<UInt8>,
          __v16qu{254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255},
          __v16qu{255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0});
-  Verify(Vaddvx<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvx<UInt8>,
          __v16qu{255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254},
          __v16qu{0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255});
-  Verify(Vaddvx<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvx<UInt16>,
          __v8hu{0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000});
-  Verify(Vaddvx<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvx<UInt16>,
          __v8hu{0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe},
          __v8hu{0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff});
-  Verify(Vaddvx<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvx<UInt32>,
          __v4su{0xffff'fffe, 0xffff'ffff, 0xffff'fffe, 0xffff'ffff},
          __v4su{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0x0000'0000});
-  Verify(Vaddvx<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvx<UInt32>,
          __v4su{0xffff'ffff, 0xffff'fffe, 0xffff'ffff, 0xffff'fffe},
          __v4su{0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff});
-  Verify(Vaddvx<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvx<UInt64>,
          __v2du{0xffff'ffff'ffff'fffe, 0xffff'ffff'ffff'ffff},
          __v2du{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000});
-  Verify(Vaddvx<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vaddvx<UInt64>,
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'fffe},
          __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff});
 }
 
 TEST(VectorIntrinsics, VlArgForVv) {
-  auto Verify = [](auto Vaddvva,
-                   auto Vaddvvu,
-                   auto Vaddvvmaa,
-                   auto Vaddvvmau,
-                   auto Vaddvvmua,
-                   auto Vaddvvmuu,
-                   SIMD128Register arg2,
-                   auto result_to_check_agnostic,
-                   auto result_to_check_undisturbed) {
-    static_assert(
-        std::is_same_v<decltype(result_to_check_agnostic), decltype(result_to_check_undisturbed)>);
-    constexpr size_t kHalfLen =
-        sizeof(result_to_check_agnostic) / sizeof(result_to_check_agnostic[0]) / 2;
-    ASSERT_EQ(Vaddvva(0, kHalfLen, kUndisturbedResult, __m128i{-1, -1}, arg2),
+  auto Verify = []<typename ElementType>(
+                    auto Vaddvv,
+                    SIMD128Register arg2,
+                    [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check_agnostic,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_undisturbed) {
+    constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen)),
               std::tuple{result_to_check_agnostic});
-    ASSERT_EQ(Vaddvvu(0, kHalfLen, kUndisturbedResult, __m128i{-1, -1}, arg2),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kUndisturbed>(
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 0, kHalfLen)),
               std::tuple{result_to_check_undisturbed});
-    ASSERT_EQ(Vaddvvmaa(0, kHalfLen, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check_agnostic});
-    ASSERT_EQ(Vaddvvmau(0, kHalfLen, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check_agnostic});
-    ASSERT_EQ(Vaddvvmua(0, kHalfLen, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check_undisturbed});
-    ASSERT_EQ(Vaddvvmuu(0, kHalfLen, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check_undisturbed});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                      0,
+                                                      kHalfLen,
+                                                      RawInt16{0xffff})),
+        std::tuple{result_to_check_agnostic});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                         std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                         0,
+                                                         kHalfLen,
+                                                         RawInt16{0xffff})),
+        std::tuple{result_to_check_agnostic});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kUndisturbed,
+                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                      0,
+                                                      kHalfLen,
+                                                      RawInt16{0xffff})),
+        std::tuple{result_to_check_undisturbed});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kUndisturbed,
+                       InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                         std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                         0,
+                                                         kHalfLen,
+                                                         RawInt16{0xffff})),
+        std::tuple{result_to_check_undisturbed});
   };
-  Verify(Vaddvv<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint8_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt8>,
          __v16qu{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
          __v16qu{255, 0, 255, 0, 255, 0, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255},
          __v16qu{255, 0, 255, 0, 255, 0, 255, 0, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
-  Verify(Vaddvv<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint8_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt8>,
          __v16qu{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
          __v16qu{0, 255, 0, 255, 0, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255},
          __v16qu{0, 255, 0, 255, 0, 255, 0, 255, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
-  Verify(Vaddvv<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint16_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt16>,
          __v8hu{0, 1, 0, 1, 0, 1, 0, 1},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0x5555, 0x5555, 0x5555, 0x5555});
-  Verify(Vaddvv<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint16_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt16>,
          __v8hu{1, 0, 1, 0, 1, 0, 1, 0},
          __v8hu{0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0x0000, 0xffff, 0x0000, 0xffff, 0x5555, 0x5555, 0x5555, 0x5555});
-  Verify(Vaddvv<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint32_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt32>,
          __v4su{0, 1, 0, 1},
          __v4su{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
          __v4su{0xffff'ffff, 0x0000'0000, 0x5555'5555, 0x5555'5555});
-  Verify(Vaddvv<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint32_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt32>,
          __v4su{1, 0, 1, 0},
          __v4su{0x0000'0000, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
          __v4su{0x0000'0000, 0xffff'ffff, 0x5555'5555, 0x5555'5555});
-  Verify(Vaddvv<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint64_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt64>,
          __v2du{0, 1},
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff},
          __v2du{0xffff'ffff'ffff'ffff, 0x5555'5555'5555'5555});
-  Verify(Vaddvv<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint64_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt64>,
          __v2du{1, 0},
          __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff},
          __v2du{0x0000'0000'0000'0000, 0x5555'5555'5555'5555});
 }
 
 TEST(VectorIntrinsics, VlArgForVx) {
-  auto Verify = [](auto Vaddvxa,
-                   auto Vaddvxu,
-                   auto Vaddvxmaa,
-                   auto Vaddvxmau,
-                   auto Vaddvxmua,
-                   auto Vaddvxmuu,
-                   SIMD128Register arg1,
-                   auto result_to_check_agnostic,
-                   auto result_to_check_undisturbed) {
-    static_assert(
-        std::is_same_v<decltype(result_to_check_agnostic), decltype(result_to_check_undisturbed)>);
-    constexpr size_t kHalfLen =
-        sizeof(result_to_check_agnostic) / sizeof(result_to_check_agnostic[0]) / 2;
-    ASSERT_EQ(Vaddvxa(0, kHalfLen, kUndisturbedResult, arg1, 1),
+  auto Verify = []<typename ElementType>(
+                    auto Vaddvx,
+                    SIMD128Register arg1,
+                    [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check_agnostic,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_undisturbed) {
+    constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen)),
               std::tuple{result_to_check_agnostic});
-    ASSERT_EQ(Vaddvxu(0, kHalfLen, kUndisturbedResult, arg1, 1),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kUndisturbed>(
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 0, kHalfLen)),
               std::tuple{result_to_check_undisturbed});
-    ASSERT_EQ(Vaddvxmaa(0, kHalfLen, 0xffff, kUndisturbedResult, arg1, 1),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                             TailProcessing::kAgnostic,
+                             InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                            std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                            0,
+                                                            kHalfLen,
+                                                            RawInt16{0xffff})),
               std::tuple{result_to_check_agnostic});
-    ASSERT_EQ(Vaddvxmau(0, kHalfLen, 0xffff, kUndisturbedResult, arg1, 1),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                             TailProcessing::kAgnostic,
+                             InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                               std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                               0,
+                                                               kHalfLen,
+                                                               RawInt16{0xffff})),
               std::tuple{result_to_check_agnostic});
-    ASSERT_EQ(Vaddvxmua(0, kHalfLen, 0xffff, kUndisturbedResult, arg1, 1),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                             TailProcessing::kUndisturbed,
+                             InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                            std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                            0,
+                                                            kHalfLen,
+                                                            RawInt16{0xffff})),
               std::tuple{result_to_check_undisturbed});
-    ASSERT_EQ(Vaddvxmuu(0, kHalfLen, 0xffff, kUndisturbedResult, arg1, 1),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                             TailProcessing::kUndisturbed,
+                             InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                               std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                               0,
+                                                               kHalfLen,
+                                                               RawInt16{0xffff})),
               std::tuple{result_to_check_undisturbed});
   };
-  Verify(Vaddvx<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint8_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt8>,
          __v16qu{254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255},
          __v16qu{255, 0, 255, 0, 255, 0, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255},
          __v16qu{255, 0, 255, 0, 255, 0, 255, 0, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
-  Verify(Vaddvx<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint8_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt8>,
          __v16qu{255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254},
          __v16qu{0, 255, 0, 255, 0, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255},
          __v16qu{0, 255, 0, 255, 0, 255, 0, 255, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
-  Verify(Vaddvx<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint16_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt16>,
          __v8hu{0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0x5555, 0x5555, 0x5555, 0x5555});
-  Verify(Vaddvx<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint16_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt16>,
          __v8hu{0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe},
          __v8hu{0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0x0000, 0xffff, 0x0000, 0xffff, 0x5555, 0x5555, 0x5555, 0x5555});
-  Verify(Vaddvx<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint32_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt32>,
          __v4su{0xffff'fffe, 0xffff'ffff, 0xffff'fffe, 0xffff'ffff},
          __v4su{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
          __v4su{0xffff'ffff, 0x0000'0000, 0x5555'5555, 0x5555'5555});
-  Verify(Vaddvx<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint32_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt32>,
          __v4su{0xffff'ffff, 0xffff'fffe, 0xffff'ffff, 0xffff'fffe},
          __v4su{0x0000'0000, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
          __v4su{0x0000'0000, 0xffff'ffff, 0x5555'5555, 0x5555'5555});
-  Verify(Vaddvx<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint64_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt64>,
          __v2du{0xffff'ffff'ffff'fffe, 0xffff'ffff'ffff'ffff},
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff},
          __v2du{0xffff'ffff'ffff'ffff, 0x5555'5555'5555'5555});
-  Verify(Vaddvx<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint64_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt64>,
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'fffe},
          __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff},
          __v2du{0x0000'0000'0000'0000, 0x5555'5555'5555'5555});
 }
 
-
-TEST(VectorIntrinsics, VmaskArgForVvvv) {
-  auto Verify = [](auto Vaddvvmaa,
-                   auto Vaddvvmau,
-                   auto Vaddvvmua,
-                   auto Vaddvvmuu,
-                   SIMD128Register arg2,
-                   auto result_to_check_agnostic_agnostic,
-                   auto result_to_check_agnostic_undisturbed,
-                   auto result_to_check_undisturbed_agnostic,
-                   auto result_to_check_undisturbed_undisturbed) {
-    static_assert(std::is_same_v<decltype(result_to_check_agnostic_agnostic),
-                                 decltype(result_to_check_agnostic_undisturbed)>);
-    static_assert(std::is_same_v<decltype(result_to_check_agnostic_agnostic),
-                                 decltype(result_to_check_undisturbed_agnostic)>);
-    static_assert(std::is_same_v<decltype(result_to_check_agnostic_agnostic),
-                                 decltype(result_to_check_undisturbed_undisturbed)>);
-    constexpr size_t kHalfLen = sizeof(result_to_check_agnostic_agnostic) /
-                                sizeof(result_to_check_agnostic_agnostic[0]) / 2;
-    ASSERT_EQ(Vaddvvmaa(0, kHalfLen, 0xfdda, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check_agnostic_agnostic});
-    ASSERT_EQ(Vaddvvmau(0, kHalfLen, 0xfdda, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check_agnostic_undisturbed});
-    ASSERT_EQ(Vaddvvmua(0, kHalfLen, 0xfdda, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check_undisturbed_agnostic});
-    ASSERT_EQ(Vaddvvmuu(0, kHalfLen, 0xfdda, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check_undisturbed_undisturbed});
+TEST(VectorIntrinsics, VmaskArgForVvv) {
+  auto Verify = []<typename ElementType>(
+                    auto Vaddvv,
+                    SIMD128Register arg2,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_agnostic_agnostic,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_agnostic_undisturbed,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_undisturbed_agnostic,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_undisturbed_undisturbed) {
+    constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                      0,
+                                                      kHalfLen,
+                                                      RawInt16{0xfdda})),
+        std::tuple{result_to_check_agnostic_agnostic});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                         std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                         0,
+                                                         kHalfLen,
+                                                         RawInt16{0xfdda})),
+        std::tuple{result_to_check_agnostic_undisturbed});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kUndisturbed,
+                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                      0,
+                                                      kHalfLen,
+                                                      RawInt16{0xfdda})),
+        std::tuple{result_to_check_undisturbed_agnostic});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kUndisturbed,
+                       InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                         std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                         0,
+                                                         kHalfLen,
+                                                         RawInt16{0xfdda})),
+        std::tuple{result_to_check_undisturbed_undisturbed});
   };
   Verify(
-      Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-      Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-      Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-      Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+      Vaddvv<UInt8>,
       __v16qu{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
       __v16qu{255, 0, 255, 0, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255},
       __v16qu{0x55, 0, 0x55, 0, 255, 0x55, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255},
       __v16qu{255, 0, 255, 0, 255, 255, 255, 0, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55},
       __v16qu{0x55, 0, 0x55, 0, 255, 0x55, 255, 0, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
   Verify(
-      Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-      Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-      Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-      Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+      Vaddvv<UInt8>,
       __v16qu{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
       __v16qu{255, 255, 255, 255, 0, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255},
       __v16qu{0x55, 255, 0x55, 255, 0, 0x55, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255},
       __v16qu{255, 255, 255, 255, 0, 255, 0, 255, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55},
-      __v16qu{0x55, 255, 0x55, 255, 0, 0x55, 0, 255, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
-  Verify(Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+      __v16qu{
+          0x55, 255, 0x55, 255, 0, 0x55, 0, 255, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
+  Verify(Vaddvv<UInt16>,
          __v8hu{0, 1, 0, 1, 0, 1, 0, 1},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0x5555, 0x0000, 0x5555, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0x5555, 0x5555, 0x5555, 0x5555},
          __v8hu{0x5555, 0x0000, 0x5555, 0x0000, 0x5555, 0x5555, 0x5555, 0x5555});
-  Verify(Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt16>,
          __v8hu{1, 0, 1, 0, 1, 0, 1, 0},
          __v8hu{0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0x5555, 0xffff, 0x5555, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0xffff, 0xffff, 0xffff, 0xffff, 0x5555, 0x5555, 0x5555, 0x5555},
          __v8hu{0x5555, 0xffff, 0x5555, 0xffff, 0x5555, 0x5555, 0x5555, 0x5555});
-  Verify(Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt32>,
          __v4su{0, 1, 0, 1},
          __v4su{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
          __v4su{0x5555'5555, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
          __v4su{0xffff'ffff, 0x0000'0000, 0x5555'5555, 0x5555'5555},
          __v4su{0x5555'5555, 0x0000'0000, 0x5555'5555, 0x5555'5555});
-  Verify(Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt32>,
          __v4su{1, 0, 1, 0},
          __v4su{0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
          __v4su{0x5555'5555, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
          __v4su{0xffff'ffff, 0xffff'ffff, 0x5555'5555, 0x5555'5555},
          __v4su{0x5555'5555, 0xffff'ffff, 0x5555'5555, 0x5555'5555});
-  Verify(Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt64>,
          __v2du{0, 1},
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff},
          __v2du{0x5555'5555'5555'5555, 0xffff'ffff'ffff'ffff},
          __v2du{0xffff'ffff'ffff'ffff, 0x5555'5555'5555'5555},
          __v2du{0x5555'5555'5555'5555, 0x5555'5555'5555'5555});
-  Verify(Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt64>,
          __v2du{1, 0},
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff},
          __v2du{0x5555'5555'5555'5555, 0xffff'ffff'ffff'ffff},
@@ -417,103 +468,98 @@ TEST(VectorIntrinsics, VmaskArgForVvvv) {
          __v2du{0x5555'5555'5555'5555, 0x5555'5555'5555'5555});
 }
 
-TEST(VectorIntrinsics, VmaskArgForVvvx) {
-  auto Verify = [](auto Vaddvxmaa,
-                   auto Vaddvxmau,
-                   auto Vaddvxmua,
-                   auto Vaddvxmuu,
-                   SIMD128Register arg1,
-                   auto result_to_check_agnostic_agnostic,
-                   auto result_to_check_agnostic_undisturbed,
-                   auto result_to_check_undisturbed_agnostic,
-                   auto result_to_check_undisturbed_undisturbed) {
-    static_assert(std::is_same_v<decltype(result_to_check_agnostic_agnostic),
-                                 decltype(result_to_check_agnostic_undisturbed)>);
-    static_assert(std::is_same_v<decltype(result_to_check_agnostic_agnostic),
-                                 decltype(result_to_check_undisturbed_agnostic)>);
-    static_assert(std::is_same_v<decltype(result_to_check_agnostic_agnostic),
-                                 decltype(result_to_check_undisturbed_undisturbed)>);
-    constexpr size_t kHalfLen = sizeof(result_to_check_agnostic_agnostic) /
-                                sizeof(result_to_check_agnostic_agnostic[0]) / 2;
-    ASSERT_EQ(Vaddvxmaa(0, kHalfLen, 0xfdda, kUndisturbedResult, arg1, 1),
+TEST(VectorIntrinsics, VmaskArgForVvx) {
+  auto Verify = []<typename ElementType>(
+                    auto Vaddvx,
+                    SIMD128Register arg1,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_agnostic_agnostic,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_agnostic_undisturbed,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_undisturbed_agnostic,
+                    [[gnu::vector_size(16),
+                      gnu::may_alias]] ElementType result_to_check_undisturbed_undisturbed) {
+    constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                             TailProcessing::kAgnostic,
+                             InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                            std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                            0,
+                                                            kHalfLen,
+                                                            RawInt16{0xfdda})),
               std::tuple{result_to_check_agnostic_agnostic});
-    ASSERT_EQ(Vaddvxmau(0, kHalfLen, 0xfdda, kUndisturbedResult, arg1, 1),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                             TailProcessing::kAgnostic,
+                             InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                               std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                               0,
+                                                               kHalfLen,
+                                                               RawInt16{0xfdda})),
               std::tuple{result_to_check_agnostic_undisturbed});
-    ASSERT_EQ(Vaddvxmua(0, kHalfLen, 0xfdda, kUndisturbedResult, arg1, 1),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                             TailProcessing::kUndisturbed,
+                             InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                            std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                            0,
+                                                            kHalfLen,
+                                                            RawInt16{0xfdda})),
               std::tuple{result_to_check_undisturbed_agnostic});
-    ASSERT_EQ(Vaddvxmuu(0, kHalfLen, 0xfdda, kUndisturbedResult, arg1, 1),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                             TailProcessing::kUndisturbed,
+                             InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                               std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                               0,
+                                                               kHalfLen,
+                                                               RawInt16{0xfdda})),
               std::tuple{result_to_check_undisturbed_undisturbed});
   };
   Verify(
-      Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-      Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-      Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-      Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+      Vaddvx<UInt8>,
       __v16qu{254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255},
       __v16qu{255, 0, 255, 0, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255},
       __v16qu{0x55, 0, 0x55, 0, 255, 0x55, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255},
       __v16qu{255, 0, 255, 0, 255, 255, 255, 0, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55},
       __v16qu{0x55, 0, 0x55, 0, 255, 0x55, 255, 0, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
   Verify(
-      Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-      Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-      Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-      Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+      Vaddvx<UInt8>,
       __v16qu{255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254},
       __v16qu{255, 255, 255, 255, 0, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255},
       __v16qu{0x55, 255, 0x55, 255, 0, 0x55, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255},
       __v16qu{255, 255, 255, 255, 0, 255, 0, 255, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55},
       __v16qu{
           0x55, 255, 0x55, 255, 0, 0x55, 0, 255, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55});
-  Verify(Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt16>,
          __v8hu{0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0x5555, 0x0000, 0x5555, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0x5555, 0x5555, 0x5555, 0x5555},
          __v8hu{0x5555, 0x0000, 0x5555, 0x0000, 0x5555, 0x5555, 0x5555, 0x5555});
-  Verify(Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt16>,
          __v8hu{0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe},
          __v8hu{0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0x5555, 0xffff, 0x5555, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
          __v8hu{0xffff, 0xffff, 0xffff, 0xffff, 0x5555, 0x5555, 0x5555, 0x5555},
          __v8hu{0x5555, 0xffff, 0x5555, 0xffff, 0x5555, 0x5555, 0x5555, 0x5555});
-  Verify(Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt32>,
          __v4su{0xffff'fffe, 0xffff'ffff, 0xffff'fffe, 0xffff'ffff},
          __v4su{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
          __v4su{0x5555'5555, 0x0000'0000, 0xffff'ffff, 0xffff'ffff},
          __v4su{0xffff'ffff, 0x0000'0000, 0x5555'5555, 0x5555'5555},
          __v4su{0x5555'5555, 0x0000'0000, 0x5555'5555, 0x5555'5555});
-  Verify(Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt32>,
          __v4su{0xffff'ffff, 0xffff'fffe, 0xffff'ffff, 0xffff'fffe},
          __v4su{0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
          __v4su{0x5555'5555, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
          __v4su{0xffff'ffff, 0xffff'ffff, 0x5555'5555, 0x5555'5555},
          __v4su{0x5555'5555, 0xffff'ffff, 0x5555'5555, 0x5555'5555});
-  Verify(Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt64>,
          __v2du{0xffff'ffff'ffff'fffe, 0xffff'ffff'ffff'ffff},
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff},
          __v2du{0x5555'5555'5555'5555, 0xffff'ffff'ffff'ffff},
          __v2du{0xffff'ffff'ffff'ffff, 0x5555'5555'5555'5555},
          __v2du{0x5555'5555'5555'5555, 0x5555'5555'5555'5555});
-  Verify(Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt64>,
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'fffe},
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff},
          __v2du{0x5555'5555'5555'5555, 0xffff'ffff'ffff'ffff},
@@ -522,248 +568,206 @@ TEST(VectorIntrinsics, VmaskArgForVvvx) {
 }
 
 TEST(VectorIntrinsics, VstartArgVv) {
-  auto Verify = [](auto Vaddvva,
-                   auto Vaddvvu,
-                   auto Vaddvvmaa,
-                   auto Vaddvvmau,
-                   auto Vaddvvmua,
-                   auto Vaddvvmuu,
-                   SIMD128Register arg2,
-                   auto result_to_check) {
-    ASSERT_EQ(Vaddvva(1, 16, kUndisturbedResult, __m128i{-1, -1}, arg2),
+  auto Verify = []<typename ElementType>(
+                    auto Vaddvv,
+                    SIMD128Register arg2,
+                    [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 1, 16)),
               std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvvu(1, 16, kUndisturbedResult, __m128i{-1, -1}, arg2),
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kUndisturbed>(
+                  kUndisturbedResult, std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)), 1, 16)),
               std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvvmaa(1, 16, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvvmau(1, 16, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvvmua(1, 16, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvvmuu(1, 16, 0xffff, kUndisturbedResult, __m128i{-1, -1}, arg2),
-              std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                      1,
+                                                      16,
+                                                      RawInt16{0xffff})),
+        std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                         std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                         1,
+                                                         16,
+                                                         RawInt16{0xffff})),
+        std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kUndisturbed,
+                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                      1,
+                                                      16,
+                                                      RawInt16{0xffff})),
+        std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kUndisturbed,
+                       InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                         std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                                                         1,
+                                                         16,
+                                                         RawInt16{0xffff})),
+        std::tuple{result_to_check});
   };
-  Verify(Vaddvv<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint8_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt8>,
          __v16qu{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
          __v16qu{0x55, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0});
-  Verify(Vaddvv<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint8_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt8>,
          __v16qu{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
          __v16qu{0x55, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255});
-  Verify(Vaddvv<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint16_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt16>,
          __v8hu{0, 1, 0, 1, 0, 1, 0, 1},
          __v8hu{0x5555, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000});
-  Verify(Vaddvv<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint16_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt16>,
          __v8hu{1, 0, 1, 0, 1, 0, 1, 0},
          __v8hu{0x5555, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff});
-  Verify(Vaddvv<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint32_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt32>,
          __v4su{0, 1, 0, 1},
          __v4su{0x5555'5555, 0x0000'0000, 0xffff'ffff, 0x0000'0000});
-  Verify(Vaddvv<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint32_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvv<UInt32>,
          __v4su{1, 0, 1, 0},
          __v4su{0x5555'5555, 0xffff'ffff, 0x0000'0000, 0xffff'ffff});
-  Verify(Vaddvv<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint64_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
-         __v2du{0, 1},
-         __v2du{0x5555'5555'5555'5555, 0x0000'0000'0000'0000});
-  Verify(Vaddvv<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvv<uint64_t, TailProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvvm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
-         __v2du{1, 0},
-         __v2du{0x5555'5555'5555'5555, 0xffff'ffff'ffff'ffff});
+  Verify(Vaddvv<UInt64>, __v2du{0, 1}, __v2du{0x5555'5555'5555'5555, 0x0000'0000'0000'0000});
+  Verify(Vaddvv<UInt64>, __v2du{1, 0}, __v2du{0x5555'5555'5555'5555, 0xffff'ffff'ffff'ffff});
 }
 
 TEST(VectorIntrinsics, VstartArgVx) {
-  auto Verify = [](auto Vaddvxa,
-                   auto Vaddvxu,
-                   auto Vaddvxmaa,
-                   auto Vaddvxmau,
-                   auto Vaddvxmua,
-                   auto Vaddvxmuu,
-                   SIMD128Register arg1,
-                   auto result_to_check) {
-    ASSERT_EQ(Vaddvxa(1, 16, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvxu(1, 16, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvxmaa(1, 16, 0xffff, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvxmau(1, 16, 0xffff, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvxmua(1, 16, 0xffff, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
-    ASSERT_EQ(Vaddvxmuu(1, 16, 0xffff, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
+  auto Verify = []<typename ElementType>(
+                    auto Vaddvx,
+                    SIMD128Register arg1,
+                    [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16)),
+              std::tuple{result_to_check});
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kUndisturbed>(
+                  kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16)),
+              std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kAgnostic>(
+            kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16, RawInt16{0xffff})),
+        std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kUndisturbed>(
+            kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16, RawInt16{0xffff})),
+        std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kUndisturbed,
+                       InactiveProcessing::kAgnostic>(
+            kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16, RawInt16{0xffff})),
+        std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kUndisturbed,
+                       InactiveProcessing::kUndisturbed>(
+            kUndisturbedResult, std::get<0>(Vaddvx(arg1, UInt8{1})), 1, 16, RawInt16{0xffff})),
+        std::tuple{result_to_check});
   };
-  Verify(Vaddvx<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint8_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt8>,
          __v16qu{254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255},
          __v16qu{0x55, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0});
-  Verify(Vaddvx<uint8_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint8_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint8_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt8>,
          __v16qu{255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254},
          __v16qu{0x55, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255});
-  Verify(Vaddvx<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint16_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt16>,
          __v8hu{0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff},
          __v8hu{0x5555, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000});
-  Verify(Vaddvx<uint16_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint16_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint16_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt16>,
          __v8hu{0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe, 0xffff, 0xfffe},
          __v8hu{0x5555, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff});
-  Verify(Vaddvx<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint32_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt32>,
          __v4su{0xffff'fffe, 0xffff'ffff, 0xffff'fffe, 0xffff'ffff},
          __v4su{0x5555'5555, 0x0000'0000, 0xffff'ffff, 0x0000'0000});
-  Verify(Vaddvx<uint32_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint32_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint32_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt32>,
          __v4su{0xffff'ffff, 0xffff'fffe, 0xffff'ffff, 0xffff'fffe},
          __v4su{0x5555'5555, 0xffff'ffff, 0x0000'0000, 0xffff'ffff});
-  Verify(Vaddvx<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint64_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt64>,
          __v2du{0xffff'ffff'ffff'fffe, 0xffff'ffff'ffff'ffff},
          __v2du{0x5555'5555'5555'5555, 0x0000'0000'0000'0000});
-  Verify(Vaddvx<uint64_t, TailProcessing::kAgnostic>,
-         Vaddvx<uint64_t, TailProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kUndisturbed>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kAgnostic>,
-         Vaddvxm<uint64_t, TailProcessing::kUndisturbed, InactiveProcessing::kUndisturbed>,
+  Verify(Vaddvx<UInt64>,
          __v2du{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'fffe},
          __v2du{0x5555'5555'5555'5555, 0xffff'ffff'ffff'ffff});
 }
 
 TEST(VectorIntrinsics, Vsubvv) {
-  auto Verify = [](auto Vsubvv, auto Vsubvvm, SIMD128Register arg2, auto result_to_check) {
-    ASSERT_EQ(Vsubvv(0, 16, kUndisturbedResult, __m128i{0, 0}, arg2), std::tuple{result_to_check});
-    ASSERT_EQ(Vsubvvm(0, 16, 0xffff, kUndisturbedResult, __m128i{0, 0}, arg2),
+  auto Verify = []<typename ElementType>(
+                    auto Vsubvv,
+                    SIMD128Register arg2,
+                    [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
+                  kUndisturbedResult, std::get<0>(Vsubvv(__m128i{0, 0}, arg2)), 0, 16)),
               std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kAgnostic>(
+            kUndisturbedResult, std::get<0>(Vsubvv(__m128i{0, 0}, arg2)), 0, 16, RawInt16{0xffff})),
+        std::tuple{result_to_check});
   };
-  Verify(Vsubvv<uint8_t, TailProcessing::kAgnostic>,
-         Vsubvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvv<UInt8>,
          __v16qu{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
          __v16qu{0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255});
-  Verify(Vsubvv<uint8_t, TailProcessing::kAgnostic>,
-         Vsubvvm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvv<UInt8>,
          __v16qu{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
          __v16qu{255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0});
-  Verify(Vsubvv<uint16_t, TailProcessing::kAgnostic>,
-         Vsubvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvv<UInt16>,
          __v8hu{0, 1, 0, 1, 0, 1, 0, 1},
          __v8hu{0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff});
-  Verify(Vsubvv<uint16_t, TailProcessing::kAgnostic>,
-         Vsubvvm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvv<UInt16>,
          __v8hu{1, 0, 1, 0, 1, 0, 1, 0},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000});
-  Verify(Vsubvv<uint32_t, TailProcessing::kAgnostic>,
-         Vsubvvm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvv<UInt32>,
          __v4su{0, 1, 0, 1},
          __v4su{0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff});
-  Verify(Vsubvv<uint64_t, TailProcessing::kAgnostic>,
-         Vsubvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         __v2du{0, 1},
-         __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff});
-  Verify(Vsubvv<uint64_t, TailProcessing::kAgnostic>,
-         Vsubvvm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         __v2du{1, 0},
-         __v2du{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000});
+  Verify(Vsubvv<UInt64>, __v2du{0, 1}, __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff});
+  Verify(Vsubvv<UInt64>, __v2du{1, 0}, __v2du{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000});
 }
 
 TEST(VectorIntrinsics, Vsubvx) {
-  auto Verify = [](auto Vsubvx, auto Vsubvxm, SIMD128Register arg1, auto result_to_check) {
-    ASSERT_EQ(Vsubvx(0, 16, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
-    ASSERT_EQ(Vsubvxm(0, 16, 0xffff, kUndisturbedResult, arg1, 1), std::tuple{result_to_check});
+  auto Verify = []<typename ElementType>(
+                    auto Vsubvx,
+                    SIMD128Register arg1,
+                    [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check) {
+    ASSERT_EQ((VectorMasking<Wrapping<ElementType>, TailProcessing::kAgnostic>(
+                  kUndisturbedResult, std::get<0>(Vsubvx(arg1, UInt8{1})), 0, 16)),
+              std::tuple{result_to_check});
+    ASSERT_EQ(
+        (VectorMasking<Wrapping<ElementType>,
+                       TailProcessing::kAgnostic,
+                       InactiveProcessing::kAgnostic>(
+            kUndisturbedResult, std::get<0>(Vsubvx(arg1, UInt8{1})), 0, 16, RawInt16{0xffff})),
+        std::tuple{result_to_check});
   };
-  Verify(Vsubvx<uint8_t, TailProcessing::kAgnostic>,
-         Vsubvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvx<UInt8>,
          __v16qu{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0},
          __v16qu{0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255});
-  Verify(Vsubvx<uint8_t, TailProcessing::kAgnostic>,
-         Vsubvxm<uint8_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvx<UInt8>,
          __v16qu{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
          __v16qu{255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0});
-  Verify(Vsubvx<uint16_t, TailProcessing::kAgnostic>,
-         Vsubvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvx<UInt16>,
          __v8hu{1, 0, 1, 0, 1, 0, 1, 0},
          __v8hu{0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff});
-  Verify(Vsubvx<uint16_t, TailProcessing::kAgnostic>,
-         Vsubvxm<uint16_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvx<UInt16>,
          __v8hu{0, 1, 0, 1, 0, 1, 0, 1},
          __v8hu{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000});
-  Verify(Vsubvx<uint32_t, TailProcessing::kAgnostic>,
-         Vsubvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvx<UInt32>,
          __v4su{1, 0, 1, 0},
          __v4su{0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff});
-  Verify(Vsubvx<uint32_t, TailProcessing::kAgnostic>,
-         Vsubvxm<uint32_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
+  Verify(Vsubvx<UInt32>,
          __v4su{0, 1, 0, 1},
          __v4su{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0x0000'0000});
-  Verify(Vsubvx<uint64_t, TailProcessing::kAgnostic>,
-         Vsubvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         __v2du{1, 0},
-         __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff});
-  Verify(Vsubvx<uint64_t, TailProcessing::kAgnostic>,
-         Vsubvxm<uint64_t, TailProcessing::kAgnostic, InactiveProcessing::kAgnostic>,
-         __v2du{0, 1},
-         __v2du{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000});
+  Verify(Vsubvx<UInt64>, __v2du{1, 0}, __v2du{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff});
+  Verify(Vsubvx<UInt64>, __v2du{0, 1}, __v2du{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000});
 }
 
 }  // namespace

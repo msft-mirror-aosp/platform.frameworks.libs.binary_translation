@@ -30,25 +30,25 @@ namespace berberis {
 // Maximum number of signals for the guest kernel.
 constexpr int Guest__KERNEL__NSIG = 64;
 
-const GuestAddr Guest_SIG_DFL = 0;
-const GuestAddr Guest_SIG_IGN = 1;
-const GuestAddr Guest_SIG_ERR = -1;
+const GuestAddr Guest_SIG_DFL = GuestAddr{0U};
+const GuestAddr Guest_SIG_IGN = GuestAddr{1U};
+const GuestAddr Guest_SIG_ERR = GuestAddr{~0U};
 
 // Guest siginfo_t, as expected by guest rt_sigqueueinfo syscall.
 using Guest_siginfo_t = siginfo_t;
 
 // Guest sigset_t, as expected by guest rt_sigprocmask syscall.
 #if defined(BERBERIS_GUEST_LP64)
-typedef struct {
+struct Guest_sigset_t {
   unsigned long __bits[1];
-} Guest_sigset_t;
+};
 CHECK_STRUCT_LAYOUT(Guest_sigset_t, 64, 64);
 #else
 // TODO(b/283352810): Explicitly support ILP32 guest data model.
 // This condition currently assumes ILP32 support.
-typedef struct {
+struct Guest_sigset_t {
   unsigned long __bits[2];
-} Guest_sigset_t;
+};
 CHECK_STRUCT_LAYOUT(Guest_sigset_t, 64, 32);
 #endif
 
@@ -67,22 +67,6 @@ inline void ConvertToBigSigset(const SmallSigset& small_sigset, BigSigset* big_s
   memset(big_sigset, 0, sizeof(BigSigset));
   memcpy(big_sigset, &small_sigset, sizeof(SmallSigset));
 }
-
-// TODO(b/283697533): Define Guest_sigaction differently depending on guest platform.
-// Guest struct (__kernel_)sigaction, as expected by rt_sigaction syscall.
-struct Guest_sigaction {
-  // Prefix avoids conflict with original 'sa_sigaction' defined as macro.
-  GuestAddr guest_sa_sigaction;
-  unsigned long sa_flags;
-  Guest_sigset_t sa_mask;
-};
-#if defined(BERBERIS_GUEST_LP64)
-CHECK_STRUCT_LAYOUT(Guest_sigaction, 192, 64);
-CHECK_FIELD_LAYOUT(Guest_sigaction, guest_sa_sigaction, 0, 64);
-CHECK_FIELD_LAYOUT(Guest_sigaction, sa_flags, 64, 64);
-CHECK_FIELD_LAYOUT(Guest_sigaction, sa_mask, 128, 64);
-#endif
-// TODO(b/283352810): Add checks for ILP32 guest data model.
 
 size_t GetGuest_MINSIGSTKSZ();
 
