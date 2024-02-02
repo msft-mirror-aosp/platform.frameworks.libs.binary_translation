@@ -267,6 +267,115 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  // Vector instructions.
+  void TestVseXX(uint32_t insn_bytes,
+                 const __v16qu (&expected_result_int8)[8],
+                 const __v8hu (&expected_result_int16)[8],
+                 const __v4su (&expected_result_int32)[8],
+                 const __v2du (&expected_result_int64)[8],
+                 uint8_t veew,
+                 const __v2du (&source)[16]) {
+    auto Verify = [this, &source](uint32_t insn_bytes,
+                                  uint8_t vsew,
+                                  uint8_t veew,
+                                  uint8_t vlmul_max,
+                                  const auto& expected_result,
+                                  auto mask) {
+      SIMD128Register expected_result_in_register;
+      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
+      for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
+        int vemul = SignExtend<3>(vlmul);
+        vemul += vsew;  // Multiply by SEW.
+        vemul -= veew;  // Divide by EEW.
+        if (vemul < -3 || vemul > 3) {
+          // Incompatible vlmul
+          continue;
+        }
+
+        for (uint8_t vma = 0; vma < 2; ++vma) {
+          auto [vlmax, vtype] = intrinsics::Vsetvl(~0ULL, (vma << 7) | (vsew << 3) | vlmul);
+          if (vlmax == 0) {
+            continue;
+          }
+          // Test vstart/vl changes with only with vemul == 2 (4 registers)
+          if (vemul == 2) {
+            state_.cpu.vstart = vlmax / 8;
+            state_.cpu.vl = (vlmax * 5) / 8;
+          } else {
+            state_.cpu.vstart = 0;
+            state_.cpu.vl = vlmax;
+          }
+          state_.cpu.vtype = vtype;
+
+          state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+          SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+          for (size_t index = 0; index < 8; index++) {
+            state_.cpu.v[8 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
+            store_area_[index * 2] = kUndisturbedResult[0];
+            store_area_[index * 2 + 1] = kUndisturbedResult[1];
+          }
+          EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+          // Values for inactive elements (i.e. corresponding mask bit is 0).
+          const size_t n = std::size(source);
+          __m128i expected_inactive[n];
+          std::fill_n(expected_inactive, n, kUndisturbedResult);
+          if (vemul >= 0) {
+            for (size_t index = 0; index < 1 << vemul; ++index) {
+              if (index == 0 && vemul == 2) {
+                expected_result_in_register = SIMD128Register{
+                    (kUndisturbedResult & kFractionMaskInt8[3]) |
+                    (expected_result[index] & mask[index] & ~kFractionMaskInt8[3]) |
+                    (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])};
+              } else if (index == 2 && vemul == 2) {
+                expected_result_in_register = SIMD128Register{
+                    (expected_result[index] & mask[index] & kFractionMaskInt8[3]) |
+                    (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
+                    ((kUndisturbedResult) & ~kFractionMaskInt8[3])};
+              } else if (index == 3 && vemul == 2) {
+                expected_result_in_register = SIMD128Register{kUndisturbedResult};
+              } else {
+                expected_result_in_register =
+                    SIMD128Register{(expected_result[index] & mask[index]) |
+                                    (expected_inactive[index] & ~mask[index])};
+              }
+
+              EXPECT_EQ(store_area_[index * 2], expected_result_in_register.Get<uint64_t>(0));
+              EXPECT_EQ(store_area_[index * 2 + 1], expected_result_in_register.Get<uint64_t>(1));
+            }
+
+          } else {
+            expected_result_in_register =
+                SIMD128Register{(expected_result[0] & mask[0] & kFractionMaskInt8[(vemul + 4)]) |
+                                (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[(vemul + 4)]) |
+                                ((kUndisturbedResult) & ~kFractionMaskInt8[(vemul + 4)])};
+            EXPECT_EQ(store_area_[0], expected_result_in_register.Get<uint64_t>(0));
+            EXPECT_EQ(store_area_[1], expected_result_in_register.Get<uint64_t>(1));
+          }
+        }
+      }
+    };
+    switch (veew) {
+      case 0:
+        Verify(insn_bytes | (1 << 25), veew, veew, 8, expected_result_int8, kNoMask);
+        Verify(insn_bytes, veew, veew, 8, expected_result_int8, kMaskInt8);
+        break;
+      case 1:
+        Verify(insn_bytes | (1 << 25), veew, veew, 8, expected_result_int16, kNoMask);
+        Verify(insn_bytes, veew, veew, 8, expected_result_int16, kMaskInt16);
+        break;
+      case 2:
+        Verify(insn_bytes | (1 << 25), veew, veew, 8, expected_result_int32, kNoMask);
+        Verify(insn_bytes, veew, veew, 8, expected_result_int32, kMaskInt32);
+        break;
+      case 3:
+        Verify(insn_bytes | (1 << 25), veew, veew, 8, expected_result_int64, kNoMask);
+        Verify(insn_bytes, veew, veew, 8, expected_result_int64, kMaskInt64);
+        break;
+      default:
+        break;
+    }
+  }
+
   template <int kNFfields>
   void TestVmvXr(uint32_t insn_bytes) {
     TestVmvXr<Int8, kNFfields>(insn_bytes);
@@ -4084,6 +4193,65 @@ TEST_F(Riscv64InterpreterTest, TestVwadd) {
                                  {0x0000'0001'1997'1390, 0x0000'0001'25a3'1f9d},
                                  {0x0000'0001'31af'2ba9, 0x0000'0001'3dbb'37b4}},
                                 kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVseXX) {
+  TestVseXX(0x8427,  // vse8.v v8, (x1), v0.t
+            {{0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143},
+             {16, 145, 18, 147, 20, 149, 22, 151, 24, 153, 26, 155, 28, 157, 30, 159},
+             {32, 161, 34, 163, 36, 165, 38, 167, 40, 169, 42, 171, 44, 173, 46, 175},
+             {48, 177, 50, 179, 52, 181, 54, 183, 56, 185, 58, 187, 60, 189, 62, 191},
+             {64, 193, 66, 195, 68, 197, 70, 199, 72, 201, 74, 203, 76, 205, 78, 207},
+             {80, 209, 82, 211, 84, 213, 86, 215, 88, 217, 90, 219, 92, 221, 94, 223},
+             {96, 225, 98, 227, 100, 229, 102, 231, 104, 233, 106, 235, 108, 237, 110, 239},
+             {112, 241, 114, 243, 116, 245, 118, 247, 120, 249, 122, 251, 124, 253, 126, 255}},
+            {},
+            {},
+            {},
+            0,
+            kVectorCalculationsSource);
+  TestVseXX(0xd427,  // vse16.v v8, (x1), v0.t
+            {},
+            {{0x8100, 0x8302, 0x8504, 0x8706, 0x8908, 0x8b0a, 0x8d0c, 0x8f0e},
+             {0x9110, 0x9312, 0x9514, 0x9716, 0x9918, 0x9b1a, 0x9d1c, 0x9f1e},
+             {0xa120, 0xa322, 0xa524, 0xa726, 0xa928, 0xab2a, 0xad2c, 0xaf2e},
+             {0xb130, 0xb332, 0xb534, 0xb736, 0xb938, 0xbb3a, 0xbd3c, 0xbf3e},
+             {0xc140, 0xc342, 0xc544, 0xc746, 0xc948, 0xcb4a, 0xcd4c, 0xcf4e},
+             {0xd150, 0xd352, 0xd554, 0xd756, 0xd958, 0xdb5a, 0xdd5c, 0xdf5e},
+             {0xe160, 0xe362, 0xe564, 0xe766, 0xe968, 0xeb6a, 0xed6c, 0xef6e},
+             {0xf170, 0xf372, 0xf574, 0xf776, 0xf978, 0xfb7a, 0xfd7c, 0xff7e}},
+            {},
+            {},
+            1,
+            kVectorCalculationsSource);
+  TestVseXX(0xe427,  // vse32.v v8, (x1), v0.t
+            {},
+            {},
+            {{0x8302'8100, 0x8706'8504, 0x8b0a'8908, 0x8f0e'8d0c},
+             {0x9312'9110, 0x9716'9514, 0x9b1a'9918, 0x9f1e'9d1c},
+             {0xa322'a120, 0xa726'a524, 0xab2a'a928, 0xaf2e'ad2c},
+             {0xb332'b130, 0xb736'b534, 0xbb3a'b938, 0xbf3e'bd3c},
+             {0xc342'c140, 0xc746'c544, 0xcb4a'c948, 0xcf4e'cd4c},
+             {0xd352'd150, 0xd756'd554, 0xdb5a'd958, 0xdf5e'dd5c},
+             {0xe362'e160, 0xe766'e564, 0xeb6a'e968, 0xef6e'ed6c},
+             {0xf372'f170, 0xf776'f574, 0xfb7a'f978, 0xff7e'fd7c}},
+            {},
+            2,
+            kVectorCalculationsSource);
+  TestVseXX(0xf427,  // vse64.v v8, (x1), v0.t
+            {},
+            {},
+            {},
+            {{0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908},
+             {0x9716'9514'9312'9110, 0x9f1e'9d1c'9b1a'9918},
+             {0xa726'a524'a322'a120, 0xaf2e'ad2c'ab2a'a928},
+             {0xb736'b534'b332'b130, 0xbf3e'bd3c'bb3a'b938},
+             {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+             {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+             {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+             {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
+            3,
+            kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVleXX) {
