@@ -48,6 +48,28 @@ enum class NoInactiveProcessing {
 };
 
 template <typename ElementType>
+[[nodiscard]] inline std::tuple<NoInactiveProcessing> FullMaskForRegister(NoInactiveProcessing) {
+  return {NoInactiveProcessing{}};
+}
+
+template <typename ElementType>
+[[nodiscard]] inline std::tuple<
+    std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>>
+FullMaskForRegister(SIMD128Register) {
+  if constexpr (sizeof(ElementType) == sizeof(uint8_t)) {
+    return {{0xffff}};
+  } else if constexpr (sizeof(ElementType) == sizeof(uint16_t)) {
+    return {{0xff}};
+  } else if constexpr (sizeof(ElementType) == sizeof(uint32_t)) {
+    return {{0xf}};
+  } else if constexpr (sizeof(ElementType) == sizeof(uint64_t)) {
+    return {{0x3}};
+  } else {
+    static_assert(kDependentTypeFalse<ElementType>, "Unsupported vector element type");
+  }
+}
+
+template <typename ElementType>
 [[nodiscard]] inline std::tuple<NoInactiveProcessing> MaskForRegisterInSequence(
     NoInactiveProcessing,
     size_t) {
@@ -512,8 +534,8 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args..
 DEFINE_1OP_ARITHMETIC_INTRINSIC_M(cpop, Popcount(args...))
 DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
                                   (arg == Int128{0})
-                                  ? Int128{-1}
-                                  : Popcount(arg ^ (arg - Int128{1})))
+                                      ? Int128{-1}
+                                      : Popcount(arg ^ (arg - Int128{1})) - Int128{1})
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wadd, Widenvv, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WV(nsr, Narrowwv, auto [arg1, arg2] = std::tuple{args...};
                                    (arg1 >> arg2))

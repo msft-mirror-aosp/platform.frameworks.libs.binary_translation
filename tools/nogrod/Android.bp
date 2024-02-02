@@ -20,7 +20,7 @@ package {
 cc_defaults {
     name: "nogrod_defaults",
     defaults: ["berberis_defaults_64"],
-    cpp_std: "experimental",
+    cpp_std: "c++20",
 }
 
 cc_library {
@@ -41,6 +41,7 @@ cc_library {
         "libberberis_base",
         "libbase",
         "liblog",
+        "libzstd",
     ],
 }
 
@@ -49,6 +50,7 @@ cc_test_host {
     defaults: ["nogrod_defaults"],
     srcs: [
         "byte_input_stream_tests.cc",
+        "buffer_tests.cc",
         "leb128_tests.cc",
         "string_offset_table_tests.cc",
     ],
