@@ -986,8 +986,8 @@ std::optional<std::string> DwarfStrXAttribute::StringValue() const {
 void DwarfStrXAttribute::Resolve(DwarfContext* context) {
   CHECK(context->str_offsets_base().has_value());
   CHECK(context->string_offset_table().has_value());
-  uint64_t string_offset = context->string_offset_table().value().GetStringOffset(
-      context->str_offsets_base().value(), index_);
+  uint64_t string_offset =
+      context->string_offset_table()->GetStringOffset(context->str_offsets_base().value(), index_);
   string_.emplace(context->debug_str_table()->GetString(string_offset));
 }
 
