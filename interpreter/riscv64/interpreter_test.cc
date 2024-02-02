@@ -3574,9 +3574,9 @@ TEST_F(Riscv64InterpreterTest, TestVfirstm) {
   TestVXmXXsInstruction(
       0x4108a0d7,  // vfirst.m x1, v16, v0.t
       { [0 ... 8] = ~0ULL,
-        [9 ... 128] = 9 },
+        [9 ... 128] = 8 },
       { [0 ... 8] = ~0ULL,
-        [9 ... 128] = 9 },
+        [9 ... 128] = 8 },
       kVectorCalculationsSource[0]);
 }
 
