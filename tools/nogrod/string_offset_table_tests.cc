@@ -34,7 +34,7 @@ void RunSmokeTest() {
     data[0] = uint32_t{0xFFFF'FFFFu};
   }
 
-  StringOffsetTable table(bit_cast<const uint8_t*>(data.data()), data.size() * sizeof(T));
+  StringOffsetTable table(Buffer{bit_cast<const uint8_t*>(data.data()), data.size() * sizeof(T)});
 
   EXPECT_EQ(table.GetStringOffset(sizeof(T) * 2, 1), 3U);
   EXPECT_EQ(table.GetStringOffset(sizeof(T) * 2, 5), 7U);

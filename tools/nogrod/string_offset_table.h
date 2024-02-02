@@ -23,6 +23,8 @@
 #include "berberis/base/checks.h"
 #include "dwarf_constants.h"
 
+#include "buffer.h"
+
 namespace nogrod {
 
 using berberis::bit_cast;
@@ -30,8 +32,15 @@ using berberis::bit_cast;
 // The class provides assess to .debug_str_offsets section of the elf-file
 class StringOffsetTable {
  public:
-  explicit StringOffsetTable(const uint8_t* table, size_t size)
-      : table_{table}, size_{size}, format_{DetectDwarfFormat(table, size)} {}
+  StringOffsetTable() : format_{DwarfFormat::k32Bit} {}
+  explicit StringOffsetTable(Buffer<uint8_t> buffer)
+      : buffer_{std::move(buffer)}, format_{DetectDwarfFormat(buffer_.data(), buffer_.size())} {}
+
+  StringOffsetTable(const StringOffsetTable&) = delete;
+  StringOffsetTable& operator=(const StringOffsetTable&) = delete;
+
+  StringOffsetTable(StringOffsetTable&&) = default;
+  StringOffsetTable& operator=(StringOffsetTable&&) = default;
 
   // According to DWARF5 spec (7.26) DW_AT_str_offsets_base attribute
   // points to the first entry following the header which is 8 for 32bit
@@ -68,13 +77,12 @@ class StringOffsetTable {
   [[nodiscard]] T GetOffsetAt(size_t offsets_base, size_t index) const {
     CHECK_EQ(offsets_base % sizeof(T), 0);
     uint64_t offset = offsets_base + index * sizeof(T);
-    CHECK_LE(offset + sizeof(T), size_);
-    return *bit_cast<const T*>(table_ + offset);
+    CHECK_LE(offset + sizeof(T), buffer_.size());
+    return *bit_cast<const T*>(buffer_.data() + offset);
   }
 
-  const uint8_t* table_;
-  const size_t size_;
-  const DwarfFormat format_;
+  Buffer<uint8_t> buffer_;
+  DwarfFormat format_;
 };
 
 }  // namespace nogrod

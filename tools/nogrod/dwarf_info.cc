@@ -31,24 +31,20 @@ using berberis::StringPrintf;
 
 class DwarfParser {
  public:
-  DwarfParser(const uint8_t* abbrev,
-              size_t abbrev_size,
-              const uint8_t* info,
-              size_t info_size,
+  DwarfParser(const Buffer<uint8_t>* abbrev_buf,
+              const Buffer<uint8_t>* info_buf,
               const StringTable* debug_str_table,
-              std::optional<StringOffsetTable> string_offset_table)
-      : abbrev_{abbrev},
-        abbrev_size_{abbrev_size},
-        info_{info},
-        info_size_{info_size},
+              const std::optional<StringOffsetTable>& string_offset_table)
+      : abbrev_buf_{abbrev_buf},
+        info_buf_{info_buf},
         debug_str_table_{debug_str_table},
-        string_offset_table_{std::move(string_offset_table)} {}
+        string_offset_table_{string_offset_table} {}
 
   [[nodiscard]] bool ReadDwarfInfo(
       std::vector<std::unique_ptr<DwarfCompilationUnit>>* compilation_units,
       std::unordered_map<uint64_t, std::unique_ptr<DwarfDie>>* die_map,
       std::string* error_msg) {
-    ByteInputStream bs(info_, info_size_);
+    ByteInputStream bs(info_buf_->data(), info_buf_->size());
     DwarfContext context(&bs, debug_str_table_, string_offset_table_);
 
     while (bs.available()) {
@@ -242,14 +238,14 @@ class DwarfParser {
       return &it->second;
     }
 
-    if (offset >= abbrev_size_) {
+    if (offset >= abbrev_buf_->size()) {
       *error_msg = StringPrintf(
-          "abbrev offset (%" PRId64 ") is out of bounds: %" PRId64, offset, abbrev_size_);
+          "abbrev offset (%" PRId64 ") is out of bounds: %" PRId64, offset, abbrev_buf_->size());
       return nullptr;
     }
 
     std::unordered_map<uint64_t, DwarfAbbrev> abbrev_map;
-    ByteInputStream bs(abbrev_ + offset, abbrev_size_ - offset);
+    ByteInputStream bs(abbrev_buf_->data() + offset, abbrev_buf_->size() - offset);
     while (true) {
       uint64_t code = bs.ReadLeb128();
 
@@ -305,12 +301,10 @@ class DwarfParser {
   }
 
  private:
-  const uint8_t* abbrev_;
-  uint64_t abbrev_size_;
-  const uint8_t* info_;
-  uint64_t info_size_;
+  const Buffer<uint8_t>* abbrev_buf_;
+  const Buffer<uint8_t>* info_buf_;
   const StringTable* debug_str_table_;
-  std::optional<StringOffsetTable> string_offset_table_;
+  const std::optional<StringOffsetTable>& string_offset_table_;
 
   std::unordered_map<uint64_t, std::unordered_map<uint64_t, DwarfAbbrev>> abbrevs_;
 };
@@ -330,22 +324,17 @@ void DwarfCompilationUnit::SetDie(const DwarfDie* die) {
   cu_die_ = die;
 }
 
-DwarfInfo::DwarfInfo(const uint8_t* abbrev,
-                     size_t abbrev_size,
-                     const uint8_t* info,
-                     size_t info_size,
+DwarfInfo::DwarfInfo(Buffer<uint8_t> abbrev_buf,
+                     Buffer<uint8_t> info_buf,
                      StringTable string_table,
                      std::optional<StringOffsetTable> string_offset_table)
-    : abbrev_{abbrev},
-      abbrev_size_{abbrev_size},
-      info_{info},
-      info_size_{info_size},
+    : abbrev_buf_{std::move(abbrev_buf)},
+      info_buf_{std::move(info_buf)},
       string_table_{std::move(string_table)},
       string_offset_table_{std::move(string_offset_table)} {}
 
 bool DwarfInfo::Parse(std::string* error_msg) {
-  DwarfParser parser(
-      abbrev_, abbrev_size_, info_, info_size_, &string_table_, string_offset_table_);
+  DwarfParser parser(&abbrev_buf_, &info_buf_, &string_table_, string_offset_table_);
   if (!parser.ReadDwarfInfo(&compilation_units_, &die_offset_map_, error_msg)) {
     return false;
   }
