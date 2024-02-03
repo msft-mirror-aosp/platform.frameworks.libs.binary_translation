@@ -889,10 +889,61 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
-  void OpVector(const Decoder::VLoadUnitStrideArgs& /*args*/, Register /*src*/) {
-    Unimplemented();
-  }
+  void OpVector(const Decoder::VLoadUnitStrideArgs& args, Register src) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    ElementType* ptr = ToHostAddr<ElementType>(src);
+    SIMD128Register orig_result, result;
+    __uint128_t mask;
+    if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+      mask = state_->cpu.v[0];
+    }
 
+    switch (args.opcode) {
+      case Decoder::VLoadUnitStrideOpcode::kVleXX: {
+        if (args.nf != 0) {
+          return Unimplemented();
+        }
+        int ptr_idx = 0;
+        for (size_t index = 0; index < kRegistersInvolved; ++index) {
+          orig_result.Set(state_->cpu.v[args.dst + index]);
+          result.Set(state_->cpu.v[args.dst + index]);
+          int element_count = std::min(static_cast<int>(16 / sizeof(ElementType)),
+                                       (vl - static_cast<int>(index * 16 / sizeof(ElementType))));
+
+          for (int element_index = 0; element_index < element_count; ++element_index) {
+            FaultyLoadResult src_result = FaultyLoad(ptr + ptr_idx, sizeof(ElementType));
+
+            if ((!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>)&&(
+                    ((mask >> ptr_idx) & 0b1) == 0)) {
+              if ((InactiveProcessing)vma == InactiveProcessing::kAgnostic) {
+                result.Set<ElementType>(~ElementType{0}, element_index);
+              }
+            } else {
+              if (src_result.is_fault) {
+                exception_raised_ = true;
+                return;
+              }
+              result.Set<ElementType>(static_cast<ElementType>(src_result.value), element_index);
+            }
+            ptr_idx++;
+          }
+
+          result = std::get<0>(intrinsics::VectorMasking<ElementType, vta>(
+              orig_result,
+              result,
+              vstart - index * (16 / sizeof(ElementType)),
+              vl - index * (16 / sizeof(ElementType))));
+          state_->cpu.v[args.dst + index] = result.Get<__uint128_t>();
+        }
+        SetCsr<CsrName::kVstart>(0);
+        break;
+      }
+      default:
+        return Unimplemented();
+    }
+  }
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVector(const Decoder::VOpIViArgs& args) {
     using SignedType = berberis::SignedType<ElementType>;
