@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "buffer.h"
 #include "dwarf_abbrev.h"
 #include "string_offset_table.h"
 #include "string_table.h"
@@ -103,10 +104,8 @@ class DwarfCompilationUnit {
 
 class DwarfInfo {
  public:
-  DwarfInfo(const uint8_t* abbrev,
-            size_t abbrev_size,
-            const uint8_t* info,
-            size_t info_size,
+  DwarfInfo(Buffer<uint8_t> abbrev_buf_,
+            Buffer<uint8_t> info_buf_,
             StringTable string_table,
             std::optional<StringOffsetTable> string_offset_table);
 
@@ -119,10 +118,8 @@ class DwarfInfo {
   [[nodiscard]] const DwarfDie* GetDieByOffset(uint64_t offset) const;
 
  private:
-  const uint8_t* abbrev_;
-  size_t abbrev_size_;
-  const uint8_t* info_;
-  size_t info_size_;
+  Buffer<uint8_t> abbrev_buf_;
+  Buffer<uint8_t> info_buf_;
   StringTable string_table_;
   std::optional<StringOffsetTable> string_offset_table_;
 

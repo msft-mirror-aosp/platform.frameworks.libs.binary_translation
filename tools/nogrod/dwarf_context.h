@@ -33,10 +33,10 @@ class DwarfContext {
  public:
   DwarfContext(ByteInputStream* dwarf_info_stream,
                const StringTable* debug_str_table,
-               std::optional<StringOffsetTable> string_offset_table)
+               const std::optional<StringOffsetTable>& string_offset_table)
       : dwarf_info_stream_{dwarf_info_stream},
         debug_str_table_{debug_str_table},
-        string_offset_table_{std::move(string_offset_table)} {}
+        string_offset_table_{string_offset_table} {}
 
   DwarfContext(const DwarfContext&) = delete;
   const DwarfContext& operator=(const DwarfContext&) = delete;
@@ -60,7 +60,7 @@ class DwarfContext {
  private:
   ByteInputStream* dwarf_info_stream_;
   const StringTable* debug_str_table_;
-  std::optional<StringOffsetTable> string_offset_table_;
+  const std::optional<StringOffsetTable>& string_offset_table_;
   std::optional<uint64_t> str_offsets_base_{};
 };
 
