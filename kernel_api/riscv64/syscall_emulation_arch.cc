@@ -25,7 +25,7 @@
 namespace berberis {
 
 std::pair<const char*, size_t> GetGuestPlatformVarPrefixWithSize() {
-  constexpr char kGuestPlatformVarPrefix[] = "BERBERIS_GUEST_";
+  static constexpr char kGuestPlatformVarPrefix[] = "BERBERIS_GUEST_";
   return {kGuestPlatformVarPrefix, sizeof(kGuestPlatformVarPrefix) - 1};
 }
 

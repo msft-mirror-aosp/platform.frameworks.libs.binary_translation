@@ -356,6 +356,70 @@ inline std::tuple<SIMD128Register> VidvForTests(size_t index) {
   return result;
 }
 
+// Handles "slide up" for a single destination register. Effectively copies the last offset elements
+// in [kElementsCount - offset, kElementsCount) of src1 followed by the first [0, kElementsCount -
+// offset) elements of src2 into the result.
+//
+// This leaves result looking like
+//
+//     result = {
+//         src1[kElementsCount-offset+0],
+//         src1[kElementsCount-offset+1],
+//         ...,
+//         src1[kElementsCount-offset+(offset-1),
+//         src2[0],
+//         src2[1],
+//         ...,
+//         src2[kElementsCount-offset-1]
+//     };
+template <typename ElementType>
+inline std::tuple<SIMD128Register> VectorSlideUp(size_t offset,
+                                                 SIMD128Register src1,
+                                                 SIMD128Register src2) {
+  SIMD128Register result;
+  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  CHECK_LT(offset, kElementsCount);
+  for (size_t index = 0; index < offset; ++index) {
+    result.Set(VectorElement<ElementType>(src1, kElementsCount - offset + index), index);
+  }
+  for (size_t index = offset; index < kElementsCount; ++index) {
+    result.Set(VectorElement<ElementType>(src2, index - offset), index);
+  }
+  return result;
+}
+
+// Handles "slide down" for a single destination register. Effectively copies the elements in
+// [offset, kElementsCount) of src1 followed by the [0, kElementsCount - offset) elements of src2
+// into the result.
+//
+// This leaves result looking like
+//
+//     result = {
+//         [0] = src1[offset+0],
+//         [1] = src1[offset+1],
+//         ...,
+//         [kElementsCount-offset-1] = src1[kElementsCount-1],
+//         [kElementsCount-offset] = src2[0],
+//         [kElementsCount-offset+1] = src2[1],
+//         ...,
+//         [kElementsCount-offset+(offset-1)] = src2[kElementsCount-offset-1]
+//     };
+template <typename ElementType>
+inline std::tuple<SIMD128Register> VectorSlideDown(size_t offset,
+                                                   SIMD128Register src1,
+                                                   SIMD128Register src2) {
+  SIMD128Register result;
+  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  CHECK_LT(offset, kElementsCount);
+  for (size_t index = 0; index < kElementsCount - offset; ++index) {
+    result.Set(VectorElement<ElementType>(src1, offset + index), index);
+  }
+  for (size_t index = kElementsCount - offset; index < kElementsCount; ++index) {
+    result.Set(VectorElement<ElementType>(src2, index - (kElementsCount - offset)), index);
+  }
+  return result;
+}
+
 #ifndef __x86_64__
 template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
