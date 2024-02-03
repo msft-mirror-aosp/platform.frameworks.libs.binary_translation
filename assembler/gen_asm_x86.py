@@ -356,11 +356,24 @@ def _gen_emit_instruction(f, insn, rip_operand=False):
     result[0], result[1], result[2], result[3] = result[0], result[3], result[1], result[2]
   if insn.get('vex_rm_imm_to_reg', False):
     result[0], result[1], result[2], result[3] = result[0], result[2], result[1], result[3]
-  if insn.get('vex_rm_to_reg', False):
-    result[0], result[1], result[2] = result[0], result[2], result[1]
   # If we want %rip--operand then we need to replace 'Memory' with 'Labal'
   if rip_operand:
     result = [arg.replace('Memory', 'Label') for arg in result]
+  # If vex operand is one of first 8 registers and rm operand is not then swapping these two
+  # operands produces more compact encoding.
+  # This only works with commutative instructions from first opcode map.
+  if ((insn.get('is_optimizable_using_commutation', False) and
+    # Note: we may only swap arguments if they have the same type.
+    # E.g. if one is memory and the other is register then we couldn't swap them.
+    result[0].split('(')[0] == result[2].split('(')[0])):
+    assert insn.get('vex_rm_to_reg', False)
+    print('  if (Assembler::IsSwapProfitable(%s, %s)) {' % (result[2], result[1]), file=f)
+    print('    return EmitInstruction<Opcodes<%s>>(%s);' % (
+        ', '.join('0x%02x' % int(opcode, 16) for opcode in insn['opcodes']),
+        ', '.join(result)), file=f)
+    print('  }', file=f)
+  if insn.get('vex_rm_to_reg', False):
+    result[0], result[1], result[2] = result[0], result[2], result[1]
   print('  EmitInstruction<Opcodes<%s>>(%s);' % (
       ', '.join('0x%02x' % int(opcode, 16) for opcode in insn['opcodes']),
       ', '.join(result)), file=f)
