@@ -302,6 +302,13 @@ class Assembler : public AssemblerX86<Assembler> {
     return 0b0100'1000 | Rex(operand.operand);
   }
 
+  template <typename RegisterType>
+  [[nodiscard]] static bool IsSwapProfitable(RegisterType rm_arg, RegisterType vex_arg) {
+    // In 64bit mode we may use more compact encoding if operand encoded in rm is low register.
+    // Return true if we may achieve that by swapping arguments.
+    return rm_arg.num >= 8 && vex_arg.num < 8;
+  }
+
   template <uint8_t byte1,
             uint8_t byte2,
             uint8_t byte3,
