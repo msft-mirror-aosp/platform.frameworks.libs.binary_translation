@@ -901,6 +901,7 @@ class Interpreter {
     }
 
     switch (args.opcode) {
+      case Decoder::VLoadUnitStrideOpcode::kVleXXff:
       case Decoder::VLoadUnitStrideOpcode::kVleXX: {
         if (args.nf != 0) {
           return Unimplemented();
@@ -920,9 +921,15 @@ class Interpreter {
               if ((InactiveProcessing)vma == InactiveProcessing::kAgnostic) {
                 result.Set<ElementType>(~ElementType{0}, element_index);
               }
-            } else {
+            } else if (vstart <= ptr_idx) {
               if (src_result.is_fault) {
-                exception_raised_ = true;
+                if ((args.opcode == Decoder::VLoadUnitStrideOpcode::kVleXXff) && (ptr_idx != 0)) {
+                  // TODO(b/323994286): Write a test case to verify vl changes correctly.
+                  SetCsr<CsrName::kVl>(ptr_idx);
+                } else {
+                  exception_raised_ = true;
+                  SetCsr<CsrName::kVstart>(ptr_idx);
+                }
                 return;
               }
               result.Set<ElementType>(static_cast<ElementType>(src_result.value), element_index);
