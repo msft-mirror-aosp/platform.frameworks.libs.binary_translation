@@ -901,6 +901,7 @@ class Interpreter {
     }
 
     switch (args.opcode) {
+      case Decoder::VLoadUnitStrideOpcode::kVleXXff:
       case Decoder::VLoadUnitStrideOpcode::kVleXX: {
         if (args.nf != 0) {
           return Unimplemented();
@@ -920,9 +921,15 @@ class Interpreter {
               if ((InactiveProcessing)vma == InactiveProcessing::kAgnostic) {
                 result.Set<ElementType>(~ElementType{0}, element_index);
               }
-            } else {
+            } else if (vstart <= ptr_idx) {
               if (src_result.is_fault) {
-                exception_raised_ = true;
+                if ((args.opcode == Decoder::VLoadUnitStrideOpcode::kVleXXff) && (ptr_idx != 0)) {
+                  // TODO(b/323994286): Write a test case to verify vl changes correctly.
+                  SetCsr<CsrName::kVl>(ptr_idx);
+                } else {
+                  exception_raised_ = true;
+                  SetCsr<CsrName::kVstart>(ptr_idx);
+                }
                 return;
               }
               result.Set<ElementType>(static_cast<ElementType>(src_result.value), element_index);
@@ -1400,10 +1407,46 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
-  void OpVector(const Decoder::VStoreUnitStrideArgs& /*args*/, Register /*src*/) {
-    Unimplemented();
+  void OpVector(const Decoder::VStoreUnitStrideArgs& args, Register src) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    ElementType* ptr = ToHostAddr<ElementType>(src);
+    SIMD128Register source_reg;
+    __uint128_t mask;
+    if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+      mask = state_->cpu.v[0];
+    }
+    switch (args.opcode) {
+      case Decoder::VStoreUnitStrideOpcode::kVseXX: {
+        if (args.nf != 0) {
+          return Unimplemented();
+        }
+        int ptr_idx = 0;
+        for (size_t index = 0; index < kRegistersInvolved; ++index) {
+          source_reg.Set(state_->cpu.v[args.data + index]);
+          const size_t element_count = static_cast<int>(16 / sizeof(ElementType));
+          for (size_t element_index = 0; element_index < element_count; ++element_index) {
+              bool skip_element = (ptr_idx < vstart) || (ptr_idx >= vl);
+              if ((!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>)&&(
+                      ((mask >> ptr_idx) & 1) == 0)) {
+                skip_element = true;
+              }
+              if (!skip_element) {
+                exception_raised_ = FaultyStore(
+                    ptr + ptr_idx, sizeof(ElementType), source_reg.Get<ElementType>(element_index));
+                if (exception_raised_) return;
+              }
+              ptr_idx++;
+          }
+        }
+        SetCsr<CsrName::kVstart>(0);
+        break;
+      }
+      default:
+        return Unimplemented();
+    }
   }
-
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVectorVidv(uint8_t dst) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
