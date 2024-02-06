@@ -267,6 +267,7 @@ class Decoder {
   enum class VLoadUnitStrideOpcode : uint8_t {
     kVleXX = 0b00000,
     kVlXreXX = 0b01000,
+    kVleXXff = 0b10000,
     kMaxValue = 0b11111,
   };
 
