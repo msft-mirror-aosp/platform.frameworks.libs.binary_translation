@@ -20,6 +20,6 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libwebviewchromium_plat_support",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libwebviewchromium_plat_support:native_bridge_proxy_libwebviewchromium_plat_support_files"],
+    srcs: [":native_bridge_proxy_libwebviewchromium_plat_support_files"],
     shared_libs: ["libwebviewchromium_plat_support"],
 }
