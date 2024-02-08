@@ -21,6 +21,6 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libnativehelper",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libnativehelper:native_bridge_proxy_libnativehelper_files"],
+    srcs: [":native_bridge_proxy_libnativehelper_files"],
     shared_libs: ["libnativehelper"],
 }

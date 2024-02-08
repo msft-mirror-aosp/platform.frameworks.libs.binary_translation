@@ -21,7 +21,7 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libamidi",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libamidi:native_bridge_proxy_libamidi_files"],
+    srcs: [":native_bridge_proxy_libamidi_files"],
     shared_libs: [
         "libamidi",
         "libmediandk",

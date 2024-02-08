@@ -20,6 +20,6 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libaaudio",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libaaudio:native_bridge_proxy_libaaudio_files"],
+    srcs: [":native_bridge_proxy_libaaudio_files"],
     shared_libs: ["libaaudio"],
 }

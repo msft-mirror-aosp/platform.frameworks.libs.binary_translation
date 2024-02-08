@@ -20,7 +20,7 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libmediandk",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libmediandk:native_bridge_proxy_libmediandk_files"],
+    srcs: [":native_bridge_proxy_libmediandk_files"],
     shared_libs: [
         // TODO(b/311454594): Remove when no longer required.
         // libandroid is indirectly required by libmediandk. We include libadroid here to
