@@ -81,7 +81,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
           &expected_results)[kNFfields * kLmul][static_cast<int>(16 / sizeof(ElementType))]) {
     constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
-    for (uint8_t vstart = 0; vstart < 1 /*kElementsCount * kLmul*/; ++vstart) {
+    for (uint8_t vstart = 0; vstart < kElementsCount * kLmul; ++vstart) {
       for (uint8_t vl = 0; vl <= kElementsCount * kLmul; ++vl) {
         for (uint8_t vta = 0; vta < 2; ++vta) {
           // Handle three masking cases:
