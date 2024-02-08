@@ -365,7 +365,6 @@ class Decoder {
     kVmxnormm = 0b011111,
     kVXmXXs = 0b010000,
     kVmsXf = 0b010100,
-    kVxunary0 = 0b010010,
     kVmulhuvv = 0b100100,
     kVmulvv = 0b100101,
     kVmulhsuvv = 0b100110,
@@ -461,15 +460,6 @@ class Decoder {
     kVmsofm = 0b00010,
     kVmsifm = 0b00011,
     kVidv = 0b10001,
-  };
-
-  enum class Vxunary0Opcode : uint8_t {
-    kVzextvf8m = 0b00010,
-    kVsextvf8m = 0b00011,
-    kVzextvf4m = 0b00100,
-    kVsextvf4m = 0b00101,
-    kVzextvf2m = 0b00110,
-    kVsextvf2m = 0b00111,
   };
 
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions
@@ -761,7 +751,6 @@ class Decoder {
     union {
       VXmXXsOpcode vXmXXs_opcode;
       VmsXfOpcode vmsXf_opcode;
-      Vxunary0Opcode vxunary0_opcode;
       uint8_t src2;
     };
   };
