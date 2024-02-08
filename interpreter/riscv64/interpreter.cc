@@ -983,60 +983,6 @@ class Interpreter {
           default:
               return Unimplemented();
         }
-      case Decoder::VOpMVvOpcode::kVxunary0:
-        switch (args.vxunary0_opcode) {
-          case Decoder::Vxunary0Opcode::kVzextvf2m:
-              if constexpr (sizeof(UnsignedType) >= 2) {
-              return OpVectorExtend<intrinsics::Vextf2<UnsignedType>,
-                                    UnsignedType,
-                                    2,
-                                    vlmul,
-                                    vta,
-                                    vma>(args.dst, args.src1);
-              }
-              break;
-          case Decoder::Vxunary0Opcode::kVsextvf2m:
-              if constexpr (sizeof(SignedType) >= 2) {
-              return OpVectorExtend<intrinsics::Vextf2<SignedType>, SignedType, 2, vlmul, vta, vma>(
-                  args.dst, args.src1);
-              }
-              break;
-          case Decoder::Vxunary0Opcode::kVzextvf4m:
-              if constexpr (sizeof(UnsignedType) >= 4) {
-              return OpVectorExtend<intrinsics::Vextf4<UnsignedType>,
-                                    UnsignedType,
-                                    4,
-                                    vlmul,
-                                    vta,
-                                    vma>(args.dst, args.src1);
-              }
-              break;
-          case Decoder::Vxunary0Opcode::kVsextvf4m:
-              if constexpr (sizeof(SignedType) >= 4) {
-              return OpVectorExtend<intrinsics::Vextf4<SignedType>, SignedType, 4, vlmul, vta, vma>(
-                  args.dst, args.src1);
-              }
-              break;
-          case Decoder::Vxunary0Opcode::kVzextvf8m:
-              if constexpr (sizeof(UnsignedType) >= 8) {
-              return OpVectorExtend<intrinsics::Vextf8<UnsignedType>,
-                                    UnsignedType,
-                                    8,
-                                    vlmul,
-                                    vta,
-                                    vma>(args.dst, args.src1);
-              }
-              break;
-          case Decoder::Vxunary0Opcode::kVsextvf8m:
-              if constexpr (sizeof(SignedType) >= 8) {
-              return OpVectorExtend<intrinsics::Vextf8<SignedType>, SignedType, 8, vlmul, vta, vma>(
-                  args.dst, args.src1);
-              }
-              break;
-          default:
-              return Unimplemented();
-        }
-        return Unimplemented();
       case Decoder::VOpMVvOpcode::kVmsXf:
         switch (args.vmsXf_opcode) {
           case Decoder::VmsXfOpcode::kVmsbfm:
@@ -1762,40 +1708,6 @@ class Interpreter {
           vl - index * (16 / sizeof(ElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
       state_->cpu.v[dst + index] = result.template Get<__uint128_t>();
-    }
-    SetCsr<CsrName::kVstart>(0);
-  }
-
-  template <auto Intrinsic,
-            typename DestElementType,
-            const uint8_t kFactor,
-            VectorRegisterGroupMultiplier vlmul,
-            TailProcessing vta,
-            auto vma>
-  void OpVectorExtend(uint8_t dst, uint8_t src) {
-    static_assert(kFactor == 2 || kFactor == 4 || kFactor == 8);
-    constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
-    constexpr size_t kSourceRegistersInvolved = (kDestRegistersInvolved / kFactor) ?: 1;
-    if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSourceRegistersInvolved>(src)) {
-      return Unimplemented();
-    }
-    int vstart = GetCsr<CsrName::kVstart>();
-    int vl = GetCsr<CsrName::kVl>();
-    auto mask = GetMaskForVectorOperations<vma>();
-    for (size_t dst_index = 0; dst_index < kDestRegistersInvolved; dst_index++) {
-      size_t src_index = dst_index / kFactor;
-      size_t src_elem = dst_index % kFactor;
-      SIMD128Register result{state_->cpu.v[dst + dst_index]};
-      SIMD128Register arg{state_->cpu.v[src + src_index] >> ((128 / kFactor) * src_elem)};
-
-      result = std::get<0>(intrinsics::VectorMasking<DestElementType, vta, vma>(
-          result,
-          std::get<0>(Intrinsic(arg)),
-          result,
-          vstart - dst_index * (16 / sizeof(DestElementType)),
-          vl - dst_index * (16 / sizeof(DestElementType)),
-          std::get<0>(intrinsics::MaskForRegisterInSequence<DestElementType>(mask, dst_index))));
-      state_->cpu.v[dst + dst_index] = result.Get<__uint128_t>();
     }
     SetCsr<CsrName::kVstart>(0);
   }
