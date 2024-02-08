@@ -901,6 +901,7 @@ class Interpreter {
     }
 
     switch (args.opcode) {
+      case Decoder::VLoadUnitStrideOpcode::kVleXXff:
       case Decoder::VLoadUnitStrideOpcode::kVleXX: {
         if (args.nf != 0) {
           return Unimplemented();
@@ -920,9 +921,15 @@ class Interpreter {
               if ((InactiveProcessing)vma == InactiveProcessing::kAgnostic) {
                 result.Set<ElementType>(~ElementType{0}, element_index);
               }
-            } else {
+            } else if (vstart <= ptr_idx) {
               if (src_result.is_fault) {
-                exception_raised_ = true;
+                if ((args.opcode == Decoder::VLoadUnitStrideOpcode::kVleXXff) && (ptr_idx != 0)) {
+                  // TODO(b/323994286): Write a test case to verify vl changes correctly.
+                  SetCsr<CsrName::kVl>(ptr_idx);
+                } else {
+                  exception_raised_ = true;
+                  SetCsr<CsrName::kVstart>(ptr_idx);
+                }
                 return;
               }
               result.Set<ElementType>(static_cast<ElementType>(src_result.value), element_index);
@@ -1015,6 +1022,12 @@ class Interpreter {
             args.dst, args.src, SignedType{args.imm});
       case Decoder::VOpIViOpcode::kVnsrlwi:
         return OpVectorNarrowwx<intrinsics::Vnsrwx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
+      case Decoder::VOpIViOpcode::kVslideupvi:
+        return OpVectorslideup<ElementType, vlmul, vta, vma>(
+            args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
+      case Decoder::VOpIViOpcode::kVslidedownvi:
+        return OpVectorslidedown<ElementType, vlmul, vta, vma>(
             args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
       default:
         Unimplemented();
@@ -1316,6 +1329,12 @@ class Interpreter {
       case Decoder::VOpIVxOpcode::kVnsrlwx:
         return OpVectorNarrowwx<intrinsics::Vnsrwx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVslideupvx:
+        return OpVectorslideup<ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVslidedownvx:
+        return OpVectorslidedown<ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       default:
         Unimplemented();
     }
@@ -1388,10 +1407,46 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
-  void OpVector(const Decoder::VStoreUnitStrideArgs& /*args*/, Register /*src*/) {
-    Unimplemented();
+  void OpVector(const Decoder::VStoreUnitStrideArgs& args, Register src) {
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    ElementType* ptr = ToHostAddr<ElementType>(src);
+    SIMD128Register source_reg;
+    __uint128_t mask;
+    if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+      mask = state_->cpu.v[0];
+    }
+    switch (args.opcode) {
+      case Decoder::VStoreUnitStrideOpcode::kVseXX: {
+        if (args.nf != 0) {
+          return Unimplemented();
+        }
+        int ptr_idx = 0;
+        for (size_t index = 0; index < kRegistersInvolved; ++index) {
+          source_reg.Set(state_->cpu.v[args.data + index]);
+          const size_t element_count = static_cast<int>(16 / sizeof(ElementType));
+          for (size_t element_index = 0; element_index < element_count; ++element_index) {
+              bool skip_element = (ptr_idx < vstart) || (ptr_idx >= vl);
+              if ((!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>)&&(
+                      ((mask >> ptr_idx) & 1) == 0)) {
+                skip_element = true;
+              }
+              if (!skip_element) {
+                exception_raised_ = FaultyStore(
+                    ptr + ptr_idx, sizeof(ElementType), source_reg.Get<ElementType>(element_index));
+                if (exception_raised_) return;
+              }
+              ptr_idx++;
+          }
+        }
+        SetCsr<CsrName::kVstart>(0);
+        break;
+      }
+      default:
+        return Unimplemented();
+    }
   }
-
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVectorVidv(uint8_t dst) {
     constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
@@ -1929,6 +1984,108 @@ class Interpreter {
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
+  void OpVectorslideup(uint8_t dst, uint8_t src, Register offset) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    constexpr size_t kElementsPerRegister = 16 / sizeof(ElementType);
+    if (!IsAligned<kRegistersInvolved>(dst | src)) {
+      return Unimplemented();
+    }
+    // Source and destination must not intersect.
+    if (dst < (src + kRegistersInvolved) && src < (dst + kRegistersInvolved)) {
+      return Unimplemented();
+    }
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    if (vstart >= vl) {
+      // From 16.3: For all of the [slide instructions], if vstart >= vl, the
+      // instruction performs no operation and leaves the destination vector
+      // register unchanged.
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
+    auto mask = GetMaskForVectorOperations<vma>();
+    // The slideup operation leaves Elements 0 through MAX(vstart, OFFSET) unchanged.
+    const size_t start_elem_index = std::max(vstart, offset);
+
+    // From 16.3.1: Destination elements OFFSET through vl-1 are written if
+    // unmasked and if OFFSET < vl.
+    // However if OFFSET > vl, we still need to apply the tail policy (as
+    // clarified in https://github.com/riscv/riscv-v-spec/issues/263). Given
+    // that OFFSET could be well past vl we start at vl rather than OFFSET in
+    // that case.
+    for (size_t index = std::min(start_elem_index, vl) / kElementsPerRegister;
+         index < kRegistersInvolved;
+         ++index) {
+      SIMD128Register result(state_->cpu.v[dst + index]);
+
+      // Arguments falling before the input group correspond to the first offset-amount
+      // result elements, which must remain undisturbed. We zero-initialize them here,
+      // but their values are eventually ignored by vstart masking in VectorMasking.
+      ssize_t first_arg_disp = index - 1 - offset / kElementsPerRegister;
+      SIMD128Register arg1 =
+          (first_arg_disp < 0) ? SIMD128Register{0} : state_->cpu.v[src + first_arg_disp];
+      SIMD128Register arg2 =
+          (first_arg_disp + 1 < 0) ? SIMD128Register{0} : state_->cpu.v[src + first_arg_disp + 1];
+
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
+          result,
+          std::get<0>(
+              intrinsics::VectorSlideUp<ElementType>(offset % kElementsPerRegister, arg1, arg2)),
+          start_elem_index - index * kElementsPerRegister,
+          vl - index * kElementsPerRegister,
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
+  void OpVectorslidedown(uint8_t dst, uint8_t src, Register offset) {
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    constexpr size_t kElementsPerRegister = 16 / sizeof(ElementType);
+    if (!IsAligned<kRegistersInvolved>(dst | src)) {
+      return Unimplemented();
+    }
+    // Source and destination must not intersect.
+    if (dst < (src + kRegistersInvolved) && src < (dst + kRegistersInvolved)) {
+      return Unimplemented();
+    }
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    if (vstart >= vl) {
+      // From 16.3: For all of the [slide instructions], if vstart >= vl, the
+      // instruction performs no operation and leaves the destination vector
+      // register unchanged.
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
+    auto mask = GetMaskForVectorOperations<vma>();
+
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      SIMD128Register result(state_->cpu.v[dst + index]);
+
+      size_t first_arg_disp = index + offset / kElementsPerRegister;
+      SIMD128Register arg1 = (first_arg_disp >= kRegistersInvolved)
+                                 ? SIMD128Register{0}
+                                 : state_->cpu.v[src + first_arg_disp];
+      SIMD128Register arg2 = (first_arg_disp + 1 >= kRegistersInvolved)
+                                 ? SIMD128Register{0}
+                                 : state_->cpu.v[src + first_arg_disp + 1];
+
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
+          result,
+          std::get<0>(
+              intrinsics::VectorSlideDown<ElementType>(offset % kElementsPerRegister, arg1, arg2)),
+          vstart - index * kElementsPerRegister,
+          vl - index * kElementsPerRegister,
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+
     SetCsr<CsrName::kVstart>(0);
   }
 

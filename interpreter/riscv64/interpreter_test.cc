@@ -267,6 +267,115 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  // Vector instructions.
+  void TestVseXX(uint32_t insn_bytes,
+                 const __v16qu (&expected_result_int8)[8],
+                 const __v8hu (&expected_result_int16)[8],
+                 const __v4su (&expected_result_int32)[8],
+                 const __v2du (&expected_result_int64)[8],
+                 uint8_t veew,
+                 const __v2du (&source)[16]) {
+    auto Verify = [this, &source](uint32_t insn_bytes,
+                                  uint8_t vsew,
+                                  uint8_t veew,
+                                  uint8_t vlmul_max,
+                                  const auto& expected_result,
+                                  auto mask) {
+      SIMD128Register expected_result_in_register;
+      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
+      for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
+        int vemul = SignExtend<3>(vlmul);
+        vemul += vsew;  // Multiply by SEW.
+        vemul -= veew;  // Divide by EEW.
+        if (vemul < -3 || vemul > 3) {
+          // Incompatible vlmul
+          continue;
+        }
+
+        for (uint8_t vma = 0; vma < 2; ++vma) {
+          auto [vlmax, vtype] = intrinsics::Vsetvl(~0ULL, (vma << 7) | (vsew << 3) | vlmul);
+          if (vlmax == 0) {
+            continue;
+          }
+          // Test vstart/vl changes with only with vemul == 2 (4 registers)
+          if (vemul == 2) {
+            state_.cpu.vstart = vlmax / 8;
+            state_.cpu.vl = (vlmax * 5) / 8;
+          } else {
+            state_.cpu.vstart = 0;
+            state_.cpu.vl = vlmax;
+          }
+          state_.cpu.vtype = vtype;
+
+          state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+          SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+          for (size_t index = 0; index < 8; index++) {
+            state_.cpu.v[8 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
+            store_area_[index * 2] = kUndisturbedResult[0];
+            store_area_[index * 2 + 1] = kUndisturbedResult[1];
+          }
+          EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+          // Values for inactive elements (i.e. corresponding mask bit is 0).
+          const size_t n = std::size(source);
+          __m128i expected_inactive[n];
+          std::fill_n(expected_inactive, n, kUndisturbedResult);
+          if (vemul >= 0) {
+            for (size_t index = 0; index < 1 << vemul; ++index) {
+              if (index == 0 && vemul == 2) {
+                expected_result_in_register = SIMD128Register{
+                    (kUndisturbedResult & kFractionMaskInt8[3]) |
+                    (expected_result[index] & mask[index] & ~kFractionMaskInt8[3]) |
+                    (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])};
+              } else if (index == 2 && vemul == 2) {
+                expected_result_in_register = SIMD128Register{
+                    (expected_result[index] & mask[index] & kFractionMaskInt8[3]) |
+                    (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
+                    ((kUndisturbedResult) & ~kFractionMaskInt8[3])};
+              } else if (index == 3 && vemul == 2) {
+                expected_result_in_register = SIMD128Register{kUndisturbedResult};
+              } else {
+                expected_result_in_register =
+                    SIMD128Register{(expected_result[index] & mask[index]) |
+                                    (expected_inactive[index] & ~mask[index])};
+              }
+
+              EXPECT_EQ(store_area_[index * 2], expected_result_in_register.Get<uint64_t>(0));
+              EXPECT_EQ(store_area_[index * 2 + 1], expected_result_in_register.Get<uint64_t>(1));
+            }
+
+          } else {
+            expected_result_in_register =
+                SIMD128Register{(expected_result[0] & mask[0] & kFractionMaskInt8[(vemul + 4)]) |
+                                (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[(vemul + 4)]) |
+                                ((kUndisturbedResult) & ~kFractionMaskInt8[(vemul + 4)])};
+            EXPECT_EQ(store_area_[0], expected_result_in_register.Get<uint64_t>(0));
+            EXPECT_EQ(store_area_[1], expected_result_in_register.Get<uint64_t>(1));
+          }
+        }
+      }
+    };
+    switch (veew) {
+      case 0:
+        Verify(insn_bytes | (1 << 25), veew, veew, 8, expected_result_int8, kNoMask);
+        Verify(insn_bytes, veew, veew, 8, expected_result_int8, kMaskInt8);
+        break;
+      case 1:
+        Verify(insn_bytes | (1 << 25), veew, veew, 8, expected_result_int16, kNoMask);
+        Verify(insn_bytes, veew, veew, 8, expected_result_int16, kMaskInt16);
+        break;
+      case 2:
+        Verify(insn_bytes | (1 << 25), veew, veew, 8, expected_result_int32, kNoMask);
+        Verify(insn_bytes, veew, veew, 8, expected_result_int32, kMaskInt32);
+        break;
+      case 3:
+        Verify(insn_bytes | (1 << 25), veew, veew, 8, expected_result_int64, kNoMask);
+        Verify(insn_bytes, veew, veew, 8, expected_result_int64, kMaskInt64);
+        break;
+      default:
+        break;
+    }
+  }
+
   template <int kNFfields>
   void TestVmvXr(uint32_t insn_bytes) {
     TestVmvXr<Int8, kNFfields>(insn_bytes);
@@ -953,6 +1062,150 @@ class Riscv64InterpreterTest : public ::testing::Test {
       Verify(insn_bytes | (1 << 25), 2, vlmul, expected_result_vd0_int32[vlmul]);
       Verify(insn_bytes | (1 << 25), 3, vlmul, expected_result_vd0_int64[vlmul]);
     }
+  }
+
+  // Unlike regular arithmetic instructions, the result of a permutation
+  // instruction depends also on vlmul.  Also, the vslideup specs mention that
+  // the destination vector remains unchanged the first |offset| elements (in
+  // effect, the offset acts akin to vstart), in those cases skip can be used
+  // to specify how many elements' mask will be skipped (counting from the
+  // beginning, should be the same as the offset).
+  void TestVectorPermutationInstruction(uint32_t insn_bytes,
+                                        const __v16qu (&expected_result_int8)[8],
+                                        const __v8hu (&expected_result_int16)[8],
+                                        const __v4su (&expected_result_int32)[8],
+                                        const __v2du (&expected_result_int64)[8],
+                                        const __v2du (&source)[16],
+                                        uint8_t vlmul,
+                                        uint64_t regx1 = 0x0,
+                                        uint64_t skip = 0) {
+    auto Verify = [this, &source, vlmul, regx1, skip](
+                      uint32_t insn_bytes, uint8_t vsew, const auto& expected_result, auto mask) {
+      // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
+      // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
+      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
+      for (size_t index = 0; index < std::size(source); ++index) {
+        state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
+      }
+      // Set x1 for vx instructions.
+      SetXReg<1>(state_.cpu, regx1);
+
+      size_t num_regs = 1 << vlmul;
+      if (vlmul > 3) {
+        num_regs = 1;
+      }
+      // Values for which the mask is not applied due to being before the offset when doing
+      // vslideup.
+      SIMD128Register skip_mask[num_regs];
+      int64_t toskip = skip;
+      for (size_t index = 0; index < num_regs && toskip > 0; ++index) {
+        size_t skip_bits = toskip * (1 << vsew) * 8;
+        skip_mask[index] =
+            ~std::get<0>(intrinsics::MakeBitmaskFromVl(skip_bits > 128 ? 128 : skip_bits));
+        toskip -= 16 / (1 << vsew);
+      }
+
+      for (uint8_t vta = 0; vta < 2; ++vta) {
+        for (uint8_t vma = 0; vma < 2; ++vma) {
+          auto [vlmax, vtype] =
+              intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
+          // Incompatible vsew and vlmax. Skip it.
+          if (vlmax == 0) {
+            continue;
+          }
+
+          // To make tests quick enough we don't test vstart and vl change with small register
+          // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of first
+          // register, last register and half of next-to last register.
+          // Don't use vlmul == 3 because that one may not be supported if instruction widens the
+          // result.
+          if (vlmul == 2) {
+            state_.cpu.vstart = vlmax / 8;
+            state_.cpu.vl = (vlmax * 5) / 8;
+          } else {
+            state_.cpu.vstart = 0;
+            state_.cpu.vl = vlmax;
+          }
+          state_.cpu.vtype = vtype;
+
+          // Set expected_result vector registers into 0b01010101… pattern.
+          for (size_t index = 0; index < 8; ++index) {
+            state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+          }
+
+          state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+          EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+
+          const size_t n = std::size(source);
+          // Values for inactive elements (i.e. corresponding mask bit is 0).
+          __m128i expected_inactive[n];
+          // For most instructions, follow basic inactive processing rules based on vma flag.
+          std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
+
+          if (vlmul < 4) {
+            for (size_t index = 0; index < num_regs; ++index) {
+              if (index == 0 && vlmul == 2) {
+                EXPECT_EQ(
+                    state_.cpu.v[8 + index],
+                    SIMD128Register{(kUndisturbedResult & kFractionMaskInt8[3]) |
+                                    (expected_result[index] & (mask[index] | skip_mask[index]) &
+                                     ~kFractionMaskInt8[3]) |
+                                    (expected_inactive[index] & ~mask[index] & ~skip_mask[index] &
+                                     ~kFractionMaskInt8[3])}
+                        .Get<__uint128_t>());
+              } else if (index == 2 && vlmul == 2) {
+                EXPECT_EQ(
+                    state_.cpu.v[8 + index],
+                    SIMD128Register{
+                        (expected_result[index] & (mask[index] | skip_mask[index]) &
+                         kFractionMaskInt8[3]) |
+                        (expected_inactive[index] & ~mask[index] & ~skip_mask[index] &
+                         kFractionMaskInt8[3]) |
+                        ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])}
+                        .Get<__uint128_t>());
+              } else if (index == 3 && vlmul == 2 && vta) {
+                EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kAgnosticResult});
+              } else if (index == 3 && vlmul == 2) {
+                EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kUndisturbedResult});
+              } else {
+                EXPECT_EQ(
+                    state_.cpu.v[8 + index],
+                    SIMD128Register{(expected_result[index] & (mask[index] | skip_mask[index])) |
+                                    (expected_inactive[index] & ~(mask[index] | skip_mask[index]))}
+                        .Get<__uint128_t>());
+              }
+            }
+          } else {
+            __uint128_t v8 = state_.cpu.v[8];
+            SIMD128Register affected_part{expected_result[0] &
+                                          (mask[0] & kFractionMaskInt8[vlmul - 4] | skip_mask[0])};
+            SIMD128Register masked_part{expected_inactive[0] & ~mask[0] & ~skip_mask[0] &
+                                        kFractionMaskInt8[vlmul - 4]};
+            SIMD128Register tail_part{(vta ? kAgnosticResult : kUndisturbedResult) &
+                                      ~kFractionMaskInt8[vlmul - 4]};
+
+            EXPECT_EQ(v8, (affected_part | masked_part | tail_part).Get<__uint128_t>());
+          }
+
+          if (vlmul == 2) {
+            // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+            EXPECT_EQ(state_.cpu.vstart, 0);
+            EXPECT_EQ(state_.cpu.vl, (vlmax * 5) / 8);
+          }
+        }
+      }
+    };
+
+    // Some instructions don't support use of mask register, but in these instructions bit
+    // #25 is set.  Test it and skip masking tests if so.
+    Verify(insn_bytes, 0, expected_result_int8, kMaskInt8);
+    Verify(insn_bytes, 1, expected_result_int16, kMaskInt16);
+    Verify(insn_bytes, 2, expected_result_int32, kMaskInt32);
+    Verify(insn_bytes, 3, expected_result_int64, kMaskInt64);
+    Verify(insn_bytes | (1 << 25), 0, expected_result_int8, kNoMask);
+    Verify(insn_bytes | (1 << 25), 1, expected_result_int16, kNoMask);
+    Verify(insn_bytes | (1 << 25), 2, expected_result_int32, kNoMask);
+    Verify(insn_bytes | (1 << 25), 3, expected_result_int64, kNoMask);
   }
 
  protected:
@@ -4057,6 +4310,770 @@ TEST_F(Riscv64InterpreterTest, TestVmulhsu) {
        {0xad83'0383'aed9'af84, 0xaad5'ab81'0181'acd7}},
       kVectorCalculationsSource);
 }
+
+TEST_F(Riscv64InterpreterTest, TestVslideup) {
+  // With slide offset equal zero, this is equivalent to Vmv.
+  TestVectorInstruction(
+      0x39803457,  // vslideup.vi v8, v24, 0, v0.t
+      {{0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30},
+       {32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62},
+       {64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94},
+       {96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126},
+       {128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158},
+       {160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190},
+       {192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222},
+       {224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254}},
+      {{0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
+       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
+       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc},
+       {0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc}},
+      {{0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
+       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8},
+       {0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8},
+       {0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8}},
+      {{0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
+       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
+       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
+       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271},
+       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
+       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
+       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
+       {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}},
+      kVectorCalculationsSource);
+
+  // VLMUL = 0.
+  TestVectorPermutationInstruction(
+      0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{85, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x5555'5555'5555'5555, 0x0e0c'0a09'0604'0200}, {}, {}, {}, {}, {}, {}, {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/0,
+      /*regx1=*/1,
+      /*skip=*/1);
+  TestVectorPermutationInstruction(
+      0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 2, 4, 6, 9, 10, 12, 14}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x5555'5555'5555'5555, 0x5555'5555'5555'5555}, {}, {}, {}, {}, {}, {}, {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/0,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 1
+  TestVectorPermutationInstruction(
+      0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{85, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28},
+       {30, 32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {0x1e1c, 0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211},
+       {0x1e1c'1a18, 0x2624'2220, 0x2e2c'2a29, 0x3634'3231},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555'5555'5555, 0x0e0c'0a09'0604'0200},
+       {0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/1,
+      /*regx1=*/1,
+      /*skip=*/1);
+  TestVectorPermutationInstruction(
+      0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 2, 4, 6, 9, 10, 12, 14},
+       {17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555},
+       {0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/1,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 2
+  TestVectorPermutationInstruction(
+      0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{85, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28},
+       {30, 32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60},
+       {62, 64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92},
+       {94, 96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {0x1e1c, 0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38},
+       {0x3e3c, 0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58},
+       {0x5e5c, 0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211},
+       {0x1e1c'1a18, 0x2624'2220, 0x2e2c'2a29, 0x3634'3231},
+       {0x3e3c'3a38, 0x4644'4240, 0x4e4c'4a49, 0x5654'5251},
+       {0x5e5c'5a58, 0x6664'6260, 0x6e6c'6a69, 0x7674'7271},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555'5555'5555, 0x0e0c'0a09'0604'0200},
+       {0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/2,
+      /*regx1=*/1,
+      /*skip=*/1);
+
+  TestVectorPermutationInstruction(
+      0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 2, 4, 6, 9, 10, 12, 14},
+       {17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 73, 74, 76, 78},
+       {81, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 105, 106, 108, 110},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555},
+       {0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {},
+       {},
+       {},
+       {}},
+      {{0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/2,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 3
+  TestVectorPermutationInstruction(
+      0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{85, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28},
+       {30, 32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60},
+       {62, 64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92},
+       {94, 96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124},
+       {126, 128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156},
+       {158, 160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188},
+       {190, 192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220},
+       {222, 224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {0x1e1c, 0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38},
+       {0x3e3c, 0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58},
+       {0x5e5c, 0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78},
+       {0x7e7c, 0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98},
+       {0x9e9c, 0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8},
+       {0xbebc, 0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8},
+       {0xdedc, 0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8}},
+      {{0x5555'5555, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211},
+       {0x1e1c'1a18, 0x2624'2220, 0x2e2c'2a29, 0x3634'3231},
+       {0x3e3c'3a38, 0x4644'4240, 0x4e4c'4a49, 0x5654'5251},
+       {0x5e5c'5a58, 0x6664'6260, 0x6e6c'6a69, 0x7674'7271},
+       {0x7e7c'7a78, 0x8684'8280, 0x8e8c'8a89, 0x9694'9291},
+       {0x9e9c'9a98, 0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1},
+       {0xbebc'bab8, 0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1},
+       {0xdedc'dad8, 0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1}},
+      {{0x5555'5555'5555'5555, 0x0e0c'0a09'0604'0200},
+       {0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0x8e8c'8a89'8684'8280},
+       {0x9e9c'9a98'9694'9291, 0xaeac'aaa9'a6a4'a2a0},
+       {0xbebc'bab8'b6b4'b2b1, 0xcecc'cac9'c6c4'c2c0},
+       {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0}},
+      kVectorCalculationsSource,
+      /*vlmul=*/3,
+      /*regx1=*/1,
+      /*skip=*/1);
+
+  TestVectorPermutationInstruction(
+      0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 2, 4, 6, 9, 10, 12, 14},
+       {17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 73, 74, 76, 78},
+       {81, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 105, 106, 108, 110},
+       {113, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 137, 138, 140, 142},
+       {145, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 169, 170, 172, 174},
+       {177, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 201, 202, 204, 206},
+       {209, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 233, 234, 236, 238}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555},
+       {0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
+       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
+       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc}},
+      {{0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
+       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8}},
+      {{0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
+       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
+       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
+       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271}},
+      kVectorCalculationsSource,
+      /*vlmul=*/3,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 4
+  TestVectorPermutationInstruction(0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/4,
+                                   /*regx1=*/1,
+                                   /*skip=*/1);
+
+  TestVectorPermutationInstruction(0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/4,
+                                   /*regx1=*/8,
+                                   /*skip=*/8);
+
+  // VLMUL = 5
+  TestVectorPermutationInstruction(0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{85, 0}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/5,
+                                   /*regx1=*/1,
+                                   /*skip=*/1);
+
+  TestVectorPermutationInstruction(0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{85, 85}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/5,
+                                   /*regx1=*/8,
+                                   /*skip=*/8);
+
+  // VLMUL = 6
+  TestVectorPermutationInstruction(0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{85, 0, 2, 4}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555, 0x0200}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555'5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/6,
+                                   /*regx1=*/1,
+                                   /*skip=*/1);
+
+  TestVectorPermutationInstruction(0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{85, 85, 85, 85}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555, 0x5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555'5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/6,
+                                   /*regx1=*/8,
+                                   /*skip=*/8);
+
+  // VLMUL = 7
+  TestVectorPermutationInstruction(0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{85, 0, 2, 4, 6, 9, 10, 12}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555, 0x0200, 0x0604, 0x0a09}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555'5555, 0x0604'0200}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555'5555'5555'5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/7,
+                                   /*regx1=*/1,
+                                   /*skip=*/1);
+
+  TestVectorPermutationInstruction(0x3980c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{85, 85, 85, 85, 85, 85, 85, 85}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555, 0x5555, 0x5555, 0x5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555'5555, 0x5555'5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x5555'5555'5555'5555}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/7,
+                                   /*regx1=*/8,
+                                   /*skip=*/8);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVslidedown) {
+  // With slide offset equal zero, this is equivalent to Vmv.
+  TestVectorInstruction(
+      0x3d803457,  // vslidedown.vi v8, v24, 0, v0.t
+      {{0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30},
+       {32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62},
+       {64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94},
+       {96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126},
+       {128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158},
+       {160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190},
+       {192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222},
+       {224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254}},
+      {{0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
+       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
+       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc},
+       {0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc}},
+      {{0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
+       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8},
+       {0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8},
+       {0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8}},
+      {{0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
+       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
+       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
+       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271},
+       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
+       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
+       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
+       {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}},
+      kVectorCalculationsSource);
+
+  // VLMUL = 0.
+  TestVectorPermutationInstruction(
+      0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 0}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x1e1c'1a18'1614'1211, 0}, {}, {}, {}, {}, {}, {}, {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/0,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+      {{17, 18, 20, 22, 24, 26, 28, 30, 0, 0, 0, 0, 0, 0, 0, 0}, {}, {}, {}, {}, {}, {}, {}},
+      {{0, 0, 0, 0, 0, 0, 0, 0}, {}, {}, {}, {}, {}, {}, {}},
+      {{0, 0, 0, 0}, {}, {}, {}, {}, {}, {}, {}},
+      {{0, 0}, {}, {}, {}, {}, {}, {}, {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/0,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 1
+  TestVectorPermutationInstruction(
+      0x3d80c457,  // vslideup.vx v8, v24, x1, v0.t
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 0},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/1,
+      /*regx1=*/1,
+      /*skip=*/0);
+  TestVectorPermutationInstruction(
+      0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+      {{17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 0, 0, 0, 0, 0, 0, 0, 0},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}, {}, {}, {}},
+      {{0, 0}, {0, 0}, {}, {}, {}, {}, {}, {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/1,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 2
+  TestVectorPermutationInstruction(
+      0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
+       {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
+       {98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126, 0},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0x4240},
+       {0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c, 0x6260},
+       {0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c, 0x0000},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0x4644'4240},
+       {0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58, 0x6664'6260},
+       {0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78, 0x0000'0000},
+       {},
+       {},
+       {},
+       {}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0x0000'0000'0000'0000},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/2,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+      {{17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 73, 74, 76, 78},
+       {81, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 105, 106, 108, 110},
+       {113, 114, 116, 118, 120, 122, 124, 126, 0, 0, 0, 0, 0, 0, 0, 0},
+       {},
+       {},
+       {},
+       {}},
+      {{0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {},
+       {},
+       {},
+       {}},
+      {{0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/2,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 3
+  TestVectorPermutationInstruction(
+      0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
+       {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
+       {98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126, 128},
+       {130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158, 160},
+       {162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190, 192},
+       {194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222, 224},
+       {226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254, 0}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0x4240},
+       {0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c, 0x6260},
+       {0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c, 0x8280},
+       {0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c, 0xa2a0},
+       {0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc, 0xc2c0},
+       {0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc, 0xe2e0},
+       {0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc, 0x0000}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0x4644'4240},
+       {0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58, 0x6664'6260},
+       {0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78, 0x8684'8280},
+       {0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98, 0xa6a4'a2a0},
+       {0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8, 0xc6c4'c2c0},
+       {0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8, 0xe6e4'e2e0},
+       {0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8, 0x0000'0000}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0x8e8c'8a89'8684'8280},
+       {0x9e9c'9a98'9694'9291, 0xaeac'aaa9'a6a4'a2a0},
+       {0xbebc'bab8'b6b4'b2b1, 0xcecc'cac9'c6c4'c2c0},
+       {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0},
+       {0xfefc'faf8'f6f4'f2f1, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSource,
+      /*vlmul=*/3,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+      {{17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 73, 74, 76, 78},
+       {81, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 105, 106, 108, 110},
+       {113, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 137, 138, 140, 142},
+       {145, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 169, 170, 172, 174},
+       {177, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 201, 202, 204, 206},
+       {209, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 233, 234, 236, 238},
+       {241, 242, 244, 246, 248, 250, 252, 254, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
+       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
+       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc},
+       {0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
+       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8},
+       {0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8},
+       {0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
+       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
+       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
+       {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSource,
+      /*vlmul=*/3,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 4
+  TestVectorPermutationInstruction(0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/4,
+                                   /*regx1=*/1,
+                                   /*skip=*/0);
+
+  TestVectorPermutationInstruction(0x3d80c457,  // vslideup.vx v8, v24, x1, v0.t
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/4,
+                                   /*regx1=*/8,
+                                   /*skip=*/0);
+
+  // VLMUL = 5
+  TestVectorPermutationInstruction(0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+                                   {{2, 4}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0604}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/5,
+                                   /*regx1=*/1,
+                                   /*skip=*/0);
+
+  TestVectorPermutationInstruction(0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+                                   {{17, 18}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0000}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/5,
+                                   /*regx1=*/8,
+                                   /*skip=*/0);
+
+  // VLMUL = 6
+  TestVectorPermutationInstruction(0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+                                   {{2, 4, 6, 9}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0604, 0x0a09}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0e0c'0a09}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/6,
+                                   /*regx1=*/1,
+                                   /*skip=*/0);
+
+  TestVectorPermutationInstruction(0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+                                   {{17, 18, 20, 22}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0000, 0x0000}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0000'0000}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/6,
+                                   /*regx1=*/8,
+                                   /*skip=*/0);
+
+  // VLMUL = 7
+  TestVectorPermutationInstruction(0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+                                   {{2, 4, 6, 9, 10, 12, 14, 17}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0604, 0x0a09, 0x0e0c, 0x1211}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0e0c'0a09, 0x1614'1211}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x1e1c'1a18'1614'1211}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/7,
+                                   /*regx1=*/1,
+                                   /*skip=*/0);
+
+  TestVectorPermutationInstruction(0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
+                                   {{17, 18, 20, 22, 24, 26, 28, 30}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0000, 0x0000, 0x0000, 0x0000}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0000'0000, 0x0000'0000}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0000'0000'0000'0000}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSource,
+                                   /*vlmul=*/7,
+                                   /*regx1=*/8,
+                                   /*skip=*/0);
+}
+
 TEST_F(Riscv64InterpreterTest, TestVwadd) {
   TestWideningVectorInstruction(0xc50c2457,  // vwadd.vv v8,v16,v24,v0.t
                                 {{0x0000, 0x0083, 0x0006, 0x0089, 0x000d, 0x008f, 0x0012, 0x0095},
@@ -4084,6 +5101,65 @@ TEST_F(Riscv64InterpreterTest, TestVwadd) {
                                  {0x0000'0001'1997'1390, 0x0000'0001'25a3'1f9d},
                                  {0x0000'0001'31af'2ba9, 0x0000'0001'3dbb'37b4}},
                                 kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVseXX) {
+  TestVseXX(0x8427,  // vse8.v v8, (x1), v0.t
+            {{0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143},
+             {16, 145, 18, 147, 20, 149, 22, 151, 24, 153, 26, 155, 28, 157, 30, 159},
+             {32, 161, 34, 163, 36, 165, 38, 167, 40, 169, 42, 171, 44, 173, 46, 175},
+             {48, 177, 50, 179, 52, 181, 54, 183, 56, 185, 58, 187, 60, 189, 62, 191},
+             {64, 193, 66, 195, 68, 197, 70, 199, 72, 201, 74, 203, 76, 205, 78, 207},
+             {80, 209, 82, 211, 84, 213, 86, 215, 88, 217, 90, 219, 92, 221, 94, 223},
+             {96, 225, 98, 227, 100, 229, 102, 231, 104, 233, 106, 235, 108, 237, 110, 239},
+             {112, 241, 114, 243, 116, 245, 118, 247, 120, 249, 122, 251, 124, 253, 126, 255}},
+            {},
+            {},
+            {},
+            0,
+            kVectorCalculationsSource);
+  TestVseXX(0xd427,  // vse16.v v8, (x1), v0.t
+            {},
+            {{0x8100, 0x8302, 0x8504, 0x8706, 0x8908, 0x8b0a, 0x8d0c, 0x8f0e},
+             {0x9110, 0x9312, 0x9514, 0x9716, 0x9918, 0x9b1a, 0x9d1c, 0x9f1e},
+             {0xa120, 0xa322, 0xa524, 0xa726, 0xa928, 0xab2a, 0xad2c, 0xaf2e},
+             {0xb130, 0xb332, 0xb534, 0xb736, 0xb938, 0xbb3a, 0xbd3c, 0xbf3e},
+             {0xc140, 0xc342, 0xc544, 0xc746, 0xc948, 0xcb4a, 0xcd4c, 0xcf4e},
+             {0xd150, 0xd352, 0xd554, 0xd756, 0xd958, 0xdb5a, 0xdd5c, 0xdf5e},
+             {0xe160, 0xe362, 0xe564, 0xe766, 0xe968, 0xeb6a, 0xed6c, 0xef6e},
+             {0xf170, 0xf372, 0xf574, 0xf776, 0xf978, 0xfb7a, 0xfd7c, 0xff7e}},
+            {},
+            {},
+            1,
+            kVectorCalculationsSource);
+  TestVseXX(0xe427,  // vse32.v v8, (x1), v0.t
+            {},
+            {},
+            {{0x8302'8100, 0x8706'8504, 0x8b0a'8908, 0x8f0e'8d0c},
+             {0x9312'9110, 0x9716'9514, 0x9b1a'9918, 0x9f1e'9d1c},
+             {0xa322'a120, 0xa726'a524, 0xab2a'a928, 0xaf2e'ad2c},
+             {0xb332'b130, 0xb736'b534, 0xbb3a'b938, 0xbf3e'bd3c},
+             {0xc342'c140, 0xc746'c544, 0xcb4a'c948, 0xcf4e'cd4c},
+             {0xd352'd150, 0xd756'd554, 0xdb5a'd958, 0xdf5e'dd5c},
+             {0xe362'e160, 0xe766'e564, 0xeb6a'e968, 0xef6e'ed6c},
+             {0xf372'f170, 0xf776'f574, 0xfb7a'f978, 0xff7e'fd7c}},
+            {},
+            2,
+            kVectorCalculationsSource);
+  TestVseXX(0xf427,  // vse64.v v8, (x1), v0.t
+            {},
+            {},
+            {},
+            {{0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908},
+             {0x9716'9514'9312'9110, 0x9f1e'9d1c'9b1a'9918},
+             {0xa726'a524'a322'a120, 0xaf2e'ad2c'ab2a'a928},
+             {0xb736'b534'b332'b130, 0xbf3e'bd3c'bb3a'b938},
+             {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+             {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+             {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+             {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
+            3,
+            kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVleXX) {

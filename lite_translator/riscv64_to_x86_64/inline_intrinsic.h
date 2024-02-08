@@ -282,7 +282,7 @@ class TryBindingBasedInlineIntrinsic {
       // No return value. Do nothing.
     } else if constexpr (std::tuple_size_v<typename AsmCallInfo::OutputArguments> == 1) {
       using ReturnType = std::tuple_element_t<0, typename AsmCallInfo::OutputArguments>;
-      if constexpr (std::is_integral_v<ReturnType> && sizeof(ReturnType) >= sizeof(uint32_t)) {
+      if constexpr (std::is_integral_v<ReturnType>) {
         if (result_reg_ != x86_64::Assembler::no_register) {
           Mov<ReturnType>(as_, result_, result_reg_);
           CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
@@ -353,12 +353,11 @@ class TryBindingBasedInlineIntrinsic {
         }
       } else if constexpr (arg_info.arg_type == ArgInfo::IN_OUT_ARG) {
         using Type = std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>;
-        static_assert(std::is_same_v<
-                      Type,
-                      std::tuple_element_t<arg_info.to, typename AsmCallInfo::OutputArguments>>);
         static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
         static_assert(!RegisterClass::kIsImplicitReg);
         if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
+          static_assert(std::is_integral_v<
+                        std::tuple_element_t<arg_info.to, typename AsmCallInfo::OutputArguments>>);
           CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
           result_xmm_reg_ = reg_alloc();
           Mov<typename TypeTraits<int64_t>::Float>(

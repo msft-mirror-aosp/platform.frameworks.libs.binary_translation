@@ -17,8 +17,6 @@
 #ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
 #define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
 
-#include "cstdint"
-
 #include "berberis/guest_state/guest_state.h"
 
 namespace berberis {

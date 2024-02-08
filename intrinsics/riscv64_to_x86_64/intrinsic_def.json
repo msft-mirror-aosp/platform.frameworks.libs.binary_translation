@@ -17,7 +17,7 @@
   "Adduw": {
     "comment": "Add unsigned word",
     "class": "scalar",
-    "in": [ "uint64_t", "uint32_t" ],
+    "in": [ "uint32_t", "uint64_t" ],
     "out": [ "uint64_t" ]
   },
   "AmoAdd": {
@@ -628,7 +628,7 @@
   "Sh1adduw": {
     "comment": "Shift unsigned word left and add",
     "class": "scalar",
-    "in": [ "uint64_t", "uint32_t" ],
+    "in": [ "uint32_t", "uint64_t" ],
     "out": [ "uint64_t" ]
   },
   "Sh2add": {
@@ -640,7 +640,7 @@
   "Sh2adduw": {
     "comment": "Shift unsigned word left by 2 and add",
     "class": "scalar",
-    "in": [ "uint64_t", "uint32_t" ],
+    "in": [ "uint32_t", "uint64_t" ],
     "out": [ "uint64_t" ]
   },
   "Sh3add": {
@@ -652,7 +652,7 @@
   "Sh3adduw": {
     "comment": "Shift unsigned word left by 3 and add",
     "class": "scalar",
-    "in": [ "uint64_t", "uint32_t" ],
+    "in": [ "uint32_t", "uint64_t" ],
     "out": [ "uint64_t" ]
   },
   "Slliuw": {
