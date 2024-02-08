@@ -35,7 +35,7 @@ PRODUCT_SYSTEM_PROPERTIES += \
     ro.dalvik.vm.isa.riscv64=x86_64 \
     ro.enable.native.bridge.exec=1
 
-PRODUCT_SOONG_NAMESPACES += frameworks/libs/native_bridge_support/libc
+PRODUCT_SOONG_NAMESPACES += frameworks/libs/native_bridge_support/android_api/libc
 
 PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     $(BERBERIS_DISTRIBUTION_ARTIFACTS_RISCV64)
