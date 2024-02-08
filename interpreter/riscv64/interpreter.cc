@@ -1306,7 +1306,7 @@ class Interpreter {
                       vlmul == VectorRegisterGroupMultiplier::k8registers) {
           return Unimplemented();
         } else {
-          return OpVectorWidenvv<intrinsics::Vwaddvv<ElementType>, ElementType, vlmul, vta, vma>(
+          return OpVectorWidenvv<intrinsics::Vwaddvv<SignedType>, SignedType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         }
       case Decoder::VOpMVvOpcode::kVwadduvv:
@@ -1314,7 +1314,7 @@ class Interpreter {
                       vlmul == VectorRegisterGroupMultiplier::k8registers) {
           return Unimplemented();
         } else {
-          return OpVectorWidenvv<intrinsics::Vwadduvv<ElementType>, ElementType, vlmul, vta, vma>(
+          return OpVectorWidenvv<intrinsics::Vwaddvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         }
       case Decoder::VOpMVvOpcode::kVwsubuvv:
@@ -1322,7 +1322,7 @@ class Interpreter {
                       vlmul == VectorRegisterGroupMultiplier::k8registers) {
           return Unimplemented();
         } else {
-          return OpVectorWidenvv<intrinsics::Vwsubuvv<ElementType>, ElementType, vlmul, vta, vma>(
+          return OpVectorWidenvv<intrinsics::Vwsubvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         }
       default:
