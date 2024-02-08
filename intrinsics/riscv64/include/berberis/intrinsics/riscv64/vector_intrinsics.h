@@ -601,8 +601,7 @@ DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
                                       ? Int128{-1}
                                       : Popcount(arg ^ (arg - Int128{1})) - Int128{1})
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wadd, Widenvv, (args + ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(waddu, Widenvv, (args + ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wsubu, Widenvv, (args - ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wsub, Widenvv, (args - ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WV(nsr, Narrowwv, auto [arg1, arg2] = std::tuple{args...};
                                    (arg1 >> arg2))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WX(nsr, Narrowwv, auto [arg1, arg2] = std::tuple{args...};
