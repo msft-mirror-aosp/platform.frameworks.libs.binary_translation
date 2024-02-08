@@ -21,7 +21,7 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libbinder_ndk",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libbinder_ndk:native_bridge_proxy_libbinder_ndk_files"],
+    srcs: [":native_bridge_proxy_libbinder_ndk_files"],
     shared_libs: [
         "libbinder_ndk",
         "libmediandk",

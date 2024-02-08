@@ -21,6 +21,6 @@ cc_library_shared {
     name: "libberberis_proxy_libandroid",
     defaults: ["berberis_proxy_library_defaults"],
     header_libs: ["jni_headers"],
-    srcs: ["//frameworks/libs/native_bridge_support/libandroid:native_bridge_proxy_libandroid_files"],
+    srcs: [":native_bridge_proxy_libandroid_files"],
     shared_libs: ["libandroid"],
 }

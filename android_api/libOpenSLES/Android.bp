@@ -21,7 +21,7 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libOpenSLES",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libOpenSLES:native_bridge_proxy_libOpenSLES_files"],
+    srcs: [":native_bridge_proxy_libOpenSLES_files"],
     shared_libs: ["libOpenSLES"],
     cflags: ["-Wno-deprecated-declarations"],
 }
