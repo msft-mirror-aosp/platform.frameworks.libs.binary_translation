@@ -21,7 +21,7 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libGLESv3",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libGLESv3:native_bridge_proxy_libGLESv3_files"],
-    header_libs: ["//frameworks/libs/native_bridge_support/libEGL:libnative_bridge_proxy_libEGL_headers"],
+    srcs: [":native_bridge_proxy_libGLESv3_files"],
+    header_libs: ["libnative_bridge_proxy_libEGL_headers"],
     shared_libs: ["libGLESv3"],
 }

@@ -20,6 +20,6 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libneuralnetworks",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libneuralnetworks:native_bridge_proxy_libneuralnetworks_files"],
+    srcs: [":native_bridge_proxy_libneuralnetworks_files"],
     shared_libs: ["libneuralnetworks"],
 }

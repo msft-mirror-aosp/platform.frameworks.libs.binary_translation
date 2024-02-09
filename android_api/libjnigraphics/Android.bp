@@ -22,7 +22,7 @@ cc_library_shared {
     name: "libberberis_proxy_libjnigraphics",
     defaults: ["berberis_proxy_library_defaults"],
     header_libs: ["jni_headers"],
-    srcs: ["//frameworks/libs/native_bridge_support/libjnigraphics:native_bridge_proxy_libjnigraphics_files"],
+    srcs: [":native_bridge_proxy_libjnigraphics_files"],
     shared_libs: [
         "libandroid",
         "libjnigraphics",
