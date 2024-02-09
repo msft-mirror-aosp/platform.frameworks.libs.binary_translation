@@ -852,7 +852,25 @@ class Interpreter {
               intrinsics::BitMaskToSimdMaskForTests<ElementType>(Int64{MaskType{register_mask}});
           for (int field = 0; field < kSegmentSize; ++field) {
             if constexpr (vma == InactiveProcessing::kAgnostic) {
-              if constexpr (vta == TailProcessing::kAgnostic) {
+              // vstart equal to zero is supposed to be exceptional. From RISV-V V manual (page 14):
+              // The vstart CSR is writable by unprivileged code, but non-zero vstart values may
+              // cause vector instructions to run substantially slower on some implementations, so
+              // vstart should not be used by application programmers. A few vector instructions
+              // cannot be executed with a non-zero vstart value and will raise an illegal
+              // instruction exception as dened below.
+              // TODO(b/300690740): decide whether to merge two cases after support for vectors in
+              // heavy optimizer would be implemented.
+              if (vstart) [[unlikely]] {
+                SIMD128Register vstart_mask = std::get<0>(
+                    intrinsics::MakeBitmaskFromVl<ElementType>(vstart % kElementsCount));
+                if constexpr (vta == TailProcessing::kAgnostic) {
+                  result[field] |= vstart_mask & ~simd_mask;
+                } else if (vl < (within_group_id + 1) * kElementsCount) {
+                  result[field] |= vstart_mask & ~simd_mask & ~GetTailMask();
+                } else {
+                  result[field] |= vstart_mask & ~simd_mask;
+                }
+              } else if constexpr (vta == TailProcessing::kAgnostic) {
                 result[field] |= ~simd_mask;
               } else {
                 if (vl < (within_group_id + 1) * kElementsCount) {
@@ -1235,6 +1253,22 @@ class Interpreter {
           return Unimplemented();
         } else {
           return OpVectorWidenvv<intrinsics::Vwaddvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
+      case Decoder::VOpMVvOpcode::kVwadduvv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenvv<intrinsics::Vwadduvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
+      case Decoder::VOpMVvOpcode::kVwsubuvv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenvv<intrinsics::Vwsubuvv<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         }
       default:

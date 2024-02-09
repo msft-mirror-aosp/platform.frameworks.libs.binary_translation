@@ -20,6 +20,6 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libnativewindow",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libnativewindow:native_bridge_proxy_libnativewindow_files"],
+    srcs: [":native_bridge_proxy_libnativewindow_files"],
     shared_libs: ["libnativewindow"],
 }
