@@ -1500,13 +1500,75 @@ class Interpreter {
     Unimplemented();
   }
 
+  // Look for VLoadStrideArgs for explanation about semantics: VStoreStrideArgs is almost symmetric,
+  // except it ignores vta and vma modes and never alters inactive elements in memory.
   template <typename ElementType,
             int kSegmentSize,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
-  void OpVector(const Decoder::VStoreStrideArgs& /*args*/, Register /*src*/, Register /*std*/) {
-    Unimplemented();
+  void OpVector(const Decoder::VStoreStrideArgs& args, Register src, Register stride) {
+    using MaskType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
+    constexpr int kNumRegistersInGroup = static_cast<int>(NumberOfRegistersInvolved(vlmul));
+    if (!IsAligned<kNumRegistersInGroup>(args.data)) {
+      return Unimplemented();
+    }
+    if (args.data + kNumRegistersInGroup * kSegmentSize > 32) {
+      return Unimplemented();
+    }
+    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    int vstart = GetCsr<CsrName::kVstart>();
+    int vl = GetCsr<CsrName::kVl>();
+    ElementType* ptr = ToHostAddr<ElementType>(src);
+    // Note: within_group_id is the current register id within a register group. During one
+    // iteration of this loop we store results for all registers with the current id in all
+    // groups. E.g. for the example above we'd store data from v0, v2, v4 during the first iteration
+    // (id within group = 0), and v1, v3, v5 during the second iteration (id within group = 1). This
+    // ensures that memory is always accessed in ordered fashion.
+    auto mask = GetMaskForVectorOperations<vma>();
+    for (int within_group_id = vstart / kElementsCount; within_group_id < kNumRegistersInGroup;
+         ++within_group_id) {
+      // No need to continue if we no longer have elements to store.
+      if (within_group_id * kElementsCount >= vl) {
+        break;
+      }
+      auto register_mask =
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, within_group_id));
+      // Store elements to memory, but only if there are any active ones.
+      for (int within_register_id = vstart % kElementsCount; within_register_id < kElementsCount;
+           ++within_register_id) {
+        // Stop if we reached the vl limit.
+        if (vl <= kElementsCount * within_group_id + within_register_id) {
+          break;
+        }
+        // Don't touch masked-out elements.
+        if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+          if ((MaskType(register_mask) & MaskType{static_cast<typename MaskType::BaseType>(
+                                             1 << within_register_id)}) == MaskType{0}) {
+            continue;
+          }
+        }
+        // Store segment to memory.
+        for (int field = 0; field < kSegmentSize; ++field) {
+          bool exception_raised = FaultyStore(
+              reinterpret_cast<char*>(ptr + field) +
+                  stride * (within_group_id * kElementsCount + within_register_id),
+              sizeof(ElementType),
+              SIMD128Register{
+                  state_->cpu.v[args.data + within_group_id + field * kNumRegistersInGroup]}
+                  .Get<ElementType>(within_register_id));
+          // Stop processing if memory is inaccessible. It's also the only case where we have to set
+          // vstart to non-zero value!
+          if (exception_raised) {
+            SetCsr<CsrName::kVstart>(within_group_id * kElementsCount + within_register_id);
+            return;
+          }
+        }
+      }
+      // Next group should be fully processed.
+      vstart = 0;
+    }
+    SetCsr<CsrName::kVstart>(0);
   }
 
   template <typename ElementType,
