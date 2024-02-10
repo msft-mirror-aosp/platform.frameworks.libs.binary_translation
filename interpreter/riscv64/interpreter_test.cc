@@ -820,6 +820,125 @@ class Riscv64InterpreterTest : public ::testing::Test {
     Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int32, kNoMask);
   }
 
+  void TestExtendingVectorInstruction(uint32_t insn_bytes,
+                                      const __v8hu (&expected_result_int16)[8],
+                                      const __v4su (&expected_result_int32)[8],
+                                      const __v2du (&expected_result_int64)[8],
+                                      const __v2du (&source)[16],
+                                      const uint8_t factor) {
+    auto Verify = [this, &source, &factor](uint32_t insn_bytes,
+                                           uint8_t vsew,
+                                           uint8_t vlmul_max,
+                                           const auto& expected_result,
+                                           auto mask) {
+      CHECK((factor == 2) || (factor == 4) || (factor == 8));
+      // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
+      // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
+      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
+      for (uint8_t index = 0; index < (8 / factor); ++index) {
+        state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
+      }
+      for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
+        if (vlmul == 3) {
+          continue;
+        }
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          for (uint8_t vma = 0; vma < 2; ++vma) {
+            auto [vlmax, vtype] =
+                intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
+            // Incompatible vsew and vlmax. Skip it.
+            if (vlmax == 0) {
+              continue;
+            }
+            // To make tests quick enough we don't test vstart and vl change with small register
+            // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of
+            // first
+            // register and half of last register.
+            // Don't use vlmul == 3 because that one may not be supported if instruction widens
+            // the result.
+            if (vlmul == 2) {
+              state_.cpu.vstart = vlmax / 8;
+              state_.cpu.vl = (vlmax * 5) / 8;
+            } else {
+              state_.cpu.vstart = 0;
+              state_.cpu.vl = vlmax;
+            }
+            state_.cpu.vtype = vtype;
+
+            // Set expected_result vector registers into 0b01010101… pattern.
+            for (size_t index = 0; index < 8; ++index) {
+              state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+            }
+
+            state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+            EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+
+            // Values for inactive elements (i.e. corresponding mask bit is 0).
+            const size_t n = std::size(source) * 2;
+            __m128i expected_inactive[n];
+            // For most instructions, follow basic inactive processing rules based on vma flag.
+            std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
+
+            if (vlmul < 4) {
+              for (size_t index = 0; index < 1 << vlmul; ++index) {
+                if (index == 0 && vlmul == 2) {
+                  EXPECT_EQ(state_.cpu.v[8 + index],
+                            SIMD128Register{
+                                (kUndisturbedResult & kFractionMaskInt8[3]) |
+                                    (expected_result[index] & mask[index] & ~kFractionMaskInt8[3]) |
+                                    (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])}
+                                .Get<__uint128_t>());
+                } else if (index == 2 && vlmul == 2) {
+                  EXPECT_EQ(
+                      state_.cpu.v[8 + index],
+                      SIMD128Register{
+                          (expected_result[index] & mask[index] & kFractionMaskInt8[3]) |
+                              (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
+                              ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])}
+                          .Get<__uint128_t>());
+                } else if (index == 3 && vlmul == 2 && vta) {
+                  EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kAgnosticResult});
+                } else if (index == 3 && vlmul == 2) {
+                  EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kUndisturbedResult});
+                } else {
+                  EXPECT_EQ(state_.cpu.v[8 + index],
+                            SIMD128Register{(expected_result[index] & mask[index]) |
+                                (expected_inactive[index] & ~mask[index])}
+                                .Get<__uint128_t>());
+                }
+              }
+            } else {
+              EXPECT_EQ(
+                  state_.cpu.v[8],
+                  SIMD128Register{(expected_result[0] & mask[0] & kFractionMaskInt8[vlmul - 4]) |
+                      (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[vlmul - 4]) |
+                      ((vta ? kAgnosticResult : kUndisturbedResult) &
+                          ~kFractionMaskInt8[vlmul - 4])}
+                      .Get<__uint128_t>());
+            }
+
+            if (vlmul == 2) {
+              // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+              EXPECT_EQ(state_.cpu.vstart, 0);
+              EXPECT_EQ(state_.cpu.vl, (vlmax * 5) / 8);
+            }
+          }
+        }
+      }
+    };
+
+    if (factor == 2) {
+      Verify(insn_bytes, 1, 8, expected_result_int16, kMaskInt16);
+      Verify(insn_bytes | (1 << 25), 1, 8, expected_result_int16, kNoMask);
+    }
+    if (factor == 2 || factor == 4) {
+      Verify(insn_bytes, 2, 8, expected_result_int32, kMaskInt32);
+      Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int32, kNoMask);
+    }
+    Verify(insn_bytes, 3, 8, expected_result_int64, kMaskInt64);
+    Verify(insn_bytes | (1 << 25), 3, 8, expected_result_int64, kNoMask);
+  }
+
   void TestVectorMaskInstruction(uint8_t max_vstart,
                                  intrinsics::InactiveProcessing vma,
                                  uint32_t insn_bytes,
@@ -1209,6 +1328,26 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
  protected:
+  static constexpr __v2du kVectorCalculationsSource[16] = {
+      {0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908},
+      {0x9716'9514'9312'9110, 0x9f1e'9d1c'9b1a'9918},
+      {0xa726'a524'a322'a120, 0xaf2e'ad2c'ab2a'a928},
+      {0xb736'b534'b332'b130, 0xbf3e'bd3c'bb3a'b938},
+      {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+      {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+      {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+      {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978},
+
+      {0x9e0c'9a09'9604'9200, 0x8e1c'8a18'8614'8211},
+      {0xbe2c'ba29'b624'b220, 0xae3c'aa38'a634'a231},
+      {0xde4c'da49'd644'd240, 0xce5c'ca58'c654'c251},
+      {0xfe6c'fa69'f664'f260, 0xee7c'ea78'e674'e271},
+      {0x1e8c'1a89'1684'1280, 0x0e9c'0a98'0694'0291},
+      {0x3eac'3aa9'36a4'32a0, 0x2ebc'2ab8'26b4'22b1},
+      {0x5ecc'5ac9'56c4'52c0, 0x4edc'4ad8'46d4'42d1},
+      {0x7eec'7ae9'76e4'72e0, 0x6efc'6af8'66f4'62f1},
+  };
+
   static constexpr __v2du kVectorCalculationsSourceLegacy[16] = {
       {0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908},
       {0x9716'9514'9312'9110, 0x9f1e'9d1c'9b1a'9918},
@@ -5076,89 +5215,89 @@ TEST_F(Riscv64InterpreterTest, TestVslidedown) {
 
 TEST_F(Riscv64InterpreterTest, TestVwadd) {
   TestWideningVectorInstruction(0xc50c2457,  // vwadd.vv v8,v16,v24,v0.t
-                                {{0x0000, 0x0083, 0x0006, 0x0089, 0x000d, 0x008f, 0x0012, 0x0095},
-                                 {0x0019, 0x009b, 0x001e, 0x00a1, 0x0024, 0x00a7, 0x002a, 0x00ad},
-                                 {0x0030, 0x00b3, 0x0036, 0x00b9, 0x003d, 0x00bf, 0x0042, 0x00c5},
-                                 {0x0049, 0x00cb, 0x004e, 0x00d1, 0x0054, 0x00d7, 0x005a, 0x00dd},
-                                 {0x0060, 0x00e3, 0x0066, 0x00e9, 0x006d, 0x00ef, 0x0072, 0x00f5},
-                                 {0x0079, 0x00fb, 0x007e, 0x0101, 0x0084, 0x0107, 0x008a, 0x010d},
-                                 {0x0090, 0x0113, 0x0096, 0x0119, 0x009d, 0x011f, 0x00a2, 0x0125},
-                                 {0x00a9, 0x012b, 0x00ae, 0x0131, 0x00b4, 0x0137, 0x00ba, 0x013d}},
-                                {{0x0000'8300, 0x0000'8906, 0x0000'8f0d, 0x0000'9512},
-                                 {0x0000'9b19, 0x0000'a11e, 0x0000'a724, 0x0000'ad2a},
-                                 {0x0000'b330, 0x0000'b936, 0x0000'bf3d, 0x0000'c542},
-                                 {0x0000'cb49, 0x0000'd14e, 0x0000'd754, 0x0000'dd5a},
-                                 {0x0000'e360, 0x0000'e966, 0x0000'ef6d, 0x0000'f572},
-                                 {0x0000'fb79, 0x0001'017e, 0x0001'0784, 0x0001'0d8a},
-                                 {0x0001'1390, 0x0001'1996, 0x0001'1f9d, 0x0001'25a2},
-                                 {0x0001'2ba9, 0x0001'31ae, 0x0001'37b4, 0x0001'3dba}},
-                                {{0x0000'0000'8906'8300, 0x0000'0000'9512'8f0d},
-                                 {0x0000'0000'a11e'9b19, 0x0000'0000'ad2a'a724},
-                                 {0x0000'0000'b936'b330, 0x0000'0000'c542'bf3d},
-                                 {0x0000'0000'd14e'cb49, 0x0000'0000'dd5a'd754},
-                                 {0x0000'0000'e966'e360, 0x0000'0000'f572'ef6d},
-                                 {0x0000'0001'017e'fb79, 0x0000'0001'0d8b'0784},
-                                 {0x0000'0001'1997'1390, 0x0000'0001'25a3'1f9d},
-                                 {0x0000'0001'31af'2ba9, 0x0000'0001'3dbb'37b4}},
-                                kVectorCalculationsSourceLegacy);
+                                {{0x0000, 0xff13, 0x0006, 0xff19, 0x000d, 0xff1f, 0x0012, 0xff25},
+                                 {0x0019, 0xff0b, 0x001e, 0xff11, 0x0024, 0xff17, 0x002a, 0xff1d},
+                                 {0x0030, 0xff43, 0x0036, 0xff49, 0x003d, 0xff4f, 0x0042, 0xff55},
+                                 {0x0049, 0xff3b, 0x004e, 0xff41, 0x0054, 0xff47, 0x005a, 0xff4d},
+                                 {0x0060, 0xff73, 0x0066, 0xff79, 0x006d, 0xff7f, 0x0072, 0xff85},
+                                 {0x0079, 0xff6b, 0x007e, 0xff71, 0x0084, 0xff77, 0x008a, 0xff7d},
+                                 {0x0090, 0xffa3, 0x0096, 0xffa9, 0x009d, 0xffaf, 0x00a2, 0xffb5},
+                                 {0x00a9, 0xff9b, 0x00ae, 0xffa1, 0x00b4, 0xffa7, 0x00ba, 0xffad}},
+                                {{0xffff'1300, 0xffff'1906, 0xffff'1f0d, 0xffff'2512},
+                                 {0xffff'0b19, 0xffff'111e, 0xffff'1724, 0xffff'1d2a},
+                                 {0xffff'4330, 0xffff'4936, 0xffff'4f3d, 0xffff'5542},
+                                 {0xffff'3b49, 0xffff'414e, 0xffff'4754, 0xffff'4d5a},
+                                 {0xffff'7360, 0xffff'7966, 0xffff'7f6d, 0xffff'8572},
+                                 {0xffff'6b79, 0xffff'717e, 0xffff'7784, 0xffff'7d8a},
+                                 {0xffff'a390, 0xffff'a996, 0xffff'af9d, 0xffff'b5a2},
+                                 {0xffff'9ba9, 0xffff'a1ae, 0xffff'a7b4, 0xffff'adba}},
+                                {{0xffff'ffff'1907'1300, 0xffff'ffff'2513'1f0d},
+                                 {0xffff'ffff'111f'0b19, 0xffff'ffff'1d2b'1724},
+                                 {0xffff'ffff'4937'4330, 0xffff'ffff'5543'4f3d},
+                                 {0xffff'ffff'414f'3b49, 0xffff'ffff'4d5b'4754},
+                                 {0xffff'ffff'7967'7360, 0xffff'ffff'8573'7f6d},
+                                 {0xffff'ffff'717f'6b79, 0xffff'ffff'7d8b'7784},
+                                 {0xffff'ffff'a997'a390, 0xffff'ffff'b5a3'af9d},
+                                 {0xffff'ffff'a1af'9ba9, 0xffff'ffff'adbb'a7b4}},
+                                kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVwaddu) {
   TestWideningVectorInstruction(0xc10c2457,  // vwaddu.vv v8, v16, v24, v0.t
-                                {{0x0000, 0x0083, 0x0006, 0x0089, 0x000d, 0x008f, 0x0012, 0x0095},
-                                 {0x0019, 0x009b, 0x001e, 0x00a1, 0x0024, 0x00a7, 0x002a, 0x00ad},
-                                 {0x0030, 0x00b3, 0x0036, 0x00b9, 0x003d, 0x00bf, 0x0042, 0x00c5},
-                                 {0x0049, 0x00cb, 0x004e, 0x00d1, 0x0054, 0x00d7, 0x005a, 0x00dd},
-                                 {0x0060, 0x00e3, 0x0066, 0x00e9, 0x006d, 0x00ef, 0x0072, 0x00f5},
-                                 {0x0079, 0x00fb, 0x007e, 0x0101, 0x0084, 0x0107, 0x008a, 0x010d},
-                                 {0x0090, 0x0113, 0x0096, 0x0119, 0x009d, 0x011f, 0x00a2, 0x0125},
-                                 {0x00a9, 0x012b, 0x00ae, 0x0131, 0x00b4, 0x0137, 0x00ba, 0x013d}},
-                                {{0x0000'8300, 0x0000'8906, 0x0000'8f0d, 0x0000'9512},
-                                 {0x0000'9b19, 0x0000'a11e, 0x0000'a724, 0x0000'ad2a},
-                                 {0x0000'b330, 0x0000'b936, 0x0000'bf3d, 0x0000'c542},
-                                 {0x0000'cb49, 0x0000'd14e, 0x0000'd754, 0x0000'dd5a},
-                                 {0x0000'e360, 0x0000'e966, 0x0000'ef6d, 0x0000'f572},
-                                 {0x0000'fb79, 0x0001'017e, 0x0001'0784, 0x0001'0d8a},
-                                 {0x0001'1390, 0x0001'1996, 0x0001'1f9d, 0x0001'25a2},
-                                 {0x0001'2ba9, 0x0001'31ae, 0x0001'37b4, 0x0001'3dba}},
-                                {{0x0000'0000'8906'8300, 0x0000'0000'9512'8f0d},
-                                 {0x0000'0000'a11e'9b19, 0x0000'0000'ad2a'a724},
-                                 {0x0000'0000'b936'b330, 0x0000'0000'c542'bf3d},
-                                 {0x0000'0000'd14e'cb49, 0x0000'0000'dd5a'd754},
-                                 {0x0000'0000'e966'e360, 0x0000'0000'f572'ef6d},
-                                 {0x0000'0001'017e'fb79, 0x0000'0001'0d8b'0784},
-                                 {0x0000'0001'1997'1390, 0x0000'0001'25a3'1f9d},
-                                 {0x0000'0001'31af'2ba9, 0x0000'0001'3dbb'37b4}},
-                                kVectorCalculationsSourceLegacy);
+                                {{0x0000, 0x0113, 0x0006, 0x0119, 0x000d, 0x011f, 0x0012, 0x0125},
+                                 {0x0019, 0x010b, 0x001e, 0x0111, 0x0024, 0x0117, 0x002a, 0x011d},
+                                 {0x0030, 0x0143, 0x0036, 0x0149, 0x003d, 0x014f, 0x0042, 0x0155},
+                                 {0x0049, 0x013b, 0x004e, 0x0141, 0x0054, 0x0147, 0x005a, 0x014d},
+                                 {0x0060, 0x0173, 0x0066, 0x0179, 0x006d, 0x017f, 0x0072, 0x0185},
+                                 {0x0079, 0x016b, 0x007e, 0x0171, 0x0084, 0x0177, 0x008a, 0x017d},
+                                 {0x0090, 0x01a3, 0x0096, 0x01a9, 0x009d, 0x01af, 0x00a2, 0x01b5},
+                                 {0x00a9, 0x019b, 0x00ae, 0x01a1, 0x00b4, 0x01a7, 0x00ba, 0x01ad}},
+                                {{0x0001'1300, 0x0001'1906, 0x0001'1f0d, 0x0001'2512},
+                                 {0x0001'0b19, 0x0001'111e, 0x0001'1724, 0x0001'1d2a},
+                                 {0x0001'4330, 0x0001'4936, 0x0001'4f3d, 0x0001'5542},
+                                 {0x0001'3b49, 0x0001'414e, 0x0001'4754, 0x0001'4d5a},
+                                 {0x0001'7360, 0x0001'7966, 0x0001'7f6d, 0x0001'8572},
+                                 {0x0001'6b79, 0x0001'717e, 0x0001'7784, 0x0001'7d8a},
+                                 {0x0001'a390, 0x0001'a996, 0x0001'af9d, 0x0001'b5a2},
+                                 {0x0001'9ba9, 0x0001'a1ae, 0x0001'a7b4, 0x0001'adba}},
+                                {{0x0000'0001'1907'1300, 0x0000'0001'2513'1f0d},
+                                 {0x0000'0001'111f'0b19, 0x0000'0001'1d2b'1724},
+                                 {0x0000'0001'4937'4330, 0x0000'0001'5543'4f3d},
+                                 {0x0000'0001'414f'3b49, 0x0000'0001'4d5b'4754},
+                                 {0x0000'0001'7967'7360, 0x0000'0001'8573'7f6d},
+                                 {0x0000'0001'717f'6b79, 0x0000'0001'7d8b'7784},
+                                 {0x0000'0001'a997'a390, 0x0000'0001'b5a3'af9d},
+                                 {0x0000'0001'a1af'9ba9, 0x0000'0001'adbb'a7b4}},
+                                kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVwsubu) {
   TestWideningVectorInstruction(0xc90c2457,  // vwsubu.vv v8, v16, v24, v0.t
-                                {{0x0000, 0x007f, 0xfffe, 0x007d, 0xfffb, 0x007b, 0xfffa, 0x0079},
-                                 {0xfff7, 0x0077, 0xfff6, 0x0075, 0xfff4, 0x0073, 0xfff2, 0x0071},
-                                 {0xfff0, 0x006f, 0xffee, 0x006d, 0xffeb, 0x006b, 0xffea, 0x0069},
-                                 {0xffe7, 0x0067, 0xffe6, 0x0065, 0xffe4, 0x0063, 0xffe2, 0x0061},
-                                 {0xffe0, 0x005f, 0xffde, 0x005d, 0xffdb, 0x005b, 0xffda, 0x0059},
-                                 {0xffd7, 0x0057, 0xffd6, 0x0055, 0xffd4, 0x0053, 0xffd2, 0x0051},
-                                 {0xffd0, 0x004f, 0xffce, 0x004d, 0xffcb, 0x004b, 0xffca, 0x0049},
-                                 {0xffc7, 0x0047, 0xffc6, 0x0045, 0xffc4, 0x0043, 0xffc2, 0x0041}},
-                                {{0x0000'7f00, 0x0000'7cfe, 0x0000'7afb, 0x0000'78fa},
-                                 {0x0000'76f7, 0x0000'74f6, 0x0000'72f4, 0x0000'70f2},
-                                 {0x0000'6ef0, 0x0000'6cee, 0x0000'6aeb, 0x0000'68ea},
-                                 {0x0000'66e7, 0x0000'64e6, 0x0000'62e4, 0x0000'60e2},
-                                 {0x0000'5ee0, 0x0000'5cde, 0x0000'5adb, 0x0000'58da},
-                                 {0x0000'56d7, 0x0000'54d6, 0x0000'52d4, 0x0000'50d2},
-                                 {0x0000'4ed0, 0x0000'4cce, 0x0000'4acb, 0x0000'48ca},
-                                 {0x0000'46c7, 0x0000'44c6, 0x0000'42c4, 0x0000'40c2}},
-                                {{0x0000'0000'7cfe'7f00, 0x0000'0000'78fa'7afb},
-                                 {0x0000'0000'74f6'76f7, 0x0000'0000'70f2'72f4},
-                                 {0x0000'0000'6cee'6ef0, 0x0000'0000'68ea'6aeb},
-                                 {0x0000'0000'64e6'66e7, 0x0000'0000'60e2'62e4},
-                                 {0x0000'0000'5cde'5ee0, 0x0000'0000'58da'5adb},
-                                 {0x0000'0000'54d6'56d7, 0x0000'0000'50d2'52d4},
-                                 {0x0000'0000'4cce'4ed0, 0x0000'0000'48ca'4acb},
-                                 {0x0000'0000'44c6'46c7, 0x0000'0000'40c2'42c4}},
-                                kVectorCalculationsSourceLegacy);
+                                {{0x0000, 0xffef, 0xfffe, 0xffed, 0xfffb, 0xffeb, 0xfffa, 0xffe9},
+                                 {0xfff7, 0x0007, 0xfff6, 0x0005, 0xfff4, 0x0003, 0xfff2, 0x0001},
+                                 {0xfff0, 0xffdf, 0xffee, 0xffdd, 0xffeb, 0xffdb, 0xffea, 0xffd9},
+                                 {0xffe7, 0xfff7, 0xffe6, 0xfff5, 0xffe4, 0xfff3, 0xffe2, 0xfff1},
+                                 {0xffe0, 0xffcf, 0xffde, 0xffcd, 0xffdb, 0xffcb, 0xffda, 0xffc9},
+                                 {0xffd7, 0xffe7, 0xffd6, 0xffe5, 0xffd4, 0xffe3, 0xffd2, 0xffe1},
+                                 {0xffd0, 0xffbf, 0xffce, 0xffbd, 0xffcb, 0xffbb, 0xffca, 0xffb9},
+                                 {0xffc7, 0xffd7, 0xffc6, 0xffd5, 0xffc4, 0xffd3, 0xffc2, 0xffd1}},
+                                {{0xffff'ef00, 0xffff'ecfe, 0xffff'eafb, 0xffff'e8fa},
+                                 {0x0000'06f7, 0x0000'04f6, 0x0000'02f4, 0x0000'00f2},
+                                 {0xffff'def0, 0xffff'dcee, 0xffff'daeb, 0xffff'd8ea},
+                                 {0xffff'f6e7, 0xffff'f4e6, 0xffff'f2e4, 0xffff'f0e2},
+                                 {0xffff'cee0, 0xffff'ccde, 0xffff'cadb, 0xffff'c8da},
+                                 {0xffff'e6d7, 0xffff'e4d6, 0xffff'e2d4, 0xffff'e0d2},
+                                 {0xffff'bed0, 0xffff'bcce, 0xffff'bacb, 0xffff'b8ca},
+                                 {0xffff'd6c7, 0xffff'd4c6, 0xffff'd2c4, 0xffff'd0c2}},
+                                {{0xffff'ffff'ecfd'ef00, 0xffff'ffff'e8f9'eafb},
+                                 {0x0000'0000'04f6'06f7, 0x0000'0000'00f2'02f4},
+                                 {0xffff'ffff'dced'def0, 0xffff'ffff'd8e9'daeb},
+                                 {0xffff'ffff'f4e5'f6e7, 0xffff'ffff'f0e1'f2e4},
+                                 {0xffff'ffff'ccdd'cee0, 0xffff'ffff'c8d9'cadb},
+                                 {0xffff'ffff'e4d5'e6d7, 0xffff'ffff'e0d1'e2d4},
+                                 {0xffff'ffff'bccd'bed0, 0xffff'ffff'b8c9'bacb},
+                                 {0xffff'ffff'd4c5'd6c7, 0xffff'ffff'd0c1'd2c4}},
+                                kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVseXX) {
@@ -5408,6 +5547,137 @@ TEST_F(Riscv64InterpreterTest, TestVfirstm) {
       kVectorCalculationsSourceLegacy[0]);
 }
 
+TEST_F(Riscv64InterpreterTest, TestVXext) {
+  TestExtendingVectorInstruction(
+      0x49012457,  // vzext.vf8 v8,v16,v0.t
+      {}, {},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0081},
+       {0x0000'0000'0000'0002, 0x0000'0000'0000'0083},
+       {0x0000'0000'0000'0004, 0x0000'0000'0000'0085},
+       {0x0000'0000'0000'0006, 0x0000'0000'0000'0087},
+       {0x0000'0000'0000'0008, 0x0000'0000'0000'0089},
+       {0x0000'0000'0000'000a, 0x0000'0000'0000'008b},
+       {0x0000'0000'0000'000c, 0x0000'0000'0000'008d},
+       {0x0000'0000'0000'000e, 0x0000'0000'0000'008f}},
+      kVectorCalculationsSource,
+      8);
+
+  TestExtendingVectorInstruction(
+      0x4901a457,  // vsext.vf8 v8,v16,v0.t
+      {}, {},
+      {{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ff81},
+       {0x0000'0000'0000'0002, 0xffff'ffff'ffff'ff83},
+       {0x0000'0000'0000'0004, 0xffff'ffff'ffff'ff85},
+       {0x0000'0000'0000'0006, 0xffff'ffff'ffff'ff87},
+       {0x0000'0000'0000'0008, 0xffff'ffff'ffff'ff89},
+       {0x0000'0000'0000'000a, 0xffff'ffff'ffff'ff8b},
+       {0x0000'0000'0000'000c, 0xffff'ffff'ffff'ff8d},
+       {0x0000'0000'0000'000e, 0xffff'ffff'ffff'ff8f}},
+      kVectorCalculationsSource,
+      8);
+
+  TestExtendingVectorInstruction(
+      0x49022457,  // vzext.vf4 v8, v16, v0.t
+      {},
+      {{0x0000'0000, 0x0000'0081, 0x0000'0002, 0x0000'0083},
+       {0x0000'0004, 0x0000'0085, 0x0000'0006, 0x0000'0087},
+       {0x0000'0008, 0x0000'0089, 0x0000'000a, 0x0000'008b},
+       {0x0000'000c, 0x0000'008d, 0x0000'000e, 0x0000'008f},
+       {0x0000'0010, 0x0000'0091, 0x0000'0012, 0x0000'0093},
+       {0x0000'0014, 0x0000'0095, 0x0000'0016, 0x0000'0097},
+       {0x0000'0018, 0x0000'0099, 0x0000'001a, 0x0000'009b},
+       {0x0000'001c, 0x0000'009d, 0x0000'001e, 0x0000'009f}},
+      {{0x0000'0000'0000'8100, 0x0000'0000'0000'8302},
+       {0x0000'0000'0000'8504, 0x0000'0000'0000'8706},
+       {0x0000'0000'0000'8908, 0x0000'0000'0000'8b0a},
+       {0x0000'0000'0000'8d0c, 0x0000'0000'0000'8f0e},
+       {0x0000'0000'0000'9110, 0x0000'0000'0000'9312},
+       {0x0000'0000'0000'9514, 0x0000'0000'0000'9716},
+       {0x0000'0000'0000'9918, 0x0000'0000'0000'9b1a},
+       {0x0000'0000'0000'9d1c, 0x0000'0000'0000'9f1e}},
+      kVectorCalculationsSource,
+      4);
+
+  TestExtendingVectorInstruction(
+      0x4902a457,  // vsext.vf4 v8,v16,v0.t
+      {},
+      {{0x0000'0000, 0xffff'ff81, 0x0000'0002, 0xffff'ff83},
+       {0x0000'0004, 0xffff'ff85, 0x0000'0006, 0xffff'ff87},
+       {0x0000'0008, 0xffff'ff89, 0x0000'000a, 0xffff'ff8b},
+       {0x0000'000c, 0xffff'ff8d, 0x0000'000e, 0xffff'ff8f},
+       {0x0000'0010, 0xffff'ff91, 0x0000'0012, 0xffff'ff93},
+       {0x0000'0014, 0xffff'ff95, 0x0000'0016, 0xffff'ff97},
+       {0x0000'0018, 0xffff'ff99, 0x0000'001a, 0xffff'ff9b},
+       {0x0000'001c, 0xffff'ff9d, 0x0000'001e, 0xffff'ff9f}},
+      {{0xffff'ffff'ffff'8100, 0xffff'ffff'ffff'8302},
+       {0xffff'ffff'ffff'8504, 0xffff'ffff'ffff'8706},
+       {0xffff'ffff'ffff'8908, 0xffff'ffff'ffff'8b0a},
+       {0xffff'ffff'ffff'8d0c, 0xffff'ffff'ffff'8f0e},
+       {0xffff'ffff'ffff'9110, 0xffff'ffff'ffff'9312},
+       {0xffff'ffff'ffff'9514, 0xffff'ffff'ffff'9716},
+       {0xffff'ffff'ffff'9918, 0xffff'ffff'ffff'9b1a},
+       {0xffff'ffff'ffff'9d1c, 0xffff'ffff'ffff'9f1e}},
+      kVectorCalculationsSource,
+      4);
+
+  TestExtendingVectorInstruction(
+      0x49032457,  // vzext.vf2 v8,v16,v0.t
+      {{0x0000, 0x0081, 0x0002, 0x0083, 0x0004, 0x0085, 0x0006, 0x0087},
+       {0x0008, 0x0089, 0x000a, 0x008b, 0x000c, 0x008d, 0x000e, 0x008f},
+       {0x0010, 0x0091, 0x0012, 0x0093, 0x0014, 0x0095, 0x0016, 0x0097},
+       {0x0018, 0x0099, 0x001a, 0x009b, 0x001c, 0x009d, 0x001e, 0x009f},
+       {0x0020, 0x00a1, 0x0022, 0x00a3, 0x0024, 0x00a5, 0x0026, 0x00a7},
+       {0x0028, 0x00a9, 0x002a, 0x00ab, 0x002c, 0x00ad, 0x002e, 0x00af},
+       {0x0030, 0x00b1, 0x0032, 0x00b3, 0x0034, 0x00b5, 0x0036, 0x00b7},
+       {0x0038, 0x00b9, 0x003a, 0x00bb, 0x003c, 0x00bd, 0x003e, 0x00bf}},
+      {{0x0000'8100, 0x0000'8302, 0x0000'8504, 0x0000'8706},
+       {0x0000'8908, 0x0000'8b0a, 0x0000'8d0c, 0x0000'8f0e},
+       {0x0000'9110, 0x0000'9312, 0x0000'9514, 0x0000'9716},
+       {0x0000'9918, 0x0000'9b1a, 0x0000'9d1c, 0x0000'9f1e},
+       {0x0000'a120, 0x0000'a322, 0x0000'a524, 0x0000'a726},
+       {0x0000'a928, 0x0000'ab2a, 0x0000'ad2c, 0x0000'af2e},
+       {0x0000'b130, 0x0000'b332, 0x0000'b534, 0x0000'b736},
+       {0x0000'b938, 0x0000'bb3a, 0x0000'bd3c, 0x0000'bf3e}},
+      {{0x0000'0000'8302'8100, 0x0000'0000'8706'8504},
+       {0x0000'0000'8b0a'8908, 0x0000'0000'8f0e'8d0c},
+       {0x0000'0000'9312'9110, 0x0000'0000'9716'9514},
+       {0x0000'0000'9b1a'9918, 0x0000'0000'9f1e'9d1c},
+       {0x0000'0000'a322'a120, 0x0000'0000'a726'a524},
+       {0x0000'0000'ab2a'a928, 0x0000'0000'af2e'ad2c},
+       {0x0000'0000'b332'b130, 0x0000'0000'b736'b534},
+       {0x0000'0000'bb3a'b938, 0x0000'0000'bf3e'bd3c}},
+      kVectorCalculationsSource,
+      2);
+
+  TestExtendingVectorInstruction(
+      0x4903a457,  // vsext.vf2 v8,v16,v0.t
+      {{0x0000, 0xff81, 0x0002, 0xff83, 0x0004, 0xff85, 0x0006, 0xff87},
+       {0x0008, 0xff89, 0x000a, 0xff8b, 0x000c, 0xff8d, 0x000e, 0xff8f},
+       {0x0010, 0xff91, 0x0012, 0xff93, 0x0014, 0xff95, 0x0016, 0xff97},
+       {0x0018, 0xff99, 0x001a, 0xff9b, 0x001c, 0xff9d, 0x001e, 0xff9f},
+       {0x0020, 0xffa1, 0x0022, 0xffa3, 0x0024, 0xffa5, 0x0026, 0xffa7},
+       {0x0028, 0xffa9, 0x002a, 0xffab, 0x002c, 0xffad, 0x002e, 0xffaf},
+       {0x0030, 0xffb1, 0x0032, 0xffb3, 0x0034, 0xffb5, 0x0036, 0xffb7},
+       {0x0038, 0xffb9, 0x003a, 0xffbb, 0x003c, 0xffbd, 0x003e, 0xffbf}},
+      {{0xffff'8100, 0xffff'8302, 0xffff'8504, 0xffff'8706},
+       {0xffff'8908, 0xffff'8b0a, 0xffff'8d0c, 0xffff'8f0e},
+       {0xffff'9110, 0xffff'9312, 0xffff'9514, 0xffff'9716},
+       {0xffff'9918, 0xffff'9b1a, 0xffff'9d1c, 0xffff'9f1e},
+       {0xffff'a120, 0xffff'a322, 0xffff'a524, 0xffff'a726},
+       {0xffff'a928, 0xffff'ab2a, 0xffff'ad2c, 0xffff'af2e},
+       {0xffff'b130, 0xffff'b332, 0xffff'b534, 0xffff'b736},
+       {0xffff'b938, 0xffff'bb3a, 0xffff'bd3c, 0xffff'bf3e}},
+      {{0xffff'ffff'8302'8100, 0xffff'ffff'8706'8504},
+       {0xffff'ffff'8b0a'8908, 0xffff'ffff'8f0e'8d0c},
+       {0xffff'ffff'9312'9110, 0xffff'ffff'9716'9514},
+       {0xffff'ffff'9b1a'9918, 0xffff'ffff'9f1e'9d1c},
+       {0xffff'ffff'a322'a120, 0xffff'ffff'a726'a524},
+       {0xffff'ffff'ab2a'a928, 0xffff'ffff'af2e'ad2c},
+       {0xffff'ffff'b332'b130, 0xffff'ffff'b736'b534},
+       {0xffff'ffff'bb3a'b938, 0xffff'ffff'bf3e'bd3c}},
+      kVectorCalculationsSource,
+      2);
+}
 }  // namespace
 
 }  // namespace berberis
