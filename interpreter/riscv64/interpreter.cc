@@ -742,6 +742,54 @@ class Interpreter {
         args, src, stride);
   }
 
+  template <typename ElementType,
+            int kSegmentSize,
+            size_t kNumRegistersInGroup,
+            TailProcessing vta,
+            auto vma>
+  void OpVector(const Decoder::VLoadStrideArgs& args, Register src, Register stride) {
+    return OpVectorLoad<ElementType, kSegmentSize, kNumRegistersInGroup, vta, vma>(
+        args.dst, src, [stride](size_t index) { return stride * index; });
+  }
+
+  template <typename ElementType,
+            int kSegmentSize,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma>
+  void OpVector(const Decoder::VLoadUnitStrideArgs& args, Register src) {
+    return OpVector<ElementType, kSegmentSize, NumberOfRegistersInvolved(vlmul), vta, vma>(args,
+                                                                                           src);
+  }
+
+  template <typename ElementType,
+            int kSegmentSize,
+            size_t kNumRegistersInGroup,
+            TailProcessing vta,
+            auto vma>
+  void OpVector(const Decoder::VLoadUnitStrideArgs& args, Register src) {
+    switch (args.opcode) {
+      case Decoder::VLoadUnitStrideOpcode::kVleXXff:
+        return OpVectorLoad<ElementType,
+                            kSegmentSize,
+                            kNumRegistersInGroup,
+                            vta,
+                            vma,
+                            Decoder::VLoadUnitStrideOpcode::kVleXXff>(
+            args.dst, src, [](size_t index) { return kSegmentSize * sizeof(ElementType) * index; });
+      case Decoder::VLoadUnitStrideOpcode::kVleXX:
+        return OpVectorLoad<ElementType,
+                            kSegmentSize,
+                            kNumRegistersInGroup,
+                            vta,
+                            vma,
+                            Decoder::VLoadUnitStrideOpcode::kVleXX>(
+            args.dst, src, [](size_t index) { return kSegmentSize * sizeof(ElementType) * index; });
+      default:
+        return Unimplemented();
+    }
+  }
+
   // The strided version of segmented load sounds like something very convoluted and complicated
   // that no one may ever want to use, but it's not rare and may be illustrated with simple RGB
   // bitmap window.
@@ -768,22 +816,28 @@ class Interpreter {
   //   v5: {B:20.21}{B:30.21}
   // Now we have loaded a column from memory and all three colors are put into a different register
   // groups for further processing.
-  template <typename ElementType,
-            int kSegmentSize,
-            size_t kNumRegistersInGroup,
-            TailProcessing vta,
-            auto vma>
-  void OpVector(const Decoder::VLoadStrideArgs& args, Register src, Register stride) {
+  template <
+      typename ElementType,
+      int kSegmentSize,
+      size_t kNumRegistersInGroup,
+      TailProcessing vta,
+      auto vma,
+      typename Decoder::VLoadUnitStrideOpcode opcode = typename Decoder::VLoadUnitStrideOpcode{},
+      typename GetElementOffsetLambdaType>
+  void OpVectorLoad(uint8_t dst, Register src, GetElementOffsetLambdaType GetElementOffset) {
     using MaskType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
-    if (!IsAligned<kNumRegistersInGroup>(args.dst)) {
+    if (!IsAligned<kNumRegistersInGroup>(dst)) {
       return Unimplemented();
     }
-    if (args.dst + kNumRegistersInGroup * kSegmentSize >= 32) {
+    if (dst + kNumRegistersInGroup * kSegmentSize >= 32) {
       return Unimplemented();
     }
     constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    // In case of memory access fault we may set vstart to non-zero value, set it to zero here to
+    // simplify the logic below.
+    SetCsr<CsrName::kVstart>(0);
     if constexpr (vta == TailProcessing::kAgnostic) {
       vstart = std::min(vstart, vl);
     }
@@ -793,7 +847,7 @@ class Interpreter {
     // within group = 0), and v1, v3, v5 during the second iteration (id within group = 1). This
     // ensures that memory is always accessed in ordered fashion.
     std::array<SIMD128Register, kSegmentSize> result;
-    ElementType* ptr = ToHostAddr<ElementType>(src);
+    char* ptr = ToHostAddr<char>(src);
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t within_group_id = vstart / kElementsCount; within_group_id < kNumRegistersInGroup;
          ++within_group_id) {
@@ -815,15 +869,15 @@ class Interpreter {
             static_cast<InactiveProcessing>(vma) != InactiveProcessing::kUndisturbed ||
             register_mask == full_mask)) {
         for (int field = 0; field < kSegmentSize; ++field) {
-          result[field].Set(
-              state_->cpu.v[args.dst + within_group_id + field * kNumRegistersInGroup]);
+          result[field].Set(state_->cpu.v[dst + within_group_id + field * kNumRegistersInGroup]);
         }
       }
       // Read elements from memory, but only if there are any active ones.
       for (size_t within_register_id = vstart % kElementsCount; within_register_id < kElementsCount;
            ++within_register_id) {
+        size_t element_index = kElementsCount * within_group_id + within_register_id;
         // Stop if we reached the vl limit.
-        if (vl <= kElementsCount * within_group_id + within_register_id) {
+        if (vl <= element_index) {
           break;
         }
         // Don't touch masked-out elements.
@@ -836,12 +890,30 @@ class Interpreter {
         // Load segment from memory.
         for (int field = 0; field < kSegmentSize; ++field) {
           FaultyLoadResult mem_access_result =
-              FaultyLoad(reinterpret_cast<char*>(ptr + field) +
-                             stride * (within_group_id * kElementsCount + within_register_id),
+              FaultyLoad(ptr + field * sizeof(ElementType) + GetElementOffset(element_index),
                          sizeof(ElementType));
           if (mem_access_result.is_fault) {
-            exception_raised_ = true;
-            return;
+            // Documentation doesn't tell us what we are supposed to do to remaining elements when
+            // access fault happens but let's trigger an exception and treat the remaining elements
+            // using vta-specified strategy by simply just adjusting the vl.
+            vl = element_index;
+            if constexpr (opcode == Decoder::VLoadUnitStrideOpcode::kVleXXff) {
+              // Fail-first load only triggers exceptions for the first element, otherwise it
+              // changes vl to ensure that other operations would only process elements that are
+              // successfully loaded.
+              if (element_index == 0) [[unlikely]] {
+                exception_raised_ = true;
+              } else {
+                // TODO(b/323994286): Write a test case to verify vl changes correctly.
+                SetCsr<CsrName::kVl>(element_index);
+              }
+            } else {
+              // Most load instructions set vstart to failing element which then may be processed
+              // by exception handler.
+              exception_raised_ = true;
+              SetCsr<CsrName::kVstart>(element_index);
+            }
+            break;
           }
           result[field].template Set<ElementType>(static_cast<ElementType>(mem_access_result.value),
                                                   within_register_id);
@@ -902,89 +974,11 @@ class Interpreter {
       }
       // Put values back into register file.
       for (int field = 0; field < kSegmentSize; ++field) {
-        state_->cpu.v[args.dst + within_group_id + field * kNumRegistersInGroup] =
+        state_->cpu.v[dst + within_group_id + field * kNumRegistersInGroup] =
             result[field].template Get<__uint128_t>();
       }
       // Next group should be fully processed.
       vstart = 0;
-    }
-    SetCsr<CsrName::kVstart>(0);
-  }
-
-  template <typename ElementType,
-            int kSegmentSize,
-            VectorRegisterGroupMultiplier vlmul,
-            TailProcessing vta,
-            auto vma>
-  void OpVector(const Decoder::VLoadUnitStrideArgs& args, Register src) {
-    return OpVector<ElementType, kSegmentSize, NumberOfRegistersInvolved(vlmul), vta, vma>(args,
-                                                                                           src);
-  }
-
-  template <typename ElementType,
-            int kSegmentSize,
-            size_t kRegistersInvolved,
-            TailProcessing vta,
-            auto vma>
-  void OpVector(const Decoder::VLoadUnitStrideArgs& args, Register src) {
-    size_t vstart = GetCsr<CsrName::kVstart>();
-    size_t vl = GetCsr<CsrName::kVl>();
-    ElementType* ptr = ToHostAddr<ElementType>(src);
-    SIMD128Register orig_result, result;
-    __uint128_t mask;
-    if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-      mask = state_->cpu.v[0];
-    }
-
-    switch (args.opcode) {
-      case Decoder::VLoadUnitStrideOpcode::kVleXXff:
-      case Decoder::VLoadUnitStrideOpcode::kVleXX: {
-        if (args.nf != 0) {
-          return Unimplemented();
-        }
-        size_t ptr_idx = 0;
-        for (size_t index = 0; index < kRegistersInvolved; ++index) {
-          orig_result.Set(state_->cpu.v[args.dst + index]);
-          result.Set(state_->cpu.v[args.dst + index]);
-          size_t element_count =
-              std::min(16 / sizeof(ElementType), (vl - index * 16 / sizeof(ElementType)));
-
-          for (size_t element_index = 0; element_index < element_count; ++element_index) {
-            FaultyLoadResult src_result = FaultyLoad(ptr + ptr_idx, sizeof(ElementType));
-
-            if ((!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>)&&(
-                    ((mask >> ptr_idx) & 0b1) == 0)) {
-              if ((InactiveProcessing)vma == InactiveProcessing::kAgnostic) {
-                result.Set<ElementType>(~ElementType{0}, element_index);
-              }
-            } else if (vstart <= ptr_idx) {
-              if (src_result.is_fault) {
-                if ((args.opcode == Decoder::VLoadUnitStrideOpcode::kVleXXff) && (ptr_idx != 0)) {
-                  // TODO(b/323994286): Write a test case to verify vl changes correctly.
-                  SetCsr<CsrName::kVl>(ptr_idx);
-                } else {
-                  exception_raised_ = true;
-                  SetCsr<CsrName::kVstart>(ptr_idx);
-                }
-                return;
-              }
-              result.Set<ElementType>(static_cast<ElementType>(src_result.value), element_index);
-            }
-            ptr_idx++;
-          }
-
-          result = std::get<0>(intrinsics::VectorMasking<ElementType, vta>(
-              orig_result,
-              result,
-              vstart - index * (16 / sizeof(ElementType)),
-              vl - index * (16 / sizeof(ElementType))));
-          state_->cpu.v[args.dst + index] = result.Get<__uint128_t>();
-        }
-        SetCsr<CsrName::kVstart>(0);
-        break;
-      }
-      default:
-        return Unimplemented();
     }
   }
 
