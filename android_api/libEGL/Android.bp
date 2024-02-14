@@ -21,9 +21,9 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libEGL",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libEGL:native_bridge_proxy_libEGL_files"],
+    srcs: [":native_bridge_proxy_libEGL_files"],
     header_libs: [
-        "//frameworks/libs/native_bridge_support/libEGL:libnative_bridge_proxy_libEGL_headers",
+        "libnative_bridge_proxy_libEGL_headers",
         "libberberis_guest_state_headers",
         "libberberis_base_headers",
     ],

@@ -22,7 +22,7 @@ cc_library_shared {
     name: "libberberis_proxy_libcamera2ndk",
     defaults: ["berberis_proxy_library_defaults"],
     header_libs: ["jni_headers"],
-    srcs: ["//frameworks/libs/native_bridge_support/libcamera2ndk:native_bridge_proxy_libcamera2ndk_files"],
+    srcs: [":native_bridge_proxy_libcamera2ndk_files"],
     shared_libs: [
         "libcamera2ndk",
     ],
@@ -33,7 +33,7 @@ cc_library_static {
     defaults: ["berberis_defaults_64"],
     host_supported: false,
     srcs: [
-        "//frameworks/libs/native_bridge_support/libcamera2ndk:native_bridge_proxy_libcamera2ndk_api_checker_files",
+        ":native_bridge_proxy_libcamera2ndk_api_checker_files",
     ],
     header_libs: [
         "jni_headers",
