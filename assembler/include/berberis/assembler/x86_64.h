@@ -53,6 +53,7 @@ class Assembler : public AssemblerX86<Assembler> {
   static constexpr Register r14{14};
   static constexpr Register r15{15};
 
+  static constexpr XMMRegister no_xmm_register{0x80};
   static constexpr XMMRegister xmm0{0};
   static constexpr XMMRegister xmm1{1};
   static constexpr XMMRegister xmm2{2};
@@ -217,9 +218,8 @@ class Assembler : public AssemblerX86<Assembler> {
   };
 
   // This type is only used by CmpXchg16b and acts similarly to Memory64Bit there.
-  typedef Memory64Bit Memory128Bit;
-
-  typedef Label64Bit Label128Bit;
+  using Memory128Bit = Memory64Bit;
+  using Label128Bit = Label64Bit;
 
   // Check if a given type is "a register with size" (for EmitInstruction).
   template <typename ArgumentType>
@@ -300,6 +300,13 @@ class Assembler : public AssemblerX86<Assembler> {
   uint8_t Rex(Memory64Bit operand) {
     // 64-bit argument requires REX.W bit - and thus REX itself.
     return 0b0100'1000 | Rex(operand.operand);
+  }
+
+  template <typename RegisterType>
+  [[nodiscard]] static bool IsSwapProfitable(RegisterType rm_arg, RegisterType vex_arg) {
+    // In 64bit mode we may use more compact encoding if operand encoded in rm is low register.
+    // Return true if we may achieve that by swapping arguments.
+    return rm_arg.num >= 8 && vex_arg.num < 8;
   }
 
   template <uint8_t byte1,

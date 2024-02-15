@@ -106,7 +106,7 @@ class AssemblerBase {
     uint32_t pc;
     bool is_recovery;
   };
-  typedef ArenaVector<Jump> JumpList;
+  using JumpList = ArenaVector<Jump>;
   JumpList jumps_;
 
  private:

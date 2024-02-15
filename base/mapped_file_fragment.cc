@@ -23,17 +23,18 @@
 #include <unistd.h>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/page_size.h"
 
 namespace {
 
-const off64_t kPageMask = ~static_cast<off64_t>(PAGE_SIZE - 1);
+const off64_t kPageMask = ~static_cast<off64_t>(berberis::kPageSize - 1);
 
 off64_t page_start(off64_t offset) {
   return offset & kPageMask;
 }
 
 size_t page_offset(off64_t offset) {
-  return static_cast<size_t>(offset & (PAGE_SIZE - 1));
+  return static_cast<size_t>(offset & (berberis::kPageSize - 1));
 }
 
 }  // namespace

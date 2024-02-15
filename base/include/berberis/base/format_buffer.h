@@ -186,7 +186,7 @@ class FormatAndArgs {
  private:
   bool PutSpec(Out* out) {
     Style style = ParseStyle();
-    switch (char c = *format_++) {
+    switch (*format_++) {
       case '%':
         return out->Put('%');
       case 'c':
@@ -211,7 +211,7 @@ class FormatAndArgs {
   }
 
   bool PutLongSpec(Out* out, const Style& style) {
-    switch (char c = *format_++) {
+    switch (*format_++) {
       case 'd':
         return PutInt(out, style, args_->GetLong(), 10);
       case 'u':
@@ -226,7 +226,7 @@ class FormatAndArgs {
   }
 
   bool PutLongLongSpec(Out* out, const Style& style) {
-    switch (char c = *format_++) {
+    switch (*format_++) {
       case 'd':
         return PutInt(out, style, args_->GetLongLong(), 10);
       case 'u':
@@ -239,7 +239,7 @@ class FormatAndArgs {
   }
 
   bool PutSizeTSpec(Out* out, const Style& style) {
-    switch (char c = *format_++) {
+    switch (*format_++) {
       case 'u':
         return PutUInt(out, style, nullptr, 0, args_->GetSizeT(), 10);
       case 'x':

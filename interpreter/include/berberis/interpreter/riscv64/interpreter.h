@@ -17,14 +17,12 @@
 #ifndef BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
 #define BERBERIS_INTERPRETER_RISCV64_INTERPRETER_H_
 
-#include "cstdint"
-
-#include "berberis/guest_state/guest_state_riscv64.h"
+#include "berberis/guest_state/guest_state.h"
 
 namespace berberis {
 
+void InitInterpreter();
 void InterpretInsn(ThreadState* state);
-void RunSyscall(ThreadState* state);
 
 }  // namespace berberis
 

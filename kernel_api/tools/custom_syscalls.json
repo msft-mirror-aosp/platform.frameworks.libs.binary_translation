@@ -195,6 +195,12 @@
       "socketcall": "17"
     }
   },
+  "__NR_riscv_flush_icache": {
+    "riscv64": {
+      "id": "259",
+      "params": ["void*", "void*", "int32"]
+    }
+  },
   "__NR_rt_sigaction": {
     "custom_reason": "changes signal action"
   },

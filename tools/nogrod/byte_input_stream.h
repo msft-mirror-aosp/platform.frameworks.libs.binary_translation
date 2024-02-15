@@ -17,9 +17,9 @@
 #ifndef __NOGROD_BYTE_INPUT_STREAM_
 #define __NOGROD_BYTE_INPUT_STREAM_
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace nogrod {
@@ -38,7 +38,7 @@ class ByteInputStream {
   [[nodiscard]] uint64_t ReadUint64();
   [[nodiscard]] uint64_t ReadLeb128();
   [[nodiscard]] int64_t ReadSleb128();
-  [[nodiscard]] const char* ReadString();
+  [[nodiscard]] std::string ReadString();
   [[nodiscard]] std::vector<uint8_t> ReadBytes(uint64_t size);
 
  private:

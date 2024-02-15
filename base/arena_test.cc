@@ -56,8 +56,8 @@ struct Node {
   explicit Node(unsigned e) : elem1(e), elem2(e + 11) {}
 };
 
-typedef ArenaList<Node*> FastList;
-typedef ArenaVector<Node*> FastVector;
+using FastList = ArenaList<Node*>;
+using FastVector = ArenaVector<Node*>;
 
 TEST_F(ArenaTest, Smoke) {
   char* p;
@@ -112,7 +112,7 @@ TEST_F(ArenaTest, Vector) {
   constexpr size_t kElems = 40000;
   FastVector vector(kElems, nullptr, &arena_);
 
-  for (unsigned i = 0; i < kElems; i++) {
+  for (size_t i = 0; i < kElems; i++) {
     vector[i] = NewInArena<Node>(&arena_, i);
   }
 

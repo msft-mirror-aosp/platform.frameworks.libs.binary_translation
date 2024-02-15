@@ -1,4 +1,19 @@
 {
+  "License": [
+    "Copyright (C) 2023 The Android Open Source Project",
+    "",
+    "Licensed under the Apache License, Version 2.0 (the “License”);",
+    "you may not use this file except in compliance with the License.",
+    "You may obtain a copy of the License at",
+    "",
+    "     http://www.apache.org/licenses/LICENSE-2.0",
+    "",
+    "Unless required by applicable law or agreed to in writing, software",
+    "distributed under the License is distributed on an “AS IS” BASIS,",
+    "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+    "See the License for the specific language governing permissions and",
+    "limitations under the License."
+  ],
   "arch": "x86_64",
   "insns": [
     {
@@ -60,6 +75,23 @@
     },
     {
       "encodings": {
+        "Addq": { "opcodes": [ "01" ], "reg_to_rm": true },
+        "Andq": { "opcodes": [ "21" ], "reg_to_rm": true },
+        "Btcq": { "opcodes": [ "0F", "BB" ], "reg_to_rm": true },
+        "Btrq": { "opcodes": [ "0F", "B3" ], "reg_to_rm": true },
+        "Btsq": { "opcodes": [ "0F", "AB" ], "reg_to_rm": true },
+        "Orq": { "opcodes": [ "09" ], "reg_to_rm": true },
+        "Subq": { "opcodes": [ "29" ], "reg_to_rm": true },
+        "Xorq": { "opcodes": [ "31" ], "reg_to_rm": true }
+      },
+      "args": [
+        { "class": "GeneralReg64/Mem64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
         "Addq": { "opcodes": [ "03" ] },
         "Andq": { "opcodes": [ "23" ] },
         "Orq": { "opcodes": [ "0B" ] },
@@ -83,20 +115,6 @@
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use_def" },
         { "class": "Imm32" },
-        { "class": "FLAGS", "usage": "def" }
-      ]
-    },
-    {
-      "encodings": {
-        "Addq": { "opcodes": [ "01" ], "reg_to_rm": true },
-        "Andq": { "opcodes": [ "21" ], "reg_to_rm": true },
-        "Orq": { "opcodes": [ "09" ], "reg_to_rm": true },
-        "Subq": { "opcodes": [ "29" ], "reg_to_rm": true },
-        "Xorq": { "opcodes": [ "31" ], "reg_to_rm": true }
-      },
-      "args": [
-        { "class": "GeneralReg64/Mem64", "usage": "use_def" },
-        { "class": "GeneralReg64", "usage": "use" },
         { "class": "FLAGS", "usage": "def" }
       ]
     },
@@ -139,13 +157,50 @@
     },
     {
       "encodings": {
+        "Andnq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F2" ], "vex_rm_to_reg": true }
+      },
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64/Mem64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Bextrq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F7" ] },
+        "Bzhiq": { "feature": "BMI2", "opcodes": [ "C4", "02", "80", "F5" ] }
+      },
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64/Mem64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Blsiq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "3" ], "rm_to_vex": true },
+        "Blsmskq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "2" ], "rm_to_vex": true },
+        "Blsrq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "1" ], "rm_to_vex": true },
         "Bsfq": { "opcodes": [ "0F", "BC" ] },
-        "Bsrq": { "opcodes": [ "0F", "BD" ] }
+        "Bsrq": { "opcodes": [ "0F", "BD" ] },
+        "Lzcntq": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] },
+        "Popcntq": { "feature": "POPCNT", "opcodes": [ "F3", "0F", "B8" ] },
+        "Tzcntq": { "feature": "BMI", "opcodes": [ "F3", "0F", "BC" ] }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
         { "class": "GeneralReg64/Mem64", "usage": "use" },
         { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Bswapq": { "opcodes": [ "0F", "C8" ] }
+      },
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" }
       ]
     },
     {
@@ -364,6 +419,24 @@
     },
     {
       "encodings": {
+        "Fxrstor64": { "opcodes": [ "0F", "AE", "1" ] }
+      },
+      "args": [
+        { "class": "Mem64", "usage": "use" },
+        { "class": "CC", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Fxsave64": { "opcodes": [ "0F", "AE", "0" ] }
+      },
+      "args": [
+        { "class": "CC", "usage": "def" },
+        { "class": "Mem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Imulq": { "opcodes": [ "F7", "5" ] },
         "Mulq": { "opcodes": [ "F7", "4" ] }
       },
@@ -426,8 +499,19 @@
     },
     {
       "encodings": {
+        "LockCmpXchgq": { "opcodes": [ "F0", "0F", "B1" ], "reg_to_rm": true }
+      },
+      "args": [
+        { "class": "RAX", "usage": "use_def" },
+        { "class": "Mem64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "7E" ], "reg_to_rm": true },
-        "Vmovq": { "opcodes": [ "C4", "01", "81", "7E" ], "reg_to_rm": true }
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "7E" ], "reg_to_rm": true }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -437,7 +521,7 @@
     {
       "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "6E" ] },
-        "Vmovq": { "opcodes": [ "C4", "01", "81", "6E" ] }
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "6E" ] }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
@@ -500,6 +584,18 @@
     },
     {
       "encodings": {
+        "Mulxq": { "feature": "BMI2", "opcodes": [ "C4", "82", "83", "F6" ], "vex_rm_to_reg": true },
+        "Pdepq": { "feature": "BMI2", "opcodes": [ "C4", "82", "83", "F5" ], "vex_rm_to_reg": true },
+        "Pextq": { "feature": "BMI2", "opcodes": [ "C4", "82", "82", "F5" ], "vex_rm_to_reg": true }
+      },
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64/Mem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Notq": { "opcodes": [ "F7", "2" ] }
       },
       "args": [
@@ -509,7 +605,7 @@
     {
       "encodings": {
         "Pextrq": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "16" ], "reg_to_rm": true },
-        "Vpextrq": { "opcodes": [ "C4", "03", "81", "16" ], "reg_to_rm": true }
+        "Vpextrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "16" ], "reg_to_rm": true }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -582,6 +678,28 @@
     },
     {
       "encodings": {
+        "Rorxq": { "feature": "BMI2", "opcodes": [ "C4", "03", "83", "F0" ] }
+      },
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "GeneralReg64/Mem64", "usage": "use" },
+        { "class": "Imm8" }
+      ]
+    },
+    {
+      "encodings": {
+        "Sarxq": { "feature": "BMI2", "opcodes": [ "C4", "02", "82", "F7" ] },
+        "Shlxq": { "feature": "BMI2", "opcodes": [ "C4", "02", "81", "F7" ] },
+        "Shrxq": { "feature": "BMI2", "opcodes": [ "C4", "02", "83", "F7" ] }
+      },
+      "args": [
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "GeneralReg64/Mem64", "usage": "use" },
+        { "class": "GeneralReg64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Shldq": { "opcodes": [ "0F", "A4" ], "reg_to_rm": true },
         "Shrdq": { "opcodes": [ "0F", "AC" ], "reg_to_rm": true }
       },
@@ -606,6 +724,7 @@
     },
     {
       "stems": [ "Vmovapd", "Vmovaps", "Vmovdqa", "Vmovdqu" ],
+      "feature": "AVX",
       "args": [
         { "class": "XmmReg", "usage": "def" },
         { "class": "XmmReg", "usage": "use" }
@@ -621,7 +740,7 @@
     },
     {
       "encodings": {
-        "Vpinsrq": { "opcodes": [ "C4", "03", "81", "22" ], "vex_rm_to_reg": true }
+        "Vpinsrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "22" ], "vex_rm_to_reg": true }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },

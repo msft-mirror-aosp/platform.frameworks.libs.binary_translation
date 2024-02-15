@@ -22,15 +22,20 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstddef>
+#include <memory>
+#include <optional>
 
-#include <berberis/base/bit_util.h>
-#include <berberis/base/checks.h>
-#include <berberis/base/macros.h>
-#include <berberis/base/mapped_file_fragment.h>
-#include <berberis/base/stringprintf.h>
+#include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
+#include "berberis/base/macros.h"
+#include "berberis/base/mapped_file_fragment.h"
+#include "berberis/base/stringprintf.h"
 
+#include "buffer.h"
 #include "string_offset_table.h"
 #include "string_table.h"
+#include "zstd.h"
 
 namespace nogrod {
 
@@ -48,6 +53,7 @@ class Elf32 {
   using Off = Elf32_Off;
   using Word = Elf32_Word;
 
+  using Chrd = Elf32_Chdr;
   using Ehdr = Elf32_Ehdr;
   using Shdr = Elf32_Shdr;
   using Sym = Elf32_Sym;
@@ -62,6 +68,7 @@ class Elf64 {
   using Off = Elf64_Off;
   using Word = Elf64_Word;
 
+  using Chrd = Elf64_Chdr;
   using Ehdr = Elf64_Ehdr;
   using Shdr = Elf64_Shdr;
   using Sym = Elf64_Sym;
@@ -76,9 +83,9 @@ class ElfFileImpl : public ElfFile {
  public:
   ~ElfFileImpl() override;
 
-  static std::unique_ptr<ElfFileImpl<ElfT>> Create(const char* path,
-                                                   int fd,
-                                                   std::string* error_msg);
+  [[nodiscard]] static std::unique_ptr<ElfFileImpl<ElfT>> Create(const char* path,
+                                                                 int fd,
+                                                                 std::string* error_msg);
 
   [[nodiscard]] bool ReadExportedSymbols(std::vector<std::string>* symbols,
                                          std::string* error_msg) override;
@@ -88,15 +95,82 @@ class ElfFileImpl : public ElfFile {
   explicit ElfFileImpl(const char* path, int fd);
   [[nodiscard]] bool Init(std::string* error_msg);
   [[nodiscard]] bool ValidateShdrTable(std::string* error_msg);
+  template <typename T>
+  [[nodiscard]] std::optional<Buffer<T>> ReadSection(const ElfT::Shdr* section_header,
+                                                     std::string* error_msg) {
+    // We support any type as long as its size is 1
+    static_assert(sizeof(T) == 1);
 
-  const typename ElfT::Shdr* FindSectionHeaderByType(typename ElfT::Word sh_type);
-  const typename ElfT::Shdr* FindSectionHeaderByName(const char* name);
+    const T* section_data = ShdrOffsetToAddr<const T>(section_header);
+    size_t section_size = section_header->sh_size;
+
+    if (!IsCompressed(section_header)) {
+      return Buffer{section_data, section_size};
+    }
+
+    std::optional<std::vector<T>> uncompressed_data =
+        UncompressSection(section_data, section_size, error_msg);
+    if (!uncompressed_data.has_value()) {
+      return std::nullopt;
+    }
+    return Buffer{std::move(*uncompressed_data)};
+  }
 
   template <typename T>
-  [[nodiscard]] const T* OffsetToAddr(typename ElfT::Off offset) const;
+  [[nodiscard]] std::optional<std::vector<T>> UncompressSection(const T* section_data,
+                                                                size_t section_size,
+                                                                std::string* error_msg) {
+    // We support any type as long as its size is 1
+    static_assert(sizeof(T) == 1);
+
+    // Read the header
+    constexpr size_t kChdrSize = sizeof(typename ElfT::Chrd);
+    if (static_cast<size_t>(section_size) < kChdrSize) {
+      *error_msg = "Invalid compressed section (it is too small to fit Elf_Chrd)";
+      return std::nullopt;
+    }
+
+    const typename ElfT::Chrd* chrd = reinterpret_cast<const ElfT::Chrd*>(section_data);
+    if (chrd->ch_type != ELFCOMPRESS_ZSTD) {
+      *error_msg = StringPrintf("Unsupported compression type: %d, expected ELFCOMPRESS_ZSTD(2)",
+                                chrd->ch_type);
+      return std::nullopt;
+    }
+
+    // Uncompress
+    size_t uncompressed_size = chrd->ch_size;
+    const T* compressed_data = section_data + kChdrSize;
+    size_t compressed_size = section_size - kChdrSize;
+    std::vector<T> uncompressed_data(uncompressed_size);
+
+    size_t result = ZSTD_decompress(reinterpret_cast<uint8_t*>(uncompressed_data.data()),
+                                    uncompressed_data.size(),
+                                    reinterpret_cast<const uint8_t*>(compressed_data),
+                                    compressed_size);
+
+    if (ZSTD_isError(result)) {
+      *error_msg = StringPrintf("Error while uncompressing zstd: %s", ZSTD_getErrorName(result));
+      return std::nullopt;
+    }
+
+    // We expect the output buffer of the size specified in the chrd->ch_size
+    CHECK_EQ(result, uncompressed_size);
+
+    return uncompressed_data;
+  }
+
+  [[nodiscard]] const typename ElfT::Shdr* FindSectionHeaderByType(typename ElfT::Word sh_type);
+  [[nodiscard]] const typename ElfT::Shdr* FindSectionHeaderByName(const char* name);
 
   template <typename T>
-  [[nodiscard]] const T* ShdrOffsetToAddr(const typename ElfT::Shdr* shdr) const;
+  [[nodiscard]] T* OffsetToAddr(typename ElfT::Off offset) const;
+
+  template <typename T>
+  [[nodiscard]] T* ShdrOffsetToAddr(const typename ElfT::Shdr* shdr) const;
+
+  [[nodiscard]] static constexpr bool IsCompressed(const ElfT::Shdr* shdr) {
+    return (shdr->sh_flags & SHF_COMPRESSED) != 0;
+  }
 
   std::string path_;
   int fd_;
@@ -160,14 +234,14 @@ bool ElfFileImpl<ElfT>::ValidateShdrTable(std::string* error_msg) {
 
 template <typename ElfT>
 template <typename T>
-const T* ElfFileImpl<ElfT>::OffsetToAddr(typename ElfT::Off offset) const {
+T* ElfFileImpl<ElfT>::OffsetToAddr(typename ElfT::Off offset) const {
   auto start = bit_cast<uintptr_t>(mapped_file_.data());
-  return bit_cast<const T*>(start + offset);
+  return bit_cast<T*>(start + offset);
 }
 
 template <typename ElfT>
 template <typename T>
-const T* ElfFileImpl<ElfT>::ShdrOffsetToAddr(const typename ElfT::Shdr* shdr) const {
+T* ElfFileImpl<ElfT>::ShdrOffsetToAddr(const typename ElfT::Shdr* shdr) const {
   CHECK(shdr->sh_type != SHT_NOBITS);
   return OffsetToAddr<T>(shdr->sh_offset);
 }
@@ -250,7 +324,7 @@ bool ElfFileImpl<ElfT>::Init(std::string* error_msg) {
 
   const typename ElfT::Shdr* strtab_shdr = &shdr_table_[header_->e_shstrndx];
 
-  strtab_ = StringTable(ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size);
+  strtab_ = StringTable(Buffer{ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size});
 
   return true;
 }
@@ -294,6 +368,12 @@ bool ElfFileImpl<ElfT>::ReadExportedSymbols(std::vector<std::string>* symbols,
                                             std::string* error_msg) {
   const typename ElfT::Shdr* dynsym_shdr = FindSectionHeaderByType(SHT_DYNSYM);
 
+  // This section is not expected to be compressed
+  if (IsCompressed(dynsym_shdr)) {
+    *error_msg = "dynamic symbol section is not expected to be compressed";
+    return false;
+  }
+
   if (dynsym_shdr == nullptr) {
     *error_msg = "dynamic symbol section was not found";
     return false;
@@ -311,7 +391,13 @@ bool ElfFileImpl<ElfT>::ReadExportedSymbols(std::vector<std::string>* symbols,
 
   const typename ElfT::Shdr* strtab_shdr = shdr_table_ + dynsym_shdr->sh_link;
 
-  const StringTable strtab(ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size);
+  // String table for .dynsym section is also not expected to be compressed
+  if (IsCompressed(strtab_shdr)) {
+    *error_msg = "string table for dynamic symbol section is not expected to be compressed";
+    return false;
+  }
+
+  const StringTable strtab(Buffer{ShdrOffsetToAddr<const char>(strtab_shdr), strtab_shdr->sh_size});
 
   for (size_t i = 0; i < dynsym_num; ++i) {
     const typename ElfT::Sym* sym = dynsyms + i;
@@ -352,23 +438,38 @@ std::unique_ptr<DwarfInfo> ElfFileImpl<ElfT>::ReadDwarfInfo(std::string* error_m
     return nullptr;
   }
 
-  StringTable string_table{ShdrOffsetToAddr<const char>(dwarf_str_shdr), dwarf_str_shdr->sh_size};
+  auto string_table_buf = ReadSection<char>(dwarf_str_shdr, error_msg);
+  if (!string_table_buf.has_value()) {
+    return nullptr;
+  }
+
+  StringTable string_table{std::move(*string_table_buf)};
 
   // This section is optional (at least as of now)
   const typename ElfT::Shdr* debug_str_offsets_shdr = FindSectionHeaderByName(".debug_str_offsets");
   std::optional<StringOffsetTable> string_offsets_table;
   if (debug_str_offsets_shdr != nullptr) {
-    string_offsets_table.emplace(ShdrOffsetToAddr<const uint8_t>(debug_str_offsets_shdr),
-                                 debug_str_offsets_shdr->sh_size);
+    auto string_offset_table_buf = ReadSection<uint8_t>(debug_str_offsets_shdr, error_msg);
+    if (!string_offset_table_buf.has_value()) {
+      return nullptr;
+    }
+    string_offsets_table.emplace(std::move(*string_offset_table_buf));
   }
 
-  std::unique_ptr<DwarfInfo> dwarf_info(
-      new DwarfInfo(ShdrOffsetToAddr<const uint8_t>(dwarf_abbrev_shdr),
-                    dwarf_abbrev_shdr->sh_size,
-                    ShdrOffsetToAddr<const uint8_t>(dwarf_info_shdr),
-                    dwarf_info_shdr->sh_size,
-                    string_table,
-                    string_offsets_table));
+  auto dwarf_abbrev_buf = ReadSection<uint8_t>(dwarf_abbrev_shdr, error_msg);
+  if (!dwarf_abbrev_buf.has_value()) {
+    return nullptr;
+  }
+
+  auto dwarf_info_buf = ReadSection<uint8_t>(dwarf_info_shdr, error_msg);
+  if (!dwarf_info_buf.has_value()) {
+    return nullptr;
+  }
+
+  std::unique_ptr<DwarfInfo> dwarf_info(new DwarfInfo(std::move(*dwarf_abbrev_buf),
+                                                      std::move(*dwarf_info_buf),
+                                                      std::move(string_table),
+                                                      std::move(string_offsets_table)));
 
   if (!dwarf_info->Parse(error_msg)) {
     return nullptr;
