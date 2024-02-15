@@ -15,6 +15,7 @@
  */
 
 #include <linux/unistd.h>
+#include <sched.h>
 #include <semaphore.h>
 
 #include "berberis/base/checks.h"
@@ -22,6 +23,7 @@
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"  // ResetCurrentGuestThreadAfterFork
 #include "berberis/guest_os_primitives/scoped_pending_signals.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime/execute_guest.h"
 #include "berberis/runtime_primitives/runtime_library.h"
@@ -76,20 +78,13 @@ int RunClonedGuestThread(void* arg) {
 
 }  // namespace
 
+// go/berberis-guest-threads
 pid_t CloneGuestThread(GuestThread* thread,
                        int flags,
                        GuestAddr guest_stack_top,
                        GuestAddr parent_tid,
                        GuestAddr new_tls,
                        GuestAddr child_tid) {
-  // TODO(b/280551726): Legacy hack to handle vfork, investigate if still needed.
-  if ((flags & CLONE_VFORK)) {
-    if ((flags & CLONE_VM)) {
-      TRACE("cleared CLONE_VM for CLONE_VFORK");
-      flags &= ~CLONE_VM;
-    }
-  }
-
   ThreadState& thread_state = *thread->state();
   if (!(flags & CLONE_VM)) {
     // Memory is *not* shared with the child.
@@ -117,11 +112,6 @@ pid_t CloneGuestThread(GuestThread* thread,
   // cannot use host local variables. For now, use clone function to pass parameters to the child.
   // The child needs new instance of guest thread object.
 
-  if (guest_stack_top == 0) {
-    TRACE("CLONE_VM without new stack");
-    return EINVAL;
-  }
-
   GuestThreadCloneInfo info;
 
   info.thread = GuestThread::CreateClone(thread);
@@ -130,7 +120,6 @@ pid_t CloneGuestThread(GuestThread* thread,
   }
 
   ThreadState& clone_thread_state = *info.thread->state();
-  SetStackRegister(GetCPUState(clone_thread_state), guest_stack_top);
 
   if ((flags & CLONE_SETTLS)) {
     SetTlsAddr(clone_thread_state, new_tls);
@@ -141,7 +130,19 @@ pid_t CloneGuestThread(GuestThread* thread,
   CPUState& clone_cpu = GetCPUState(clone_thread_state);
   AdvanceInsnAddrBeyondSyscall(clone_cpu);
   SetReturnValueRegister(clone_cpu, 0);  // Syscall return value
-  SetLinkRegister(clone_cpu, 0);         // Caller address
+
+  if (guest_stack_top != kNullGuestAddr) {
+    SetStackRegister(GetCPUState(clone_thread_state), guest_stack_top);
+    SetLinkRegister(clone_cpu, kNullGuestAddr);
+  } else {
+    if (!(flags & CLONE_VFORK)) {
+      TRACE("CLONE_VM with NULL guest stack and not in CLONE_VFORK mode, returning EINVAL");
+      return EINVAL;
+    }
+    // See b/323981318 and b/156400255.
+    TRACE("CLONE_VFORK with CLONE_VM and NULL guest stack, will share guest stack with parent");
+    // GuestThread::CreateClone has already copied stack and link pointers to new thread.
+  }
 
   // Thread must start with pending signals while it's executing runtime code.
   SetPendingSignalsStatusAtomic(clone_thread_state, kPendingSignalsEnabled);
