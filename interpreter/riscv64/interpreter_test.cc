@@ -74,11 +74,63 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename ElementType, size_t kNFfields, size_t kLmul>
+  void VlxsegXeiXX(
+      uint32_t insn_bytes,
+      const ElementType::BaseType (&expected_results)[kNFfields * kLmul][static_cast<int>(
+          sizeof(SIMD128Register) / sizeof(ElementType))]) {
+    VlxsegXeiXX<ElementType, UInt8, kNFfields, kLmul>(insn_bytes, expected_results);
+    VlxsegXeiXX<ElementType, UInt8, kNFfields, kLmul>(insn_bytes | 0x8000000, expected_results);
+    VlxsegXeiXX<ElementType, UInt16, kNFfields, kLmul>(insn_bytes | 0x5000, expected_results);
+    VlxsegXeiXX<ElementType, UInt16, kNFfields, kLmul>(insn_bytes | 0x8005000, expected_results);
+    VlxsegXeiXX<ElementType, UInt32, kNFfields, kLmul>(insn_bytes | 0x6000, expected_results);
+    VlxsegXeiXX<ElementType, UInt32, kNFfields, kLmul>(insn_bytes | 0x8006000, expected_results);
+    VlxsegXeiXX<ElementType, UInt64, kNFfields, kLmul>(insn_bytes | 0x7000, expected_results);
+    VlxsegXeiXX<ElementType, UInt64, kNFfields, kLmul>(insn_bytes | 0x8007000, expected_results);
+  }
+
+  template <typename DataElementType, typename IndexElementType, size_t kNFfields, size_t kLmul>
+  void VlxsegXeiXX(
+      uint32_t insn_bytes,
+      const DataElementType::BaseType (&expected_results)[kNFfields * kLmul][static_cast<int>(
+          sizeof(SIMD128Register) / sizeof(DataElementType))]) {
+    constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(IndexElementType);
+    constexpr size_t kTotalElements =
+        sizeof(SIMD128Register) / sizeof(DataElementType) * kLmul * kNFfields;
+    // If we need more indexes than may fit into 8 vector registers then such operation is
+    // impossible on RISC-V and we should skip that combination.
+    if constexpr (sizeof(IndexElementType) * kTotalElements <= sizeof(SIMD128Register) * 8) {
+      TestVectorLoad<DataElementType, kNFfields, kLmul>(insn_bytes, expected_results, [this] {
+        for (size_t reg_no = 0; reg_no < AlignUp<kElementsCount>(kTotalElements) / kElementsCount;
+             ++reg_no) {
+          SIMD128Register index_register;
+          for (size_t index = 0; index < kElementsCount; ++index) {
+            index_register.Set(IndexElementType{static_cast<typename IndexElementType::BaseType>(
+                                   kPermutedIndexes[index + reg_no * kElementsCount] *
+                                   sizeof(DataElementType) * kNFfields)},
+                               index);
+          }
+          state_.cpu.v[16 + reg_no] = index_register.Get<__uint128_t>();
+        }
+      });
+    }
+  }
+
+  template <typename ElementType, size_t kNFfields, size_t kLmul>
   void TestVlssegXeXX(
       uint32_t insn_bytes,
       uint64_t stride,
       const ElementType::BaseType (
           &expected_results)[kNFfields * kLmul][static_cast<int>(16 / sizeof(ElementType))]) {
+    TestVectorLoad<ElementType, kNFfields, kLmul>(
+        insn_bytes, expected_results, [stride, this] { SetXReg<2>(state_.cpu, stride); });
+  }
+
+  template <typename ElementType, size_t kNFfields, size_t kLmul, typename ExtraCPUInitType>
+  void TestVectorLoad(
+      uint32_t insn_bytes,
+      const ElementType::BaseType (
+          &expected_results)[kNFfields * kLmul][static_cast<int>(16 / sizeof(ElementType))],
+      ExtraCPUInitType ExtraCPUInit) {
     constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
     for (uint8_t vstart = 0; vstart <= kElementsCount * kLmul; ++vstart) {
@@ -97,12 +149,12 @@ class Riscv64InterpreterTest : public ::testing::Test {
               insn_bytes_with_vm |= (1 << 25);
             }
             state_.cpu.insn_addr = ToGuestAddr(&insn_bytes_with_vm);
-            SetXReg<1>(state_.cpu, ToGuestAddr(&kVectorCalculationsSourceLegacy));
-            SetXReg<2>(state_.cpu, stride);
+            SetXReg<1>(state_.cpu, ToGuestAddr(&kVectorCalculationsSource));
             state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
             for (size_t index = 0; index < 8; index++) {
               state_.cpu.v[8 + index] = kUndisturbedValue;
             }
+            ExtraCPUInit();
             EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
             EXPECT_EQ(state_.cpu.vstart, 0);
             EXPECT_EQ(state_.cpu.vl, vl);
@@ -1584,6 +1636,17 @@ class Riscv64InterpreterTest : public ::testing::Test {
   static constexpr __m128i kAgnosticResult = {-1, -1};
   // Undisturbed result is put in registers v8, v9, …, v15 and is expected to get read back.
   static constexpr __m128i kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
+  // Note: permutation of indexes here is not entirely random. First 32 indexes are limited to 31
+  // maximum and first 64 indexes are limited to 63. That way we can guarantee that 8byte elements
+  // and 4byte elements wouldn't need to access area outside of our 256-byte buffer.
+  static constexpr uint8_t kPermutedIndexes[128] = {
+      1,   0,   3,  2,   7,   5,   4,   6,   9,   14,  15,  11,  13,  12, 8,  10,  30,  31,  17,
+      22,  18,  26, 25,  19,  29,  28,  16,  21,  27,  24,  20,  23,  44, 50, 52,  34,  61,  38,
+      54,  43,  42, 63,  57,  40,  36,  46,  39,  47,  35,  41,  62,  59, 60, 51,  55,  53,  33,
+      32,  58,  49, 56,  37,  45,  48,  124, 92,  78,  101, 114, 89,  75, 64, 98,  112, 111, 118,
+      121, 102, 73, 105, 109, 68,  103, 72,  110, 79,  119, 96,  123, 85, 90, 126, 66,  69,  120,
+      97,  113, 76, 100, 67,  125, 117, 65,  84,  104, 122, 71,  81,  99, 70, 91,  86,  115, 127,
+      77,  107, 74, 93,  80,  106, 87,  94,  83,  95,  116, 108, 82,  88};
 
   // Store area for store instructions.  We need at least 16 uint64_t to handle 8×128bit registers,
   // plus 2× of that to test strided instructions.
@@ -1692,6 +1755,387 @@ TEST_F(Riscv64InterpreterTest, TestVsX) {
   TestVsX<8>(0xe2808427);  // vs8r.v v8, (x1)
 }
 
+TEST_F(Riscv64InterpreterTest, VlxsegXeiXX) {
+  VlxsegXeiXX<UInt8, 1, 1>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                           {{129, 0, 131, 2, 135, 133, 4, 6, 137, 14, 143, 139, 141, 12, 8, 10}});
+  VlxsegXeiXX<UInt8, 1, 2>(
+      0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+      {{129, 0, 131, 2, 135, 133, 4, 6, 137, 14, 143, 139, 141, 12, 8, 10},
+       {30, 159, 145, 22, 18, 26, 153, 147, 157, 28, 16, 149, 155, 24, 20, 151}});
+  VlxsegXeiXX<UInt8, 1, 4>(
+      0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+      {{129, 0, 131, 2, 135, 133, 4, 6, 137, 14, 143, 139, 141, 12, 8, 10},
+       {30, 159, 145, 22, 18, 26, 153, 147, 157, 28, 16, 149, 155, 24, 20, 151},
+       {44, 50, 52, 34, 189, 38, 54, 171, 42, 191, 185, 40, 36, 46, 167, 175},
+       {163, 169, 62, 187, 60, 179, 183, 181, 161, 32, 58, 177, 56, 165, 173, 48}});
+  VlxsegXeiXX<UInt8, 1, 8>(
+      0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+      {{129, 0, 131, 2, 135, 133, 4, 6, 137, 14, 143, 139, 141, 12, 8, 10},
+       {30, 159, 145, 22, 18, 26, 153, 147, 157, 28, 16, 149, 155, 24, 20, 151},
+       {44, 50, 52, 34, 189, 38, 54, 171, 42, 191, 185, 40, 36, 46, 167, 175},
+       {163, 169, 62, 187, 60, 179, 183, 181, 161, 32, 58, 177, 56, 165, 173, 48},
+       {124, 92, 78, 229, 114, 217, 203, 64, 98, 112, 239, 118, 249, 102, 201, 233},
+       {237, 68, 231, 72, 110, 207, 247, 96, 251, 213, 90, 126, 66, 197, 120, 225},
+       {241, 76, 100, 195, 253, 245, 193, 84, 104, 122, 199, 209, 227, 70, 219, 86},
+       {243, 255, 205, 235, 74, 221, 80, 106, 215, 94, 211, 223, 116, 108, 82, 88}});
+  VlxsegXeiXX<UInt8, 2, 1>(
+      0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+      {{2, 0, 6, 4, 14, 10, 8, 12, 18, 28, 30, 22, 26, 24, 16, 20},
+       {131, 129, 135, 133, 143, 139, 137, 141, 147, 157, 159, 151, 155, 153, 145, 149}});
+  VlxsegXeiXX<UInt8, 2, 2>(
+      0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+      {{2, 0, 6, 4, 14, 10, 8, 12, 18, 28, 30, 22, 26, 24, 16, 20},
+       {60, 62, 34, 44, 36, 52, 50, 38, 58, 56, 32, 42, 54, 48, 40, 46},
+       {131, 129, 135, 133, 143, 139, 137, 141, 147, 157, 159, 151, 155, 153, 145, 149},
+       {189, 191, 163, 173, 165, 181, 179, 167, 187, 185, 161, 171, 183, 177, 169, 175}});
+  VlxsegXeiXX<UInt8, 2, 4>(
+      0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+      {{2, 0, 6, 4, 14, 10, 8, 12, 18, 28, 30, 22, 26, 24, 16, 20},
+       {60, 62, 34, 44, 36, 52, 50, 38, 58, 56, 32, 42, 54, 48, 40, 46},
+       {88, 100, 104, 68, 122, 76, 108, 86, 84, 126, 114, 80, 72, 92, 78, 94},
+       {70, 82, 124, 118, 120, 102, 110, 106, 66, 64, 116, 98, 112, 74, 90, 96},
+       {131, 129, 135, 133, 143, 139, 137, 141, 147, 157, 159, 151, 155, 153, 145, 149},
+       {189, 191, 163, 173, 165, 181, 179, 167, 187, 185, 161, 171, 183, 177, 169, 175},
+       {217, 229, 233, 197, 251, 205, 237, 215, 213, 255, 243, 209, 201, 221, 207, 223},
+       {199, 211, 253, 247, 249, 231, 239, 235, 195, 193, 245, 227, 241, 203, 219, 225}});
+  VlxsegXeiXX<UInt8, 3, 1>(
+      0x45008407,  // Vluxseg3ei8.v v8, (x1), v16, v0.t
+      {{131, 0, 137, 6, 149, 143, 12, 18, 155, 42, 173, 161, 167, 36, 24, 30},
+       {4, 129, 10, 135, 22, 16, 141, 147, 28, 171, 46, 34, 40, 165, 153, 159},
+       {133, 2, 139, 8, 151, 145, 14, 20, 157, 44, 175, 163, 169, 38, 26, 32}});
+  VlxsegXeiXX<UInt8, 3, 2>(
+      0x45008407,  // Vluxseg3ei8.v v8, (x1), v16, v0.t
+      {{131, 0, 137, 6, 149, 143, 12, 18, 155, 42, 173, 161, 167, 36, 24, 30},
+       {90, 221, 179, 66, 54, 78, 203, 185, 215, 84, 48, 191, 209, 72, 60, 197},
+       {4, 129, 10, 135, 22, 16, 141, 147, 28, 171, 46, 34, 40, 165, 153, 159},
+       {219, 94, 52, 195, 183, 207, 76, 58, 88, 213, 177, 64, 82, 201, 189, 70},
+       {133, 2, 139, 8, 151, 145, 14, 20, 157, 44, 175, 163, 169, 38, 26, 32},
+       {92, 223, 181, 68, 56, 80, 205, 187, 217, 86, 50, 193, 211, 74, 62, 199}});
+  VlxsegXeiXX<UInt8, 4, 1>(
+      0x65008407,  // Vluxseg4ei8.v v8, (x1), v16, v0.t
+      {{4, 0, 12, 8, 28, 20, 16, 24, 36, 56, 60, 44, 52, 48, 32, 40},
+       {133, 129, 141, 137, 157, 149, 145, 153, 165, 185, 189, 173, 181, 177, 161, 169},
+       {6, 2, 14, 10, 30, 22, 18, 26, 38, 58, 62, 46, 54, 50, 34, 42},
+       {135, 131, 143, 139, 159, 151, 147, 155, 167, 187, 191, 175, 183, 179, 163, 171}});
+  VlxsegXeiXX<UInt8, 4, 2>(
+      0x65008407,  // Vluxseg4ei8.v v8, (x1), v16, v0.t
+      {{4, 0, 12, 8, 28, 20, 16, 24, 36, 56, 60, 44, 52, 48, 32, 40},
+       {120, 124, 68, 88, 72, 104, 100, 76, 116, 112, 64, 84, 108, 96, 80, 92},
+       {133, 129, 141, 137, 157, 149, 145, 153, 165, 185, 189, 173, 181, 177, 161, 169},
+       {249, 253, 197, 217, 201, 233, 229, 205, 245, 241, 193, 213, 237, 225, 209, 221},
+       {6, 2, 14, 10, 30, 22, 18, 26, 38, 58, 62, 46, 54, 50, 34, 42},
+       {122, 126, 70, 90, 74, 106, 102, 78, 118, 114, 66, 86, 110, 98, 82, 94},
+       {135, 131, 143, 139, 159, 151, 147, 155, 167, 187, 191, 175, 183, 179, 163, 171},
+       {251, 255, 199, 219, 203, 235, 231, 207, 247, 243, 195, 215, 239, 227, 211, 223}});
+  VlxsegXeiXX<UInt8, 5, 1>(
+      0x85008407,  // Vluxseg5ei8.v v8, (x1), v16, v0.t
+      {{133, 0, 143, 10, 163, 153, 20, 30, 173, 70, 203, 183, 193, 60, 40, 50},
+       {6, 129, 16, 139, 36, 26, 149, 159, 46, 199, 76, 56, 66, 189, 169, 179},
+       {135, 2, 145, 12, 165, 155, 22, 32, 175, 72, 205, 185, 195, 62, 42, 52},
+       {8, 131, 18, 141, 38, 28, 151, 161, 48, 201, 78, 58, 68, 191, 171, 181},
+       {137, 4, 147, 14, 167, 157, 24, 34, 177, 74, 207, 187, 197, 64, 44, 54}});
+  VlxsegXeiXX<UInt8, 6, 1>(
+      0xa5008407,  // Vluxseg6ei8.v v8, (x1), v16, v0.t
+      {{6, 0, 18, 12, 42, 30, 24, 36, 54, 84, 90, 66, 78, 72, 48, 60},
+       {135, 129, 147, 141, 171, 159, 153, 165, 183, 213, 219, 195, 207, 201, 177, 189},
+       {8, 2, 20, 14, 44, 32, 26, 38, 56, 86, 92, 68, 80, 74, 50, 62},
+       {137, 131, 149, 143, 173, 161, 155, 167, 185, 215, 221, 197, 209, 203, 179, 191},
+       {10, 4, 22, 16, 46, 34, 28, 40, 58, 88, 94, 70, 82, 76, 52, 64},
+       {139, 133, 151, 145, 175, 163, 157, 169, 187, 217, 223, 199, 211, 205, 181, 193}});
+  VlxsegXeiXX<UInt8, 7, 1>(
+      0xc5008407,  // Vluxseg7ei8.v v8, (x1), v16, v0.t
+      {{135, 0, 149, 14, 177, 163, 28, 42, 191, 98, 233, 205, 219, 84, 56, 70},
+       {8, 129, 22, 143, 50, 36, 157, 171, 64, 227, 106, 78, 92, 213, 185, 199},
+       {137, 2, 151, 16, 179, 165, 30, 44, 193, 100, 235, 207, 221, 86, 58, 72},
+       {10, 131, 24, 145, 52, 38, 159, 173, 66, 229, 108, 80, 94, 215, 187, 201},
+       {139, 4, 153, 18, 181, 167, 32, 46, 195, 102, 237, 209, 223, 88, 60, 74},
+       {12, 133, 26, 147, 54, 40, 161, 175, 68, 231, 110, 82, 96, 217, 189, 203},
+       {141, 6, 155, 20, 183, 169, 34, 48, 197, 104, 239, 211, 225, 90, 62, 76}});
+  VlxsegXeiXX<UInt8, 8, 1>(
+      0xe5008407,  // Vluxseg8ei8.v v8, (x1), v16, v0.t
+      {{8, 0, 24, 16, 56, 40, 32, 48, 72, 112, 120, 88, 104, 96, 64, 80},
+       {137, 129, 153, 145, 185, 169, 161, 177, 201, 241, 249, 217, 233, 225, 193, 209},
+       {10, 2, 26, 18, 58, 42, 34, 50, 74, 114, 122, 90, 106, 98, 66, 82},
+       {139, 131, 155, 147, 187, 171, 163, 179, 203, 243, 251, 219, 235, 227, 195, 211},
+       {12, 4, 28, 20, 60, 44, 36, 52, 76, 116, 124, 92, 108, 100, 68, 84},
+       {141, 133, 157, 149, 189, 173, 165, 181, 205, 245, 253, 221, 237, 229, 197, 213},
+       {14, 6, 30, 22, 62, 46, 38, 54, 78, 118, 126, 94, 110, 102, 70, 86},
+       {143, 135, 159, 151, 191, 175, 167, 183, 207, 247, 255, 223, 239, 231, 199, 215}});
+  VlxsegXeiXX<UInt16, 1, 1>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8302, 0x8100, 0x8706, 0x8504, 0x8f0e, 0x8b0a, 0x8908, 0x8d0c}});
+  VlxsegXeiXX<UInt16, 1, 2>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8302, 0x8100, 0x8706, 0x8504, 0x8f0e, 0x8b0a, 0x8908, 0x8d0c},
+                             {0x9312, 0x9d1c, 0x9f1e, 0x9716, 0x9b1a, 0x9918, 0x9110, 0x9514}});
+  VlxsegXeiXX<UInt16, 1, 4>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8302, 0x8100, 0x8706, 0x8504, 0x8f0e, 0x8b0a, 0x8908, 0x8d0c},
+                             {0x9312, 0x9d1c, 0x9f1e, 0x9716, 0x9b1a, 0x9918, 0x9110, 0x9514},
+                             {0xbd3c, 0xbf3e, 0xa322, 0xad2c, 0xa524, 0xb534, 0xb332, 0xa726},
+                             {0xbb3a, 0xb938, 0xa120, 0xab2a, 0xb736, 0xb130, 0xa928, 0xaf2e}});
+  VlxsegXeiXX<UInt16, 1, 8>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8302, 0x8100, 0x8706, 0x8504, 0x8f0e, 0x8b0a, 0x8908, 0x8d0c},
+                             {0x9312, 0x9d1c, 0x9f1e, 0x9716, 0x9b1a, 0x9918, 0x9110, 0x9514},
+                             {0xbd3c, 0xbf3e, 0xa322, 0xad2c, 0xa524, 0xb534, 0xb332, 0xa726},
+                             {0xbb3a, 0xb938, 0xa120, 0xab2a, 0xb736, 0xb130, 0xa928, 0xaf2e},
+                             {0xd958, 0xe564, 0xe968, 0xc544, 0xfb7a, 0xcd4c, 0xed6c, 0xd756},
+                             {0xd554, 0xff7e, 0xf372, 0xd150, 0xc948, 0xdd5c, 0xcf4e, 0xdf5e},
+                             {0xc746, 0xd352, 0xfd7c, 0xf776, 0xf978, 0xe766, 0xef6e, 0xeb6a},
+                             {0xc342, 0xc140, 0xf574, 0xe362, 0xf170, 0xcb4a, 0xdb5a, 0xe160}});
+  VlxsegXeiXX<UInt16, 2, 1>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x8504, 0x8100, 0x8d0c, 0x8908, 0x9d1c, 0x9514, 0x9110, 0x9918},
+                             {0x8706, 0x8302, 0x8f0e, 0x8b0a, 0x9f1e, 0x9716, 0x9312, 0x9b1a}});
+  VlxsegXeiXX<UInt16, 2, 2>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x8504, 0x8100, 0x8d0c, 0x8908, 0x9d1c, 0x9514, 0x9110, 0x9918},
+                             {0xa524, 0xb938, 0xbd3c, 0xad2c, 0xb534, 0xb130, 0xa120, 0xa928},
+                             {0x8706, 0x8302, 0x8f0e, 0x8b0a, 0x9f1e, 0x9716, 0x9312, 0x9b1a},
+                             {0xa726, 0xbb3a, 0xbf3e, 0xaf2e, 0xb736, 0xb332, 0xa322, 0xab2a}});
+  VlxsegXeiXX<UInt16, 2, 4>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x8504, 0x8100, 0x8d0c, 0x8908, 0x9d1c, 0x9514, 0x9110, 0x9918},
+                             {0xa524, 0xb938, 0xbd3c, 0xad2c, 0xb534, 0xb130, 0xa120, 0xa928},
+                             {0xf978, 0xfd7c, 0xc544, 0xd958, 0xc948, 0xe968, 0xe564, 0xcd4c},
+                             {0xf574, 0xf170, 0xc140, 0xd554, 0xed6c, 0xe160, 0xd150, 0xdd5c},
+                             {0x8706, 0x8302, 0x8f0e, 0x8b0a, 0x9f1e, 0x9716, 0x9312, 0x9b1a},
+                             {0xa726, 0xbb3a, 0xbf3e, 0xaf2e, 0xb736, 0xb332, 0xa322, 0xab2a},
+                             {0xfb7a, 0xff7e, 0xc746, 0xdb5a, 0xcb4a, 0xeb6a, 0xe766, 0xcf4e},
+                             {0xf776, 0xf372, 0xc342, 0xd756, 0xef6e, 0xe362, 0xd352, 0xdf5e}});
+  VlxsegXeiXX<UInt16, 3, 1>(0x45008407,  // Vluxseg3ei8.v v8, (x1), v16, v0.t
+                            {{0x8706, 0x8100, 0x9312, 0x8d0c, 0xab2a, 0x9f1e, 0x9918, 0xa524},
+                             {0x8908, 0x8302, 0x9514, 0x8f0e, 0xad2c, 0xa120, 0x9b1a, 0xa726},
+                             {0x8b0a, 0x8504, 0x9716, 0x9110, 0xaf2e, 0xa322, 0x9d1c, 0xa928}});
+  VlxsegXeiXX<UInt16, 3, 2>(0x45008407,  // Vluxseg3ei8.v v8, (x1), v16, v0.t
+                            {{0x8706, 0x8100, 0x9312, 0x8d0c, 0xab2a, 0x9f1e, 0x9918, 0xa524},
+                             {0xb736, 0xd554, 0xdb5a, 0xc342, 0xcf4e, 0xc948, 0xb130, 0xbd3c},
+                             {0x8908, 0x8302, 0x9514, 0x8f0e, 0xad2c, 0xa120, 0x9b1a, 0xa726},
+                             {0xb938, 0xd756, 0xdd5c, 0xc544, 0xd150, 0xcb4a, 0xb332, 0xbf3e},
+                             {0x8b0a, 0x8504, 0x9716, 0x9110, 0xaf2e, 0xa322, 0x9d1c, 0xa928},
+                             {0xbb3a, 0xd958, 0xdf5e, 0xc746, 0xd352, 0xcd4c, 0xb534, 0xc140}});
+  VlxsegXeiXX<UInt16, 4, 1>(0x65008407,  // Vluxseg4ei8.v v8, (x1), v16, v0.t
+                            {{0x8908, 0x8100, 0x9918, 0x9110, 0xb938, 0xa928, 0xa120, 0xb130},
+                             {0x8b0a, 0x8302, 0x9b1a, 0x9312, 0xbb3a, 0xab2a, 0xa322, 0xb332},
+                             {0x8d0c, 0x8504, 0x9d1c, 0x9514, 0xbd3c, 0xad2c, 0xa524, 0xb534},
+                             {0x8f0e, 0x8706, 0x9f1e, 0x9716, 0xbf3e, 0xaf2e, 0xa726, 0xb736}});
+  VlxsegXeiXX<UInt16, 4, 2>(0x65008407,  // Vluxseg4ei8.v v8, (x1), v16, v0.t
+                            {{0x8908, 0x8100, 0x9918, 0x9110, 0xb938, 0xa928, 0xa120, 0xb130},
+                             {0xc948, 0xf170, 0xf978, 0xd958, 0xe968, 0xe160, 0xc140, 0xd150},
+                             {0x8b0a, 0x8302, 0x9b1a, 0x9312, 0xbb3a, 0xab2a, 0xa322, 0xb332},
+                             {0xcb4a, 0xf372, 0xfb7a, 0xdb5a, 0xeb6a, 0xe362, 0xc342, 0xd352},
+                             {0x8d0c, 0x8504, 0x9d1c, 0x9514, 0xbd3c, 0xad2c, 0xa524, 0xb534},
+                             {0xcd4c, 0xf574, 0xfd7c, 0xdd5c, 0xed6c, 0xe564, 0xc544, 0xd554},
+                             {0x8f0e, 0x8706, 0x9f1e, 0x9716, 0xbf3e, 0xaf2e, 0xa726, 0xb736},
+                             {0xcf4e, 0xf776, 0xff7e, 0xdf5e, 0xef6e, 0xe766, 0xc746, 0xd756}});
+  VlxsegXeiXX<UInt16, 5, 1>(0x85008407,  // Vluxseg5ei8.v v8, (x1), v16, v0.t
+                            {{0x8b0a, 0x8100, 0x9f1e, 0x9514, 0xc746, 0xb332, 0xa928, 0xbd3c},
+                             {0x8d0c, 0x8302, 0xa120, 0x9716, 0xc948, 0xb534, 0xab2a, 0xbf3e},
+                             {0x8f0e, 0x8504, 0xa322, 0x9918, 0xcb4a, 0xb736, 0xad2c, 0xc140},
+                             {0x9110, 0x8706, 0xa524, 0x9b1a, 0xcd4c, 0xb938, 0xaf2e, 0xc342},
+                             {0x9312, 0x8908, 0xa726, 0x9d1c, 0xcf4e, 0xbb3a, 0xb130, 0xc544}});
+  VlxsegXeiXX<UInt16, 6, 1>(0xa5008407,  // Vluxseg6ei8.v v8, (x1), v16, v0.t
+                            {{0x8d0c, 0x8100, 0xa524, 0x9918, 0xd554, 0xbd3c, 0xb130, 0xc948},
+                             {0x8f0e, 0x8302, 0xa726, 0x9b1a, 0xd756, 0xbf3e, 0xb332, 0xcb4a},
+                             {0x9110, 0x8504, 0xa928, 0x9d1c, 0xd958, 0xc140, 0xb534, 0xcd4c},
+                             {0x9312, 0x8706, 0xab2a, 0x9f1e, 0xdb5a, 0xc342, 0xb736, 0xcf4e},
+                             {0x9514, 0x8908, 0xad2c, 0xa120, 0xdd5c, 0xc544, 0xb938, 0xd150},
+                             {0x9716, 0x8b0a, 0xaf2e, 0xa322, 0xdf5e, 0xc746, 0xbb3a, 0xd352}});
+  VlxsegXeiXX<UInt16, 7, 1>(0xc5008407,  // Vluxseg7ei8.v v8, (x1), v16, v0.t
+                            {{0x8f0e, 0x8100, 0xab2a, 0x9d1c, 0xe362, 0xc746, 0xb938, 0xd554},
+                             {0x9110, 0x8302, 0xad2c, 0x9f1e, 0xe564, 0xc948, 0xbb3a, 0xd756},
+                             {0x9312, 0x8504, 0xaf2e, 0xa120, 0xe766, 0xcb4a, 0xbd3c, 0xd958},
+                             {0x9514, 0x8706, 0xb130, 0xa322, 0xe968, 0xcd4c, 0xbf3e, 0xdb5a},
+                             {0x9716, 0x8908, 0xb332, 0xa524, 0xeb6a, 0xcf4e, 0xc140, 0xdd5c},
+                             {0x9918, 0x8b0a, 0xb534, 0xa726, 0xed6c, 0xd150, 0xc342, 0xdf5e},
+                             {0x9b1a, 0x8d0c, 0xb736, 0xa928, 0xef6e, 0xd352, 0xc544, 0xe160}});
+  VlxsegXeiXX<UInt16, 8, 1>(0xe5008407,  // Vluxseg8ei8.v v8, (x1), v16, v0.t
+                            {{0x9110, 0x8100, 0xb130, 0xa120, 0xf170, 0xd150, 0xc140, 0xe160},
+                             {0x9312, 0x8302, 0xb332, 0xa322, 0xf372, 0xd352, 0xc342, 0xe362},
+                             {0x9514, 0x8504, 0xb534, 0xa524, 0xf574, 0xd554, 0xc544, 0xe564},
+                             {0x9716, 0x8706, 0xb736, 0xa726, 0xf776, 0xd756, 0xc746, 0xe766},
+                             {0x9918, 0x8908, 0xb938, 0xa928, 0xf978, 0xd958, 0xc948, 0xe968},
+                             {0x9b1a, 0x8b0a, 0xbb3a, 0xab2a, 0xfb7a, 0xdb5a, 0xcb4a, 0xeb6a},
+                             {0x9d1c, 0x8d0c, 0xbd3c, 0xad2c, 0xfd7c, 0xdd5c, 0xcd4c, 0xed6c},
+                             {0x9f1e, 0x8f0e, 0xbf3e, 0xaf2e, 0xff7e, 0xdf5e, 0xcf4e, 0xef6e}});
+  VlxsegXeiXX<UInt32, 1, 1>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8706'8504, 0x8302'8100, 0x8f0e'8d0c, 0x8b0a'8908}});
+  VlxsegXeiXX<UInt32, 1, 2>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8706'8504, 0x8302'8100, 0x8f0e'8d0c, 0x8b0a'8908},
+                             {0x9f1e'9d1c, 0x9716'9514, 0x9312'9110, 0x9b1a'9918}});
+  VlxsegXeiXX<UInt32, 1, 4>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8706'8504, 0x8302'8100, 0x8f0e'8d0c, 0x8b0a'8908},
+                             {0x9f1e'9d1c, 0x9716'9514, 0x9312'9110, 0x9b1a'9918},
+                             {0xa726'a524, 0xbb3a'b938, 0xbf3e'bd3c, 0xaf2e'ad2c},
+                             {0xb736'b534, 0xb332'b130, 0xa322'a120, 0xab2a'a928}});
+  VlxsegXeiXX<UInt32, 1, 8>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8706'8504, 0x8302'8100, 0x8f0e'8d0c, 0x8b0a'8908},
+                             {0x9f1e'9d1c, 0x9716'9514, 0x9312'9110, 0x9b1a'9918},
+                             {0xa726'a524, 0xbb3a'b938, 0xbf3e'bd3c, 0xaf2e'ad2c},
+                             {0xb736'b534, 0xb332'b130, 0xa322'a120, 0xab2a'a928},
+                             {0xfb7a'f978, 0xff7e'fd7c, 0xc746'c544, 0xdb5a'd958},
+                             {0xcb4a'c948, 0xeb6a'e968, 0xe766'e564, 0xcf4e'cd4c},
+                             {0xf776'f574, 0xf372'f170, 0xc342'c140, 0xd756'd554},
+                             {0xef6e'ed6c, 0xe362'e160, 0xd352'd150, 0xdf5e'dd5c}});
+  VlxsegXeiXX<UInt32, 2, 1>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x8b0a'8908, 0x8302'8100, 0x9b1a'9918, 0x9312'9110},
+                             {0x8f0e'8d0c, 0x8706'8504, 0x9f1e'9d1c, 0x9716'9514}});
+  VlxsegXeiXX<UInt32, 2, 2>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x8b0a'8908, 0x8302'8100, 0x9b1a'9918, 0x9312'9110},
+                             {0xbb3a'b938, 0xab2a'a928, 0xa322'a120, 0xb332'b130},
+                             {0x8f0e'8d0c, 0x8706'8504, 0x9f1e'9d1c, 0x9716'9514},
+                             {0xbf3e'bd3c, 0xaf2e'ad2c, 0xa726'a524, 0xb736'b534}});
+  VlxsegXeiXX<UInt32, 2, 4>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x8b0a'8908, 0x8302'8100, 0x9b1a'9918, 0x9312'9110},
+                             {0xbb3a'b938, 0xab2a'a928, 0xa322'a120, 0xb332'b130},
+                             {0xcb4a'c948, 0xf372'f170, 0xfb7a'f978, 0xdb5a'd958},
+                             {0xeb6a'e968, 0xe362'e160, 0xc342'c140, 0xd352'd150},
+                             {0x8f0e'8d0c, 0x8706'8504, 0x9f1e'9d1c, 0x9716'9514},
+                             {0xbf3e'bd3c, 0xaf2e'ad2c, 0xa726'a524, 0xb736'b534},
+                             {0xcf4e'cd4c, 0xf776'f574, 0xff7e'fd7c, 0xdf5e'dd5c},
+                             {0xef6e'ed6c, 0xe766'e564, 0xc746'c544, 0xd756'd554}});
+  VlxsegXeiXX<UInt32, 3, 1>(0x45008407,  // Vluxseg3ei8.v v8, (x1), v16, v0.t
+                            {{0x8f0e'8d0c, 0x8302'8100, 0xa726'a524, 0x9b1a'9918},
+                             {0x9312'9110, 0x8706'8504, 0xab2a'a928, 0x9f1e'9d1c},
+                             {0x9716'9514, 0x8b0a'8908, 0xaf2e'ad2c, 0xa322'a120}});
+  VlxsegXeiXX<UInt32, 3, 2>(0x45008407,  // Vluxseg3ei8.v v8, (x1), v16, v0.t
+                            {{0x8f0e'8d0c, 0x8302'8100, 0xa726'a524, 0x9b1a'9918},
+                             {0xd756'd554, 0xbf3e'bd3c, 0xb332'b130, 0xcb4a'c948},
+                             {0x9312'9110, 0x8706'8504, 0xab2a'a928, 0x9f1e'9d1c},
+                             {0xdb5a'd958, 0xc342'c140, 0xb736'b534, 0xcf4e'cd4c},
+                             {0x9716'9514, 0x8b0a'8908, 0xaf2e'ad2c, 0xa322'a120},
+                             {0xdf5e'dd5c, 0xc746'c544, 0xbb3a'b938, 0xd352'd150}});
+  VlxsegXeiXX<UInt32, 4, 1>(0x65008407,  // Vluxseg4ei8.v v8, (x1), v16, v0.t
+                            {{0x9312'9110, 0x8302'8100, 0xb332'b130, 0xa322'a120},
+                             {0x9716'9514, 0x8706'8504, 0xb736'b534, 0xa726'a524},
+                             {0x9b1a'9918, 0x8b0a'8908, 0xbb3a'b938, 0xab2a'a928},
+                             {0x9f1e'9d1c, 0x8f0e'8d0c, 0xbf3e'bd3c, 0xaf2e'ad2c}});
+  VlxsegXeiXX<UInt32, 4, 2>(0x65008407,  // Vluxseg4ei8.v v8, (x1), v16, v0.t
+                            {{0x9312'9110, 0x8302'8100, 0xb332'b130, 0xa322'a120},
+                             {0xf372'f170, 0xd352'd150, 0xc342'c140, 0xe362'e160},
+                             {0x9716'9514, 0x8706'8504, 0xb736'b534, 0xa726'a524},
+                             {0xf776'f574, 0xd756'd554, 0xc746'c544, 0xe766'e564},
+                             {0x9b1a'9918, 0x8b0a'8908, 0xbb3a'b938, 0xab2a'a928},
+                             {0xfb7a'f978, 0xdb5a'd958, 0xcb4a'c948, 0xeb6a'e968},
+                             {0x9f1e'9d1c, 0x8f0e'8d0c, 0xbf3e'bd3c, 0xaf2e'ad2c},
+                             {0xff7e'fd7c, 0xdf5e'dd5c, 0xcf4e'cd4c, 0xef6e'ed6c}});
+  VlxsegXeiXX<UInt32, 5, 1>(0x85008407,  // Vluxseg5ei8.v v8, (x1), v16, v0.t
+                            {{0x9716'9514, 0x8302'8100, 0xbf3e'bd3c, 0xab2a'a928},
+                             {0x9b1a'9918, 0x8706'8504, 0xc342'c140, 0xaf2e'ad2c},
+                             {0x9f1e'9d1c, 0x8b0a'8908, 0xc746'c544, 0xb332'b130},
+                             {0xa322'a120, 0x8f0e'8d0c, 0xcb4a'c948, 0xb736'b534},
+                             {0xa726'a524, 0x9312'9110, 0xcf4e'cd4c, 0xbb3a'b938}});
+  VlxsegXeiXX<UInt32, 6, 1>(0xa5008407,  // Vluxseg6ei8.v v8, (x1), v16, v0.t
+                            {{0x9b1a'9918, 0x8302'8100, 0xcb4a'c948, 0xb332'b130},
+                             {0x9f1e'9d1c, 0x8706'8504, 0xcf4e'cd4c, 0xb736'b534},
+                             {0xa322'a120, 0x8b0a'8908, 0xd352'd150, 0xbb3a'b938},
+                             {0xa726'a524, 0x8f0e'8d0c, 0xd756'd554, 0xbf3e'bd3c},
+                             {0xab2a'a928, 0x9312'9110, 0xdb5a'd958, 0xc342'c140},
+                             {0xaf2e'ad2c, 0x9716'9514, 0xdf5e'dd5c, 0xc746'c544}});
+  VlxsegXeiXX<UInt32, 7, 1>(0xc5008407,  // Vluxseg7ei8.v v8, (x1), v16, v0.t
+                            {{0x9f1e'9d1c, 0x8302'8100, 0xd756'd554, 0xbb3a'b938},
+                             {0xa322'a120, 0x8706'8504, 0xdb5a'd958, 0xbf3e'bd3c},
+                             {0xa726'a524, 0x8b0a'8908, 0xdf5e'dd5c, 0xc342'c140},
+                             {0xab2a'a928, 0x8f0e'8d0c, 0xe362'e160, 0xc746'c544},
+                             {0xaf2e'ad2c, 0x9312'9110, 0xe766'e564, 0xcb4a'c948},
+                             {0xb332'b130, 0x9716'9514, 0xeb6a'e968, 0xcf4e'cd4c},
+                             {0xb736'b534, 0x9b1a'9918, 0xef6e'ed6c, 0xd352'd150}});
+  VlxsegXeiXX<UInt32, 8, 1>(0xe5008407,  // Vluxseg8ei8.v v8, (x1), v16, v0.t
+                            {{0xa322'a120, 0x8302'8100, 0xe362'e160, 0xc342'c140},
+                             {0xa726'a524, 0x8706'8504, 0xe766'e564, 0xc746'c544},
+                             {0xab2a'a928, 0x8b0a'8908, 0xeb6a'e968, 0xcb4a'c948},
+                             {0xaf2e'ad2c, 0x8f0e'8d0c, 0xef6e'ed6c, 0xcf4e'cd4c},
+                             {0xb332'b130, 0x9312'9110, 0xf372'f170, 0xd352'd150},
+                             {0xb736'b534, 0x9716'9514, 0xf776'f574, 0xd756'd554},
+                             {0xbb3a'b938, 0x9b1a'9918, 0xfb7a'f978, 0xdb5a'd958},
+                             {0xbf3e'bd3c, 0x9f1e'9d1c, 0xff7e'fd7c, 0xdf5e'dd5c}});
+  VlxsegXeiXX<UInt64, 1, 1>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8f0e'8d0c'8b0a'8908, 0x8706'8504'8302'8100}});
+  VlxsegXeiXX<UInt64, 1, 2>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8f0e'8d0c'8b0a'8908, 0x8706'8504'8302'8100},
+                             {0x9f1e'9d1c'9b1a'9918, 0x9716'9514'9312'9110}});
+  VlxsegXeiXX<UInt64, 1, 4>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8f0e'8d0c'8b0a'8908, 0x8706'8504'8302'8100},
+                             {0x9f1e'9d1c'9b1a'9918, 0x9716'9514'9312'9110},
+                             {0xbf3e'bd3c'bb3a'b938, 0xaf2e'ad2c'ab2a'a928},
+                             {0xa726'a524'a322'a120, 0xb736'b534'b332'b130}});
+  VlxsegXeiXX<UInt64, 1, 8>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
+                            {{0x8f0e'8d0c'8b0a'8908, 0x8706'8504'8302'8100},
+                             {0x9f1e'9d1c'9b1a'9918, 0x9716'9514'9312'9110},
+                             {0xbf3e'bd3c'bb3a'b938, 0xaf2e'ad2c'ab2a'a928},
+                             {0xa726'a524'a322'a120, 0xb736'b534'b332'b130},
+                             {0xcf4e'cd4c'cb4a'c948, 0xf776'f574'f372'f170},
+                             {0xff7e'fd7c'fb7a'f978, 0xdf5e'dd5c'db5a'd958},
+                             {0xef6e'ed6c'eb6a'e968, 0xe766'e564'e362'e160},
+                             {0xc746'c544'c342'c140, 0xd756'd554'd352'd150}});
+  VlxsegXeiXX<UInt64, 2, 1>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x9716'9514'9312'9110, 0x8706'8504'8302'8100},
+                             {0x9f1e'9d1c'9b1a'9918, 0x8f0e'8d0c'8b0a'8908}});
+  VlxsegXeiXX<UInt64, 2, 2>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x9716'9514'9312'9110, 0x8706'8504'8302'8100},
+                             {0xb736'b534'b332'b130, 0xa726'a524'a322'a120},
+                             {0x9f1e'9d1c'9b1a'9918, 0x8f0e'8d0c'8b0a'8908},
+                             {0xbf3e'bd3c'bb3a'b938, 0xaf2e'ad2c'ab2a'a928}});
+  VlxsegXeiXX<UInt64, 2, 4>(0x25008407,  // Vluxseg2ei8.v v8, (x1), v16, v0.t
+                            {{0x9716'9514'9312'9110, 0x8706'8504'8302'8100},
+                             {0xb736'b534'b332'b130, 0xa726'a524'a322'a120},
+                             {0xf776'f574'f372'f170, 0xd756'd554'd352'd150},
+                             {0xc746'c544'c342'c140, 0xe766'e564'e362'e160},
+                             {0x9f1e'9d1c'9b1a'9918, 0x8f0e'8d0c'8b0a'8908},
+                             {0xbf3e'bd3c'bb3a'b938, 0xaf2e'ad2c'ab2a'a928},
+                             {0xff7e'fd7c'fb7a'f978, 0xdf5e'dd5c'db5a'd958},
+                             {0xcf4e'cd4c'cb4a'c948, 0xef6e'ed6c'eb6a'e968}});
+  VlxsegXeiXX<UInt64, 3, 1>(0x45008407,  // Vluxseg3ei8.v v8, (x1), v16, v0.t
+                            {{0x9f1e'9d1c'9b1a'9918, 0x8706'8504'8302'8100},
+                             {0xa726'a524'a322'a120, 0x8f0e'8d0c'8b0a'8908},
+                             {0xaf2e'ad2c'ab2a'a928, 0x9716'9514'9312'9110}});
+  VlxsegXeiXX<UInt64, 3, 2>(0x45008407,  // Vluxseg3ei8.v v8, (x1), v16, v0.t
+                            {{0x9f1e'9d1c'9b1a'9918, 0x8706'8504'8302'8100},
+                             {0xcf4e'cd4c'cb4a'c948, 0xb736'b534'b332'b130},
+                             {0xa726'a524'a322'a120, 0x8f0e'8d0c'8b0a'8908},
+                             {0xd756'd554'd352'd150, 0xbf3e'bd3c'bb3a'b938},
+                             {0xaf2e'ad2c'ab2a'a928, 0x9716'9514'9312'9110},
+                             {0xdf5e'dd5c'db5a'd958, 0xc746'c544'c342'c140}});
+  VlxsegXeiXX<UInt64, 4, 1>(0x65008407,  // Vluxseg4ei8.v v8, (x1), v16, v0.t
+                            {{0xa726'a524'a322'a120, 0x8706'8504'8302'8100},
+                             {0xaf2e'ad2c'ab2a'a928, 0x8f0e'8d0c'8b0a'8908},
+                             {0xb736'b534'b332'b130, 0x9716'9514'9312'9110},
+                             {0xbf3e'bd3c'bb3a'b938, 0x9f1e'9d1c'9b1a'9918}});
+  VlxsegXeiXX<UInt64, 4, 2>(0x65008407,  // Vluxseg4ei8.v v8, (x1), v16, v0.t
+                            {{0xa726'a524'a322'a120, 0x8706'8504'8302'8100},
+                             {0xe766'e564'e362'e160, 0xc746'c544'c342'c140},
+                             {0xaf2e'ad2c'ab2a'a928, 0x8f0e'8d0c'8b0a'8908},
+                             {0xef6e'ed6c'eb6a'e968, 0xcf4e'cd4c'cb4a'c948},
+                             {0xb736'b534'b332'b130, 0x9716'9514'9312'9110},
+                             {0xf776'f574'f372'f170, 0xd756'd554'd352'd150},
+                             {0xbf3e'bd3c'bb3a'b938, 0x9f1e'9d1c'9b1a'9918},
+                             {0xff7e'fd7c'fb7a'f978, 0xdf5e'dd5c'db5a'd958}});
+  VlxsegXeiXX<UInt64, 5, 1>(0x85008407,  // Vluxseg5ei8.v v8, (x1), v16, v0.t
+                            {{0xaf2e'ad2c'ab2a'a928, 0x8706'8504'8302'8100},
+                             {0xb736'b534'b332'b130, 0x8f0e'8d0c'8b0a'8908},
+                             {0xbf3e'bd3c'bb3a'b938, 0x9716'9514'9312'9110},
+                             {0xc746'c544'c342'c140, 0x9f1e'9d1c'9b1a'9918},
+                             {0xcf4e'cd4c'cb4a'c948, 0xa726'a524'a322'a120}});
+  VlxsegXeiXX<UInt64, 6, 1>(0xa5008407,  // Vluxseg6ei8.v v8, (x1), v16, v0.t
+                            {{0xb736'b534'b332'b130, 0x8706'8504'8302'8100},
+                             {0xbf3e'bd3c'bb3a'b938, 0x8f0e'8d0c'8b0a'8908},
+                             {0xc746'c544'c342'c140, 0x9716'9514'9312'9110},
+                             {0xcf4e'cd4c'cb4a'c948, 0x9f1e'9d1c'9b1a'9918},
+                             {0xd756'd554'd352'd150, 0xa726'a524'a322'a120},
+                             {0xdf5e'dd5c'db5a'd958, 0xaf2e'ad2c'ab2a'a928}});
+  VlxsegXeiXX<UInt64, 7, 1>(0xc5008407,  // Vluxseg7ei8.v v8, (x1), v16, v0.t
+                            {{0xbf3e'bd3c'bb3a'b938, 0x8706'8504'8302'8100},
+                             {0xc746'c544'c342'c140, 0x8f0e'8d0c'8b0a'8908},
+                             {0xcf4e'cd4c'cb4a'c948, 0x9716'9514'9312'9110},
+                             {0xd756'd554'd352'd150, 0x9f1e'9d1c'9b1a'9918},
+                             {0xdf5e'dd5c'db5a'd958, 0xa726'a524'a322'a120},
+                             {0xe766'e564'e362'e160, 0xaf2e'ad2c'ab2a'a928},
+                             {0xef6e'ed6c'eb6a'e968, 0xb736'b534'b332'b130}});
+  VlxsegXeiXX<UInt64, 8, 1>(0xe5008407,  // Vluxseg8ei8.v v8, (x1), v16, v0.t
+                            {{0xc746'c544'c342'c140, 0x8706'8504'8302'8100},
+                             {0xcf4e'cd4c'cb4a'c948, 0x8f0e'8d0c'8b0a'8908},
+                             {0xd756'd554'd352'd150, 0x9716'9514'9312'9110},
+                             {0xdf5e'dd5c'db5a'd958, 0x9f1e'9d1c'9b1a'9918},
+                             {0xe766'e564'e362'e160, 0xa726'a524'a322'a120},
+                             {0xef6e'ed6c'eb6a'e968, 0xaf2e'ad2c'ab2a'a928},
+                             {0xf776'f574'f372'f170, 0xb736'b534'b332'b130},
+                             {0xff7e'fd7c'fb7a'f978, 0xbf3e'bd3c'bb3a'b938}});
+}
+
 TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
   TestVlssegXeXX<UInt8, 1, 1>(0x08208407,  // vlse8.v v8, (x1), x2, v0.t
                               4,
@@ -1710,15 +2154,15 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
        {128, 137, 145, 152, 160, 169, 177, 184, 192, 201, 209, 216, 224, 233, 241, 248}});
   TestVlssegXeXX<UInt8, 1, 8>(
       0x08208407,  // vlse8.v v8, (x1), x2, v0.t
-      4,
-      {{0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60},
-       {64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124},
-       {0, 9, 17, 24, 32, 41, 49, 56, 64, 73, 81, 88, 96, 105, 113, 120},
-       {128, 137, 145, 152, 160, 169, 177, 184, 192, 201, 209, 216, 224, 233, 241, 248},
-       {78, 115, 103, 116, 97, 84, 70, 111, 109, 78, 114, 105, 95, 66, 95, 51},
-       {115, 52, 101, 101, 84, 95, 116, 120, 101, 69, 56, 98, 115, 71, 65, 78},
-       {55, 99, 73, 114, 116, 101, 84, 86, 115, 115, 78, 115, 103, 116, 97, 84},
-       {70, 111, 109, 78, 114, 105, 95, 66, 95, 51, 115, 52, 101, 101, 84, 95}});
+      2,
+      {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
+       {32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62},
+       {64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94},
+       {96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126},
+       {0, 4, 9, 12, 17, 20, 24, 28, 32, 36, 41, 44, 49, 52, 56, 60},
+       {64, 68, 73, 76, 81, 84, 88, 92, 96, 100, 105, 108, 113, 116, 120, 124},
+       {128, 132, 137, 140, 145, 148, 152, 156, 160, 164, 169, 172, 177, 180, 184, 188},
+       {192, 196, 201, 204, 209, 212, 216, 220, 224, 228, 233, 236, 241, 244, 248, 252}});
   TestVlssegXeXX<UInt8, 2, 1>(
       0x28208407,  // vlsseg2e8.v v8, (x1), x2, v0.t
       4,
@@ -1740,8 +2184,8 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
        {128, 137, 145, 152, 160, 169, 177, 184, 192, 201, 209, 216, 224, 233, 241, 248},
        {129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173, 177, 181, 185, 189},
        {193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233, 237, 241, 245, 249, 253},
-       {2, 10, 18, 26, 34, 42, 50, 58, 66, 74, 82, 90, 98, 106, 114, 122},
-       {130, 138, 146, 154, 162, 170, 178, 186, 194, 202, 210, 218, 226, 234, 242, 250}});
+       {146, 154, 130, 138, 178, 186, 162, 170, 210, 218, 194, 202, 242, 250, 226, 234},
+       {18, 26, 2, 10, 50, 58, 34, 42, 82, 90, 66, 74, 114, 122, 98, 106}});
   TestVlssegXeXX<UInt8, 3, 1>(
       0x48208407,  // vlsseg3e8.v v8, (x1), x2, v0.t
       4,
@@ -1824,18 +2268,18 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                8,
                                {{0x8100, 0x8908, 0x9110, 0x9918, 0xa120, 0xa928, 0xb130, 0xb938},
                                 {0xc140, 0xc948, 0xd150, 0xd958, 0xe160, 0xe968, 0xf170, 0xf978},
-                                {0x0200, 0x1211, 0x2220, 0x3231, 0x4240, 0x5251, 0x6260, 0x7271},
-                                {0x8280, 0x9291, 0xa2a0, 0xb2b1, 0xc2c0, 0xd2d1, 0xe2e0, 0xf2f1}});
+                                {0x9200, 0x8211, 0xb220, 0xa231, 0xd240, 0xc251, 0xf260, 0xe271},
+                                {0x1280, 0x0291, 0x32a0, 0x22b1, 0x52c0, 0x42d1, 0x72e0, 0x62f1}});
   TestVlssegXeXX<UInt16, 1, 8>(0x820d407,  // vlse16.v v8, (x1), x2, v0.t
-                               8,
-                               {{0x8100, 0x8908, 0x9110, 0x9918, 0xa120, 0xa928, 0xb130, 0xb938},
-                                {0xc140, 0xc948, 0xd150, 0xd958, 0xe160, 0xe968, 0xf170, 0xf978},
-                                {0x0200, 0x1211, 0x2220, 0x3231, 0x4240, 0x5251, 0x6260, 0x7271},
-                                {0x8280, 0x9291, 0xa2a0, 0xb2b1, 0xc2c0, 0xd2d1, 0xe2e0, 0xf2f1},
-                                {0x374e, 0x3867, 0x6c61, 0x6146, 0x706d, 0x6272, 0x475f, 0x4e5f},
-                                {0x6373, 0x7265, 0x6554, 0x5674, 0x7365, 0x6238, 0x3173, 0x4c41},
-                                {0x5237, 0x6e49, 0x6574, 0x6554, 0x5f73, 0x374e, 0x3867, 0x6c61},
-                                {0x6146, 0x706d, 0x6272, 0x475f, 0x4e5f, 0x6373, 0x7265, 0x6554}});
+                               4,
+                               {{0x8100, 0x8504, 0x8908, 0x8d0c, 0x9110, 0x9514, 0x9918, 0x9d1c},
+                                {0xa120, 0xa524, 0xa928, 0xad2c, 0xb130, 0xb534, 0xb938, 0xbd3c},
+                                {0xc140, 0xc544, 0xc948, 0xcd4c, 0xd150, 0xd554, 0xd958, 0xdd5c},
+                                {0xe160, 0xe564, 0xe968, 0xed6c, 0xf170, 0xf574, 0xf978, 0xfd7c},
+                                {0x9200, 0x9a09, 0x8211, 0x8a18, 0xb220, 0xba29, 0xa231, 0xaa38},
+                                {0xd240, 0xda49, 0xc251, 0xca58, 0xf260, 0xfa69, 0xe271, 0xea78},
+                                {0x1280, 0x1a89, 0x0291, 0x0a98, 0x32a0, 0x3aa9, 0x22b1, 0x2ab8},
+                                {0x52c0, 0x5ac9, 0x42d1, 0x4ad8, 0x72e0, 0x7ae9, 0x62f1, 0x6af8}});
   TestVlssegXeXX<UInt16, 2, 1>(0x2820d407,  // vlsseg2e16.v v8, (x1), x2, v0.t
                                8,
                                {{0x8100, 0x8908, 0x9110, 0x9918, 0xa120, 0xa928, 0xb130, 0xb938},
@@ -1850,12 +2294,12 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                8,
                                {{0x8100, 0x8908, 0x9110, 0x9918, 0xa120, 0xa928, 0xb130, 0xb938},
                                 {0xc140, 0xc948, 0xd150, 0xd958, 0xe160, 0xe968, 0xf170, 0xf978},
-                                {0x0200, 0x1211, 0x2220, 0x3231, 0x4240, 0x5251, 0x6260, 0x7271},
-                                {0x8280, 0x9291, 0xa2a0, 0xb2b1, 0xc2c0, 0xd2d1, 0xe2e0, 0xf2f1},
+                                {0x9200, 0x8211, 0xb220, 0xa231, 0xd240, 0xc251, 0xf260, 0xe271},
+                                {0x1280, 0x0291, 0x32a0, 0x22b1, 0x52c0, 0x42d1, 0x72e0, 0x62f1},
                                 {0x8302, 0x8b0a, 0x9312, 0x9b1a, 0xa322, 0xab2a, 0xb332, 0xbb3a},
                                 {0xc342, 0xcb4a, 0xd352, 0xdb5a, 0xe362, 0xeb6a, 0xf372, 0xfb7a},
-                                {0x0604, 0x1614, 0x2624, 0x3634, 0x4644, 0x5654, 0x6664, 0x7674},
-                                {0x8684, 0x9694, 0xa6a4, 0xb6b4, 0xc6c4, 0xd6d4, 0xe6e4, 0xf6f4}});
+                                {0x9604, 0x8614, 0xb624, 0xa634, 0xd644, 0xc654, 0xf664, 0xe674},
+                                {0x1684, 0x0694, 0x36a4, 0x26b4, 0x56c4, 0x46d4, 0x76e4, 0x66f4}});
   TestVlssegXeXX<UInt16, 3, 1>(0x4820d407,  // vlsseg3e16.v v8, (x1), x2, v0.t
                                8,
                                {{0x8100, 0x8908, 0x9110, 0x9918, 0xa120, 0xa928, 0xb130, 0xb938},
@@ -1930,18 +2374,18 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                16,
                                {{0x8302'8100, 0x9312'9110, 0xa322'a120, 0xb332'b130},
                                 {0xc342'c140, 0xd352'd150, 0xe362'e160, 0xf372'f170},
-                                {0x0604'0200, 0x2624'2220, 0x4644'4240, 0x6664'6260},
-                                {0x8684'8280, 0xa6a4'a2a0, 0xc6c4'c2c0, 0xe6e4'e2e0}});
+                                {0x9604'9200, 0xb624'b220, 0xd644'd240, 0xf664'f260},
+                                {0x1684'1280, 0x36a4'32a0, 0x56c4'52c0, 0x76e4'72e0}});
   TestVlssegXeXX<UInt32, 1, 8>(0x820e407,  // vlse32.v v8, (x1), x2, v0.t
-                               16,
-                               {{0x8302'8100, 0x9312'9110, 0xa322'a120, 0xb332'b130},
-                                {0xc342'c140, 0xd352'd150, 0xe362'e160, 0xf372'f170},
-                                {0x0604'0200, 0x2624'2220, 0x4644'4240, 0x6664'6260},
-                                {0x8684'8280, 0xa6a4'a2a0, 0xc6c4'c2c0, 0xe6e4'e2e0},
-                                {0x6574'374e, 0x3531'6c61, 0x496c'706d, 0x4f4c'475f},
-                                {0x3676'6373, 0x7473'6554, 0x4574'7365, 0x5f32'3173},
-                                {0x7369'5237, 0x5472'6574, 0x6554'5f73, 0x6e69'3867},
-                                {0x7463'6146, 0x7265'6272, 0x315f'4e5f, 0x7270'7265}});
+                               8,
+                               {{0x8302'8100, 0x8b0a'8908, 0x9312'9110, 0x9b1a'9918},
+                                {0xa322'a120, 0xab2a'a928, 0xb332'b130, 0xbb3a'b938},
+                                {0xc342'c140, 0xcb4a'c948, 0xd352'd150, 0xdb5a'd958},
+                                {0xe362'e160, 0xeb6a'e968, 0xf372'f170, 0xfb7a'f978},
+                                {0x9604'9200, 0x8614'8211, 0xb624'b220, 0xa634'a231},
+                                {0xd644'd240, 0xc654'c251, 0xf664'f260, 0xe674'e271},
+                                {0x1684'1280, 0x0694'0291, 0x36a4'32a0, 0x26b4'22b1},
+                                {0x56c4'52c0, 0x46d4'42d1, 0x76e4'72e0, 0x66f4'62f1}});
   TestVlssegXeXX<UInt32, 2, 1>(0x2820e407,  // vlsseg2e32.v v8, (x1), x2, v0.t
                                16,
                                {{0x8302'8100, 0x9312'9110, 0xa322'a120, 0xb332'b130},
@@ -1956,12 +2400,12 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                16,
                                {{0x8302'8100, 0x9312'9110, 0xa322'a120, 0xb332'b130},
                                 {0xc342'c140, 0xd352'd150, 0xe362'e160, 0xf372'f170},
-                                {0x0604'0200, 0x2624'2220, 0x4644'4240, 0x6664'6260},
-                                {0x8684'8280, 0xa6a4'a2a0, 0xc6c4'c2c0, 0xe6e4'e2e0},
+                                {0x9604'9200, 0xb624'b220, 0xd644'd240, 0xf664'f260},
+                                {0x1684'1280, 0x36a4'32a0, 0x56c4'52c0, 0x76e4'72e0},
                                 {0x8706'8504, 0x9716'9514, 0xa726'a524, 0xb736'b534},
                                 {0xc746'c544, 0xd756'd554, 0xe766'e564, 0xf776'f574},
-                                {0x0e0c'0a09, 0x2e2c'2a29, 0x4e4c'4a49, 0x6e6c'6a69},
-                                {0x8e8c'8a89, 0xaeac'aaa9, 0xcecc'cac9, 0xeeec'eae9}});
+                                {0x9e0c'9a09, 0xbe2c'ba29, 0xde4c'da49, 0xfe6c'fa69},
+                                {0x1e8c'1a89, 0x3eac'3aa9, 0x5ecc'5ac9, 0x7eec'7ae9}});
   TestVlssegXeXX<UInt32, 3, 1>(0x4820e407,  // vlsseg3e32.v v8, (x1), x2, v0.t
                                16,
                                {{0x8302'8100, 0x9312'9110, 0xa322'a120, 0xb332'b130},
@@ -2036,38 +2480,38 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                32,
                                {{0x8706'8504'8302'8100, 0xa726'a524'a322'a120},
                                 {0xc746'c544'c342'c140, 0xe766'e564'e362'e160},
-                                {0x0e0c'0a09'0604'0200, 0x4e4c'4a49'4644'4240},
-                                {0x8e8c'8a89'8684'8280, 0xcecc'cac9'c6c4'c2c0}});
+                                {0x9e0c'9a09'9604'9200, 0xde4c'da49'd644'd240},
+                                {0x1e8c'1a89'1684'1280, 0x5ecc'5ac9'56c4'52c0}});
   TestVlssegXeXX<UInt64, 1, 8>(0x820f407,  // vlse64.v v8, (x1), x2, v0.t
-                               32,
-                               {{0x8706'8504'8302'8100, 0xa726'a524'a322'a120},
-                                {0xc746'c544'c342'c140, 0xe766'e564'e362'e160},
-                                {0x0e0c'0a09'0604'0200, 0x4e4c'4a49'4644'4240},
-                                {0x8e8c'8a89'8684'8280, 0xcecc'cac9'c6c4'c2c0},
-                                {0x6e69'7473'6574'374e, 0x6562'384e'496c'706d},
-                                {0x746e'4934'3676'6373, 0x4e00'4545'4574'7365},
-                                {0x3436'7663'7369'5237, 0x0045'7473'6554'5f73},
-                                {0x4979'726f'7463'6146, 0x6952'3533'315f'4e5f}});
-  TestVlssegXeXX<UInt64, 2, 1>(0x2820f407,  // vlsseg3e64.v v8, (x1), x2, v0.t
+                               16,
+                               {{0x8706'8504'8302'8100, 0x9716'9514'9312'9110},
+                                {0xa726'a524'a322'a120, 0xb736'b534'b332'b130},
+                                {0xc746'c544'c342'c140, 0xd756'd554'd352'd150},
+                                {0xe766'e564'e362'e160, 0xf776'f574'f372'f170},
+                                {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220},
+                                {0xde4c'da49'd644'd240, 0xfe6c'fa69'f664'f260},
+                                {0x1e8c'1a89'1684'1280, 0x3eac'3aa9'36a4'32a0},
+                                {0x5ecc'5ac9'56c4'52c0, 0x7eec'7ae9'76e4'72e0}});
+  TestVlssegXeXX<UInt64, 2, 1>(0x2820f407,  // vlsseg2e64.v v8, (x1), x2, v0.t
                                32,
                                {{0x8706'8504'8302'8100, 0xa726'a524'a322'a120},
                                 {0x8f0e'8d0c'8b0a'8908, 0xaf2e'ad2c'ab2a'a928}});
-  TestVlssegXeXX<UInt64, 2, 2>(0x2820f407,  // vlsseg3e64.v v8, (x1), x2, v0.t
+  TestVlssegXeXX<UInt64, 2, 2>(0x2820f407,  // vlsseg2e64.v v8, (x1), x2, v0.t
                                32,
                                {{0x8706'8504'8302'8100, 0xa726'a524'a322'a120},
                                 {0xc746'c544'c342'c140, 0xe766'e564'e362'e160},
                                 {0x8f0e'8d0c'8b0a'8908, 0xaf2e'ad2c'ab2a'a928},
                                 {0xcf4e'cd4c'cb4a'c948, 0xef6e'ed6c'eb6a'e968}});
-  TestVlssegXeXX<UInt64, 2, 4>(0x2820f407,  // vlsseg3e64.v v8, (x1), x2, v0.t
+  TestVlssegXeXX<UInt64, 2, 4>(0x2820f407,  // vlsseg2e64.v v8, (x1), x2, v0.t
                                32,
                                {{0x8706'8504'8302'8100, 0xa726'a524'a322'a120},
                                 {0xc746'c544'c342'c140, 0xe766'e564'e362'e160},
-                                {0x0e0c'0a09'0604'0200, 0x4e4c'4a49'4644'4240},
-                                {0x8e8c'8a89'8684'8280, 0xcecc'cac9'c6c4'c2c0},
+                                {0x9e0c'9a09'9604'9200, 0xde4c'da49'd644'd240},
+                                {0x1e8c'1a89'1684'1280, 0x5ecc'5ac9'56c4'52c0},
                                 {0x8f0e'8d0c'8b0a'8908, 0xaf2e'ad2c'ab2a'a928},
                                 {0xcf4e'cd4c'cb4a'c948, 0xef6e'ed6c'eb6a'e968},
-                                {0x1e1c'1a18'1614'1211, 0x5e5c'5a58'5654'5251},
-                                {0x9e9c'9a98'9694'9291, 0xdedc'dad8'd6d4'd2d1}});
+                                {0x8e1c'8a18'8614'8211, 0xce5c'ca58'c654'c251},
+                                {0x0e9c'0a98'0694'0291, 0x4edc'4ad8'46d4'42d1}});
   TestVlssegXeXX<UInt64, 3, 1>(0x4820f407,  // vlsseg3e64.v v8, (x1), x2, v0.t
                                32,
                                {{0x8706'8504'8302'8100, 0xa726'a524'a322'a120},
