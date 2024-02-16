@@ -1647,8 +1647,7 @@ class Interpreter {
                     NumberOfRegistersInvolved(vlmul),
                     IndexElementType,
                     kIndexRegistersInvolved,
-                    vta,
-                    vma>(args, src);
+                    !std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>>(args, src);
   }
 
   template <typename DataElementType,
@@ -1656,11 +1655,20 @@ class Interpreter {
             size_t kNumRegistersInGroup,
             typename IndexElementType,
             size_t kIndexRegistersInvolved,
-            TailProcessing vta,
-            auto vma>
-  void OpVector(const Decoder::VStoreIndexedArgs& /*args*/, Register /*src*/) {
-    Unimplemented();
+            bool kUseMasking>
+  void OpVector(const Decoder::VStoreIndexedArgs& args, Register src) {
+    if (!IsAligned<kIndexRegistersInvolved>(args.idx)) {
+      return Unimplemented();
+    }
+    constexpr int kElementsCount =
+        static_cast<int>(sizeof(SIMD128Register) / sizeof(IndexElementType));
+    alignas(alignof(SIMD128Register))
+        IndexElementType indexes[kElementsCount * kIndexRegistersInvolved];
+    memcpy(indexes, state_->cpu.v + args.idx, sizeof(SIMD128Register) * kIndexRegistersInvolved);
+    return OpVectorStore<DataElementType, kSegmentSize, kNumRegistersInGroup, kUseMasking>(
+        args.data, src, [&indexes](size_t index) { return indexes[index]; });
   }
+
   template <typename ElementType,
             int kSegmentSize,
             VectorRegisterGroupMultiplier vlmul,
