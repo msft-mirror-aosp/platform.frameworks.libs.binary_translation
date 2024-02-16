@@ -2064,7 +2064,9 @@ class Interpreter {
 
   template <CsrName kName>
   void SetCsr(Register arg) {
-    CHECK(!exception_raised_);
+    if (exception_raised_) {
+      return;
+    }
     state_->cpu.*CsrFieldAddr<kName> = arg & kCsrMask<kName>;
   }
 
