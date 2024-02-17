@@ -204,9 +204,61 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename ElementType, size_t kNFfields, size_t kLmul, size_t kResultSize>
+  void VsxsegXeiXX(uint32_t insn_bytes, const uint64_t (&expected_results)[kResultSize]) {
+    VsxsegXeiXX<ElementType, UInt8, kNFfields, kLmul>(insn_bytes, expected_results);
+    VsxsegXeiXX<ElementType, UInt8, kNFfields, kLmul>(insn_bytes | 0x8000000, expected_results);
+    VsxsegXeiXX<ElementType, UInt16, kNFfields, kLmul>(insn_bytes | 0x5000, expected_results);
+    VsxsegXeiXX<ElementType, UInt16, kNFfields, kLmul>(insn_bytes | 0x8005000, expected_results);
+    VsxsegXeiXX<ElementType, UInt32, kNFfields, kLmul>(insn_bytes | 0x6000, expected_results);
+    VsxsegXeiXX<ElementType, UInt32, kNFfields, kLmul>(insn_bytes | 0x8006000, expected_results);
+    VsxsegXeiXX<ElementType, UInt64, kNFfields, kLmul>(insn_bytes | 0x7000, expected_results);
+    VsxsegXeiXX<ElementType, UInt64, kNFfields, kLmul>(insn_bytes | 0x8007000, expected_results);
+  }
+
+  template <typename DataElementType,
+            typename IndexElementType,
+            size_t kNFfields,
+            size_t kLmul,
+            size_t kResultSize>
+  void VsxsegXeiXX(uint32_t insn_bytes, const uint64_t (&expected_results)[kResultSize]) {
+    constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(IndexElementType);
+    constexpr size_t kTotalElements =
+        sizeof(SIMD128Register) / sizeof(DataElementType) * kLmul * kNFfields;
+    // If we need more indexes than may fit into 8 vector registers then such operation is
+    // impossible on RISC-V and we should skip that combination.
+    if constexpr (sizeof(IndexElementType) * kTotalElements <= sizeof(SIMD128Register) * 8) {
+      TestVectorStore<DataElementType, kNFfields, kLmul>(insn_bytes, expected_results, [this] {
+        for (size_t reg_no = 0; reg_no < AlignUp<kElementsCount>(kTotalElements) / kElementsCount;
+             ++reg_no) {
+          SIMD128Register index_register;
+          for (size_t index = 0; index < kElementsCount; ++index) {
+            index_register.Set(IndexElementType{static_cast<typename IndexElementType::BaseType>(
+                                   kPermutedIndexes[index + reg_no * kElementsCount] *
+                                   sizeof(DataElementType) * kNFfields)},
+                               index);
+          }
+          state_.cpu.v[16 + reg_no] = index_register.Get<__uint128_t>();
+        }
+      });
+    }
+  }
+
+  template <typename ElementType, size_t kNFfields, size_t kLmul, size_t kResultSize>
   void TestVsssegXeXX(uint32_t insn_bytes,
                       uint64_t stride,
                       const uint64_t (&expected_results)[kResultSize]) {
+    TestVectorStore<ElementType, kNFfields, kLmul>(
+        insn_bytes, expected_results, [stride, this] { SetXReg<2>(state_.cpu, stride); });
+  }
+
+  template <typename ElementType,
+            size_t kNFfields,
+            size_t kLmul,
+            size_t kResultSize,
+            typename ExtraCPUInitType>
+  void TestVectorStore(uint32_t insn_bytes,
+                       const uint64_t (&expected_results)[kResultSize],
+                       ExtraCPUInitType ExtraCPUInit) {
     constexpr size_t kElementsCount = 16 / sizeof(ElementType);
     const SIMD128Register kUndisturbedValue = SIMD128Register{kUndisturbedResult};
     state_.cpu.vtype = (BitUtilLog2(sizeof(ElementType)) << 3) | BitUtilLog2(kLmul);
@@ -216,7 +268,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
     uint32_t insn_bytes_with_vm = insn_bytes | (1 << 25);
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes_with_vm);
     SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
-    SetXReg<2>(state_.cpu, stride);
     for (size_t index = 0; index < 8; ++index) {
       state_.cpu.v[8 + index] =
           SIMD128Register{kVectorCalculationsSource[index]}.Get<__uint128_t>();
@@ -224,6 +275,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     for (uint64_t& element : store_area_) {
       element = kUndisturbedResult[0];
     }
+    ExtraCPUInit();
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     for (size_t index = 0; index < std::size(store_area_); ++index) {
       if (index >= std::size(expected_results)) {
@@ -255,7 +307,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
             state_.cpu.insn_addr = ToGuestAddr(&insn_bytes_with_vm);
             decltype(store_area_) expected_store_area;
             SetXReg<1>(state_.cpu, ToGuestAddr(&expected_store_area));
-            SetXReg<2>(state_.cpu, stride);
             for (size_t index = 0; index < kLmul; ++index) {
               for (size_t field = 0; field < kNFfields; ++field) {
                 SIMD128Register register_value =
@@ -298,6 +349,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
             for (uint64_t& element : expected_store_area) {
               element = kUndisturbedResult[0];
             }
+            ExtraCPUInit();
             EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
             // Now execute instruction with mode that we want to actually test.
             state_.cpu.vtype = (vma & 1) << 7 | (vta << 6) |
@@ -311,7 +363,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
             }
             state_.cpu.insn_addr = ToGuestAddr(&insn_bytes_with_vm);
             SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
-            SetXReg<2>(state_.cpu, stride);
             state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
             for (size_t index = 0; index < 8; ++index) {
               state_.cpu.v[8 + index] =
@@ -320,6 +371,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
             for (uint64_t& element : store_area_) {
               element = kUndisturbedResult[0];
             }
+            ExtraCPUInit();
             EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
             for (size_t index = 0; index < std::size(store_area_); ++index) {
               EXPECT_EQ(store_area_[index], expected_store_area[index]);
@@ -2575,6 +2627,657 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                 {0xaf2e'ad2c'ab2a'a928, 0xef6e'ed6c'eb6a'e968},
                                 {0xb736'b534'b332'b130, 0xf776'f574'f372'f170},
                                 {0xbf3e'bd3c'bb3a'b938, 0xff7e'fd7c'fb7a'f978}});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
+  VsxsegXeiXX<UInt8, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                           {0x0487'8506'0283'0081, 0x0a89'0c8d'8b8f'080e});
+  VsxsegXeiXX<UInt8, 1, 2>(
+      0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+      {0x0487'8506'0283'0081, 0x0a89'0c8d'8b8f'080e, 0x9f93'9b1e'9714'121a, 0x9110'1899'1c95'169d});
+  VsxsegXeiXX<UInt8, 1, 4>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                           {0x0487'8506'0283'0081,
+                            0x0a89'0c8d'8b8f'080e,
+                            0x9f93'9b1e'9714'121a,
+                            0x9110'1899'1c95'169d,
+                            0x2ea5'bd2c'30a3'38b9,
+                            0xafad'3e20'a728'b1ab,
+                            0x3626'b722'b5a1'bbbf,
+                            0xa932'2434'b33a'2a3c});
+  VsxsegXeiXX<UInt8, 1, 8>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                           {0x0487'8506'0283'0081,
+                            0x0a89'0c8d'8b8f'080e,
+                            0x9f93'9b1e'9714'121a,
+                            0x9110'1899'1c95'169d,
+                            0x2ea5'bd2c'30a3'38b9,
+                            0xafad'3e20'a728'b1ab,
+                            0x3626'b722'b5a1'bbbf,
+                            0xa932'2434'b33a'2a3c,
+                            0x6aed'ddd1'e35c'66c7,
+                            0xd542'72e1'4674'4ed3,
+                            0x78ef'd9e7'7a7e'eb76,
+                            0xfbf9'f5c1'6e5a'c5ff,
+                            0x52cd'c362'6c48'dfd7,
+                            0x4a54'50fd'f3f7'cf68,
+                            0x56cb'e57c'7044'60c9,
+                            0xf1db'6440'58e9'4c5e});
+  VsxsegXeiXX<UInt8, 2, 1>(
+      0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+      {0x1202'9383'1000'9181, 0x1404'9787'9585'1606, 0x9b8b'9f8f'1808'1e0e, 0x1a0a'9989'1c0c'9d8d});
+  VsxsegXeiXX<UInt8, 2, 2>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+                           {0x2202'a383'2000'a181,
+                            0x2404'a787'a585'2606,
+                            0xab8b'af8f'2808'2e0e,
+                            0x2a0a'a989'2c0c'ad8d,
+                            0xb797'3414'3212'3a1a,
+                            0xbf9f'b393'bb9b'3e1e,
+                            0x3c1c'b595'3616'bd9d,
+                            0xb191'3010'3818'b999});
+  VsxsegXeiXX<UInt8, 2, 4>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+                           {0x4202'c383'4000'c181,
+                            0x4404'c787'c585'4606,
+                            0xcb8b'cf8f'4808'4e0e,
+                            0x4a0a'c989'4c0c'cd8d,
+                            0xd797'5414'5212'5a1a,
+                            0xdf9f'd393'db9b'5e1e,
+                            0x5c1c'd595'5616'dd9d,
+                            0xd191'5010'5818'd999,
+                            0x7030'e3a3'7838'f9b9,
+                            0x6e2e'e5a5'fdbd'6c2c,
+                            0xe7a7'6828'f1b1'ebab,
+                            0xefaf'edad'7e3e'6020,
+                            0xf5b5'e1a1'fbbb'ffbf,
+                            0x7636'6626'f7b7'6222,
+                            0xf3b3'7a3a'6a2a'7c3c,
+                            0xe9a9'7232'6424'7434});
+  VsxsegXeiXX<UInt8, 3, 1>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
+                           {0x9383'2010'00a1'9181,
+                            0x8526'1606'2212'02a3,
+                            0x2414'04a7'9787'a595,
+                            0x9f8f'2818'082e'1e0e,
+                            0x0cad'9d8d'ab9b'8baf,
+                            0x2a1a'0aa9'9989'2c1c});
+  VsxsegXeiXX<UInt8, 3, 2>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
+                           {0xa383'4020'00c1'a181,
+                            0x8546'2606'4222'02c3,
+                            0x4424'04c7'a787'c5a5,
+                            0xaf8f'4828'084e'2e0e,
+                            0x0ccd'ad8d'cbab'8bcf,
+                            0x4a2a'0ac9'a989'4c2c,
+                            0x3414'5232'125a'3a1a,
+                            0x9b5e'3e1e'd7b7'9754,
+                            0xdfbf'9fd3'b393'dbbb,
+                            0xb595'5636'16dd'bd9d,
+                            0x18d9'b999'5c3c'1cd5,
+                            0xd1b1'9150'3010'5838});
+  VsxsegXeiXX<UInt8, 4, 1>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
+                           {0x3020'1000'b1a1'9181,
+                            0x3222'1202'b3a3'9383,
+                            0xb5a5'9585'3626'1606,
+                            0x3424'1404'b7a7'9787,
+                            0x3828'1808'3e2e'1e0e,
+                            0xbbab'9b8b'bfaf'9f8f,
+                            0x3c2c'1c0c'bdad'9d8d,
+                            0x3a2a'1a0a'b9a9'9989});
+  VsxsegXeiXX<UInt8, 4, 2>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
+                           {0x6040'2000'e1c1'a181,
+                            0x6242'2202'e3c3'a383,
+                            0xe5c5'a585'6646'2606,
+                            0x6444'2404'e7c7'a787,
+                            0x6848'2808'6e4e'2e0e,
+                            0xebcb'ab8b'efcf'af8f,
+                            0x6c4c'2c0c'edcd'ad8d,
+                            0x6a4a'2a0a'e9c9'a989,
+                            0x7252'3212'7a5a'3a1a,
+                            0xf7d7'b797'7454'3414,
+                            0xfbdb'bb9b'7e5e'3e1e,
+                            0xffdf'bf9f'f3d3'b393,
+                            0x7656'3616'fddd'bd9d,
+                            0x7c5c'3c1c'f5d5'b595,
+                            0x7858'3818'f9d9'b999,
+                            0xf1d1'b191'7050'3010});
+  VsxsegXeiXX<UInt8, 5, 1>(0x85008427,  // Vsuxseg5ei8.v v8, (x1), v16, v0.t
+                           {0x2010'00c1'b1a1'9181,
+                            0x02c3'b3a3'9383'4030,
+                            0x3626'1606'4232'2212,
+                            0x9787'c5b5'a595'8546,
+                            0x4434'2414'04c7'b7a7,
+                            0x2818'084e'3e2e'1e0e,
+                            0x8bcf'bfaf'9f8f'4838,
+                            0xbdad'9d8d'cbbb'ab9b,
+                            0x9989'4c3c'2c1c'0ccd,
+                            0x4a3a'2a1a'0ac9'b9a9});
+  VsxsegXeiXX<UInt8, 6, 1>(0xa5008427,  // Vsuxseg6ei8.v v8, (x1), v16, v0.t
+                           {0x1000'd1c1'b1a1'9181,
+                            0xb3a3'9383'5040'3020,
+                            0x5242'3222'1202'd3c3,
+                            0x9585'5646'3626'1606,
+                            0xb7a7'9787'd5c5'b5a5,
+                            0x5444'3424'1404'd7c7,
+                            0x1808'5e4e'3e2e'1e0e,
+                            0xbfaf'9f8f'5848'3828,
+                            0xdbcb'bbab'9b8b'dfcf,
+                            0x1c0c'ddcd'bdad'9d8d,
+                            0xb9a9'9989'5c4c'3c2c,
+                            0x5a4a'3a2a'1a0a'd9c9});
+  VsxsegXeiXX<UInt8, 7, 1>(0xc5008427,  // Vsuxseg7ei8.v v8, (x1), v16, v0.t
+                           {0x00e1'd1c1'b1a1'9181,
+                            0x9383'6050'4030'2010,
+                            0x2212'02e3'd3c3'b3a3,
+                            0x3626'1606'6252'4232,
+                            0xc5b5'a595'8566'5646,
+                            0xd7c7'b7a7'9787'e5d5,
+                            0x6454'4434'2414'04e7,
+                            0x086e'5e4e'3e2e'1e0e,
+                            0x9f8f'6858'4838'2818,
+                            0xab9b'8bef'dfcf'bfaf,
+                            0xbdad'9d8d'ebdb'cbbb,
+                            0x4c3c'2c1c'0ced'ddcd,
+                            0xd9c9'b9a9'9989'6c5c,
+                            0x6a5a'4a3a'2a1a'0ae9});
+  VsxsegXeiXX<UInt8, 8, 1>(0xe5008427,  // Vsuxseg8ei8.v v8, (x1), v16, v0.t
+                           {0xf1e1'd1c1'b1a1'9181,
+                            0x7060'5040'3020'1000,
+                            0xf3e3'd3c3'b3a3'9383,
+                            0x7262'5242'3222'1202,
+                            0x7666'5646'3626'1606,
+                            0xf5e5'd5c5'b5a5'9585,
+                            0xf7e7'd7c7'b7a7'9787,
+                            0x7464'5444'3424'1404,
+                            0x7e6e'5e4e'3e2e'1e0e,
+                            0x7868'5848'3828'1808,
+                            0xffef'dfcf'bfaf'9f8f,
+                            0xfbeb'dbcb'bbab'9b8b,
+                            0xfded'ddcd'bdad'9d8d,
+                            0x7c6c'5c4c'3c2c'1c0c,
+                            0xf9e9'd9c9'b9a9'9989,
+                            0x7a6a'5a4a'3a2a'1a0a});
+  VsxsegXeiXX<UInt16, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8504'8706'8100'8302, 0x8908'8f0e'8b0a'8d0c});
+  VsxsegXeiXX<UInt16, 1, 2>(
+      0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+      {0x8504'8706'8100'8302, 0x8908'8f0e'8b0a'8d0c, 0x9716'9f1e'9110'9d1c, 0x9514'9312'9918'9b1a});
+  VsxsegXeiXX<UInt16, 1, 4>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8504'8706'8100'8302,
+                             0x8908'8f0e'8b0a'8d0c,
+                             0x9716'9f1e'9110'9d1c,
+                             0x9514'9312'9918'9b1a,
+                             0xaf2e'a928'a524'b534,
+                             0xbf3e'a726'b736'bd3c,
+                             0xb938'ab2a'ad2c'bb3a,
+                             0xa322'a120'b130'b332});
+  VsxsegXeiXX<UInt16, 1, 8>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8504'8706'8100'8302,
+                             0x8908'8f0e'8b0a'8d0c,
+                             0x9716'9f1e'9110'9d1c,
+                             0x9514'9312'9918'9b1a,
+                             0xaf2e'a928'a524'b534,
+                             0xbf3e'a726'b736'bd3c,
+                             0xb938'ab2a'ad2c'bb3a,
+                             0xa322'a120'b130'b332,
+                             0xe160'c746'f170'f372,
+                             0xdd5c'cb4a'fb7a'd958,
+                             0xcf4e'd150'e362'd756,
+                             0xdf5e'db5a'fd7c'c140,
+                             0xeb6a'c342'f776'ff7e,
+                             0xed6c'cd4c'ef6e'c544,
+                             0xe766'f574'd554'f978,
+                             0xd352'e564'c948'e968});
+  VsxsegXeiXX<UInt16, 2, 1>(
+      0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+      {0x9110'8100'9312'8302, 0x9514'8504'9716'8706, 0x9b1a'8b0a'9d1c'8d0c, 0x9918'8908'9f1e'8f0e});
+  VsxsegXeiXX<UInt16, 2, 2>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+                            {0xa120'8100'a322'8302,
+                             0xa524'8504'a726'8706,
+                             0xab2a'8b0a'ad2c'8d0c,
+                             0xa928'8908'af2e'8f0e,
+                             0xb130'9110'bd3c'9d1c,
+                             0xb736'9716'bf3e'9f1e,
+                             0xb938'9918'bb3a'9b1a,
+                             0xb534'9514'b332'9312});
+  VsxsegXeiXX<UInt16, 2, 4>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+                            {0xc140'8100'c342'8302,
+                             0xc544'8504'c746'8706,
+                             0xcb4a'8b0a'cd4c'8d0c,
+                             0xc948'8908'cf4e'8f0e,
+                             0xd150'9110'dd5c'9d1c,
+                             0xd756'9716'df5e'9f1e,
+                             0xd958'9918'db5a'9b1a,
+                             0xd554'9514'd352'9312,
+                             0xe564'a524'f574'b534,
+                             0xef6e'af2e'e968'a928,
+                             0xf776'b736'fd7c'bd3c,
+                             0xff7e'bf3e'e766'a726,
+                             0xed6c'ad2c'fb7a'bb3a,
+                             0xf978'b938'eb6a'ab2a,
+                             0xf170'b130'f372'b332,
+                             0xe362'a322'e160'a120});
+  VsxsegXeiXX<UInt16, 3, 1>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
+                            {0x8100'a322'9312'8302,
+                             0x9716'8706'a120'9110,
+                             0xa524'9514'8504'a726,
+                             0x8b0a'ad2c'9d1c'8d0c,
+                             0x9f1e'8f0e'ab2a'9b1a,
+                             0xa928'9918'8908'af2e});
+  VsxsegXeiXX<UInt16, 3, 2>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
+                            {0x8100'c342'a322'8302,
+                             0xa726'8706'c140'a120,
+                             0xc544'a524'8504'c746,
+                             0x8b0a'cd4c'ad2c'8d0c,
+                             0xaf2e'8f0e'cb4a'ab2a,
+                             0xc948'a928'8908'cf4e,
+                             0x9110'dd5c'bd3c'9d1c,
+                             0xbf3e'9f1e'd150'b130,
+                             0xd756'b736'9716'df5e,
+                             0x9918'db5a'bb3a'9b1a,
+                             0xb332'9312'd958'b938,
+                             0xd554'b534'9514'd352});
+  VsxsegXeiXX<UInt16, 4, 1>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
+                            {0xb332'a322'9312'8302,
+                             0xb130'a120'9110'8100,
+                             0xb736'a726'9716'8706,
+                             0xb534'a524'9514'8504,
+                             0xbd3c'ad2c'9d1c'8d0c,
+                             0xbb3a'ab2a'9b1a'8b0a,
+                             0xbf3e'af2e'9f1e'8f0e,
+                             0xb938'a928'9918'8908});
+  VsxsegXeiXX<UInt16, 4, 2>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
+                            {0xe362'c342'a322'8302,
+                             0xe160'c140'a120'8100,
+                             0xe766'c746'a726'8706,
+                             0xe564'c544'a524'8504,
+                             0xed6c'cd4c'ad2c'8d0c,
+                             0xeb6a'cb4a'ab2a'8b0a,
+                             0xef6e'cf4e'af2e'8f0e,
+                             0xe968'c948'a928'8908,
+                             0xfd7c'dd5c'bd3c'9d1c,
+                             0xf170'd150'b130'9110,
+                             0xff7e'df5e'bf3e'9f1e,
+                             0xf776'd756'b736'9716,
+                             0xfb7a'db5a'bb3a'9b1a,
+                             0xf978'd958'b938'9918,
+                             0xf372'd352'b332'9312,
+                             0xf574'd554'b534'9514});
+  VsxsegXeiXX<UInt16, 5, 1>(0x85008427,  // Vsuxseg5ei8.v v8, (x1), v16, v0.t
+                            {0xb332'a322'9312'8302,
+                             0xa120'9110'8100'c342,
+                             0x9716'8706'c140'b130,
+                             0x8504'c746'b736'a726,
+                             0xc544'b534'a524'9514,
+                             0xbd3c'ad2c'9d1c'8d0c,
+                             0xab2a'9b1a'8b0a'cd4c,
+                             0x9f1e'8f0e'cb4a'bb3a,
+                             0x8908'cf4e'bf3e'af2e,
+                             0xc948'b938'a928'9918});
+  VsxsegXeiXX<UInt16, 6, 1>(0xa5008427,  // Vsuxseg6ei8.v v8, (x1), v16, v0.t
+                            {0xb332'a322'9312'8302,
+                             0x9110'8100'd352'c342,
+                             0xd150'c140'b130'a120,
+                             0xb736'a726'9716'8706,
+                             0x9514'8504'd756'c746,
+                             0xd554'c544'b534'a524,
+                             0xbd3c'ad2c'9d1c'8d0c,
+                             0x9b1a'8b0a'dd5c'cd4c,
+                             0xdb5a'cb4a'bb3a'ab2a,
+                             0xbf3e'af2e'9f1e'8f0e,
+                             0x9918'8908'df5e'cf4e,
+                             0xd958'c948'b938'a928});
+  VsxsegXeiXX<UInt16, 7, 1>(0xc5008427,  // Vsuxseg7ei8.v v8, (x1), v16, v0.t
+                            {0xb332'a322'9312'8302,
+                             0x8100'e362'd352'c342,
+                             0xc140'b130'a120'9110,
+                             0x9716'8706'e160'd150,
+                             0xd756'c746'b736'a726,
+                             0xa524'9514'8504'e766,
+                             0xe564'd554'c544'b534,
+                             0xbd3c'ad2c'9d1c'8d0c,
+                             0x8b0a'ed6c'dd5c'cd4c,
+                             0xcb4a'bb3a'ab2a'9b1a,
+                             0x9f1e'8f0e'eb6a'db5a,
+                             0xdf5e'cf4e'bf3e'af2e,
+                             0xa928'9918'8908'ef6e,
+                             0xe968'd958'c948'b938});
+  VsxsegXeiXX<UInt16, 8, 1>(0xe5008427,  // Vsuxseg8ei8.v v8, (x1), v16, v0.t
+                            {0xb332'a322'9312'8302,
+                             0xf372'e362'd352'c342,
+                             0xb130'a120'9110'8100,
+                             0xf170'e160'd150'c140,
+                             0xb736'a726'9716'8706,
+                             0xf776'e766'd756'c746,
+                             0xb534'a524'9514'8504,
+                             0xf574'e564'd554'c544,
+                             0xbd3c'ad2c'9d1c'8d0c,
+                             0xfd7c'ed6c'dd5c'cd4c,
+                             0xbb3a'ab2a'9b1a'8b0a,
+                             0xfb7a'eb6a'db5a'cb4a,
+                             0xbf3e'af2e'9f1e'8f0e,
+                             0xff7e'ef6e'df5e'cf4e,
+                             0xb938'a928'9918'8908,
+                             0xf978'e968'd958'c948});
+  VsxsegXeiXX<UInt32, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8302'8100'8706'8504, 0x8b0a'8908'8f0e'8d0c});
+  VsxsegXeiXX<UInt32, 1, 2>(
+      0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+      {0x8302'8100'8706'8504, 0x8b0a'8908'8f0e'8d0c, 0x9716'9514'9b1a'9918, 0x9312'9110'9f1e'9d1c});
+  VsxsegXeiXX<UInt32, 1, 4>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8302'8100'8706'8504,
+                             0x8b0a'8908'8f0e'8d0c,
+                             0x9716'9514'9b1a'9918,
+                             0x9312'9110'9f1e'9d1c,
+                             0xa322'a120'bb3a'b938,
+                             0xaf2e'ad2c'bf3e'bd3c,
+                             0xb332'b130'b736'b534,
+                             0xab2a'a928'a726'a524});
+  VsxsegXeiXX<UInt32, 1, 8>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8302'8100'8706'8504,
+                             0x8b0a'8908'8f0e'8d0c,
+                             0x9716'9514'9b1a'9918,
+                             0x9312'9110'9f1e'9d1c,
+                             0xa322'a120'bb3a'b938,
+                             0xaf2e'ad2c'bf3e'bd3c,
+                             0xb332'b130'b736'b534,
+                             0xab2a'a928'a726'a524,
+                             0xcb4a'c948'eb6a'e968,
+                             0xdf5e'dd5c'd352'd150,
+                             0xef6e'ed6c'fb7a'f978,
+                             0xff7e'fd7c'cf4e'cd4c,
+                             0xdb5a'd958'f776'f574,
+                             0xf372'f170'd756'd554,
+                             0xe362'e160'e766'e564,
+                             0xc746'c544'c342'c140});
+  VsxsegXeiXX<UInt32, 2, 1>(
+      0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+      {0x9716'9514'8706'8504, 0x9312'9110'8302'8100, 0x9f1e'9d1c'8f0e'8d0c, 0x9b1a'9918'8b0a'8908});
+  VsxsegXeiXX<UInt32, 2, 2>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+                            {0xa726'a524'8706'8504,
+                             0xa322'a120'8302'8100,
+                             0xaf2e'ad2c'8f0e'8d0c,
+                             0xab2a'a928'8b0a'8908,
+                             0xbb3a'b938'9b1a'9918,
+                             0xb736'b534'9716'9514,
+                             0xbf3e'bd3c'9f1e'9d1c,
+                             0xb332'b130'9312'9110});
+  VsxsegXeiXX<UInt32, 2, 4>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+                            {0xc746'c544'8706'8504,
+                             0xc342'c140'8302'8100,
+                             0xcf4e'cd4c'8f0e'8d0c,
+                             0xcb4a'c948'8b0a'8908,
+                             0xdb5a'd958'9b1a'9918,
+                             0xd756'd554'9716'9514,
+                             0xdf5e'dd5c'9f1e'9d1c,
+                             0xd352'd150'9312'9110,
+                             0xfb7a'f978'bb3a'b938,
+                             0xe362'e160'a322'a120,
+                             0xff7e'fd7c'bf3e'bd3c,
+                             0xef6e'ed6c'af2e'ad2c,
+                             0xf776'f574'b736'b534,
+                             0xf372'f170'b332'b130,
+                             0xe766'e564'a726'a524,
+                             0xeb6a'e968'ab2a'a928});
+  VsxsegXeiXX<UInt32, 3, 1>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
+                            {0x9716'9514'8706'8504,
+                             0x8302'8100'a726'a524,
+                             0xa322'a120'9312'9110,
+                             0x9f1e'9d1c'8f0e'8d0c,
+                             0x8b0a'8908'af2e'ad2c,
+                             0xab2a'a928'9b1a'9918});
+  VsxsegXeiXX<UInt32, 3, 2>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
+                            {0xa726'a524'8706'8504,
+                             0x8302'8100'c746'c544,
+                             0xc342'c140'a322'a120,
+                             0xaf2e'ad2c'8f0e'8d0c,
+                             0x8b0a'8908'cf4e'cd4c,
+                             0xcb4a'c948'ab2a'a928,
+                             0xbb3a'b938'9b1a'9918,
+                             0x9716'9514'db5a'd958,
+                             0xd756'd554'b736'b534,
+                             0xbf3e'bd3c'9f1e'9d1c,
+                             0x9312'9110'df5e'dd5c,
+                             0xd352'd150'b332'b130});
+  VsxsegXeiXX<UInt32, 4, 1>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
+                            {0x9716'9514'8706'8504,
+                             0xb736'b534'a726'a524,
+                             0x9312'9110'8302'8100,
+                             0xb332'b130'a322'a120,
+                             0x9f1e'9d1c'8f0e'8d0c,
+                             0xbf3e'bd3c'af2e'ad2c,
+                             0x9b1a'9918'8b0a'8908,
+                             0xbb3a'b938'ab2a'a928});
+  VsxsegXeiXX<UInt32, 4, 2>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
+                            {0xa726'a524'8706'8504,
+                             0xe766'e564'c746'c544,
+                             0xa322'a120'8302'8100,
+                             0xe362'e160'c342'c140,
+                             0xaf2e'ad2c'8f0e'8d0c,
+                             0xef6e'ed6c'cf4e'cd4c,
+                             0xab2a'a928'8b0a'8908,
+                             0xeb6a'e968'cb4a'c948,
+                             0xbb3a'b938'9b1a'9918,
+                             0xfb7a'f978'db5a'd958,
+                             0xb736'b534'9716'9514,
+                             0xf776'f574'd756'd554,
+                             0xbf3e'bd3c'9f1e'9d1c,
+                             0xff7e'fd7c'df5e'dd5c,
+                             0xb332'b130'9312'9110,
+                             0xf372'f170'd352'd150});
+  VsxsegXeiXX<UInt32, 5, 1>(0x85008427,  // Vsuxseg5ei8.v v8, (x1), v16, v0.t
+                            {0x9716'9514'8706'8504,
+                             0xb736'b534'a726'a524,
+                             0x8302'8100'c746'c544,
+                             0xa322'a120'9312'9110,
+                             0xc342'c140'b332'b130,
+                             0x9f1e'9d1c'8f0e'8d0c,
+                             0xbf3e'bd3c'af2e'ad2c,
+                             0x8b0a'8908'cf4e'cd4c,
+                             0xab2a'a928'9b1a'9918,
+                             0xcb4a'c948'bb3a'b938});
+  VsxsegXeiXX<UInt32, 6, 1>(0xa5008427,  // Vsuxseg6ei8.v v8, (x1), v16, v0.t
+                            {0x9716'9514'8706'8504,
+                             0xb736'b534'a726'a524,
+                             0xd756'd554'c746'c544,
+                             0x9312'9110'8302'8100,
+                             0xb332'b130'a322'a120,
+                             0xd352'd150'c342'c140,
+                             0x9f1e'9d1c'8f0e'8d0c,
+                             0xbf3e'bd3c'af2e'ad2c,
+                             0xdf5e'dd5c'cf4e'cd4c,
+                             0x9b1a'9918'8b0a'8908,
+                             0xbb3a'b938'ab2a'a928,
+                             0xdb5a'd958'cb4a'c948});
+  VsxsegXeiXX<UInt32, 7, 1>(0xc5008427,  // Vsuxseg7ei8.v v8, (x1), v16, v0.t
+                            {0x9716'9514'8706'8504,
+                             0xb736'b534'a726'a524,
+                             0xd756'd554'c746'c544,
+                             0x8302'8100'e766'e564,
+                             0xa322'a120'9312'9110,
+                             0xc342'c140'b332'b130,
+                             0xe362'e160'd352'd150,
+                             0x9f1e'9d1c'8f0e'8d0c,
+                             0xbf3e'bd3c'af2e'ad2c,
+                             0xdf5e'dd5c'cf4e'cd4c,
+                             0x8b0a'8908'ef6e'ed6c,
+                             0xab2a'a928'9b1a'9918,
+                             0xcb4a'c948'bb3a'b938,
+                             0xeb6a'e968'db5a'd958});
+  VsxsegXeiXX<UInt32, 8, 1>(0xe5008427,  // Vsuxseg8ei8.v v8, (x1), v16, v0.t
+                            {0x9716'9514'8706'8504,
+                             0xb736'b534'a726'a524,
+                             0xd756'd554'c746'c544,
+                             0xf776'f574'e766'e564,
+                             0x9312'9110'8302'8100,
+                             0xb332'b130'a322'a120,
+                             0xd352'd150'c342'c140,
+                             0xf372'f170'e362'e160,
+                             0x9f1e'9d1c'8f0e'8d0c,
+                             0xbf3e'bd3c'af2e'ad2c,
+                             0xdf5e'dd5c'cf4e'cd4c,
+                             0xff7e'fd7c'ef6e'ed6c,
+                             0x9b1a'9918'8b0a'8908,
+                             0xbb3a'b938'ab2a'a928,
+                             0xdb5a'd958'cb4a'c948,
+                             0xfb7a'f978'eb6a'e968});
+  VsxsegXeiXX<UInt64, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908, 0x8706'8504'8302'8100});
+  VsxsegXeiXX<UInt64, 1, 2>(
+      0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+      {0x8f0e'8d0c'8b0a'8908, 0x8706'8504'8302'8100, 0x9f1e'9d1c'9b1a'9918, 0x9716'9514'9312'9110});
+  VsxsegXeiXX<UInt64, 1, 4>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0x8706'8504'8302'8100,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0x9716'9514'9312'9110,
+                             0xb736'b534'b332'b130,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xa726'a524'a322'a120});
+  VsxsegXeiXX<UInt64, 1, 8>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0x8706'8504'8302'8100,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0x9716'9514'9312'9110,
+                             0xb736'b534'b332'b130,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xa726'a524'a322'a120,
+                             0xf776'f574'f372'f170,
+                             0xc746'c544'c342'c140,
+                             0xff7e'fd7c'fb7a'f978,
+                             0xdf5e'dd5c'db5a'd958,
+                             0xef6e'ed6c'eb6a'e968,
+                             0xe766'e564'e362'e160,
+                             0xcf4e'cd4c'cb4a'c948,
+                             0xd756'd554'd352'd150});
+  VsxsegXeiXX<UInt64, 2, 1>(
+      0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+      {0x8f0e'8d0c'8b0a'8908, 0x9f1e'9d1c'9b1a'9918, 0x8706'8504'8302'8100, 0x9716'9514'9312'9110});
+  VsxsegXeiXX<UInt64, 2, 2>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0x8706'8504'8302'8100,
+                             0xa726'a524'a322'a120,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0x9716'9514'9312'9110,
+                             0xb736'b534'b332'b130});
+  VsxsegXeiXX<UInt64, 2, 4>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0xcf4e'cd4c'cb4a'c948,
+                             0x8706'8504'8302'8100,
+                             0xc746'c544'c342'c140,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xdf5e'dd5c'db5a'd958,
+                             0x9716'9514'9312'9110,
+                             0xd756'd554'd352'd150,
+                             0xb736'b534'b332'b130,
+                             0xf776'f574'f372'f170,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xef6e'ed6c'eb6a'e968,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xff7e'fd7c'fb7a'f978,
+                             0xa726'a524'a322'a120,
+                             0xe766'e564'e362'e160});
+  VsxsegXeiXX<UInt64, 3, 1>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0x8706'8504'8302'8100,
+                             0x9716'9514'9312'9110,
+                             0xa726'a524'a322'a120});
+  VsxsegXeiXX<UInt64, 3, 2>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xcf4e'cd4c'cb4a'c948,
+                             0x8706'8504'8302'8100,
+                             0xa726'a524'a322'a120,
+                             0xc746'c544'c342'c140,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xdf5e'dd5c'db5a'd958,
+                             0x9716'9514'9312'9110,
+                             0xb736'b534'b332'b130,
+                             0xd756'd554'd352'd150});
+  VsxsegXeiXX<UInt64, 4, 1>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0x8706'8504'8302'8100,
+                             0x9716'9514'9312'9110,
+                             0xa726'a524'a322'a120,
+                             0xb736'b534'b332'b130});
+  VsxsegXeiXX<UInt64, 4, 2>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xcf4e'cd4c'cb4a'c948,
+                             0xef6e'ed6c'eb6a'e968,
+                             0x8706'8504'8302'8100,
+                             0xa726'a524'a322'a120,
+                             0xc746'c544'c342'c140,
+                             0xe766'e564'e362'e160,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xdf5e'dd5c'db5a'd958,
+                             0xff7e'fd7c'fb7a'f978,
+                             0x9716'9514'9312'9110,
+                             0xb736'b534'b332'b130,
+                             0xd756'd554'd352'd150,
+                             0xf776'f574'f372'f170});
+  VsxsegXeiXX<UInt64, 5, 1>(0x85008427,  // Vsuxseg5ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xcf4e'cd4c'cb4a'c948,
+                             0x8706'8504'8302'8100,
+                             0x9716'9514'9312'9110,
+                             0xa726'a524'a322'a120,
+                             0xb736'b534'b332'b130,
+                             0xc746'c544'c342'c140});
+  VsxsegXeiXX<UInt64, 6, 1>(0xa5008427,  // Vsuxseg6ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xcf4e'cd4c'cb4a'c948,
+                             0xdf5e'dd5c'db5a'd958,
+                             0x8706'8504'8302'8100,
+                             0x9716'9514'9312'9110,
+                             0xa726'a524'a322'a120,
+                             0xb736'b534'b332'b130,
+                             0xc746'c544'c342'c140,
+                             0xd756'd554'd352'd150});
+  VsxsegXeiXX<UInt64, 7, 1>(0xc5008427,  // Vsuxseg7ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xcf4e'cd4c'cb4a'c948,
+                             0xdf5e'dd5c'db5a'd958,
+                             0xef6e'ed6c'eb6a'e968,
+                             0x8706'8504'8302'8100,
+                             0x9716'9514'9312'9110,
+                             0xa726'a524'a322'a120,
+                             0xb736'b534'b332'b130,
+                             0xc746'c544'c342'c140,
+                             0xd756'd554'd352'd150,
+                             0xe766'e564'e362'e160});
+  VsxsegXeiXX<UInt64, 8, 1>(0xe5008427,  // Vsuxseg8ei8.v v8, (x1), v16, v0.t
+                            {0x8f0e'8d0c'8b0a'8908,
+                             0x9f1e'9d1c'9b1a'9918,
+                             0xaf2e'ad2c'ab2a'a928,
+                             0xbf3e'bd3c'bb3a'b938,
+                             0xcf4e'cd4c'cb4a'c948,
+                             0xdf5e'dd5c'db5a'd958,
+                             0xef6e'ed6c'eb6a'e968,
+                             0xff7e'fd7c'fb7a'f978,
+                             0x8706'8504'8302'8100,
+                             0x9716'9514'9312'9110,
+                             0xa726'a524'a322'a120,
+                             0xb736'b534'b332'b130,
+                             0xc746'c544'c342'c140,
+                             0xd756'd554'd352'd150,
+                             0xe766'e564'e362'e160,
+                             0xf776'f574'f372'f170});
 }
 
 TEST_F(Riscv64InterpreterTest, TestVsssegXeXX) {
