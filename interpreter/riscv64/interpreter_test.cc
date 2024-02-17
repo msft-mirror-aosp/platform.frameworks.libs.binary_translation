@@ -162,7 +162,13 @@ class Riscv64InterpreterTest : public ::testing::Test {
               for (size_t index = 0; index < kLmul; index++) {
                 for (size_t element = 0; element < kElementsCount; ++element) {
                   ElementType expected_element;
-                  if (element + index * kElementsCount < std::min(vstart, vl)) {
+                  if (vstart >= vl) {
+                    // When vstart ⩾ vl, there are no body elements, and no elements are updated in
+                    // any destinationvector register group, including that no tail elements are
+                    // updated with agnostic values.
+                    expected_element =
+                        SIMD128Register{kUndisturbedResult}.Get<ElementType>(element);
+                  } else if (element + index * kElementsCount < std::min(vstart, vl)) {
                     // Elements before vstart are undisturbed if vstart is less than vl.
                     expected_element =
                         SIMD128Register{kUndisturbedResult}.Get<ElementType>(element);
@@ -1147,10 +1153,13 @@ class Riscv64InterpreterTest : public ::testing::Test {
 
         for (uint8_t bit_pos = 0; bit_pos < 128; ++bit_pos) {
           __uint128_t bit = __uint128_t{1} << bit_pos;
-          if (bit_pos >= vl) {
-            EXPECT_EQ(state_.cpu.v[8] & bit, bit);
-          } else if (bit_pos < vstart) {
+          // When vstart ⩾ vl, there are no body elements, and no elements are updated in any
+          // destinationvector register group, including that no tail elements are updated with
+          // agnostic values.
+          if (bit_pos < vstart || vstart >= vl) {
             EXPECT_EQ(state_.cpu.v[8] & bit, undisturbed & bit);
+          } else if (bit_pos >= vl) {
+            EXPECT_EQ(state_.cpu.v[8] & bit, bit);
           } else {
             EXPECT_EQ(state_.cpu.v[8] & bit, expected & bit);
           }
@@ -1755,7 +1764,7 @@ TEST_F(Riscv64InterpreterTest, TestVsX) {
   TestVsX<8>(0xe2808427);  // vs8r.v v8, (x1)
 }
 
-TEST_F(Riscv64InterpreterTest, VlxsegXeiXX) {
+TEST_F(Riscv64InterpreterTest, TestVlxsegXeiXX) {
   VlxsegXeiXX<UInt8, 1, 1>(0x05008407,  // Vluxei8.v v8, (x1), v16, v0.t
                            {{129, 0, 131, 2, 135, 133, 4, 6, 137, 14, 143, 139, 141, 12, 8, 10}});
   VlxsegXeiXX<UInt8, 1, 2>(
