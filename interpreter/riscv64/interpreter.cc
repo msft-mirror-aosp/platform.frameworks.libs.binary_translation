@@ -987,6 +987,11 @@ class Interpreter {
     // In case of memory access fault we may set vstart to non-zero value, set it to zero here to
     // simplify the logic below.
     SetCsr<CsrName::kVstart>(0);
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return;
+    }
     if constexpr (vta == TailProcessing::kAgnostic) {
       vstart = std::min(vstart, vl);
     }
@@ -1726,6 +1731,13 @@ class Interpreter {
     // In case of memory access fault we may set vstart to non-zero value, set it to zero here to
     // simplify the logic below.
     SetCsr<CsrName::kVstart>(0);
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      // Technically, since stores never touch tail elements it's not needed, but makes it easier to
+      // reason about the rest of function.
+      return;
+    }
     char* ptr = ToHostAddr<char>(src);
     // Note: within_group_id is the current register id within a register group. During one
     // iteration of this loop we store results for all registers with the current id in all
@@ -1788,6 +1800,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result{state_->cpu.v[dst + index]};
@@ -1837,9 +1855,11 @@ class Interpreter {
   void OpVectorVXmXXs(uint8_t dst, uint8_t src1) {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    if (vstart != 0) {
+    if (vstart != 0) [[unlikely]] {
       return Unimplemented();
     }
+    // Note: vcpop.m  and vfirst.m are explicit exception to the rule that vstart >= vl doesn't
+    // perform any operations, and they are explicitly defined to perform write even if vl == 0.
     SIMD128Register arg1(state_->cpu.v[src1]);
     if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
       SIMD128Register mask(state_->cpu.v[0]);
@@ -1858,6 +1878,12 @@ class Interpreter {
     SIMD128Register arg1(state_->cpu.v[src1]);
     SIMD128Register arg2(state_->cpu.v[src2]);
     SIMD128Register result;
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
     if (vstart > 0) [[unlikely]] {
       if (vstart >= vl) [[unlikely]] {
         result.Set(state_->cpu.v[dst]);
@@ -1881,6 +1907,11 @@ class Interpreter {
     size_t vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
       return Unimplemented();
+    }
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vl == 0) [[unlikely]] {
+      return;
     }
     SIMD128Register arg1(state_->cpu.v[src1]);
     SIMD128Register mask;
@@ -1954,6 +1985,8 @@ class Interpreter {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     SIMD128Register result_before_vl_masking;
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       result_before_vl_masking = original_result;
       SetCsr<CsrName::kVstart>(0);
@@ -1998,6 +2031,8 @@ class Interpreter {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     SIMD128Register result_before_vl_masking;
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       result_before_vl_masking = original_result;
       SetCsr<CsrName::kVstart>(0);
@@ -2049,6 +2084,11 @@ class Interpreter {
     size_t vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
       return Unimplemented();
+    }
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vl == 0) [[unlikely]] {
+      return;
     }
     SIMD128Register result;
     auto mask = GetMaskForVectorOperations<vma>();
@@ -2149,6 +2189,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result(state_->cpu.v[dst + index]);
@@ -2193,6 +2239,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result(state_->cpu.v[dst + 2 * index]);
@@ -2250,6 +2302,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result(state_->cpu.v[dst + index]);
@@ -2304,6 +2362,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (int index = 0; index < kDestRegistersInvolved; index++) {
       SIMD128Register orig_result(state_->cpu.v[dst + index]);
@@ -2361,6 +2425,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; index++) {
       SIMD128Register orig_result(state_->cpu.v[dst + index]);
@@ -2403,6 +2473,12 @@ class Interpreter {
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
+    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t dst_index = 0; dst_index < kDestRegistersInvolved; dst_index++) {
       size_t src_index = dst_index / kFactor;
@@ -2476,7 +2552,7 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    if (vstart >= vl) {
+    if (vstart >= vl) [[unlikely]] {
       // From 16.3: For all of the [slide instructions], if vstart >= vl, the
       // instruction performs no operation and leaves the destination vector
       // register unchanged.
@@ -2537,7 +2613,7 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    if (vstart >= vl) {
+    if (vstart >= vl) [[unlikely]] {
       // From 16.3: For all of the [slide instructions], if vstart >= vl, the
       // instruction performs no operation and leaves the destination vector
       // register unchanged.
