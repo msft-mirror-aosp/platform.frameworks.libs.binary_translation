@@ -271,7 +271,7 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
     elif semantic_player_type == 'SimdRegister':
       call_params.append(_get_cast_from_simd128(arg, op, ptr_bits=64))
     elif '*' in _get_c_type(op):
-      call_params.append('bit_cast<%s>(%s)' % (_get_c_type(op), arg))
+      call_params.append('berberis::bit_cast<%s>(%s)' % (_get_c_type(op), arg))
     else:
       call_params.append('GPRRegToInteger<%s>(%s)' % (_get_c_type(op), arg))
 
@@ -572,7 +572,7 @@ def _get_out_params(params):
 
 def _get_cast_from_simd128(var, target_type, ptr_bits):
   if ('*' in target_type):
-    return 'bit_cast<%s>(%s.Get<uint%d_t>(0))' % (_get_c_type(target_type), var,
+    return 'berberis::bit_cast<%s>(%s.Get<uint%d_t>(0))' % (_get_c_type(target_type), var,
                                                   ptr_bits)
 
   c_type = _get_c_type(target_type)
