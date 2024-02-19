@@ -219,6 +219,47 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void TestVlm(uint32_t insn_bytes, __v16qu expected_results) {
+    const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+    // Vlm.v is special form of normal vector load which mostly ignores vtype.
+    // The only bit that it honors is vill: https://github.com/riscv/riscv-v-spec/pull/877
+    // Verify that changes to vtype don't affect the execution (but vstart and vl do).
+    for (uint8_t sew = 0; sew < 4; ++sew) {
+      for (uint8_t vlmul = 0; vlmul < 4; ++vlmul) {
+        const uint8_t kElementsCount = (16 >> sew) << vlmul;
+        for (uint8_t vstart = 0; vstart <= kElementsCount; ++vstart) {
+          for (uint8_t vl = 0; vl <= kElementsCount; ++vl) {
+            const uint8_t kVlmVl = AlignUp<CHAR_BIT>(vl) / CHAR_BIT;
+            for (uint8_t vta = 0; vta < 2; ++vta) {
+              for (uint8_t vma = 0; vma < 2; ++vma) {
+                state_.cpu.vtype = (vma << 7) | (vta << 6) | (sew << 3) | vlmul;
+                state_.cpu.vstart = vstart;
+                state_.cpu.vl = vl;
+                state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+                SetXReg<1>(state_.cpu, ToGuestAddr(&kVectorCalculationsSource));
+                state_.cpu.v[8] = kUndisturbedValue;
+                EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+                EXPECT_EQ(state_.cpu.vstart, 0);
+                EXPECT_EQ(state_.cpu.vl, vl);
+                for (size_t element = 0; element < 16; ++element) {
+                  UInt8 expected_element;
+                  if (element < vstart || vstart >= kVlmVl) {
+                    expected_element = SIMD128Register{kUndisturbedResult}.Get<UInt8>(element);
+                  } else if (element >= kVlmVl) {
+                    expected_element = ~UInt8{0};
+                  } else {
+                    expected_element = UInt8{expected_results[element]};
+                  }
+                  EXPECT_EQ(SIMD128Register{state_.cpu.v[8]}.Get<UInt8>(element), expected_element);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   template <typename ElementType, size_t kNFfields, size_t kLmul, size_t kResultSize>
   void VsxsegXeiXX(uint32_t insn_bytes, const uint64_t (&expected_results)[kResultSize]) {
     VsxsegXeiXX<ElementType, UInt8, kNFfields, kLmul>(insn_bytes, expected_results);
@@ -396,6 +437,49 @@ class Riscv64InterpreterTest : public ::testing::Test {
             EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
             for (size_t index = 0; index < std::size(store_area_); ++index) {
               EXPECT_EQ(store_area_[index], expected_store_area[index]);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void TestVsm(uint32_t insn_bytes, __v16qu expected_results) {
+    const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+    // Vlm.v is special form of normal vector load which mostly ignores vtype.
+    // The only bit that it honors is vill: https://github.com/riscv/riscv-v-spec/pull/877
+    // Verify that changes to vtype don't affect the execution (but vstart and vl do).
+    for (uint8_t sew = 0; sew < 4; ++sew) {
+      for (uint8_t vlmul = 0; vlmul < 4; ++vlmul) {
+        const uint8_t kElementsCount = (16 >> sew) << vlmul;
+        for (uint8_t vstart = 0; vstart <= kElementsCount; ++vstart) {
+          for (uint8_t vl = 0; vl <= kElementsCount; ++vl) {
+            const uint8_t kVlmVl = AlignUp<CHAR_BIT>(vl) / CHAR_BIT;
+            for (uint8_t vta = 0; vta < 2; ++vta) {
+              for (uint8_t vma = 0; vma < 2; ++vma) {
+                state_.cpu.vtype = (vma << 7) | (vta << 6) | (sew << 3) | vlmul;
+                state_.cpu.vstart = vstart;
+                state_.cpu.vl = vl;
+                state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+                SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+                store_area_[0] = kUndisturbedResult[0];
+                store_area_[1] = kUndisturbedResult[1];
+                state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+                EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+                EXPECT_EQ(state_.cpu.vstart, 0);
+                EXPECT_EQ(state_.cpu.vl, vl);
+                SIMD128Register memory_result =
+                    SIMD128Register{__v2du{store_area_[0], store_area_[1]}};
+                for (size_t element = 0; element < 16; ++element) {
+                  UInt8 expected_element;
+                  if (element < vstart || element >= kVlmVl) {
+                    expected_element = SIMD128Register{kUndisturbedResult}.Get<UInt8>(element);
+                  } else {
+                    expected_element = UInt8{expected_results[element]};
+                  }
+                  EXPECT_EQ(memory_result.Get<UInt8>(element), expected_element);
+                }
+              }
             }
           }
         }
@@ -3034,6 +3118,11 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                 {0xbf3e'bd3c'bb3a'b938, 0xff7e'fd7c'fb7a'f978}});
 }
 
+TEST_F(Riscv64InterpreterTest, TestVlm) {
+  TestVlm(0x2b08407,  // vlm.v v8, (x1)
+          {0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143});
+}
+
 TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
   VsxsegXeiXX<UInt8, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                            {0x0487'8506'0283'0081, 0x0a89'0c8d'8b8f'080e});
@@ -5189,6 +5278,11 @@ TEST_F(Riscv64InterpreterTest, TestVsssegXeXX) {
                                 0xdf5e'dd5c'db5a'd958,
                                 0xef6e'ed6c'eb6a'e968,
                                 0xff7e'fd7c'fb7a'f978});
+}
+
+TEST_F(Riscv64InterpreterTest, TestVsm) {
+  TestVsm(0x2b08427,  // vsm.v v8, (x1)
+          {0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143});
 }
 
 TEST_F(Riscv64InterpreterTest, TestVadd) {
