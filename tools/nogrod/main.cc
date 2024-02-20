@@ -482,9 +482,13 @@ std::unique_ptr<TypeInfo> ParseBaseType(const nogrod::DwarfDie* die) {
       is_signed = true;
       break;
     case DW_ATE_unsigned:
-    case DW_ATE_boolean:
       kind = "int";
       prefix = "unsigned int";
+      is_signed = false;
+      break;
+    case DW_ATE_boolean:
+      kind = "int";
+      prefix = "bool";
       is_signed = false;
       break;
     case DW_ATE_float:
@@ -509,7 +513,10 @@ std::unique_ptr<TypeInfo> ParseBaseType(const nogrod::DwarfDie* die) {
             die->offset());
   }
 
-  std::string name = StringPrintf("%s%" PRId64, prefix, size * CHAR_BIT);
+  std::string name = prefix;
+  if (strcmp(prefix, "bool") != 0) {
+    name = StringPrintf("%s%" PRId64, prefix, size * CHAR_BIT);
+  }
 
   return std::unique_ptr<TypeInfoBase>(
       new TypeInfoBase(die->offset(), name, size * CHAR_BIT, kind, is_signed));
@@ -536,6 +543,87 @@ std::optional<std::string> GetDieName(const nogrod::DwarfDie* die) {
   }
 
   return die_name;
+}
+
+std::string UpdateName(std::string original, bool is_first, std::string base_name) {
+  if (!is_first) {
+    original += ", ";
+  }
+  std::vector<std::string> kind_strs{kKindStruct,
+                                     kKindClass,
+                                     kKindUnion,
+                                     kKindArray,
+                                     kKindAtomic,
+                                     kKindFunction,
+                                     kKindIncomplete,
+                                     kKindRestrict,
+                                     kKindVolatile};
+  for (const auto& kind_str : kind_strs) {
+    auto index = base_name.find(kind_str);
+    if (index != std::string::npos) {
+      // remove "kind" prefix and a following space
+      base_name.erase(index, kind_str.length() + 1);
+    }
+  }
+  original += base_name;
+  return original;
+}
+
+std::string GenerateClassName(const auto& children,
+                              auto class_name,
+                              const nogrod::DwarfDie* die,
+                              const nogrod::DwarfInfo* dwarf_info,
+                              std::unordered_map<uint64_t, std::unique_ptr<TypeInfo>>* types) {
+  std::string template_params = "";
+  for (size_t i = 0; i < children.size(); ++i) {
+    auto child = children[i];
+
+    if (child->tag() == DW_TAG_GNU_template_parameter_pack) {
+      const auto& parameter_pack_children = child->children();
+      for (auto child_child : parameter_pack_children) {
+        if (child_child->tag() == DW_TAG_template_type_parameter ||
+            child_child->tag() == DW_TAG_template_value_parameter) {
+          auto temp_type_die = GetAtTypeDie(child_child, dwarf_info);
+          if (temp_type_die == nullptr) {
+            continue;
+          }
+          auto template_type_info = ParseDie(temp_type_die, child, dwarf_info, types);
+          template_params =
+              UpdateName(template_params, i == 0, (template_type_info->base_name()).c_str());
+          continue;
+        }
+      }
+      continue;
+    }
+
+    if (child->tag() == DW_TAG_template_type_parameter ||
+        child->tag() == DW_TAG_template_value_parameter) {
+      auto child_type_die = GetAtTypeDie(child, dwarf_info);
+      if (child_type_die == nullptr) {
+        continue;
+      }
+      auto child_type_info = ParseDie(child_type_die, die, dwarf_info, types);
+
+      if (std::string_view{child_type_info->base_name()}.find("bool") != std::string_view::npos) {
+        auto num = child->GetUint64Attribute(DW_AT_const_value);
+        if (num) {
+          // Using the value of bool to avoid dedup failure
+          std::string bool_val = num.value() == 0 ? "false" : "true";
+          template_params = UpdateName(template_params, i == 0, bool_val);
+        }
+      } else {
+        template_params =
+            UpdateName(template_params, i == 0, (child_type_info->base_name()).c_str());
+      }
+      continue;
+    }
+  }
+
+  if (!template_params.empty()) {
+    return class_name + "<" + template_params + ">";
+  }
+
+  return class_name;
 }
 
 const TypeInfo* ParseDie(const nogrod::DwarfDie* start,
@@ -634,17 +722,16 @@ const TypeInfo* ParseClass(const char* kind,
     error("No DW_AT_byte_size specified for type at offset 0x%" PRIx64, die->offset());
   }
 
+  const auto& children = die->children();
+  class_name = GenerateClassName(children, class_name, die, dwarf_info, types);
+  name = StringPrintf("%s %s", kind, class_name.c_str());
   std::unique_ptr<TypeInfoClass> type_info_holder(
       new TypeInfoClass(die->offset(), kind, name, size.value() * CHAR_BIT, class_name));
   TypeInfoClass* type_info = type_info_holder.get();
   (*types)[die->offset()] = std::move(type_info_holder);
 
-  const auto& children = die->children();
   for (auto child : children) {
     if (child->tag() == DW_TAG_subprogram) {
-      // TODO: is this correct way to handle these?
-      // Current implementation ignores member functions - we are going to do
-      // the same
       continue;
     }
 
