@@ -934,6 +934,18 @@ class Interpreter {
                             vma,
                             Decoder::VLoadUnitStrideOpcode::kVleXX>(
             args.dst, src, [](size_t index) { return kSegmentSize * sizeof(ElementType) * index; });
+      case Decoder::VLoadUnitStrideOpcode::kVlm:
+        if constexpr (kSegmentSize == 1 &&
+                      std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+          return OpVectorLoad<UInt8,
+                              1,
+                              1,
+                              TailProcessing::kAgnostic,
+                              vma,
+                              Decoder::VLoadUnitStrideOpcode::kVlm>(
+              args.dst, src, [](size_t index) { return index; });
+        }
+        return Unimplemented();
       default:
         return Unimplemented();
     }
@@ -984,6 +996,9 @@ class Interpreter {
     constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    if constexpr (opcode == Decoder::VLoadUnitStrideOpcode::kVlm) {
+      vl = AlignUp<CHAR_BIT>(vl) / CHAR_BIT;
+    }
     // In case of memory access fault we may set vstart to non-zero value, set it to zero here to
     // simplify the logic below.
     SetCsr<CsrName::kVstart>(0);
@@ -1703,6 +1718,17 @@ class Interpreter {
             args.data, src, [](size_t index) {
               return kSegmentSize * sizeof(ElementType) * index;
             });
+      case Decoder::VStoreUnitStrideOpcode::kVsm:
+        if constexpr (kSegmentSize == 1 &&
+                      std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+          return OpVectorStore<UInt8,
+                               1,
+                               1,
+                               /*kUseMasking=*/false,
+                               Decoder::VStoreUnitStrideOpcode::kVsm>(
+              args.data, src, [](size_t index) { return index; });
+        }
+        return Unimplemented();
       default:
         return Unimplemented();
     }
@@ -1728,6 +1754,9 @@ class Interpreter {
     constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    if constexpr (opcode == Decoder::VStoreUnitStrideOpcode::kVsm) {
+      vl = AlignUp<CHAR_BIT>(vl) / CHAR_BIT;
+    }
     // In case of memory access fault we may set vstart to non-zero value, set it to zero here to
     // simplify the logic below.
     SetCsr<CsrName::kVstart>(0);
