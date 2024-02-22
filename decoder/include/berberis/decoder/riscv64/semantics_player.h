@@ -43,10 +43,10 @@ class SemanticsPlayer {
     Register arg2 = GetRegOrZero(args.src2);
     Register result;
     switch (args.operand_type) {
-      case Decoder::StoreOperandType::k32bit:
+      case Decoder::MemoryDataOperandType::k32bit:
         result = Amo<int32_t>(args.opcode, arg1, arg2, args.aq, args.rl);
         break;
-      case Decoder::StoreOperandType::k64bit:
+      case Decoder::MemoryDataOperandType::k64bit:
         result = Amo<int64_t>(args.opcode, arg1, arg2, args.aq, args.rl);
         break;
       default:
