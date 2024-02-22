@@ -451,21 +451,31 @@ class Decoder {
   // 64bit (which doesn't need neither sign-extension nor zero-extension since operand size is the
   // same as register size in that case).
 
-  enum class FcvtOperandType {
+  enum class FcvtOperandType : uint8_t {
     k32bitSigned = 0b00000,
     k32bitUnsigned = 0b00001,
     k64bitSigned = 0b00010,
     k64bitUnsigned = 0b00011,
   };
 
-  enum class FloatOperandType {
+  enum class FloatOperandType : uint8_t {
     kFloat = 0b00,
     kDouble = 0b01,
     kHalf = 0b10,
     kQuad = 0b11,
   };
 
-  enum class LoadOperandType {
+  // Used in vector loads and stores, and also in scalar stores.
+  // Scalar loads use different type because loads needs to either sign-extend value or zero-extend
+  // it which makes difference between signed and unsigned types meaningful.
+  enum class MemoryDataOperandType : uint8_t {
+    k8bit = 0b000,
+    k16bit = 0b001,
+    k32bit = 0b010,
+    k64bit = 0b011,
+  };
+
+  enum class LoadOperandType : uint8_t {
     k8bitSigned = 0b000,
     k16bitSigned = 0b001,
     k32bitSigned = 0b010,
@@ -475,16 +485,9 @@ class Decoder {
     k32bitUnsigned = 0b110,
   };
 
-  enum class StoreOperandType {
-    k8bit = 0b000,
-    k16bit = 0b001,
-    k32bit = 0b010,
-    k64bit = 0b011,
-  };
-
   struct AmoArgs {
     AmoOpcode opcode;
-    StoreOperandType operand_type;
+    MemoryDataOperandType operand_type;
     uint8_t dst;
     uint8_t src1;
     uint8_t src2;
@@ -668,7 +671,7 @@ class Decoder {
   using OpImm32Args = OpImmArgsTemplate<OpImm32Opcode>;
 
   struct VLoadIndexedArgs {
-    StoreOperandType width;
+    MemoryDataOperandType width;
     bool vm;
     bool ordered;
     uint8_t nf;
@@ -678,7 +681,7 @@ class Decoder {
   };
 
   struct VLoadStrideArgs {
-    StoreOperandType width;
+    MemoryDataOperandType width;
     bool vm;
     bool ordered;
     uint8_t nf;
@@ -689,7 +692,7 @@ class Decoder {
 
   struct VLoadUnitStrideArgs {
     VLoadUnitStrideOpcode opcode;
-    StoreOperandType width;
+    MemoryDataOperandType width;
     bool vm;
     uint8_t nf;
     uint8_t dst;
@@ -763,7 +766,7 @@ class Decoder {
   };
 
   struct VStoreIndexedArgs {
-    StoreOperandType width;
+    MemoryDataOperandType width;
     bool vm;
     bool ordered;
     uint8_t nf;
@@ -773,7 +776,7 @@ class Decoder {
   };
 
   struct VStoreStrideArgs {
-    StoreOperandType width;
+    MemoryDataOperandType width;
     bool vm;
     bool ordered;
     uint8_t nf;
@@ -784,7 +787,7 @@ class Decoder {
 
   struct VStoreUnitStrideArgs {
     VStoreUnitStrideOpcode opcode;
-    StoreOperandType width;
+    MemoryDataOperandType width;
     bool vm;
     uint8_t nf;
     uint8_t src;
@@ -832,7 +835,7 @@ class Decoder {
     uint8_t data;
   };
 
-  using StoreArgs = StoreArgsTemplate<StoreOperandType>;
+  using StoreArgs = StoreArgsTemplate<MemoryDataOperandType>;
   using StoreFpArgs = StoreArgsTemplate<FloatOperandType>;
 
   struct SystemArgs {
@@ -882,10 +885,10 @@ class Decoder {
         DecodeCompressedLoadStore<LoadStore::kStore, FloatOperandType::kDouble>();
         break;
       case CompressedOpcode::kSw:
-        DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k32bit>();
+        DecodeCompressedLoadStore<LoadStore::kStore, MemoryDataOperandType::k32bit>();
         break;
       case CompressedOpcode::kSd:
-        DecodeCompressedLoadStore<LoadStore::kStore, StoreOperandType::k64bit>();
+        DecodeCompressedLoadStore<LoadStore::kStore, MemoryDataOperandType::k64bit>();
         break;
       case CompressedOpcode::kAddi:
         DecodeCompressedAddi();
@@ -928,10 +931,10 @@ class Decoder {
         DecodeCompressedStoresp<FloatOperandType::kDouble>();
         break;
       case CompressedOpcode::kSwsp:
-        DecodeCompressedStoresp<StoreOperandType::k32bit>();
+        DecodeCompressedStoresp<MemoryDataOperandType::k32bit>();
         break;
       case CompressedOpcode::kSdsp:
-        DecodeCompressedStoresp<StoreOperandType::k64bit>();
+        DecodeCompressedStoresp<MemoryDataOperandType::k64bit>();
         break;
       default:
         insn_consumer_->Unimplemented();
@@ -1317,7 +1320,7 @@ class Decoder {
         DecodeOp<OpImm32Opcode, ShiftImm32Opcode, BitmanipImm32Opcode, 5>();
         break;
       case BaseOpcode::kStore:
-        DecodeStore<StoreOperandType>();
+        DecodeStore<MemoryDataOperandType>();
         break;
       case BaseOpcode::kStoreFp:
         DecodeStore<FloatOperandType>();
@@ -1477,7 +1480,7 @@ class Decoder {
       return Undefined();
     }
     AmoOpcode opcode = AmoOpcode{high_opcode};
-    StoreOperandType operand_type = StoreOperandType{low_opcode};
+    MemoryDataOperandType operand_type = MemoryDataOperandType{low_opcode};
     const AmoArgs args = {
         .opcode = opcode,
         .operand_type = operand_type,
@@ -2118,17 +2121,17 @@ class Decoder {
     bool is_vector_instruction;
     union {
       FloatOperandType size;
-      StoreOperandType eew;
+      MemoryDataOperandType eew;
     };
   } kLoadStoreWidthToOperandType[8] = {
-      {.is_vector_instruction = true, .eew = StoreOperandType::k8bit},
+      {.is_vector_instruction = true, .eew = MemoryDataOperandType::k8bit},
       {.is_vector_instruction = false, .size = FloatOperandType::kHalf},
       {.is_vector_instruction = false, .size = FloatOperandType::kFloat},
       {.is_vector_instruction = false, .size = FloatOperandType::kDouble},
       {.is_vector_instruction = false, .size = FloatOperandType::kQuad},
-      {.is_vector_instruction = true, .eew = StoreOperandType::k16bit},
-      {.is_vector_instruction = true, .eew = StoreOperandType::k32bit},
-      {.is_vector_instruction = true, .eew = StoreOperandType::k64bit}};
+      {.is_vector_instruction = true, .eew = MemoryDataOperandType::k16bit},
+      {.is_vector_instruction = true, .eew = MemoryDataOperandType::k32bit},
+      {.is_vector_instruction = true, .eew = MemoryDataOperandType::k64bit}};
 
   InsnConsumer* insn_consumer_;
   uint32_t code_;
