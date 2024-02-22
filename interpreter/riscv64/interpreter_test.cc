@@ -18,10 +18,15 @@
 
 #include <unistd.h>
 
+#include <malloc.h>  // memalign
+#include <sys/mman.h>
 #include <algorithm>  // copy_n, fill_n
+#include <csignal>
 #include <cstdint>
+#include <cstring>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
@@ -30,10 +35,47 @@
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/vector_intrinsics.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
+#include "faulty_memory_accesses.h"
 
 namespace berberis {
 
 namespace {
+
+#if defined(__i386__)
+constexpr size_t kRegIP = REG_EIP;
+#elif defined(__x86_64__)
+constexpr size_t kRegIP = REG_RIP;
+#else
+#error "Unsupported arch"
+#endif
+
+bool sighandler_called = false;
+
+void FaultHandler(int /* sig */, siginfo_t* /* info */, void* ctx) {
+  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(ctx);
+  static_assert(sizeof(void*) == sizeof(greg_t), "Unsupported type sizes");
+  void* fault_addr = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[kRegIP]);
+  void* recovery_addr = FindFaultyMemoryAccessRecoveryAddrForTesting(fault_addr);
+  sighandler_called = true;
+  CHECK(recovery_addr);
+  ucontext->uc_mcontext.gregs[kRegIP] = reinterpret_cast<greg_t>(recovery_addr);
+}
+
+class ScopedFaultySigaction {
+ public:
+  ScopedFaultySigaction() {
+    struct sigaction sa;
+    sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_sigaction = FaultHandler;
+    CHECK_EQ(sigaction(SIGSEGV, &sa, &old_sa_), 0);
+  }
+
+  ~ScopedFaultySigaction() { CHECK_EQ(sigaction(SIGSEGV, &old_sa_, nullptr), 0); }
+
+ private:
+  struct sigaction old_sa_;
+};
 
 //  Interpreter decodes the size itself, but we need to accept this template parameter to share
 //  tests with translators.
@@ -212,6 +254,47 @@ class Riscv64InterpreterTest : public ::testing::Test {
             }
             for (size_t index = kNFfields * kLmul; index < 8; index++) {
               EXPECT_EQ(state_.cpu.v[8 + index], kUndisturbedValue);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void TestVlm(uint32_t insn_bytes, __v16qu expected_results) {
+    const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+    // Vlm.v is special form of normal vector load which mostly ignores vtype.
+    // The only bit that it honors is vill: https://github.com/riscv/riscv-v-spec/pull/877
+    // Verify that changes to vtype don't affect the execution (but vstart and vl do).
+    for (uint8_t sew = 0; sew < 4; ++sew) {
+      for (uint8_t vlmul = 0; vlmul < 4; ++vlmul) {
+        const uint8_t kElementsCount = (16 >> sew) << vlmul;
+        for (uint8_t vstart = 0; vstart <= kElementsCount; ++vstart) {
+          for (uint8_t vl = 0; vl <= kElementsCount; ++vl) {
+            const uint8_t kVlmVl = AlignUp<CHAR_BIT>(vl) / CHAR_BIT;
+            for (uint8_t vta = 0; vta < 2; ++vta) {
+              for (uint8_t vma = 0; vma < 2; ++vma) {
+                state_.cpu.vtype = (vma << 7) | (vta << 6) | (sew << 3) | vlmul;
+                state_.cpu.vstart = vstart;
+                state_.cpu.vl = vl;
+                state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+                SetXReg<1>(state_.cpu, ToGuestAddr(&kVectorCalculationsSource));
+                state_.cpu.v[8] = kUndisturbedValue;
+                EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+                EXPECT_EQ(state_.cpu.vstart, 0);
+                EXPECT_EQ(state_.cpu.vl, vl);
+                for (size_t element = 0; element < 16; ++element) {
+                  UInt8 expected_element;
+                  if (element < vstart || vstart >= kVlmVl) {
+                    expected_element = SIMD128Register{kUndisturbedResult}.Get<UInt8>(element);
+                  } else if (element >= kVlmVl) {
+                    expected_element = ~UInt8{0};
+                  } else {
+                    expected_element = UInt8{expected_results[element]};
+                  }
+                  EXPECT_EQ(SIMD128Register{state_.cpu.v[8]}.Get<UInt8>(element), expected_element);
+                }
+              }
             }
           }
         }
@@ -401,6 +484,86 @@ class Riscv64InterpreterTest : public ::testing::Test {
         }
       }
     }
+  }
+
+  void TestVsm(uint32_t insn_bytes, __v16qu expected_results) {
+    const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+    // Vlm.v is special form of normal vector load which mostly ignores vtype.
+    // The only bit that it honors is vill: https://github.com/riscv/riscv-v-spec/pull/877
+    // Verify that changes to vtype don't affect the execution (but vstart and vl do).
+    for (uint8_t sew = 0; sew < 4; ++sew) {
+      for (uint8_t vlmul = 0; vlmul < 4; ++vlmul) {
+        const uint8_t kElementsCount = (16 >> sew) << vlmul;
+        for (uint8_t vstart = 0; vstart <= kElementsCount; ++vstart) {
+          for (uint8_t vl = 0; vl <= kElementsCount; ++vl) {
+            const uint8_t kVlmVl = AlignUp<CHAR_BIT>(vl) / CHAR_BIT;
+            for (uint8_t vta = 0; vta < 2; ++vta) {
+              for (uint8_t vma = 0; vma < 2; ++vma) {
+                state_.cpu.vtype = (vma << 7) | (vta << 6) | (sew << 3) | vlmul;
+                state_.cpu.vstart = vstart;
+                state_.cpu.vl = vl;
+                state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+                SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+                store_area_[0] = kUndisturbedResult[0];
+                store_area_[1] = kUndisturbedResult[1];
+                state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+                EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+                EXPECT_EQ(state_.cpu.vstart, 0);
+                EXPECT_EQ(state_.cpu.vl, vl);
+                SIMD128Register memory_result =
+                    SIMD128Register{__v2du{store_area_[0], store_area_[1]}};
+                for (size_t element = 0; element < 16; ++element) {
+                  UInt8 expected_element;
+                  if (element < vstart || element >= kVlmVl) {
+                    expected_element = SIMD128Register{kUndisturbedResult}.Get<UInt8>(element);
+                  } else {
+                    expected_element = UInt8{expected_results[element]};
+                  }
+                  EXPECT_EQ(memory_result.Get<UInt8>(element), expected_element);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Vector instructions.
+  void TestVleXXff(uint32_t insn_bytes,
+                   uint8_t loadable_bytes,
+                   uint8_t vsew,
+                   uint8_t expected_vl,
+                   bool fail_on_first = false) {
+    ScopedFaultySigaction scoped_sa;
+    sighandler_called = false;
+    char* buffer;
+    const size_t kPageSize = sysconf(_SC_PAGE_SIZE);
+    buffer = (char*)memalign(kPageSize, 2 * kPageSize);
+    mprotect(buffer, kPageSize * 2, PROT_WRITE);
+    char* p = buffer + kPageSize - loadable_bytes;
+    std::memcpy(p, &kVectorCalculationsSource[0], 128);
+    mprotect(buffer + kPageSize, kPageSize, PROT_NONE);
+
+    auto [vlmax, vtype] = intrinsics::Vsetvl(~0ULL, (vsew << 3) | 3);
+    state_.cpu.vstart = 0;
+    state_.cpu.vl = vlmax;
+    state_.cpu.vtype = vtype;
+    insn_bytes = insn_bytes | (1 << 25);
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(p));
+
+    if (fail_on_first) {
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr));
+    } else {
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    }
+    if (loadable_bytes < 128) {
+      EXPECT_TRUE(sighandler_called);
+    } else {
+      EXPECT_FALSE(sighandler_called);
+    }
+    EXPECT_EQ(state_.cpu.vl, expected_vl);
   }
 
   // Vector instructions.
@@ -3034,6 +3197,11 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                 {0xbf3e'bd3c'bb3a'b938, 0xff7e'fd7c'fb7a'f978}});
 }
 
+TEST_F(Riscv64InterpreterTest, TestVlm) {
+  TestVlm(0x2b08407,  // vlm.v v8, (x1)
+          {0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143});
+}
+
 TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
   VsxsegXeiXX<UInt8, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                            {0x0487'8506'0283'0081, 0x0a89'0c8d'8b8f'080e});
@@ -5189,6 +5357,11 @@ TEST_F(Riscv64InterpreterTest, TestVsssegXeXX) {
                                 0xdf5e'dd5c'db5a'd958,
                                 0xef6e'ed6c'eb6a'e968,
                                 0xff7e'fd7c'fb7a'f978});
+}
+
+TEST_F(Riscv64InterpreterTest, TestVsm) {
+  TestVsm(0x2b08427,  // vsm.v v8, (x1)
+          {0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143});
 }
 
 TEST_F(Riscv64InterpreterTest, TestVadd) {
@@ -8601,6 +8774,32 @@ TEST_F(Riscv64InterpreterTest, TestVleXX) {
              {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
             3,
             kVectorCalculationsSourceLegacy);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVleXXff) {
+  TestVleXXff(0x1008407, 6, 0, 6);  // vle8ff.v v8, (x1), v0.t
+  TestVleXXff(0x1008407, 8, 0, 8);
+  TestVleXXff(0x1008407, 16, 0, 16);
+  TestVleXXff(0x1008407, 32, 0, 32);
+  TestVleXXff(0x1008407, 255, 0, 128);  // All 128 bytes accessible.
+
+  TestVleXXff(0x100d407, 6, 1, 3);  // vle16ff.v v8, (x1), v0.t
+  TestVleXXff(0x100d407, 8, 1, 4);
+  TestVleXXff(0x100d407, 16, 1, 8);
+  TestVleXXff(0x100d407, 32, 1, 16);
+
+  TestVleXXff(0x100e407, 6, 2, 1);  // vle32ff.v v8, (x1), v0.t
+  TestVleXXff(0x100e407, 8, 2, 2);
+  TestVleXXff(0x100e407, 16, 2, 4);
+  TestVleXXff(0x100e407, 32, 2, 8);
+  TestVleXXff(0x100e407, 64, 2, 16);
+
+  TestVleXXff(0x100f407, 8, 3, 1);  // vle64ff.v v8, (x1), v0.t
+  TestVleXXff(0x100f407, 16, 3, 2);
+  TestVleXXff(0x100f407, 32, 3, 4);
+  TestVleXXff(0x100f407, 64, 3, 8);
+
+  TestVleXXff(0x100f407, 6, 3, 16, true);  // Should raise exception and not change VL
 }
 
 TEST_F(Riscv64InterpreterTest, TestVnsrl) {

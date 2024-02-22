@@ -37,18 +37,9 @@ class Decoder {
 
   // https://eel.is/c++draft/enum#dcl.enum-8
   // For an enumeration whose underlying type is fixed, the values of the enumeration are the values
-  // of the underlying type. Otherwise, the values of the enumeration are the values representable
-  // by a hypothetical integer type with minimal width M such that all enumerators can be
-  // represented. The width of the smallest bit-field large enough to hold all the values of the
-  // enumeration type is M. It is possible to define an enumeration that has values not defined by
-  // any of its enumerators. If the enumerator-list is empty, the values of the enumeration are as
-  // if the enumeration had a single enumerator with value 0.
+  // of the underlying type.
 
-  // To ensure that we wouldn't trigger UB by accident each opcode includes kMaxValue variant in
-  // kOpOcode, kSystemOpcode and so on, which have all possible bit values set.
-  //
-  // Note: that value is not used anywhere in the code, it exists solely to make conversion of not
-  // yet known to decoder RISC-V instructions robust.
+  // To ensure that there are no surprises we specify that type in all enums below.
 
   enum class AmoOpcode : uint8_t {
     kLr = 0b00010,
@@ -62,7 +53,6 @@ class Decoder {
     kAmomax = 0b10100,
     kAmominu = 0b11000,
     kAmomaxu = 0b11100,
-    kMaxValue = 0b11111,
   };
 
   enum class BranchOpcode : uint8_t {
@@ -72,21 +62,18 @@ class Decoder {
     kBge = 0b101,
     kBltu = 0b110,
     kBgeu = 0b111,
-    kMaxValue = 0b111,
   };
 
   enum class CsrOpcode : uint8_t {
     kCsrrw = 0b01,
     kCsrrs = 0b10,
     kCsrrc = 0b11,
-    kMaxValue = 0b11,
   };
 
   enum class CsrImmOpcode : uint8_t {
     kCsrrwi = 0b01,
     kCsrrsi = 0b10,
     kCsrrci = 0b11,
-    kMaxValue = 0b11,
   };
 
   enum class FmaOpcode : uint8_t {
@@ -94,13 +81,11 @@ class Decoder {
     kFmsub = 0b01,
     kFnmsub = 0b10,
     kFnmadd = 0b11,
-    kMaxValue = 0b11,
   };
 
   enum class FenceOpcode : uint8_t {
     kFence = 0b0000,
     kFenceTso = 0b1000,
-    kMaxValue = 0b1111,
   };
 
   enum class OpOpcode : uint16_t {
@@ -138,7 +123,6 @@ class Decoder {
     kBext = 0b0100'100'101,
     kBinv = 0b0110'100'001,
     kBset = 0b0010'100'001,
-    kMaxValue = 0b1111'111'111,
   };
 
   enum class Op32Opcode : uint16_t {
@@ -158,24 +142,20 @@ class Decoder {
     kSh1adduw = 0b0010'000'010,
     kSh2adduw = 0b0010'000'100,
     kSh3adduw = 0b0010'000'110,
-    kMaxValue = 0b1111'111'111,
   };
 
   enum class OpSingleInputOpcode : uint16_t {
     kZexth = 0b0000'100'100,
-    kMaxValue = 0b1111'111'111,
   };
 
   enum class OpFpGpRegisterTargetNoRoundingOpcode : uint8_t {
     kFle = 0b00'000,
     kFlt = 0b00'001,
     kFeq = 0b00'010,
-    kMaxValue = 0b11'111,
   };
 
   enum class OpFpGpRegisterTargetSingleInputNoRoundingOpcode : uint16_t {
     kFclass = 0b00'00000'001,
-    kMaxValue = 0b11'11111'111,
   };
 
   enum class OpFpNoRoundingOpcode : uint8_t {
@@ -184,7 +164,6 @@ class Decoder {
     kFSgnjx = 0b00'010,
     kFMin = 0b01'000,
     kFMax = 0b01'001,
-    kMaxValue = 0b11'111,
   };
 
   enum class OpFpOpcode : uint8_t {
@@ -192,12 +171,10 @@ class Decoder {
     kFSub = 0b01,
     kFMul = 0b10,
     kFDiv = 0b11,
-    kMaxValue = 0b11,
   };
 
   enum class OpFpSingleInputOpcode : uint8_t {
     kFSqrt = 0b11'00000,
-    kMaxValue = 0b11'11111,
   };
 
   enum class OpFpSingleInputNoRoundingOpcode : uint8_t {
@@ -211,26 +188,22 @@ class Decoder {
     kXori = 0b100,
     kOri = 0b110,
     kAndi = 0b111,
-    kMaxValue = 0b111,
   };
 
   enum class OpImm32Opcode : uint8_t {
     kAddiw = 0b000,
-    kMaxValue = 0b111,
   };
 
   enum class ShiftImmOpcode : uint8_t {
     kSlli = 0b000000'001,
     kSrli = 0b000000'101,
     kSrai = 0b010000'101,
-    kMaxValue = 0b11111'111,
   };
 
   enum class ShiftImm32Opcode : uint16_t {
     kSlliw = 0b0000000'001,
     kSrliw = 0b0000000'101,
     kSraiw = 0b0100000'101,
-    kMaxValue = 0b111111'111,
   };
 
   enum class BitmanipImmOpcode : uint16_t {
@@ -246,7 +219,6 @@ class Decoder {
     kBexti = 0b010010'101,
     kBinvi = 0b011010'001,
     kBseti = 0b001010'001,
-    kMaxValue = 0b111111'111111'111,
   };
 
   enum class BitmanipImm32Opcode : uint16_t {
@@ -255,20 +227,18 @@ class Decoder {
     kCtzw = 0b0110000'00001'001,
     kRoriw = 0b0110000'101,
     kSlliuw = 0b0000100'001,
-    kMaxValue = 0b1111111'111111'111,
   };
 
   enum class SystemOpcode : uint32_t {
     kEcall = 0b000000000000'00000'000'00000,
     kEbreak = 0b000000000001'00000'000'00000,
-    kMaxValue = 0b111111111111'11111'111'11111,
   };
 
   enum class VLoadUnitStrideOpcode : uint8_t {
     kVleXX = 0b00000,
     kVlXreXX = 0b01000,
     kVleXXff = 0b10000,
-    kMaxValue = 0b11111,
+    kVlm = 0b01011,
   };
 
   enum class VOpIViOpcode : uint8_t {
@@ -301,7 +271,6 @@ class Decoder {
     kVnsrawi = 0b101101,
     kVnclipuvi = 0b101110,
     kVnclipvi = 0b101111,
-    kMaxValue = 0b111111,
   };
 
   enum class VOpIVvOpcode : uint8_t {
@@ -343,7 +312,6 @@ class Decoder {
     kVnclipvv = 0b101111,
     kVwredsumuvv = 0b110000,
     kVwredsumvv = 0b110001,
-    kMaxValue = 0b111111
   };
 
   enum class VOpMVvOpcode : uint8_t {
@@ -378,7 +346,6 @@ class Decoder {
     kVwaddvv = 0b110001,
     kVwsubuvv = 0b110010,
     kVwsubvv = 0b110011,
-    kMaxValue = 0b111111
   };
 
   enum class VOpIVxOpcode : uint8_t {
@@ -422,7 +389,6 @@ class Decoder {
     kVnsrawx = 0b101101,
     kVnclipuvx = 0b101110,
     kVnclipvx = 0b101111,
-    kMaxValue = 0b111111
   };
 
   enum class VOpMVxOpcode : uint8_t {
@@ -435,25 +401,22 @@ class Decoder {
     kVnmsubvx = 0b101011,
     kVmaccvx = 0b101101,
     kVnmsacvx = 0b101111,
-    kMaxValue = 0b111111
   };
 
   enum class VStoreUnitStrideOpcode : uint8_t {
     kVseXX = 0b00000,
     kVsX = 0b01000,
-    kMaxValue = 0b11111,
+    kVsm = 0b01011,
   };
 
   enum class VXmXXxOpcode : uint8_t {
     kVmvsx = 0b00000,
-    kMaxValue = 0b11111,
   };
 
   enum class VXmXXsOpcode : uint8_t {
     kVmvxs = 0b00000,
     kVcpopm = 0b10000,
     kVfirstm = 0b10001,
-    kMaxValue = 0b11111,
   };
 
   enum class VmsXfOpcode : uint8_t {
@@ -493,7 +456,6 @@ class Decoder {
     k32bitUnsigned = 0b00001,
     k64bitSigned = 0b00010,
     k64bitUnsigned = 0b00011,
-    kMaxValue = 0b11111,
   };
 
   enum class FloatOperandType {
@@ -501,7 +463,6 @@ class Decoder {
     kDouble = 0b01,
     kHalf = 0b10,
     kQuad = 0b11,
-    kMaxValue = 0b11,
   };
 
   enum class LoadOperandType {
@@ -512,7 +473,6 @@ class Decoder {
     k8bitUnsigned = 0b100,
     k16bitUnsigned = 0b101,
     k32bitUnsigned = 0b110,
-    kMaxValue = 0b1111,
   };
 
   enum class StoreOperandType {
@@ -520,7 +480,6 @@ class Decoder {
     k16bit = 0b001,
     k32bit = 0b010,
     k64bit = 0b011,
-    kMaxValue = 0b111,
   };
 
   struct AmoArgs {
@@ -1225,7 +1184,7 @@ class Decoder {
     uint8_t rs = GetBits<7, 3>();
 
     const BranchArgs args = {
-        .opcode = BranchOpcode(GetBits<13, 1>()),
+        .opcode = BranchOpcode{GetBits<13, 1>()},
         .src1 = uint8_t(8 + rs),
         .src2 = 0,
         .offset = static_cast<int16_t>(SignExtend<9>(kBHigh[high_imm] + kBLow[low_imm])),
@@ -1535,8 +1494,8 @@ class Decoder {
     uint8_t operand_type = GetBits<25, 2>();
     uint8_t opcode_bits = GetBits<2, 2>();
     const FmaArgs args = {
-        .opcode = FmaOpcode(opcode_bits),
-        .operand_type = FloatOperandType(operand_type),
+        .opcode = FmaOpcode{opcode_bits},
+        .operand_type = FloatOperandType{operand_type},
         .dst = GetBits<7, 5>(),
         .src1 = GetBits<15, 5>(),
         .src2 = GetBits<20, 5>(),
@@ -1576,7 +1535,7 @@ class Decoder {
         switch (GetBits<26, 2>()) {
           case 0b00: {
             const VLoadUnitStrideArgs args = {
-                .opcode = VLoadUnitStrideOpcode(GetBits<20, 5>()),
+                .opcode = VLoadUnitStrideOpcode{GetBits<20, 5>()},
                 .width = decoded_operand_type.eew,
                 .vm = GetBits<25, 1>(),
                 .nf = GetBits<29, 3>(),
@@ -1640,7 +1599,7 @@ class Decoder {
         switch (GetBits<26, 2>()) {
           case 0b00: {
             const VStoreUnitStrideArgs args = {
-                .opcode = VStoreUnitStrideOpcode(GetBits<20, 5>()),
+                .opcode = VStoreUnitStrideOpcode{GetBits<20, 5>()},
                 .width = decoded_operand_type.eew,
                 .vm = GetBits<25, 1>(),
                 .nf = GetBits<29, 3>(),
@@ -1823,8 +1782,8 @@ class Decoder {
     switch (GetBits<29, 3>()) {
       case 0b000: {
         const OpFpArgs args = {
-            .opcode = OpFpOpcode(opcode_bits),
-            .operand_type = FloatOperandType(operand_type),
+            .opcode = OpFpOpcode{opcode_bits},
+            .operand_type = FloatOperandType{operand_type},
             .dst = rd,
             .src1 = rs1,
             .src2 = rs2,
@@ -1833,11 +1792,12 @@ class Decoder {
         return insn_consumer_->OpFp(args);
       }
       case 0b001: {
-        OpFpNoRoundingOpcode no_rounding_opcode = OpFpNoRoundingOpcode((opcode_bits << 3) + rm);
+        uint8_t no_rounding_opcode_bits = (opcode_bits << 3) + rm;
+        OpFpNoRoundingOpcode no_rounding_opcode = OpFpNoRoundingOpcode{no_rounding_opcode_bits};
         if (no_rounding_opcode == Decoder::OpFpNoRoundingOpcode::kFSgnj && rs1 == rs2) {
           const OpFpSingleInputNoRoundingArgs args = {
               .opcode = OpFpSingleInputNoRoundingOpcode::kFmv,
-              .operand_type = FloatOperandType(operand_type),
+              .operand_type = FloatOperandType{operand_type},
               .dst = rd,
               .src = rs1,
           };
@@ -1845,7 +1805,7 @@ class Decoder {
         }
         const OpFpNoRoundingArgs args = {
             .opcode = no_rounding_opcode,
-            .operand_type = FloatOperandType(operand_type),
+            .operand_type = FloatOperandType{operand_type},
             .dst = rd,
             .src1 = rs1,
             .src2 = rs2,
@@ -1863,8 +1823,8 @@ class Decoder {
             return Undefined();
           }
           const FcvtFloatToFloatArgs args = {
-              .dst_type = FloatOperandType(operand_type),
-              .src_type = FloatOperandType(rs2),
+              .dst_type = FloatOperandType{operand_type},
+              .src_type = FloatOperandType{rs2},
               .dst = rd,
               .src = rs1,
               .rm = rm,
@@ -1873,8 +1833,8 @@ class Decoder {
         }
         uint8_t opcode = (opcode_bits << 5) + rs2;
         const OpFpSingleInputArgs args = {
-            .opcode = OpFpSingleInputOpcode(opcode),
-            .operand_type = FloatOperandType(operand_type),
+            .opcode = OpFpSingleInputOpcode{opcode},
+            .operand_type = FloatOperandType{operand_type},
             .dst = rd,
             .src = rs1,
             .rm = rm,
@@ -1884,8 +1844,8 @@ class Decoder {
       case 0b101: {
         uint8_t opcode = (opcode_bits << 3) + rm;
         const OpFpGpRegisterTargetNoRoundingArgs args = {
-            .opcode = OpFpGpRegisterTargetNoRoundingOpcode(opcode),
-            .operand_type = FloatOperandType(operand_type),
+            .opcode = OpFpGpRegisterTargetNoRoundingOpcode{opcode},
+            .operand_type = FloatOperandType{operand_type},
             .dst = rd,
             .src1 = rs1,
             .src2 = rs2,
@@ -1896,8 +1856,8 @@ class Decoder {
         switch (opcode_bits) {
           case 0b00: {
             const FcvtFloatToIntegerArgs args = {
-                .dst_type = FcvtOperandType(rs2),
-                .src_type = FloatOperandType(operand_type),
+                .dst_type = FcvtOperandType{rs2},
+                .src_type = FloatOperandType{operand_type},
                 .dst = rd,
                 .src = rs1,
                 .rm = rm,
@@ -1906,8 +1866,8 @@ class Decoder {
           }
           case 0b10: {
             const FcvtIntegerToFloatArgs args = {
-                .dst_type = FloatOperandType(operand_type),
-                .src_type = FcvtOperandType(rs2),
+                .dst_type = FloatOperandType{operand_type},
+                .src_type = FcvtOperandType{rs2},
                 .dst = rd,
                 .src = rs1,
                 .rm = rm,
@@ -1922,8 +1882,8 @@ class Decoder {
         switch (rm) {
           case 0b001: {
             const OpFpGpRegisterTargetSingleInputNoRoundingArgs args = {
-                .opcode = OpFpGpRegisterTargetSingleInputNoRoundingOpcode(opcode),
-                .operand_type = FloatOperandType(operand_type),
+                .opcode = OpFpGpRegisterTargetSingleInputNoRoundingOpcode{opcode},
+                .operand_type = FloatOperandType{operand_type},
                 .dst = rd,
                 .src = rs1,
             };
@@ -1932,14 +1892,14 @@ class Decoder {
           case 0b000: {
             if (opcode_bits == 0b00) {
               const FmvFloatToIntegerArgs args = {
-                  .operand_type = FloatOperandType(operand_type),
+                  .operand_type = FloatOperandType{operand_type},
                   .dst = rd,
                   .src = rs1,
               };
               return insn_consumer_->FmvFloatToInteger(args);
             } else if (opcode_bits == 0b10) {
               const FmvIntegerToFloatArgs args = {
-                  .operand_type = FloatOperandType(operand_type),
+                  .operand_type = FloatOperandType{operand_type},
                   .dst = rd,
                   .src = rs1,
               };
@@ -1969,7 +1929,7 @@ class Decoder {
     switch (low_opcode) {
       case 0b000: {
         const VOpIVvArgs args = {
-            .opcode = VOpIVvOpcode(opcode),
+            .opcode = VOpIVvOpcode{opcode},
             .vm = vm,
             .dst = dst,
             .src1 = src1,
@@ -1979,7 +1939,7 @@ class Decoder {
       }
       case 0b010: {
         const VOpMVvArgs args = {
-            .opcode = VOpMVvOpcode(opcode),
+            .opcode = VOpMVvOpcode{opcode},
             .vm = vm,
             .dst = dst,
             .src1 = src1,
@@ -1989,7 +1949,7 @@ class Decoder {
       }
       case 0b011: {
         const VOpIViArgs args = {
-            .opcode = VOpIViOpcode(opcode),
+            .opcode = VOpIViOpcode{opcode},
             .vm = vm,
             .dst = dst,
             .src = src1,
@@ -1999,7 +1959,7 @@ class Decoder {
       }
       case 0b100: {
         const VOpIVxArgs args = {
-            .opcode = VOpIVxOpcode(opcode),
+            .opcode = VOpIVxOpcode{opcode},
             .vm = vm,
             .dst = dst,
             .src1 = src1,
@@ -2009,7 +1969,7 @@ class Decoder {
       }
       case 0b110: {
         const VOpMVxArgs args = {
-            .opcode = VOpMVxOpcode(opcode),
+            .opcode = VOpMVxOpcode{opcode},
             .vm = vm,
             .dst = dst,
             .src1 = src1,
@@ -2046,14 +2006,14 @@ class Decoder {
   void DecodeSystem() {
     uint8_t low_opcode = GetBits<12, 2>();
     if (low_opcode == 0b00) {
-      int32_t opcode = GetBits<7, 25>();
+      uint32_t opcode = GetBits<7, 25>();
       const SystemArgs args = {
-          .opcode = SystemOpcode(opcode),
+          .opcode = SystemOpcode{opcode},
       };
       return insn_consumer_->System(args);
     }
     if (GetBits<14, 1>()) {
-      CsrImmOpcode opcode = CsrImmOpcode(low_opcode);
+      CsrImmOpcode opcode = CsrImmOpcode{low_opcode};
       const CsrImmArgs args = {
           .opcode = opcode,
           .dst = GetBits<7, 5>(),
@@ -2062,7 +2022,7 @@ class Decoder {
       };
       return insn_consumer_->Csr(args);
     }
-    CsrOpcode opcode = CsrOpcode(low_opcode);
+    CsrOpcode opcode = CsrOpcode{low_opcode};
     const CsrArgs args = {
         .opcode = opcode,
         .dst = GetBits<7, 5>(),
@@ -2123,7 +2083,6 @@ class Decoder {
     // Reserved 0b11'101,
     kCustom3 = 0b11'110,
     // Reserved 0b11'111,
-    kMaxValue = 0b11'111,
   };
 
   enum class CompressedOpcode {
@@ -2153,7 +2112,6 @@ class Decoder {
     kSdsp = 0b111'10,
     // instruction with 0bxxx'11 opcodes are not compressed instruction and can not be in this
     // table.
-    kMaxValue = 0b111'11,
   };
 
   static constexpr struct {
