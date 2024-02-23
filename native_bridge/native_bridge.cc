@@ -33,6 +33,7 @@
 #include "berberis/base/algorithm.h"
 #include "berberis/base/bit_util.h"
 #include "berberis/base/config_globals.h"
+#include "berberis/base/file.h"
 #include "berberis/base/logging.h"
 #include "berberis/base/strings.h"
 #include "berberis/base/tracing.h"
@@ -163,6 +164,11 @@ void* NdktNativeBridge::LoadLibrary(const char* libpath,
 
   void* handle = LoadGuestLibrary(libpath, flags, ns);
   if (handle != nullptr) {
+    return handle;
+  }
+
+  // http://b/206676167: Do not fallback to host for libRS.so
+  if (berberis::Basename(libpath) == "libRS.so") {
     return handle;
   }
 
