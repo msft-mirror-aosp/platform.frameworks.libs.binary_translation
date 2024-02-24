@@ -148,6 +148,10 @@ struct ThreadState {
 
   // Arbitrary per-thread data added by instrumentation.
   void* instrument_data;
+
+  // TODO(b/329463428): Consider removing this pointer and not having ThreadState and
+  // NativeBridgeGuestStateHeader in the same mapping. The latter possibly managed by GuestThread.
+  void* thread_state_storage;
 };
 
 template <CsrName>
