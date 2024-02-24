@@ -108,7 +108,10 @@ class HeavyOptimizerFrontend {
     return {};
   }
 
-  void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data);
+  void Store(Decoder::MemoryDataOperandType operand_type,
+             Register arg,
+             int16_t offset,
+             Register data);
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset);
 
   template <typename IntType>
@@ -133,15 +136,15 @@ class HeavyOptimizerFrontend {
   }
 
   template <typename IntType>
-  constexpr Decoder::StoreOperandType ToStoreOperandType() {
+  constexpr Decoder::MemoryDataOperandType ToMemoryDataOperandType() {
     if constexpr (std::is_same_v<IntType, int8_t> || std::is_same_v<IntType, uint8_t>) {
-      return Decoder::StoreOperandType::k8bit;
+      return Decoder::MemoryDataOperandType::k8bit;
     } else if constexpr (std::is_same_v<IntType, int16_t> || std::is_same_v<IntType, uint16_t>) {
-      return Decoder::StoreOperandType::k16bit;
+      return Decoder::MemoryDataOperandType::k16bit;
     } else if constexpr (std::is_same_v<IntType, int32_t> || std::is_same_v<IntType, uint32_t>) {
-      return Decoder::StoreOperandType::k32bit;
+      return Decoder::MemoryDataOperandType::k32bit;
     } else if constexpr (std::is_same_v<IntType, int64_t> || std::is_same_v<IntType, uint64_t>) {
-      return Decoder::StoreOperandType::k64bit;
+      return Decoder::MemoryDataOperandType::k64bit;
     } else {
       static_assert(kDependentTypeFalse<IntType>);
     }
@@ -153,11 +156,11 @@ class HeavyOptimizerFrontend {
                                Register base,
                                Register index,
                                int32_t disp);
-  void StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+  void StoreWithoutRecovery(Decoder::MemoryDataOperandType operand_type,
                             Register base,
                             int32_t disp,
                             Register val);
-  void StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+  void StoreWithoutRecovery(Decoder::MemoryDataOperandType operand_type,
                             Register base,
                             Register index,
                             int32_t disp,
@@ -204,8 +207,11 @@ class HeavyOptimizerFrontend {
     Gen<x86_64::SubqRegReg>(addr_offset, aligned_addr, GetFlagsRegister());
     // It's okay to clobber reservation_value since we clear out reservation_address in
     // MemoryRegionReservationExchange anyway.
-    StoreWithoutRecovery(
-        ToStoreOperandType<IntType>(), x86_64::kMachineRegRBP, addr_offset, value_offset, data);
+    StoreWithoutRecovery(ToMemoryDataOperandType<IntType>(),
+                         x86_64::kMachineRegRBP,
+                         addr_offset,
+                         value_offset,
+                         data);
 
     return MemoryRegionReservationExchange(aligned_addr, reservation_value);
   }
