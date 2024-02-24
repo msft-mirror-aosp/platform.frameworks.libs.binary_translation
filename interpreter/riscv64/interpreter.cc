@@ -352,19 +352,22 @@ class Interpreter {
     return int32_t(((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
   }
 
-  void Store(Decoder::StoreOperandType operand_type, Register arg, int16_t offset, Register data) {
+  void Store(Decoder::MemoryDataOperandType operand_type,
+             Register arg,
+             int16_t offset,
+             Register data) {
     void* ptr = ToHostAddr<void>(arg + offset);
     switch (operand_type) {
-      case Decoder::StoreOperandType::k8bit:
+      case Decoder::MemoryDataOperandType::k8bit:
         Store<uint8_t>(ptr, data);
         break;
-      case Decoder::StoreOperandType::k16bit:
+      case Decoder::MemoryDataOperandType::k16bit:
         Store<uint16_t>(ptr, data);
         break;
-      case Decoder::StoreOperandType::k32bit:
+      case Decoder::MemoryDataOperandType::k32bit:
         Store<uint32_t>(ptr, data);
         break;
-      case Decoder::StoreOperandType::k64bit:
+      case Decoder::MemoryDataOperandType::k64bit:
         Store<uint64_t>(ptr, data);
         break;
       default:
@@ -504,7 +507,7 @@ class Interpreter {
 
     if constexpr (std::is_same_v<VOpArgs, Decoder::VStoreUnitStrideArgs>) {
       if (args.opcode == Decoder::VStoreUnitStrideOpcode::kVsX) {
-        if (args.width != Decoder::StoreOperandType::k8bit) {
+        if (args.width != Decoder::MemoryDataOperandType::k8bit) {
           return Unimplemented();
         }
         if (!IsPowerOf2(args.nf + 1)) {
@@ -545,13 +548,13 @@ class Interpreter {
                   std::is_same_v<VOpArgs, Decoder::VStoreStrideArgs> ||
                   std::is_same_v<VOpArgs, Decoder::VStoreUnitStrideArgs>) {
       switch (args.width) {
-        case Decoder::StoreOperandType::k8bit:
+        case Decoder::MemoryDataOperandType::k8bit:
           return OpVector<UInt8>(args, vtype, extra_args...);
-        case Decoder::StoreOperandType::k16bit:
+        case Decoder::MemoryDataOperandType::k16bit:
           return OpVector<UInt16>(args, vtype, extra_args...);
-        case Decoder::StoreOperandType::k32bit:
+        case Decoder::MemoryDataOperandType::k32bit:
           return OpVector<UInt32>(args, vtype, extra_args...);
-        case Decoder::StoreOperandType::k64bit:
+        case Decoder::MemoryDataOperandType::k64bit:
           return OpVector<UInt64>(args, vtype, extra_args...);
         default:
           return Unimplemented();
