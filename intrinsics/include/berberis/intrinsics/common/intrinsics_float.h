@@ -145,6 +145,14 @@ class WrappedFloatType {
   BaseType value_;
 };
 
+// Note: Float8 is uninhabited and variables of such type couldn't be created. Nonetheless it's
+// useful for implementation of certain instructions. For example vfwcvt.f.x.v RISC-V instruction
+// converts from Int8 (single-width int) to Float16 (double-width float) if titular element size if
+// Float8. Because such instruction never actually accesses elements of Float8 type it's perfectly
+// valid and allowed (if CPU supports Float16).
+class Float8PhonyType;  // This class doesn't exist but we may use it in template arguments.
+using Float8 = WrappedFloatType<Float8PhonyType>;  // Ditto.
+using Float16 = WrappedFloatType<_Float16>;
 using Float32 = WrappedFloatType<float>;
 using Float64 = WrappedFloatType<double>;
 
