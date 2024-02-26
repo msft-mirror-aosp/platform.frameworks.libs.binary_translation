@@ -104,9 +104,29 @@ struct TypeTraits<int64_t> {
 };
 
 template <>
+struct TypeTraits<intrinsics::Float8> {
+  using Int = int8_t;
+  using Raw = intrinsics::Float8PhonyType;
+  using Wide = intrinsics::Float16;
+  static constexpr int kBits = 8;
+  static constexpr char kName[] = "Float8";
+};
+
+template <>
+struct TypeTraits<intrinsics::Float16> {
+  using Int = int16_t;
+  using Raw = _Float16;
+  using Narrow = intrinsics::Float8;
+  using Wide = intrinsics::Float32;
+  static constexpr int kBits = 16;
+  static constexpr char kName[] = "Float16";
+};
+
+template <>
 struct TypeTraits<intrinsics::Float32> {
   using Int = int32_t;
   using Raw = float;
+  using Narrow = intrinsics::Float16;
   using Wide = intrinsics::Float64;
   static constexpr int kBits = 32;
   static constexpr char kName[] = "Float32";
