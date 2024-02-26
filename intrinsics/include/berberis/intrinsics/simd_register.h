@@ -58,6 +58,21 @@ class SIMD128Register {
   SIMD128Register() = default;
   SIMD128Register(const SIMD128Register&) = default;
   SIMD128Register(SIMD128Register&&) = default;
+#define SIMD_ARRAY_CONSTRUCTOR(Type, member, kSize)                \
+  constexpr SIMD128Register(const Type(&elem)[kSize]) : member{} { \
+    for (size_t index = 0; index < kSize; ++index) {               \
+      Set(elem[index], index);                                     \
+    }                                                              \
+  }
+  SIMD_ARRAY_CONSTRUCTOR(int8_t, int8, 16)
+  SIMD_ARRAY_CONSTRUCTOR(uint8_t, uint8, 16)
+  SIMD_ARRAY_CONSTRUCTOR(int16_t, int16, 8)
+  SIMD_ARRAY_CONSTRUCTOR(uint16_t, uint16, 8)
+  SIMD_ARRAY_CONSTRUCTOR(int32_t, int32, 4)
+  SIMD_ARRAY_CONSTRUCTOR(uint32_t, uint32, 4)
+  SIMD_ARRAY_CONSTRUCTOR(int64_t, int64, 2)
+  SIMD_ARRAY_CONSTRUCTOR(uint64_t, uint64, 2)
+#undef SIMD_ARRAY_CONSTRUCTOR
   SIMD128Register& operator=(const SIMD128Register&) = default;
   SIMD128Register& operator=(SIMD128Register&&) = default;
   // Note that all other constructos are not constexpr because they not compatible with notion of
