@@ -564,6 +564,12 @@ class Interpreter {
       if constexpr (std::is_same_v<VOpArgs, Decoder::VOpFVfArgs> ||
                     std::is_same_v<VOpArgs, Decoder::VOpFVvArgs>) {
         switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
+          case VectorSelectElementWidth::k16bit:
+            if constexpr (sizeof...(extra_args) == 0) {
+              return OpVector<intrinsics::Float16>(args, vlmul, vtype);
+            } else {
+              return Unimplemented();
+            }
           case VectorSelectElementWidth::k32bit:
             return OpVector<Float32>(
                 args,
@@ -1176,15 +1182,25 @@ class Interpreter {
   void OpVector(const Decoder::VOpFVfArgs& args, ElementType /*arg2*/) {
     switch (args.opcode) {
       default:
-        Unimplemented();
+        return Unimplemented();
     }
   }
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVector(const Decoder::VOpFVvArgs& args) {
-    switch (args.opcode) {
-      default:
-        Unimplemented();
+    // We currently don't support Float32 operations, but conversion routines that deal with
+    // double-width floats use these encodings to produce regular Float32 types.
+    // That's why we need to call these routines twice: one here and one in the large switch below.
+    if constexpr (sizeof(ElementType) < sizeof(Float32)) {
+      switch (args.opcode) {
+        default:
+          return Unimplemented();
+      }
+    } else {
+      switch (args.opcode) {
+        default:
+          return Unimplemented();
+      }
     }
   }
 
