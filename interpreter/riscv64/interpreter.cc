@@ -559,19 +559,37 @@ class Interpreter {
         default:
           return Unimplemented();
       }
-    }
-    VectorRegisterGroupMultiplier vlmul = static_cast<VectorRegisterGroupMultiplier>(vtype & 0b111);
-    switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
-      case VectorSelectElementWidth::k8bit:
-        return OpVector<UInt8>(args, vlmul, vtype, extra_args...);
-      case VectorSelectElementWidth::k16bit:
-        return OpVector<UInt16>(args, vlmul, vtype, extra_args...);
-      case VectorSelectElementWidth::k32bit:
-        return OpVector<UInt32>(args, vlmul, vtype, extra_args...);
-      case VectorSelectElementWidth::k64bit:
-        return OpVector<UInt64>(args, vlmul, vtype, extra_args...);
-      default:
-        return Unimplemented();
+    } else {
+      VectorRegisterGroupMultiplier vlmul = static_cast<VectorRegisterGroupMultiplier>(vtype & 0x7);
+      if constexpr (std::is_same_v<VOpArgs, Decoder::VOpFVfArgs> ||
+                    std::is_same_v<VOpArgs, Decoder::VOpFVvArgs>) {
+        switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
+          case VectorSelectElementWidth::k32bit:
+            return OpVector<Float32>(
+                args,
+                vlmul,
+                vtype,
+                std::get<0>(intrinsics::UnboxNan<Float32>(bit_cast<Float64>(extra_args)))...);
+          case VectorSelectElementWidth::k64bit:
+            // Note: if arguments are 64bit floats then we don't need to do any unboxing.
+            return OpVector<Float64>(args, vlmul, vtype, bit_cast<Float64>(extra_args)...);
+          default:
+            return Unimplemented();
+        }
+      } else {
+        switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
+          case VectorSelectElementWidth::k8bit:
+            return OpVector<UInt8>(args, vlmul, vtype, extra_args...);
+          case VectorSelectElementWidth::k16bit:
+            return OpVector<UInt16>(args, vlmul, vtype, extra_args...);
+          case VectorSelectElementWidth::k32bit:
+            return OpVector<UInt32>(args, vlmul, vtype, extra_args...);
+          case VectorSelectElementWidth::k64bit:
+            return OpVector<UInt64>(args, vlmul, vtype, extra_args...);
+          default:
+            return Unimplemented();
+        }
+      }
     }
   }
 
@@ -1151,6 +1169,22 @@ class Interpreter {
       }
       // Next group should be fully processed.
       vstart = 0;
+    }
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
+  void OpVector(const Decoder::VOpFVfArgs& args, ElementType /*arg2*/) {
+    switch (args.opcode) {
+      default:
+        Unimplemented();
+    }
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
+  void OpVector(const Decoder::VOpFVvArgs& args) {
+    switch (args.opcode) {
+      default:
+        Unimplemented();
     }
   }
 
