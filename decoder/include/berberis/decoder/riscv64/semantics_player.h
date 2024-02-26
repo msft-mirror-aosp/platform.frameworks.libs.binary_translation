@@ -809,6 +809,15 @@ class SemanticsPlayer {
     listener_->OpVector(args, arg2);
   }
 
+  void OpVector(const typename Decoder::VOpFVfArgs& args) {
+    // Note: we don't have information here to chosee between GetFRegAndUnboxNan<Float32> and
+    // GetFRegAndUnboxNan<Float64> because that depends on vtype.
+    FpRegister arg2 = GetFpReg(args.src2);
+    listener_->OpVector(args, arg2);
+  }
+
+  void OpVector(const typename Decoder::VOpFVvArgs& args) { listener_->OpVector(args); }
+
   void OpVector(const typename Decoder::VOpIViArgs& args) { listener_->OpVector(args); }
 
   void OpVector(const typename Decoder::VOpIVvArgs& args) { listener_->OpVector(args); }
