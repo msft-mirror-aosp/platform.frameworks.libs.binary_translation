@@ -241,6 +241,89 @@ class Decoder {
     kVlm = 0b01011,
   };
 
+  enum class VOpFVfOpcode : uint8_t {
+    kVfaddvf = 0b000000,
+    kVfsubvf = 0b000010,
+    kVfminvf = 0b000100,
+    kVfmaxvf = 0b000110,
+    kVfsgnjvf = 0b001000,
+    kVfsgnjnvf = 0b001001,
+    kVfsgnjxvf = 0b001010,
+    kVfslide1upvf = 0b001110,
+    kVfslide1downvf = 0b001111,
+    kVfmvsf = 0b010000,
+    kVfmergevf = 0b010111,  // Also kVfmv.vf
+    kVmfeqvf = 0b011000,
+    kVmflevf = 0b011001,
+    kVmfltvf = 0b011011,
+    kVmfnevf = 0b011100,
+    kVmfgtvf = 0b011101,
+    kVmfgevf = 0b011111,
+    kVfdivvf = 0b100000,
+    kVfrdivvf = 0b100001,
+    kVfmulvf = 0b100100,
+    kVfrsubvf = 0b100111,
+    kVfmaddvf = 0b101000,
+    kVfnmaddvf = 0b101001,
+    kVfmsubvf = 0b101010,
+    kVfnmsubvf = 0b101011,
+    kVfmaccvf = 0b101100,
+    kVfnmaccvf = 0b101101,
+    kVfmsacvf = 0b101110,
+    kVfnmsacvf = 0b101111,
+    kVfwaddvf = 0b110000,
+    kVfwsubvf = 0b110010,
+    kVfwaddwf = 0b110100,
+    kVfwsubwf = 0b110110,
+    kVfwmulvf = 0b111000,
+    kVfwmaccvf = 0b111100,
+    kVfwnmaccvf = 0b111100,
+    kVfwmsacvf = 0b111100,
+    kVfwnmsacvf = 0b111111,
+  };
+
+  enum class VOpFVvOpcode : uint8_t {
+    kVfaddvv = 0b000000,
+    kVfredusumvv = 0b000001,
+    kVfsubvv = 0b000010,
+    kVfredosumvv = 0b000011,
+    kVfminvv = 0b000100,
+    kVfredminvv = 0b000101,
+    kVfmaxvv = 0b000110,
+    kVfredmaxvv = 0b000111,
+    kVfsgnjvv = 0b001000,
+    kVfsgnjnvv = 0b001001,
+    kVfsgnjxvv = 0b001010,
+    kVfmvfs = 0b010000,
+    kVfcvtXX = 0b010010,
+    kVXXXv = 010011,  // Vfsqrt.v/Vfrsqrt7.v/Vfrec7.v/Vfclass.v
+    kVmfeqvv = 0b011000,
+    kVmflevv = 0b011001,
+    kVmfltvv = 0b011011,
+    kVmfnevv = 0b011100,
+    kVfdivvv = 0b100000,
+    kVfmulvv = 0b100100,
+    kVfmaddvv = 0b101000,
+    kVfnmaddvv = 0b101001,
+    kVfmsubvv = 0b101010,
+    kVfnmsubvv = 0b101011,
+    kVfmaccvv = 0b101100,
+    kVfnmaccvv = 0b101101,
+    kVfmsacvv = 0b101110,
+    kVfnmsacvv = 0b101111,
+    kVfwaddvv = 0b110000,
+    kVfwredusumvv = 0b110001,
+    kVfwsubvv = 0b110010,
+    kVfwredosumvv = 0b110011,
+    kVfwaddwv = 0b110100,
+    kVfwsubwv = 0b110110,
+    kVfwmulvv = 0b111000,
+    kVfwmaccvv = 0b111100,
+    kVfwnmaccvv = 0b111100,
+    kVfwmsacvv = 0b111100,
+    kVfwnmsacvv = 0b111111,
+  };
+
   enum class VOpIViOpcode : uint8_t {
     kVaddvi = 0b000000,
     kVrsubvi = 0b000011,
@@ -252,7 +335,7 @@ class Decoder {
     kVslidedownvi = 0b001111,
     kVadcvi = 0b010000,
     kVmadcvi = 0b010001,
-    kVmergevi = 0b010111,
+    kVmergevi = 0b010111,  // Also kVmv.vi
     kVmseqvi = 0b011000,
     kVmsnevi = 0b011001,
     kVmsleuvi = 0b011100,
@@ -289,7 +372,7 @@ class Decoder {
     kVmadcvv = 0b010001,
     kVsbcvv = 0b010010,
     kVmsbcvv = 0b010011,
-    kVmergevv = 0b010111,
+    kVmergevv = 0b010111,  // Also kVmv.vv
     kVmseqvv = 0b011000,
     kVmsnevv = 0b011001,
     kVmsltuvv = 0b011010,
@@ -366,7 +449,7 @@ class Decoder {
     kVmadcvx = 0b010001,
     kVsbcvx = 0b010010,
     kVmsbcvx = 0b010011,
-    kVmergevx = 0b010111,
+    kVmergevx = 0b010111,  // Also Vmv.vx
     kVmseqvx = 0b011000,
     kVmsnevx = 0b011001,
     kVmsltuvx = 0b011010,
@@ -697,6 +780,22 @@ class Decoder {
     uint8_t nf;
     uint8_t dst;
     uint8_t src;
+  };
+
+  struct VOpFVfArgs {
+    VOpFVfOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
+  };
+
+  struct VOpFVvArgs {
+    VOpFVvOpcode opcode;
+    bool vm;
+    uint8_t dst;
+    uint8_t src1;
+    uint8_t src2;
   };
 
   struct VOpIViArgs {
@@ -1940,6 +2039,16 @@ class Decoder {
         };
         return insn_consumer_->OpVector(args);
       }
+      case 0b001: {
+        const VOpFVvArgs args = {
+            .opcode = VOpFVvOpcode{opcode},
+            .vm = vm,
+            .dst = dst,
+            .src1 = src1,
+            .src2 = src2,
+        };
+        return insn_consumer_->OpVector(args);
+      }
       case 0b010: {
         const VOpMVvArgs args = {
             .opcode = VOpMVvOpcode{opcode},
@@ -1963,6 +2072,16 @@ class Decoder {
       case 0b100: {
         const VOpIVxArgs args = {
             .opcode = VOpIVxOpcode{opcode},
+            .vm = vm,
+            .dst = dst,
+            .src1 = src1,
+            .src2 = src2,
+        };
+        return insn_consumer_->OpVector(args);
+      }
+      case 0b101: {
+        const VOpFVfArgs args = {
+            .opcode = VOpFVfOpcode{opcode},
             .vm = vm,
             .dst = dst,
             .src1 = src1,
