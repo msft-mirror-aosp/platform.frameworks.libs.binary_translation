@@ -1029,7 +1029,7 @@ class Interpreter {
     // In case of memory access fault we may set vstart to non-zero value, set it to zero here to
     // simplify the logic below.
     SetCsr<CsrName::kVstart>(0);
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       return;
@@ -1191,16 +1191,19 @@ class Interpreter {
         return OpVectorVmvsx<ElementType, vta>(args.dst, arg2);
       case Decoder::VOpFVfOpcode::kVfmergevf:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-          return OpVectorvx<intrinsics::Vmergevx<ElementType>, ElementType, vlmul, vta, vma>(
-              args.dst, args.src1, arg2);
+          if (args.src1 != 0) {
+            return Unimplemented();
+          }
+          return OpVectorx<intrinsics::Vcopyx<ElementType>, ElementType, vlmul, vta, vma>(args.dst,
+                                                                                          arg2);
         } else {
-          return OpVectorvx<intrinsics::Vmergevx<ElementType>,
-                            ElementType,
-                            vlmul,
-                            vta,
-                            // Always use "undisturbed" value from source register.
-                            InactiveProcessing::kUndisturbed>(
-              args.dst, args.src1, arg2, /*dst_mask=*/args.src1);
+          return OpVectorx<intrinsics::Vcopyx<ElementType>,
+                           ElementType,
+                           vlmul,
+                           vta,
+                           // Always use "undisturbed" value from source register.
+                           InactiveProcessing::kUndisturbed>(
+              args.dst, arg2, /*dst_mask=*/args.src1);
         }
       default:
         return Unimplemented();
@@ -1282,16 +1285,19 @@ class Interpreter {
             args.dst, args.src, SignedType{args.imm});
       case Decoder::VOpIViOpcode::kVmergevi:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-          return OpVectorvx<intrinsics::Vmergevx<ElementType>, ElementType, vlmul, vta, vma>(
-              args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}));
+          if (args.src != 0) {
+            return Unimplemented();
+          }
+          return OpVectorx<intrinsics::Vcopyx<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, BitCastToUnsigned(SignedType{args.imm}));
         } else {
-          return OpVectorvx<intrinsics::Vmergevx<ElementType>,
-                            ElementType,
-                            vlmul,
-                            vta,
-                            // Always use "undisturbed" value from source register.
-                            InactiveProcessing::kUndisturbed>(
-              args.dst, args.src, BitCastToUnsigned(SignedType{args.imm}), /*dst_mask=*/args.src);
+          return OpVectorx<intrinsics::Vcopyx<ElementType>,
+                           ElementType,
+                           vlmul,
+                           vta,
+                           // Always use "undisturbed" value from source register.
+                           InactiveProcessing::kUndisturbed>(
+              args.dst, BitCastToUnsigned(SignedType{args.imm}), /*dst_mask=*/args.src);
         }
       case Decoder::VOpIViOpcode::kVmvvi:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
@@ -1377,16 +1383,19 @@ class Interpreter {
             args.dst, args.src1, args.src2);
       case Decoder::VOpIVvOpcode::kVmergevv:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-          return OpVectorvv<intrinsics::Vmergevv<ElementType>, ElementType, vlmul, vta, vma>(
-              args.dst, args.src1, args.src2);
+          if (args.src1 != 0) {
+            return Unimplemented();
+          }
+          return OpVectorv<intrinsics::Vcopyv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src2);
         } else {
-          return OpVectorvv<intrinsics::Vmergevv<ElementType>,
-                            ElementType,
-                            vlmul,
-                            vta,
-                            // Always use "undisturbed" value from source register.
-                            InactiveProcessing::kUndisturbed>(
-              args.dst, args.src1, args.src2, /*dst_mask=*/args.src1);
+          return OpVectorv<intrinsics::Vcopyv<ElementType>,
+                           ElementType,
+                           vlmul,
+                           vta,
+                           // Always use "undisturbed" value from source register.
+                           InactiveProcessing::kUndisturbed>(
+              args.dst, args.src2, /*dst_mask=*/args.src1);
         }
       case Decoder::VOpIVvOpcode::kVnsrawv:
         return OpVectorNarrowwv<intrinsics::Vnsrwv<SignedType>, SignedType, vlmul, vta, vma>(
@@ -1664,16 +1673,19 @@ class Interpreter {
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       case Decoder::VOpIVxOpcode::kVmergevx:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-          return OpVectorvx<intrinsics::Vmergevx<ElementType>, ElementType, vlmul, vta, vma>(
-              args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
+          if (args.src1 != 0) {
+            return Unimplemented();
+          }
+          return OpVectorx<intrinsics::Vcopyx<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, MaybeTruncateTo<ElementType>(arg2));
         } else {
-          return OpVectorvx<intrinsics::Vmergevx<ElementType>,
-                            ElementType,
-                            vlmul,
-                            vta,
-                            // Always use "undisturbed" value from source register.
-                            InactiveProcessing::kUndisturbed>(
-              args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2), /*dst_mask=*/args.src1);
+          return OpVectorx<intrinsics::Vcopyx<ElementType>,
+                           ElementType,
+                           vlmul,
+                           vta,
+                           // Always use "undisturbed" value from source register.
+                           InactiveProcessing::kUndisturbed>(
+              args.dst, MaybeTruncateTo<ElementType>(arg2), /*dst_mask=*/args.src1);
         }
       case Decoder::VOpIVxOpcode::kVnsrawx:
         return OpVectorNarrowwx<intrinsics::Vnsrwx<SignedType>, SignedType, vlmul, vta, vma>(
@@ -1842,7 +1854,7 @@ class Interpreter {
     // In case of memory access fault we may set vstart to non-zero value, set it to zero here to
     // simplify the logic below.
     SetCsr<CsrName::kVstart>(0);
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       // Technically, since stores never touch tail elements it's not needed, but makes it easier to
@@ -1911,7 +1923,7 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       SetCsr<CsrName::kVstart>(0);
@@ -1999,7 +2011,7 @@ class Interpreter {
     SIMD128Register arg1(state_->cpu.v[src1]);
     SIMD128Register arg2(state_->cpu.v[src2]);
     SIMD128Register result;
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       SetCsr<CsrName::kVstart>(0);
@@ -2029,7 +2041,7 @@ class Interpreter {
     if (vstart != 0) {
       return Unimplemented();
     }
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vl == 0) [[unlikely]] {
       return;
@@ -2106,7 +2118,7 @@ class Interpreter {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     SIMD128Register result_before_vl_masking;
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       result_before_vl_masking = original_result;
@@ -2152,7 +2164,7 @@ class Interpreter {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     SIMD128Register result_before_vl_masking;
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       result_before_vl_masking = original_result;
@@ -2194,6 +2206,53 @@ class Interpreter {
 
   template <auto Intrinsic,
             typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma,
+            typename... DstMaskType>
+  void OpVectorv(uint8_t dst, uint8_t src1, DstMaskType... dst_mask) {
+    return OpVectorv<Intrinsic, ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
+        dst, src1, dst_mask...);
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            size_t kRegistersInvolved,
+            TailProcessing vta,
+            auto vma,
+            typename... DstMaskType>
+  void OpVectorv(uint8_t dst, uint8_t src, DstMaskType... dst_mask) {
+    static_assert(sizeof...(dst_mask) <= 1);
+    if (!IsAligned<kRegistersInvolved>(dst | src | (dst_mask | ... | 0))) {
+      return Unimplemented();
+    }
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    auto mask = GetMaskForVectorOperations<vma>();
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      SIMD128Register result{state_->cpu.v[dst + index]};
+      SIMD128Register result_mask;
+      if constexpr (sizeof...(DstMaskType) == 0) {
+        result_mask.Set(state_->cpu.v[dst + index]);
+      } else {
+        uint8_t dst_mask_unpacked[1] = {dst_mask...};
+        result_mask.Set(state_->cpu.v[dst_mask_unpacked[0] + index]);
+      }
+      SIMD128Register arg{state_->cpu.v[src + index]};
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
+          result,
+          std::get<0>(Intrinsic(arg)),
+          result_mask,
+          vstart - index * (16 / sizeof(ElementType)),
+          vl - index * (16 / sizeof(ElementType)),
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
             size_t kRegistersInvolved,
             TailProcessing vta,
             auto vma>
@@ -2206,7 +2265,7 @@ class Interpreter {
     if (vstart != 0) {
       return Unimplemented();
     }
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vl == 0) [[unlikely]] {
       return;
@@ -2242,24 +2301,18 @@ class Interpreter {
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
-            auto vma,
-            typename... DstMaskType>
-  void OpVectorvv(uint8_t dst, uint8_t src1, uint8_t src2, DstMaskType... dst_mask) {
+            auto vma>
+  void OpVectorvv(uint8_t dst, uint8_t src1, uint8_t src2) {
     return OpVectorvv<Intrinsic, ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
-        dst, src1, src2, dst_mask...);
+        dst, src1, src2);
   }
 
   template <auto Intrinsic,
             typename ElementType,
             size_t kRegistersInvolved,
             TailProcessing vta,
-            auto vma,
-            typename... DstMaskType>
-  void OpVectorvv(uint8_t dst, uint8_t src1, uint8_t src2, DstMaskType... dst_mask) {
-    // Note: for the most instructions dst_mask is the same as dst and thus is not supplied
-    // separately, but for vmerge.vvm it's the same as src1.
-    // Since it's always one of dst, src1, or src2 there are no need to check alignment separately.
-    static_assert(sizeof...(dst_mask) <= 1);
+            auto vma>
+  void OpVectorvv(uint8_t dst, uint8_t src1, uint8_t src2) {
     if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
       return Unimplemented();
     }
@@ -2268,19 +2321,11 @@ class Interpreter {
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result{state_->cpu.v[dst + index]};
-      SIMD128Register result_mask;
-      if constexpr (sizeof...(DstMaskType) == 0) {
-        result_mask.Set(state_->cpu.v[dst + index]);
-      } else {
-        uint8_t dst_mask_unpacked[1] = {dst_mask...};
-        result_mask.Set(state_->cpu.v[dst_mask_unpacked[0] + index]);
-      }
       SIMD128Register arg1{state_->cpu.v[src1 + index]};
       SIMD128Register arg2{state_->cpu.v[src2 + index]};
       result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2)),
-          result_mask,
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
@@ -2310,7 +2355,7 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       SetCsr<CsrName::kVstart>(0);
@@ -2360,7 +2405,7 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       SetCsr<CsrName::kVstart>(0);
@@ -2411,19 +2456,14 @@ class Interpreter {
             typename ElementType,
             size_t kRegistersInvolved,
             TailProcessing vta,
-            auto vma,
-            typename... DstMaskType>
-  void OpVectorvx(uint8_t dst, uint8_t src1, ElementType arg2, DstMaskType... dst_mask) {
-    // Note: for the most instructions dst_mask is the same as dst and thus is not supplied
-    // separately, but for vmerge.vxm it's the same as src1.
-    // Since it's always one of dst, src1, or src2 there are no need to check alignment separately.
-    static_assert(sizeof...(dst_mask) <= 1);
+            auto vma>
+  void OpVectorvx(uint8_t dst, uint8_t src1, ElementType arg2) {
     if (!IsAligned<kRegistersInvolved>(dst | src1)) {
       return Unimplemented();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       SetCsr<CsrName::kVstart>(0);
@@ -2432,18 +2472,10 @@ class Interpreter {
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result(state_->cpu.v[dst + index]);
-      SIMD128Register result_mask;
-      if constexpr (sizeof...(DstMaskType) == 0) {
-        result_mask.Set(state_->cpu.v[dst + index]);
-      } else {
-        uint8_t dst_mask_unpacked[1] = {dst_mask...};
-        result_mask.Set(state_->cpu.v[dst_mask_unpacked[0] + index]);
-      }
       SIMD128Register arg1(state_->cpu.v[src1 + index]);
       result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2)),
-          result_mask,
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
@@ -2483,7 +2515,7 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       SetCsr<CsrName::kVstart>(0);
@@ -2505,7 +2537,6 @@ class Interpreter {
       auto result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           orig_result,
           intrinsic_result,
-          orig_result,
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
@@ -2546,7 +2577,7 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       SetCsr<CsrName::kVstart>(0);
@@ -2570,7 +2601,6 @@ class Interpreter {
       auto result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           orig_result,
           intrinsic_result,
-          orig_result,
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
@@ -2594,7 +2624,7 @@ class Interpreter {
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
-    // When vstart ⩾ vl, there are no body elements, and no elements are updated in any destination
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       SetCsr<CsrName::kVstart>(0);
@@ -2610,7 +2640,6 @@ class Interpreter {
       result = std::get<0>(intrinsics::VectorMasking<DestElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg)),
-          result,
           vstart - dst_index * (16 / sizeof(DestElementType)),
           vl - dst_index * (16 / sizeof(DestElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<DestElementType>(mask, dst_index))));
@@ -2647,6 +2676,58 @@ class Interpreter {
       result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
           result,
           std::get<0>(Intrinsic(arg1, arg2, result)),
+          vstart - index * (16 / sizeof(ElementType)),
+          vl - index * (16 / sizeof(ElementType)),
+          std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+    SetCsr<CsrName::kVstart>(0);
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma,
+            typename... DstMaskType>
+  void OpVectorx(uint8_t dst, ElementType arg2, DstMaskType... dst_mask) {
+    return OpVectorx<Intrinsic, ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
+        dst, arg2, dst_mask...);
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            size_t kRegistersInvolved,
+            TailProcessing vta,
+            auto vma,
+            typename... DstMaskType>
+  void OpVectorx(uint8_t dst, ElementType arg2, DstMaskType... dst_mask) {
+    static_assert(sizeof...(dst_mask) <= 1);
+    if (!IsAligned<kRegistersInvolved>(dst | (dst_mask | ... | 0))) {
+      return Unimplemented();
+    }
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      SetCsr<CsrName::kVstart>(0);
+      return;
+    }
+    auto mask = GetMaskForVectorOperations<vma>();
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      SIMD128Register result(state_->cpu.v[dst + index]);
+      SIMD128Register result_mask;
+      if constexpr (sizeof...(DstMaskType) == 0) {
+        result_mask.Set(state_->cpu.v[dst + index]);
+      } else {
+        uint8_t dst_mask_unpacked[1] = {dst_mask...};
+        result_mask.Set(state_->cpu.v[dst_mask_unpacked[0] + index]);
+      }
+      result = std::get<0>(intrinsics::VectorMasking<ElementType, vta, vma>(
+          result,
+          std::get<0>(Intrinsic(arg2)),
+          result_mask,
           vstart - index * (16 / sizeof(ElementType)),
           vl - index * (16 / sizeof(ElementType)),
           std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
