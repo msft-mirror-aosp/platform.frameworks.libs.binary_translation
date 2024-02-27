@@ -1181,6 +1181,14 @@ class Interpreter {
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVector(const Decoder::VOpFVfArgs& args, ElementType arg2) {
     switch (args.opcode) {
+      case Decoder::VOpFVfOpcode::kVfmvsf:
+        if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+          return Unimplemented();
+        }
+        if (args.src1 != 0) {
+          return Unimplemented();
+        }
+        return OpVectorVmvsx<ElementType, vta>(args.dst, arg2);
       case Decoder::VOpFVfOpcode::kVfmergevf:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
           return OpVectorvx<intrinsics::Vmergevx<ElementType>, ElementType, vlmul, vta, vma>(
@@ -1211,6 +1219,14 @@ class Interpreter {
       }
     } else {
       switch (args.opcode) {
+        case Decoder::VOpFVvOpcode::kVfmvfs:
+          if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+            return Unimplemented();
+          }
+          if (args.src2 != 0) {
+            return Unimplemented();
+          }
+          return OpVectorVmvfs<ElementType>(args.dst, args.src1);
         default:
           return Unimplemented();
       }
@@ -1279,7 +1295,7 @@ class Interpreter {
         }
       case Decoder::VOpIViOpcode::kVmvvi:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-          return OpvectorVmvXr<ElementType>(args.dst, args.src, static_cast<uint8_t>(args.imm));
+          return OpVectorVmvXr<ElementType>(args.dst, args.src, static_cast<uint8_t>(args.imm));
         } else {
           return Unimplemented();
         }
@@ -1447,7 +1463,7 @@ class Interpreter {
             if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
               return Unimplemented();
             }
-            return OpvectorVmvxs<SignedType>(args.dst, args.src1);
+            return OpVectorVmvxs<SignedType>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVcpopm:
               return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVfirstm:
@@ -1687,7 +1703,7 @@ class Interpreter {
               if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
                 return Unimplemented();
               }
-              return OpvectorVmvsx<SignedType, vta>(args.dst, args.src2);
+              return OpVectorVmvsx<SignedType, vta>(args.dst, MaybeTruncateTo<SignedType>(arg2));
           default:
               return Unimplemented();
         }
@@ -1915,8 +1931,19 @@ class Interpreter {
     SetCsr<CsrName::kVstart>(0);
   }
 
+  template <typename ElementType>
+  void OpVectorVmvfs(uint8_t dst, uint8_t src) {
+    // Note: intrinsics::NanBox always received Float64 argument, even if it processes Float32 value
+    // to not cause recursion in interinsics handling.
+    // NanBox in the interpreter takes FpRegister and returns FpRegister which is probably the
+    // cleanest way of processing that data (at least on x86-64 this produces code that's close to
+    // optimal).
+    NanBoxAndSetFpReg<ElementType>(dst, SIMD128Register{state_->cpu.v[src]}.Get<FpRegister>(0));
+    SetCsr<CsrName::kVstart>(0);
+  }
+
   template <typename ElementType, TailProcessing vta>
-  void OpvectorVmvsx(uint8_t dst, uint8_t src1) {
+  void OpVectorVmvsx(uint8_t dst, ElementType element) {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     // Documentation doesn't specify what happenes when vstart is non-zero but less than vl.
@@ -1924,7 +1951,6 @@ class Interpreter {
     //   https://github.com/riscv/riscv-v-spec/issues/937
     // We are doing the same here.
     if (vstart == 0 && vl != 0) [[likely]] {
-      ElementType element = MaybeTruncateTo<ElementType>(GetRegOrZero(src1));
       SIMD128Register result;
       if constexpr (vta == intrinsics::TailProcessing::kAgnostic) {
         result = ~SIMD128Register{};
@@ -1938,7 +1964,7 @@ class Interpreter {
   }
 
   template <typename ElementType>
-  void OpvectorVmvxs(uint8_t dst, uint8_t src1) {
+  void OpVectorVmvxs(uint8_t dst, uint8_t src1) {
     static_assert(ElementType::kIsSigned);
     // Conversion to Int64 would perform sign-extension if source element is signed.
     Register element = Int64{SIMD128Register{state_->cpu.v[src1]}.Get<ElementType>(0)};
@@ -2030,7 +2056,7 @@ class Interpreter {
   }
 
   template <typename ElementType>
-  void OpvectorVmvXr(uint8_t dst, uint8_t src, uint8_t nf) {
+  void OpVectorVmvXr(uint8_t dst, uint8_t src, uint8_t nf) {
     if (!IsPowerOf2(nf + 1)) {
       return Unimplemented();
     }

@@ -296,7 +296,7 @@ class Decoder {
     kVfsgnjxvv = 0b001010,
     kVfmvfs = 0b010000,
     kVfcvtXX = 0b010010,
-    kVXXXv = 010011,  // Vfsqrt.v/Vfrsqrt7.v/Vfrec7.v/Vfclass.v
+    kVXXXv = 0b010011,  // Vfsqrt.v/Vfrsqrt7.v/Vfrec7.v/Vfclass.v
     kVmfeqvv = 0b011000,
     kVmflevv = 0b011001,
     kVmfltvv = 0b011011,
