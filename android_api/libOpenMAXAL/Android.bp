@@ -21,6 +21,6 @@ package {
 cc_library_shared {
     name: "libberberis_proxy_libOpenMAXAL",
     defaults: ["berberis_proxy_library_defaults"],
-    srcs: ["//frameworks/libs/native_bridge_support/libOpenMAXAL:native_bridge_proxy_libOpenMAXAL_files"],
+    srcs: [":native_bridge_proxy_libOpenMAXAL_files"],
     shared_libs: ["libOpenMAXAL"],
 }
