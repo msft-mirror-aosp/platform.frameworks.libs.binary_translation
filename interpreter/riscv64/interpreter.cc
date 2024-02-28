@@ -1179,8 +1179,21 @@ class Interpreter {
   }
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
-  void OpVector(const Decoder::VOpFVfArgs& args, ElementType /*arg2*/) {
+  void OpVector(const Decoder::VOpFVfArgs& args, ElementType arg2) {
     switch (args.opcode) {
+      case Decoder::VOpFVfOpcode::kVfmergevf:
+        if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+          return OpVectorvx<intrinsics::Vmergevx<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, arg2);
+        } else {
+          return OpVectorvx<intrinsics::Vmergevx<ElementType>,
+                            ElementType,
+                            vlmul,
+                            vta,
+                            // Always use "undisturbed" value from source register.
+                            InactiveProcessing::kUndisturbed>(
+              args.dst, args.src1, arg2, /*dst_mask=*/args.src1);
+        }
       default:
         return Unimplemented();
     }
