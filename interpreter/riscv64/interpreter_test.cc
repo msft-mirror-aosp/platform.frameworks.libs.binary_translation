@@ -897,12 +897,21 @@ class Riscv64InterpreterTest : public ::testing::Test {
                              const uint32_t (&expected_result_int32)[8][4],
                              const uint64_t (&expected_result_int64)[8][2],
                              const __v2du (&source)[16]) {
-    TestVectorInstruction<TestVectorInstructionMode::kDefault>(insn_bytes,
-                                                               source,
-                                                               expected_result_int8,
-                                                               expected_result_int16,
-                                                               expected_result_int32,
-                                                               expected_result_int64);
+    TestVectorInstruction<TestVectorInstructionKind::kInteger, TestVectorInstructionMode::kDefault>(
+        insn_bytes,
+        source,
+        expected_result_int8,
+        expected_result_int16,
+        expected_result_int32,
+        expected_result_int64);
+  }
+
+  void TestVectorMergeFloatInstruction(uint32_t insn_bytes,
+                                       const uint32_t (&expected_result_int32)[8][4],
+                                       const uint64_t (&expected_result_int64)[8][2],
+                                       const __v2du (&source)[16]) {
+    TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kVMerge>(
+        insn_bytes, source, expected_result_int32, expected_result_int64);
   }
 
   void TestVectorMergeInstruction(uint32_t insn_bytes,
@@ -911,12 +920,13 @@ class Riscv64InterpreterTest : public ::testing::Test {
                                   const uint32_t (&expected_result_int32)[8][4],
                                   const uint64_t (&expected_result_int64)[8][2],
                                   const __v2du (&source)[16]) {
-    TestVectorInstruction<TestVectorInstructionMode::kVMerge>(insn_bytes,
-                                                              source,
-                                                              expected_result_int8,
-                                                              expected_result_int16,
-                                                              expected_result_int32,
-                                                              expected_result_int64);
+    TestVectorInstruction<TestVectorInstructionKind::kInteger, TestVectorInstructionMode::kVMerge>(
+        insn_bytes,
+        source,
+        expected_result_int8,
+        expected_result_int16,
+        expected_result_int32,
+        expected_result_int64);
   }
 
   void TestNarrowingVectorInstruction(uint32_t insn_bytes,
@@ -924,7 +934,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
                                       const uint16_t (&expected_result_int16)[8][8],
                                       const uint32_t (&expected_result_int32)[8][4],
                                       const __v2du (&source)[16]) {
-    TestVectorInstruction<TestVectorInstructionMode::kNarrowing>(
+    TestVectorInstruction<TestVectorInstructionKind::kInteger,
+                          TestVectorInstructionMode::kNarrowing>(
         insn_bytes, source, expected_result_int8, expected_result_int16, expected_result_int32);
   }
 
@@ -933,13 +944,16 @@ class Riscv64InterpreterTest : public ::testing::Test {
                                      const uint32_t (&expected_result_int32)[8][4],
                                      const uint64_t (&expected_result_int64)[8][2],
                                      const __v2du (&source)[16]) {
-    TestVectorInstruction<TestVectorInstructionMode::kWidening>(
+    TestVectorInstruction<TestVectorInstructionKind::kInteger,
+                          TestVectorInstructionMode::kWidening>(
         insn_bytes, source, expected_result_int16, expected_result_int32, expected_result_int64);
   }
 
+  enum class TestVectorInstructionKind { kInteger, kFloat };
   enum class TestVectorInstructionMode { kDefault, kWidening, kNarrowing, kVMerge };
 
-  template <TestVectorInstructionMode kTestVectorInstructionMode,
+  template <TestVectorInstructionKind kTestVectorInstructionKind,
+            TestVectorInstructionMode kTestVectorInstructionMode,
             typename... ElementType,
             size_t... kElementCount>
   void TestVectorInstruction(uint32_t insn_bytes,
@@ -956,8 +970,22 @@ class Riscv64InterpreterTest : public ::testing::Test {
       for (size_t index = 0; index < std::size(source); ++index) {
         state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
       }
-      // Set x1 for vx instructions.
-      SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
+      if (kTestVectorInstructionKind == TestVectorInstructionKind::kInteger) {
+        // Set x1 for vx instructions.
+        SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
+      } else {
+        // We only support Float32/Float64 for float instructions, but there are conversion
+        // instructions that work with double width floats.
+        // These instructions never use float registers though and thus we don't need to store
+        // anything into f1 register, if they are used.
+        // For Float32/Float64 case we load 1.0 of the appropriate type into f1.
+        ASSERT_LE(vsew, 3);
+        if (vsew == 2) {
+          SetFReg<1>(state_.cpu, 0xffff'ffff'40b4'0000);  // float 5.625
+        } else if (vsew == 3) {
+          SetFReg<1>(state_.cpu, 0x4016'8000'0000'0000);  // double 5.625
+        }
+      }
       for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
         if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kNarrowing ||
                       kTestVectorInstructionMode == TestVectorInstructionMode::kWidening) {
@@ -1058,8 +1086,10 @@ class Riscv64InterpreterTest : public ::testing::Test {
     };
 
     // Some instructions don't support use of mask register, but in these instructions bit
-    // #25 is set.  Verify that it's actually set.
+    // #25 is set.  This function doesn't support these. Verify that vm bit is not set.
     EXPECT_EQ(insn_bytes & (1 << 25), 0U);
+    // Every insruction is tested with vm bit not set (and mask register used) and with vm bit
+    // set (and mask register is not used).
     ((Verify(insn_bytes,
              BitUtilLog2(sizeof(ElementType)) -
                  (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening),
@@ -1078,7 +1108,9 @@ class Riscv64InterpreterTest : public ::testing::Test {
                  static_assert(kDependentTypeFalse<ElementType>);
                }
              }()),
-      Verify(insn_bytes | (1 << 25),
+      Verify((insn_bytes &
+              ~(0x01f00000 * (kTestVectorInstructionMode == TestVectorInstructionMode::kVMerge))) |
+                 (1 << 25),
              BitUtilLog2(sizeof(ElementType)) -
                  (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening),
              8,
@@ -7146,11 +7178,30 @@ TEST_F(Riscv64InterpreterTest, TestVredmax) {
       kVectorCalculationsSourceLegacy);
 }
 
-// Note that these expected test outputs for Vmerge are identical to those for Vmv. The difference
-// between Vmerge and Vmv is captured in masking logic within TestVectorInstruction itself via the
-// parameter expect_inactive_equals_vs2=true for Vmerge.
-// Note: test turns vmerge.vvm into vmv.v.v internaly when it sets the vm bit.
+// Note that the expected test outputs for v[f]merge.vXm are identical to those for v[f]mv.v.X.
+// This happens because v[f]merge.vXm is just a v[f]mv.v.X with mask (second operand is not used
+// by v[f]mv.v.X but the difference between v[f]merge.vXm and v[f]mv.v.X is captured in masking
+// logic within TestVectorInstruction itself via the parameter TestVectorInstructionMode::kVMerge
+// for V[f]merge/V[f]mv).
 TEST_F(Riscv64InterpreterTest, TestVmerge) {
+  TestVectorMergeFloatInstruction(0x5d00d457,  // Vfmerge.vfm v8, v16, f1, v0
+                                  {{0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000}},
+                                  {{0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000}},
+                                  kVectorCalculationsSource);
   TestVectorMergeInstruction(
       0x5d0c0457,  // Vmerge.vvm v8, v16, v24, v0
       {{0, 146, 4, 150, 9, 154, 12, 158, 17, 130, 20, 134, 24, 138, 28, 142},
