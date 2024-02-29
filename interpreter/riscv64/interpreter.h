@@ -480,6 +480,29 @@ class Interpreter {
     }
   }
 
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul>
+  static constexpr size_t GetVlmax() {
+    constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
+    switch (vlmul) {
+      case VectorRegisterGroupMultiplier::k1register:
+        return kElementsCount;
+      case VectorRegisterGroupMultiplier::k2registers:
+        return 2 * kElementsCount;
+      case VectorRegisterGroupMultiplier::k4registers:
+        return 4 * kElementsCount;
+      case VectorRegisterGroupMultiplier::k8registers:
+        return 8 * kElementsCount;
+      case VectorRegisterGroupMultiplier::kEigthOfRegister:
+        return kElementsCount / 8;
+      case VectorRegisterGroupMultiplier::kQuarterOfRegister:
+        return kElementsCount / 4;
+      case VectorRegisterGroupMultiplier::kHalfOfRegister:
+        return kElementsCount / 2;
+      default:
+        return 0;
+    }
+  }
+
   template <typename VOpArgs, typename... ExtraArgs>
   void OpVector(const VOpArgs& args, ExtraArgs... extra_args) {
     // Note: whole register instructions are not dependent on vtype and are supposed to work even
@@ -1176,6 +1199,66 @@ class Interpreter {
     }
   }
 
+  // The vector register gather instructions read elements from src1 vector register group at
+  // locations given by the second source vector src2 register group.
+  //   src1: element vector register.
+  //   GetElementIndex: universal lambda that returns index from src2,
+  template <typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma,
+            typename GetElementIndexLambdaType>
+  void OpVectorGather(uint8_t dst, uint8_t src1, GetElementIndexLambdaType GetElementIndex) {
+    constexpr int kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    if (!IsAligned<kRegistersInvolved>(dst | src1)) {
+      return Unimplemented();
+    }
+    // Source and destination must not overlap.
+    if (dst < (src1 + kRegistersInvolved) && src1 < (dst + kRegistersInvolved)) {
+      return Unimplemented();
+    }
+    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    constexpr size_t vlmax = GetVlmax<ElementType, vlmul>();
+
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    auto mask = GetMaskForVectorOperations<vma>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return;
+    }
+
+    // Copy vlmul registers into array of elements, access elements of temporary array.
+    alignas(alignof(SIMD128Register)) ElementType values[vlmax];
+    memcpy(values, state_->cpu.v + src1, sizeof(values));
+    // Fill dst first, resolve mask later.
+    for (size_t index = vstart / kElementsCount; index < kRegistersInvolved; ++index) {
+      SIMD128Register original_dst_value;
+      SIMD128Register result{state_->cpu.v[dst + index]};
+      for (size_t dst_element_index = vstart % kElementsCount; dst_element_index < kElementsCount;
+           ++dst_element_index) {
+        size_t src_element_index = GetElementIndex(index * kElementsCount + dst_element_index);
+
+        // If an element index is out of range ( vs1[i] >= VLMAX ) then zero is returned for the
+        // element value.
+        ElementType element_value = ElementType{0};
+        if (src_element_index < vlmax) {
+          element_value = values[src_element_index];
+        }
+        original_dst_value.Set<ElementType>(element_value, dst_element_index);
+      }
+
+      // Apply mask and put result values into dst register.
+      result =
+          VectorMasking<ElementType, vta, vma>(result, original_dst_value, vstart, vl, index, mask);
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+      // Next group should be fully processed.
+      vstart = 0;
+    }
+  }
+
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVector(const Decoder::VOpFVfArgs& args, ElementType arg2) {
     switch (args.opcode) {
@@ -1540,6 +1623,9 @@ class Interpreter {
       case Decoder::VOpIViOpcode::kVxorvi:
         return OpVectorvx<intrinsics::Vxorvx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src, SignedType{args.imm});
+      case Decoder::VOpIViOpcode::kVrgathervi:
+        return OpVectorGather<ElementType, vlmul, vta, vma>(
+            args.dst, args.src, [&args](size_t /*index*/) { return ElementType{args.uimm}; });
       case Decoder::VOpIViOpcode::kVmseqvi:
         return OpVectormvx<intrinsics::Vseqvx<SignedType>, SignedType, vlmul, vma>(
             args.dst, args.src, SignedType{args.imm});
@@ -1646,6 +1732,17 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVxorvv:
         return OpVectorvv<intrinsics::Vxorvv<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVrgathervv: {
+        constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+        if (!IsAligned<kRegistersInvolved>(args.src2)) {
+          return Unimplemented();
+        }
+        constexpr size_t vlmax = GetVlmax<ElementType, vlmul>();
+        alignas(alignof(SIMD128Register)) ElementType indexes[vlmax];
+        memcpy(indexes, state_->cpu.v + args.src2, sizeof(indexes));
+        return OpVectorGather<ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, [&indexes](size_t index) { return indexes[index]; });
+      }
       case Decoder::VOpIVvOpcode::kVmseqvv:
         return OpVectormvv<intrinsics::Vseqvv<ElementType>, ElementType, vlmul, vma>(
             args.dst, args.src1, args.src2);
@@ -1942,6 +2039,11 @@ class Interpreter {
       case Decoder::VOpIVxOpcode::kVxorvx:
         return OpVectorvx<intrinsics::Vxorvx<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
+      case Decoder::VOpIVxOpcode::kVrgathervx:
+        return OpVectorGather<ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, [&arg2](size_t /*index*/) {
+              return MaybeTruncateTo<ElementType>(arg2);
+            });
       case Decoder::VOpIVxOpcode::kVmseqvx:
         return OpVectormvx<intrinsics::Vseqvx<ElementType>, ElementType, vlmul, vma>(
             args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
