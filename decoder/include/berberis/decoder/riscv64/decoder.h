@@ -295,7 +295,7 @@ class Decoder {
     kVfsgnjnvv = 0b001001,
     kVfsgnjxvv = 0b001010,
     kVfmvfs = 0b010000,
-    kVfcvtXX = 0b010010,
+    kVXfcvtXX = 0b010010,
     kVXXXv = 0b010011,  // Vfsqrt.v/Vfrsqrt7.v/Vfrec7.v/Vfclass.v
     kVmfeqvv = 0b011000,
     kVmflevv = 0b011001,
@@ -416,7 +416,7 @@ class Decoder {
     kVmxnormm = 0b011111,
     kVXmXXs = 0b010000,
     kVmsXf = 0b010100,
-    kVxunary0 = 0b010010,
+    kVXextvfXX = 0b010010,
     kVmulhuvv = 0b100100,
     kVmulvv = 0b100101,
     kVmulhsuvv = 0b100110,
@@ -492,6 +492,30 @@ class Decoder {
     kVsm = 0b01011,
   };
 
+  enum class VfXcvtXXOpcode : uint8_t {
+    kVfcvtxufv = 0b00000,
+    kVfcvtxfv = 0b00001,
+    kVfcvtfxuv = 0b00010,
+    kVfcvtfxv = 0b00011,
+    kVfcvtrtzxufv = 0b00110,
+    kVfcvtrtzxfv = 0b00111,
+    kVfwcvtxufv = 0b01000,
+    kVfwcvtxfv = 0b01001,
+    kVfwcvtfxuv = 0b01010,
+    kVfwcvtfxv = 0b01011,
+    kVfwcvtffv = 0b01100,
+    kVfwcvtrtzxufv = 0b01110,
+    kVfwcvtrtzxfv = 0b01111,
+    kVfncvtxufw = 0b10000,
+    kVfncvtxfw = 0b10001,
+    kVfncvtfxuw = 0b10010,
+    kVfncvtfxw = 0b10011,
+    kVfncvtffw = 0b10100,
+    kVfncvtrodffw = 0b10101,
+    kVfncvtrtzxufw = 0b10110,
+    kVfncvtrtzxfw = 0b10111,
+  };
+
   enum class VXmXXxOpcode : uint8_t {
     kVmvsx = 0b00000,
   };
@@ -509,7 +533,7 @@ class Decoder {
     kVidv = 0b10001,
   };
 
-  enum class Vxunary0Opcode : uint8_t {
+  enum class VXextvfXXOpcode : uint8_t {
     kVzextvf8m = 0b00010,
     kVsextvf8m = 0b00011,
     kVzextvf4m = 0b00100,
@@ -795,7 +819,10 @@ class Decoder {
     bool vm;
     uint8_t dst;
     uint8_t src1;
-    uint8_t src2;
+    union {
+      VfXcvtXXOpcode vfXcvtXX_opcode;
+      uint8_t src2;
+    };
   };
 
   struct VOpIViArgs {
@@ -822,7 +849,7 @@ class Decoder {
     union {
       VXmXXsOpcode vXmXXs_opcode;
       VmsXfOpcode vmsXf_opcode;
-      Vxunary0Opcode vxunary0_opcode;
+      VXextvfXXOpcode vXextvfXX_opcode;
       uint8_t src2;
     };
   };
