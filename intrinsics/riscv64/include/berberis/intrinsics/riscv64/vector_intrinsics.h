@@ -514,6 +514,10 @@ inline std::tuple<SIMD128Register> Vmsofm(SIMD128Register simd_src) {
         DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                      \
   }
 
+#define DEFINE_1OP_ARITHMETIC_INTRINSIC_V(name, ...) \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##v, return ({ __VA_ARGS__; });, (SIMD128Register src), (src))
+#define DEFINE_1OP_ARITHMETIC_INTRINSIC_X(name, ...) \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##x, return ({ __VA_ARGS__; });, (ElementType src), (src))
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##vv, return ({ __VA_ARGS__; }); \
                               , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
@@ -541,6 +545,8 @@ inline std::tuple<SIMD128Register> Vmsofm(SIMD128Register simd_src) {
   DEFINE_W_ARITHMETIC_INTRINSIC(V##name##wx, pattern, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, ElementType src2), (src1, src2))
 
+DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
+DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(rsub, auto [arg1, arg2] = std::tuple{args...}; (arg2 - arg1))
@@ -607,8 +613,6 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, (std::min(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, (std::min(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, (std::max(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(max, (std::max(args...)))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(merge, auto [arg1, arg2] = std::tuple{args...}; arg2)
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(merge, auto [arg1, arg2] = std::tuple{args...}; arg2)
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redsum, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redand, (args & ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redor, (args | ...))
