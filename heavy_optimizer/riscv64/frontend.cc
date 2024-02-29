@@ -601,28 +601,12 @@ Register HeavyOptimizerFrontend::Auipc(int32_t imm) {
   return res;
 }
 
-void HeavyOptimizerFrontend::Store(Decoder::StoreOperandType operand_type,
+void HeavyOptimizerFrontend::Store(Decoder::MemoryDataOperandType operand_type,
                                    Register arg,
                                    int16_t offset,
                                    Register data) {
   int32_t sx_offset{offset};
-  switch (operand_type) {
-    case Decoder::StoreOperandType::k8bit:
-      Gen<x86_64::MovbMemBaseDispReg>(arg, sx_offset, data);
-      break;
-    case Decoder::StoreOperandType::k16bit:
-      Gen<x86_64::MovwMemBaseDispReg>(arg, sx_offset, data);
-      break;
-    case Decoder::StoreOperandType::k32bit:
-      Gen<x86_64::MovlMemBaseDispReg>(arg, sx_offset, data);
-      break;
-    case Decoder::StoreOperandType::k64bit:
-      Gen<x86_64::MovqMemBaseDispReg>(arg, sx_offset, data);
-      break;
-    default:
-      return Unimplemented();
-  }
-
+  StoreWithoutRecovery(operand_type, arg, sx_offset, data);
   GenRecoveryBlockForLastInsn();
 }
 
@@ -630,34 +614,7 @@ Register HeavyOptimizerFrontend::Load(Decoder::LoadOperandType operand_type,
                                       Register arg,
                                       int16_t offset) {
   int32_t sx_offset{offset};
-  auto res = AllocTempReg();
-  switch (operand_type) {
-    case Decoder::LoadOperandType::k8bitUnsigned:
-      Gen<x86_64::MovzxblRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k16bitUnsigned:
-      Gen<x86_64::MovzxwlRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k32bitUnsigned:
-      Gen<x86_64::MovlRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k64bit:
-      Gen<x86_64::MovqRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k8bitSigned:
-      Gen<x86_64::MovsxbqRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k16bitSigned:
-      Gen<x86_64::MovsxwqRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    case Decoder::LoadOperandType::k32bitSigned:
-      Gen<x86_64::MovsxlqRegMemBaseDisp>(res, arg, sx_offset);
-      break;
-    default:
-      Unimplemented();
-      return {};
-  }
-
+  auto res = LoadWithoutRecovery(operand_type, arg, sx_offset);
   GenRecoveryBlockForLastInsn();
   return res;
 }
@@ -858,21 +815,21 @@ Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrImmOpcode opcode,
   return res;
 }
 
-void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::MemoryDataOperandType operand_type,
                                                   Register base,
                                                   int32_t disp,
                                                   Register data) {
   switch (operand_type) {
-    case Decoder::StoreOperandType::k8bit:
+    case Decoder::MemoryDataOperandType::k8bit:
       Gen<x86_64::MovbMemBaseDispReg>(base, disp, data);
       break;
-    case Decoder::StoreOperandType::k16bit:
+    case Decoder::MemoryDataOperandType::k16bit:
       Gen<x86_64::MovwMemBaseDispReg>(base, disp, data);
       break;
-    case Decoder::StoreOperandType::k32bit:
+    case Decoder::MemoryDataOperandType::k32bit:
       Gen<x86_64::MovlMemBaseDispReg>(base, disp, data);
       break;
-    case Decoder::StoreOperandType::k64bit:
+    case Decoder::MemoryDataOperandType::k64bit:
       Gen<x86_64::MovqMemBaseDispReg>(base, disp, data);
       break;
     default:
@@ -880,25 +837,25 @@ void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType oper
   }
 }
 
-void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::StoreOperandType operand_type,
+void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::MemoryDataOperandType operand_type,
                                                   Register base,
                                                   Register index,
                                                   int32_t disp,
                                                   Register data) {
   switch (operand_type) {
-    case Decoder::StoreOperandType::k8bit:
+    case Decoder::MemoryDataOperandType::k8bit:
       Gen<x86_64::MovbMemBaseIndexDispReg>(
           base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
       break;
-    case Decoder::StoreOperandType::k16bit:
+    case Decoder::MemoryDataOperandType::k16bit:
       Gen<x86_64::MovwMemBaseIndexDispReg>(
           base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
       break;
-    case Decoder::StoreOperandType::k32bit:
+    case Decoder::MemoryDataOperandType::k32bit:
       Gen<x86_64::MovlMemBaseIndexDispReg>(
           base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
       break;
-    case Decoder::StoreOperandType::k64bit:
+    case Decoder::MemoryDataOperandType::k64bit:
       Gen<x86_64::MovqMemBaseIndexDispReg>(
           base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
       break;

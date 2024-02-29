@@ -18,10 +18,15 @@
 
 #include <unistd.h>
 
+#include <malloc.h>  // memalign
+#include <sys/mman.h>
 #include <algorithm>  // copy_n, fill_n
+#include <csignal>
 #include <cstdint>
+#include <cstring>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
@@ -30,10 +35,47 @@
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/vector_intrinsics.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
+#include "faulty_memory_accesses.h"
 
 namespace berberis {
 
 namespace {
+
+#if defined(__i386__)
+constexpr size_t kRegIP = REG_EIP;
+#elif defined(__x86_64__)
+constexpr size_t kRegIP = REG_RIP;
+#else
+#error "Unsupported arch"
+#endif
+
+bool sighandler_called = false;
+
+void FaultHandler(int /* sig */, siginfo_t* /* info */, void* ctx) {
+  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(ctx);
+  static_assert(sizeof(void*) == sizeof(greg_t), "Unsupported type sizes");
+  void* fault_addr = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[kRegIP]);
+  void* recovery_addr = FindFaultyMemoryAccessRecoveryAddrForTesting(fault_addr);
+  sighandler_called = true;
+  CHECK(recovery_addr);
+  ucontext->uc_mcontext.gregs[kRegIP] = reinterpret_cast<greg_t>(recovery_addr);
+}
+
+class ScopedFaultySigaction {
+ public:
+  ScopedFaultySigaction() {
+    struct sigaction sa;
+    sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_sigaction = FaultHandler;
+    CHECK_EQ(sigaction(SIGSEGV, &sa, &old_sa_), 0);
+  }
+
+  ~ScopedFaultySigaction() { CHECK_EQ(sigaction(SIGSEGV, &old_sa_, nullptr), 0); }
+
+ private:
+  struct sigaction old_sa_;
+};
 
 //  Interpreter decodes the size itself, but we need to accept this template parameter to share
 //  tests with translators.
@@ -212,6 +254,47 @@ class Riscv64InterpreterTest : public ::testing::Test {
             }
             for (size_t index = kNFfields * kLmul; index < 8; index++) {
               EXPECT_EQ(state_.cpu.v[8 + index], kUndisturbedValue);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void TestVlm(uint32_t insn_bytes, __v16qu expected_results) {
+    const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+    // Vlm.v is special form of normal vector load which mostly ignores vtype.
+    // The only bit that it honors is vill: https://github.com/riscv/riscv-v-spec/pull/877
+    // Verify that changes to vtype don't affect the execution (but vstart and vl do).
+    for (uint8_t sew = 0; sew < 4; ++sew) {
+      for (uint8_t vlmul = 0; vlmul < 4; ++vlmul) {
+        const uint8_t kElementsCount = (16 >> sew) << vlmul;
+        for (uint8_t vstart = 0; vstart <= kElementsCount; ++vstart) {
+          for (uint8_t vl = 0; vl <= kElementsCount; ++vl) {
+            const uint8_t kVlmVl = AlignUp<CHAR_BIT>(vl) / CHAR_BIT;
+            for (uint8_t vta = 0; vta < 2; ++vta) {
+              for (uint8_t vma = 0; vma < 2; ++vma) {
+                state_.cpu.vtype = (vma << 7) | (vta << 6) | (sew << 3) | vlmul;
+                state_.cpu.vstart = vstart;
+                state_.cpu.vl = vl;
+                state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+                SetXReg<1>(state_.cpu, ToGuestAddr(&kVectorCalculationsSource));
+                state_.cpu.v[8] = kUndisturbedValue;
+                EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+                EXPECT_EQ(state_.cpu.vstart, 0);
+                EXPECT_EQ(state_.cpu.vl, vl);
+                for (size_t element = 0; element < 16; ++element) {
+                  UInt8 expected_element;
+                  if (element < vstart || vstart >= kVlmVl) {
+                    expected_element = SIMD128Register{kUndisturbedResult}.Get<UInt8>(element);
+                  } else if (element >= kVlmVl) {
+                    expected_element = ~UInt8{0};
+                  } else {
+                    expected_element = UInt8{expected_results[element]};
+                  }
+                  EXPECT_EQ(SIMD128Register{state_.cpu.v[8]}.Get<UInt8>(element), expected_element);
+                }
+              }
             }
           }
         }
@@ -401,6 +484,86 @@ class Riscv64InterpreterTest : public ::testing::Test {
         }
       }
     }
+  }
+
+  void TestVsm(uint32_t insn_bytes, __v16qu expected_results) {
+    const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+    // Vlm.v is special form of normal vector load which mostly ignores vtype.
+    // The only bit that it honors is vill: https://github.com/riscv/riscv-v-spec/pull/877
+    // Verify that changes to vtype don't affect the execution (but vstart and vl do).
+    for (uint8_t sew = 0; sew < 4; ++sew) {
+      for (uint8_t vlmul = 0; vlmul < 4; ++vlmul) {
+        const uint8_t kElementsCount = (16 >> sew) << vlmul;
+        for (uint8_t vstart = 0; vstart <= kElementsCount; ++vstart) {
+          for (uint8_t vl = 0; vl <= kElementsCount; ++vl) {
+            const uint8_t kVlmVl = AlignUp<CHAR_BIT>(vl) / CHAR_BIT;
+            for (uint8_t vta = 0; vta < 2; ++vta) {
+              for (uint8_t vma = 0; vma < 2; ++vma) {
+                state_.cpu.vtype = (vma << 7) | (vta << 6) | (sew << 3) | vlmul;
+                state_.cpu.vstart = vstart;
+                state_.cpu.vl = vl;
+                state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+                SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+                store_area_[0] = kUndisturbedResult[0];
+                store_area_[1] = kUndisturbedResult[1];
+                state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+                EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+                EXPECT_EQ(state_.cpu.vstart, 0);
+                EXPECT_EQ(state_.cpu.vl, vl);
+                SIMD128Register memory_result =
+                    SIMD128Register{__v2du{store_area_[0], store_area_[1]}};
+                for (size_t element = 0; element < 16; ++element) {
+                  UInt8 expected_element;
+                  if (element < vstart || element >= kVlmVl) {
+                    expected_element = SIMD128Register{kUndisturbedResult}.Get<UInt8>(element);
+                  } else {
+                    expected_element = UInt8{expected_results[element]};
+                  }
+                  EXPECT_EQ(memory_result.Get<UInt8>(element), expected_element);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Vector instructions.
+  void TestVleXXff(uint32_t insn_bytes,
+                   uint8_t loadable_bytes,
+                   uint8_t vsew,
+                   uint8_t expected_vl,
+                   bool fail_on_first = false) {
+    ScopedFaultySigaction scoped_sa;
+    sighandler_called = false;
+    char* buffer;
+    const size_t kPageSize = sysconf(_SC_PAGE_SIZE);
+    buffer = (char*)memalign(kPageSize, 2 * kPageSize);
+    mprotect(buffer, kPageSize * 2, PROT_WRITE);
+    char* p = buffer + kPageSize - loadable_bytes;
+    std::memcpy(p, &kVectorCalculationsSource[0], 128);
+    mprotect(buffer + kPageSize, kPageSize, PROT_NONE);
+
+    auto [vlmax, vtype] = intrinsics::Vsetvl(~0ULL, (vsew << 3) | 3);
+    state_.cpu.vstart = 0;
+    state_.cpu.vl = vlmax;
+    state_.cpu.vtype = vtype;
+    insn_bytes = insn_bytes | (1 << 25);
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(p));
+
+    if (fail_on_first) {
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr));
+    } else {
+      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    }
+    if (loadable_bytes < 128) {
+      EXPECT_TRUE(sighandler_called);
+    } else {
+      EXPECT_FALSE(sighandler_called);
+    }
+    EXPECT_EQ(state_.cpu.vl, expected_vl);
   }
 
   // Vector instructions.
@@ -668,6 +831,44 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename ElementType>
+  void TestVfmvfs(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.vtype = BitUtilLog2(sizeof(ElementType)) << 3;
+    state_.cpu.vstart = 0;
+    state_.cpu.vl = 0;
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+    SetFReg<1>(state_.cpu, 0x5555'5555'5555'5555);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+  }
+
+  template <typename ElementType>
+  void TestVfmvsf(uint32_t insn_bytes, uint64_t boxed_value, ElementType unboxed_value) {
+    for (uint8_t vstart = 0; vstart < 2; ++vstart) {
+      for (uint8_t vl = 0; vl < 2; ++vl) {
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          state_.cpu.vtype = (vta << 6) | (BitUtilLog2(sizeof(ElementType)) << 3);
+          state_.cpu.vstart = vstart;
+          state_.cpu.vl = vl;
+          state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+          state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+          SetFReg<1>(state_.cpu, boxed_value);
+          EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+          if (vstart == 0 && vl != 0) {
+            SIMD128Register expected_result =
+                vta ? ~SIMD128Register{} : SIMD128Register{kVectorCalculationsSource[0]};
+            expected_result.Set<ElementType>(unboxed_value, 0);
+            EXPECT_EQ(state_.cpu.v[8], expected_result);
+          } else {
+            EXPECT_EQ(state_.cpu.v[8],
+                      SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>());
+          }
+        }
+      }
+    }
+  }
+
+  template <typename ElementType>
   void TestVmvsx(uint32_t insn_bytes) {
     for (uint8_t vstart = 0; vstart < 2; ++vstart) {
       for (uint8_t vl = 0; vl < 2; ++vl) {
@@ -676,18 +877,18 @@ class Riscv64InterpreterTest : public ::testing::Test {
           state_.cpu.vstart = vstart;
           state_.cpu.vl = vl;
           state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-          state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSourceLegacy[0]}.Get<__uint128_t>();
+          state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
           SetXReg<1>(state_.cpu, 0x5555'5555'5555'5555);
           EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
           if (vstart == 0 && vl != 0) {
             SIMD128Register expected_result =
-                vta ? ~SIMD128Register{} : SIMD128Register{kVectorCalculationsSourceLegacy[0]};
+                vta ? ~SIMD128Register{} : SIMD128Register{kVectorCalculationsSource[0]};
             expected_result.Set<ElementType>(MaybeTruncateTo<ElementType>(0x5555'5555'5555'5555),
                                              0);
             EXPECT_EQ(state_.cpu.v[8], expected_result);
           } else {
             EXPECT_EQ(state_.cpu.v[8],
-                      SIMD128Register{kVectorCalculationsSourceLegacy[0]}.Get<__uint128_t>());
+                      SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>());
           }
         }
       }
@@ -700,7 +901,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     state_.cpu.vstart = 0;
     state_.cpu.vl = 0;
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSourceLegacy[0]}.Get<__uint128_t>();
+    state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
     SetXReg<1>(state_.cpu, 0x5555'5555'5555'5555);
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
@@ -729,27 +930,108 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   void TestVectorInstruction(uint32_t insn_bytes,
-                             const __v16qu (&expected_result_int8)[8],
-                             const __v8hu (&expected_result_int16)[8],
-                             const __v4su (&expected_result_int32)[8],
-                             const __v2du (&expected_result_int64)[8],
+                             const uint8_t (&expected_result_int8)[8][16],
+                             const uint16_t (&expected_result_int16)[8][8],
+                             const uint32_t (&expected_result_int32)[8][4],
+                             const uint64_t (&expected_result_int64)[8][2],
+                             const __v2du (&source)[16]) {
+    TestVectorInstruction<TestVectorInstructionKind::kInteger, TestVectorInstructionMode::kDefault>(
+        insn_bytes,
+        source,
+        expected_result_int8,
+        expected_result_int16,
+        expected_result_int32,
+        expected_result_int64);
+  }
+
+  void TestVectorMergeFloatInstruction(uint32_t insn_bytes,
+                                       const uint32_t (&expected_result_int32)[8][4],
+                                       const uint64_t (&expected_result_int64)[8][2],
+                                       const __v2du (&source)[16]) {
+    TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kVMerge>(
+        insn_bytes, source, expected_result_int32, expected_result_int64);
+  }
+
+  void TestVectorMergeInstruction(uint32_t insn_bytes,
+                                  const uint8_t (&expected_result_int8)[8][16],
+                                  const uint16_t (&expected_result_int16)[8][8],
+                                  const uint32_t (&expected_result_int32)[8][4],
+                                  const uint64_t (&expected_result_int64)[8][2],
+                                  const __v2du (&source)[16]) {
+    TestVectorInstruction<TestVectorInstructionKind::kInteger, TestVectorInstructionMode::kVMerge>(
+        insn_bytes,
+        source,
+        expected_result_int8,
+        expected_result_int16,
+        expected_result_int32,
+        expected_result_int64);
+  }
+
+  void TestNarrowingVectorInstruction(uint32_t insn_bytes,
+                                      const uint8_t (&expected_result_int8)[8][16],
+                                      const uint16_t (&expected_result_int16)[8][8],
+                                      const uint32_t (&expected_result_int32)[8][4],
+                                      const __v2du (&source)[16]) {
+    TestVectorInstruction<TestVectorInstructionKind::kInteger,
+                          TestVectorInstructionMode::kNarrowing>(
+        insn_bytes, source, expected_result_int8, expected_result_int16, expected_result_int32);
+  }
+
+  void TestWideningVectorInstruction(uint32_t insn_bytes,
+                                     const uint16_t (&expected_result_int16)[8][8],
+                                     const uint32_t (&expected_result_int32)[8][4],
+                                     const uint64_t (&expected_result_int64)[8][2],
+                                     const __v2du (&source)[16]) {
+    TestVectorInstruction<TestVectorInstructionKind::kInteger,
+                          TestVectorInstructionMode::kWidening>(
+        insn_bytes, source, expected_result_int16, expected_result_int32, expected_result_int64);
+  }
+
+  enum class TestVectorInstructionKind { kInteger, kFloat };
+  enum class TestVectorInstructionMode { kDefault, kWidening, kNarrowing, kVMerge };
+
+  template <TestVectorInstructionKind kTestVectorInstructionKind,
+            TestVectorInstructionMode kTestVectorInstructionMode,
+            typename... ElementType,
+            size_t... kElementCount>
+  void TestVectorInstruction(uint32_t insn_bytes,
                              const __v2du (&source)[16],
-                             // Used for Vmerge, which sets masked off elements to vs2.
-                             bool expect_inactive_equals_vs2 = false) {
-    auto Verify = [this, &source, expect_inactive_equals_vs2](uint32_t insn_bytes,
-                                                              uint8_t vsew,
-                                                              uint8_t vlmul_max,
-                                                              const auto& expected_result,
-                                                              auto mask) {
+                             const ElementType (&... expected_result)[8][kElementCount]) {
+    auto Verify = [this, &source](uint32_t insn_bytes,
+                                  uint8_t vsew,
+                                  uint8_t vlmul_max,
+                                  const auto& expected_result,
+                                  auto mask) {
       // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
       // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
       state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
       for (size_t index = 0; index < std::size(source); ++index) {
         state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
       }
-      // Set x1 for vx instructions.
-      SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
+      if (kTestVectorInstructionKind == TestVectorInstructionKind::kInteger) {
+        // Set x1 for vx instructions.
+        SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
+      } else {
+        // We only support Float32/Float64 for float instructions, but there are conversion
+        // instructions that work with double width floats.
+        // These instructions never use float registers though and thus we don't need to store
+        // anything into f1 register, if they are used.
+        // For Float32/Float64 case we load 1.0 of the appropriate type into f1.
+        ASSERT_LE(vsew, 3);
+        if (vsew == 2) {
+          SetFReg<1>(state_.cpu, 0xffff'ffff'40b4'0000);  // float 5.625
+        } else if (vsew == 3) {
+          SetFReg<1>(state_.cpu, 0x4016'8000'0000'0000);  // double 5.625
+        }
+      }
       for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
+        if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kNarrowing ||
+                      kTestVectorInstructionMode == TestVectorInstructionMode::kWidening) {
+          // Incompatible vlmul for narrowing.
+          if (vlmul == 3) {
+            continue;
+          }
+        }
         for (uint8_t vta = 0; vta < 2; ++vta) {
           for (uint8_t vma = 0; vma < 2; ++vma) {
             auto [vlmax, vtype] =
@@ -758,13 +1040,16 @@ class Riscv64InterpreterTest : public ::testing::Test {
             if (vlmax == 0) {
               continue;
             }
+            uint8_t emul =
+                (vlmul + (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening)) &
+                0b111;
 
             // To make tests quick enough we don't test vstart and vl change with small register
             // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of first
             // register, last register and half of next-to last register.
             // Don't use vlmul == 3 because that one may not be supported if instruction widens the
             // result.
-            if (vlmul == 2) {
+            if (emul == 2) {
               state_.cpu.vstart = vlmax / 8;
               state_.cpu.vl = (vlmax * 5) / 8;
             } else {
@@ -782,56 +1067,53 @@ class Riscv64InterpreterTest : public ::testing::Test {
             EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
 
             // Values for inactive elements (i.e. corresponding mask bit is 0).
-            const size_t n = std::size(source);
-            __m128i expected_inactive[n];
-            if (expect_inactive_equals_vs2) {
+            __m128i expected_inactive[8];
+            if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kVMerge) {
               // vs2 is the start of the source vector register group.
               // Note: copy_n input/output args are backwards compared to fill_n below.
-              std::copy_n(source, n, expected_inactive);
+              std::copy_n(source, 8, expected_inactive);
             } else {
               // For most instructions, follow basic inactive processing rules based on vma flag.
-              std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
+              std::fill_n(expected_inactive, 8, (vma ? kAgnosticResult : kUndisturbedResult));
             }
 
-            if (vlmul < 4) {
-              for (size_t index = 0; index < 1 << vlmul; ++index) {
-                if (index == 0 && vlmul == 2) {
+            if (emul < 4) {
+              for (size_t index = 0; index < 1 << emul; ++index) {
+                if (index == 0 && emul == 2) {
                   EXPECT_EQ(state_.cpu.v[8 + index],
-                            SIMD128Register{
-                                (kUndisturbedResult & kFractionMaskInt8[3]) |
-                                (expected_result[index] & mask[index] & ~kFractionMaskInt8[3]) |
-                                (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])}
-                                .Get<__uint128_t>());
-                } else if (index == 2 && vlmul == 2) {
-                  EXPECT_EQ(
-                      state_.cpu.v[8 + index],
-                      SIMD128Register{
-                          (expected_result[index] & mask[index] & kFractionMaskInt8[3]) |
-                          (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
-                          ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])}
-                          .Get<__uint128_t>());
-                } else if (index == 3 && vlmul == 2 && vta) {
+                            ((kUndisturbedResult & kFractionMaskInt8[3]) |
+                             (SIMD128Register{expected_result[index]} & mask[index] &
+                              ~kFractionMaskInt8[3]) |
+                             (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3]))
+                                .template Get<__uint128_t>());
+                } else if (index == 2 && emul == 2) {
+                  EXPECT_EQ(state_.cpu.v[8 + index],
+                            ((SIMD128Register{expected_result[index]} & mask[index] &
+                              kFractionMaskInt8[3]) |
+                             (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
+                             ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3]))
+                                .template Get<__uint128_t>());
+                } else if (index == 3 && emul == 2 && vta) {
                   EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kAgnosticResult});
-                } else if (index == 3 && vlmul == 2) {
+                } else if (index == 3 && emul == 2) {
                   EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kUndisturbedResult});
                 } else {
                   EXPECT_EQ(state_.cpu.v[8 + index],
-                            SIMD128Register{(expected_result[index] & mask[index]) |
-                                            (expected_inactive[index] & ~mask[index])}
-                                .Get<__uint128_t>());
+                            ((SIMD128Register{expected_result[index]} & mask[index]) |
+                             ((expected_inactive[index] & ~mask[index])))
+                                .template Get<__uint128_t>());
                 }
               }
             } else {
               EXPECT_EQ(
                   state_.cpu.v[8],
-                  SIMD128Register{(expected_result[0] & mask[0] & kFractionMaskInt8[vlmul - 4]) |
-                                  (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[vlmul - 4]) |
-                                  ((vta ? kAgnosticResult : kUndisturbedResult) &
-                                   ~kFractionMaskInt8[vlmul - 4])}
-                      .Get<__uint128_t>());
+                  ((SIMD128Register{expected_result[0]} & mask[0] & kFractionMaskInt8[emul - 4]) |
+                   (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[emul - 4]) |
+                   ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[emul - 4]))
+                      .template Get<__uint128_t>());
             }
 
-            if (vlmul == 2) {
+            if (emul == 2) {
               // Every vector instruction must set vstart to 0, but shouldn't touch vl.
               EXPECT_EQ(state_.cpu.vstart, 0);
               EXPECT_EQ(state_.cpu.vl, (vlmax * 5) / 8);
@@ -842,234 +1124,37 @@ class Riscv64InterpreterTest : public ::testing::Test {
     };
 
     // Some instructions don't support use of mask register, but in these instructions bit
-    // #25 is set.  Test it and skip masking tests if so.
-    if ((insn_bytes & (1 << 25)) == 0) {
-      Verify(insn_bytes, 0, 8, expected_result_int8, kMaskInt8);
-      Verify(insn_bytes, 1, 8, expected_result_int16, kMaskInt16);
-      Verify(insn_bytes, 2, 8, expected_result_int32, kMaskInt32);
-      Verify(insn_bytes, 3, 8, expected_result_int64, kMaskInt64);
-      Verify(insn_bytes | (1 << 25), 0, 8, expected_result_int8, kNoMask);
-      Verify(insn_bytes | (1 << 25), 1, 8, expected_result_int16, kNoMask);
-      Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int32, kNoMask);
-      Verify(insn_bytes | (1 << 25), 3, 8, expected_result_int64, kNoMask);
-    } else {
-      Verify(insn_bytes, 0, 1, expected_result_int8, kNoMask);
-      Verify(insn_bytes, 1, 1, expected_result_int16, kNoMask);
-      Verify(insn_bytes, 2, 1, expected_result_int32, kNoMask);
-      Verify(insn_bytes, 3, 1, expected_result_int64, kNoMask);
-    }
-  }
-
-  void TestWideningVectorInstruction(uint32_t insn_bytes,
-                                     const __v8hu (&expected_result_int16)[8],
-                                     const __v4su (&expected_result_int32)[8],
-                                     const __v2du (&expected_result_int64)[8],
-                                     const __v2du (&source)[16]) {
-    auto Verify = [this, &source](uint32_t insn_bytes,
-                                  uint8_t vsew,
-                                  uint8_t vlmul_max,
-                                  const auto& expected_result,
-                                  auto mask) {
-      // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
-      // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
-      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
-      for (size_t index = 0; index < std::size(source); ++index) {
-        state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
-      }
-      // Set x1 for vx instructions.
-      SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
-      for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
-        // Incompatible vlmul for widening.
-        if (vlmul == 3) {
-          continue;
-        }
-        for (uint8_t vta = 0; vta < 2; ++vta) {
-          for (uint8_t vma = 0; vma < 2; ++vma) {
-            auto [vlmax, vtype] =
-                intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
-            // Incompatible vsew and vlmax. Skip it.
-            if (vlmax == 0) {
-              continue;
-            }
-            // To make tests quick enough we don't test vstart and vl change with small register
-            // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of
-            // first
-            // register and half of last register.
-            // Don't use vlmul == 3 because that one may not be supported if instruction widens
-            // the result.
-            if (vlmul == 2) {
-              state_.cpu.vstart = vlmax / 8;
-              state_.cpu.vl = (vlmax * 7) / 8;
-            } else {
-              state_.cpu.vstart = 0;
-              state_.cpu.vl = vlmax;
-            }
-            state_.cpu.vtype = vtype;
-
-            // Set expected_result vector registers into 0b01010101… pattern.
-            for (size_t index = 0; index < 8; ++index) {
-              state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
-            }
-
-            state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-            EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-            size_t elmul = (1 << vlmul) * 2;
-            if (vlmul < 4) {
-              for (size_t index = 0; index < elmul; ++index) {
-                if (index == 0 && vlmul == 2) {
-                  EXPECT_EQ(state_.cpu.v[8 + index],
-                            SIMD128Register{kUndisturbedResult}.Get<__uint128_t>());
-                } else if (index == 7 && vlmul == 2 && vta) {
-                  EXPECT_EQ(state_.cpu.v[8 + index],
-                            SIMD128Register{kAgnosticResult}.Get<__uint128_t>());
-                } else if (index == 7 && vlmul == 2) {
-                  EXPECT_EQ(state_.cpu.v[8 + index],
-                            SIMD128Register{kUndisturbedResult}.Get<__uint128_t>());
-                } else {
-                  EXPECT_EQ(
-                      state_.cpu.v[8 + index],
-                      SIMD128Register{(expected_result[index] & mask[index]) |
-                                      ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[index])}
-                          .Get<__uint128_t>());
-                }
-              }
-            } else {
-              EXPECT_EQ(
-                  state_.cpu.v[8],
-                  SIMD128Register{(expected_result[0] & mask[0] & kFractionMaskInt8[vlmul - 3]) |
-                                  ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[0] &
-                                   kFractionMaskInt8[vlmul - 3]) |
-                                  ((vta ? kAgnosticResult : kUndisturbedResult) &
-                                   ~kFractionMaskInt8[vlmul - 3])}
-                      .Get<__uint128_t>());
-            }
-
-            if (vlmul == 2) {
-              // Every vector instruction must set vstart to 0, but shouldn't touch vl.
-              EXPECT_EQ(state_.cpu.vstart, 0);
-              EXPECT_EQ(state_.cpu.vl, (vlmax * 7) / 8);
-            }
-          }
-        }
-      }
-    };
-
-    Verify(insn_bytes, 0, 8, expected_result_int16, kMaskInt16);
-    Verify(insn_bytes, 1, 8, expected_result_int32, kMaskInt32);
-    Verify(insn_bytes, 2, 8, expected_result_int64, kMaskInt64);
-    Verify(insn_bytes | (1 << 25), 0, 8, expected_result_int16, kNoMask);
-    Verify(insn_bytes | (1 << 25), 1, 8, expected_result_int32, kNoMask);
-    Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int64, kNoMask);
-  }
-
-  void TestNarrowingVectorInstruction(uint32_t insn_bytes,
-                                      const __v16qu (&expected_result_int8)[8],
-                                      const __v8hu (&expected_result_int16)[8],
-                                      const __v4su (&expected_result_int32)[8],
-                                      const __v2du (&source)[16]) {
-    auto Verify = [this, &source](uint32_t insn_bytes,
-                                  uint8_t vsew,
-                                  uint8_t vlmul_max,
-                                  const auto& expected_result,
-                                  auto mask) {
-      // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
-      // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
-      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
-      for (size_t index = 0; index < std::size(source); ++index) {
-        state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
-      }
-      // Set x1 for vx instructions.
-      SetXReg<1>(state_.cpu, 0xaaaa'aaaa'aaaa'aaaa);
-      for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
-        // Incompatible vlmul for narrowing.
-        if (vlmul == 3) {
-          continue;
-        }
-        for (uint8_t vta = 0; vta < 2; ++vta) {
-          for (uint8_t vma = 0; vma < 2; ++vma) {
-            auto [vlmax, vtype] =
-                intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
-            // Incompatible vsew and vlmax. Skip it.
-            if (vlmax == 0) {
-              continue;
-            }
-            // To make tests quick enough we don't test vstart and vl change with small register
-            // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of
-            // first register and half of last register.
-            // Note, vlmul == 3 is incompatible with narrowing and is skipped above.
-            if (vlmul == 2) {
-              state_.cpu.vstart = vlmax / 8;
-              state_.cpu.vl = (vlmax * 7) / 8;
-            } else {
-              state_.cpu.vstart = 0;
-              state_.cpu.vl = vlmax;
-            }
-            state_.cpu.vtype = vtype;
-
-            // Set original result vector registers into 0b01010101… pattern.
-            for (size_t index = 0; index < 8; ++index) {
-              state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
-            }
-
-            // Values for inactive elements (i.e. corresponding mask bit is 0).
-            const size_t n = std::size(source);
-            __m128i expected_inactive[n];
-            std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
-
-            state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-            EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-            if (vlmul < 4) {
-              for (size_t index = 0; index < (1 << vlmul); ++index) {
-                if (index == 0 && vlmul == 2) {
-                  EXPECT_EQ(state_.cpu.v[8 + index],
-                            SIMD128Register{
-                                (kUndisturbedResult & kFractionMaskInt8[3]) |
-                                (expected_result[index] & mask[index] & ~kFractionMaskInt8[3]) |
-                                (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])}
-                                .Get<__uint128_t>());
-                } else if (index == 3 && vlmul == 2) {
-                  EXPECT_EQ(
-                      state_.cpu.v[8 + index],
-                      SIMD128Register{
-                          (expected_result[index] & mask[index] & kFractionMaskInt8[3]) |
-                          (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
-                          ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])}
-                          .Get<__uint128_t>());
-                } else {
-                  EXPECT_EQ(
-                      state_.cpu.v[8 + index],
-                      SIMD128Register{(expected_result[index] & mask[index]) |
-                                      ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[index])}
-                          .Get<__uint128_t>());
-                }
-              }
-            } else {
-              EXPECT_EQ(
-                  state_.cpu.v[8],
-                  SIMD128Register{(expected_result[0] & mask[0] & kFractionMaskInt8[vlmul - 4]) |
-                                  ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask[0] &
-                                   kFractionMaskInt8[vlmul - 4]) |
-                                  ((vta ? kAgnosticResult : kUndisturbedResult) &
-                                   ~kFractionMaskInt8[vlmul - 4])}
-                      .Get<__uint128_t>());
-            }
-
-            // Every vector instruction must set vstart to 0, but shouldn't touch vl.
-            EXPECT_EQ(state_.cpu.vstart, 0);
-            if (vlmul == 2) {
-              EXPECT_EQ(state_.cpu.vl, (vlmax * 7) / 8);
-            }
-          }
-        }
-      }
-    };
-
-    Verify(insn_bytes, 0, 8, expected_result_int8, kMaskInt8);
-    Verify(insn_bytes, 1, 8, expected_result_int16, kMaskInt16);
-    Verify(insn_bytes, 2, 8, expected_result_int32, kMaskInt32);
-    Verify(insn_bytes | (1 << 25), 0, 8, expected_result_int8, kNoMask);
-    Verify(insn_bytes | (1 << 25), 1, 8, expected_result_int16, kNoMask);
-    Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int32, kNoMask);
+    // #25 is set.  This function doesn't support these. Verify that vm bit is not set.
+    EXPECT_EQ(insn_bytes & (1 << 25), 0U);
+    // Every insruction is tested with vm bit not set (and mask register used) and with vm bit
+    // set (and mask register is not used).
+    ((Verify(insn_bytes,
+             BitUtilLog2(sizeof(ElementType)) -
+                 (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening),
+             8,
+             expected_result,
+             [] {
+               if constexpr (sizeof(ElementType) == sizeof(Int8)) {
+                 return kMaskInt8;
+               } else if constexpr (sizeof(ElementType) == sizeof(Int16)) {
+                 return kMaskInt16;
+               } else if constexpr (sizeof(ElementType) == sizeof(Int32)) {
+                 return kMaskInt32;
+               } else if constexpr (sizeof(ElementType) == sizeof(Int64)) {
+                 return kMaskInt64;
+               } else {
+                 static_assert(kDependentTypeFalse<ElementType>);
+               }
+             }()),
+      Verify((insn_bytes &
+              ~(0x01f00000 * (kTestVectorInstructionMode == TestVectorInstructionMode::kVMerge))) |
+                 (1 << 25),
+             BitUtilLog2(sizeof(ElementType)) -
+                 (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening),
+             8,
+             expected_result,
+             kNoMask)),
+     ...);
   }
 
   void TestExtendingVectorInstruction(uint32_t insn_bytes,
@@ -1808,6 +1893,20 @@ TEST_F(Riscv64InterpreterTest, TestVmXr) {
   TestVmvXr<2>(0x9f00b457);  // Vmv2r.v v8, v16
   TestVmvXr<4>(0x9f01b457);  // Vmv4r.v v8, v16
   TestVmvXr<8>(0x9f03b457);  // Vmv8r.v v8, v16
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfmvfs) {
+  TestVfmvfs<intrinsics::Float32>(0x428010d7, 0xffff'ffff'8302'8100);  // Vfmv.f.s f1, v8
+  TestVfmvfs<intrinsics::Float64>(0x428010d7, 0x8706'8504'8302'8100);  // Vfmv.f.s f1, v8
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfmvsf) {
+  TestVfmvsf<intrinsics::Float32>(0x4200d457,  // Vfmv.s.f v8, f1
+                                  0xffff'ffff'40b4'0000,
+                                  intrinsics::Float32{5.625f});
+  TestVfmvsf<intrinsics::Float64>(0x4200d457,  // Vfmv.s.f v8, f1
+                                  0x4016'8000'0000'0000,
+                                  intrinsics::Float64{5.625});
 }
 
 TEST_F(Riscv64InterpreterTest, TestVmvsx) {
@@ -3032,6 +3131,11 @@ TEST_F(Riscv64InterpreterTest, TestVlssegXeXX) {
                                 {0xaf2e'ad2c'ab2a'a928, 0xef6e'ed6c'eb6a'e968},
                                 {0xb736'b534'b332'b130, 0xf776'f574'f372'f170},
                                 {0xbf3e'bd3c'bb3a'b938, 0xff7e'fd7c'fb7a'f978}});
+}
+
+TEST_F(Riscv64InterpreterTest, TestVlm) {
+  TestVlm(0x2b08407,  // vlm.v v8, (x1)
+          {0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143});
 }
 
 TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
@@ -5191,6 +5295,11 @@ TEST_F(Riscv64InterpreterTest, TestVsssegXeXX) {
                                 0xff7e'fd7c'fb7a'f978});
 }
 
+TEST_F(Riscv64InterpreterTest, TestVsm) {
+  TestVsm(0x2b08427,  // vsm.v v8, (x1)
+          {0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143});
+}
+
 TEST_F(Riscv64InterpreterTest, TestVadd) {
   TestVectorInstruction(
       0x10c0457,  // Vadd.vv v8, v16, v24, v0.t
@@ -5372,7 +5481,7 @@ TEST_F(Riscv64InterpreterTest, TestVectorMaskInstructions) {
 
 TEST_F(Riscv64InterpreterTest, TestVid) {
   TestVectorInstruction(
-      0x5208a457,  // Vid.v v8
+      0x5008a457,  // Vid.v v8, v0.t
       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
        {16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
        {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
@@ -7121,47 +7230,66 @@ TEST_F(Riscv64InterpreterTest, TestVredmax) {
       kVectorCalculationsSourceLegacy);
 }
 
-// Note that these expected test outputs for Vmerge are identical to those for Vmv. The difference
-// between Vmerge and Vmv is captured in masking logic within TestVectorInstruction itself via the
-// parameter expect_inactive_equals_vs2=true for Vmerge.
+// Note that the expected test outputs for v[f]merge.vXm are identical to those for v[f]mv.v.X.
+// This happens because v[f]merge.vXm is just a v[f]mv.v.X with mask (second operand is not used
+// by v[f]mv.v.X but the difference between v[f]merge.vXm and v[f]mv.v.X is captured in masking
+// logic within TestVectorInstruction itself via the parameter TestVectorInstructionMode::kVMerge
+// for V[f]merge/V[f]mv).
 TEST_F(Riscv64InterpreterTest, TestVmerge) {
-  TestVectorInstruction(
+  TestVectorMergeFloatInstruction(0x5d00d457,  // Vfmerge.vfm v8, v16, f1, v0
+                                  {{0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                                   {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000}},
+                                  {{0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                                   {0x4016'8000'0000'0000, 0x4016'8000'0000'0000}},
+                                  kVectorCalculationsSource);
+  TestVectorMergeInstruction(
       0x5d0c0457,  // Vmerge.vvm v8, v16, v24, v0
-      {{0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30},
-       {32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62},
-       {64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94},
-       {96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126},
-       {128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158},
-       {160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190},
-       {192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222},
-       {224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254}},
-      {{0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
-       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
-       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
-       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
-       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
-       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
-       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc},
-       {0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc}},
-      {{0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
-       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
-       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
-       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
-       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
-       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8},
-       {0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8},
-       {0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8}},
-      {{0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
-       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
-       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
-       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271},
-       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
-       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
-       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
-       {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}},
-      kVectorCalculationsSourceLegacy,
-      /*expect_inactive_equals_vs2=*/true);
-  TestVectorInstruction(
+      {{0, 146, 4, 150, 9, 154, 12, 158, 17, 130, 20, 134, 24, 138, 28, 142},
+       {32, 178, 36, 182, 41, 186, 44, 190, 49, 162, 52, 166, 56, 170, 60, 174},
+       {64, 210, 68, 214, 73, 218, 76, 222, 81, 194, 84, 198, 88, 202, 92, 206},
+       {96, 242, 100, 246, 105, 250, 108, 254, 113, 226, 116, 230, 120, 234, 124, 238},
+       {128, 18, 132, 22, 137, 26, 140, 30, 145, 2, 148, 6, 152, 10, 156, 14},
+       {160, 50, 164, 54, 169, 58, 172, 62, 177, 34, 180, 38, 184, 42, 188, 46},
+       {192, 82, 196, 86, 201, 90, 204, 94, 209, 66, 212, 70, 216, 74, 220, 78},
+       {224, 114, 228, 118, 233, 122, 236, 126, 241, 98, 244, 102, 248, 106, 252, 110}},
+      {{0x9200, 0x9604, 0x9a09, 0x9e0c, 0x8211, 0x8614, 0x8a18, 0x8e1c},
+       {0xb220, 0xb624, 0xba29, 0xbe2c, 0xa231, 0xa634, 0xaa38, 0xae3c},
+       {0xd240, 0xd644, 0xda49, 0xde4c, 0xc251, 0xc654, 0xca58, 0xce5c},
+       {0xf260, 0xf664, 0xfa69, 0xfe6c, 0xe271, 0xe674, 0xea78, 0xee7c},
+       {0x1280, 0x1684, 0x1a89, 0x1e8c, 0x0291, 0x0694, 0x0a98, 0x0e9c},
+       {0x32a0, 0x36a4, 0x3aa9, 0x3eac, 0x22b1, 0x26b4, 0x2ab8, 0x2ebc},
+       {0x52c0, 0x56c4, 0x5ac9, 0x5ecc, 0x42d1, 0x46d4, 0x4ad8, 0x4edc},
+       {0x72e0, 0x76e4, 0x7ae9, 0x7eec, 0x62f1, 0x66f4, 0x6af8, 0x6efc}},
+      {{0x9604'9200, 0x9e0c'9a09, 0x8614'8211, 0x8e1c'8a18},
+       {0xb624'b220, 0xbe2c'ba29, 0xa634'a231, 0xae3c'aa38},
+       {0xd644'd240, 0xde4c'da49, 0xc654'c251, 0xce5c'ca58},
+       {0xf664'f260, 0xfe6c'fa69, 0xe674'e271, 0xee7c'ea78},
+       {0x1684'1280, 0x1e8c'1a89, 0x0694'0291, 0x0e9c'0a98},
+       {0x36a4'32a0, 0x3eac'3aa9, 0x26b4'22b1, 0x2ebc'2ab8},
+       {0x56c4'52c0, 0x5ecc'5ac9, 0x46d4'42d1, 0x4edc'4ad8},
+       {0x76e4'72e0, 0x7eec'7ae9, 0x66f4'62f1, 0x6efc'6af8}},
+      {{0x9e0c'9a09'9604'9200, 0x8e1c'8a18'8614'8211},
+       {0xbe2c'ba29'b624'b220, 0xae3c'aa38'a634'a231},
+       {0xde4c'da49'd644'd240, 0xce5c'ca58'c654'c251},
+       {0xfe6c'fa69'f664'f260, 0xee7c'ea78'e674'e271},
+       {0x1e8c'1a89'1684'1280, 0x0e9c'0a98'0694'0291},
+       {0x3eac'3aa9'36a4'32a0, 0x2ebc'2ab8'26b4'22b1},
+       {0x5ecc'5ac9'56c4'52c0, 0x4edc'4ad8'46d4'42d1},
+       {0x7eec'7ae9'76e4'72e0, 0x6efc'6af8'66f4'62f1}},
+      kVectorCalculationsSource);
+  TestVectorMergeInstruction(
       0x5d00c457,  // Vmerge.vxm v8, v16, x1, v0
       {{170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
        {170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
@@ -7195,9 +7323,8 @@ TEST_F(Riscv64InterpreterTest, TestVmerge) {
        {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
        {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
        {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa}},
-      kVectorCalculationsSourceLegacy,
-      /*expect_inactive_equals_vs2=*/true);
-  TestVectorInstruction(
+      kVectorCalculationsSource);
+  TestVectorMergeInstruction(
       0x5d0ab457,  // Vmerge.vim v8, v16, -0xb, v0
       {{245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
        {245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
@@ -7231,116 +7358,7 @@ TEST_F(Riscv64InterpreterTest, TestVmerge) {
        {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
        {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
        {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5}},
-      kVectorCalculationsSourceLegacy,
-      /*expect_inactive_equals_vs2=*/true);
-}
-
-TEST_F(Riscv64InterpreterTest, TestVmv) {
-  TestVectorInstruction(
-      0x5e0c0457,  // Vmv.v.v v8, v24
-      {{0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30},
-       {32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62},
-       {64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94},
-       {96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126},
-       {128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158},
-       {160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190},
-       {192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222},
-       {224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254}},
-      {{0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
-       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
-       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
-       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
-       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
-       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
-       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc},
-       {0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc}},
-      {{0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
-       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
-       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
-       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
-       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
-       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8},
-       {0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8},
-       {0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8}},
-      {{0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
-       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
-       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
-       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271},
-       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
-       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
-       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
-       {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}},
-      kVectorCalculationsSourceLegacy);
-  TestVectorInstruction(
-      0x5e00c457,  // Vmv.v.x v8, x1
-      {{170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
-       {170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
-       {170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
-       {170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
-       {170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
-       {170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
-       {170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170},
-       {170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170}},
-      {{0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
-       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
-       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
-       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
-       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
-       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
-       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
-       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa}},
-      {{0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
-       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
-       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
-       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
-       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
-       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
-       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
-       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa}},
-      {{0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
-       {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
-       {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
-       {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
-       {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
-       {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
-       {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
-       {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa}},
-      kVectorCalculationsSourceLegacy);
-  TestVectorInstruction(
-      0x5e0ab457,  // Vmv.v.i v8, -0xb
-      {{245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
-       {245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
-       {245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
-       {245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
-       {245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
-       {245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
-       {245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245},
-       {245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245}},
-      {{0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5},
-       {0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5},
-       {0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5},
-       {0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5},
-       {0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5},
-       {0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5},
-       {0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5},
-       {0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5, 0xfff5}},
-      {{0xffff'fff5, 0xffff'fff5, 0xffff'fff5, 0xffff'fff5},
-       {0xffff'fff5, 0xffff'fff5, 0xffff'fff5, 0xffff'fff5},
-       {0xffff'fff5, 0xffff'fff5, 0xffff'fff5, 0xffff'fff5},
-       {0xffff'fff5, 0xffff'fff5, 0xffff'fff5, 0xffff'fff5},
-       {0xffff'fff5, 0xffff'fff5, 0xffff'fff5, 0xffff'fff5},
-       {0xffff'fff5, 0xffff'fff5, 0xffff'fff5, 0xffff'fff5},
-       {0xffff'fff5, 0xffff'fff5, 0xffff'fff5, 0xffff'fff5},
-       {0xffff'fff5, 0xffff'fff5, 0xffff'fff5, 0xffff'fff5}},
-      {{0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
-       {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
-       {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
-       {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
-       {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
-       {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
-       {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5},
-       {0xffff'ffff'ffff'fff5, 0xffff'ffff'ffff'fff5}},
-      kVectorCalculationsSourceLegacy);
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVmul) {
@@ -8601,6 +8619,32 @@ TEST_F(Riscv64InterpreterTest, TestVleXX) {
              {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
             3,
             kVectorCalculationsSourceLegacy);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVleXXff) {
+  TestVleXXff(0x1008407, 6, 0, 6);  // vle8ff.v v8, (x1), v0.t
+  TestVleXXff(0x1008407, 8, 0, 8);
+  TestVleXXff(0x1008407, 16, 0, 16);
+  TestVleXXff(0x1008407, 32, 0, 32);
+  TestVleXXff(0x1008407, 255, 0, 128);  // All 128 bytes accessible.
+
+  TestVleXXff(0x100d407, 6, 1, 3);  // vle16ff.v v8, (x1), v0.t
+  TestVleXXff(0x100d407, 8, 1, 4);
+  TestVleXXff(0x100d407, 16, 1, 8);
+  TestVleXXff(0x100d407, 32, 1, 16);
+
+  TestVleXXff(0x100e407, 6, 2, 1);  // vle32ff.v v8, (x1), v0.t
+  TestVleXXff(0x100e407, 8, 2, 2);
+  TestVleXXff(0x100e407, 16, 2, 4);
+  TestVleXXff(0x100e407, 32, 2, 8);
+  TestVleXXff(0x100e407, 64, 2, 16);
+
+  TestVleXXff(0x100f407, 8, 3, 1);  // vle64ff.v v8, (x1), v0.t
+  TestVleXXff(0x100f407, 16, 3, 2);
+  TestVleXXff(0x100f407, 32, 3, 4);
+  TestVleXXff(0x100f407, 64, 3, 8);
+
+  TestVleXXff(0x100f407, 6, 3, 16, true);  // Should raise exception and not change VL
 }
 
 TEST_F(Riscv64InterpreterTest, TestVnsrl) {
