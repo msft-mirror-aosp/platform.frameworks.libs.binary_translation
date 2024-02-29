@@ -831,6 +831,44 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   template <typename ElementType>
+  void TestVfmvfs(uint32_t insn_bytes, uint64_t expected_result) {
+    state_.cpu.vtype = BitUtilLog2(sizeof(ElementType)) << 3;
+    state_.cpu.vstart = 0;
+    state_.cpu.vl = 0;
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+    SetFReg<1>(state_.cpu, 0x5555'5555'5555'5555);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
+  }
+
+  template <typename ElementType>
+  void TestVfmvsf(uint32_t insn_bytes, uint64_t boxed_value, ElementType unboxed_value) {
+    for (uint8_t vstart = 0; vstart < 2; ++vstart) {
+      for (uint8_t vl = 0; vl < 2; ++vl) {
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          state_.cpu.vtype = (vta << 6) | (BitUtilLog2(sizeof(ElementType)) << 3);
+          state_.cpu.vstart = vstart;
+          state_.cpu.vl = vl;
+          state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+          state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
+          SetFReg<1>(state_.cpu, boxed_value);
+          EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+          if (vstart == 0 && vl != 0) {
+            SIMD128Register expected_result =
+                vta ? ~SIMD128Register{} : SIMD128Register{kVectorCalculationsSource[0]};
+            expected_result.Set<ElementType>(unboxed_value, 0);
+            EXPECT_EQ(state_.cpu.v[8], expected_result);
+          } else {
+            EXPECT_EQ(state_.cpu.v[8],
+                      SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>());
+          }
+        }
+      }
+    }
+  }
+
+  template <typename ElementType>
   void TestVmvsx(uint32_t insn_bytes) {
     for (uint8_t vstart = 0; vstart < 2; ++vstart) {
       for (uint8_t vl = 0; vl < 2; ++vl) {
@@ -839,18 +877,18 @@ class Riscv64InterpreterTest : public ::testing::Test {
           state_.cpu.vstart = vstart;
           state_.cpu.vl = vl;
           state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-          state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSourceLegacy[0]}.Get<__uint128_t>();
+          state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
           SetXReg<1>(state_.cpu, 0x5555'5555'5555'5555);
           EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
           if (vstart == 0 && vl != 0) {
             SIMD128Register expected_result =
-                vta ? ~SIMD128Register{} : SIMD128Register{kVectorCalculationsSourceLegacy[0]};
+                vta ? ~SIMD128Register{} : SIMD128Register{kVectorCalculationsSource[0]};
             expected_result.Set<ElementType>(MaybeTruncateTo<ElementType>(0x5555'5555'5555'5555),
                                              0);
             EXPECT_EQ(state_.cpu.v[8], expected_result);
           } else {
             EXPECT_EQ(state_.cpu.v[8],
-                      SIMD128Register{kVectorCalculationsSourceLegacy[0]}.Get<__uint128_t>());
+                      SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>());
           }
         }
       }
@@ -863,7 +901,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     state_.cpu.vstart = 0;
     state_.cpu.vl = 0;
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSourceLegacy[0]}.Get<__uint128_t>();
+    state_.cpu.v[8] = SIMD128Register{kVectorCalculationsSource[0]}.Get<__uint128_t>();
     SetXReg<1>(state_.cpu, 0x5555'5555'5555'5555);
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
@@ -1855,6 +1893,20 @@ TEST_F(Riscv64InterpreterTest, TestVmXr) {
   TestVmvXr<2>(0x9f00b457);  // Vmv2r.v v8, v16
   TestVmvXr<4>(0x9f01b457);  // Vmv4r.v v8, v16
   TestVmvXr<8>(0x9f03b457);  // Vmv8r.v v8, v16
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfmvfs) {
+  TestVfmvfs<intrinsics::Float32>(0x428010d7, 0xffff'ffff'8302'8100);  // Vfmv.f.s f1, v8
+  TestVfmvfs<intrinsics::Float64>(0x428010d7, 0x8706'8504'8302'8100);  // Vfmv.f.s f1, v8
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfmvsf) {
+  TestVfmvsf<intrinsics::Float32>(0x4200d457,  // Vfmv.s.f v8, f1
+                                  0xffff'ffff'40b4'0000,
+                                  intrinsics::Float32{5.625f});
+  TestVfmvsf<intrinsics::Float64>(0x4200d457,  // Vfmv.s.f v8, f1
+                                  0x4016'8000'0000'0000,
+                                  intrinsics::Float64{5.625});
 }
 
 TEST_F(Riscv64InterpreterTest, TestVmvsx) {
