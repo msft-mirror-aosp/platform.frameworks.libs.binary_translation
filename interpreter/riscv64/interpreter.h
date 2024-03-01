@@ -1352,9 +1352,21 @@ class Interpreter {
                            InactiveProcessing::kUndisturbed>(
               args.dst, BitCastToUnsigned(SignedType{args.imm}), /*dst_mask=*/args.src);
         }
-      case Decoder::VOpIViOpcode::kVmvvi:
+      case Decoder::VOpIViOpcode::kVmvXrv:
+        // kVmv<nr>rv instruction
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-          return OpVectorVmvXr<ElementType>(args.dst, args.src, static_cast<uint8_t>(args.imm));
+          switch (args.imm) {
+            case 0:
+              return OpVectorVmvXrv<ElementType, 1>(args.dst, args.src);
+            case 1:
+              return OpVectorVmvXrv<ElementType, 2>(args.dst, args.src);
+            case 3:
+              return OpVectorVmvXrv<ElementType, 4>(args.dst, args.src);
+            case 7:
+              return OpVectorVmvXrv<ElementType, 8>(args.dst, args.src);
+            default:
+              return Unimplemented();
+          }
         } else {
           return Unimplemented();
         }
@@ -1986,10 +1998,10 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
@@ -1999,7 +2011,6 @@ class Interpreter {
           result, std::get<0>(intrinsics::Vidv<ElementType>(index)), vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <typename ElementType>
@@ -2067,24 +2078,19 @@ class Interpreter {
   void OpVectormm(uint8_t dst, uint8_t src1, uint8_t src2) {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
-    SIMD128Register arg1(state_->cpu.v[src1]);
-    SIMD128Register arg2(state_->cpu.v[src2]);
-    SIMD128Register result;
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
+    SIMD128Register arg1(state_->cpu.v[src1]);
+    SIMD128Register arg2(state_->cpu.v[src2]);
+    SIMD128Register result;
     if (vstart > 0) [[unlikely]] {
-      if (vstart >= vl) [[unlikely]] {
-        result.Set(state_->cpu.v[dst]);
-      } else {
-        const auto [start_mask] = intrinsics::MakeBitmaskFromVl(vstart);
-        result.Set(state_->cpu.v[dst]);
-        result = (result & ~start_mask) | (Intrinsic(arg1, arg2) & start_mask);
-      }
-      SetCsr<CsrName::kVstart>(0);
+      const auto [start_mask] = intrinsics::MakeBitmaskFromVl(vstart);
+      result.Set(state_->cpu.v[dst]);
+      result = (result & ~start_mask) | (Intrinsic(arg1, arg2) & start_mask);
     } else {
       result = Intrinsic(arg1, arg2);
     }
@@ -2126,40 +2132,36 @@ class Interpreter {
     state_->cpu.v[dst] = result.Get<__uint128_t>();
   }
 
-  template <typename ElementType>
-  void OpVectorVmvXr(uint8_t dst, uint8_t src, uint8_t nf) {
-    if (!IsPowerOf2(nf + 1)) {
+  template <typename ElementType, size_t kRegistersInvolved>
+  void OpVectorVmvXrv(uint8_t dst, uint8_t src) {
+    if (!IsAligned<kRegistersInvolved>(dst | src)) {
       return Unimplemented();
     }
-    if (((dst | src) & nf) != 0) {
-      return Unimplemented();
-    }
+    constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
+    SetCsr<CsrName::kVstart>(0);
+    // The usual property that no elements are written if vstart >= vl does not apply to these
+    // instructions. Instead, no elements are written if vstart >= evl.
+    if (vstart >= kElementsCount * kRegistersInvolved) [[unlikely]] {
+      return;
+    }
     if (vstart == 0) [[likely]] {
-      for (size_t index = 0; index <= nf; ++index) {
+      for (size_t index = 0; index < kRegistersInvolved; ++index) {
         state_->cpu.v[dst + index] = state_->cpu.v[src + index];
       }
       return;
     }
-    constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
-    for (size_t index = 0; index <= nf; ++index) {
-      if (vstart >= kElementsCount) {
-        vstart -= kElementsCount;
-        continue;
-      }
-      if (vstart == 0) [[likely]] {
-        state_->cpu.v[dst + index] = state_->cpu.v[src + index];
-      } else {
-        SIMD128Register destination{state_->cpu.v[dst + index]};
-        SIMD128Register source{state_->cpu.v[src + index]};
-        for (size_t element_index = vstart; element_index < kElementsCount; ++element_index) {
-          destination.Set(source.Get<ElementType>(element_index), element_index);
-        }
-        state_->cpu.v[dst + index] = destination.Get<__uint128_t>();
-        vstart = 0;
-      }
+    size_t index = vstart / kElementsCount;
+    SIMD128Register destination{state_->cpu.v[dst + index]};
+    SIMD128Register source{state_->cpu.v[src + index]};
+    for (size_t element_index = vstart % kElementsCount; element_index < kElementsCount;
+         ++element_index) {
+      destination.Set(source.Get<ElementType>(element_index), element_index);
     }
-    SetCsr<CsrName::kVstart>(0);
+    state_->cpu.v[dst + index] = destination.Get<__uint128_t>();
+    for (index++; index < kRegistersInvolved; ++index) {
+      state_->cpu.v[dst + index] = state_->cpu.v[src + index];
+    }
   }
 
   template <auto Intrinsic, typename ElementType, VectorRegisterGroupMultiplier vlmul, auto vma>
@@ -2176,12 +2178,12 @@ class Interpreter {
     SIMD128Register original_result(state_->cpu.v[dst]);
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     SIMD128Register result_before_vl_masking;
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       result_before_vl_masking = original_result;
-      SetCsr<CsrName::kVstart>(0);
     } else {
       result_before_vl_masking =
           CollectBitmaskResult<ElementType, kRegistersInvolved>([this, src1, src2](auto index) {
@@ -2201,7 +2203,6 @@ class Interpreter {
         const auto [start_mask] = intrinsics::MakeBitmaskFromVl(vstart);
         result_before_vl_masking =
             (original_result & ~start_mask) | (result_before_vl_masking & start_mask);
-        SetCsr<CsrName::kVstart>(0);
       }
     }
     const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
@@ -2222,12 +2223,12 @@ class Interpreter {
     SIMD128Register original_result(state_->cpu.v[dst]);
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     SIMD128Register result_before_vl_masking;
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
       result_before_vl_masking = original_result;
-      SetCsr<CsrName::kVstart>(0);
     } else {
       result_before_vl_masking =
           CollectBitmaskResult<ElementType, kRegistersInvolved>([this, src1, arg2](auto index) {
@@ -2246,7 +2247,6 @@ class Interpreter {
         const auto [start_mask] = intrinsics::MakeBitmaskFromVl(vstart);
         result_before_vl_masking =
             (original_result & ~start_mask) | (result_before_vl_masking & start_mask);
-        SetCsr<CsrName::kVstart>(0);
       }
     }
     const auto [tail_mask] = intrinsics::MakeBitmaskFromVl(vl);
@@ -2277,6 +2277,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result{state_->cpu.v[dst + index]};
@@ -2292,7 +2298,6 @@ class Interpreter {
           result, std::get<0>(Intrinsic(arg)), result_mask, vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -2316,6 +2321,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return;
+    }
     int8_t frm = GetCsr<CsrName::kFrm>();
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
@@ -2325,7 +2336,6 @@ class Interpreter {
           result, std::get<0>(Intrinsic(frm, arg)), vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -2352,6 +2362,7 @@ class Interpreter {
     if (vstart != 0) {
       return Unimplemented();
     }
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vl == 0) [[unlikely]] {
@@ -2381,7 +2392,6 @@ class Interpreter {
     result.Set(arg1, 0);
     result = std::get<0>(intrinsics::VectorMasking<ElementType, vta>(result, result, 0, 1));
     state_->cpu.v[dst] = result.Get<__uint128_t>();
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -2405,6 +2415,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result{state_->cpu.v[dst + index]};
@@ -2414,7 +2430,6 @@ class Interpreter {
           result, std::get<0>(Intrinsic(arg1, arg2)), vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -2438,10 +2453,10 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
@@ -2453,7 +2468,6 @@ class Interpreter {
           result, std::get<0>(Intrinsic(arg1, arg2, result)), vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   // 2*SEW = SEW op SEW
@@ -2484,10 +2498,10 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
@@ -2507,7 +2521,6 @@ class Interpreter {
         state_->cpu.v[dst + 2 * index + 1] = result.Get<__uint128_t>();
       }
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -2532,10 +2545,10 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
@@ -2546,7 +2559,6 @@ class Interpreter {
           result, std::get<0>(Intrinsic(arg1, arg2)), vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   // SEW = 2*SEW op SEW
@@ -2580,10 +2592,10 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
@@ -2603,7 +2615,6 @@ class Interpreter {
           orig_result, intrinsic_result, vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.template Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   // SEW = 2*SEW op SEW
@@ -2638,10 +2649,10 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
@@ -2663,7 +2674,6 @@ class Interpreter {
           orig_result, intrinsic_result, vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.template Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -2722,6 +2732,12 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return;
+    }
     auto mask = GetMaskForVectorOperations<vma>();
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result(state_->cpu.v[dst + index]);
@@ -2730,7 +2746,6 @@ class Interpreter {
           result, std::get<0>(Intrinsic(arg1, arg2, result)), vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <auto Intrinsic,
@@ -2757,10 +2772,10 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
@@ -2777,7 +2792,6 @@ class Interpreter {
           result, std::get<0>(Intrinsic(arg2)), result_mask, vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
@@ -2798,11 +2812,11 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     if (vstart >= vl) [[unlikely]] {
       // From 16.3: For all of the [slide instructions], if vstart >= vl, the
       // instruction performs no operation and leaves the destination vector
       // register unchanged.
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
@@ -2839,7 +2853,6 @@ class Interpreter {
                                                mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-    SetCsr<CsrName::kVstart>(0);
   }
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
@@ -2860,15 +2873,14 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
     if (vstart >= vl) [[unlikely]] {
       // From 16.3: For all of the [slide instructions], if vstart >= vl, the
       // instruction performs no operation and leaves the destination vector
       // register unchanged.
-      SetCsr<CsrName::kVstart>(0);
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
-
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       SIMD128Register result(state_->cpu.v[dst + index]);
 
@@ -2890,8 +2902,6 @@ class Interpreter {
                                                mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
-
-    SetCsr<CsrName::kVstart>(0);
   }
 
   // Helper function needed to generate bitmak result from non-bitmask inputs.
