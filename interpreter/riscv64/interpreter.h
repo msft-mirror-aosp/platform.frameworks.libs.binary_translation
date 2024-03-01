@@ -44,8 +44,6 @@
 
 namespace berberis {
 
-namespace {
-
 inline constexpr std::memory_order AqRlToStdMemoryOrder(bool aq, bool rl) {
   if (aq) {
     if (rl) {
@@ -1529,11 +1527,11 @@ class Interpreter {
             }
             return OpVectorVmvxs<SignedType>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVcpopm:
-              return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
+            return OpVectorVXmXXs<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
           case Decoder::VXmXXsOpcode::kVfirstm:
-              return OpVectorVXmXXs<intrinsics::Vfirstm<Int128>, vma>(args.dst, args.src1);
+            return OpVectorVXmXXs<intrinsics::Vfirstm<Int128>, vma>(args.dst, args.src1);
           default:
-              return Unimplemented();
+            return Unimplemented();
         }
       case Decoder::VOpMVvOpcode::kVXextvfXX:
         switch (args.vXextvfXX_opcode) {
@@ -1592,18 +1590,18 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVmsXf:
         switch (args.vmsXf_opcode) {
           case Decoder::VmsXfOpcode::kVmsbfm:
-              return OpVectorVmsXf<intrinsics::Vmsbfm<>, vma>(args.dst, args.src1);
+            return OpVectorVmsXf<intrinsics::Vmsbfm<>, vma>(args.dst, args.src1);
           case Decoder::VmsXfOpcode::kVmsofm:
-              return OpVectorVmsXf<intrinsics::Vmsofm<>, vma>(args.dst, args.src1);
+            return OpVectorVmsXf<intrinsics::Vmsofm<>, vma>(args.dst, args.src1);
           case Decoder::VmsXfOpcode::kVmsifm:
-              return OpVectorVmsXf<intrinsics::Vmsifm<>, vma>(args.dst, args.src1);
+            return OpVectorVmsXf<intrinsics::Vmsifm<>, vma>(args.dst, args.src1);
           case Decoder::VmsXfOpcode::kVidv:
-              if (args.src1) {
-                return Unimplemented();
-              }
-              return OpVectorVidv<ElementType, vlmul, vta, vma>(args.dst);
-          default:
+            if (args.src1) {
               return Unimplemented();
+            }
+            return OpVectorVidv<ElementType, vlmul, vta, vma>(args.dst);
+          default:
+            return Unimplemented();
         }
       case Decoder::VOpMVvOpcode::kVmaddvv:
         return OpVectorvvv<intrinsics::Vmaddvv<ElementType>, ElementType, vlmul, vta, vma>(
@@ -1767,12 +1765,12 @@ class Interpreter {
       case Decoder::VOpMVxOpcode::kVXmXXx:
         switch (args.vXmXXx_opcode) {
           case Decoder::VXmXXxOpcode::kVmvsx:
-              if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-                return Unimplemented();
-              }
-              return OpVectorVmvsx<SignedType, vta>(args.dst, MaybeTruncateTo<SignedType>(arg2));
-          default:
+            if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
               return Unimplemented();
+            }
+            return OpVectorVmvsx<SignedType, vta>(args.dst, MaybeTruncateTo<SignedType>(arg2));
+          default:
+            return Unimplemented();
         }
       case Decoder::VOpMVxOpcode::kVmaddvx:
         return OpVectorvxv<intrinsics::Vmaddvx<ElementType>, ElementType, vlmul, vta, vma>(
@@ -2145,7 +2143,7 @@ class Interpreter {
         SIMD128Register destination{state_->cpu.v[dst + index]};
         SIMD128Register source{state_->cpu.v[src + index]};
         for (int element_index = vstart; element_index < kElementsCount; ++element_index) {
-            destination.Set(source.Get<ElementType>(element_index), element_index);
+          destination.Set(source.Get<ElementType>(element_index), element_index);
         }
         state_->cpu.v[dst + index] = destination.Get<__uint128_t>();
         vstart = 0;
@@ -2362,7 +2360,7 @@ class Interpreter {
            element_index += MaskType{1}) {
         if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
           if ((MaskType{mask_bits} & (MaskType{1} << element_index)) == MaskType{0}) {
-              continue;
+            continue;
           }
         }
         result = std::get<0>(Intrinsic(arg1, arg2.Get<ElementType>(element_index)));
@@ -3102,32 +3100,32 @@ class Interpreter {
 };
 
 template <>
-[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kFCsr>() const {
+[[nodiscard]] Interpreter::Register inline Interpreter::GetCsr<CsrName::kFCsr>() const {
   return FeGetExceptions() | (state_->cpu.frm << 5);
 }
 
 template <>
-[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kFFlags>() const {
+[[nodiscard]] Interpreter::Register inline Interpreter::GetCsr<CsrName::kFFlags>() const {
   return FeGetExceptions();
 }
 
 template <>
-[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kVlenb>() const {
+[[nodiscard]] Interpreter::Register inline Interpreter::GetCsr<CsrName::kVlenb>() const {
   return 16;
 }
 
 template <>
-[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kVxrm>() const {
+[[nodiscard]] Interpreter::Register inline Interpreter::GetCsr<CsrName::kVxrm>() const {
   return state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b11;
 }
 
 template <>
-[[nodiscard]] Interpreter::Register Interpreter::GetCsr<CsrName::kVxsat>() const {
+[[nodiscard]] Interpreter::Register inline Interpreter::GetCsr<CsrName::kVxsat>() const {
   return state_->cpu.*CsrFieldAddr<CsrName::kVcsr> >> 2;
 }
 
 template <>
-void Interpreter::SetCsr<CsrName::kFCsr>(Register arg) {
+void inline Interpreter::SetCsr<CsrName::kFCsr>(Register arg) {
   CHECK(!exception_raised_);
   FeSetExceptions(arg & 0b1'1111);
   arg = (arg >> 5) & kCsrMask<CsrName::kFrm>;
@@ -3136,13 +3134,13 @@ void Interpreter::SetCsr<CsrName::kFCsr>(Register arg) {
 }
 
 template <>
-void Interpreter::SetCsr<CsrName::kFFlags>(Register arg) {
+void inline Interpreter::SetCsr<CsrName::kFFlags>(Register arg) {
   CHECK(!exception_raised_);
   FeSetExceptions(arg & 0b1'1111);
 }
 
 template <>
-void Interpreter::SetCsr<CsrName::kFrm>(Register arg) {
+void inline Interpreter::SetCsr<CsrName::kFrm>(Register arg) {
   CHECK(!exception_raised_);
   arg &= kCsrMask<CsrName::kFrm>;
   state_->cpu.frm = arg;
@@ -3150,34 +3148,36 @@ void Interpreter::SetCsr<CsrName::kFrm>(Register arg) {
 }
 
 template <>
-void Interpreter::SetCsr<CsrName::kVxrm>(Register arg) {
+void inline Interpreter::SetCsr<CsrName::kVxrm>(Register arg) {
   CHECK(!exception_raised_);
   state_->cpu.*CsrFieldAddr<CsrName::kVcsr> =
       (state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b100) | (arg & 0b11);
 }
 
 template <>
-void Interpreter::SetCsr<CsrName::kVxsat>(Register arg) {
+void inline Interpreter::SetCsr<CsrName::kVxsat>(Register arg) {
   CHECK(!exception_raised_);
   state_->cpu.*CsrFieldAddr<CsrName::kVcsr> =
       (state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b11) | ((arg & 0b1) << 2);
 }
 
 template <>
-Interpreter::FpRegister Interpreter::GetFRegAndUnboxNan<Interpreter::Float32>(uint8_t reg) {
+[[nodiscard]] Interpreter::FpRegister inline Interpreter::GetFRegAndUnboxNan<Interpreter::Float32>(
+    uint8_t reg) {
   CheckFpRegIsValid(reg);
   FpRegister value = state_->cpu.f[reg];
   return UnboxNan<Float32>(value);
 }
 
 template <>
-Interpreter::FpRegister Interpreter::GetFRegAndUnboxNan<Interpreter::Float64>(uint8_t reg) {
+[[nodiscard]] Interpreter::FpRegister inline Interpreter::GetFRegAndUnboxNan<Interpreter::Float64>(
+    uint8_t reg) {
   CheckFpRegIsValid(reg);
   return state_->cpu.f[reg];
 }
 
 template <>
-void Interpreter::NanBoxAndSetFpReg<Interpreter::Float32>(uint8_t reg, FpRegister value) {
+void inline Interpreter::NanBoxAndSetFpReg<Interpreter::Float32>(uint8_t reg, FpRegister value) {
   if (exception_raised_) {
     // Do not produce side effects.
     return;
@@ -3187,7 +3187,7 @@ void Interpreter::NanBoxAndSetFpReg<Interpreter::Float32>(uint8_t reg, FpRegiste
 }
 
 template <>
-void Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, FpRegister value) {
+void inline Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, FpRegister value) {
   if (exception_raised_) {
     // Do not produce side effects.
     return;
@@ -3196,20 +3196,33 @@ void Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, FpRegiste
   state_->cpu.f[reg] = value;
 }
 
-}  // namespace
-
-void InitInterpreter() {
-  AddFaultyMemoryAccessRecoveryCode();
-}
-
-void InterpretInsn(ThreadState* state) {
-  GuestAddr pc = state->cpu.insn_addr;
-
-  Interpreter interpreter(state);
-  SemanticsPlayer sem_player(&interpreter);
-  Decoder decoder(&sem_player);
-  uint8_t insn_len = decoder.Decode(ToHostAddr<const uint16_t>(pc));
-  interpreter.FinalizeInsn(insn_len);
-}
+#ifdef BERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadIndexedArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadStrideArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadUnitStrideArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpFVfArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpFVvArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIViArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIVvArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIVxArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVvArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVxArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreIndexedArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreStrideArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreUnitStrideArgs& args);
+#endif
 
 }  // namespace berberis
