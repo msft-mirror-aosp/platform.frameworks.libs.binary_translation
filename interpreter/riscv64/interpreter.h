@@ -599,9 +599,10 @@ class Interpreter {
 
   template <typename ElementType, typename VOpArgs, typename... ExtraArgs>
   void OpVector(const VOpArgs& args, Register vtype, ExtraArgs... extra_args) {
-    int vemul = Decoder::SignExtend<3>(vtype & 0b111);
+    auto vemul = Decoder::SignExtend<3>(vtype & 0b111);
     vemul -= ((vtype >> 3) & 0b111);        // Divide by SEW.
-    vemul += static_cast<int>(args.width);  // Multiply by EEW.
+    vemul +=
+        static_cast<std::underlying_type_t<decltype(args.width)>>(args.width);  // Multiply by EEW.
     if (vemul < -3 || vemul > 3) [[unlikely]] {
       return Unimplemented();
     }
@@ -734,7 +735,7 @@ class Interpreter {
   }
 
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             VectorRegisterGroupMultiplier vlmul,
             auto vma,
             typename VOpArgs,
@@ -771,7 +772,7 @@ class Interpreter {
     }
   }
 
-  template <int kSegmentSize,
+  template <size_t kSegmentSize,
             typename IndexElementType,
             size_t kIndexRegistersInvolved,
             TailProcessing vta,
@@ -799,7 +800,7 @@ class Interpreter {
   }
 
   template <typename DataElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             typename IndexElementType,
             size_t kIndexRegistersInvolved,
             TailProcessing vta,
@@ -872,7 +873,7 @@ class Interpreter {
   template <typename DataElementType,
             VectorRegisterGroupMultiplier vlmul,
             typename IndexElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             size_t kIndexRegistersInvolved,
             TailProcessing vta,
             auto vma>
@@ -887,7 +888,7 @@ class Interpreter {
   }
 
   template <typename DataElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             size_t kNumRegistersInGroup,
             typename IndexElementType,
             size_t kIndexRegistersInvolved,
@@ -897,7 +898,7 @@ class Interpreter {
     if (!IsAligned<kIndexRegistersInvolved>(args.idx)) {
       return Unimplemented();
     }
-    constexpr int kElementsCount =
+    constexpr size_t kElementsCount =
         static_cast<int>(sizeof(SIMD128Register) / sizeof(IndexElementType));
     alignas(alignof(SIMD128Register))
         IndexElementType indexes[kElementsCount * kIndexRegistersInvolved];
@@ -907,7 +908,7 @@ class Interpreter {
   }
 
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
@@ -917,7 +918,7 @@ class Interpreter {
   }
 
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             size_t kNumRegistersInGroup,
             TailProcessing vta,
             auto vma>
@@ -927,7 +928,7 @@ class Interpreter {
   }
 
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
@@ -937,7 +938,7 @@ class Interpreter {
   }
 
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             size_t kNumRegistersInGroup,
             TailProcessing vta,
             auto vma>
@@ -1003,7 +1004,7 @@ class Interpreter {
   // Now we have loaded a column from memory and all three colors are put into a different register
   // groups for further processing.
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             size_t kNumRegistersInGroup,
             TailProcessing vta,
             auto vma,
@@ -1017,7 +1018,7 @@ class Interpreter {
     if (dst + kNumRegistersInGroup * kSegmentSize >= 32) {
       return Unimplemented();
     }
-    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     if constexpr (opcode == Decoder::VLUmOpOpcode::kVlm) {
@@ -1061,7 +1062,7 @@ class Interpreter {
           !(std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing> ||
             static_cast<InactiveProcessing>(vma) != InactiveProcessing::kUndisturbed ||
             register_mask == full_mask)) {
-        for (int field = 0; field < kSegmentSize; ++field) {
+        for (size_t field = 0; field < kSegmentSize; ++field) {
           result[field].Set(state_->cpu.v[dst + within_group_id + field * kNumRegistersInGroup]);
         }
       }
@@ -1081,7 +1082,7 @@ class Interpreter {
           }
         }
         // Load segment from memory.
-        for (int field = 0; field < kSegmentSize; ++field) {
+        for (size_t field = 0; field < kSegmentSize; ++field) {
           FaultyLoadResult mem_access_result =
               FaultyLoad(ptr + field * sizeof(ElementType) + GetElementOffset(element_index),
                          sizeof(ElementType));
@@ -1124,7 +1125,7 @@ class Interpreter {
         if (register_mask != full_mask) {
           auto [simd_mask] =
               intrinsics::BitMaskToSimdMaskForTests<ElementType>(Int64{MaskType{register_mask}});
-          for (int field = 0; field < kSegmentSize; ++field) {
+          for (size_t field = 0; field < kSegmentSize; ++field) {
             if constexpr (vma == InactiveProcessing::kAgnostic) {
               // vstart equal to zero is supposed to be exceptional. From RISV-V V manual (page 14):
               // The vstart CSR is writable by unprivileged code, but non-zero vstart values may
@@ -1159,14 +1160,14 @@ class Interpreter {
       }
       // If we have tail elements and TailProcessing::kAgnostic mode then set them to ~0.
       if constexpr (vta == TailProcessing::kAgnostic) {
-        for (int field = 0; field < kSegmentSize; ++field) {
+        for (size_t field = 0; field < kSegmentSize; ++field) {
           if (vl < (within_group_id + 1) * kElementsCount) {
             result[field] |= GetTailMask();
           }
         }
       }
       // Put values back into register file.
-      for (int field = 0; field < kSegmentSize; ++field) {
+      for (size_t field = 0; field < kSegmentSize; ++field) {
         state_->cpu.v[dst + within_group_id + field * kNumRegistersInGroup] =
             result[field].template Get<__uint128_t>();
       }
@@ -1815,7 +1816,7 @@ class Interpreter {
   template <typename DataElementType,
             VectorRegisterGroupMultiplier vlmul,
             typename IndexElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             size_t kIndexRegistersInvolved,
             TailProcessing vta,
             auto vma>
@@ -1829,7 +1830,7 @@ class Interpreter {
   }
 
   template <typename DataElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             size_t kNumRegistersInGroup,
             typename IndexElementType,
             size_t kIndexRegistersInvolved,
@@ -1838,7 +1839,7 @@ class Interpreter {
     if (!IsAligned<kIndexRegistersInvolved>(args.idx)) {
       return Unimplemented();
     }
-    constexpr int kElementsCount =
+    constexpr size_t kElementsCount =
         static_cast<int>(sizeof(SIMD128Register) / sizeof(IndexElementType));
     alignas(alignof(SIMD128Register))
         IndexElementType indexes[kElementsCount * kIndexRegistersInvolved];
@@ -1848,7 +1849,7 @@ class Interpreter {
   }
 
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
@@ -1861,7 +1862,7 @@ class Interpreter {
   }
 
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma>
@@ -1894,7 +1895,7 @@ class Interpreter {
   // Look for VLoadStrideArgs for explanation about semantics: VStoreStrideArgs is almost symmetric,
   // except it ignores vta and vma modes and never alters inactive elements in memory.
   template <typename ElementType,
-            int kSegmentSize,
+            size_t kSegmentSize,
             size_t kNumRegistersInGroup,
             bool kUseMasking,
             typename Decoder::VSUmOpOpcode opcode = typename Decoder::VSUmOpOpcode{},
@@ -1907,7 +1908,7 @@ class Interpreter {
     if (data + kNumRegistersInGroup * kSegmentSize > 32) {
       return Unimplemented();
     }
-    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     if constexpr (opcode == Decoder::VSUmOpOpcode::kVsm) {
@@ -1954,7 +1955,7 @@ class Interpreter {
           }
         }
         // Store segment to memory.
-        for (int field = 0; field < kSegmentSize; ++field) {
+        for (size_t field = 0; field < kSegmentSize; ++field) {
           bool exception_raised = FaultyStore(
               ptr + field * sizeof(ElementType) + GetElementOffset(element_index),
               sizeof(ElementType),
@@ -2135,13 +2136,13 @@ class Interpreter {
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     if (vstart == 0) [[likely]] {
-      for (int index = 0; index <= nf; ++index) {
+      for (size_t index = 0; index <= nf; ++index) {
         state_->cpu.v[dst + index] = state_->cpu.v[src + index];
       }
       return;
     }
-    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
-    for (int index = 0; index <= nf; ++index) {
+    constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    for (size_t index = 0; index <= nf; ++index) {
       if (vstart >= kElementsCount) {
         vstart -= kElementsCount;
         continue;
@@ -2151,7 +2152,7 @@ class Interpreter {
       } else {
         SIMD128Register destination{state_->cpu.v[dst + index]};
         SIMD128Register source{state_->cpu.v[src + index]};
-        for (int element_index = vstart; element_index < kElementsCount; ++element_index) {
+        for (size_t element_index = vstart; element_index < kElementsCount; ++element_index) {
           destination.Set(source.Get<ElementType>(element_index), element_index);
         }
         state_->cpu.v[dst + index] = destination.Get<__uint128_t>();
@@ -2473,7 +2474,7 @@ class Interpreter {
 
   template <auto Intrinsic,
             typename ElementType,
-            int kDestRegistersInvolved,
+            size_t kDestRegistersInvolved,
             size_t kRegistersInvolved,
             TailProcessing vta,
             auto vma>
@@ -2565,8 +2566,8 @@ class Interpreter {
 
   template <auto Intrinsic,
             typename ElementType,
-            int kDestRegistersInvolved,
-            int kSrcRegistersInvolved,
+            size_t kDestRegistersInvolved,
+            size_t kSrcRegistersInvolved,
             TailProcessing vta,
             auto vma>
   void OpVectorNarrowwx(uint8_t dst, uint8_t src1, ElementType arg2) {
@@ -2586,7 +2587,7 @@ class Interpreter {
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
-    for (int index = 0; index < kDestRegistersInvolved; index++) {
+    for (size_t index = 0; index < kDestRegistersInvolved; index++) {
       SIMD128Register orig_result(state_->cpu.v[dst + index]);
       SIMD128Register arg1_low(state_->cpu.v[src1 + 2 * index]);
       SIMD128Register intrinsic_result = std::get<0>(Intrinsic(arg1_low, arg2));
@@ -2623,7 +2624,7 @@ class Interpreter {
   template <auto Intrinsic,
             typename ElementType,
             size_t kRegistersInvolved,
-            int kFirstSrcRegistersInvolved,
+            size_t kFirstSrcRegistersInvolved,
             TailProcessing vta,
             auto vma>
   void OpVectorNarrowwv(uint8_t dst, uint8_t src1, uint8_t src2) {
