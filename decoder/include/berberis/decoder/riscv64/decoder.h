@@ -345,7 +345,7 @@ class Decoder {
     kVsadduvi = 0b100000,
     kVsaddvi = 0b100001,
     kVsllvi = 0b100101,
-    kVmvvi = 0b100111,
+    kVmvXrv = 0b100111,
     kVsrlvi = 0b101000,
     kVsravi = 0b101001,
     kVssrlvi = 0b101010,
