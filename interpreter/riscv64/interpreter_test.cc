@@ -805,7 +805,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     //   https://github.com/riscv/riscv-v-spec/pull/872
     state_.cpu.vtype = BitUtilLog2(sizeof(ElementType)) << 3;
     state_.cpu.vl = 0;
-    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
     for (int vstart = 0; vstart <= kElementsCount * kNFfields; ++vstart) {
       state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       state_.cpu.vstart = vstart;
@@ -817,7 +817,9 @@ class Riscv64InterpreterTest : public ::testing::Test {
       for (int index = 0; index < 8; ++index) {
         SIMD128Register expected_state{kVectorComparisonSource[index]};
         SIMD128Register source_value{kVectorComparisonSource[index + 8]};
-        if (index < kNFfields) {
+        if ((vstart < kElementsCount * kNFfields) && index < kNFfields) {
+          // The usual property that no elements are written if vstart >= vl does not apply to these
+          // instructions. Instead, no elements are written if vstart >= evl.
           for (int element_index = 0; element_index < kElementsCount; ++element_index) {
             if (element_index + index * kElementsCount >= vstart) {
               expected_state.Set(source_value.Get<ElementType>(element_index), element_index);
