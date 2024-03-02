@@ -234,7 +234,7 @@ class Decoder {
     kEbreak = 0b000000000001'00000'000'00000,
   };
 
-  enum class VLoadUnitStrideOpcode : uint8_t {
+  enum class VLUmOpOpcode : uint8_t {
     kVleXX = 0b00000,
     kVlXreXX = 0b01000,
     kVleXXff = 0b10000,
@@ -295,8 +295,8 @@ class Decoder {
     kVfsgnjnvv = 0b001001,
     kVfsgnjxvv = 0b001010,
     kVfmvfs = 0b010000,
-    kVfcvtXX = 0b010010,
-    kVXXXv = 0b010011,  // Vfsqrt.v/Vfrsqrt7.v/Vfrec7.v/Vfclass.v
+    kVFUnary0 = 0b010010,
+    kVFUnary1 = 0b010011,
     kVmfeqvv = 0b011000,
     kVmflevv = 0b011001,
     kVmfltvv = 0b011011,
@@ -414,9 +414,9 @@ class Decoder {
     kVmnandmm = 0b011101,
     kVmnormm = 0b011110,
     kVmxnormm = 0b011111,
-    kVXmXXs = 0b010000,
-    kVmsXf = 0b010100,
-    kVxunary0 = 0b010010,
+    kVWXUnary0 = 0b010000,
+    kVMUnary0 = 0b010100,
+    kVFUnary0 = 0b010010,
     kVmulhuvv = 0b100100,
     kVmulvv = 0b100101,
     kVmulhsuvv = 0b100110,
@@ -475,7 +475,7 @@ class Decoder {
   };
 
   enum class VOpMVxOpcode : uint8_t {
-    kVXmXXx = 0b010000,
+    kVRXUnary0 = 0b010000,
     kVmulhuvx = 0b100100,
     kVmulvx = 0b100101,
     kVmulhsuvx = 0b100110,
@@ -486,30 +486,54 @@ class Decoder {
     kVnmsacvx = 0b101111,
   };
 
-  enum class VStoreUnitStrideOpcode : uint8_t {
+  enum class VSUmOpOpcode : uint8_t {
     kVseXX = 0b00000,
     kVsX = 0b01000,
     kVsm = 0b01011,
   };
 
-  enum class VXmXXxOpcode : uint8_t {
+  enum class VFUnary0Opcode : uint8_t {
+    kVfcvtxufv = 0b00000,
+    kVfcvtxfv = 0b00001,
+    kVfcvtfxuv = 0b00010,
+    kVfcvtfxv = 0b00011,
+    kVfcvtrtzxufv = 0b00110,
+    kVfcvtrtzxfv = 0b00111,
+    kVfwcvtxufv = 0b01000,
+    kVfwcvtxfv = 0b01001,
+    kVfwcvtfxuv = 0b01010,
+    kVfwcvtfxv = 0b01011,
+    kVfwcvtffv = 0b01100,
+    kVfwcvtrtzxufv = 0b01110,
+    kVfwcvtrtzxfv = 0b01111,
+    kVfncvtxufw = 0b10000,
+    kVfncvtxfw = 0b10001,
+    kVfncvtfxuw = 0b10010,
+    kVfncvtfxw = 0b10011,
+    kVfncvtffw = 0b10100,
+    kVfncvtrodffw = 0b10101,
+    kVfncvtrtzxufw = 0b10110,
+    kVfncvtrtzxfw = 0b10111,
+  };
+
+  enum class VRXUnary0Opcode : uint8_t {
     kVmvsx = 0b00000,
   };
 
-  enum class VXmXXsOpcode : uint8_t {
+  enum class VWXUnary0Opcode : uint8_t {
     kVmvxs = 0b00000,
     kVcpopm = 0b10000,
     kVfirstm = 0b10001,
   };
 
-  enum class VmsXfOpcode : uint8_t {
+  enum class VMUnary0Opcode : uint8_t {
     kVmsbfm = 0b00001,
     kVmsofm = 0b00010,
     kVmsifm = 0b00011,
     kVidv = 0b10001,
   };
 
-  enum class Vxunary0Opcode : uint8_t {
+  enum class VXUnary0Opcode : uint8_t {
     kVzextvf8m = 0b00010,
     kVsextvf8m = 0b00011,
     kVzextvf4m = 0b00100,
@@ -774,7 +798,7 @@ class Decoder {
   };
 
   struct VLoadUnitStrideArgs {
-    VLoadUnitStrideOpcode opcode;
+    VLUmOpOpcode opcode;
     MemoryDataOperandType width;
     bool vm;
     uint8_t nf;
@@ -795,7 +819,10 @@ class Decoder {
     bool vm;
     uint8_t dst;
     uint8_t src1;
-    uint8_t src2;
+    union {
+      VFUnary0Opcode vfunary0_opcode;
+      uint8_t src2;
+    };
   };
 
   struct VOpIViArgs {
@@ -820,9 +847,9 @@ class Decoder {
     uint8_t dst;
     uint8_t src1;
     union {
-      VXmXXsOpcode vXmXXs_opcode;
-      VmsXfOpcode vmsXf_opcode;
-      Vxunary0Opcode vxunary0_opcode;
+      VWXUnary0Opcode vwxunary0_opcode;
+      VMUnary0Opcode vmunary0_opcode;
+      VXUnary0Opcode vxunary0_opcode;
       uint8_t src2;
     };
   };
@@ -840,7 +867,7 @@ class Decoder {
     bool vm;
     uint8_t dst;
     union {
-      VXmXXxOpcode vXmXXx_opcode;
+      VRXUnary0Opcode vrxunary0_opcode;
       uint8_t src1;
     };
     uint8_t src2;
@@ -885,7 +912,7 @@ class Decoder {
   };
 
   struct VStoreUnitStrideArgs {
-    VStoreUnitStrideOpcode opcode;
+    VSUmOpOpcode opcode;
     MemoryDataOperandType width;
     bool vm;
     uint8_t nf;
@@ -1637,7 +1664,7 @@ class Decoder {
         switch (GetBits<26, 2>()) {
           case 0b00: {
             const VLoadUnitStrideArgs args = {
-                .opcode = VLoadUnitStrideOpcode{GetBits<20, 5>()},
+                .opcode = VLUmOpOpcode{GetBits<20, 5>()},
                 .width = decoded_operand_type.eew,
                 .vm = GetBits<25, 1>(),
                 .nf = GetBits<29, 3>(),
@@ -1701,7 +1728,7 @@ class Decoder {
         switch (GetBits<26, 2>()) {
           case 0b00: {
             const VStoreUnitStrideArgs args = {
-                .opcode = VStoreUnitStrideOpcode{GetBits<20, 5>()},
+                .opcode = VSUmOpOpcode{GetBits<20, 5>()},
                 .width = decoded_operand_type.eew,
                 .vm = GetBits<25, 1>(),
                 .nf = GetBits<29, 3>(),
