@@ -16,6 +16,8 @@
 
 #include "berberis/base/bit_util.h"
 
+#include <tuple>
+
 namespace berberis {
 
 namespace {
@@ -69,18 +71,34 @@ static_assert(Popcount(SatInt128{~Int128{1}}) == SatInt128{127});
 static_assert(Popcount(~Int128{1}) == Int128{127});
 #endif
 
+static_assert(Add(SatInt8{126}, SatInt8{1}) == std::tuple{SatInt8{127}, false});
+static_assert(Add(SatInt8{127}, SatInt8{1}) == std::tuple{SatInt8{127}, true});
 static_assert(SatInt8{127} + SatInt8{1} == SatInt8{127});
 static_assert(Int8{127} + Int8{1} == Int8{-128});
 
+static_assert(Add(SatUInt8{254}, SatUInt8{1}) == std::tuple{SatUInt8{255}, false});
+static_assert(Add(SatUInt8{255}, SatUInt8{1}) == std::tuple{SatUInt8{255}, true});
 static_assert(SatUInt8{255} + SatUInt8{1} == SatUInt8{255});
 static_assert(UInt8{255} + UInt8{1} == UInt8{0});
 
+static_assert(Sub(SatInt8{-127}, SatInt8{1}) == std::tuple{SatInt8{-128}, false});
+static_assert(Sub(SatInt8{-128}, SatInt8{1}) == std::tuple{SatInt8{-128}, true});
 static_assert(SatInt8{-128} - SatInt8{1} == SatInt8{-128});
 static_assert(Int8{-128} - Int8{1} == Int8{127});
 
+static_assert(Sub(SatUInt8{1}, SatUInt8{1}) == std::tuple{SatUInt8{0}, false});
+static_assert(Sub(SatUInt8{0}, SatUInt8{1}) == std::tuple{SatUInt8{0}, true});
 static_assert(SatUInt8{0} - SatUInt8{1} == SatUInt8{0});
 static_assert(UInt8{0} - UInt8{1} == UInt8{255});
 
+static_assert(Mul(SatInt8{127}, SatInt8{1}) == std::tuple{SatInt8{127}, false});
+static_assert(Mul(SatInt8{-128}, SatInt8{1}) == std::tuple{SatInt8{-128}, false});
+static_assert(Mul(SatInt8{1}, SatInt8{-128}) == std::tuple{SatInt8{-128}, false});
+static_assert(Mul(SatInt8{1}, SatInt8{127}) == std::tuple{SatInt8{127}, false});
+static_assert(Mul(SatInt8{-128}, SatInt8{-128}) == std::tuple{SatInt8{127}, true});
+static_assert(Mul(SatInt8{-128}, SatInt8{127}) == std::tuple{SatInt8{-128}, true});
+static_assert(Mul(SatInt8{127}, SatInt8{-128}) == std::tuple{SatInt8{-128}, true});
+static_assert(Mul(SatInt8{127}, SatInt8{127}) == std::tuple{SatInt8{127}, true});
 static_assert(SatInt8{-128} * SatInt8{-128} == SatInt8{127});
 static_assert(SatInt8{-128} * SatInt8{127} == SatInt8{-128});
 static_assert(SatInt8{127} * SatInt8{-128} == SatInt8{-128});
@@ -90,12 +108,18 @@ static_assert(Int8{-128} * Int8{127} == Int8{-128});
 static_assert(Int8{127} * Int8{-128} == Int8{-128});
 static_assert(Int8{127} * Int8{127} == Int8{1});
 
+static_assert(Mul(SatUInt8{255}, SatUInt8{1}) == std::tuple{SatUInt8{255}, false});
+static_assert(Mul(SatUInt8{255}, SatUInt8{255}) == std::tuple{SatUInt8{255}, true});
 static_assert(SatUInt8{255} * SatUInt8{255} == SatUInt8{255});
 static_assert(UInt8{255} * UInt8{255} == UInt8{1});
 
+static_assert(Div(SatInt8{127}, SatInt8{1}) == std::tuple{SatInt8{127}, false});
+static_assert(Div(SatInt8{-128}, SatInt8{-1}) == std::tuple{SatInt8{127}, true});
 static_assert(SatInt8{-128} / SatInt8{-1} == SatInt8{127});
 static_assert(Int8{-128} / Int8{-1} == Int8{-128});
 
+// Note: division couldn't overflow with SatUInt8 (but could with SatUnt8, see above).
+static_assert(Div(SatUInt8{255}, SatUInt8{1}) == std::tuple{SatUInt8{255}, false});
 static_assert(SatUInt8{255} / SatUInt8{1} == SatUInt8{255});
 static_assert(UInt8{255} / UInt8{1} == UInt8{255});
 
