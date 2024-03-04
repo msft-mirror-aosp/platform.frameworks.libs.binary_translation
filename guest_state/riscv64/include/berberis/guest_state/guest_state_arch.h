@@ -27,10 +27,9 @@
 #include "berberis/base/macros.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
+#include "native_bridge_support/riscv64/guest_state/guest_state_cpu_state.h"
 
 namespace berberis {
-
-using Reservation = uint64_t;
 
 enum class CsrName {
   kFFlags = 0b00'00'0000'0001,
@@ -68,48 +67,6 @@ enum class CsrName {
   BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(FCsr), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(FFlags),    \
       BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxsat), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxrm), \
       BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vlenb)
-
-struct CPUState {
-  // x0 to x31.
-  uint64_t x[32];
-  // f0 to f31. We are using uint64_t because C++ may change values of NaN when they are passed from
-  // or to function and RISC-V uses NaN-boxing which would make things problematic.
-  uint64_t f[32];
-  // v0 to v32. We only support 128bit vectors for now.
-  alignas(16) __uint128_t v[32];
-
-  GuestAddr insn_addr;
-
-  GuestAddr reservation_address;
-  Reservation reservation_value;
-
-  // Technically only 9 bits are defined: sign bit and 8 low bits.
-  // But for performance reason it's easier to keep full 64bits in this variable.
-  uint64_t vtype;
-  // This register usually contains zero and each vector instruction would reset it to zero.
-  // But it's allowed to change it and if that happens we are supposed to support it.
-  uint8_t vstart;
-  // This register is usually set to process full 128 bits set of SIMD data.
-  // But it's allowed to change it and if that happens we are supposed to support it.
-  uint8_t vl;
-  // Only 3 bits are defined but we allocate full byte to simplify implementation.
-  uint8_t vcsr;
-  // RISC-V has five rounding modes, while x86-64 has only four.
-  //
-  // Extra rounding mode (RMM in RISC-V documentation) is emulated but requires the use of
-  // FE_TOWARDZERO mode for correct work.
-  //
-  // Additionally RISC-V implementation is supposed to support three “illegal” rounding modes and
-  // when they are selected all instructions which use rounding mode trigger “undefined instruction”
-  // exception.
-  //
-  // For simplicity we always keep full rounding mode (3 bits) in the frm field and set host
-  // rounding mode to appropriate one.
-  //
-  // Exceptions, on the other hand, couldn't be stored here efficiently, instead we rely on the fact
-  // that x86-64 implements all five exceptions that RISC-V needs (and more).
-  uint8_t frm;
-};
 
 static_assert(std::is_standard_layout_v<CPUState>);
 

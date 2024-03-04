@@ -271,6 +271,9 @@ class WrappedFloatType;
 
 }  // namespace intrinsics
 
+template <typename T>
+struct TypeTraits;
+
 // Raw integers.  Used to carry payload, which may be be EXPLICITLY converted to Saturating
 // integer, Wrapping integer, or WrappedFloatType.
 //
@@ -697,6 +700,12 @@ using UInt128 = Wrapping<unsigned __int128>;
 #endif
 
 template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToSigned(Raw<IntType> src) ->
+    typename Wrapping<IntType>::SignedType {
+  return {static_cast<std::make_signed_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
 [[nodiscard]] auto constexpr BitCastToSigned(Saturating<IntType> src) ->
     typename Saturating<IntType>::SignedType {
   return {static_cast<std::make_signed_t<IntType>>(src.value)};
@@ -712,6 +721,12 @@ template <typename T>
 using SignedType = decltype(BitCastToSigned(std::declval<T>()));
 
 template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToUnsigned(Raw<IntType> src) ->
+    typename Wrapping<IntType>::UnsignedType {
+  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
 [[nodiscard]] auto constexpr BitCastToUnsigned(Saturating<IntType> src) ->
     typename Saturating<IntType>::UnsignedType {
   return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
@@ -725,6 +740,86 @@ template <typename IntType>
 
 template <typename T>
 using UnsignedType = decltype(BitCastToUnsigned(std::declval<T>()));
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToSaturating(Saturating<IntType> src) -> Saturating<IntType> {
+  return src;
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToSaturating(Wrapping<IntType> src) -> Saturating<IntType> {
+  return {src.value};
+}
+
+template <typename T>
+using SaturatingType = decltype(BitCastToSaturating(std::declval<T>()));
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToWrapping(Saturating<IntType> src) -> Wrapping<IntType> {
+  return {src.value};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToWrapping(Wrapping<IntType> src) -> Wrapping<IntType> {
+  return src;
+}
+
+template <typename T>
+using WrappingType = decltype(BitCastToWrapping(std::declval<T>()));
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToRaw(Raw<IntType> src) -> Raw<IntType> {
+  return src;
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToRaw(Saturating<IntType> src)
+    -> Raw<std::make_unsigned_t<IntType>> {
+  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToRaw(Wrapping<IntType> src)
+    -> Raw<std::make_unsigned_t<IntType>> {
+  return {static_cast<std::make_unsigned_t<IntType>>(src.value)};
+}
+
+template <typename BaseType>
+[[nodiscard]] constexpr auto BitCastToRaw(intrinsics::WrappedFloatType<BaseType> src)
+    -> Raw<std::make_unsigned_t<typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Int>> {
+  return {bit_cast<
+      std::make_unsigned_t<typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Int>>(src)};
+}
+
+template <typename T>
+using RawType = decltype(BitCastToRaw(std::declval<T>()));
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToFloat(Raw<IntType> src) ->
+    typename TypeTraits<IntType>::Float {
+  return bit_cast<typename TypeTraits<IntType>::Float>(src.value);
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToFloat(Saturating<IntType> src) ->
+    typename TypeTraits<IntType>::Float {
+  return bit_cast<typename TypeTraits<IntType>::Float>(src.value);
+}
+
+template <typename IntType>
+[[nodiscard]] auto constexpr BitCastToFloat(Wrapping<IntType> src) ->
+    typename TypeTraits<IntType>::Float {
+  return bit_cast<typename TypeTraits<IntType>::Float>(src.value);
+}
+
+template <typename BaseType>
+[[nodiscard]] constexpr auto BitCastToFloat(intrinsics::WrappedFloatType<BaseType> src)
+    -> intrinsics::WrappedFloatType<BaseType> {
+  return src;
+}
+
+template <typename T>
+using FloatType = decltype(BitCastToFloat(std::declval<T>()));
 
 template <typename ResultType, typename IntType>
 [[nodiscard]] auto constexpr MaybeTruncateTo(IntType src)
@@ -774,9 +869,6 @@ template <typename ResultType, typename IntType>
   return ResultType{static_cast<ResultType::BaseType>(src.value)};
 }
 
-template <typename T>
-struct TypeTraits;
-
 template <typename BaseType>
 [[nodiscard]] constexpr auto Widen(Saturating<BaseType> source)
     -> Saturating<typename TypeTraits<BaseType>::Wide> {
@@ -786,6 +878,12 @@ template <typename BaseType>
 template <typename BaseType>
 [[nodiscard]] constexpr auto Widen(Wrapping<BaseType> source)
     -> Wrapping<typename TypeTraits<BaseType>::Wide> {
+  return {source.value};
+}
+
+template <typename BaseType>
+[[nodiscard]] constexpr auto Widen(intrinsics::WrappedFloatType<BaseType> source)
+    -> Wrapping<typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Wide> {
   return {source.value};
 }
 
@@ -810,6 +908,12 @@ template <typename BaseType>
 [[nodiscard]] constexpr auto Narrow(Wrapping<BaseType> source)
     -> Wrapping<typename TypeTraits<BaseType>::Narrow> {
   return {static_cast<typename TypeTraits<BaseType>::Narrow>(source.value)};
+}
+
+template <typename BaseType>
+[[nodiscard]] constexpr auto Narrow(intrinsics::WrappedFloatType<BaseType> source)
+    -> Wrapping<typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Narrow> {
+  return {source.value};
 }
 
 template <typename T>

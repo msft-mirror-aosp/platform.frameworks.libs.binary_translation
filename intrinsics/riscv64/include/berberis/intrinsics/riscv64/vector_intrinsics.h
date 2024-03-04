@@ -481,6 +481,32 @@ inline std::tuple<SIMD128Register> Vmsofm(SIMD128Register simd_src) {
   return {std::get<0>(Vmsbfm(simd_src)) ^ std::get<0>(Vmsifm(simd_src))};
 }
 
+template <typename TargetElementType,
+          typename SourceElementType,
+          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register src) {
+  SIMD128Register result;
+  constexpr int kElementsCount =
+      std::min(static_cast<int>(sizeof(SIMD128Register) / sizeof(TargetElementType)),
+               static_cast<int>(sizeof(SIMD128Register) / sizeof(SourceElementType)));
+  for (int index = 0; index < kElementsCount; ++index) {
+    if constexpr (std::is_integral_v<TargetElementType>) {
+      result.Set(std::get<0>(FCvtFloatToInteger<TargetElementType, SourceElementType>(
+                     rm, frm, src.Get<SourceElementType>(index))),
+                 index);
+    } else if constexpr (std::is_integral_v<SourceElementType>) {
+      result.Set(std::get<0>(FCvtIntegerToFloat<TargetElementType, SourceElementType>(
+                     rm, frm, src.Get<SourceElementType>(index))),
+                 index);
+    } else {
+      result.Set(std::get<0>(FCvtFloatToFloat<TargetElementType, SourceElementType>(
+                     rm, frm, src.Get<SourceElementType>(index))),
+                 index);
+    }
+  }
+  return result;
+}
+
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
 #define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, arguments)                      \
                                                                                                   \
@@ -609,10 +635,12 @@ DEFINE_3OP_ARITHMETIC_INTRINSIC_VV(nmsub, auto [arg1, arg2, arg3] = std::tuple{a
                                    (-(arg2 * arg3) + arg1))
 DEFINE_3OP_ARITHMETIC_INTRINSIC_VX(nmsub, auto [arg1, arg2, arg3] = std::tuple{args...};
                                    (-(arg2 * arg3) + arg1))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, (std::min(args...)))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, (std::min(args...)))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, (std::max(args...)))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(max, (std::max(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmin, std::get<0>(FMin(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmax, std::get<0>(FMax(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, std::min(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, std::min(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, std::max(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(max, std::max(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redsum, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redand, (args & ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redor, (args | ...))
