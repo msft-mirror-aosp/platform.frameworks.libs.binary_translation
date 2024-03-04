@@ -977,10 +977,25 @@ class Riscv64InterpreterTest : public ::testing::Test {
         expected_result_int64);
   }
 
+  void TestNarrowingVectorFloatInstruction(uint32_t insn_bytes,
+                                           const uint32_t (&expected_result_int32)[4][4],
+                                           const __v2du (&source)[16]) {
+    TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kNarrowing>(
+        insn_bytes, source, expected_result_int32);
+  }
+
+  void TestNarrowingVectorFloatInstruction(uint32_t insn_bytes,
+                                           const uint16_t (&expected_result_int16)[4][8],
+                                           const uint32_t (&expected_result_int32)[4][4],
+                                           const __v2du (&source)[16]) {
+    TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kNarrowing>(
+        insn_bytes, source, expected_result_int16, expected_result_int32);
+  }
+
   void TestNarrowingVectorInstruction(uint32_t insn_bytes,
-                                      const uint8_t (&expected_result_int8)[8][16],
-                                      const uint16_t (&expected_result_int16)[8][8],
-                                      const uint32_t (&expected_result_int32)[8][4],
+                                      const uint8_t (&expected_result_int8)[4][16],
+                                      const uint16_t (&expected_result_int16)[4][8],
+                                      const uint32_t (&expected_result_int32)[4][4],
                                       const __v2du (&source)[16]) {
     TestVectorInstruction<TestVectorInstructionKind::kInteger,
                           TestVectorInstructionMode::kNarrowing>(
@@ -1018,10 +1033,12 @@ class Riscv64InterpreterTest : public ::testing::Test {
   template <TestVectorInstructionKind kTestVectorInstructionKind,
             TestVectorInstructionMode kTestVectorInstructionMode,
             typename... ElementType,
+            size_t... kResultsCount,
             size_t... kElementCount>
-  void TestVectorInstruction(uint32_t insn_bytes,
-                             const __v2du (&source)[16],
-                             const ElementType (&... expected_result)[8][kElementCount]) {
+  void TestVectorInstruction(
+      uint32_t insn_bytes,
+      const __v2du (&source)[16],
+      const ElementType (&... expected_result)[kResultsCount][kElementCount]) {
     auto Verify = [this, &source](uint32_t insn_bytes,
                                   uint8_t vsew,
                                   uint8_t vlmul_max,
@@ -2115,6 +2132,68 @@ TEST_F(Riscv64InterpreterTest, TestVfcvtxfv) {
                                       {0x8000'0000'0000'0000, 0x8000'0000'0000'0000},
                                       {0x8000'0000'0000'0000, 0x8000'0000'0000'0000}},
                                      kVectorCalculationsSource);
+  TestNarrowingVectorFloatInstruction(
+      0x49881457,  // Vfncvt.xu.f.w v8, v24, v0.t
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0xffff, 0xffff, 0x6a21, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff}},
+      kVectorCalculationsSource);
+  TestNarrowingVectorFloatInstruction(
+      0x49889457,  // Vfncvt.x.f.w v8, v24, v0.t
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x8000, 0x8000, 0xcacf, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x7fff, 0x7fff, 0x6a21, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x7fff'ffff, 0x7fff'ffff, 0x7fff'ffff, 0x7fff'ffff}},
+      kVectorCalculationsSource);
+  TestNarrowingVectorFloatInstruction(0x498a1457,  // Vfncvt.f.f.w v8, v24, v0.t
+                                      {{0x8000'0000, 0x8000'0000, 0xb165'd14e, 0x8000'0000},
+                                       {0xff80'0000, 0xff80'0000, 0xff80'0000, 0xff80'0000},
+                                       {0x0000'0000, 0x0000'0000, 0x3561'd54a, 0x0000'0000},
+                                       {0x7f80'0000, 0x7f80'0000, 0x7f80'0000, 0x7f80'0000}},
+                                      kVectorCalculationsSource);
+  TestNarrowingVectorFloatInstruction(0x49891457,  // Vfncvt.f.xu.w v8, v24, v0.t
+                                      {{0x5f1e'0c9a, 0x5f0e'1c8a, 0x5f3e'2cba, 0x5f2e'3caa},
+                                       {0x5f5e'4cda, 0x5f4e'5cca, 0x5f7e'6cfa, 0x5f6e'7cea},
+                                       {0x5df4'60d4, 0x5d69'c0aa, 0x5e7a'b0eb, 0x5e3a'f0ab},
+                                       {0x5ebd'98b6, 0x5e9d'b896, 0x5efd'd8f6, 0x5edd'f8d6}},
+                                      kVectorCalculationsSource);
+  TestNarrowingVectorFloatInstruction(0x49899457,  // Vfncvt.f.x.w v8, v24, v0.t
+                                      {{0xdec3'e6cc, 0xdee3'c6ec, 0xde83'a68c, 0xdea3'86ac},
+                                       {0xde06'cc97, 0xde46'8cd7, 0xdbc9'82cb, 0xdd8c'18ac},
+                                       {0x5df4'60d4, 0x5d69'c0aa, 0x5e7a'b0eb, 0x5e3a'f0ab},
+                                       {0x5ebd'98b6, 0x5e9d'b896, 0x5efd'd8f6, 0x5edd'f8d6}},
+                                      kVectorCalculationsSource);
+  TestNarrowingVectorFloatInstruction(
+      0x498b1457,  // Vfncvt.rtz.xu.f.w v8, v24, v0.t
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0xffff, 0xffff, 0x6a21, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff}},
+      kVectorCalculationsSource);
+  TestNarrowingVectorFloatInstruction(
+      0x498b9457,  // Vfncvt.rtz.x.f.w v8, v24, v0.t
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x8000, 0x8000, 0xcad0, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x7fff, 0x7fff, 0x6a21, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x7fff'ffff, 0x7fff'ffff, 0x7fff'ffff, 0x7fff'ffff}},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVfmvfs) {
