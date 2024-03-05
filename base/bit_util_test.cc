@@ -153,10 +153,43 @@ static_assert(std::is_same_v<Int16, UInt16::SignedType>);
 static_assert(std::is_same_v<UInt16, Int16::UnsignedType>);
 static_assert(std::is_same_v<UInt16, UInt16::UnsignedType>);
 
+static_assert(std::is_same_v<Int16, SignedType<RawInt16>>);
+static_assert(std::is_same_v<Int16, SignedType<Int16>>);
+static_assert(std::is_same_v<Int16, SignedType<UInt16>>);
+static_assert(std::is_same_v<UInt16, UnsignedType<RawInt16>>);
+static_assert(std::is_same_v<UInt16, UnsignedType<Int16>>);
+static_assert(std::is_same_v<UInt16, UnsignedType<UInt16>>);
+
+static_assert(std::is_same_v<Int16, WrappingType<Int16>>);
+static_assert(std::is_same_v<UInt16, WrappingType<UInt16>>);
+static_assert(std::is_same_v<Int16, WrappingType<SatInt16>>);
+static_assert(std::is_same_v<UInt16, WrappingType<SatUInt16>>);
+
 static_assert(std::is_same_v<SatInt16, SatInt16::SignedType>);
 static_assert(std::is_same_v<SatInt16, SatUInt16::SignedType>);
 static_assert(std::is_same_v<SatUInt16, SatInt16::UnsignedType>);
 static_assert(std::is_same_v<SatUInt16, SatUInt16::UnsignedType>);
+
+static_assert(std::is_same_v<SatInt16, SignedType<SatInt16>>);
+static_assert(std::is_same_v<SatInt16, SignedType<SatUInt16>>);
+static_assert(std::is_same_v<SatUInt16, UnsignedType<SatInt16>>);
+static_assert(std::is_same_v<SatUInt16, UnsignedType<SatUInt16>>);
+
+static_assert(std::is_same_v<SatInt16, SaturatingType<Int16>>);
+static_assert(std::is_same_v<SatUInt16, SaturatingType<UInt16>>);
+static_assert(std::is_same_v<SatInt16, SaturatingType<SatInt16>>);
+static_assert(std::is_same_v<SatUInt16, SaturatingType<SatUInt16>>);
+
+static_assert(std::is_same_v<SatInt16, SignedType<SatInt16>>);
+static_assert(std::is_same_v<SatInt16, SignedType<SatUInt16>>);
+static_assert(std::is_same_v<SatUInt16, UnsignedType<SatInt16>>);
+static_assert(std::is_same_v<SatUInt16, UnsignedType<SatUInt16>>);
+
+static_assert(std::is_same_v<RawInt16, RawType<RawInt16>>);
+static_assert(std::is_same_v<RawInt16, RawType<Int16>>);
+static_assert(std::is_same_v<RawInt16, RawType<UInt16>>);
+static_assert(std::is_same_v<RawInt16, RawType<SatInt16>>);
+static_assert(std::is_same_v<RawInt16, RawType<SatUInt16>>);
 
 }  // namespace
 
