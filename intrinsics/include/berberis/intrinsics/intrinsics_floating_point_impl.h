@@ -95,9 +95,40 @@ std::tuple<TargetOperandType> FCvtFloatToInteger(int8_t rm, int8_t frm, SourceOp
                 std::is_same_v<Float64, SourceOperandType>);
   static_assert(std::is_integral_v<TargetOperandType>);
   int8_t actual_rm = rm == FPFlags::DYN ? frm : rm;
-  TargetOperandType result =
-      static_cast<TargetOperandType>(FPRound(arg, ToIntrinsicRoundingMode(actual_rm)));
-  return static_cast<std::make_signed_t<TargetOperandType>>(result);
+  SourceOperandType result = FPRound(arg, ToIntrinsicRoundingMode(actual_rm));
+  if constexpr (std::is_signed_v<TargetOperandType>) {
+    // Note: because of how two's complement numbers and floats work minimum negative number always
+    // either representable precisely or not prepresentable at all, but this is not true for minimal
+    // possible value.
+    // Use ~min() to guarantee no surprises with rounding.
+    constexpr float kMinInBoundsNegativeValue =
+        static_cast<float>(std::numeric_limits<TargetOperandType>::min());
+    constexpr float kMinNotInBoundsPositiveValue = static_cast<float>(-kMinInBoundsNegativeValue);
+    if (result < SourceOperandType{kMinInBoundsNegativeValue}) [[unlikely]] {
+      return std::numeric_limits<TargetOperandType>::min();
+    }
+    // Note: we have to ensure that NaN is properly handled by this comparison!
+    if (result < SourceOperandType{kMinNotInBoundsPositiveValue}) [[likely]] {
+      return static_cast<TargetOperandType>(result);
+    }
+  } else {
+    // Note: if value is less than zero then result of conversion from float/double to unsigned
+    // integer is undefined and thus clang/gcc happily use conversion cvttss2si without doing
+    // anything to handle negative numbers.  We need to handle that corner case here.
+    if (result < SourceOperandType{0.0f}) [[unlikely]] {
+      return 0;
+    }
+    // Similarly to signed interners case above, have to use -2.0f * min to properly handle NaNs.
+    constexpr float kMinNotInBoundsPositiveValue = static_cast<float>(
+        -2.0f *
+        static_cast<float>(std::numeric_limits<std::make_signed_t<TargetOperandType>>::min()));
+    // Note: we have to ensure that NaN is properly handled by this comparison!
+    if (result < SourceOperandType{kMinNotInBoundsPositiveValue}) [[likely]] {
+      return static_cast<TargetOperandType>(result);
+    }
+  }
+  // Handle too large numbers and NaN.
+  return std::numeric_limits<TargetOperandType>::max();
 }
 
 template <typename TargetOperandType,
