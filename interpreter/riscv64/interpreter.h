@@ -1203,6 +1203,12 @@ class Interpreter {
                            InactiveProcessing::kUndisturbed>(
               args.dst, arg2, /*dst_mask=*/args.src1);
         }
+      case Decoder::VOpFVfOpcode::kVfmaxvf:
+        return OpVectorvx<intrinsics::Vfmaxvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfminvf:
+        return OpVectorvx<intrinsics::Vfminvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
       default:
         return Unimplemented();
     }
@@ -1212,15 +1218,161 @@ class Interpreter {
   void OpVector(const Decoder::VOpFVvArgs& args) {
     using SignedType = std::make_signed_t<typename TypeTraits<ElementType>::Int>;
     using UnsignedType = std::make_unsigned_t<typename TypeTraits<ElementType>::Int>;
-    // We currently don't support Float32 operations, but conversion routines that deal with
+    // We currently don't support Float16 operations, but conversion routines that deal with
     // double-width floats use these encodings to produce regular Float32 types.
-    // That's why we need to call these routines twice: one here and one in the large switch below.
-    if constexpr (sizeof(ElementType) < sizeof(Float32)) {
+    if constexpr (sizeof(ElementType) <= sizeof(Float32)) {
+      using WideElementType = typename TypeTraits<ElementType>::Wide;
       switch (args.opcode) {
+        case Decoder::VOpFVvOpcode::kVFUnary0:
+          switch (args.vfunary0_opcode) {
+            case Decoder::VFUnary0Opcode::kVfwcvtfxuv:
+              return OpVectorWidenvr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<WideElementType, UnsignedType>(FPFlags::DYN, frm, src);
+              },
+                                     WideElementType,
+                                     UnsignedType,
+                                     vlmul,
+                                     vta,
+                                     vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfwcvtfxv:
+              return OpVectorWidenvr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<WideElementType, SignedType>(FPFlags::DYN, frm, src);
+              },
+                                     WideElementType,
+                                     SignedType,
+                                     vlmul,
+                                     vta,
+                                     vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfncvtxufw:
+              return OpVectorNarrowwr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<UnsignedType, WideElementType>(FPFlags::DYN, frm, src);
+              },
+                                      UnsignedType,
+                                      vlmul,
+                                      vta,
+                                      vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfncvtxfw:
+              return OpVectorNarrowwr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<SignedType, WideElementType>(FPFlags::DYN, frm, src);
+              },
+                                      SignedType,
+                                      vlmul,
+                                      vta,
+                                      vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfncvtrtzxufw:
+              return OpVectorNarrowwr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<UnsignedType, WideElementType>(FPFlags::RTZ, frm, src);
+              },
+                                      UnsignedType,
+                                      vlmul,
+                                      vta,
+                                      vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfncvtrtzxfw:
+              return OpVectorNarrowwr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<SignedType, WideElementType>(FPFlags::RTZ, frm, src);
+              },
+                                      SignedType,
+                                      vlmul,
+                                      vta,
+                                      vma>(args.dst, args.src1);
+            default:
+              break;  // Make compiler happy.
+          }
+          break;
         default:
-          return Unimplemented();
+          break;  // Make compiler happy.
       }
-    } else {
+    }
+    // Widening and narrowing opeation which take floating point “narrow” operand may only work
+    // correctly with Float32 input: Float16 is not supported yet, while Float64 input would produce
+    // 128bit output which is currently reserver in RISC-V V.
+    if constexpr (sizeof(ElementType) == sizeof(Float32)) {
+      using WideElementType = typename TypeTraits<ElementType>::Wide;
+      using WideSignedType = typename TypeTraits<SignedType>::Wide;
+      using WideUnsignedType = typename TypeTraits<UnsignedType>::Wide;
+      switch (args.opcode) {
+        case Decoder::VOpFVvOpcode::kVFUnary0:
+          switch (args.vfunary0_opcode) {
+            case Decoder::VFUnary0Opcode::kVfwcvtxufv:
+              return OpVectorWidenvr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<WideUnsignedType, ElementType>(FPFlags::DYN, frm, src);
+              },
+                                     WideUnsignedType,
+                                     ElementType,
+                                     vlmul,
+                                     vta,
+                                     vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfwcvtxfv:
+              return OpVectorWidenvr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<WideSignedType, ElementType>(FPFlags::DYN, frm, src);
+              },
+                                     WideSignedType,
+                                     ElementType,
+                                     vlmul,
+                                     vta,
+                                     vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfwcvtffv:
+              return OpVectorWidenvr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<WideElementType, ElementType>(FPFlags::DYN, frm, src);
+              },
+                                     WideElementType,
+                                     ElementType,
+                                     vlmul,
+                                     vta,
+                                     vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfwcvtrtzxufv:
+              return OpVectorWidenvr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<WideUnsignedType, ElementType>(FPFlags::RTZ, frm, src);
+              },
+                                     WideUnsignedType,
+                                     ElementType,
+                                     vlmul,
+                                     vta,
+                                     vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfwcvtrtzxfv:
+              return OpVectorWidenvr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<WideSignedType, ElementType>(FPFlags::RTZ, frm, src);
+              },
+                                     WideSignedType,
+                                     ElementType,
+                                     vlmul,
+                                     vta,
+                                     vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfncvtfxuw:
+              return OpVectorNarrowwr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<ElementType, WideUnsignedType>(FPFlags::DYN, frm, src);
+              },
+                                      ElementType,
+                                      vlmul,
+                                      vta,
+                                      vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfncvtffw:
+              return OpVectorNarrowwr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<ElementType, WideElementType>(FPFlags::DYN, frm, src);
+              },
+                                      ElementType,
+                                      vlmul,
+                                      vta,
+                                      vma>(args.dst, args.src1);
+            case Decoder::VFUnary0Opcode::kVfncvtfxw:
+              return OpVectorNarrowwr<[](int8_t frm, SIMD128Register src) {
+                return intrinsics::Vfcvtv<ElementType, WideSignedType>(FPFlags::DYN, frm, src);
+              },
+                                      ElementType,
+                                      vlmul,
+                                      vta,
+                                      vma>(args.dst, args.src1);
+            default:
+              break;  // Make compiler happy.
+          }
+          break;
+        default:
+          break;  // Make compiler happy.
+      }
+    }
+    // If our ElementType is Float16 then “straight” operations are unsupported and we whouldn't try
+    // instantiate any functions since this would lead to compilke-time error.
+    if constexpr (sizeof(ElementType) >= sizeof(Float32)) {
       switch (args.opcode) {
         case Decoder::VOpFVvOpcode::kVfmvfs:
           if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
@@ -1281,12 +1433,14 @@ class Interpreter {
                                 vta,
                                 vma>(args.dst, args.src1);
             default:
-              return Unimplemented();
+              break;  // Make compiler happy.
           }
+          break;
         default:
-          return Unimplemented();
+          break;  // Make compiler happy.
       }
     }
+    return Unimplemented();
   }
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
@@ -2470,6 +2624,59 @@ class Interpreter {
     }
   }
 
+  template <auto Intrinsic,
+            typename TargetElementType,
+            typename SourceElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma>
+  void OpVectorWidenvr(uint8_t dst, uint8_t src) {
+    return OpVectorWidenvr<Intrinsic,
+                           TargetElementType,
+                           SourceElementType,
+                           NumRegistersInvolvedForWideOperand(vlmul),
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma>(dst, src);
+  }
+
+  template <auto Intrinsic,
+            typename TargetElementType,
+            typename SourceElementType,
+            size_t kDestRegistersInvolved,
+            size_t kRegistersInvolved,
+            TailProcessing vta,
+            auto vma>
+  void OpVectorWidenvr(uint8_t dst, uint8_t src) {
+    if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kRegistersInvolved>(src)) {
+      return Unimplemented();
+    }
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return;
+    }
+    int8_t frm = GetCsr<CsrName::kFrm>();
+    auto mask = GetMaskForVectorOperations<vma>();
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      SIMD128Register result(state_->cpu.v[dst + 2 * index]);
+      SIMD128Register arg(state_->cpu.v[src + index]);
+      result = VectorMasking<TargetElementType, vta, vma>(
+          result, std::get<0>(Intrinsic(frm, arg)), vstart, vl, 2 * index, mask);
+      state_->cpu.v[dst + 2 * index] = result.Get<__uint128_t>();
+      if constexpr (kDestRegistersInvolved > 1) {  // if lmul is one full register or more
+        result.Set(state_->cpu.v[dst + 2 * index + 1]);
+        std::tie(arg) = intrinsics::VMovTopHalfToBottom<SourceElementType>(arg);
+        result = VectorMasking<TargetElementType, vta, vma>(
+            result, std::get<0>(Intrinsic(frm, arg)), vstart, vl, 2 * index + 1, mask);
+        state_->cpu.v[dst + 2 * index + 1] = result.Get<__uint128_t>();
+      }
+    }
+  }
+
   // 2*SEW = SEW op SEW
   // Attention: not to confuse with to be done OpVectorWidenwv with 2*SEW = 2*SEW op SEW
   template <auto Intrinsic,
@@ -2558,6 +2765,60 @@ class Interpreter {
       result = VectorMasking<ElementType, vta, vma>(
           result, std::get<0>(Intrinsic(arg1, arg2)), vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+  }
+
+  template <auto Intrinsic,
+            typename TargetElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma>
+  void OpVectorNarrowwr(uint8_t dst, uint8_t src) {
+    return OpVectorNarrowwr<Intrinsic,
+                            TargetElementType,
+                            NumberOfRegistersInvolved(vlmul),
+                            NumRegistersInvolvedForWideOperand(vlmul),
+                            vta,
+                            vma>(dst, src);
+  }
+
+  template <auto Intrinsic,
+            typename TargetElementType,
+            size_t kDestRegistersInvolved,
+            size_t kSrcRegistersInvolved,
+            TailProcessing vta,
+            auto vma>
+  void OpVectorNarrowwr(uint8_t dst, uint8_t src) {
+    if constexpr (kDestRegistersInvolved == kSrcRegistersInvolved) {
+      if (!IsAligned<kDestRegistersInvolved>(dst | src)) {
+        return Unimplemented();
+      }
+    } else if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSrcRegistersInvolved>(src)) {
+      return Unimplemented();
+    }
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return;
+    }
+    int8_t frm = GetCsr<CsrName::kFrm>();
+    auto mask = GetMaskForVectorOperations<vma>();
+    for (size_t index = 0; index < kDestRegistersInvolved; index++) {
+      SIMD128Register orig_result(state_->cpu.v[dst + index]);
+      SIMD128Register arg_low(state_->cpu.v[src + 2 * index]);
+      SIMD128Register intrinsic_result = std::get<0>(Intrinsic(frm, arg_low));
+      if constexpr (kSrcRegistersInvolved > 1) {
+        SIMD128Register arg_high(state_->cpu.v[src + 2 * index + 1]);
+        SIMD128Register result_high = std::get<0>(Intrinsic(frm, arg_high));
+        intrinsic_result = std::get<0>(
+            intrinsics::VMergeBottomHalfToTop<TargetElementType>(intrinsic_result, result_high));
+      }
+      auto result = VectorMasking<TargetElementType, vta, vma>(
+          orig_result, intrinsic_result, vstart, vl, index, mask);
+      state_->cpu.v[dst + index] = result.template Get<__uint128_t>();
     }
   }
 
