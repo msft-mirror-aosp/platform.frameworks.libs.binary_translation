@@ -637,6 +637,8 @@ DEFINE_3OP_ARITHMETIC_INTRINSIC_VX(nmsub, auto [arg1, arg2, arg3] = std::tuple{a
                                    (-(arg2 * arg3) + arg1))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmin, std::get<0>(FMin(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmax, std::get<0>(FMax(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fmin, std::get<0>(FMin(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fmax, std::get<0>(FMax(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, std::min(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, std::min(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, std::max(args...))
