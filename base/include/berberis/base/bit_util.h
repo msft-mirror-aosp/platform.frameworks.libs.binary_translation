@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <tuple>
 #include <type_traits>
 
 #include "berberis/base/checks.h"
@@ -412,7 +413,7 @@ class Saturating {
     lhs = lhs + rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator+(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Add(Saturating lhs, Saturating rhs) {
     BaseType result;
     bool overflow = __builtin_add_overflow(lhs.value, rhs.value, &result);
     if (overflow) {
@@ -426,22 +427,28 @@ class Saturating {
         result = std::numeric_limits<BaseType>::max();
       }
     }
-    return {result};
+    return {{result}, overflow};
+  }
+  [[nodiscard]] friend constexpr Saturating operator+(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Add(lhs, rhs));
   }
   friend constexpr Saturating& operator-=(Saturating& lhs, Saturating rhs) {
     lhs = lhs - rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Neg(Saturating lhs) {
     if constexpr (kIsSigned) {
       if (lhs.value == std::numeric_limits<BaseType>::min()) {
-        return {std::numeric_limits<BaseType>::max()};
+        return {std::numeric_limits<BaseType>::max(), true};
       }
-      return {-lhs.value};
+      return {{-lhs.value}, false};
     }
-    return 0;
+    return {{0}, lhs != 0};
   }
-  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs) {
+    return std::get<0>(Neg(lhs));
+  }
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Sub(Saturating lhs, Saturating rhs) {
     BaseType result;
     bool overflow = __builtin_sub_overflow(lhs.value, rhs.value, &result);
     if (overflow) {
@@ -455,13 +462,16 @@ class Saturating {
         result = 0;
       }
     }
-    return {result};
+    return {{result}, overflow};
+  }
+  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Sub(lhs, rhs));
   }
   friend constexpr Saturating& operator*=(Saturating& lhs, Saturating rhs) {
     lhs = lhs * rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator*(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Mul(Saturating lhs, Saturating rhs) {
     BaseType result;
     bool overflow = __builtin_mul_overflow(lhs.value, rhs.value, &result);
     if (overflow) {
@@ -475,31 +485,40 @@ class Saturating {
         result = std::numeric_limits<BaseType>::max();
       }
     }
-    return {result};
+    return {{result}, overflow};
+  }
+  [[nodiscard]] friend constexpr Saturating operator*(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Mul(lhs, rhs));
   }
   friend constexpr Saturating& operator/=(Saturating& lhs, Saturating rhs) {
     lhs = lhs / rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator/(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Div(Saturating lhs, Saturating rhs) {
     if constexpr (kIsSigned) {
       if (lhs.value == std::numeric_limits<BaseType>::min() && rhs.value == -1) {
-        return {std::numeric_limits<BaseType>::max()};
+        return {{std::numeric_limits<BaseType>::max()}, true};
       }
     }
-    return {BaseType(lhs.value / rhs.value)};
+    return {{BaseType(lhs.value / rhs.value)}, false};
+  }
+  [[nodiscard]] friend constexpr Saturating operator/(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Div(lhs, rhs));
   }
   friend constexpr Saturating& operator%=(Saturating& lhs, Saturating rhs) {
     lhs = lhs % rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator%(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Rem(Saturating lhs, Saturating rhs) {
     if constexpr (kIsSigned) {
       if (lhs.value == std::numeric_limits<BaseType>::min() && rhs.value == -1) {
-        return {1};
+        return {{1}, true};
       }
     }
-    return {BaseType(lhs.value % rhs.value)};
+    return {{BaseType(lhs.value % rhs.value)}, false};
+  }
+  [[nodiscard]] friend constexpr Saturating operator%(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Rem(lhs, rhs));
   }
   BaseType value = 0;
 };
