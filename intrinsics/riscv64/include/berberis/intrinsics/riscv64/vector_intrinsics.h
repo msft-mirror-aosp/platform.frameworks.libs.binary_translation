@@ -668,6 +668,11 @@ DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
                                       : Popcount(arg ^ (arg - Int128{1})) - Int128{1})
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wadd, Widenvv, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wsub, Widenvv, (args - ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wmul, Widenvv, (args * ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wmulsu, Widenvv, auto [arg1, arg2] = std::tuple{args...};
+                                    (BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg2))))) *
+                                    (Widen(BitCastToUnsigned(Narrow(arg1)))))
+
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WV(nsr, Narrowwv, auto [arg1, arg2] = std::tuple{args...};
                                    (arg1 >> arg2))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WX(nsr, Narrowwv, auto [arg1, arg2] = std::tuple{args...};

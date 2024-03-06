@@ -1833,12 +1833,44 @@ class Interpreter {
           return OpVectorWidenvv<intrinsics::Vwaddvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         }
+      case Decoder::VOpMVvOpcode::kVwsubvv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenvv<intrinsics::Vwsubvv<SignedType>, SignedType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
       case Decoder::VOpMVvOpcode::kVwsubuvv:
         if constexpr (sizeof(ElementType) == sizeof(Int64) ||
                       vlmul == VectorRegisterGroupMultiplier::k8registers) {
           return Unimplemented();
         } else {
           return OpVectorWidenvv<intrinsics::Vwsubvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
+      case Decoder::VOpMVvOpcode::kVwmulvv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenvv<intrinsics::Vwmulvv<SignedType>, SignedType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
+      case Decoder::VOpMVvOpcode::kVwmuluvv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenvv<intrinsics::Vwmulvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
+      case Decoder::VOpMVvOpcode::kVwmulsuvv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenvv<intrinsics::Vwmulsuvv<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         }
       default:
