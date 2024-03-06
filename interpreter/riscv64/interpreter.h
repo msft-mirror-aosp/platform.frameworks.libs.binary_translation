@@ -1382,6 +1382,12 @@ class Interpreter {
             return Unimplemented();
           }
           return OpVectorVmvfs<ElementType>(args.dst, args.src1);
+        case Decoder::VOpFVvOpcode::kVfmaxvv:
+          return OpVectorvv<intrinsics::Vfmaxvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfminvv:
+          return OpVectorvv<intrinsics::Vfminvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
         case Decoder::VOpFVvOpcode::kVFUnary0:
           switch (args.vfunary0_opcode) {
             case Decoder::VFUnary0Opcode::kVfcvtxufv:
