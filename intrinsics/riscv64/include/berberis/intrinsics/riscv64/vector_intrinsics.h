@@ -587,7 +587,35 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(xor, (args ^ ...))
 // SIMD mask either includes results with all bits set to 0 or all bits set to 1.
 // This way it may be used with VAnd and VAndN operations to perform masking.
 // Such comparison is effectively one instruction of x86-64 (via SSE or AVX) but
-// to achieve it we need to multiply bool result on (~ElementType{0}).
+// to achieve it we need to multiply bool result by (~IntType{0}) or (~ElementType{0}).
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(feq, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Feq(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(feq, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Feq(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fne, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(!std::get<0>(Feq(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fne, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(!std::get<0>(Feq(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(flt, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Flt(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(flt, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Flt(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fle, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Fle(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fle, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Fle(args...))))
+// Note: for floating point numbers Flt(b, a) and !Fle(a, b) produce different and incompatible
+// results. IEEE754-2008 defined NOT (!=) predicate as negation of EQ (==) predicate while GT (>)
+// and GE (>=) are not negations of LE (<) or GT (<=) predicated but instead use swap of arguments.
+// Note that scalar form includes only three predicates (Feq, Fle, Fgt) while vector form includes
+// Vmfgt.vf and Vmfge.vf instructions only for vector+scalar case (vector+vector case is supposed
+// to be handled by swapping arguments). More here: https://github.com/riscv/riscv-v-spec/issues/300
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fgt, auto [arg1, arg2] = std::tuple{args...};
+                                   using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Flt(arg2, arg1))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fge, auto [arg1, arg2] = std::tuple{args...};
+                                   using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Fle(arg2, arg1))))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
     seq,
     (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args == ...))})
