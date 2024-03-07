@@ -453,6 +453,21 @@ inline std::tuple<SIMD128Register> VectorSlideDown(size_t offset,
   return result;
 }
 
+template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vcpopm(SIMD128Register simd_src) {
+  Int128 src = simd_src.Get<Int128>();
+  return Popcount(src);
+}
+
+template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register> Vfirstm(SIMD128Register simd_src) {
+  Int128 src = simd_src.Get<Int128>();
+  if (src == Int128{0}) {
+    return Int128{-1};
+  }
+  return Popcount(src ^ (src - Int128{1})) - Int128{1};
+}
+
 #ifndef __x86_64__
 template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
@@ -520,9 +535,6 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
         },                                                                                        \
         DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                     \
   }
-
-#define DEFINE_1OP_ARITHMETIC_INTRINSIC_M(name, ...) \
-  DEFINE_ARITHMETIC_INTRINSIC(V##name##m, return ({ __VA_ARGS__; });, (Int128 src), (), (src))
 
 #define DEFINE_1OP_ARITHMETIC_INTRINSIC_V(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##v, return ({ __VA_ARGS__; }); \
@@ -704,11 +716,6 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulhsu, auto [arg1, arg2] = std::tuple{args..
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args...};
                                    NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
                                                  Widen(BitCastToUnsigned(arg1))))
-DEFINE_1OP_ARITHMETIC_INTRINSIC_M(cpop, Popcount(args...))
-DEFINE_1OP_ARITHMETIC_INTRINSIC_M(first, auto [arg] = std::tuple{args...};
-                                  (arg == Int128{0})
-                                      ? Int128{-1}
-                                      : Popcount(arg ^ (arg - Int128{1})) - Int128{1})
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wadd, Widenvv, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wsub, Widenvv, (args - ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wmul, Widenvv, (args * ...))
@@ -724,11 +731,9 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_WX(nsr, Narrowwv, auto [arg1, arg2] = std::tuple
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_W_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
-#undef DEFINE_1OP_ARITHMETIC_INTRINSIC_M
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_V
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VV
-#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VS
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_X

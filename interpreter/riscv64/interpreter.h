@@ -1845,9 +1845,9 @@ class Interpreter {
             }
             return OpVectorVmvxs<SignedType>(args.dst, args.src1);
           case Decoder::VWXUnary0Opcode::kVcpopm:
-            return OpVectorVWXUnary0<intrinsics::Vcpopm<Int128>, vma>(args.dst, args.src1);
+            return OpVectorVWXUnary0<intrinsics::Vcpopm<>, vma>(args.dst, args.src1);
           case Decoder::VWXUnary0Opcode::kVfirstm:
-            return OpVectorVWXUnary0<intrinsics::Vfirstm<Int128>, vma>(args.dst, args.src1);
+            return OpVectorVWXUnary0<intrinsics::Vfirstm<>, vma>(args.dst, args.src1);
           default:
             return Unimplemented();
         }
