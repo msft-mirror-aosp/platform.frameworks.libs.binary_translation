@@ -508,13 +508,13 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
 }
 
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
-#define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, arguments)                      \
+#define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, capture, arguments)             \
                                                                                                   \
   template <typename ElementType,                                                                 \
             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>       \
   inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) { \
     return VectorProcessing<ElementType>(                                                         \
-        [](auto... args) {                                                                        \
+        [DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS capture](auto... args) {                       \
           static_assert((std::is_same_v<decltype(args), ElementType> && ...));                    \
           arithmetic;                                                                             \
         },                                                                                        \
@@ -522,10 +522,48 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
   }
 
 #define DEFINE_1OP_ARITHMETIC_INTRINSIC_M(name, ...) \
-  DEFINE_ARITHMETIC_INTRINSIC(V##name##m, return ({ __VA_ARGS__; });, (Int128 src), (src))
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##m, return ({ __VA_ARGS__; });, (Int128 src), (), (src))
+
+#define DEFINE_1OP_ARITHMETIC_INTRINSIC_V(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##v, return ({ __VA_ARGS__; }); \
+                              , (SIMD128Register src), (), (src))
+
+#define DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##vv, return ({ __VA_ARGS__; }); \
+                              , (SIMD128Register src1, SIMD128Register src2), (), (src1, src2))
+
+#define DEFINE_3OP_ARITHMETIC_INTRINSIC_VV(name, ...)                                             \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##vv, return ({ __VA_ARGS__; });                             \
+                              ,                                                                   \
+                              (SIMD128Register src1, SIMD128Register src2, SIMD128Register src3), \
+                              (),                                                                 \
+                              (src1, src2, src3))
+
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(name, ...)                 \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##vs, return ({ __VA_ARGS__; }); \
-                              , (ElementType src1, ElementType src2), (src1, src2))
+                              , (ElementType src1, ElementType src2), (), (src1, src2))
+
+#define DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(name, ...)                 \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##vx, return ({ __VA_ARGS__; }); \
+                              , (SIMD128Register src1, ElementType src2), (), (src1, src2))
+
+#define DEFINE_3OP_ARITHMETIC_INTRINSIC_VX(name, ...) \
+  DEFINE_ARITHMETIC_INTRINSIC(                        \
+      V##name##vx, return ({ __VA_ARGS__; });         \
+      , (SIMD128Register src1, ElementType src2, SIMD128Register src3), (), (src1, src2, src3))
+
+#define DEFINE_1OP_ARITHMETIC_INTRINSIC_X(name, ...) \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##x, return ({ __VA_ARGS__; });, (ElementType src), (), (src))
+
+#define DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(name, ...) \
+  DEFINE_ARITHMETIC_INTRINSIC(                            \
+      Vf##name##vf, return ({ __VA_ARGS__; });            \
+      , (int8_t frm, SIMD128Register src1, ElementType src2), (frm), (src1, src2))
+
+#define DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV(name, ...) \
+  DEFINE_ARITHMETIC_INTRINSIC(                            \
+      Vf##name##vv, return ({ __VA_ARGS__; });            \
+      , (int8_t frm, SIMD128Register src1, SIMD128Register src2), (frm), (src1, src2))
 
 #define DEFINE_W_ARITHMETIC_INTRINSIC(Name, Pattern, arithmetic, parameters, arguments)            \
                                                                                                    \
@@ -540,31 +578,12 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
         DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                      \
   }
 
-#define DEFINE_1OP_ARITHMETIC_INTRINSIC_V(name, ...) \
-  DEFINE_ARITHMETIC_INTRINSIC(V##name##v, return ({ __VA_ARGS__; });, (SIMD128Register src), (src))
-#define DEFINE_1OP_ARITHMETIC_INTRINSIC_X(name, ...) \
-  DEFINE_ARITHMETIC_INTRINSIC(V##name##x, return ({ __VA_ARGS__; });, (ElementType src), (src))
-#define DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(name, ...)                 \
-  DEFINE_ARITHMETIC_INTRINSIC(V##name##vv, return ({ __VA_ARGS__; }); \
-                              , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
-#define DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(name, ...)                 \
-  DEFINE_ARITHMETIC_INTRINSIC(V##name##vx, return ({ __VA_ARGS__; }); \
-                              , (SIMD128Register src1, ElementType src2), (src1, src2))
-#define DEFINE_3OP_ARITHMETIC_INTRINSIC_VV(name, ...) \
-  DEFINE_ARITHMETIC_INTRINSIC(                        \
-      V##name##vv, return ({ __VA_ARGS__; });         \
-      , (SIMD128Register src1, SIMD128Register src2, SIMD128Register src3), (src1, src2, src3))
-#define DEFINE_3OP_ARITHMETIC_INTRINSIC_VX(name, ...) \
-  DEFINE_ARITHMETIC_INTRINSIC(                        \
-      V##name##vx, return ({ __VA_ARGS__; });         \
-      , (SIMD128Register src1, ElementType src2, SIMD128Register src3), (src1, src2, src3))
+#define DEFINE_2OP_ARITHMETIC_INTRINSIC_WV(name, pattern, ...)                   \
+  DEFINE_W_ARITHMETIC_INTRINSIC(V##name##wv, pattern, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
 
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(name, pattern, ...)                  \
   DEFINE_W_ARITHMETIC_INTRINSIC(V##name##vv, pattern, return ({ __VA_ARGS__; }); \
-                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
-
-#define DEFINE_2OP_ARITHMETIC_INTRINSIC_WV(name, pattern, ...)                   \
-  DEFINE_W_ARITHMETIC_INTRINSIC(V##name##wv, pattern, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
 
 #define DEFINE_2OP_ARITHMETIC_INTRINSIC_WX(name, pattern, ...)                   \
@@ -584,10 +603,44 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(xor, (args ^ ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(xor, (args ^ ...))
+DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(mul, std::get<0>(FMul(FPFlags::DYN, frm, args...)))
+DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV(mul, std::get<0>(FMul(FPFlags::DYN, frm, args...)))
+DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(div, std::get<0>(FDiv(FPFlags::DYN, frm, args...)))
+DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV(div, std::get<0>(FDiv(FPFlags::DYN, frm, args...)))
+DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(rdiv, auto [arg1, arg2] = std::tuple{args...};
+                                       std::get<0>(FDiv(FPFlags::DYN, frm, arg2, arg1)))
 // SIMD mask either includes results with all bits set to 0 or all bits set to 1.
 // This way it may be used with VAnd and VAndN operations to perform masking.
 // Such comparison is effectively one instruction of x86-64 (via SSE or AVX) but
-// to achieve it we need to multiply bool result on (~ElementType{0}).
+// to achieve it we need to multiply bool result by (~IntType{0}) or (~ElementType{0}).
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(feq, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Feq(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(feq, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Feq(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fne, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(!std::get<0>(Feq(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fne, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(!std::get<0>(Feq(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(flt, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Flt(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(flt, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Flt(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fle, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Fle(args...))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fle, using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Fle(args...))))
+// Note: for floating point numbers Flt(b, a) and !Fle(a, b) produce different and incompatible
+// results. IEEE754-2008 defined NOT (!=) predicate as negation of EQ (==) predicate while GT (>)
+// and GE (>=) are not negations of LE (<) or GT (<=) predicated but instead use swap of arguments.
+// Note that scalar form includes only three predicates (Feq, Fle, Fgt) while vector form includes
+// Vmfgt.vf and Vmfge.vf instructions only for vector+scalar case (vector+vector case is supposed
+// to be handled by swapping arguments). More here: https://github.com/riscv/riscv-v-spec/issues/300
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fgt, auto [arg1, arg2] = std::tuple{args...};
+                                   using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Flt(arg2, arg1))))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fge, auto [arg1, arg2] = std::tuple{args...};
+                                   using IntType = typename TypeTraits<ElementType>::Int;
+                                   (~IntType{0}) * IntType(std::get<0>(Fle(arg2, arg1))))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
     seq,
     (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args == ...))})
@@ -677,14 +730,17 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_WX(nsr, Narrowwv, auto [arg1, arg2] = std::tuple
 #undef DEFINE_W_ARITHMETIC_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_M
-#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VS
+#undef DEFINE_1OP_ARITHMETIC_INTRINSIC_V
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VV
-#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VV
+#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VS
+#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VX
-#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VV
-#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV
+#undef DEFINE_1OP_ARITHMETIC_INTRINSIC_X
+#undef DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF
+#undef DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_WV
+#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_WX
 
 }  // namespace berberis::intrinsics

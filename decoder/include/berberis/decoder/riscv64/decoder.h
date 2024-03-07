@@ -830,7 +830,10 @@ class Decoder {
     bool vm;
     uint8_t dst;
     uint8_t src;
-    int8_t imm;
+    union {
+      int8_t imm : 5;
+      uint8_t uimm : 5;
+    };
   };
 
   struct VOpIVvArgs {
@@ -2092,7 +2095,7 @@ class Decoder {
             .vm = vm,
             .dst = dst,
             .src = src1,
-            .imm = SignExtend<5>(src2),
+            .uimm = src2,
         };
         return insn_consumer_->OpVector(args);
       }
