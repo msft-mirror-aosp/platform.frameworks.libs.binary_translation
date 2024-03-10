@@ -180,6 +180,7 @@ constexpr T BitUtilLog2(T x) {
   // TODO(b/260725458): Use std::countr_zero after C++20 becomes available
   return __builtin_ctz(x);
 }
+
 // Signextend bits from size to the corresponding signed type of sizeof(Type) size.
 // If the result of this function is assigned to a wider signed type it'll automatically
 // sign-extend.
@@ -217,9 +218,47 @@ inline bool IsInRange(ArgumentType x) {
 }
 
 template <typename T>
-[[nodiscard]] constexpr T Popcount(T x) {
-  // We couldn't use std::popcount yet ( http://b/318678905 ) for __uint128_t .
+[[nodiscard]] constexpr T CountRZero(T x) {
+  // We couldn't use C++20 std::countr_zero yet ( http://b/318678905 ) for __uint128_t .
   // Switch to std::popcount when/if that bug would be fixed.
+  static_assert(!std::is_signed_v<T>);
+#if defined(__x86_64__)
+  if constexpr (sizeof(T) == sizeof(unsigned __int128)) {
+    if (static_cast<uint64_t>(x) == 0) {
+      return __builtin_ctzll(x >> 64) + 64;
+    }
+    return __builtin_ctzll(x);
+  } else
+#endif
+      if constexpr (sizeof(T) == sizeof(uint64_t)) {
+    return __builtin_ctzll(x);
+  } else if constexpr (sizeof(T) == sizeof(uint32_t)) {
+    return __builtin_ctz(x);
+  } else {
+    static_assert(kDependentTypeFalse<T>);
+  }
+}
+
+template <typename T>
+[[nodiscard]] constexpr Raw<T> CountRZero(Raw<T> x) {
+  return {CountRZero(x.value)};
+}
+
+template <typename T>
+[[nodiscard]] constexpr Saturating<T> CountRZero(Saturating<T> x) {
+  return {CountRZero(x.value)};
+}
+
+template <typename T>
+[[nodiscard]] constexpr Wrapping<T> CountRZero(Wrapping<T> x) {
+  return {CountRZero(x.value)};
+}
+
+template <typename T>
+[[nodiscard]] constexpr T Popcount(T x) {
+  // We couldn't use C++20 std::popcount yet ( http://b/318678905 ) for __uint128_t .
+  // Switch to std::popcount when/if that bug would be fixed.
+  static_assert(!std::is_signed_v<T>);
 #if defined(__x86_64__)
   if constexpr (sizeof(T) == sizeof(unsigned __int128)) {
     return __builtin_popcountll(x) + __builtin_popcountll(x >> 64);
@@ -901,8 +940,8 @@ template <typename BaseType>
 }
 
 template <typename BaseType>
-[[nodiscard]] constexpr auto Widen(intrinsics::WrappedFloatType<BaseType> source)
-    -> Wrapping<typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Wide> {
+[[nodiscard]] constexpr auto Widen(intrinsics::WrappedFloatType<BaseType> source) ->
+    typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Wide {
   return {source.value};
 }
 
@@ -930,8 +969,8 @@ template <typename BaseType>
 }
 
 template <typename BaseType>
-[[nodiscard]] constexpr auto Narrow(intrinsics::WrappedFloatType<BaseType> source)
-    -> Wrapping<typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Narrow> {
+[[nodiscard]] constexpr auto Narrow(intrinsics::WrappedFloatType<BaseType> source) ->
+    typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Narrow {
   return {source.value};
 }
 
