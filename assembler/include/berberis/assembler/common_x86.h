@@ -150,7 +150,7 @@ class AssemblerX86 : public AssemblerBase {
   // Macro operations.
   void Finalize() { ResolveJumps(); }
 
-  void Align(uint32_t m) {
+  void P2Align(uint32_t m) {
     uint32_t mask = m - 1;
     uint32_t addr = pc();
     Nop((m - (addr & mask)) & mask);

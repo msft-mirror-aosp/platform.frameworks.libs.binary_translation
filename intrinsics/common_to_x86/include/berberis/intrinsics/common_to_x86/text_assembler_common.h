@@ -252,6 +252,46 @@ class TextAssemblerX86 {
     return &labels_allocated_.back();
   }
 
+  template <typename... Args>
+  void Byte(Args... args) {
+    static_assert((std::is_same_v<Args, uint8_t> && ...));
+    bool print_kwd = true;
+    fprintf(out_, "%*s\"", indent_ + 2, "");
+    (fprintf(out_, "%s%" PRIu8, print_kwd ? print_kwd = false, ".byte " : ", ", args), ...);
+    fprintf(out_, "\\n\"\n");
+  }
+
+  template <typename... Args>
+  void TwoByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint16_t> && ...));
+    bool print_kwd = true;
+    fprintf(out_, "%*s\"", indent_ + 2, "");
+    (fprintf(out_, "%s%" PRIu16, print_kwd ? print_kwd = false, ".2byte " : ", ", args), ...);
+    fprintf(out_, "\\n\"\n");
+  }
+
+  template <typename... Args>
+  void FourByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint32_t> && ...));
+    bool print_kwd = true;
+    fprintf(out_, "%*s\"", indent_ + 2, "");
+    (fprintf(out_, "%s%" PRIu32, print_kwd ? print_kwd = false, ".4byte " : ", ", args), ...);
+    fprintf(out_, "\\n\"\n");
+  }
+
+  template <typename... Args>
+  void EigthByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint64_t> && ...));
+    bool print_kwd = true;
+    fprintf(out_, "%*s\"", indent_ + 2, "");
+    (fprintf(out_, "%s%" PRIu64, print_kwd ? print_kwd = false, ".8byte " : ", ", args), ...);
+    fprintf(out_, "\\n\"\n");
+  }
+
+  void P2Align(uint32_t m) {
+    fprintf(out_, "%*s\".p2align %u\\n\"\n", indent_ + 2, "", m);
+  }
+
 // Instructions.
 #include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
 
