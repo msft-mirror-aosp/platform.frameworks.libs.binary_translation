@@ -1209,6 +1209,15 @@ class Interpreter {
       case Decoder::VOpFVfOpcode::kVfmaxvf:
         return OpVectorvx<intrinsics::Vfmaxvx<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfsgnjvf:
+        return OpVectorvx<intrinsics::Vfsgnjvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfsgnjnvf:
+        return OpVectorvx<intrinsics::Vfsgnjnvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfsgnjxvf:
+        return OpVectorvx<intrinsics::Vfsgnjxvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
       case Decoder::VOpFVfOpcode::kVmfeqvf:
         return OpVectormvx<intrinsics::Vfeqvx<ElementType>, ElementType, vlmul, vma>(
             args.dst, args.src1, arg2);
@@ -1426,6 +1435,15 @@ class Interpreter {
               args.dst, args.src1, args.src2);
         case Decoder::VOpFVvOpcode::kVfminvv:
           return OpVectorvv<intrinsics::Vfminvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfsgnjvv:
+          return OpVectorvv<intrinsics::Vfsgnjvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfsgnjnvv:
+          return OpVectorvv<intrinsics::Vfsgnjnvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfsgnjxvv:
+          return OpVectorvv<intrinsics::Vfsgnjxvv<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         case Decoder::VOpFVvOpcode::kVFUnary0:
           switch (args.vfunary0_opcode) {
