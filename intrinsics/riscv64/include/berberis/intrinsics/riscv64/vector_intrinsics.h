@@ -505,14 +505,20 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
       std::min(static_cast<int>(sizeof(SIMD128Register) / sizeof(TargetElementType)),
                static_cast<int>(sizeof(SIMD128Register) / sizeof(SourceElementType)));
   for (int index = 0; index < kElementsCount; ++index) {
-    if constexpr (std::is_integral_v<TargetElementType>) {
-      result.Set(std::get<0>(FCvtFloatToInteger<TargetElementType, SourceElementType>(
-                     rm, frm, src.Get<SourceElementType>(index))),
-                 index);
-    } else if constexpr (std::is_integral_v<SourceElementType>) {
-      result.Set(std::get<0>(FCvtIntegerToFloat<TargetElementType, SourceElementType>(
-                     rm, frm, src.Get<SourceElementType>(index))),
-                 index);
+    if constexpr (!std::is_same_v<TargetElementType, Float16> &&
+                  !std::is_same_v<TargetElementType, Float32> &&
+                  !std::is_same_v<TargetElementType, Float64>) {
+      result.Set(
+          std::get<0>(FCvtFloatToInteger<typename TargetElementType::BaseType, SourceElementType>(
+              rm, frm, src.Get<SourceElementType>(index))),
+          index);
+    } else if constexpr (!std::is_same_v<SourceElementType, Float16> &&
+                         !std::is_same_v<SourceElementType, Float32> &&
+                         !std::is_same_v<SourceElementType, Float64>) {
+      result.Set(
+          std::get<0>(FCvtIntegerToFloat<TargetElementType, typename SourceElementType::BaseType>(
+              rm, frm, src.Get<typename SourceElementType::BaseType>(index))),
+          index);
     } else {
       result.Set(std::get<0>(FCvtFloatToFloat<TargetElementType, SourceElementType>(
                      rm, frm, src.Get<SourceElementType>(index))),
