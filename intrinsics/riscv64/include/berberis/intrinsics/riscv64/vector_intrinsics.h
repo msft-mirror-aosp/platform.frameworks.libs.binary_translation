@@ -455,17 +455,17 @@ inline std::tuple<SIMD128Register> VectorSlideDown(size_t offset,
 
 template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vcpopm(SIMD128Register simd_src) {
-  Int128 src = simd_src.Get<Int128>();
+  UInt128 src = simd_src.Get<UInt128>();
   return Popcount(src);
 }
 
 template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vfirstm(SIMD128Register simd_src) {
-  Int128 src = simd_src.Get<Int128>();
+  UInt128 src = simd_src.Get<UInt128>();
   if (src == Int128{0}) {
-    return Int128{-1};
+    return ~UInt128{0};
   }
-  return Popcount(src ^ (src - Int128{1})) - Int128{1};
+  return CountRZero(src);
 }
 
 #ifndef __x86_64__
