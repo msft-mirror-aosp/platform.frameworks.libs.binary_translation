@@ -1256,8 +1256,8 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVector(const Decoder::VOpFVvArgs& args) {
-    using SignedType = std::make_signed_t<typename TypeTraits<ElementType>::Int>;
-    using UnsignedType = std::make_unsigned_t<typename TypeTraits<ElementType>::Int>;
+    using SignedType = Wrapping<std::make_signed_t<typename TypeTraits<ElementType>::Int>>;
+    using UnsignedType = Wrapping<std::make_unsigned_t<typename TypeTraits<ElementType>::Int>>;
     // We currently don't support Float16 operations, but conversion routines that deal with
     // double-width floats use these encodings to produce regular Float32 types.
     if constexpr (sizeof(ElementType) <= sizeof(Float32)) {
@@ -1269,7 +1269,7 @@ class Interpreter {
               return OpVectorWidenv<[](int8_t frm, SIMD128Register src) {
                 return intrinsics::Vfcvtv<WideElementType, UnsignedType>(FPFlags::DYN, frm, src);
               },
-                                    Wrapping<UnsignedType>,
+                                    UnsignedType,
                                     vlmul,
                                     vta,
                                     vma,
@@ -1278,7 +1278,7 @@ class Interpreter {
               return OpVectorWidenv<[](int8_t frm, SIMD128Register src) {
                 return intrinsics::Vfcvtv<WideElementType, SignedType>(FPFlags::DYN, frm, src);
               },
-                                    Wrapping<SignedType>,
+                                    SignedType,
                                     vlmul,
                                     vta,
                                     vma,
@@ -1331,9 +1331,9 @@ class Interpreter {
     // correctly with Float32 input: Float16 is not supported yet, while Float64 input would produce
     // 128bit output which is currently reserver in RISC-V V.
     if constexpr (sizeof(ElementType) == sizeof(Float32)) {
-      using WideElementType = typename TypeTraits<ElementType>::Wide;
-      using WideSignedType = typename TypeTraits<SignedType>::Wide;
-      using WideUnsignedType = typename TypeTraits<UnsignedType>::Wide;
+      using WideElementType = WideType<ElementType>;
+      using WideSignedType = WideType<SignedType>;
+      using WideUnsignedType = WideType<UnsignedType>;
       switch (args.opcode) {
         case Decoder::VOpFVvOpcode::kVFUnary0:
           switch (args.vfunary0_opcode) {
