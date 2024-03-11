@@ -310,6 +310,24 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
   return result;
 }
 
+// SEW = 2*SEW op SEW
+// TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
+template <typename ElementType, typename Lambda, typename... ParameterType>
+inline std::tuple<SIMD128Register> VectorArithmeticNarrowwv(Lambda lambda,
+                                                            ParameterType... parameters) {
+  static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
+                  std::is_same_v<ParameterType, ElementType>)&&...));
+  SIMD128Register result;
+  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
+  for (int index = 0; index < kElementsCount; ++index) {
+    auto [src1, src2] = std::tuple{parameters...};
+    result.Set(Narrow(lambda(VectorElement<WideType<ElementType>>(src1, index),
+                             Widen(VectorElement<ElementType>(src2, index)))),
+               index);
+  }
+  return result;
+}
+
 // 2*SEW = SEW op SEW
 // TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
 template <typename ElementType, typename Lambda, typename... ParameterType>
@@ -338,42 +356,24 @@ SIMD128Register VectorExtend(SIMD128Register src) {
 template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vextf2(SIMD128Register src) {
-  using SourceElementType = decltype(Narrow(ElementType{0}));
+  using SourceElementType = NarrowType<ElementType>;
   return {VectorExtend<SourceElementType>(src)};
 }
 
 template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vextf4(SIMD128Register src) {
-  using WideSourceElementType = decltype(Narrow(ElementType{0}));
-  using SourceElementType = decltype(Narrow(WideSourceElementType{0}));
+  using WideSourceElementType = NarrowType<ElementType>;
+  using SourceElementType = NarrowType<WideSourceElementType>;
   return {VectorExtend<WideSourceElementType>(VectorExtend<SourceElementType>(src))};
 }
 
 template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vextf8(SIMD128Register src) {
-  using WideWideSourceElementType = decltype(Narrow(ElementType{0}));
+  using WideWideSourceElementType = NarrowType<ElementType>;
   return {
       VectorExtend<WideWideSourceElementType>(std::get<0>(Vextf4<WideWideSourceElementType>(src)))};
-}
-
-// SEW = 2*SEW op SEW
-// TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
-template <typename ElementType, typename Lambda, typename... ParameterType>
-inline std::tuple<SIMD128Register> VectorArithmeticNarrowwv(Lambda lambda,
-                                                            ParameterType... parameters) {
-  static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
-                  std::is_same_v<ParameterType, ElementType>)&&...));
-  SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
-  for (int index = 0; index < kElementsCount; ++index) {
-    auto [src1, src2] = std::tuple{parameters...};
-    result.Set(Narrow(lambda(VectorElement<decltype(Widen(ElementType{0}))>(src1, index),
-                             Widen(VectorElement<ElementType>(src2, index)))),
-               index);
-  }
-  return result;
 }
 
 template <typename ElementType,
@@ -505,14 +505,20 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
       std::min(static_cast<int>(sizeof(SIMD128Register) / sizeof(TargetElementType)),
                static_cast<int>(sizeof(SIMD128Register) / sizeof(SourceElementType)));
   for (int index = 0; index < kElementsCount; ++index) {
-    if constexpr (std::is_integral_v<TargetElementType>) {
-      result.Set(std::get<0>(FCvtFloatToInteger<TargetElementType, SourceElementType>(
-                     rm, frm, src.Get<SourceElementType>(index))),
-                 index);
-    } else if constexpr (std::is_integral_v<SourceElementType>) {
-      result.Set(std::get<0>(FCvtIntegerToFloat<TargetElementType, SourceElementType>(
-                     rm, frm, src.Get<SourceElementType>(index))),
-                 index);
+    if constexpr (!std::is_same_v<TargetElementType, Float16> &&
+                  !std::is_same_v<TargetElementType, Float32> &&
+                  !std::is_same_v<TargetElementType, Float64>) {
+      result.Set(
+          std::get<0>(FCvtFloatToInteger<typename TargetElementType::BaseType, SourceElementType>(
+              rm, frm, src.Get<SourceElementType>(index))),
+          index);
+    } else if constexpr (!std::is_same_v<SourceElementType, Float16> &&
+                         !std::is_same_v<SourceElementType, Float32> &&
+                         !std::is_same_v<SourceElementType, Float64>) {
+      result.Set(
+          std::get<0>(FCvtIntegerToFloat<TargetElementType, typename SourceElementType::BaseType>(
+              rm, frm, src.Get<typename SourceElementType::BaseType>(index))),
+          index);
     } else {
       result.Set(std::get<0>(FCvtFloatToFloat<TargetElementType, SourceElementType>(
                      rm, frm, src.Get<SourceElementType>(index))),
@@ -573,30 +579,30 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
       Vf##name##vv, return ({ __VA_ARGS__; });            \
       , (int8_t frm, SIMD128Register src1, SIMD128Register src2), (frm), (src1, src2))
 
-#define DEFINE_W_ARITHMETIC_INTRINSIC(Name, Pattern, arithmetic, parameters, arguments)            \
-                                                                                                   \
-  template <typename ElementType,                                                                  \
-            enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>        \
-  inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) {  \
-    return VectorArithmetic##Pattern<ElementType>(                                                 \
-        [](auto... args) {                                                                         \
-          static_assert((std::is_same_v<decltype(args), decltype(Widen(ElementType{0}))> && ...)); \
-          arithmetic;                                                                              \
-        },                                                                                         \
-        DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                      \
+#define DEFINE_W_ARITHMETIC_INTRINSIC(Name, Pattern, arithmetic, parameters, arguments)           \
+                                                                                                  \
+  template <typename ElementType,                                                                 \
+            enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>       \
+  inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) { \
+    return VectorArithmetic##Pattern<ElementType>(                                                \
+        [](auto... args) {                                                                        \
+          static_assert((std::is_same_v<decltype(args), WideType<ElementType>> && ...));          \
+          arithmetic;                                                                             \
+        },                                                                                        \
+        DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                     \
   }
 
-#define DEFINE_2OP_ARITHMETIC_INTRINSIC_WV(name, pattern, ...)                   \
-  DEFINE_W_ARITHMETIC_INTRINSIC(V##name##wv, pattern, return ({ __VA_ARGS__; }); \
+#define DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(name, ...)                       \
+  DEFINE_W_ARITHMETIC_INTRINSIC(Vn##name##wv, Narrowwv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
 
-#define DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(name, pattern, ...)                  \
-  DEFINE_W_ARITHMETIC_INTRINSIC(V##name##vv, pattern, return ({ __VA_ARGS__; }); \
-                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
-
-#define DEFINE_2OP_ARITHMETIC_INTRINSIC_WX(name, pattern, ...)                   \
-  DEFINE_W_ARITHMETIC_INTRINSIC(V##name##wx, pattern, return ({ __VA_ARGS__; }); \
+#define DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(name, ...)                       \
+  DEFINE_W_ARITHMETIC_INTRINSIC(Vn##name##wx, Narrowwv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, ElementType src2), (src1, src2))
+
+#define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(name, ...)                       \
+  DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##vv, Widenvv, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
 
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
@@ -700,6 +706,12 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmin, std::get<0>(FMin(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmax, std::get<0>(FMax(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fmin, std::get<0>(FMin(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fmax, std::get<0>(FMax(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fsgnj, std::get<0>(FSgnj(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fsgnj, std::get<0>(FSgnj(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fsgnjn, std::get<0>(FSgnjn(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fsgnjn, std::get<0>(FSgnjn(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fsgnjx, std::get<0>(FSgnjx(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fsgnjx, std::get<0>(FSgnjx(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, std::min(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, std::min(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, std::max(args...))
@@ -716,17 +728,17 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulhsu, auto [arg1, arg2] = std::tuple{args..
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args...};
                                    NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
                                                  Widen(BitCastToUnsigned(arg1))))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wadd, Widenvv, (args + ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wsub, Widenvv, (args - ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wmul, Widenvv, (args * ...))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV(wmulsu, Widenvv, auto [arg1, arg2] = std::tuple{args...};
-                                    (BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg2))))) *
-                                    (Widen(BitCastToUnsigned(Narrow(arg1)))))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(sub, (args - ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mul, (args * ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mulsu, auto [arg1, arg2] = std::tuple{args...};
+                                         (BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg2))))) *
+                                         (Widen(BitCastToUnsigned(Narrow(arg1)))))
 
-DEFINE_2OP_ARITHMETIC_INTRINSIC_WV(nsr, Narrowwv, auto [arg1, arg2] = std::tuple{args...};
-                                   (arg1 >> arg2))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_WX(nsr, Narrowwv, auto [arg1, arg2] = std::tuple{args...};
-                                   (arg1 >> arg2))
+DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(sr, auto [arg1, arg2] = std::tuple{args...};
+                                          (arg1 >> arg2))
+DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{args...};
+                                          (arg1 >> arg2))
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_W_ARITHMETIC_INTRINSIC
@@ -739,9 +751,9 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_WX(nsr, Narrowwv, auto [arg1, arg2] = std::tuple
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_X
 #undef DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF
 #undef DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV
-#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_WV
-#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_WVV
-#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_WX
+#undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV
+#undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX
+#undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV
 
 }  // namespace berberis::intrinsics
 
