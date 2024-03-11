@@ -38,7 +38,7 @@ GuestCodeEntry* TranslationCache::AddAndLockForTranslation(GuestAddr pc,
   // the set of the translating regions (e.g as invalidation observes it).
   std::lock_guard<std::mutex> lock(mutex_);
 
-  auto* host_code_ptr = GetHostCodePtr(pc);
+  auto* host_code_ptr = GetHostCodePtrWritable(pc);
   bool added;
   auto* entry = AddUnsafe(pc,
                           host_code_ptr,
@@ -139,7 +139,7 @@ GuestCodeEntry* TranslationCache::AddAndLockForWrapping(GuestAddr pc) {
   // ATTENTION: kEntryWrapping is a locked state, can return the entry.
   bool locked;
   auto* entry = AddUnsafe(pc,
-                          GetHostCodePtr(pc),
+                          GetHostCodePtrWritable(pc),
                           {kEntryWrapping, 0},  // TODO(b/232598137): set true host_size?
                           1,                    // Non-zero size simplifies invalidation.
                           GuestCodeEntry::Kind::kUnderProcessing,
@@ -177,7 +177,7 @@ void TranslationCache::SetWrappedAndUnlock(GuestAddr pc,
   CHECK_EQ(entry->guest_size, 1);
 }
 
-bool TranslationCache::IsHostFunctionWrapped(GuestAddr pc) {
+bool TranslationCache::IsHostFunctionWrapped(GuestAddr pc) const {
   std::lock_guard<std::mutex> lock(mutex_);
   if (auto* entry = LookupGuestCodeEntryUnsafe(pc)) {
     return entry->kind == GuestCodeEntry::Kind::kHostWrapped;
