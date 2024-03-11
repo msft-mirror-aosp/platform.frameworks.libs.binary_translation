@@ -107,11 +107,11 @@ class TranslationCache {
   TranslationCache(const TranslationCache&) = delete;
   TranslationCache& operator=(const TranslationCache&) = delete;
 
-  static TranslationCache* GetInstance();
+  [[nodiscard]] static TranslationCache* GetInstance();
 
   bool SetStop(GuestAddr pc) {
     auto expected = kEntryNotTranslated;  // expect default value.
-    auto host_code_ptr = GetHostCodePtr(pc);
+    auto host_code_ptr = GetHostCodePtrWritable(pc);
     if (host_code_ptr->compare_exchange_strong(expected, kEntryStop)) {
       return true;
     }
@@ -119,7 +119,7 @@ class TranslationCache {
   }
 
   void TestingClearStop(GuestAddr pc) {
-    GetHostCodePtr(pc)->store(kEntryNotTranslated);  // set default value.
+    GetHostCodePtrWritable(pc)->store(kEntryNotTranslated);  // set default value.
   }
 
   // Inserts NotTranslated entry for the given PC if not inserted already. Then transitions from
@@ -127,11 +127,11 @@ class TranslationCache {
   // interpreted at least counter_threshold times, in which case the entry's interpretation counter
   // will be incremented. Also returns nullptr if the state was not Translating, or if somehow there
   // is no entry for the given PC.
-  GuestCodeEntry* AddAndLockForTranslation(GuestAddr pc, uint32_t counter_threshold);
+  [[nodiscard]] GuestCodeEntry* AddAndLockForTranslation(GuestAddr pc, uint32_t counter_threshold);
 
   // Locks entry for the given PC for translation if it's currently in LightTranslated state.
   // If successful returns the locked entry, otherwise returns nullptr.
-  GuestCodeEntry* LockForGearUpTranslation(GuestAddr pc);
+  [[nodiscard]] GuestCodeEntry* LockForGearUpTranslation(GuestAddr pc);
 
   // Transitions the entry for the given guest address from Translating to Translated, making it
   // available to other threads.
@@ -142,17 +142,17 @@ class TranslationCache {
                               HostCodePiece code);
 
   // ATTENTION: interpreter doesn't handle code that is being wrapped!
-  GuestCodeEntry* AddAndLockForWrapping(GuestAddr pc);
+  [[nodiscard]] GuestCodeEntry* AddAndLockForWrapping(GuestAddr pc);
 
   void SetWrappedAndUnlock(GuestAddr pc,
                            GuestCodeEntry* entry,
                            bool is_host_func,
                            HostCodePiece code);
 
-  bool IsHostFunctionWrapped(GuestAddr pc);
+  [[nodiscard]] bool IsHostFunctionWrapped(GuestAddr pc) const;
 
   // TODO(b/232598137): flawed, used only in profiler - replace or remove!
-  GuestCodeEntry* ProfilerLookupGuestCodeEntryByGuestPC(GuestAddr pc);
+  [[nodiscard]] GuestCodeEntry* ProfilerLookupGuestCodeEntryByGuestPC(GuestAddr pc);
 
   [[nodiscard]] uint32_t GetInvocationCounter(GuestAddr pc) const;
 
@@ -163,32 +163,37 @@ class TranslationCache {
   // Invalidate region of entries.
   void InvalidateGuestRange(GuestAddr start, GuestAddr end);
 
-  const std::atomic<std::atomic<HostCode>*>* main_table_ptr() const {
+  [[nodiscard]] const std::atomic<std::atomic<HostCode>*>* main_table_ptr() const {
     return address_map_.main_table();
   }
 
-  std::atomic<HostCode>* GetHostCodePtr(GuestAddr pc) { return address_map_.GetPointer(pc); }
+  [[nodiscard]] const std::atomic<HostCode>* GetHostCodePtr(GuestAddr pc) {
+    return address_map_.GetPointer(pc);
+  }
 
   void PreZygoteForkUnsafe() {
     // Zygote's fork doesn't allow unrecognized open file descriptors, so we close them.
     address_map_.CloseDefaultMemfdUnsafe();
   }
 
-  GuestCodeEntry* LookupGuestCodeEntryUnsafeForTesting(GuestAddr pc) {
+  [[nodiscard]] GuestCodeEntry* LookupGuestCodeEntryUnsafeForTesting(GuestAddr pc) {
     return LookupGuestCodeEntryUnsafe(pc);
   }
 
  private:
   [[nodiscard]] GuestCodeEntry* LookupGuestCodeEntryUnsafe(GuestAddr pc);
   [[nodiscard]] const GuestCodeEntry* LookupGuestCodeEntryUnsafe(GuestAddr pc) const;
+  [[nodiscard]] std::atomic<HostCode>* GetHostCodePtrWritable(GuestAddr pc) {
+    return address_map_.GetPointer(pc);
+  }
 
   // Add call record for an address, reuse if already here.
-  GuestCodeEntry* AddUnsafe(GuestAddr pc,
-                            std::atomic<HostCode>* host_code_ptr,
-                            HostCodePiece host_code_piece,
-                            uint32_t guest_size,
-                            GuestCodeEntry::Kind kind,
-                            bool* added);
+  [[nodiscard]] GuestCodeEntry* AddUnsafe(GuestAddr pc,
+                                          std::atomic<HostCode>* host_code_ptr,
+                                          HostCodePiece host_code_piece,
+                                          uint32_t guest_size,
+                                          GuestCodeEntry::Kind kind,
+                                          bool* added);
 
   void LockForTranslationUnsafe(GuestCodeEntry* entry);
 
