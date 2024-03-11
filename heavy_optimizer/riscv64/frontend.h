@@ -504,6 +504,12 @@ inline void HeavyOptimizerFrontend::NanBoxFpReg<intrinsics::Float64>(FpRegister)
 
 template <>
 [[nodiscard]] inline HeavyOptimizerFrontend::Register
+HeavyOptimizerFrontend::GetCsr<CsrName::kCycle>() {
+  return CPUClockCount();
+}
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::Register
 HeavyOptimizerFrontend::GetCsr<CsrName::kFCsr>() {
   auto csr_reg = AllocTempReg();
   auto tmp = AllocTempReg();

@@ -39,6 +39,12 @@ std::tuple<uint64_t> Bseti(uint64_t src, uint8_t imm) {
   return {src | (uint64_t{1} << imm)};
 }
 
+std::tuple<uint64_t> CPUClockCount() {
+  uint64_t a, d;
+  asm volatile("rdtsc" : "=a"(a), "=d"(d));
+  return (d << 32) | a;
+}
+
 std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
   return {uint64_t{src} << imm};
 }

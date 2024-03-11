@@ -3510,6 +3510,11 @@ class Interpreter {
 };
 
 template <>
+[[nodiscard]] Interpreter::Register inline Interpreter::GetCsr<CsrName::kCycle>() const {
+  return CPUClockCount();
+}
+
+template <>
 [[nodiscard]] Interpreter::Register inline Interpreter::GetCsr<CsrName::kFCsr>() const {
   return FeGetExceptions() | (state_->cpu.frm << 5);
 }
