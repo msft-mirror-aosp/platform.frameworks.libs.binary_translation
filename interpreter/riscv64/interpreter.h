@@ -2578,17 +2578,10 @@ class Interpreter {
             auto vma,
             CsrName... kExtraCsrs,
             typename... Args>
-  void OpVectorToMask(uint8_t dst, Args... arg) {
+  void OpVectorToMask(uint8_t dst, Args... args) {
     // All args, except dst must be aligned at kRegistersInvolved amount. We'll merge them
     // together and then do a combined check for all of them at once.
-    uint8_t ored_args = ([](auto arg) {
-      if constexpr (std::is_same_v<decltype(arg), Vec>) {
-        return arg.start_no;
-      } else {
-        return 0;
-      }
-    }(arg) | ...);
-    if (!IsAligned<kRegistersInvolved>(ored_args)) {
+    if (!IsAligned<kRegistersInvolved>(OrValuesOnlyForType<Vec>(args...) | dst)) {
       return Unimplemented();
     }
     SIMD128Register original_result(state_->cpu.v[dst]);
@@ -2602,9 +2595,9 @@ class Interpreter {
       result_before_vl_masking = original_result;
     } else {
       result_before_vl_masking =
-          CollectBitmaskResult<ElementType, kRegistersInvolved>([this, arg...](auto index) {
+          CollectBitmaskResult<ElementType, kRegistersInvolved>([this, args...](auto index) {
             return Intrinsic(this->GetCsr<kExtraCsrs>()...,
-                             this->GetVectorArgument(arg, index)...);
+                             this->GetVectorArgument(args, index)...);
           });
       if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
         SIMD128Register mask(state_->cpu.v[0]);
@@ -2769,13 +2762,16 @@ class Interpreter {
             auto vma,
             CsrName... kExtraCsrs>
   void OpVectorWidenv(uint8_t dst, uint8_t src) {
-    return OpVectorWiden<Intrinsic,
-                         ElementType,
-                         NumRegistersInvolvedForWideOperand(vlmul),
-                         NumberOfRegistersInvolved(vlmul),
-                         vta,
-                         vma,
-                         kExtraCsrs...>(dst, Vec{src});
+    if constexpr (vlmul != VectorRegisterGroupMultiplier::k8registers) {
+      return OpVectorWiden<Intrinsic,
+                           ElementType,
+                           NumRegistersInvolvedForWideOperand(vlmul),
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma,
+                           kExtraCsrs...>(dst, Vec{src});
+    }
+    return Unimplemented();
   }
 
   // 2*SEW = SEW op SEW
@@ -2804,34 +2800,30 @@ class Interpreter {
             auto vma,
             CsrName... kExtraCsrs,
             typename... Args>
-  void OpVectorWiden(uint8_t dst, Args... arg) {
-    // All normal (narrow) args must be aligned at kRegistersInvolved amount. We'll merge them
-    // together and then do a combined check for all of them at once.
-    uint8_t ored_args = ([](auto arg) {
-      if constexpr (std::is_same_v<decltype(arg), Vec>) {
-        return arg.start_no;
-      } else {
-        return 0;
-      }
-    }(arg) | ...);
-    // All wide args must be aligned at kRegistersInvolved amount. We'll merge them together and
-    // then do a combined check for all of them at once.
-    uint8_t ored_wide_args = ([](auto arg) {
-      if constexpr (std::is_same_v<decltype(arg), WideVec>) {
-        return arg.start_no;
-      } else {
-        return 0;
-      }
-    }(arg) | ... | dst);
+  void OpVectorWiden(uint8_t dst, Args... args) {
     if constexpr (kDestRegistersInvolved == kRegistersInvolved) {
-      if (!IsAligned<kRegistersInvolved>(ored_args | ored_wide_args)) {
-        return Unimplemented();
-      }
+      static_assert(kDestRegistersInvolved == 1);
     } else {
+      static_assert(kDestRegistersInvolved == 2 * kRegistersInvolved);
+      // All normal (narrow) args must be aligned at kRegistersInvolved amount. We'll merge them
+      // together and then do a combined check for all of them at once.
+      uint8_t ored_args = OrValuesOnlyForType<Vec>(args...);
+      // All wide args must be aligned at kRegistersInvolved amount. We'll merge them together and
+      // then do a combined check for all of them at once.
+      uint8_t ored_wide_args = OrValuesOnlyForType<WideVec>(args...) | dst;
       if (!IsAligned<kDestRegistersInvolved>(ored_wide_args) ||
           !IsAligned<kRegistersInvolved>(ored_args)) {
         return Unimplemented();
       }
+    }
+    // From RISC-V vectors manual: If destination EEW is greater than the source EEW, the source
+    // EMUL is at least 1, [then overlap is permitted if ] the overlap is in the highest numbered
+    // part of the destination register group (e.g., when LMUL=8, vzext.vf4 v0, v6 is legal, but a
+    // source of v0, v2, or v4 is not).
+    // Here only one forbidden combination is possible because of static_asserts above and we
+    // detect and reject it.
+    if (OrResultsOnlyForType<Vec>([dst](Vec arg) { return arg.start_no == dst; }, args...)) {
+      return Unimplemented();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
@@ -2846,7 +2838,7 @@ class Interpreter {
       SIMD128Register result(state_->cpu.v[dst + 2 * index]);
       result = VectorMasking<WideType<ElementType>, vta, vma>(
           result,
-          std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()..., GetLowVectorArgument(arg, index)...)),
+          std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()..., GetLowVectorArgument(args, index)...)),
           vstart,
           vl,
           2 * index,
@@ -2857,7 +2849,7 @@ class Interpreter {
         result = VectorMasking<WideType<ElementType>, vta, vma>(
             result,
             std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()...,
-                                  GetHighVectorArgument<ElementType>(arg, index)...)),
+                                  GetHighVectorArgument<ElementType>(args, index)...)),
             vstart,
             vl,
             2 * index + 1,
@@ -2889,17 +2881,10 @@ class Interpreter {
             auto vma,
             CsrName... kExtraCsrs,
             typename... Args>
-  void OpVectorSameWidth(uint8_t dst, Args... arg) {
+  void OpVectorSameWidth(uint8_t dst, Args... args) {
     // All args must be aligned at kRegistersInvolved amount. We'll merge them
     // together and then do a combined check for all of them at once.
-    uint8_t ored_args = ([](auto arg) {
-      if constexpr (std::is_same_v<decltype(arg), Vec>) {
-        return arg.start_no;
-      } else {
-        return 0;
-      }
-    }(arg) | ... | dst);
-    if (!IsAligned<kRegistersInvolved>(ored_args)) {
+    if (!IsAligned<kRegistersInvolved>(OrValuesOnlyForType<Vec>(args...) | dst)) {
       return Unimplemented();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
@@ -2915,7 +2900,7 @@ class Interpreter {
       SIMD128Register result(state_->cpu.v[dst + index]);
       result = VectorMasking<ElementType, vta, vma>(
           result,
-          std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()..., GetVectorArgument(arg, index)...)),
+          std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()..., GetVectorArgument(args, index)...)),
           vstart,
           vl,
           index,
@@ -2931,13 +2916,16 @@ class Interpreter {
             auto vma,
             CsrName... kExtraCsrs>
   void OpVectorNarroww(uint8_t dst, uint8_t src) {
-    return OpVectorNarrow<Intrinsic,
-                          TargetElementType,
-                          NumberOfRegistersInvolved(vlmul),
-                          NumRegistersInvolvedForWideOperand(vlmul),
-                          vta,
-                          vma,
-                          kExtraCsrs...>(dst, WideVec{src});
+    if constexpr (vlmul != VectorRegisterGroupMultiplier::k8registers) {
+      return OpVectorNarrow<Intrinsic,
+                            TargetElementType,
+                            NumberOfRegistersInvolved(vlmul),
+                            NumRegistersInvolvedForWideOperand(vlmul),
+                            vta,
+                            vma,
+                            kExtraCsrs...>(dst, WideVec{src});
+    }
+    return Unimplemented();
   }
 
   // SEW = 2*SEW op SEW
@@ -2948,13 +2936,16 @@ class Interpreter {
             auto vma,
             CsrName... kExtraCsrs>
   void OpVectorNarrowwx(uint8_t dst, uint8_t src1, ElementType arg2) {
-    return OpVectorNarrow<Intrinsic,
-                          ElementType,
-                          NumberOfRegistersInvolved(vlmul),
-                          NumRegistersInvolvedForWideOperand(vlmul),
-                          vta,
-                          vma,
-                          kExtraCsrs...>(dst, WideVec{src1}, arg2);
+    if constexpr (vlmul != VectorRegisterGroupMultiplier::k8registers) {
+      return OpVectorNarrow<Intrinsic,
+                            ElementType,
+                            NumberOfRegistersInvolved(vlmul),
+                            NumRegistersInvolvedForWideOperand(vlmul),
+                            vta,
+                            vma,
+                            kExtraCsrs...>(dst, WideVec{src1}, arg2);
+    }
+    return Unimplemented();
   }
 
   // SEW = 2*SEW op SEW
@@ -2965,13 +2956,16 @@ class Interpreter {
             auto vma,
             CsrName... kExtraCsrs>
   void OpVectorNarrowwv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    return OpVectorNarrow<Intrinsic,
-                          ElementType,
-                          NumberOfRegistersInvolved(vlmul),
-                          NumRegistersInvolvedForWideOperand(vlmul),
-                          vta,
-                          vma,
-                          kExtraCsrs...>(dst, WideVec{src1}, Vec{src2});
+    if constexpr (vlmul != VectorRegisterGroupMultiplier::k8registers) {
+      return OpVectorNarrow<Intrinsic,
+                            ElementType,
+                            NumberOfRegistersInvolved(vlmul),
+                            NumRegistersInvolvedForWideOperand(vlmul),
+                            vta,
+                            vma,
+                            kExtraCsrs...>(dst, WideVec{src1}, Vec{src2});
+    }
+    return Unimplemented();
   }
 
   template <auto Intrinsic,
@@ -2982,32 +2976,27 @@ class Interpreter {
             auto vma,
             CsrName... kExtraCsrs,
             typename... Args>
-  void OpVectorNarrow(uint8_t dst, Args... arg) {
-    // All normal (narrow) args must be aligned at kRegistersInvolved amount. We'll merge them
-    // together and then do a combined check for all of them at once.
-    uint8_t ored_args = ([](auto arg) {
-      if constexpr (std::is_same_v<decltype(arg), Vec>) {
-        return arg.start_no;
-      } else {
-        return 0;
-      }
-    }(arg) | ... | dst);
-    // All wide args must be aligned at kWideSrcRegistersInvolved amount. We'll merge them together and
-    // then do a combined check for all of them at once.
-    uint8_t ored_wide_args = ([](auto arg) {
-      if constexpr (std::is_same_v<decltype(arg), WideVec>) {
-        return arg.start_no;
-      } else {
-        return 0;
-      }
-    }(arg) | ...);
-    if constexpr (kRegistersInvolved == kWideSrcRegistersInvolved) {
-      if (!IsAligned<kRegistersInvolved>(ored_args | ored_wide_args)) {
-        return Unimplemented();
-      }
+  void OpVectorNarrow(uint8_t dst, Args... args) {
+    if constexpr (kWideSrcRegistersInvolved == kRegistersInvolved) {
+      static_assert(kWideSrcRegistersInvolved == 1);
     } else {
+      // All normal (narrow) args must be aligned at kRegistersInvolved amount. We'll merge them
+      // together and then do a combined check for all of them at once.
+      uint8_t ored_args = OrValuesOnlyForType<Vec>(args...) | dst;
+      // All wide args must be aligned at kWideSrcRegistersInvolved amount. We'll merge them
+      // together and then do a combined check for all of them at once.
+      uint8_t ored_wide_args = OrValuesOnlyForType<WideVec>(args...);
       if (!IsAligned<kWideSrcRegistersInvolved>(ored_wide_args) ||
           !IsAligned<kRegistersInvolved>(ored_args)) {
+        return Unimplemented();
+      }
+      static_assert(kWideSrcRegistersInvolved == 2 * kRegistersInvolved);
+      // From RISC-V vectors manual: If destination EEW is smaller than the source EEW, [then
+      // overlap is permitted if] the overlap is in the lowest-numbered part of the source register
+      // group (e.g., when LMUL=1, vnsrl.wi v0, v0, 3 is legal, but a destination of v1 is not).
+      // We only have one possible invalid value here because of alignment requirements.
+      if (OrResultsOnlyForType<Vec>(
+              [dst](Vec arg) { return arg.start_no == dst + kRegistersInvolved; }, args...)) {
         return Unimplemented();
       }
     }
@@ -3023,10 +3012,10 @@ class Interpreter {
     for (size_t index = 0; index < kRegistersInvolved; index++) {
       SIMD128Register orig_result(state_->cpu.v[dst + index]);
       SIMD128Register intrinsic_result =
-          std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()..., GetLowVectorArgument(arg, index)...));
+          std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()..., GetLowVectorArgument(args, index)...));
       if constexpr (kWideSrcRegistersInvolved > 1) {
         SIMD128Register result_high = std::get<0>(
-            Intrinsic(GetCsr<kExtraCsrs>()..., GetHighVectorArgument<ElementType>(arg, index)...));
+            Intrinsic(GetCsr<kExtraCsrs>()..., GetHighVectorArgument<ElementType>(args, index)...));
         intrinsic_result = std::get<0>(
             intrinsics::VMergeBottomHalfToTop<ElementType>(intrinsic_result, result_high));
       }
@@ -3475,6 +3464,44 @@ class Interpreter {
         vstart - index * (sizeof(SIMD128Register) / sizeof(ElementType)),
         vl - index * (sizeof(SIMD128Register) / sizeof(ElementType)),
         std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+  }
+
+  template <typename ProcessType,
+            auto kLambda =
+                [](auto packaged_value) {
+                  auto [unpacked_value] = packaged_value;
+                  return unpacked_value;
+                },
+            auto kDefaultValue = false,
+            typename... Args>
+  [[nodiscard]] static constexpr auto OrValuesOnlyForType(Args... args) {
+    return OrResultsOnlyForType<ProcessType, kDefaultValue>(kLambda, args...);
+  }
+
+  template <typename ProcessType, auto kDefaultValue = false, typename Lambda, typename... Args>
+  [[nodiscard]] static constexpr auto OrResultsOnlyForType(Lambda lambda, Args... args) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wbitwise-instead-of-logical"
+    return ([lambda](auto arg) {
+      if constexpr (std::is_same_v<ProcessType, std::decay_t<decltype(arg)>>) {
+        return lambda(arg);
+      } else {
+        return kDefaultValue;
+      }
+    }(args) |
+            ...);
+#pragma GCC diagnostic pop
+  }
+
+  template <typename ProcessType, typename Lambda, typename... Args>
+  static constexpr void ProcessOnlyForType(Lambda lambda, Args... args) {
+    (
+        [lambda](auto arg) {
+          if constexpr (std::is_same_v<ProcessType, std::decay_t<decltype(arg)>>) {
+            lambda(arg);
+          }
+        }(args),
+        ...);
   }
 
   ThreadState* state_;
