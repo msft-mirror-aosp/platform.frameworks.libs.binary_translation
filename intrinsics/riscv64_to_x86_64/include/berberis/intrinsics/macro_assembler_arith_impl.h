@@ -51,17 +51,26 @@ void MacroAssembler<Assembler>::MacroDiv(Register src) {
     Jcc(Condition::kEqual, *done);
 
     Bind(do_idiv);
-    // We need to sign-extend eax into edx to ensure 64-bit/128-bit dividend is correct.
-    if constexpr (std::is_same_v<IntType, int32_t>) {
+    // If we are dealing with 8-bit signed case then we need to sign-extend %al into %ax.
+    if constexpr (std::is_same_v<IntType, int8_t>) {
+      Cbw();
+    // We need to sign-extend gpr_a into gpr_d to ensure 32bit/64-bit/128-bit dividend is correct.
+    } else if constexpr (std::is_same_v<IntType, int16_t>) {
+      Cwd();
+    } else if constexpr (std::is_same_v<IntType, int32_t>) {
       Cdq();
     } else if constexpr (std::is_same_v<IntType, int64_t>) {
-      // 32bit assembler wouldn't have Cqo, but because of constexpr we are not seeking it there.
       Cqo();
     } else {
       static_assert(kDependentTypeFalse<IntType>, "Unsupported format");
     }
+  } else if constexpr (std::is_same_v<IntType, uint8_t>) {
+    // For 8bit unsigned case we need “xor %ah, %ah” instruction, but our assembler doesn't support
+    // %ah register. Use .byte to emit the required machine code.
+    TwoByte(uint16_t{0xe430});
   } else {
-    // We need to zero-extend eax into edx to ensure 64-bit/128-bit dividend is correct.
+    // We need to zero-extend eax into dx/edx/rdx to ensure 32-bit/64-bit/128-bit dividend is
+    // correct.
     Xor<uint32_t>(gpr_d, gpr_d);
   }
 

@@ -112,6 +112,27 @@
       "mnemo": "CTZ_I64"
     },
     {
+      "name": "DivInt8",
+      "args": [
+        { "class": "GeneralReg8", "usage": "use" },
+        { "class": "AX", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<int8_t>",
+      "mnemo": "MACRO_DIV8"
+    },
+    {
+      "name": "DivInt16",
+      "args": [
+        { "class": "GeneralReg16", "usage": "use" },
+        { "class": "AX", "usage": "use_def" },
+        { "class": "DX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<int16_t>",
+      "mnemo": "MACRO_DIV16"
+    },
+    {
       "name": "DivInt32",
       "args": [
         { "class": "GeneralReg32", "usage": "use" },
@@ -123,17 +144,6 @@
       "mnemo": "MACRO_DIV32"
     },
     {
-      "name": "DivUInt32",
-      "args": [
-        { "class": "GeneralReg32", "usage": "use" },
-        { "class": "EAX", "usage": "use_def" },
-        { "class": "EDX", "usage": "def_early_clobber" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroDiv<uint32_t>",
-      "mnemo": "MACRO_UDIV32"
-    },
-    {
       "name": "DivInt64",
       "args": [
         { "class": "GeneralReg64", "usage": "use" },
@@ -143,6 +153,38 @@
       ],
       "asm": "MacroDiv<int64_t>",
       "mnemo": "MACRO_DIV64"
+    },
+    {
+      "name": "DivUInt8",
+      "args": [
+        { "class": "GeneralReg8", "usage": "use" },
+        { "class": "AX", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<uint8_t>",
+      "mnemo": "MACRO_UDIV8"
+    },
+    {
+      "name": "DivUInt16",
+      "args": [
+        { "class": "GeneralReg16", "usage": "use" },
+        { "class": "AX", "usage": "use_def" },
+        { "class": "DX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<uint16_t>",
+      "mnemo": "MACRO_UDIV16"
+    },
+    {
+      "name": "DivUInt32",
+      "args": [
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<uint32_t>",
+      "mnemo": "MACRO_UDIV32"
     },
     {
       "name": "DivUInt64",
