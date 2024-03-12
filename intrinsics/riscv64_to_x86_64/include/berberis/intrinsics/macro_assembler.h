@@ -78,6 +78,12 @@ class MacroAssembler : public Assembler {
   using Assembler::Vpor;
   using Assembler::Vpshufd;
 
+  using Assembler::Byte;
+  using Assembler::TwoByte;
+  using Assembler::FourByte;
+  using Assembler::EigthByte;
+  using Assembler::P2Align;
+
   using Assembler::gpr_a;
   using Assembler::gpr_c;
   using Assembler::gpr_d;
