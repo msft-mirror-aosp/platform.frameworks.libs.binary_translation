@@ -105,7 +105,6 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Mulq(arg2);
       as_.Movq(res, as_.rdx);
       break;
-    case OpOpcode::kDiv:
     case OpOpcode::kRem:
       as_.Movq(as_.rax, arg1);
       as_.Movq(as_.rdx, as_.rax);
@@ -113,7 +112,6 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Idivq(arg2);
       as_.Movq(res, opcode == OpOpcode::kDiv ? as_.rax : as_.rdx);
       break;
-    case OpOpcode::kDivu:
     case OpOpcode::kRemu:
       as_.Movq(as_.rax, arg1);
       as_.Xorq(as_.rdx, as_.rdx);
@@ -181,7 +179,6 @@ Register LiteTranslator::Op32(Decoder::Op32Opcode opcode, Register arg1, Registe
       as_.Imull(res, arg2);
       as_.Movsxlq(res, res);
       break;
-    case Op32Opcode::kDivw:
     case Op32Opcode::kRemw:
       as_.Movl(as_.rax, arg1);
       as_.Movl(as_.rdx, as_.rax);
@@ -189,7 +186,6 @@ Register LiteTranslator::Op32(Decoder::Op32Opcode opcode, Register arg1, Registe
       as_.Idivl(arg2);
       as_.Movsxlq(res, opcode == Op32Opcode::kDivw ? as_.rax : as_.rdx);
       break;
-    case Op32Opcode::kDivuw:
     case Op32Opcode::kRemuw:
       as_.Movl(as_.rax, arg1);
       as_.Xorl(as_.rdx, as_.rdx);
