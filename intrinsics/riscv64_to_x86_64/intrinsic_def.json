@@ -238,6 +238,13 @@
     "in": [ "Type0" ],
     "out": [ "int64_t" ]
   },
+  "Div": {
+    "comment": "Integer division",
+    "class": "template",
+    "variants": [ "int32_t", "uint32_t","int64_t", "uint64_t" ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "FAdd": {
     "comment": "Floating point addition",
     "class": "template",

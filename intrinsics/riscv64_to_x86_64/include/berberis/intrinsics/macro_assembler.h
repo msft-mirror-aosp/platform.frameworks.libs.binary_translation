@@ -53,12 +53,15 @@ class MacroAssembler : public Assembler {
 
   using Assembler::Bind;
   using Assembler::Btq;
+  using Assembler::Cdq;
+  using Assembler::Cqo;
   using Assembler::Fldcw;
   using Assembler::Fldenv;
   using Assembler::Fnstcw;
   using Assembler::Fnstenv;
   using Assembler::Fnstsw;
   using Assembler::Jcc;
+  using Assembler::Jmp;
   using Assembler::Ldmxcsr;
   using Assembler::Leal;
   using Assembler::Leaq;
@@ -99,6 +102,7 @@ class MacroAssembler : public Assembler {
 }  // namespace berberis
 
 // Macro specializations.
+#include "berberis/intrinsics/macro_assembler_arith_impl.h"
 #include "berberis/intrinsics/macro_assembler_bitmanip_impl.h"
 #include "berberis/intrinsics/macro_assembler_floating_point_impl.h"
 
