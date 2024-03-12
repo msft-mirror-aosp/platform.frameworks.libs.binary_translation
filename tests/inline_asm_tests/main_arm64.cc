@@ -1418,6 +1418,12 @@ TEST(Arm64InsnTest, AsmConvertUX64F64) {
   ASSERT_EQ(AsmConvertUX64F64(1ULL << 63), MakeUInt128(0x4320000000000000ULL, 0U));
 }
 
+TEST(Arm64InsnTest, AsmConvertUX64F64With64BitFraction) {
+  constexpr auto AsmConvertUX64F64 = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("ucvtf %d0, %d1, #64");
+
+  ASSERT_EQ(AsmConvertUX64F64(1ULL << 63), MakeUInt128(0x3fe0'0000'0000'0000ULL, 0U));
+}
+
 TEST(Arm64InsnTest, AsmConvertX64x2F64x2) {
   constexpr auto AsmConvertX64F64 = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("scvtf %0.2d, %1.2d, #12");
   __uint128_t arg = MakeUInt128(1ULL << 63, 0x8086U);
@@ -1428,6 +1434,13 @@ TEST(Arm64InsnTest, AsmConvertUX64x2F64x2) {
   constexpr auto AsmConvertUX64F64 = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("ucvtf %0.2d, %1.2d, #12");
   __uint128_t arg = MakeUInt128(1ULL << 63, 0x6809U);
   ASSERT_EQ(AsmConvertUX64F64(arg), MakeUInt128(0x4320000000000000ULL, 0x401a024000000000ULL));
+}
+
+TEST(Arm64InsnTest, AsmConvertUX64x2F64x2With64BitFraction) {
+  constexpr auto AsmConvertUX64F64 = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("ucvtf %0.2d, %1.2d, #64");
+  __uint128_t arg = MakeUInt128(0x7874'211c'b7aa'f597ULL, 0x2c0f'5504'd25e'f673ULL);
+  ASSERT_EQ(AsmConvertUX64F64(arg),
+            MakeUInt128(0x3fde'1d08'472d'eabdULL, 0x3fc6'07aa'8269'2f7bULL));
 }
 
 TEST(Arm64InsnTest, AsmConvertF32X32Scalar) {
