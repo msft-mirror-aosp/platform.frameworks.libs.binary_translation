@@ -56,19 +56,34 @@ static_assert(BitUtilLog2(1) == 0);
 static_assert(BitUtilLog2(16) == 4);
 static_assert(BitUtilLog2(sizeof(void*)) > 0);
 
-static_assert(Popcount(~int32_t{1}) == 31);
-static_assert(Popcount(RawInt32{~Int32{1}}) == RawInt32{31});
-static_assert(Popcount(SatInt32{~Int32{1}}) == SatInt32{31});
-static_assert(Popcount(~Int32{1}) == Int32{31});
-static_assert(Popcount(~int64_t{1}) == 63);
-static_assert(Popcount(RawInt64{~Int64{1}}) == RawInt64{63});
-static_assert(Popcount(SatInt64{~Int64{1}}) == SatInt64{63});
-static_assert(Popcount(~Int64{1}) == Int64{63});
+static_assert(CountRZero(~uint32_t{1}) == 1);
+static_assert(CountRZero(RawInt32{~UInt32{1}}) == RawInt32{1});
+static_assert(CountRZero(SatUInt32{~Int32{1}}) == SatUInt32{1});
+static_assert(CountRZero(~UInt32{1}) == UInt32{1});
+static_assert(CountRZero(~uint64_t{1}) == 1);
+static_assert(CountRZero(RawInt64{~UInt64{1}}) == RawInt64{1});
+static_assert(CountRZero(SatUInt64{~Int64{1}}) == SatUInt64{1});
+static_assert(CountRZero(~UInt64{1}) == UInt64{1});
 #if defined(__x86_64__)
-static_assert(Popcount(~__int128_t{1}) == 127);
-static_assert(Popcount(RawInt128{~Int128{1}}) == RawInt128{127});
-static_assert(Popcount(SatInt128{~Int128{1}}) == SatInt128{127});
-static_assert(Popcount(~Int128{1}) == Int128{127});
+static_assert(CountRZero(~static_cast<unsigned __int128>(1) << 64) == 65);
+static_assert(CountRZero(RawInt128{~UInt128{1}}) == RawInt128{1});
+static_assert(CountRZero(SatUInt128{~Int128{1}}) == SatUInt128{1});
+static_assert(CountRZero(~UInt128{1} << UInt128{64}) == UInt128{65});
+#endif
+
+static_assert(Popcount(~uint32_t{1}) == 31);
+static_assert(Popcount(RawInt32{~UInt32{1}}) == RawInt32{31});
+static_assert(Popcount(SatUInt32{~Int32{1}}) == SatUInt32{31});
+static_assert(Popcount(~UInt32{1}) == UInt32{31});
+static_assert(Popcount(~uint64_t{1}) == 63);
+static_assert(Popcount(RawInt64{~UInt64{1}}) == RawInt64{63});
+static_assert(Popcount(SatUInt64{~Int64{1}}) == SatUInt64{63});
+static_assert(Popcount(~UInt64{1}) == UInt64{63});
+#if defined(__x86_64__)
+static_assert(Popcount(~static_cast<unsigned __int128>(1)) == 127);
+static_assert(Popcount(RawInt128{~UInt128{1}}) == RawInt128{127});
+static_assert(Popcount(SatUInt128{~Int128{1}}) == SatUInt128{127});
+static_assert(Popcount(~UInt128{1}) == UInt128{127});
 #endif
 
 static_assert(Add(SatInt8{126}, SatInt8{1}) == std::tuple{SatInt8{127}, false});
