@@ -3141,16 +3141,15 @@ class Interpreter {
     }
     auto mask = GetMaskForVectorOperations<vma>();
     // The slideup operation leaves Elements 0 through MAX(vstart, OFFSET) unchanged.
-    const size_t start_elem_index = std::max<Register>(vstart, offset);
-
+    //
     // From 16.3.1: Destination elements OFFSET through vl-1 are written if
     // unmasked and if OFFSET < vl.
     // However if OFFSET > vl, we still need to apply the tail policy (as
     // clarified in https://github.com/riscv/riscv-v-spec/issues/263). Given
     // that OFFSET could be well past vl we start at vl rather than OFFSET in
     // that case.
-    for (size_t index = std::min(start_elem_index, vl) / kElementsPerRegister;
-         index < kRegistersInvolved;
+    const size_t start_elem_index = std::min(std::max(vstart, offset), vl);
+    for (size_t index = start_elem_index / kElementsPerRegister; index < kRegistersInvolved;
          ++index) {
       SIMD128Register result(state_->cpu.v[dst + index]);
 
