@@ -478,6 +478,11 @@ class LiteTranslator {
 };
 
 template <>
+[[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kCycle>() {
+  return CPUClockCount();
+}
+
+template <>
 [[nodiscard]] inline LiteTranslator::Register LiteTranslator::GetCsr<CsrName::kFCsr>() {
   Register csr_reg = AllocTempReg();
   bool inline_succeful = inline_intrinsic::TryInlineIntrinsic<&intrinsics::FeGetExceptions>(
