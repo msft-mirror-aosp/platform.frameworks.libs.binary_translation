@@ -121,7 +121,7 @@ template <typename ElementType>
   constexpr ElementType kZeroValue = ElementType{0};
   constexpr ElementType kFillValue = ~ElementType{0};
   SIMD128Register result;
-  for (size_t index = 0; index < 16 / sizeof(ElementType); ++index) {
+  for (size_t index = 0; index < sizeof(SIMD128Register) / sizeof(ElementType); ++index) {
     size_t bit = 1 << index;
     if (mask & bit) {
       result.Set(kFillValue, index);
@@ -146,7 +146,8 @@ template <typename ElementType>
 SimdMaskToBitMaskForTests(SIMD128Register simd_mask) {
   using ResultType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
   ResultType mask{0};
-  constexpr ResultType kElementsCount{static_cast<uint8_t>(16 / sizeof(ElementType))};
+  constexpr ResultType kElementsCount{
+      static_cast<uint8_t>(sizeof(SIMD128Register) / sizeof(ElementType))};
   for (ResultType index{0}; index < kElementsCount; index += ResultType{1}) {
     if (simd_mask.Get<ElementType>(static_cast<int>(index)) != ElementType{0}) {
       mask |= ResultType{1} << ResultType{index};
@@ -169,7 +170,7 @@ template <auto kElement>
     SIMD128Register simd_mask,
     SIMD128Register result) {
   using ElementType = decltype(kElement);
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
   for (int index = 0; index < kElementsCount; ++index) {
     if (!simd_mask.Get<ElementType>(index)) {
       result.Set(kElement, index);
@@ -216,7 +217,7 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
     int vstart,
     int vl,
     NoInactiveProcessing /*mask*/ = NoInactiveProcessing{}) {
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
   if (vstart < 0) {
     vstart = 0;
   }
@@ -236,15 +237,11 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
     } else {
       dest = (dest & tail_bitmask) | (result & ~tail_bitmask);
     }
-  } else if (vstart > vl) [[unlikely]] {
-    if (vl == 16) [[likely]] {
-      return dest;
-    }
-    if constexpr (vta == TailProcessing::kAgnostic) {
-      const auto [tail_bitmask] = MakeBitmaskFromVl<ElementType>(vl);
-      dest |= tail_bitmask;
-    }
   } else {
+    // Note: vstart <= vl here because RISC-V instructions don't alter the result if vstart >= vl.
+    // Corners case where vstart == vl may happen because of vslideup:
+    //   https://github.com/riscv/riscv-v-spec/issues/263
+    CHECK_LE(vstart, vl);
     const auto [start_bitmask] = MakeBitmaskFromVl<ElementType>(vstart);
     const auto [tail_bitmask] = MakeBitmaskFromVl<ElementType>(vl);
     if constexpr (vta == TailProcessing::kAgnostic) {
@@ -303,7 +300,7 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
   static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
                   std::is_same_v<ParameterType, ElementType>)&&...));
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
   for (int index = 0; index < kElementsCount; ++index) {
     result.Set(lambda(VectorElement<ElementType>(parameters, index)...), index);
   }
@@ -380,7 +377,7 @@ template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> VidvForTests(size_t index) {
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
   ElementType element = {static_cast<typename ElementType::BaseType>(index * kElementsCount)};
   for (int index = 0; index < kElementsCount; ++index) {
     result.Set(element, index);
@@ -410,7 +407,7 @@ inline std::tuple<SIMD128Register> VectorSlideUp(size_t offset,
                                                  SIMD128Register src1,
                                                  SIMD128Register src2) {
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
   CHECK_LT(offset, kElementsCount);
   for (size_t index = 0; index < offset; ++index) {
     result.Set(VectorElement<ElementType>(src1, kElementsCount - offset + index), index);
@@ -442,7 +439,7 @@ inline std::tuple<SIMD128Register> VectorSlideDown(size_t offset,
                                                    SIMD128Register src1,
                                                    SIMD128Register src2) {
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
   CHECK_LT(offset, kElementsCount);
   for (size_t index = 0; index < kElementsCount - offset; ++index) {
     result.Set(VectorElement<ElementType>(src1, offset + index), index);
