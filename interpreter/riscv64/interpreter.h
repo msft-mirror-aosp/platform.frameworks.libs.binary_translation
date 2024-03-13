@@ -1967,6 +1967,12 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVmulhvv:
         return OpVectorvv<intrinsics::Vmulhvv<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVdivuvv:
+        return OpVectorvv<intrinsics::Vdivvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVdivvv:
+        return OpVectorvv<intrinsics::Vdivvv<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVwaddvv:
         if constexpr (sizeof(ElementType) == sizeof(Int64) ||
                       vlmul == VectorRegisterGroupMultiplier::k8registers) {
