@@ -112,6 +112,50 @@
       "mnemo": "CTZ_I64"
     },
     {
+      "name": "DivInt32",
+      "args": [
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<int32_t>",
+      "mnemo": "MACRO_DIV32"
+    },
+    {
+      "name": "DivUInt32",
+      "args": [
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<uint32_t>",
+      "mnemo": "MACRO_UDIV32"
+    },
+    {
+      "name": "DivInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<int64_t>",
+      "mnemo": "MACRO_DIV64"
+    },
+    {
+      "name": "DivUInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroDiv<uint64_t>",
+      "mnemo": "MACRO_UDIV64"
+    },
+    {
       "name": "MacroFCvtFloat32ToInt32",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
