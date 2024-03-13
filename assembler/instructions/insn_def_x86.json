@@ -1003,6 +1003,17 @@
     },
     {
       "encodings": {
+        "Divb": { "opcodes": [ "F6", "6" ] },
+        "Idivb": { "opcodes": [ "F6", "7" ] }
+      },
+      "args": [
+        { "class": "AX", "usage": "use_def" },
+        { "class": "GeneralReg8/Mem8", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
         "Divl": { "opcodes": [ "F7", "6" ] },
         "Idivl": { "opcodes": [ "F7", "7" ] }
       },
@@ -1010,6 +1021,18 @@
         { "class": "EAX", "usage": "use_def" },
         { "class": "EDX", "usage": "use_def" },
         { "class": "GeneralReg32/Mem32", "usage": "use" },
+        { "class": "FLAGS", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Divw": { "opcodes": [ "66", "F7", "6" ] },
+        "Idivw": { "opcodes": [ "66", "F7", "7" ] }
+      },
+      "args": [
+        { "class": "AX", "usage": "use_def" },
+        { "class": "DX", "usage": "use_def" },
+        { "class": "GeneralReg16/Mem16", "usage": "use" },
         { "class": "FLAGS", "usage": "def" }
       ]
     },
