@@ -421,6 +421,8 @@ class Decoder {
     kVmulvv = 0b100101,
     kVmulhsuvv = 0b100110,
     kVmulhvv = 0b100111,
+    kVdivuvv = 0b100000,
+    kVdivvv = 0b100001,
     kVmaddvv = 0b101001,
     kVnmsubvv = 0b101011,
     kVmaccvv = 0b101101,
