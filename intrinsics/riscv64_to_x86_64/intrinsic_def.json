@@ -210,6 +210,12 @@
     "in": [ "uint64_t", "uimm8" ],
     "out": [ "uint64_t" ]
   },
+  "CPUClockCount": {
+    "comment": "Get current CPU clock count",
+    "class": "scalar",
+    "in": [],
+    "out": [ "uint64_t" ]
+  },
   "CanonicalizeNan": {
     "comment": "Unbox small floating-point value from NaN",
     "class": "template",
