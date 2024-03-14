@@ -1844,49 +1844,59 @@ class Interpreter {
                           ElementType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src1, args.src2);
+                          vma>(args.dst, args.src1, Vec<ElementType{}>{args.src2});
       case Decoder::VOpMVvOpcode::kVredandvs:
         return OpVectorvs<[](auto... args) { return std::tuple{(args & ...)}; },
                           ElementType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src1, args.src2);
+                          vma>(args.dst, args.src1, Vec<~ElementType{}>{args.src2});
       case Decoder::VOpMVvOpcode::kVredorvs:
         return OpVectorvs<[](auto... args) { return std::tuple{(args | ...)}; },
                           ElementType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src1, args.src2);
+                          vma>(args.dst, args.src1, Vec<ElementType{}>{args.src2});
       case Decoder::VOpMVvOpcode::kVredxorvs:
         return OpVectorvs<[](auto... args) { return std::tuple{(args ^ ...)}; },
                           ElementType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src1, args.src2);
+                          vma>(args.dst, args.src1, Vec<ElementType{}>{args.src2});
       case Decoder::VOpMVvOpcode::kVredminuvs:
         return OpVectorvs<[](auto... args) { return std::tuple{std::min(args...)}; },
                           UnsignedType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src1, args.src2);
+                          vma>(
+            args.dst,
+            args.src1,
+            Vec<UnsignedType{std::numeric_limits<typename UnsignedType::BaseType>::max()}>(
+                args.src2));
       case Decoder::VOpMVvOpcode::kVredminvs:
         return OpVectorvs<[](auto... args) { return std::tuple{std::min(args...)}; },
                           SignedType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src1, args.src2);
+                          vma>(
+            args.dst,
+            args.src1,
+            Vec<SignedType{std::numeric_limits<typename SignedType::BaseType>::max()}>{args.src2});
       case Decoder::VOpMVvOpcode::kVredmaxuvs:
         return OpVectorvs<[](auto... args) { return std::tuple{std::max(args...)}; },
                           UnsignedType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src1, args.src2);
+                          vma>(args.dst, args.src1, Vec<UnsignedType{}>{args.src2});
       case Decoder::VOpMVvOpcode::kVredmaxvs:
         return OpVectorvs<[](auto... args) { return std::tuple{std::max(args...)}; },
                           SignedType,
                           vlmul,
                           vta,
-                          vma>(args.dst, args.src1, args.src2);
+                          vma>(
+            args.dst,
+            args.src1,
+            Vec<SignedType{std::numeric_limits<typename SignedType::BaseType>::min()}>{args.src2});
       case Decoder::VOpMVvOpcode::kVWXUnary0:
         switch (args.vwxunary0_opcode) {
           case Decoder::VWXUnary0Opcode::kVmvxs:
@@ -2713,8 +2723,9 @@ class Interpreter {
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
-            auto vma>
-  void OpVectorvs(uint8_t dst, uint8_t src1, uint8_t src2) {
+            auto vma,
+            auto kDefaultElement>
+  void OpVectorvs(uint8_t dst, uint8_t src1, Vec<kDefaultElement> src2) {
     return OpVectorvs<Intrinsic, ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
         dst, src1, src2);
   }
@@ -2723,9 +2734,10 @@ class Interpreter {
             typename ElementType,
             size_t kRegistersInvolved,
             TailProcessing vta,
-            auto vma>
-  void OpVectorvs(uint8_t dst, uint8_t src1, uint8_t src2) {
-    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
+            auto vma,
+            auto kDefaultElement>
+  void OpVectorvs(uint8_t dst, uint8_t src1, Vec<kDefaultElement> src2) {
+    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2.start_no)) {
       return Unimplemented();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
@@ -2746,14 +2758,9 @@ class Interpreter {
       const MaskType element_count{
           static_cast<typename MaskType::BaseType>(std::min(16 / sizeof(ElementType), vl))};
       auto mask_bits = std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index));
-      SIMD128Register arg2(state_->cpu.v[src2 + index]);
+      SIMD128Register arg2{GetVectorArgument<ElementType, vta, vma>(src2, vstart, vl, index, mask)};
       for (MaskType element_index = MaskType{0}; element_index < element_count;
            element_index += MaskType{1}) {
-        if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-          if ((MaskType{mask_bits} & (MaskType{1} << element_index)) == MaskType{0}) {
-            continue;
-          }
-        }
         arg1 = std::get<0>(Intrinsic(arg1, arg2.Get<ElementType>(element_index)));
       }
     }
