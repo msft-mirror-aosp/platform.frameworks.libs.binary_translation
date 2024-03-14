@@ -19,8 +19,8 @@
 #include "berberis/assembler/machine_code.h"
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/config.h"
-#include "berberis/base/logging.h"
 #include "berberis/calling_conventions/calling_conventions_x86_64.h"
 #include "berberis/code_gen_lib/gen_adaptor.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -28,7 +28,6 @@
 #include "berberis/instrument/trampolines.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 #include "berberis/runtime_primitives/host_code.h"
-#include "berberis/runtime_primitives/runtime_library.h"
 #include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
