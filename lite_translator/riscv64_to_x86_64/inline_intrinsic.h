@@ -373,16 +373,6 @@ class TryBindingBasedInlineIntrinsic {
           Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
               as_, as_.rcx, std::get<arg_info.from>(input_args_));
           return std::tuple{};
-        } else if constexpr (RegisterClass::kAsRegister == 'a') {
-          CHECK_EQ(result_reg_.num, x86_64::Assembler::no_register.num);
-          Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
-              as_, as_.rax, std::get<arg_info.from>(input_args_));
-          return std::tuple{};
-        } else if constexpr (RegisterClass::kAsRegister == 'd') {
-          CHECK_EQ(result_reg_.num, x86_64::Assembler::no_register.num);
-          Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
-              as_, as_.rdx, std::get<arg_info.from>(input_args_));
-          return std::tuple{};
         } else {
           static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
           static_assert(!RegisterClass::kIsImplicitReg);
@@ -390,6 +380,18 @@ class TryBindingBasedInlineIntrinsic {
           Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
               as_, reg, std::get<arg_info.from>(input_args_));
           return std::tuple{reg};
+        }
+      } else if constexpr (arg_info.arg_type == ArgInfo::IN_OUT_TMP_ARG) {
+        using Type = std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>;
+        static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
+        static_assert(RegisterClass::kIsImplicitReg);
+        if constexpr (RegisterClass::kAsRegister == 'a') {
+          CHECK_EQ(result_reg_.num, x86_64::Assembler::no_register.num);
+          Mov<Type>(as_, as_.rax, std::get<arg_info.from>(input_args_));
+          result_reg_ = as_.rax;
+          return std::tuple{};
+        } else {
+          static_assert(kDependentValueFalse<arg_info.arg_type>);
         }
       } else if constexpr (arg_info.arg_type == ArgInfo::OUT_ARG) {
         using Type = std::tuple_element_t<arg_info.to, typename AsmCallInfo::OutputArguments>;

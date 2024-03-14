@@ -330,6 +330,19 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
         MovFromInput<RegisterClass>(builder_, result_, std::get<arg_info.from>(input_args_));
         return std::tuple{result_};
       }
+    } else if constexpr (arg_info.arg_type == ArgInfo::IN_OUT_TMP_ARG) {
+      static_assert(!std::is_same_v<ResType, std::monostate>);
+      static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
+      static_assert(RegisterClass::kIsImplicitReg);
+      if constexpr (kNumOut > 1) {
+        static_assert(kDependentTypeFalse<ArgTraits<ArgBinding>>);
+      } else {
+        CHECK(implicit_result_reg_.IsInvalidReg());
+        implicit_result_reg_ = AllocVReg();
+        MovFromInput<RegisterClass>(
+            builder_, implicit_result_reg_, std::get<arg_info.from>(input_args_));
+        return std::tuple{implicit_result_reg_};
+      }
     } else if constexpr (arg_info.arg_type == ArgInfo::IN_TMP_ARG) {
       if constexpr (RegisterClass::kIsImplicitReg) {
         auto implicit_reg = AllocVReg();
@@ -375,7 +388,8 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
         if constexpr (RegisterClass::kAsRegister == 0) {
           return std::tuple{flag_register_};
         } else {
-          return std::tuple{};
+          auto implicit_reg = AllocVReg();
+          return std::tuple{implicit_reg};
         }
       } else {
         auto reg = AllocVReg();
@@ -435,7 +449,9 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
                            RegisterClass::kAsRegister == 'x') {
         CHECK(!xmm_result_reg_.IsInvalidReg());
         MovToResult<RegisterClass>(builder_, result_, xmm_result_reg_);
-      } else if constexpr (arg_info.arg_type == ArgInfo::OUT_ARG && RegisterClass::kIsImplicitReg) {
+      } else if constexpr ((arg_info.arg_type == ArgInfo::OUT_ARG ||
+                            arg_info.arg_type == ArgInfo::IN_OUT_TMP_ARG) &&
+                           RegisterClass::kIsImplicitReg) {
         CHECK(!implicit_result_reg_.IsInvalidReg());
         MovToResult<RegisterClass>(builder_, result_, implicit_result_reg_);
       }

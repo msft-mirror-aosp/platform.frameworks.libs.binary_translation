@@ -210,6 +210,128 @@ template <typename ElementType>
   return result;
 }
 
+// Naïve implementation for tests.  Also used on not-x86 platforms.
+template <auto kDefaultElement>
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorBroadcastForTests() {
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof kDefaultElement);
+  SIMD128Register dest;
+  for (int index = 0; index < kElementsCount; ++index) {
+    dest.Set(kDefaultElement, index);
+  }
+  return dest;
+}
+
+#ifndef __x86_64__
+template <auto kDefaultElement>
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorBroadcast() {
+  return VectorBroadcastForTests<kDefaultElement>();
+}
+#endif
+
+template <auto kDefaultElement, TailProcessing vta, NoInactiveProcessing = NoInactiveProcessing{}>
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorMasking(SIMD128Register result,
+                                                               int vstart,
+                                                               int vl) {
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof kDefaultElement);
+  if (vstart < 0) {
+    vstart = 0;
+  }
+  if (vl < 0) {
+    vl = 0;
+  }
+  if (vl > kElementsCount) {
+    vl = kElementsCount;
+  }
+  if constexpr (kDefaultElement == decltype(kDefaultElement){}) {
+    if (vstart == 0) [[likely]] {
+      if (vl != kElementsCount) [[unlikely]] {
+        const auto [tail_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vl);
+        result &= ~tail_bitmask;
+      }
+    } else if (vstart >= vl) [[unlikely]] {
+      // Note: vstart <= vl here because RISC-V instructions don't alter the result if vstart >= vl.
+      // But when vstart is so big that it's larger than kElementsCount and vl is also larger than
+      // kElementsCount we hit that corner case and return zero if that happens.
+      result = SIMD128Register{};
+    } else {
+      // Note: vstart < vl here because RISC-V instructions don't alter the result if vstart >= vl.
+      CHECK_LT(vstart, vl);
+      const auto [start_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vstart);
+      const auto [tail_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vl);
+      result &= start_bitmask;
+      result &= ~tail_bitmask;
+    }
+  } else if constexpr (kDefaultElement == ~decltype(kDefaultElement){}) {
+    if (vstart == 0) [[likely]] {
+      if (vl != kElementsCount) [[unlikely]] {
+        const auto [tail_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vl);
+        result |= tail_bitmask;
+      }
+    } else if (vstart >= vl) [[unlikely]] {
+      // Note: vstart <= vl here because RISC-V instructions don't alter the result if vstart >= vl.
+      // But when vstart is so big that it's larger than kElementsCount and vl is also larger than
+      // kElementsCount we hit that corner case and return zero if that happens.
+      result = ~SIMD128Register{};
+    } else {
+      // Note: vstart < vl here because RISC-V instructions don't alter the result if vstart >= vl.
+      CHECK_LT(vstart, vl);
+      const auto [start_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vstart);
+      const auto [tail_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vl);
+      result |= ~start_bitmask;
+      result |= tail_bitmask;
+    }
+  } else {
+    const std::tuple<SIMD128Register>& dest = VectorBroadcast<kDefaultElement>();
+    if (vstart == 0) [[likely]] {
+      if (vl != kElementsCount) [[unlikely]] {
+        const auto [tail_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vl);
+        result &= ~tail_bitmask;
+        result |= (std::get<0>(dest) & tail_bitmask);
+      }
+    } else if (vstart >= vl) [[unlikely]] {
+      // Note: vstart <= vl here because RISC-V instructions don't alter the result if vstart >= vl.
+      // But when vstart is so big that it's larger than kElementsCount and vl is also larger than
+      // kElementsCount we hit that corner case and return dest if that happens.
+      result = std::get<0>(dest);
+    } else {
+      const auto [start_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vstart);
+      const auto [tail_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vl);
+      result &= start_bitmask;
+      result &= ~tail_bitmask;
+      result |= (std::get<0>(dest) & (~start_bitmask | tail_bitmask));
+    }
+  }
+  return result;
+}
+
+template <auto kDefaultElement,
+          TailProcessing vta,
+          auto vma = NoInactiveProcessing{},
+          typename MaskType>
+[[nodiscard]] inline std::tuple<SIMD128Register> VectorMasking(SIMD128Register result,
+                                                               int vstart,
+                                                               int vl,
+                                                               MaskType mask) {
+  static_assert((std::is_same_v<decltype(vma), NoInactiveProcessing> &&
+                 std::is_same_v<MaskType, NoInactiveProcessing>) ||
+                (std::is_same_v<decltype(vma), InactiveProcessing> &&
+                 (std::is_same_v<MaskType, RawInt8> || std::is_same_v<MaskType, RawInt16>)));
+  if constexpr (std::is_same_v<decltype(vma), InactiveProcessing>) {
+    const auto [simd_mask] = BitMaskToSimdMask<decltype(kDefaultElement)>(
+        static_cast<typename MaskType::BaseType>(mask));
+    if constexpr (kDefaultElement == ~decltype(kDefaultElement){}) {
+      result |= ~simd_mask;
+    } else {
+      result &= simd_mask;
+      if constexpr (kDefaultElement != decltype(kDefaultElement){}) {
+        const std::tuple<SIMD128Register>& dest = VectorBroadcast<kDefaultElement>();
+        result |= std::get<0>(dest) & ~simd_mask;
+      }
+    }
+  }
+  return VectorMasking<kDefaultElement, vta>(result, vstart, vl);
+}
+
 template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoInactiveProcessing{}>
 [[nodiscard]] inline std::tuple<SIMD128Register> VectorMasking(
     SIMD128Register dest,
@@ -228,7 +350,7 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
     vl = kElementsCount;
   }
   if (vstart == 0) [[likely]] {
-    if (vl == 16) [[likely]] {
+    if (vl == kElementsCount) [[likely]] {
       return result;
     }
     const auto [tail_bitmask] = MakeBitmaskFromVl<ElementType>(vl);
@@ -237,17 +359,23 @@ template <typename ElementType, TailProcessing vta, NoInactiveProcessing = NoIna
     } else {
       dest = (dest & tail_bitmask) | (result & ~tail_bitmask);
     }
-  } else {
+  } else if (vstart < vl) [[likely]] {
     // Note: vstart <= vl here because RISC-V instructions don't alter the result if vstart >= vl.
-    // Corners case where vstart == vl may happen because of vslideup:
-    //   https://github.com/riscv/riscv-v-spec/issues/263
-    CHECK_LE(vstart, vl);
+    // But when vstart is so big that it's larger than kElementsCount and vl is also larger than
+    // kElementsCount we hit that corner case and return dest if that happens.
     const auto [start_bitmask] = MakeBitmaskFromVl<ElementType>(vstart);
     const auto [tail_bitmask] = MakeBitmaskFromVl<ElementType>(vl);
     if constexpr (vta == TailProcessing::kAgnostic) {
       dest = (dest & ~start_bitmask) | (result & start_bitmask) | tail_bitmask;
     } else {
       dest = (dest & (~start_bitmask | tail_bitmask)) | (result & start_bitmask & ~tail_bitmask);
+    }
+  } else if constexpr (vta == TailProcessing::kAgnostic) {
+    if (vstart == vl) {
+      // Corners case where vstart == vl may happen because of vslideup:
+      //   https://github.com/riscv/riscv-v-spec/issues/263
+      const auto [tail_bitmask] = MakeBitmaskFromVl<ElementType>(vl);
+      dest |= tail_bitmask;
     }
   }
   return {dest};
