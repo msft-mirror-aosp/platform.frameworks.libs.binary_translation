@@ -184,13 +184,13 @@ Register LiteTranslator::Op32(Decoder::Op32Opcode opcode, Register arg1, Registe
       as_.Movl(as_.rdx, as_.rax);
       as_.Sarl(as_.rdx, int8_t{31});
       as_.Idivl(arg2);
-      as_.Movsxlq(res, opcode == Op32Opcode::kDivw ? as_.rax : as_.rdx);
+      as_.Movsxlq(res, as_.rdx);
       break;
     case Op32Opcode::kRemuw:
       as_.Movl(as_.rax, arg1);
       as_.Xorl(as_.rdx, as_.rdx);
       as_.Divl(arg2);
-      as_.Movsxlq(res, opcode == Op32Opcode::kDivuw ? as_.rax : as_.rdx);
+      as_.Movsxlq(res, as_.rdx);
       break;
     default:
       Unimplemented();

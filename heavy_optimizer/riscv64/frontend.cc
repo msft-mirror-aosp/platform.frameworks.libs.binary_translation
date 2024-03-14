@@ -360,7 +360,6 @@ Register HeavyOptimizerFrontend::Op(Decoder::OpOpcode opcode, Register arg1, Reg
       Gen<x86_64::MulqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
       Gen<PseudoCopy>(res, rdx, 8);
     } break;
-    case OpOpcode::kDiv:
     case OpOpcode::kRem: {
       auto rax = AllocTempReg();
       auto rdx = AllocTempReg();
@@ -368,9 +367,8 @@ Register HeavyOptimizerFrontend::Op(Decoder::OpOpcode opcode, Register arg1, Reg
       Gen<PseudoCopy>(rdx, rax, 8);
       Gen<x86_64::SarqRegImm>(rdx, 63, GetFlagsRegister());
       Gen<x86_64::IdivqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
-      Gen<PseudoCopy>(res, opcode == OpOpcode::kDiv ? rax : rdx, 8);
+      Gen<PseudoCopy>(res, rdx, 8);
     } break;
-    case OpOpcode::kDivu:
     case OpOpcode::kRemu: {
       auto rax = AllocTempReg();
       auto rdx = AllocTempReg();
@@ -379,7 +377,7 @@ Register HeavyOptimizerFrontend::Op(Decoder::OpOpcode opcode, Register arg1, Reg
       Gen<PseudoDefReg>(rdx);
       Gen<x86_64::XorqRegReg>(rdx, rdx, GetFlagsRegister());
       Gen<x86_64::DivqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
-      Gen<PseudoCopy>(res, opcode == OpOpcode::kDivu ? rax : rdx, 8);
+      Gen<PseudoCopy>(res, rdx, 8);
     } break;
     case OpOpcode::kAndn:
       if (host_platform::kHasBMI) {
@@ -439,7 +437,6 @@ Register HeavyOptimizerFrontend::Op32(Decoder::Op32Opcode opcode, Register arg1,
       Gen<PseudoCopy>(res, arg1, 4);
       Gen<x86_64::ImullRegReg>(res, arg2, GetFlagsRegister());
       break;
-    case Op32Opcode::kDivw:
     case Op32Opcode::kRemw: {
       auto rax = AllocTempReg();
       auto rdx = AllocTempReg();
@@ -447,9 +444,8 @@ Register HeavyOptimizerFrontend::Op32(Decoder::Op32Opcode opcode, Register arg1,
       Gen<PseudoCopy>(rdx, rax, 4);
       Gen<x86_64::SarlRegImm>(rdx, int8_t{31}, GetFlagsRegister());
       Gen<x86_64::IdivlRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
-      unextended_res = opcode == Op32Opcode::kDivw ? rax : rdx;
+      unextended_res = rdx;
     } break;
-    case Op32Opcode::kDivuw:
     case Op32Opcode::kRemuw: {
       auto rax = AllocTempReg();
       auto rdx = AllocTempReg();
@@ -458,7 +454,7 @@ Register HeavyOptimizerFrontend::Op32(Decoder::Op32Opcode opcode, Register arg1,
       Gen<PseudoDefReg>(rdx);
       Gen<x86_64::XorlRegReg>(rdx, rdx, GetFlagsRegister());
       Gen<x86_64::DivlRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
-      unextended_res = opcode == Op32Opcode::kDivuw ? rax : rdx;
+      unextended_res = rdx;
     } break;
     default:
       Unimplemented();
