@@ -16,11 +16,12 @@
 
 #include "gtest/gtest.h"
 
-#include <unistd.h>
-
 #include <malloc.h>  // memalign
 #include <sys/mman.h>
+#include <unistd.h>
+
 #include <algorithm>  // copy_n, fill_n
+#include <cfenv>
 #include <csignal>
 #include <cstdint>
 #include <cstring>
@@ -98,6 +99,48 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   // Vector instructions.
+  template <typename ElementType>
+  void TestFPExceptions(uint32_t insn_bytes) {
+    // Install the following arguments: NaN, 1.0, 1.0, NaN.
+    // Then try to mask out NaNs with vstart, vl, and mask.
+    state_.cpu.v[24] = state_.cpu.v[16] = state_.cpu.v[8] =
+        SIMD128Register{__v2du{0x7ff4'0000'0000'0000, 0x3ff0'0000'0000'0000}}.Get<__uint128_t>();
+    state_.cpu.v[25] = state_.cpu.v[17] = state_.cpu.v[9] =
+        SIMD128Register{__v2du{0x3ff0'0000'0000'0000, 0x7ff4'0000'0000'0000}}.Get<__uint128_t>();
+    state_.cpu.v[26] = state_.cpu.v[18] = state_.cpu.v[10] = SIMD128Register{
+        __v4su{
+            0x7fa0'0000, 0x3f80'0000, 0x3f80'0000, 0x7fa0'0000}}.Get<__uint128_t>();
+    state_.cpu.f[1] = 0xffff'ffff'3f80'0000;
+    state_.cpu.f[2] = 0x3ff0'0000'0000'0000;
+    ;
+    state_.cpu.vtype = (BitUtilLog2(sizeof(ElementType)) << 3) | /*vlmul=*/1;
+    // First clear exceptions and execute the instruction with vstart = 0, vl = 4.
+    // This should produce FE_INVALID with most floating point instructions.
+    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+    state_.cpu.vstart = 0;
+    state_.cpu.vl = 4;
+    state_.cpu.v[0] = 0b1111;
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_TRUE(bool(fetestexcept(FE_ALL_EXCEPT)));
+    // Mask NaNs using vstart and vl.
+    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+    state_.cpu.vstart = 1;
+    state_.cpu.vl = 3;
+    state_.cpu.v[0] = 0b1111;
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_FALSE(bool(fetestexcept(FE_ALL_EXCEPT)));
+    // Mask NaNs using mask.
+    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+    state_.cpu.vstart = 0;
+    state_.cpu.vl = 4;
+    state_.cpu.v[0] = 0b0110;
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_FALSE(bool(fetestexcept(FE_ALL_EXCEPT)));
+  }
+
   template <size_t kNFfields>
   void TestVlXreXX(uint32_t insn_bytes) {
     const auto kUndisturbedValue = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
@@ -2054,6 +2097,17 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   EXPECT_EQ(0, strcmp(message, buf));
   close(pipefd[0]);
   close(pipefd[1]);
+}
+
+TEST_F(Riscv64InterpreterTest, TestFPExceptions) {
+  TestFPExceptions<intrinsics::Float32>(0x912d1557);  // Vfmul.vv v10, v18, v26, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x910c1457);  // Vfmul.vv v8, v16, v24, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x9120d557);  // Vfmul.vf v10, v18, f1, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x91015457);  // Vfmul.vf v8, v16, f2, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x812d1557);  // Vfdiv.vv v10, v18, v26, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x810c1457);  // Vfdiv.vv v8, v16, v24, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x8120d557);  // Vfdiv.vf v10, v18, f1, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x81015457);  // Vfdiv.vf v8, v16, f2, v0.t
 }
 
 TEST_F(Riscv64InterpreterTest, TestVlXreXX) {
