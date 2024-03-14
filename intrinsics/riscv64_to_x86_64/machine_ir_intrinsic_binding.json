@@ -137,56 +137,48 @@
   {
     "name": "Div<int8_t>",
     "insn": "DivInt8",
-    "usage": "interpret-only",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
   {
     "name": "Div<uint8_t>",
     "insn": "DivUInt8",
-    "usage": "interpret-only",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
   {
     "name": "Div<int16_t>",
     "insn": "DivInt16",
-    "usage": "interpret-only",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
   {
     "name": "Div<uint16_t>",
     "insn": "DivUInt16",
-    "usage": "interpret-only",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
   {
     "name": "Div<int32_t>",
     "insn": "DivInt32",
-    "usage": "interpret-only",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
   {
     "name": "Div<uint32_t>",
     "insn": "DivUInt32",
-    "usage": "interpret-only",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
   {
     "name": "Div<int64_t>",
     "insn": "DivInt64",
-    "usage": "interpret-only",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
   {
     "name": "Div<uint64_t>",
     "insn": "DivUInt64",
-    "usage": "interpret-only",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },

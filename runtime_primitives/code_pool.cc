@@ -16,15 +16,14 @@
 
 #include "berberis/runtime_primitives/code_pool.h"
 
-#include <algorithm>
 #include <cstring>
 #include <mutex>
 
-#include "berberis/assembler/machine_code.h"
-#include "berberis/base/bit_util.h"
-#include "berberis/base/exec_region.h"
 #include "berberis/base/exec_region_anonymous.h"
-#include "berberis/runtime_primitives/host_code.h"
+
+#if defined(__BIONIC__)
+#include "berberis/base/exec_region_elf_backed.h"
+#endif
 
 namespace berberis {
 

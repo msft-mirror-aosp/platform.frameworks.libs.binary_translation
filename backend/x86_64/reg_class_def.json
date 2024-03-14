@@ -129,6 +129,13 @@
       ]
     },
     {
+      "name": "AX",
+      "size": 2,
+      "regs": [
+        "RAX"
+      ]
+    },
+    {
       "name": "RBX",
       "size": 8,
       "regs": [
@@ -173,6 +180,13 @@
     {
       "name": "EDX",
       "size": 4,
+      "regs": [
+        "RDX"
+      ]
+    },
+    {
+      "name": "DX",
+      "size": 2,
       "regs": [
         "RDX"
       ]
