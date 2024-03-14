@@ -261,7 +261,25 @@ template <auto kDefaultElement, TailProcessing vta, NoInactiveProcessing = NoIna
       result &= start_bitmask;
       result &= ~tail_bitmask;
     }
-    return result;
+  } else if constexpr (kDefaultElement == ~decltype(kDefaultElement){}) {
+    if (vstart == 0) [[likely]] {
+      if (vl != kElementsCount) [[unlikely]] {
+        const auto [tail_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vl);
+        result |= tail_bitmask;
+      }
+    } else if (vstart >= vl) [[unlikely]] {
+      // Note: vstart <= vl here because RISC-V instructions don't alter the result if vstart >= vl.
+      // But when vstart is so big that it's larger than kElementsCount and vl is also larger than
+      // kElementsCount we hit that corner case and return zero if that happens.
+      result = ~SIMD128Register{};
+    } else {
+      // Note: vstart < vl here because RISC-V instructions don't alter the result if vstart >= vl.
+      CHECK_LT(vstart, vl);
+      const auto [start_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vstart);
+      const auto [tail_bitmask] = MakeBitmaskFromVl<decltype(kDefaultElement)>(vl);
+      result |= ~start_bitmask;
+      result |= tail_bitmask;
+    }
   } else {
     const std::tuple<SIMD128Register>& dest = VectorBroadcast<kDefaultElement>();
     if (vstart == 0) [[likely]] {
@@ -282,8 +300,8 @@ template <auto kDefaultElement, TailProcessing vta, NoInactiveProcessing = NoIna
       result &= ~tail_bitmask;
       result |= (std::get<0>(dest) & (~start_bitmask | tail_bitmask));
     }
-    return result;
   }
+  return result;
 }
 
 template <auto kDefaultElement,
@@ -301,10 +319,14 @@ template <auto kDefaultElement,
   if constexpr (std::is_same_v<decltype(vma), InactiveProcessing>) {
     const auto [simd_mask] = BitMaskToSimdMask<decltype(kDefaultElement)>(
         static_cast<typename MaskType::BaseType>(mask));
-    result &= simd_mask;
-    if constexpr (kDefaultElement != decltype(kDefaultElement){}) {
-      const std::tuple<SIMD128Register>& dest = VectorBroadcast<kDefaultElement>();
-      result |= std::get<0>(dest) & ~simd_mask;
+    if constexpr (kDefaultElement == ~decltype(kDefaultElement){}) {
+      result |= ~simd_mask;
+    } else {
+      result &= simd_mask;
+      if constexpr (kDefaultElement != decltype(kDefaultElement){}) {
+        const std::tuple<SIMD128Register>& dest = VectorBroadcast<kDefaultElement>();
+        result |= std::get<0>(dest) & ~simd_mask;
+      }
     }
   }
   return VectorMasking<kDefaultElement, vta>(result, vstart, vl);
