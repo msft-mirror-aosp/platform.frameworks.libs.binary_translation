@@ -446,6 +446,24 @@ inline std::tuple<SIMD128Register> VectorArithmeticWidenvv(Lambda lambda,
   return result;
 }
 
+// SEW = 2*SEW op SEW
+// TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
+template <typename ElementType, typename Lambda, typename... ParameterType>
+inline std::tuple<SIMD128Register> VectorArithmeticWidenwv(Lambda lambda,
+                                                           ParameterType... parameters) {
+  static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
+                  std::is_same_v<ParameterType, ElementType>)&&...));
+  SIMD128Register result;
+  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
+  for (int index = 0; index < kElementsCount; ++index) {
+    auto [src1, src2] = std::tuple{parameters...};
+    result.Set(lambda(VectorElement<WideType<ElementType>>(src1, index),
+                      Widen(VectorElement<ElementType>(src2, index))),
+               index);
+  }
+  return result;
+}
+
 template <typename ElementType>
 SIMD128Register VectorExtend(SIMD128Register src) {
   SIMD128Register result;
@@ -707,6 +725,10 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
   DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##vv, Widenvv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
 
+#define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(name, ...)                       \
+  DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##wx, Widenwv, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, ElementType src2), (src1, src2))
+
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
@@ -841,6 +863,7 @@ DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mul, (args * ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mulsu, auto [arg1, arg2] = std::tuple{args...};
                                          (BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg2))))) *
                                          (Widen(BitCastToUnsigned(Narrow(arg1)))))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(add, (args + ...))
 
 DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(sr, auto [arg1, arg2] = std::tuple{args...};
                                           (arg1 >> arg2))
@@ -861,6 +884,7 @@ DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{arg
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV
+#undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX
 
 }  // namespace berberis::intrinsics
 

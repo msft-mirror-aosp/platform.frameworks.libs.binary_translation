@@ -2342,6 +2342,22 @@ class Interpreter {
       case Decoder::VOpMVxOpcode::kVmulhvx:
         return OpVectorvx<intrinsics::Vmulhvx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpMVxOpcode::kVwaddwx:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenwx<intrinsics::Vwaddwx<SignedType>, SignedType, vlmul, vta, vma>(
+              args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+        }
+      case Decoder::VOpMVxOpcode::kVwadduwx:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenwx<intrinsics::Vwaddwx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+              args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+        }
       default:
         Unimplemented();
     }
@@ -2931,6 +2947,22 @@ class Interpreter {
                          vta,
                          vma,
                          kExtraCsrs...>(dst, Vec{src1}, Vec{src2});
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma,
+            CsrName... kExtraCsrs>
+  void OpVectorWidenwx(uint8_t dst, uint8_t src1, ElementType arg2) {
+    return OpVectorWiden<Intrinsic,
+                         ElementType,
+                         NumRegistersInvolvedForWideOperand(vlmul),
+                         NumberOfRegistersInvolved(vlmul),
+                         vta,
+                         vma,
+                         kExtraCsrs...>(dst, WideVec{src1}, arg2);
   }
 
   template <auto Intrinsic,
