@@ -29,6 +29,33 @@ namespace berberis::intrinsics {
 
 namespace {
 
+TEST(VectorIntrinsics, VectorBroadcast) {
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<int8_t>::min()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<int8_t>::min()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<int8_t>::max()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<int8_t>::max()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<uint8_t>::max()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<uint8_t>::max()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<int16_t>::min()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<int16_t>::min()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<int16_t>::max()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<int16_t>::max()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<uint16_t>::max()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<uint16_t>::max()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<int32_t>::min()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<int32_t>::min()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<int32_t>::max()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<int32_t>::max()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<uint32_t>::max()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<uint32_t>::max()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<int64_t>::min()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<int64_t>::min()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<int64_t>::max()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<int64_t>::max()}>());
+  ASSERT_EQ(VectorBroadcastForTests<Wrapping{std::numeric_limits<uint64_t>::max()}>(),
+            VectorBroadcast<Wrapping{std::numeric_limits<uint64_t>::max()}>());
+}
+
 TEST(VectorIntrinsics, MakeBitmaskFromVl) {
   for (size_t vl = 0; vl < 128; ++vl) {
     ASSERT_EQ(MakeBitmaskFromVlForTests(vl), MakeBitmaskFromVl(vl));

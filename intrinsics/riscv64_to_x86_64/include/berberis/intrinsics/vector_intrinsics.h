@@ -29,6 +29,12 @@
 
 namespace berberis::intrinsics {
 
+template <auto kDefaultElement>
+[[nodiscard]] inline const std::tuple<SIMD128Register>& VectorBroadcast() {
+  return *bit_cast<const std::tuple<SIMD128Register>*>(static_cast<uintptr_t>(
+      constants_pool::kVectorConst<typename decltype(kDefaultElement)::BaseType{kDefaultElement}>));
+}
+
 [[nodiscard, gnu::pure]] inline std::tuple<SIMD128Register> MakeBitmaskFromVl(size_t vl) {
   return {_mm_loadu_si128(reinterpret_cast<__m128i_u const*>(
       bit_cast<const uint8_t*>(static_cast<uintptr_t>(constants_pool::kBitMaskTable)) +
