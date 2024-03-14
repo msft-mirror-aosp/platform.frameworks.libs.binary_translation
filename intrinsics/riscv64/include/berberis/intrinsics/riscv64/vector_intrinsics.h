@@ -435,6 +435,20 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
   return result;
 }
 
+// TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
+template <typename ElementType, typename Lambda, typename ResultType, typename... ParameterType>
+inline std::tuple<ResultType> VectorProcessingReduce(Lambda lambda,
+                                                     ResultType init,
+                                                     ParameterType... parameters) {
+  static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
+                  std::is_same_v<ParameterType, ElementType>)&&...));
+  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
+  for (int index = 0; index < kElementsCount; ++index) {
+    init = lambda(init, VectorElement<ElementType>(parameters, index)...);
+  }
+  return init;
+}
+
 // SEW = 2*SEW op SEW
 // TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
 template <typename ElementType, typename Lambda, typename... ParameterType>
@@ -704,6 +718,24 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
       Vf##name##vv, return ({ __VA_ARGS__; });            \
       , (int8_t frm, SIMD128Register src1, SIMD128Register src2), (frm), (src1, src2))
 
+#define DEFINE_ARITHMETIC_REDUCE_INTRINSIC(Name, arithmetic, parameters, capture, arguments) \
+                                                                                             \
+  template <typename ElementType,                                                            \
+            typename ResultType = ElementType,                                               \
+            enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>  \
+  inline std::tuple<ResultType> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) { \
+    return VectorProcessingReduce<ElementType>(                                              \
+        [DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS capture](auto... args) {                  \
+          static_assert((std::is_same_v<decltype(args), ElementType> && ...));               \
+          arithmetic;                                                                        \
+        },                                                                                   \
+        DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                \
+  }
+
+#define DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(name, ...)                           \
+  DEFINE_ARITHMETIC_REDUCE_INTRINSIC(Vred##name##vs, return ({ __VA_ARGS__; }); \
+                                     , (ResultType init, SIMD128Register src), (), (init, src))
+
 #define DEFINE_W_ARITHMETIC_INTRINSIC(Name, Pattern, arithmetic, parameters, arguments)           \
                                                                                                   \
   template <typename ElementType,                                                                 \
@@ -733,15 +765,19 @@ DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(sum, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(rsub, auto [arg1, arg2] = std::tuple{args...}; (arg2 - arg1))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(sub, (args - ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(sub, (args - ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(and, (args & ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(and, (args & ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(and, (args & ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(or, (args | ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(xor, (args ^ ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(xor, (args ^ ...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(xor, (args ^ ...))
 DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(mul, std::get<0>(FMul(FPFlags::DYN, frm, args...)))
 DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV(mul, std::get<0>(FMul(FPFlags::DYN, frm, args...)))
 DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(div, std::get<0>(FDiv(FPFlags::DYN, frm, args...)))
@@ -839,8 +875,10 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fsgnjx, std::get<0>(FSgnjx(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fsgnjx, std::get<0>(FSgnjx(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(min, std::min(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(min, std::min(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(min, std::min(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(max, std::max(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(max, std::max(args...))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(max, std::max(args...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mul, auto [arg1, arg2] = std::tuple{args...}; (arg2 * arg1))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mul, auto [arg1, arg2] = std::tuple{args...}; (arg2 * arg1))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulh, auto [arg1, arg2] = std::tuple{args...};
@@ -867,8 +905,10 @@ DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{arg
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_W_ARITHMETIC_INTRINSIC
+#undef DEFINE_ARITHMETIC_REDUCE_INTRINSIC
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_V
+#undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VS
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
