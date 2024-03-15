@@ -779,6 +779,10 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
   DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##vv, Widenvv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
 
+#define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(name, ...)                       \
+  DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##wv, Widenwv, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
+
 #define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(name, ...)                       \
   DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##wx, Widenwv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, ElementType src2), (src1, src2))
@@ -923,7 +927,9 @@ DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mul, (args * ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mulsu, auto [arg1, arg2] = std::tuple{args...};
                                          (BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg2))))) *
                                          (Widen(BitCastToUnsigned(Narrow(arg1)))))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(add, (args + ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(add, (args + ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(sub, (args - ...))
 
 DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(sr, auto [arg1, arg2] = std::tuple{args...};
                                           (arg1 >> arg2))
@@ -946,6 +952,7 @@ DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{arg
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV
+#undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX
 
 }  // namespace berberis::intrinsics
