@@ -35,6 +35,7 @@ ThreadState* CreateThreadState();
 void DestroyThreadState(ThreadState* state);
 
 class GuestThread;
+void* GetThreadStateStorage(ThreadState& state);
 void SetGuestThread(ThreadState& state, GuestThread* thread);
 GuestThread* GetGuestThread(const ThreadState& state);
 
