@@ -149,7 +149,7 @@ SimdMaskToBitMaskForTests(SIMD128Register simd_mask) {
   constexpr ResultType kElementsCount{
       static_cast<uint8_t>(sizeof(SIMD128Register) / sizeof(ElementType))};
   for (ResultType index{0}; index < kElementsCount; index += ResultType{1}) {
-    if (simd_mask.Get<ElementType>(static_cast<int>(index)) != ElementType{0}) {
+    if (simd_mask.Get<ElementType>(index) != ElementType{}) {
       mask |= ResultType{1} << ResultType{index};
     }
   }
@@ -170,8 +170,8 @@ template <auto kElement>
     SIMD128Register simd_mask,
     SIMD128Register result) {
   using ElementType = decltype(kElement);
-  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
-  for (int index = 0; index < kElementsCount; ++index) {
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
+  for (size_t index = 0; index < kElementsCount; ++index) {
     if (!simd_mask.Get<ElementType>(index)) {
       result.Set(kElement, index);
     }
@@ -213,9 +213,9 @@ template <typename ElementType>
 // Naïve implementation for tests.  Also used on not-x86 platforms.
 template <auto kDefaultElement>
 [[nodiscard]] inline std::tuple<SIMD128Register> VectorBroadcastForTests() {
-  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof kDefaultElement);
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof kDefaultElement;
   SIMD128Register dest;
-  for (int index = 0; index < kElementsCount; ++index) {
+  for (size_t index = 0; index < kElementsCount; ++index) {
     dest.Set(kDefaultElement, index);
   }
   return dest;
@@ -428,8 +428,8 @@ inline std::tuple<SIMD128Register> VectorProcessing(Lambda lambda, ParameterType
   static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
                   std::is_same_v<ParameterType, ElementType>)&&...));
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
-  for (int index = 0; index < kElementsCount; ++index) {
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
+  for (size_t index = 0; index < kElementsCount; ++index) {
     result.Set(lambda(VectorElement<ElementType>(parameters, index)...), index);
   }
   return result;
@@ -442,8 +442,8 @@ inline std::tuple<ResultType> VectorProcessingReduce(Lambda lambda,
                                                      ParameterType... parameters) {
   static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
                   std::is_same_v<ParameterType, ElementType>)&&...));
-  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
-  for (int index = 0; index < kElementsCount; ++index) {
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
+  for (size_t index = 0; index < kElementsCount; ++index) {
     init = lambda(init, VectorElement<ElementType>(parameters, index)...);
   }
   return init;
@@ -457,8 +457,8 @@ inline std::tuple<SIMD128Register> VectorArithmeticNarrowwv(Lambda lambda,
   static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
                   std::is_same_v<ParameterType, ElementType>)&&...));
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
-  for (int index = 0; index < kElementsCount; ++index) {
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+  for (size_t index = 0; index < kElementsCount; ++index) {
     auto [src1, src2] = std::tuple{parameters...};
     result.Set(Narrow(lambda(VectorElement<WideType<ElementType>>(src1, index),
                              Widen(VectorElement<ElementType>(src2, index)))),
@@ -475,8 +475,8 @@ inline std::tuple<SIMD128Register> VectorArithmeticWidenvv(Lambda lambda,
   static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
                   std::is_same_v<ParameterType, ElementType>)&&...));
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
-  for (int index = 0; index < kElementsCount; ++index) {
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+  for (size_t index = 0; index < kElementsCount; ++index) {
     result.Set(lambda(Widen(VectorElement<ElementType>(parameters, index))...), index);
   }
   return result;
@@ -490,8 +490,8 @@ inline std::tuple<SIMD128Register> VectorArithmeticWidenwv(Lambda lambda,
   static_assert(((std::is_same_v<ParameterType, SIMD128Register> ||
                   std::is_same_v<ParameterType, ElementType>)&&...));
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
-  for (int index = 0; index < kElementsCount; ++index) {
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+  for (size_t index = 0; index < kElementsCount; ++index) {
     auto [src1, src2] = std::tuple{parameters...};
     result.Set(lambda(VectorElement<WideType<ElementType>>(src1, index),
                       Widen(VectorElement<ElementType>(src2, index))),
@@ -503,8 +503,8 @@ inline std::tuple<SIMD128Register> VectorArithmeticWidenwv(Lambda lambda,
 template <typename ElementType>
 SIMD128Register VectorExtend(SIMD128Register src) {
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(8 / sizeof(ElementType));
-  for (int index = 0; index < kElementsCount; ++index) {
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+  for (size_t index = 0; index < kElementsCount; ++index) {
     result.Set(Widen(VectorElement<ElementType>(src, index)), index);
   }
   return result;
@@ -537,9 +537,9 @@ template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> VidvForTests(size_t index) {
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
   ElementType element = {static_cast<typename ElementType::BaseType>(index * kElementsCount)};
-  for (int index = 0; index < kElementsCount; ++index) {
+  for (size_t index = 0; index < kElementsCount; ++index) {
     result.Set(element, index);
     element += ElementType{1};
   }
@@ -567,7 +567,7 @@ inline std::tuple<SIMD128Register> VectorSlideUp(size_t offset,
                                                  SIMD128Register src1,
                                                  SIMD128Register src2) {
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
   CHECK_LT(offset, kElementsCount);
   for (size_t index = 0; index < offset; ++index) {
     result.Set(VectorElement<ElementType>(src1, kElementsCount - offset + index), index);
@@ -599,7 +599,7 @@ inline std::tuple<SIMD128Register> VectorSlideDown(size_t offset,
                                                    SIMD128Register src1,
                                                    SIMD128Register src2) {
   SIMD128Register result;
-  constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
   CHECK_LT(offset, kElementsCount);
   for (size_t index = 0; index < kElementsCount - offset; ++index) {
     result.Set(VectorElement<ElementType>(src1, offset + index), index);
@@ -658,10 +658,9 @@ template <typename TargetElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register src) {
   SIMD128Register result;
-  constexpr int kElementsCount =
-      std::min(static_cast<int>(sizeof(SIMD128Register) / sizeof(TargetElementType)),
-               static_cast<int>(sizeof(SIMD128Register) / sizeof(SourceElementType)));
-  for (int index = 0; index < kElementsCount; ++index) {
+  size_t kElementsCount = std::min(sizeof(SIMD128Register) / sizeof(TargetElementType),
+                                   sizeof(SIMD128Register) / sizeof(SourceElementType));
+  for (size_t index = 0; index < kElementsCount; ++index) {
     if constexpr (!std::is_same_v<TargetElementType, Float16> &&
                   !std::is_same_v<TargetElementType, Float32> &&
                   !std::is_same_v<TargetElementType, Float64>) {
@@ -687,7 +686,6 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
 
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
 #define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, capture, arguments)             \
-                                                                                                  \
   template <typename ElementType,                                                                 \
             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>       \
   inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) { \
@@ -737,7 +735,6 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
       , (int8_t frm, SIMD128Register src1, SIMD128Register src2), (frm), (src1, src2))
 
 #define DEFINE_ARITHMETIC_REDUCE_INTRINSIC(Name, arithmetic, parameters, capture, arguments) \
-                                                                                             \
   template <typename ElementType,                                                            \
             typename ResultType = ElementType,                                               \
             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>  \
@@ -755,7 +752,6 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
                                      , (ResultType init, SIMD128Register src), (), (init, src))
 
 #define DEFINE_W_ARITHMETIC_INTRINSIC(Name, Pattern, arithmetic, parameters, arguments)           \
-                                                                                                  \
   template <typename ElementType,                                                                 \
             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>       \
   inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) { \
