@@ -16,7 +16,6 @@
 
 #include "berberis/base/mmap.h"
 
-#include <stdint.h>
 #include <sys/mman.h>
 
 #include "berberis/base/checks.h"

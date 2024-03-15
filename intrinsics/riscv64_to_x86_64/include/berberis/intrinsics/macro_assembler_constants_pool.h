@@ -37,9 +37,13 @@ extern const int32_t kVectorConst<int16_t{0x7fff}>;
 template <>
 extern const int32_t kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}>;
 template <>
+extern const int32_t kVectorConst<int32_t{0x3f80'0000}>;
+template <>
 extern const int32_t kVectorConst<int32_t{0x7fff'ffff}>;
 template <>
 extern const int32_t kVectorConst<int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}>;
+template <>
+extern const int32_t kVectorConst<int64_t{0x7ff8'0000'0000'0000}>;
 template <>
 extern const int32_t kVectorConst<int64_t{0x7fff'ffff'ffff'ffff}>;
 template <>
