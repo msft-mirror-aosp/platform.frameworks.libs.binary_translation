@@ -434,6 +434,10 @@ class Decoder {
     kVwmulvv = 0b111011,
     kVwmuluvv = 0b111000,
     kVwmulsuvv = 0b111010,
+    kVwadduwv = 0b110100,
+    kVwaddwv = 0b110101,
+    kVwsubuwv = 0b110110,
+    kVwsubwv = 0b110111,
   };
 
   enum class VOpIVxOpcode : uint8_t {
