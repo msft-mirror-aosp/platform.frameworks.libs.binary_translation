@@ -1900,8 +1900,8 @@ TEST_F(Riscv64InterpreterTest, FenceInstructions) {
   InterpretFence(0x0ff0000f);
   // FenceTso
   InterpretFence(0x8330000f);
-  // FenceI
-  InterpretFence(0x0000100f);
+
+  // FenceI explicitly not supported.
 }
 
 TEST_F(Riscv64InterpreterTest, SyscallWrite) {
