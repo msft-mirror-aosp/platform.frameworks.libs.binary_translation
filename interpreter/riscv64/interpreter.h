@@ -2149,6 +2149,38 @@ class Interpreter {
           return OpVectorWidenvv<intrinsics::Vwmulsuvv<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
         }
+      case Decoder::VOpMVvOpcode::kVwaddwv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenwv<intrinsics::Vwaddwv<SignedType>, SignedType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
+      case Decoder::VOpMVvOpcode::kVwadduwv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenwv<intrinsics::Vwaddwv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
+      case Decoder::VOpMVvOpcode::kVwsubwv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenwv<intrinsics::Vwsubwv<SignedType>, SignedType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
+      case Decoder::VOpMVvOpcode::kVwsubuwv:
+        if constexpr (sizeof(ElementType) == sizeof(Int64) ||
+                      vlmul == VectorRegisterGroupMultiplier::k8registers) {
+          return Unimplemented();
+        } else {
+          return OpVectorWidenwv<intrinsics::Vwsubwv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        }
       default:
         Unimplemented();
     }
@@ -2919,6 +2951,24 @@ class Interpreter {
                          vta,
                          vma,
                          kExtraCsrs...>(dst, Vec{src1}, Vec{src2});
+  }
+
+  // 2*SEW = SEW op SEW
+  // Attention: not to confuse with to be done OpVectorWidenwv with 2*SEW = 2*SEW op SEW
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma,
+            CsrName... kExtraCsrs>
+  void OpVectorWidenwv(uint8_t dst, uint8_t src1, uint8_t src2) {
+    return OpVectorWiden<Intrinsic,
+                         ElementType,
+                         NumRegistersInvolvedForWideOperand(vlmul),
+                         NumberOfRegistersInvolved(vlmul),
+                         vta,
+                         vma,
+                         kExtraCsrs...>(dst, WideVec{src1}, Vec{src2});
   }
 
   template <auto Intrinsic,
