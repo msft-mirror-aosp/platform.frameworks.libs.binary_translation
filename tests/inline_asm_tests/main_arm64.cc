@@ -5456,11 +5456,21 @@ TEST(Arm64InsnTest, SignedAbsoluteDifferenceLongUpperInt16x8) {
 }
 
 TEST(Arm64InsnTest, SignedAbsoluteDifferenceAccumulateInt16x8) {
-  __uint128_t arg1 = MakeUInt128(0x8967003192586625ULL, 0x9410510533584384ULL);
-  __uint128_t arg2 = MakeUInt128(0x6560233917967492ULL, 0x6784476370847497ULL);
-  __uint128_t arg3 = MakeUInt128(0x8333655579007384ULL, 0x1914731988627135ULL);
+  // The lowest element tests the overflow.
+  __uint128_t arg1 = MakeUInt128(0x8967'0031'9258'7fffULL, 0x9410'5105'3358'4384ULL);
+  __uint128_t arg2 = MakeUInt128(0x6560'2339'1796'8000ULL, 0x6784'4763'7084'7497ULL);
+  __uint128_t arg3 = MakeUInt128(0x8333'6555'7900'5555ULL, 0x1914'7319'8862'7135ULL);
   __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("saba %0.8h, %1.8h, %2.8h")(arg1, arg2, arg3);
-  ASSERT_EQ(res, MakeUInt128(0x5f2c885dfe3e81f1ULL, 0xec887cbbc58ea248ULL));
+  ASSERT_EQ(res, MakeUInt128(0x5f2c'885d'fe3e'5554ULL, 0xec88'7cbb'c58e'a248ULL));
+}
+
+TEST(Arm64InsnTest, SignedAbsoluteDifferenceAccumulateInt32x4) {
+  // The lowest element tests the overflow.
+  __uint128_t arg1 = MakeUInt128(0x8967'0031'7fff'ffffULL, 0x9410'5105'3358'4384ULL);
+  __uint128_t arg2 = MakeUInt128(0x6560'2339'8000'0000ULL, 0x6784'4763'7084'7497ULL);
+  __uint128_t arg3 = MakeUInt128(0x8333'6555'aaaa'5555ULL, 0x1914'7319'8862'7135ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("saba %0.4s, %1.4s, %2.4s")(arg1, arg2, arg3);
+  ASSERT_EQ(res, MakeUInt128(0x5f2c'885d'aaaa'5554ULL, 0xec88'6977'c58e'a248ULL));
 }
 
 TEST(Arm64InsnTest, SignedAbsoluteDifferenceAccumulateLongInt16x4) {
