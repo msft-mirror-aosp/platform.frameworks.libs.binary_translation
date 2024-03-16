@@ -16,7 +16,6 @@
 
 #include "gtest/gtest.h"
 
-#include <cmath>
 #include <cstdint>
 #include <initializer_list>
 #include <limits>
@@ -2350,8 +2349,22 @@ TEST(Arm64InsnTest, ConvertFp16ToFp64) {
 
 TEST(Arm64InsnTest, ConvertToNarrowF64F32x2) {
   constexpr auto AsmFcvtn = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fcvtn %0.2s, %1.2d");
-  __uint128_t res = AsmFcvtn(MakeF64x2(2.0, 3.0));
-  ASSERT_EQ(res, MakeF32x4(2.0f, 3.0f, 0.0f, 0.0f));
+  ASSERT_EQ(AsmFcvtn(MakeF64x2(2.0, 3.0)), MakeF32x4(2.0f, 3.0f, 0.0f, 0.0f));
+  // Overflow or inf arguments result in inf.
+  __uint128_t res = AsmFcvtn(
+      MakeF64x2(std::numeric_limits<double>::max(), std::numeric_limits<double>::infinity()));
+  ASSERT_EQ(res,
+            MakeF32x4(std::numeric_limits<float>::infinity(),
+                      std::numeric_limits<float>::infinity(),
+                      0.0f,
+                      0.0f));
+  res = AsmFcvtn(
+      MakeF64x2(std::numeric_limits<double>::lowest(), -std::numeric_limits<double>::infinity()));
+  ASSERT_EQ(res,
+            MakeF32x4(-std::numeric_limits<float>::infinity(),
+                      -std::numeric_limits<float>::infinity(),
+                      0.0f,
+                      0.0f));
 }
 
 TEST(Arm64InsnTest, ConvertToNarrowF64F32x2Upper) {
@@ -2363,8 +2376,18 @@ TEST(Arm64InsnTest, ConvertToNarrowF64F32x2Upper) {
 
 TEST(Arm64InsnTest, ConvertToNarrowRoundToOddF64F32) {
   constexpr auto AsmFcvtxn = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fcvtxn %s0, %d1");
-  __uint128_t res = AsmFcvtxn(bit_cast<uint64_t>(2.0));
-  ASSERT_EQ(res, bit_cast<uint32_t>(2.0f));
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(2.0)), bit_cast<uint32_t>(2.0f));
+  // Overflow is saturated.
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(std::numeric_limits<double>::max())),
+            bit_cast<uint32_t>(std::numeric_limits<float>::max()));
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(std::numeric_limits<double>::lowest())),
+            bit_cast<uint32_t>(std::numeric_limits<float>::lowest()));
+  // inf is converted to inf.
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(std::numeric_limits<double>::infinity())),
+            bit_cast<uint32_t>(std::numeric_limits<float>::infinity()));
+  // -inf is converted to -inf.
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(-std::numeric_limits<double>::infinity())),
+            bit_cast<uint32_t>(-std::numeric_limits<float>::infinity()));
 }
 
 TEST(Arm64InsnTest, ConvertToNarrowRoundToOddF64F32x2) {
