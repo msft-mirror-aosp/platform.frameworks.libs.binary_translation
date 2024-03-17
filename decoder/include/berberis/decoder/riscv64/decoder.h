@@ -499,6 +499,8 @@ class Decoder {
     kVwsubvx = 0b110011,
     kVwadduvx = 0b110000,
     kVwsubuvx = 0b110010,
+    kVwsubuwx = 0b110110,
+    kVwsubwx = 0b110111,
   };
 
   enum class VSUmOpOpcode : uint8_t {
