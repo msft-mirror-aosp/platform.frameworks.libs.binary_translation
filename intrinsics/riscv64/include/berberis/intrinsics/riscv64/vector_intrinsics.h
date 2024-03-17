@@ -922,16 +922,17 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(div,
                                        std::get<0>(Div<typename ElementType::BaseType>(
                                            static_cast<typename ElementType::BaseType>(args)...)))})
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
-DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(sub, (args - ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(add, (args + ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(add, (args + ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(sub, (args - ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(sub, (args - ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(sub, (args - ...))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(sub, (args - ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mul, (args * ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mulsu, auto [arg1, arg2] = std::tuple{args...};
                                          (BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg2))))) *
                                          (Widen(BitCastToUnsigned(Narrow(arg1)))))
-DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(add, (args + ...))
-DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(add, (args + ...))
-DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(sub, (args - ...))
 
 DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(sr, auto [arg1, arg2] = std::tuple{args...};
                                           (arg1 >> arg2))
