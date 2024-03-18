@@ -43,7 +43,7 @@ void EmitIndirectJump(Assembler* as, Assembler::Register target);
 
 #if defined(__x86_64__)
 void EmitSyscall(x86_64::Assembler* as, GuestAddr pc);
-void EmitDirectDispatch(x86_64::Assembler* as, GuestAddr pc, bool check_pending_signals = true);
+void EmitDirectDispatch(x86_64::Assembler* as, GuestAddr pc, bool check_pending_signals);
 void EmitIndirectDispatch(x86_64::Assembler* as, x86_64::Assembler::Register target);
 void EmitExitGeneratedCode(x86_64::Assembler* as, x86_64::Assembler::Register target);
 void EmitAllocStackFrame(x86_64::Assembler* as, uint32_t frame_size);
