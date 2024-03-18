@@ -47,10 +47,40 @@ TEST(Signal, SigillRiscv64) {
   if (setjmp(g_recover_riscv64) == 0) {
     fprintf(stderr, "Executing invalid RISC-V instruction\n");
     asm volatile(
-        ".align 8\n"
         ".globl g_illegal_instruction_riscv64\n"
         "g_illegal_instruction_riscv64:\n"
-        ".4byte 0x0\n");
+        "unimp\n");
+    fprintf(stderr, "Bug, recover from SIGILL shall come as longjmp()\n");
+    FAIL();
+  } else {
+    fprintf(stderr, "Recovered, test passed\n");
+  }
+}
+
+extern "C" char g_illegal_fencei_instruction_riscv64;
+
+void SigillFenceISignalHandlerRiscv64(int /* sig */, siginfo_t* /* info */, void* ctx) {
+  fprintf(stderr, "SIGILL caught\n");
+  // Warning: Do not use ASSERT, so that we recover with longjmp unconditionally.
+  // Otherwise we'll be looping executing illegal instruction.
+  EXPECT_EQ(static_cast<ucontext*>(ctx)->uc_mcontext.__gregs[REG_PC],
+            reinterpret_cast<greg_t>(&g_illegal_fencei_instruction_riscv64));
+  longjmp(g_recover_riscv64, 1);
+}
+
+TEST(Signal, SigillOnFenceIRiscv64) {
+  struct sigaction sa;
+  sa.sa_flags = SA_SIGINFO;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_sigaction = SigillFenceISignalHandlerRiscv64;
+  ScopedSigaction scoped_sa(SIGILL, &sa);
+
+  if (setjmp(g_recover_riscv64) == 0) {
+    fprintf(stderr, "Executing disallowed fence.i\n");
+    asm volatile(
+        ".globl g_illegal_fencei_instruction_riscv64\n"
+        "g_illegal_fencei_instruction_riscv64:\n"
+        "fence.i\n");
     fprintf(stderr, "Bug, recover from SIGILL shall come as longjmp()\n");
     FAIL();
   } else {
