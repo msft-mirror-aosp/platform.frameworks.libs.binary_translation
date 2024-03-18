@@ -192,8 +192,8 @@ def _get_insn_operands(insn):
   """
   res = []
   r = 0
-  # Int3, Mfence, and UD2 have side effects not related to arguments.
-  side_effects = insn['name'] in ('Int3', 'Mfence', 'UD2')
+  # Int3, Lfence, Mfence, Sfence, and UD2 have side effects not related to arguments.
+  side_effects = insn['name'] in ('Int3', 'Lfence', 'Mfence', 'Sfence', 'UD2')
   for arg in insn.get('args'):
     kind = arg.get('class')
     if _is_reg(kind):
