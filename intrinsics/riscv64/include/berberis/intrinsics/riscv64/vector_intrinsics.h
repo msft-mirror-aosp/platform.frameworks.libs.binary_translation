@@ -684,6 +684,15 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
   return result;
 }
 
+// With wide intrinsics multiplication we may do sign-extension or zero-extension, but some
+// intrinsics need mix: Signed * Unsigned. We narrow down value and then extend it again.
+// Compiler is smart enough to eliminate dead code.
+template <typename ElementType>
+std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType arg2) {
+  return BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg1)))) *
+         Widen(BitCastToUnsigned(Narrow(arg2)));
+}
+
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
 #define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, capture, arguments)             \
   template <typename ElementType,                                                                 \
@@ -930,9 +939,7 @@ DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(sub, (args - ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(sub, (args - ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(sub, (args - ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mul, (args * ...))
-DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mulsu, auto [arg1, arg2] = std::tuple{args...};
-                                         (BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg2))))) *
-                                         (Widen(BitCastToUnsigned(Narrow(arg1)))))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mulsu, std::get<0>(WideMultiplySignedUnsigned(args...)))
 
 DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(sr, auto [arg1, arg2] = std::tuple{args...};
                                           (arg1 >> arg2))
