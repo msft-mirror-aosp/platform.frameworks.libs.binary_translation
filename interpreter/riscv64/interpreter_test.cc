@@ -1676,6 +1676,25 @@ class Riscv64InterpreterTest : public ::testing::Test {
                                       const uint32_t (&expected_result_vd0_with_mask_int32)[8],
                                       const uint64_t (&expected_result_vd0_with_mask_int64)[8],
                                       const __v2du (&source)[16]) {
+    TestVectorReductionInstruction(
+        insn_bytes,
+        source,
+        std::tuple<const uint8_t(&)[8], const uint8_t(&)[8]>{expected_result_vd0_int8,
+                                                             expected_result_vd0_with_mask_int8},
+        std::tuple<const uint16_t(&)[8], const uint16_t(&)[8]>{expected_result_vd0_int16,
+                                                               expected_result_vd0_with_mask_int16},
+        std::tuple<const uint32_t(&)[8], const uint32_t(&)[8]>{expected_result_vd0_int32,
+                                                               expected_result_vd0_with_mask_int32},
+        std::tuple<const uint64_t(&)[8], const uint64_t(&)[8]>{
+            expected_result_vd0_int64, expected_result_vd0_with_mask_int64});
+  }
+
+  template <typename... ExpectedResultType>
+  void TestVectorReductionInstruction(
+      uint32_t insn_bytes,
+      const __v2du (&source)[16],
+      std::tuple<const ExpectedResultType (&)[8],
+                 const ExpectedResultType (&)[8]>... expected_result) {
     // Each expected_result input to this function is the vd[0] value of the reduction, for each
     // of the possible vlmul, i.e. expected_result_vd0_int8[n] = vd[0], int8, no mask, vlmul=n.
     //
@@ -1745,14 +1764,15 @@ class Riscv64InterpreterTest : public ::testing::Test {
     };
 
     for (int vlmul = 0; vlmul < 8; vlmul++) {
-      Verify(insn_bytes, 0, vlmul, expected_result_vd0_with_mask_int8[vlmul]);
-      Verify(insn_bytes, 1, vlmul, expected_result_vd0_with_mask_int16[vlmul]);
-      Verify(insn_bytes, 2, vlmul, expected_result_vd0_with_mask_int32[vlmul]);
-      Verify(insn_bytes, 3, vlmul, expected_result_vd0_with_mask_int64[vlmul]);
-      Verify(insn_bytes | (1 << 25), 0, vlmul, expected_result_vd0_int8[vlmul]);
-      Verify(insn_bytes | (1 << 25), 1, vlmul, expected_result_vd0_int16[vlmul]);
-      Verify(insn_bytes | (1 << 25), 2, vlmul, expected_result_vd0_int32[vlmul]);
-      Verify(insn_bytes | (1 << 25), 3, vlmul, expected_result_vd0_int64[vlmul]);
+      ((Verify(insn_bytes,
+               BitUtilLog2(sizeof(ExpectedResultType)),
+               vlmul,
+               std::get<1>(expected_result)[vlmul]),
+        Verify(insn_bytes | (1 << 25),
+               BitUtilLog2(sizeof(ExpectedResultType)),
+               vlmul,
+               std::get<0>(expected_result)[vlmul])),
+       ...);
     }
   }
 
@@ -8130,196 +8150,208 @@ TEST_F(Riscv64InterpreterTest, TestVredsum) {
   TestVectorReductionInstruction(
       0x10c2457,  // vredsum.vs v8,v16,v24,v0.t
       /* expected_result_vd0_int8 */
-      {242, 228, 200, 144, 0 /* unused */, 2, 12, 57},
+      {242, 228, 200, 144, 0 /* unused */, 146, 44, 121},
       /* expected_result_vd0_int16 */
-      {0x0172, 0x82e4, 0x88c8, 0xa090, 0x0000 /* unused */, 0x8300, 0x8904, 0xa119},
+      {0x0172, 0x82e4, 0x88c8, 0xa090, 0 /* unused */, 0x1300, 0xa904, 0xe119},
       /* expected_result_vd0_int32 */
-      {0xcb42'b932, 0x9403'71e4, 0xa706'64c8, 0xd312'5090,
-       0x0000'0000 /* unused */, 0x8906'8300, 0x8906'8300, 0x9712'8d09},
+      {0xcb44'b932, 0x9407'71e4, 0xa70e'64c8, 0xd312'5090, 0 /* unused */, 0 /* unused */,
+       0x1907'1300, 0xb713'ad09},
       /* expected_result_vd0_int64 */
-      {0xb32e'a925'9f1a'9511, 0x1f97'0d86'fb72'e962, 0x0b928'970a'74e4'52c4,
-       0xef4e'ad14'6aca'2888, 0x0000'0000'0000'000 /* unused */,
-       0x9512'8f0d'8906'8300, 0x9512'8f0d'8906'8300, 0x9512'8f0d'8906'8300},
+      {0xb32f'a926'9f1b'9511, 0x1f99'0d88'fb74'e962, 0xb92c'970e'74e8'52c4, 0xef4e'ad14'6aca'2888,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x2513'1f0e'1907'1300},
       /* expected_result_vd0_with_mask_int8 */
-      {151, 104, 222, 75, 0 /* unused */, 0, 10, 34},
+      {39, 248, 142, 27, 0 /* unused */, 0, 154, 210},
       /* expected_result_vd0_with_mask_int16 */
-      {0xcf45, 0xc22f, 0x79d0, 0x98bf, 0x0000 /* unused */, 0x8300, 0x8300, 0x9b15},
+      {0x5f45, 0xc22f, 0x99d0, 0x98bf, 0 /* unused */, 0x1300, 0x1300, 0x4b15},
       /* expected_result_vd0_with_mask_int32 */
-      {0xbd36'af29, 0x299f'138a, 0x1984'ef5c, 0x9cf4'4aa1,
-       0x0000'0000 /* unused */, 0x8906'8300, 0x08906'8300, 0x8906'8300},
+      {0x2d38'1f29, 0x99a1'838a, 0x1989'ef5c, 0x9cf4'4aa1, 0 /* unused */, 0 /* unused */,
+       0x1907'1300, 0x1907'1300},
       /* expected_result_vd0_with_mask_int64 */
-      {0x9512'8f0d'8906'8300, 0x17a'f36e'e55e'd751, 0xde53'c83f'b227'9c13,
-       0xc833'9e0e'73df'49b5, 0x0000'0000'0000'0000 /* unused */,
-       0x9512'8f0d'8906'8300, 0x9512'8f0d'8906'8300, 0x9512'8f0d'8906'8300},
-      kVectorCalculationsSourceLegacy);
+      {0x2513'1f0e'1907'1300, 0x917c'8370'7560'6751, 0x4e56'3842'222a'0c13, 0xc833'9e0e'73df'49b5,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x2513'1f0e'1907'1300},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVredand) {
   TestVectorReductionInstruction(
       0x50c2457,  // vredand.vs v8,v16,v24,v0.t
       /* expected_result_vd0_int8 */
-      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0 /* unused */, 0, 0, 0},
       /* expected_result_vd0_int16 */
-      {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+      {0x8000, 0x8000, 0x8000, 0x0000, 0 /* unused */, 0x8000, 0x8000, 0x8000},
       /* expected_result_vd0_int32 */
-      {0x0200'0000, 0x0200'0000, 0x0200'0000, 0x0200'0000, 0x0, 0x0200'0000, 0x0200'0000, 0x0200'0000},
+      {0x8200'8000, 0x8200'8000, 0x8200'8000, 0x0200'0000, 0 /* unused */, 0 /* unused */,
+       0x8200'8000, 0x8200'8000},
       /* expected_result_vd0_int64 */
-      {0x0604'0000'0200'0000, 0x0604'0000'0200'0000, 0x0604'0000'0200'0000, 0x0604'0000'0200'0000, 0x0,
-       0x0604'0000'0200'0000, 0x0604'0000'0200'0000, 0x0604'0000'0200'0000},
+      {0x8604'8000'8200'8000, 0x8604'8000'8200'8000, 0x8604'8000'8200'8000, 0x0604'0000'0200'0000,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x8604'8000'8200'8000},
       /* expected_result_vd0_with_mask_int8 */
-      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0 /* unused */, 0, 0, 0},
       /* expected_result_vd0_with_mask_int16 */
-      {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+      {0x8000, 0x8000, 0x8000, 0x0000, 0 /* unused */, 0x8000, 0x8000, 0x8000},
       /* expected_result_vd0_with_mask_int32 */
-      {0x2000000, 0x2000000, 0x2000000, 0x2000000, 0x0, 0x2000000, 0x2000000, 0x2000000},
+      {0x8200'8000, 0x8200'8000, 0x8200'8000, 0x0200'0000, 0 /* unused */, 0 /* unused */,
+       0x8200'8000, 0x8200'8000},
       /* expected_result_vd0_with_mask_int64 */
-      {0x0604'0000'0200'0000, 0x0604'0000'0200'0000, 0x0604'0000'0200'0000, 0x0604'0000'0200'0000, 0x0,
-       0x0604'0000'0200'0000, 0x0604'0000'0200'0000, 0x0604'0000'0200'0000},
-      kVectorCalculationsSourceLegacy);
+      {0x8604'8000'8200'8000, 0x8604'8000'8200'8000, 0x8604'8000'8200'8000, 0x0604'0000'0200'0000,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x8604'8000'8200'8000},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVredor) {
   TestVectorReductionInstruction(
       0x90c2457,  // vredor.vs v8,v16,v24,v0.t
       /* expected_result_vd0_int8 */
-      {31, 63, 127, 255, 0, 2, 6, 15},
+      {159, 191, 255, 255, 0 /* unused */, 146, 150, 159},
       /* expected_result_vd0_int16 */
-      {0x9f1d, 0xbf3d, 0xff7d, 0xfffd, 0x0, 0x8300, 0x8704, 0x8f0d},
+      {0x9f1d, 0xbf3d, 0xff7d, 0xfffd, 0 /* unused */, 0x9300, 0x9704, 0x9f0d},
       /* expected_result_vd0_int32 */
-      {0x9f1e'9b19, 0xbf3e'bb39, 0xff7e'fb79, 0xfffe'fbf9, 0x0, 0x8706'8300, 0x8706'8300, 0x8f0e'8b09},
+      {0x9f1e'9b19, 0xbf3e'bb39, 0xff7e'fb79, 0xfffe'fbf9, 0 /* unused */, 0 /* unused */,
+       0x9706'9300, 0x9f0e'9b09},
       /* expected_result_vd0_int64 */
-      {0x9f1e'9f1d'9716'9311, 0xbf3e'bf3d'b736'b331, 0xff7e'ff7d'f776'f371, 0xfffefffdf7f6f3f1, 0x0,
-       0x8f0e'8f0d'8706'8300, 0x8f0e'8f0d'8706'8300, 0x8f0e'8f0d'8706'8300},
+      {0x9f1e'9f1d'9716'9311, 0xbf3e'bf3d'b736'b331, 0xff7e'ff7d'f776'f371, 0xfffe'fffd'f7f6'f3f1,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x9f0e'9f0d'9706'9300},
       /* expected_result_vd0_with_mask_int8 */
-      {31, 63, 127, 255, 0, 0, 6, 14},
+      {159, 191, 255, 255, 0 /* unused */, 0, 150, 158},
       /* expected_result_vd0_with_mask_int16 */
-      {0x9f1d, 0xbf3d, 0xff7d, 0xfffd, 0x0, 0x8300, 0x8300, 0x8f0d},
+      {0x9f1d, 0xbf3d, 0xff7d, 0xfffd, 0 /* unused */, 0x9300, 0x9300, 0x9f0d},
       /* expected_result_vd0_with_mask_int32 */
-      {0x9f1e'9b19, 0xbf3e'bb39, 0xff7e'fb79, 0xfffe'fbf9, 0x0, 0x8706'8300, 0x8706'8300, 0x8706'8300},
+      {0x9f1e'9b19, 0xbf3e'bb39, 0xff7e'fb79, 0xfffe'fbf9, 0 /* unused */, 0 /* unused */,
+       0x9706'9300, 0x9706'9300},
       /* expected_result_vd0_with_mask_int64 */
-      {0x8f0e'8f0d'8706'8300, 0xbf3e'bf3d'b736'b331, 0xff7e'ff7d'f776'f371, 0xfffe'fffd'f7f6'f3f1, 0x0,
-       0x8f0e'8f0d'8706'8300, 0x8f0e'8f0d'8706'8300, 0x8f0e'8f0d'8706'8300},
-      kVectorCalculationsSourceLegacy);
+      {0x9f0e'9f0d'9706'9300, 0xbf3e'bf3d'b736'b331, 0xff7e'ff7d'f776'f371, 0xfffe'fffd'f7f6'f3f1,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x9f0e'9f0d'9706'9300},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVredxor) {
   TestVectorReductionInstruction(
       0xd0c2457,  // vredxor.vs v8,v16,v24,v0.t
       /* expected_result_vd0_int8 */
-      {0, 0, 0, 0, 0, 2, 0, 1},
+      {0, 0, 0, 0, 0 /* unused */, 146, 0, 1},
       /* expected_result_vd0_int16 */
-      {0x8100, 0x8100, 0x8100, 0x8100, 0x0, 0x8300, 0x8504, 0x8101},
+      {0x8100, 0x8100, 0x8100, 0x8100, 0 /* unused */, 0x1300, 0x8504, 0x8101},
       /* expected_result_vd0_int32 */
-      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x8302'8100, 0x0, 0x8506'8300, 0x8506'8300, 0x8b0a'8909},
+      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x8302'8100, 0 /* unused */, 0 /* unused */,
+       0x1506'1300, 0x8b0a'8909},
       /* expected_result_vd0_int64 */
-      {0x9716'9515'9312'9111, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x0,
-       0x890a'8f0d'8506'8300, 0x890a'8f0d'8506'8300, 0x890a'8f0d'8506'8300},
+      {0x9716'9515'9312'9111, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x190a'1f0d'1506'1300},
       /* expected_result_vd0_with_mask_int8 */
-      {31, 10, 6, 187, 0, 0, 2, 6},
+      {143, 154, 150, 43, 0 /* unused */, 0, 146, 150},
       /* expected_result_vd0_with_mask_int16 */
-      {0x8f0d, 0xbd3d, 0x9514, 0x8d0d, 0x0, 0x8300, 0x8300, 0x8705},
+      {0x1f0d, 0xbd3d, 0x9514, 0x8d0d, 0 /* unused */, 0x1300, 0x1300, 0x1705},
       /* expected_result_vd0_with_mask_int32 */
-      {0x8d0e'8b09, 0x9d1e'9b18, 0xfb7a'f978, 0xab2a'a929, 0x0, 0x8506'8300, 0x8506'8300, 0x8506'8300},
+      {0x1d0e'1b09, 0x0d1e'0b18, 0xfb7a'f978, 0xab2a'a929, 0 /* unused */, 0 /* unused */,
+       0x1506'1300, 0x1506'1300},
       /* expected_result_vd0_with_mask_int64 */
-      {0x890a'8f0d'8506'8300, 0x991a'9f1c'9516'9311, 0xb93a'bf3c'b536'b331, 0x77f6'75f5'73f2'71f1, 0x0,
-       0x890a'8f0d'8506'8300, 0x890a'8f0d'8506'8300, 0x890a'8f0d'8506'8300},
-      kVectorCalculationsSourceLegacy);
+      {0x190a'1f0d'1506'1300, 0x091a'0f1c'0516'0311, 0x293a'2f3c'2536'2331, 0x77f6'75f5'73f2'71f1,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x190a'1f0d'1506'1300},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVredminu) {
   TestVectorReductionInstruction(
       0x110c2457,  // vredminu.vs v8,v16,v24,v0.t
       /* expected_result_vd0_int8 */
-      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0 /* unused */, 0, 0, 0},
       /* expected_result_vd0_int16 */
-      {0x200, 0x200, 0x200, 0x200, 0x0, 0x200, 0x200, 0x200},
+      {0x8100, 0x8100, 0x8100, 0x0291, 0 /* unused */, 0x8100, 0x8100, 0x8100},
       /* expected_result_vd0_int32 */
-      {0x0604'0200, 0x0604'0200, 0x0604'0200, 0x0604'0200, 0x0, 0x0604'0200, 0x0604'0200, 0x0604'0200},
+      {0x83028100, 0x83028100, 0x83028100, 0x06940291, 0 /* unused */, 0 /* unused */, 0x83028100,
+       0x83028100},
       /* expected_result_vd0_int64 */
-      {0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200, 0x0,
-       0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200},
+      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x0e9c'0a98'0694'0291,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x8706'8504'8302'8100},
       /* expected_result_vd0_with_mask_int8 */
-      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0 /* unused */, 0, 0, 0},
       /* expected_result_vd0_with_mask_int16 */
-      {0x200, 0x200, 0x200, 0x200, 0x0, 0x200, 0x200, 0x200},
+      {0x8100, 0x8100, 0x8100, 0x0291, 0 /* unused */, 0x8100, 0x8100, 0x8100},
       /* expected_result_vd0_with_mask_int32 */
-      {0x0604'0200, 0x0604'0200, 0x0604'0200, 0x0604'0200, 0x0, 0x0604'0200, 0x0604'0200, 0x0604'0200},
+      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x0e9c'0a98, 0 /* unused */, 0 /* unused */,
+       0x8302'8100, 0x8302'8100},
       /* expected_result_vd0_with_mask_int64 */
-      {0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200, 0x0,
-       0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200, 0x0e0c'0a09'0604'0200},
-      kVectorCalculationsSourceLegacy);
+      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x1e8c'1a89'1684'1280,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x8706'8504'8302'8100},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVredmin) {
   TestVectorReductionInstruction(
       0x150c2457,  // vredmin.vs v8,v16,v24,v0.t
       /* expected_result_vd0_int8 */
-      {0, 0, 0, 128, 0, 0, 0, 0},
+      {130, 130, 130, 128, 0 /* unused */, 146, 146, 146},
       /* expected_result_vd0_int16 */
-      {0x8100, 0x8100, 0x8100, 0x8100, 0x0, 0x8100, 0x8100, 0x8100},
+      {0x8100, 0x8100, 0x8100, 0x8100, 0 /* unused */, 0x8100, 0x8100, 0x8100},
       /* expected_result_vd0_int32 */
-      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x8302'8100, 0x0, 0x8302'8100, 0x8302'8100, 0x8302'8100},
+      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x8302'8100, 0 /* unused */, 0 /* unused */,
+       0x8302'8100, 0x8302'8100},
       /* expected_result_vd0_int64 */
-      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x0,
-       0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100},
+      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x8706'8504'8302'8100},
       /* expected_result_vd0_with_mask_int8 */
-      {0, 0, 0, 128, 0, 0, 0, 0},
+      {138, 138, 138, 128, 0 /* unused */, 0, 150, 150},
       /* expected_result_vd0_with_mask_int16 */
-      {0x8100, 0x8100, 0x8100, 0x8100, 0x0, 0x8100, 0x8100, 0x8100},
+      {0x8100, 0x8100, 0x8100, 0x8100, 0 /* unused */, 0x8100, 0x8100, 0x8100},
       /* expected_result_vd0_with_mask_int32 */
-      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x8302'8100, 0x0, 0x8302'8100, 0x8302'8100, 0x8302'8100},
+      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x8302'8100, 0 /* unused */, 0 /* unused */,
+       0x8302'8100, 0x8302'8100},
       /* expected_result_vd0_with_mask_int64 */
-      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x0,
-       0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100},
-      kVectorCalculationsSourceLegacy);
+      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x8706'8504'8302'8100},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVredmaxu) {
   TestVectorReductionInstruction(
       0x190c2457,  // vredmaxu.vs v8,v16,v24,v0.t
       /* expected_result_vd0_int8 */
-      {30, 62, 126, 254, 0, 2, 6, 14},
+      {158, 190, 254, 254, 0 /* unused */, 146, 150, 158},
       /* expected_result_vd0_int16 */
-      {0x8100, 0x8100, 0x8100, 0xfefc, 0x0, 0x8100, 0x8100, 0x8100},
+      {0x9e0c, 0xbe2c, 0xfe6c, 0xfe6c, 0 /* unused */, 0x9200, 0x9604, 0x9e0c},
       /* expected_result_vd0_int32 */
-      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0xfefc'faf8, 0x0, 0x8302'8100, 0x8302'8100, 0x8302'8100},
+      {0x9e0c'9a09, 0xbe2c'ba29, 0xfe6c'fa69, 0xfe6c'fa69, 0 /* unused */, 0 /* unused */,
+       0x9604'9200, 0x9e0c'9a09},
       /* expected_result_vd0_int64 */
-      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0xfefc'faf8'f6f4'f2f1, 0x0,
-       0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100},
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xfe6c'fa69'f664'f260, 0xfe6c'fa69'f664'f260,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x9e0c'9a09'9604'9200},
       /* expected_result_vd0_with_mask_int8 */
-      {30, 62, 126, 252, 0, 0, 6, 14},
+      {158, 186, 254, 254, 0 /* unused */, 0, 150, 158},
       /* expected_result_vd0_with_mask_int16 */
-      {0x8100, 0x8100, 0x8100, 0xfefc, 0x0, 0x8100, 0x8100, 0x8100},
+      {0x9e0c, 0xba29, 0xfe6c, 0xfe6c, 0 /* unused */, 0x9200, 0x9200, 0x9e0c},
       /* expected_result_vd0_with_mask_int32 */
-      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0xfefc'faf8, 0x0, 0x8302'8100, 0x8302'8100, 0x8302'8100},
+      {0x9604'9200, 0xbe2c'ba29, 0xfe6c'fa69, 0xfe6c'fa69, 0 /* unused */, 0 /* unused */,
+       0x9604'9200, 0x9604'9200},
       /* expected_result_vd0_with_mask_int64 */
-      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0xfefc'faf8'f6f4'f2f1, 0x0,
-       0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100},
-      kVectorCalculationsSourceLegacy);
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xee7c'ea78'e674'e271, 0xee7c'ea78'e674'e271,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x9e0c'9a09'9604'9200},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVredmax) {
   TestVectorReductionInstruction(
       0x1d0c2457,  // vredmax.vs v8,v16,v24,v0.t
       /* expected_result_vd0_int8 */
-      {30, 62, 126, 126, 0, 2, 6, 14},
+      {28, 60, 124, 126, 0 /* unused */, 0, 4, 12},
       /* expected_result_vd0_int16 */
-      {0x1e1c, 0x3e3c, 0x7e7c, 0x7e7c, 0x0, 0x200, 0x604, 0xe0c},
+      {0x9e0c, 0xbe2c, 0xfe6c, 0x7eec, 0 /* unused */, 0x9200, 0x9604, 0x9e0c},
       /* expected_result_vd0_int32 */
-      {0x1e1c1a18, 0x3e3c3a38, 0x7e7c7a78, 0x7e7c7a78, 0x0, 0x6040200, 0x6040200, 0xe0c0a09},
+      {0x9e0c'9a09, 0xbe2c'ba29, 0xfe6c'fa69, 0x7eec'7ae9, 0 /* unused */, 0 /* unused */,
+       0x9604'9200, 0x9e0c'9a09},
       /* expected_result_vd0_int64 */
-      {0x1e1c1a1816141211, 0x3e3c3a3836343231, 0x7e7c7a7876747271, 0x7e7c7a7876747271, 0x0,
-       0xe0c0a0906040200, 0xe0c0a0906040200, 0xe0c0a0906040200},
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xfe6c'fa69'f664'f260, 0x7eec'7ae9'76e4'72e0,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x9e0c'9a09'9604'9200},
       /* expected_result_vd0_with_mask_int8 */
-      {30, 62, 126, 126, 0, 0, 6, 14},
+      {24, 52, 124, 126, 0 /* unused */, 0, 4, 4},
       /* expected_result_vd0_with_mask_int16 */
-      {0x1e1c, 0x3e3c, 0x7e7c, 0x7e7c, 0x0, 0x200, 0x200, 0xe0c},
+      {0x9e0c, 0xba29, 0xfe6c, 0x7ae9, 0 /* unused */, 0x9200, 0x9200, 0x9e0c},
       /* expected_result_vd0_with_mask_int32 */
-      {0x1e1c1a18, 0x3e3c3a38, 0x7e7c7a78, 0x7e7c7a78, 0x0, 0x6040200, 0x6040200, 0x6040200},
+      {0x9604'9200, 0xbe2c'ba29, 0xfe6c'fa69, 0x7eec'7ae9, 0 /* unused */, 0 /* unused */,
+       0x9604'9200, 0x9604'9200},
       /* expected_result_vd0_with_mask_int64 */
-      {0xe0c0a0906040200, 0x3e3c3a3836343231, 0x7e7c7a7876747271, 0x7e7c7a7876747271, 0x0,
-       0xe0c0a0906040200, 0xe0c0a0906040200, 0xe0c0a0906040200},
-      kVectorCalculationsSourceLegacy);
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xee7c'ea78'e674'e271, 0x6efc'6af8'66f4'62f1,
+       0 /* unused */, 0 /* unused */, 0 /* unused */, 0x9e0c'9a09'9604'9200},
+      kVectorCalculationsSource);
 }
 
 // Note that the expected test outputs for v[f]merge.vXm are identical to those for v[f]mv.v.X.
