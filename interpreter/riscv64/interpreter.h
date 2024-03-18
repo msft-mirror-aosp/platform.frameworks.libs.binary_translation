@@ -138,11 +138,6 @@ class Interpreter {
     return;
   }
 
-  void FenceI(Register /*arg*/, int16_t /*imm*/) {
-    // For interpreter-only mode we don't need to do anything here, but when we will have a
-    // translator we would need to flush caches here.
-  }
-
   template <typename IntType, bool aq, bool rl>
   Register Lr(int64_t addr) {
     static_assert(std::is_integral_v<IntType>, "Lr: IntType must be integral");

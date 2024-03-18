@@ -1225,7 +1225,9 @@
         "Fnop": { "opcodes": [ "D9", "D0" ] },
         "Fwait": { "opcodes": [ "9B" ] },
         "Int3": { "opcodes": [ "CC" ] },
+        "Lfence": { "opcodes": [ "0F", "AE", "E8" ] },
         "Mfence": { "opcodes": [ "0F", "AE", "F0" ] },
+        "Sfence": { "opcodes": [ "0F", "AE", "F8" ] },
         "Nop": { "opcodes": [ "90" ] },
         "UD2": { "opcodes": [ "0F", "0B" ] },
         "Wait": { "opcodes": [ "9B" ] }
