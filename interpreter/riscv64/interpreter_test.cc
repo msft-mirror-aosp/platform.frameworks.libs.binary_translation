@@ -1782,6 +1782,12 @@ class Riscv64InterpreterTest : public ::testing::Test {
   // effect, the offset acts akin to vstart), in those cases skip can be used
   // to specify how many elements' mask will be skipped (counting from the
   // beginning, should be the same as the offset).
+  //
+  // If |ignore_vma_for_last| is true, an inactive element at vl-1 will be
+  // treated as if vma=0 (Undisturbed).
+  // If |last_elem_is_x1| is true, the last element of the vector in
+  // expected_result (that is, at vl-1) will be expected to be the same as
+  // |regx1| when VL < VMAX and said element is active.
   void TestVectorPermutationInstruction(uint32_t insn_bytes,
                                         const __v16qu (&expected_result_int8)[8],
                                         const __v8hu (&expected_result_int16)[8],
@@ -1790,9 +1796,14 @@ class Riscv64InterpreterTest : public ::testing::Test {
                                         const __v2du (&source)[16],
                                         uint8_t vlmul,
                                         uint64_t regx1 = 0x0,
-                                        uint64_t skip = 0) {
-    auto Verify = [this, &source, vlmul, regx1, skip](
-                      uint32_t insn_bytes, uint8_t vsew, const auto& expected_result, auto mask) {
+                                        uint64_t skip = 0,
+                                        bool ignore_vma_for_last = false,
+                                        bool last_elem_is_x1 = false) {
+    auto Verify = [this, &source, vlmul, regx1, skip, ignore_vma_for_last, last_elem_is_x1](
+                      uint32_t insn_bytes,
+                      uint8_t vsew,
+                      const auto& expected_result_raw,
+                      auto mask) {
       // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
       // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
       state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
@@ -1802,6 +1813,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
       // Set x1 for vx instructions.
       SetXReg<1>(state_.cpu, regx1);
 
+      const size_t kElementSize = 1 << vsew;
       size_t num_regs = 1 << vlmul;
       if (vlmul > 3) {
         num_regs = 1;
@@ -1811,10 +1823,10 @@ class Riscv64InterpreterTest : public ::testing::Test {
       SIMD128Register skip_mask[num_regs];
       int64_t toskip = skip;
       for (size_t index = 0; index < num_regs && toskip > 0; ++index) {
-        size_t skip_bits = toskip * (1 << vsew) * 8;
+        size_t skip_bits = toskip * kElementSize * 8;
         skip_mask[index] =
             ~std::get<0>(intrinsics::MakeBitmaskFromVl(skip_bits > 128 ? 128 : skip_bits));
-        toskip -= 16 / (1 << vsew);
+        toskip -= 16 / kElementSize;
       }
 
       for (uint8_t vta = 0; vta < 2; ++vta) {
@@ -1840,7 +1852,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
           }
           state_.cpu.vtype = vtype;
 
-          // Set expected_result vector registers into 0b01010101… pattern.
+          // Set dst vector registers into 0b01010101… pattern.
           for (size_t index = 0; index < 8; ++index) {
             state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
           }
@@ -1853,6 +1865,45 @@ class Riscv64InterpreterTest : public ::testing::Test {
           __m128i expected_inactive[n];
           // For most instructions, follow basic inactive processing rules based on vma flag.
           std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
+
+          const size_t kElementsPerRegister = 16 / kElementSize;
+          const size_t last_reg = (state_.cpu.vl - 1) / kElementsPerRegister;
+          const size_t last_elem = (state_.cpu.vl - 1) % kElementsPerRegister;
+          const auto [mask_for_vl] = intrinsics::MakeBitmaskFromVl(last_elem * kElementSize * 8);
+          if (vma && ignore_vma_for_last) {
+            // Set expected value for inactive element at vl-1 to Undisturbed.
+            expected_inactive[last_reg] =
+                ((expected_inactive[last_reg] & ~mask_for_vl) | (kUndisturbedResult & mask_for_vl))
+                    .Get<__m128i>();
+          }
+
+          SIMD128Register expected_result[std::size(expected_result_raw)];
+          for (size_t index = 0; index < std::size(expected_result_raw); ++index) {
+            expected_result[index] = SIMD128Register{expected_result_raw[index]};
+          }
+
+          if (vlmul == 2 && last_elem_is_x1) {
+            switch (kElementSize) {
+              case 1:
+                expected_result[last_reg].template Set<uint8_t>(
+                    static_cast<uint8_t>(GetXReg<1>(state_.cpu)), last_elem);
+                break;
+              case 2:
+                expected_result[last_reg].template Set<uint16_t>(
+                    static_cast<uint16_t>(GetXReg<1>(state_.cpu)), last_elem);
+                break;
+              case 4:
+                expected_result[last_reg].template Set<uint32_t>(
+                    static_cast<uint32_t>(GetXReg<1>(state_.cpu)), last_elem);
+                break;
+              case 8:
+                expected_result[last_reg].template Set<uint64_t>(
+                    static_cast<uint64_t>(GetXReg<1>(state_.cpu)), last_elem);
+                break;
+              default:
+                FAIL() << "Element size is " << kElementSize;
+            }
+          }
 
           if (vlmul < 4) {
             for (size_t index = 0; index < num_regs; ++index) {
@@ -9398,7 +9449,7 @@ TEST_F(Riscv64InterpreterTest, TestVslidedown) {
 
   // VLMUL = 1
   TestVectorPermutationInstruction(
-      0x3d80c457,  // vslideup.vx v8, v24, x1, v0.t
+      0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
        {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 0},
        {},
@@ -9629,7 +9680,7 @@ TEST_F(Riscv64InterpreterTest, TestVslidedown) {
                                    /*regx1=*/1,
                                    /*skip=*/0);
 
-  TestVectorPermutationInstruction(0x3d80c457,  // vslideup.vx v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80c457,  // vslidedown.vx v8, v24, x1, v0.t
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
@@ -9701,6 +9752,248 @@ TEST_F(Riscv64InterpreterTest, TestVslidedown) {
                                    /*vlmul=*/7,
                                    /*regx1=*/8,
                                    /*skip=*/0);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVslide1up) {
+  TestVectorInstruction(
+      0x3980e457,  // vslide1up.vx v8, v24, x1, v0.t
+      {{0xaa, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28},
+       {30, 32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60},
+       {62, 64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92},
+       {94, 96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124},
+       {126, 128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156},
+       {158, 160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188},
+       {190, 192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220},
+       {222, 224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252}},
+      {{0xaaaa, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {0x1e1c, 0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38},
+       {0x3e3c, 0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58},
+       {0x5e5c, 0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78},
+       {0x7e7c, 0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98},
+       {0x9e9c, 0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8},
+       {0xbebc, 0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8},
+       {0xdedc, 0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8}},
+      {{0xaaaa'aaaa, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211},
+       {0x1e1c'1a18, 0x2624'2220, 0x2e2c'2a29, 0x3634'3231},
+       {0x3e3c'3a38, 0x4644'4240, 0x4e4c'4a49, 0x5654'5251},
+       {0x5e5c'5a58, 0x6664'6260, 0x6e6c'6a69, 0x7674'7271},
+       {0x7e7c'7a78, 0x8684'8280, 0x8e8c'8a89, 0x9694'9291},
+       {0x9e9c'9a98, 0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1},
+       {0xbebc'bab8, 0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1},
+       {0xdedc'dad8, 0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1}},
+      {{0xaaaa'aaaa'aaaa'aaaa, 0x0e0c'0a09'0604'0200},
+       {0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0x8e8c'8a89'8684'8280},
+       {0x9e9c'9a98'9694'9291, 0xaeac'aaa9'a6a4'a2a0},
+       {0xbebc'bab8'b6b4'b2b1, 0xcecc'cac9'c6c4'c2c0},
+       {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0}},
+      kVectorCalculationsSourceLegacy);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVslide1down) {
+  // Where the element at the top gets inserted will depend on VLMUL so we use
+  // TestVectorPermutationInstruction instead of TestVectorInstruction.
+
+  // VLMUL = 0
+  TestVectorPermutationInstruction(
+      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0xaaaa},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0xaaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x1e1c'1a18'1614'1211, 0xaaaa'aaaa'aaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/0,
+      /*regx1=*/0xaaaa'aaaa'aaaa'aaaa,
+      /*skip=*/0,
+      /*ignore_vma_for_last=*/true,
+      /*last_elem_is_x1=*/true);
+
+  // VLMUL = 1
+  TestVectorPermutationInstruction(
+      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 0xaa},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0xaaaa},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0xaaaa'aaaa},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0xaaaa'aaaa'aaaa'aaaa},
+       {},
+       {},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/1,
+      /*regx1=*/0xaaaa'aaaa'aaaa'aaaa,
+      /*skip=*/0,
+      /*ignore_vma_for_last=*/true,
+      /*last_elem_is_x1=*/true);
+
+  // VLMUL = 2
+  TestVectorPermutationInstruction(
+      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
+       {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
+       {98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126, 0xaa},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0x4240},
+       {0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c, 0x6260},
+       {0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c, 0xaaaa},
+       {},
+       {},
+       {},
+       {}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0x4644'4240},
+       {0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58, 0x6664'6260},
+       {0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78, 0xaaaa'aaaa},
+       {},
+       {},
+       {},
+       {}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0xaaaa'aaaa'aaaa'aaaa},
+       {},
+       {},
+       {},
+       {}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/2,
+      /*regx1=*/0xaaaa'aaaa'aaaa'aaaa,
+      /*skip=*/0,
+      /*ignore_vma_for_last=*/true,
+      /*last_elem_is_x1=*/true);
+
+  // VLMUL = 3
+  TestVectorPermutationInstruction(
+      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
+       {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
+       {98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126, 128},
+       {130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158, 160},
+       {162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190, 192},
+       {194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222, 224},
+       {226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254, 0xaa}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0x4240},
+       {0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c, 0x6260},
+       {0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c, 0x8280},
+       {0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c, 0xa2a0},
+       {0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc, 0xc2c0},
+       {0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc, 0xe2e0},
+       {0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc, 0xaaaa}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0x4644'4240},
+       {0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58, 0x6664'6260},
+       {0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78, 0x8684'8280},
+       {0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98, 0xa6a4'a2a0},
+       {0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8, 0xc6c4'c2c0},
+       {0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8, 0xe6e4'e2e0},
+       {0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8, 0xaaaa'aaaa}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0x8e8c'8a89'8684'8280},
+       {0x9e9c'9a98'9694'9291, 0xaeac'aaa9'a6a4'a2a0},
+       {0xbebc'bab8'b6b4'b2b1, 0xcecc'cac9'c6c4'c2c0},
+       {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0},
+       {0xfefc'faf8'f6f4'f2f1, 0xaaaa'aaaa'aaaa'aaaa}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/3,
+      /*regx1=*/0xaaaa'aaaa'aaaa'aaaa,
+      /*skip=*/0,
+      /*ignore_vma_for_last=*/true,
+      /*last_elem_is_x1=*/true);
+
+  // VLMUL = 4
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSourceLegacy,
+                                   /*vlmul=*/4,
+                                   /*regx1=*/0xaaaa'aaaa'aaaa'aaaa,
+                                   /*skip=*/0,
+                                   /*ignore_vma_for_last=*/true,
+                                   /*last_elem_is_x1=*/true);
+
+  // VLMUL = 5
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+                                   {{2, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSourceLegacy,
+                                   /*vlmul=*/5,
+                                   /*regx1=*/0xaaaa'aaaa'aaaa'aaaa,
+                                   /*skip=*/0,
+                                   /*ignore_vma_for_last=*/true,
+                                   /*last_elem_is_x1=*/true);
+
+  // VLMUL = 6
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+                                   {{2, 4, 6, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0604, 0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0xaaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSourceLegacy,
+                                   /*vlmul=*/6,
+                                   /*regx1=*/0xaaaa'aaaa'aaaa'aaaa,
+                                   /*skip=*/0,
+                                   /*ignore_vma_for_last=*/true,
+                                   /*last_elem_is_x1=*/true);
+
+  // VLMUL = 7
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+                                   {{2, 4, 6, 9, 10, 12, 14, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0604, 0x0a09, 0x0e0c, 0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0x0e0c'0a09, 0xaaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   {{0xaaaa'aaaa'aaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},
+                                   kVectorCalculationsSourceLegacy,
+                                   /*vlmul=*/7,
+                                   /*regx1=*/0xaaaa'aaaa'aaaa'aaaa,
+                                   /*skip=*/0,
+                                   /*ignore_vma_for_last=*/true,
+                                   /*last_elem_is_x1=*/true);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVwadd) {
