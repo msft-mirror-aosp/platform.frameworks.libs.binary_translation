@@ -284,13 +284,13 @@ class Decoder {
 
   enum class VOpFVvOpcode : uint8_t {
     kVfaddvv = 0b000000,
-    kVfredusumvv = 0b000001,
+    kVfredusumvs = 0b000001,
     kVfsubvv = 0b000010,
-    kVfredosumvv = 0b000011,
+    kVfredosumvs = 0b000011,
     kVfminvv = 0b000100,
-    kVfredminvv = 0b000101,
+    kVfredminvs = 0b000101,
     kVfmaxvv = 0b000110,
-    kVfredmaxvv = 0b000111,
+    kVfredmaxvs = 0b000111,
     kVfsgnjvv = 0b001000,
     kVfsgnjnvv = 0b001001,
     kVfsgnjxvv = 0b001010,
