@@ -115,7 +115,7 @@ void EmitSyscall(x86_64::Assembler* as, GuestAddr pc) {
   // insn_addr, so incrementing insn_addr here may be incorrect. This problem also exists in the
   // interpreter. On the other hand syscalls can only be interruprted by asynchroneous signals which
   // are unlikely to overwrite insn_addr.
-  EmitDirectDispatch(as, pc + 4);
+  EmitDirectDispatch(as, pc + 4, /*check_pending_signals=*/true);
 }
 
 void EmitDirectDispatch(x86_64::Assembler* as, GuestAddr pc, bool check_pending_signals) {
