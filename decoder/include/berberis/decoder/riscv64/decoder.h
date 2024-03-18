@@ -506,6 +506,8 @@ class Decoder {
     kVwaddwx = 0b110101,
     kVwsubuwx = 0b110110,
     kVwsubwx = 0b110111,
+    kVwmuluvx = 0b111000,
+    kVwmulvx = 0b111011,
     kVwmaccuvx = 0b111100,
     kVwmaccvx = 0b111101,
     kVwmaccusvx = 0b111110,
