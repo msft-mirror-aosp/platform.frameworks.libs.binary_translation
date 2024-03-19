@@ -31,7 +31,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
-#include "berberis/intrinsics/guest_fp_flags.h"        // GuestModeFromHostRounding
+#include "berberis/intrinsics/guest_cpu_flags.h"       // GuestModeFromHostRounding
 #include "berberis/intrinsics/guest_rounding_modes.h"  // ScopedRoundingMode
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/vector_intrinsics.h"

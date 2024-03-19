@@ -733,15 +733,15 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
 #define DEFINE_1OP_ARITHMETIC_INTRINSIC_X(name, ...) \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##x, return ({ __VA_ARGS__; });, (ElementType src), (), (src))
 
-#define DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(name, ...) \
-  DEFINE_ARITHMETIC_INTRINSIC(                            \
-      Vf##name##vf, return ({ __VA_ARGS__; });            \
-      , (int8_t frm, SIMD128Register src1, ElementType src2), (frm), (src1, src2))
+#define DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(name, ...) \
+  DEFINE_ARITHMETIC_INTRINSIC(                             \
+      Vf##name##vf, return ({ __VA_ARGS__; });             \
+      , (int8_t csr, SIMD128Register src1, ElementType src2), (csr), (src1, src2))
 
-#define DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV(name, ...) \
-  DEFINE_ARITHMETIC_INTRINSIC(                            \
-      Vf##name##vv, return ({ __VA_ARGS__; });            \
-      , (int8_t frm, SIMD128Register src1, SIMD128Register src2), (frm), (src1, src2))
+#define DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(name, ...) \
+  DEFINE_ARITHMETIC_INTRINSIC(                             \
+      Vf##name##vv, return ({ __VA_ARGS__; });             \
+      , (int8_t csr, SIMD128Register src1, SIMD128Register src2), (csr), (src1, src2))
 
 #define DEFINE_ARITHMETIC_REDUCE_INTRINSIC(Name, arithmetic, parameters, capture, arguments) \
   template <typename ElementType,                                                            \
@@ -813,12 +813,12 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(or, (args | ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(xor, (args ^ ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(xor, (args ^ ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(xor, (args ^ ...))
-DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(mul, std::get<0>(FMul(FPFlags::DYN, frm, args...)))
-DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV(mul, std::get<0>(FMul(FPFlags::DYN, frm, args...)))
-DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(div, std::get<0>(FDiv(FPFlags::DYN, frm, args...)))
-DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV(div, std::get<0>(FDiv(FPFlags::DYN, frm, args...)))
-DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF(rdiv, auto [arg1, arg2] = std::tuple{args...};
-                                       std::get<0>(FDiv(FPFlags::DYN, frm, arg2, arg1)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(mul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(mul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(div, std::get<0>(FDiv(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(div, std::get<0>(FDiv(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(rdiv, auto [arg1, arg2] = std::tuple{args...};
+                                        std::get<0>(FDiv(FPFlags::DYN, csr, arg2, arg1)))
 // SIMD mask either includes results with all bits set to 0 or all bits set to 1.
 // This way it may be used with VAnd and VAndN operations to perform masking.
 // Such comparison is effectively one instruction of x86-64 (via SSE or AVX) but
@@ -957,8 +957,8 @@ DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{arg
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_X
-#undef DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VF
-#undef DEFINE_2OP_FMR_ARITHMETIC_INTRINSIC_VV
+#undef DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF
+#undef DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV
