@@ -2171,14 +2171,19 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
 }
 
 TEST_F(Riscv64InterpreterTest, TestFPExceptions) {
-  TestFPExceptions<intrinsics::Float32>(0x912d1557);  // Vfmul.vv v10, v18, v26, v0.t
-  TestFPExceptions<intrinsics::Float64>(0x910c1457);  // Vfmul.vv v8, v16, v24, v0.t
-  TestFPExceptions<intrinsics::Float32>(0x9120d557);  // Vfmul.vf v10, v18, f1, v0.t
-  TestFPExceptions<intrinsics::Float64>(0x91015457);  // Vfmul.vf v8, v16, f2, v0.t
+  // Keep the same sort as Section 19 "Vector Instruction Listing".
+  TestFPExceptions<intrinsics::Float32>(0x012d1557);  // Vfadd.vv v10, v18, v26, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x010c1457);  // Vfadd.vv v8, v16, v24, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x0120d557);  // Vfadd.vf v10, v18, f1, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x01015457);  // Vfadd.vf v8, v16, f2, v0.t
   TestFPExceptions<intrinsics::Float32>(0x812d1557);  // Vfdiv.vv v10, v18, v26, v0.t
   TestFPExceptions<intrinsics::Float64>(0x810c1457);  // Vfdiv.vv v8, v16, v24, v0.t
   TestFPExceptions<intrinsics::Float32>(0x8120d557);  // Vfdiv.vf v10, v18, f1, v0.t
   TestFPExceptions<intrinsics::Float64>(0x81015457);  // Vfdiv.vf v8, v16, f2, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x912d1557);  // Vfmul.vv v10, v18, v26, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x910c1457);  // Vfmul.vv v8, v16, v24, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x9120d557);  // Vfmul.vf v10, v18, f1, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x91015457);  // Vfmul.vf v8, v16, f2, v0.t
 }
 
 TEST_F(Riscv64InterpreterTest, TestVlXreXX) {
@@ -6190,6 +6195,43 @@ TEST_F(Riscv64InterpreterTest, TestVadd) {
        {0xe766'e564'e362'e155, 0xef6e'ed6c'eb6a'e95d},
        {0xf776'f574'f372'f165, 0xff7e'fd7c'fb7a'f96d}},
       kVectorCalculationsSource);
+
+  TestVectorFloatInstruction(0x010c1457,  // vfadd.vv v8, v16, v24, v0.t
+                             {{0x9604'9200, 0x9e0c'9a09, 0x8b0a'ae29, 0x8f35'af92},
+                              {0xb624'b220, 0xbe2c'ba29, 0xa634'a233, 0xae3c'aa38},
+                              {0xd644'd240, 0xde4c'da49, 0xc654'c251, 0xce5c'ca58},
+                              {0xf664'f260, 0xfe6c'fa69, 0xe674'e271, 0xee7c'ea78},
+                              {0xc342'c140, 0xc746'c544, 0xcb4a'c948, 0xcf4e'cd4c},
+                              {0xd352'd150, 0xd756'd554, 0xdb5a'd958, 0xdf5e'dd5c},
+                              {0xe362'e160, 0xe766'e4fe, 0xeb6a'e968, 0xef6e'ed6c},
+                              {0x76e2'8cfd, 0x7eec'78fb, 0xfb7a'f978, 0xff7e'fd7c}},
+                             {{0x9e0c'9a09'9604'9200, 0x8f0e'8d45'9f3b'9531},
+                              {0xbe2c'ba29'b624'b220, 0xae3c'aa38'a634'a231},
+                              {0xde4c'da49'd644'd240, 0xce5c'ca58'c654'c251},
+                              {0xfe6c'fa69'f664'f260, 0xee7c'ea78'e674'e271},
+                              {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+                              {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+                              {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+                              {0x7eec'7ae9'76e4'72e0, 0xff7e'fd7c'fb7a'f978}},
+                             kVectorCalculationsSource);
+  TestVectorFloatInstruction(0x0100d457,  // vfadd.vf v8, v16, f1, v0.t
+                             {{0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                              {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                              {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                              {0x40b4'0000, 0x40b3'ffe9, 0x40b3'e8a9, 0x409c'2858},
+                              {0xc33d'2140, 0xc746'bfa4, 0xcb4a'c942, 0xcf4e'cd4c},
+                              {0xd352'd150, 0xd756'd554, 0xdb5a'd958, 0xdf5e'dd5c},
+                              {0xe362'e160, 0xe766'e564, 0xeb6a'e968, 0xef6e'ed6c},
+                              {0xf372'f170, 0xf776'f574, 0xfb7a'f978, 0xff7e'fd7c}},
+                             {{0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                              {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                              {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                              {0x4016'8000'0000'0000, 0x4016'7f85'0b0d'1315},
+                              {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+                              {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+                              {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+                              {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
+                             kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVectorMaskInstructions) {
