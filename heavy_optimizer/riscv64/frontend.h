@@ -216,21 +216,16 @@ class HeavyOptimizerFrontend {
     return MemoryRegionReservationExchange(aligned_addr, reservation_value);
   }
 
-  void Fence(Decoder::FenceOpcode /*opcode*/,
-             Register /*src*/,
+  void Fence(Decoder::FenceOpcode opcode,
+             Register src,
              bool sw,
              bool sr,
-             bool /*so*/,
-             bool /*si*/,
+             bool so,
+             bool si,
              bool pw,
              bool pr,
-             bool /*po*/,
-             bool /*pi*/) {
-    UNUSED(sw, sr, pw, pr);
-    Unimplemented();
-  }
-
-  void FenceI(Register /*arg*/, int16_t /*imm*/) { Unimplemented(); }
+             bool po,
+             bool pi);
 
   //
   // F and D extensions.

@@ -122,8 +122,6 @@ class LiteTranslator {
     Unimplemented();
   }
 
-  void FenceI(Register /*arg*/, int16_t /*imm*/) { Unimplemented(); }
-
   void Nop() {}
 
   //
