@@ -795,12 +795,12 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
       Vfred##name##vs, return ({ __VA_ARGS__; });          \
       , (int8_t csr, ResultType init, SIMD128Register src), (csr), (init, src))
 
-#define DEFINE_W_ARITHMETIC_INTRINSIC(Name, Pattern, arithmetic, parameters, arguments)           \
+#define DEFINE_W_ARITHMETIC_INTRINSIC(Name, Pattern, arithmetic, parameters, capture, arguments)  \
   template <typename ElementType,                                                                 \
             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>       \
   inline std::tuple<SIMD128Register> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) { \
     return VectorArithmetic##Pattern<ElementType>(                                                \
-        [](auto... args) {                                                                        \
+        [DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS capture](auto... args) {                       \
           static_assert((std::is_same_v<decltype(args), WideType<ElementType>> && ...));          \
           arithmetic;                                                                             \
         },                                                                                        \
@@ -809,37 +809,53 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
 
 #define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(name, ...)                       \
   DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##vv, Widenvv, return ({ __VA_ARGS__; }); \
-                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
+                                , (SIMD128Register src1, SIMD128Register src2), (), (src1, src2))
 
-#define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VVW(name, ...) \
-  DEFINE_W_ARITHMETIC_INTRINSIC(                             \
-      Vw##name##vv, Widenvvw, return ({ __VA_ARGS__; });     \
-      , (SIMD128Register src1, SIMD128Register src2, SIMD128Register src3), (src1, src2, src3))
+#define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VVW(name, ...)              \
+  DEFINE_W_ARITHMETIC_INTRINSIC(                                          \
+      Vw##name##vv, Widenvvw, return ({ __VA_ARGS__; });                  \
+      ,                                                                   \
+      (SIMD128Register src1, SIMD128Register src2, SIMD128Register src3), \
+      (),                                                                 \
+      (src1, src2, src3))
 
 #define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(name, ...)                       \
   DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##vx, Widenvv, return ({ __VA_ARGS__; }); \
-                                , (SIMD128Register src1, ElementType src2), (src1, src2))
+                                , (SIMD128Register src1, ElementType src2), (), (src1, src2))
 
 #define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VXW(name, ...) \
   DEFINE_W_ARITHMETIC_INTRINSIC(                             \
       Vw##name##vx, Widenvvw, return ({ __VA_ARGS__; });     \
-      , (SIMD128Register src1, ElementType src2, SIMD128Register src3), (src1, src2, src3))
+      , (SIMD128Register src1, ElementType src2, SIMD128Register src3), (), (src1, src2, src3))
 
 #define DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(name, ...)                       \
   DEFINE_W_ARITHMETIC_INTRINSIC(Vn##name##wv, Narrowwv, return ({ __VA_ARGS__; }); \
-                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
+                                , (SIMD128Register src1, SIMD128Register src2), (), (src1, src2))
 
 #define DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(name, ...)                       \
   DEFINE_W_ARITHMETIC_INTRINSIC(Vn##name##wx, Narrowwv, return ({ __VA_ARGS__; }); \
-                                , (SIMD128Register src1, ElementType src2), (src1, src2))
+                                , (SIMD128Register src1, ElementType src2), (), (src1, src2))
+
+#define DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WX(name, ...) \
+  DEFINE_W_ARITHMETIC_INTRINSIC(                                  \
+      Vn##name##wx, Narrowwv, return ({ __VA_ARGS__; });          \
+      , (int8_t csr, SIMD128Register src1, ElementType src2), (csr), (src1, src2))
+
+#define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(name, ...)                       \
+  DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##vv, Widenvv, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, SIMD128Register src2), (), (src1, src2))
 
 #define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(name, ...)                       \
   DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##wv, Widenwv, return ({ __VA_ARGS__; }); \
-                                , (SIMD128Register src1, SIMD128Register src2), (src1, src2))
+                                , (SIMD128Register src1, SIMD128Register src2), (), (src1, src2))
 
 #define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(name, ...)                       \
   DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##wx, Widenwv, return ({ __VA_ARGS__; }); \
-                                , (SIMD128Register src1, ElementType src2), (src1, src2))
+                                , (SIMD128Register src1, ElementType src2), (), (src1, src2))
+
+#define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(name, ...)                       \
+  DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##vx, Widenvv, return ({ __VA_ARGS__; }); \
+                                , (SIMD128Register src1, ElementType src2), (), (src1, src2))
 
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
@@ -1010,6 +1026,10 @@ DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(sr, auto [arg1, arg2] = std::tuple{arg
                                           (arg1 >> arg2))
 DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{args...};
                                           (arg1 >> arg2))
+DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WX(
+    clip,
+    WideType<ElementType>{(std::get<0>(
+        Roundoff(csr, static_cast<typename WideType<ElementType>::BaseType>(args)...)))})
 
 #undef DEFINE_ARITHMETIC_INTRINSIC
 #undef DEFINE_W_ARITHMETIC_INTRINSIC

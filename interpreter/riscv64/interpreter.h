@@ -1850,6 +1850,20 @@ class Interpreter {
       case Decoder::VOpIViOpcode::kVslidedownvi:
         return OpVectorslidedown<UnsignedType, vlmul, vta, vma>(
             args.dst, args.src, UnsignedType{args.uimm});
+      case Decoder::VOpIViOpcode::kVnclipuvi:
+        return OpVectorNarrowwx<intrinsics::Vnclipwx<SaturatingUnsignedType>,
+                                SaturatingUnsignedType,
+                                vlmul,
+                                vta,
+                                vma,
+                                kVxrm>(args.dst, args.src, UnsignedType{args.uimm});
+      case Decoder::VOpIViOpcode::kVnclipvi:
+        return OpVectorNarrowwx<intrinsics::Vnclipwx<SaturatingSignedType>,
+                                SaturatingSignedType,
+                                vlmul,
+                                vta,
+                                vma,
+                                kVxrm>(args.dst, args.src, UnsignedType{args.uimm});
       default:
         Unimplemented();
     }
