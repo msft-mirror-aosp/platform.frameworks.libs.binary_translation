@@ -22,7 +22,7 @@
 #include "berberis/assembler/machine_code.h"
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/dependent_false.h"
-#include "berberis/intrinsics/guest_fp_flags.h"
+#include "berberis/intrinsics/guest_cpu_flags.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/intrinsics/simd_register.h"
