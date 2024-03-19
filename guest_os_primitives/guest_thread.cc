@@ -274,6 +274,7 @@ void GuestThread::InitStaticTls() {
       reinterpret_cast<void**>(reinterpret_cast<char*>(static_tls_) + g_static_tls_config.tpoff);
   tls[g_static_tls_config.tls_slot_thread_id] = GetTls()[TLS_SLOT_THREAD_ID];
   tls[g_static_tls_config.tls_slot_bionic_tls] = GetTls()[TLS_SLOT_BIONIC_TLS];
+  GetTls()[TLS_SLOT_NATIVE_BRIDGE_GUEST_STATE] = GetThreadStateStorage(*state_);
   SetTlsAddr(*state_, ToGuestAddr(tls));
 #else
   // For Glibc we provide stub which is only usable to distinguish different threads.

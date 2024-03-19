@@ -26,7 +26,7 @@
 #include "berberis/base/checks.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/guest_state/guest_state.h"
-#include "berberis/intrinsics/guest_fp_flags.h"
+#include "berberis/intrinsics/guest_cpu_flags.h"
 #include "berberis/intrinsics/intrinsics_process_bindings.h"
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/runtime_primitives/platform.h"
