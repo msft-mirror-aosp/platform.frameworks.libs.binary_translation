@@ -2338,6 +2338,15 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVwmulvv:
         return OpVectorWidenvv<intrinsics::Vwmulvv<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVwmaccuvv:
+        return OpVectorWidenvvw<intrinsics::Vwmaccvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVwmaccvv:
+        return OpVectorWidenvvw<intrinsics::Vwmaccvv<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVwmaccsuvv:
+        return OpVectorWidenvvw<intrinsics::Vwmaccsuvv<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       default:
         Unimplemented();
     }
@@ -2413,6 +2422,18 @@ class Interpreter {
       case Decoder::VOpMVxOpcode::kVwsubwx:
         return OpVectorWidenwx<intrinsics::Vwsubwx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpMVxOpcode::kVwmaccuvx:
+        return OpVectorWidenvxw<intrinsics::Vwmaccvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpMVxOpcode::kVwmaccvx:
+        return OpVectorWidenvxw<intrinsics::Vwmaccvx<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpMVxOpcode::kVwmaccusvx:
+        return OpVectorWidenvxw<intrinsics::Vwmaccusvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
+      case Decoder::VOpMVxOpcode::kVwmaccsuvx:
+        return OpVectorWidenvxw<intrinsics::Vwmaccsuvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
       default:
         Unimplemented();
     }
@@ -2985,7 +3006,7 @@ class Interpreter {
   }
 
   // 2*SEW = SEW op SEW
-  // Attention: not to confuse with to be done OpVectorWidenwv with 2*SEW = 2*SEW op SEW
+  // Attention: not to confuse with OpVectorWidenwv with 2*SEW = 2*SEW op SEW
   template <auto Intrinsic,
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
@@ -3006,8 +3027,28 @@ class Interpreter {
     return Unimplemented();
   }
 
-  // 2*SEW = SEW op SEW
-  // Attention: not to confuse with to be done OpVectorWidenwv with 2*SEW = 2*SEW op SEW
+  // 2*SEW = SEW op SEW op 2*SEW
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma,
+            CsrName... kExtraCsrs>
+  void OpVectorWidenvvw(uint8_t dst, uint8_t src1, uint8_t src2) {
+    if constexpr (sizeof(ElementType) < sizeof(Int64) &&
+                  vlmul != VectorRegisterGroupMultiplier::k8registers) {
+      return OpVectorWiden<Intrinsic,
+                           ElementType,
+                           NumRegistersInvolvedForWideOperand(vlmul),
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma,
+                           kExtraCsrs...>(dst, Vec{src1}, Vec{src2}, WideVec{dst});
+    }
+    return Unimplemented();
+  }
+
+  // 2*SEW = 2*SEW op SEW
   template <auto Intrinsic,
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
@@ -3064,6 +3105,26 @@ class Interpreter {
                            vta,
                            vma,
                            kExtraCsrs...>(dst, Vec{src1}, arg2);
+    }
+    return Unimplemented();
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma,
+            CsrName... kExtraCsrs>
+  void OpVectorWidenvxw(uint8_t dst, uint8_t src1, ElementType arg2) {
+    if constexpr (sizeof(ElementType) < sizeof(Int64) &&
+                  vlmul != VectorRegisterGroupMultiplier::k8registers) {
+      return OpVectorWiden<Intrinsic,
+                           ElementType,
+                           NumRegistersInvolvedForWideOperand(vlmul),
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma,
+                           kExtraCsrs...>(dst, Vec{src1}, arg2, WideVec{dst});
     }
     return Unimplemented();
   }
