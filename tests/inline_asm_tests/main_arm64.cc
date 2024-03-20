@@ -1535,6 +1535,12 @@ TEST(Arm64InsnTest, AsmConvertF64UX64Scalar) {
   ASSERT_EQ(AsmFcvtzu(arg2), MakeUInt128(0ULL, 0ULL));
 }
 
+TEST(Arm64InsnTest, AsmConvertF64UX64ScalarWith64BitFraction) {
+  constexpr auto AsmFcvtzu = ASM_INSN_WRAP_FUNC_R_RES_W_ARG("fcvtzu %x0, %d1, #64");
+  uint64_t arg = bit_cast<uint64_t>(0.625);
+  ASSERT_EQ(AsmFcvtzu(arg), MakeUInt128(0xa000'0000'0000'0000ULL, 0ULL));
+}
+
 TEST(Arm64InsnTest, AsmConvertF32UX32x4) {
   constexpr auto AsmFcvtzs = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fcvtzu %0.4s, %1.4s, #2");
   __uint128_t res = AsmFcvtzs(MakeF32x4(-5.5f, -0.0f, 0.0f, 6.5f));
