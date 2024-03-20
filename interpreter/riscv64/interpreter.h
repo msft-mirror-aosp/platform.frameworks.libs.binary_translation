@@ -1270,7 +1270,23 @@ class Interpreter {
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVector(const Decoder::VOpFVfArgs& args, ElementType arg2) {
     using SignedType = Wrapping<std::make_signed_t<typename TypeTraits<ElementType>::Int>>;
+    // Keep cases sorted in opcode order to match RISC-V V manual.
     switch (args.opcode) {
+      case Decoder::VOpFVfOpcode::kVfminvf:
+        return OpVectorvx<intrinsics::Vfminvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfmaxvf:
+        return OpVectorvx<intrinsics::Vfmaxvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfsgnjvf:
+        return OpVectorvx<intrinsics::Vfsgnjvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfsgnjnvf:
+        return OpVectorvx<intrinsics::Vfsgnjnvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfsgnjxvf:
+        return OpVectorvx<intrinsics::Vfsgnjxvx<ElementType>, ElementType, vlmul, vta, vma>(
+            args.dst, args.src1, arg2);
       case Decoder::VOpFVfOpcode::kVfmvsf:
         if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
           return Unimplemented();
@@ -1295,21 +1311,6 @@ class Interpreter {
                            InactiveProcessing::kUndisturbed>(
               args.dst, arg2, /*dst_mask=*/args.src1);
         }
-      case Decoder::VOpFVfOpcode::kVfminvf:
-        return OpVectorvx<intrinsics::Vfminvx<ElementType>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src1, arg2);
-      case Decoder::VOpFVfOpcode::kVfmaxvf:
-        return OpVectorvx<intrinsics::Vfmaxvx<ElementType>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src1, arg2);
-      case Decoder::VOpFVfOpcode::kVfsgnjvf:
-        return OpVectorvx<intrinsics::Vfsgnjvx<ElementType>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src1, arg2);
-      case Decoder::VOpFVfOpcode::kVfsgnjnvf:
-        return OpVectorvx<intrinsics::Vfsgnjnvx<ElementType>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src1, arg2);
-      case Decoder::VOpFVfOpcode::kVfsgnjxvf:
-        return OpVectorvx<intrinsics::Vfsgnjxvx<ElementType>, ElementType, vlmul, vta, vma>(
-            args.dst, args.src1, arg2);
       case Decoder::VOpFVfOpcode::kVmfeqvf:
         return OpVectorToMaskvx<intrinsics::Vfeqvx<ElementType>, ElementType, vlmul, vma>(
             args.dst, args.src1, arg2);
@@ -1374,6 +1375,7 @@ class Interpreter {
     // double-width floats use these encodings to produce regular Float32 types.
     if constexpr (sizeof(ElementType) <= sizeof(Float32)) {
       using WideElementType = typename TypeTraits<ElementType>::Wide;
+      // Keep cases sorted in opcode order to match RISC-V V manual.
       switch (args.opcode) {
         case Decoder::VOpFVvOpcode::kVFUnary0:
           switch (args.vfunary0_opcode) {
@@ -1446,6 +1448,7 @@ class Interpreter {
       using WideElementType = WideType<ElementType>;
       using WideSignedType = WideType<SignedType>;
       using WideUnsignedType = WideType<UnsignedType>;
+      // Keep cases sorted in opcode order to match RISC-V V manual.
       switch (args.opcode) {
         case Decoder::VOpFVvOpcode::kVFUnary0:
           switch (args.vfunary0_opcode) {
@@ -1532,21 +1535,75 @@ class Interpreter {
     // If our ElementType is Float16 then “straight” operations are unsupported and we whouldn't try
     // instantiate any functions since this would lead to compilke-time error.
     if constexpr (sizeof(ElementType) >= sizeof(Float32)) {
+      // Floating point IEEE 754 value -0.0 includes 1 top bit set and the other bits not set:
+      // https://en.wikipedia.org/wiki/Signed_zero#Representations This is the exact same
+      // representation minimum negative integer have in two's complement representation:
+      // https://en.wikipedia.org/wiki/Two%27s_complement#Most_negative_number
+      // Note: we pass filler elements as integers because `Float32`/`Float64` couldn't be template
+      // parameters.
+      constexpr SignedType kNegativeZero{std::numeric_limits<typename SignedType::BaseType>::min()};
+      // Floating point IEEE 754 value +0.0 includes only zero bits, same as integer zero.
+      constexpr SignedType kPositiveZero{};
+      // Keep cases sorted in opcode order to match RISC-V V manual.
       switch (args.opcode) {
-        case Decoder::VOpFVvOpcode::kVfmvfs:
-          if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-            return Unimplemented();
+        case Decoder::VOpFVvOpcode::kVfredusumvs:
+          // 14.3. Vector Single-Width Floating-Point Reduction Instructions:
+          // The additive identity is +0.0 when rounding down or -0.0 for all other rounding modes.
+          if (GetCsr<kFrm>() != FPFlags::RDN) {
+            return OpVectorvs<intrinsics::Vfredusumvs<ElementType>,
+                              ElementType,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, args.src1, Vec<kNegativeZero>{args.src2});
+          } else {
+            return OpVectorvs<intrinsics::Vfredusumvs<ElementType>,
+                              ElementType,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, args.src1, Vec<kPositiveZero>{args.src2});
           }
-          if (args.src2 != 0) {
-            return Unimplemented();
+        case Decoder::VOpFVvOpcode::kVfredosumvs:
+          // 14.3. Vector Single-Width Floating-Point Reduction Instructions:
+          // The additive identity is +0.0 when rounding down or -0.0 for all other rounding modes.
+          if (GetCsr<kFrm>() != FPFlags::RDN) {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType>,
+                              ElementType,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, args.src1, Vec<kNegativeZero>{args.src2});
+          } else {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType>,
+                              ElementType,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, args.src1, Vec<kPositiveZero>{args.src2});
           }
-          return OpVectorVmvfs<ElementType>(args.dst, args.src1);
-        case Decoder::VOpFVvOpcode::kVfmaxvv:
-          return OpVectorvv<intrinsics::Vfmaxvv<ElementType>, ElementType, vlmul, vta, vma>(
-              args.dst, args.src1, args.src2);
         case Decoder::VOpFVvOpcode::kVfminvv:
           return OpVectorvv<intrinsics::Vfminvv<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfredminvs:
+          // For Vfredmin the identity element is +inf.
+          return OpVectorvs<intrinsics::Vfredminvs<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst,
+              args.src1,
+              Vec<UnsignedType{(sizeof(ElementType) == sizeof(Float32)) ? 0x7f80'0000
+                                                                        : 0x7ff0'0000'0000'0000}>{
+                  args.src2});
+        case Decoder::VOpFVvOpcode::kVfmaxvv:
+          return OpVectorvv<intrinsics::Vfmaxvv<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfredmaxvs:
+          // For Vfredmax the identity element is -inf.
+          return OpVectorvs<intrinsics::Vfredmaxvs<ElementType>, ElementType, vlmul, vta, vma>(
+              args.dst,
+              args.src1,
+              Vec<UnsignedType{(sizeof(ElementType) == sizeof(Float32)) ? 0xff80'0000
+                                                                        : 0xfff0'0000'0000'0000}>{
+                  args.src2});
         case Decoder::VOpFVvOpcode::kVfsgnjvv:
           return OpVectorvv<intrinsics::Vfsgnjvv<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, args.src1, args.src2);
@@ -1616,6 +1673,14 @@ class Interpreter {
               break;  // Make compiler happy.
           }
           break;
+        case Decoder::VOpFVvOpcode::kVfmvfs:
+          if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+            return Unimplemented();
+          }
+          if (args.src2 != 0) {
+            return Unimplemented();
+          }
+          return OpVectorVmvfs<ElementType>(args.dst, args.src1);
         case Decoder::VOpFVvOpcode::kVmfeqvv:
           return OpVectorToMaskvv<intrinsics::Vfeqvv<ElementType>, ElementType, vlmul, vma>(
               args.dst, args.src1, args.src2);
@@ -1669,6 +1734,7 @@ class Interpreter {
     using UnsignedType = berberis::UnsignedType<ElementType>;
     using SaturatingSignedType = SaturatingType<SignedType>;
     using SaturatingUnsignedType = SaturatingType<UnsignedType>;
+    // Keep cases sorted in opcode order to match RISC-V V manual.
     switch (args.opcode) {
       case Decoder::VOpIViOpcode::kVaddvi:
         return OpVectorvx<intrinsics::Vaddvx<SignedType>, SignedType, vlmul, vta, vma>(
@@ -1795,6 +1861,7 @@ class Interpreter {
     using UnsignedType = berberis::UnsignedType<ElementType>;
     using SaturatingSignedType = SaturatingType<SignedType>;
     using SaturatingUnsignedType = SaturatingType<UnsignedType>;
+    // Keep cases sorted in opcode order to match RISC-V V manual.
     switch (args.opcode) {
       case Decoder::VOpIVvOpcode::kVaddvv:
         return OpVectorvv<intrinsics::Vaddvv<ElementType>, ElementType, vlmul, vta, vma>(
@@ -1918,6 +1985,7 @@ class Interpreter {
     using UnsignedType = berberis::UnsignedType<ElementType>;
     using SaturatingSignedType = SaturatingType<SignedType>;
     using SaturatingUnsignedType = SaturatingType<UnsignedType>;
+    // Keep cases sorted in opcode order to match RISC-V V manual.
     switch (args.opcode) {
       case Decoder::VOpIVxOpcode::kVaddvx:
         return OpVectorvx<intrinsics::Vaddvx<ElementType>, ElementType, vlmul, vta, vma>(
@@ -2049,6 +2117,7 @@ class Interpreter {
     using SignedType = berberis::SignedType<ElementType>;
     using UnsignedType = berberis::UnsignedType<ElementType>;
     if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+      // Keep cases sorted in opcode order to match RISC-V V manual.
       switch (args.opcode) {
         case Decoder::VOpMVvOpcode::kVmandnmm:
           return OpVectormm<[](SIMD128Register lhs, SIMD128Register rhs) { return lhs & ~rhs; }>(
@@ -2077,6 +2146,7 @@ class Interpreter {
         default:;  // Do nothing: handled in next switch.
       }
     }
+    // Keep cases sorted in opcode order to match RISC-V V manual.
     switch (args.opcode) {
       case Decoder::VOpMVvOpcode::kVredsumvs:
         return OpVectorvs<intrinsics::Vredsumvs<ElementType>, ElementType, vlmul, vta, vma>(
@@ -2277,6 +2347,7 @@ class Interpreter {
   void OpVector(const Decoder::VOpMVxArgs& args, Register arg2) {
     using SignedType = berberis::SignedType<ElementType>;
     using UnsignedType = berberis::UnsignedType<ElementType>;
+    // Keep cases sorted in opcode order to match RISC-V V manual.
     switch (args.opcode) {
       case Decoder::VOpMVxOpcode::kVslide1upvx:
         return OpVectorslide1up<SignedType, vlmul, vta, vma>(
@@ -2822,10 +2893,15 @@ class Interpreter {
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma,
+            CsrName... kExtraCsrs,
             auto kDefaultElement>
   void OpVectorvs(uint8_t dst, uint8_t src1, Vec<kDefaultElement> src2) {
-    return OpVectorvs<Intrinsic, ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
-        dst, src1, src2);
+    return OpVectorvs<Intrinsic,
+                      ElementType,
+                      NumberOfRegistersInvolved(vlmul),
+                      vta,
+                      vma,
+                      kExtraCsrs...>(dst, src1, src2);
   }
 
   template <auto Intrinsic,
@@ -2833,6 +2909,7 @@ class Interpreter {
             size_t kRegistersInvolved,
             TailProcessing vta,
             auto vma,
+            CsrName... kExtraCsrs,
             auto kDefaultElement>
   void OpVectorvs(uint8_t dst, uint8_t src1, Vec<kDefaultElement> src2) {
     if (!IsAligned<kRegistersInvolved>(dst | src2.start_no)) {
@@ -2852,7 +2929,9 @@ class Interpreter {
     ElementType arg1 = SIMD128Register{state_->cpu.v[src1]}.Get<ElementType>(0);
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       arg1 = std::get<0>(
-          Intrinsic(arg1, GetVectorArgument<ElementType, vta, vma>(src2, vstart, vl, index, mask)));
+          Intrinsic(GetCsr<kExtraCsrs>()...,
+                    arg1,
+                    GetVectorArgument<ElementType, vta, vma>(src2, vstart, vl, index, mask)));
     }
     SIMD128Register result{state_->cpu.v[dst]};
     result.Set(arg1, 0);
