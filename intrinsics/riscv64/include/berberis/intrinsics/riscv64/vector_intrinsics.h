@@ -760,6 +760,15 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
   DEFINE_ARITHMETIC_REDUCE_INTRINSIC(Vred##name##vs, return ({ __VA_ARGS__; }); \
                                      , (ResultType init, SIMD128Register src), (), (init, src))
 
+#define DEFINE_2OP_FLOAT_ARITHMETIC_INTRINSIC_VS(name, ...)                      \
+  DEFINE_ARITHMETIC_REDUCE_INTRINSIC(Vfred##name##vs, return ({ __VA_ARGS__; }); \
+                                     , (ResultType init, SIMD128Register src), (), (init, src))
+
+#define DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VS(name, ...) \
+  DEFINE_ARITHMETIC_REDUCE_INTRINSIC(                     \
+      Vfred##name##vs, return ({ __VA_ARGS__; });         \
+      , (int8_t csr, ResultType init, SIMD128Register src), (csr), (init, src))
+
 #define DEFINE_W_ARITHMETIC_INTRINSIC(Name, Pattern, arithmetic, parameters, arguments)           \
   template <typename ElementType,                                                                 \
             enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>       \
@@ -815,6 +824,8 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(xor, (args ^ ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(xor, (args ^ ...))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VS(osum, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VS(usum, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(mul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(mul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(div, std::get<0>(FDiv(FPFlags::DYN, csr, args...)))
@@ -900,10 +911,12 @@ DEFINE_3OP_ARITHMETIC_INTRINSIC_VV(nmsub, auto [arg1, arg2, arg3] = std::tuple{a
                                    (-(arg2 * arg3) + arg1))
 DEFINE_3OP_ARITHMETIC_INTRINSIC_VX(nmsub, auto [arg1, arg2, arg3] = std::tuple{args...};
                                    (-(arg2 * arg3) + arg1))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmin, std::get<0>(FMin(args...)))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmax, std::get<0>(FMax(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fmin, std::get<0>(FMin(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmin, std::get<0>(FMin(args...)))
+DEFINE_2OP_FLOAT_ARITHMETIC_INTRINSIC_VS(min, std::get<0>(FMin(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fmax, std::get<0>(FMax(args...)))
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmax, std::get<0>(FMax(args...)))
+DEFINE_2OP_FLOAT_ARITHMETIC_INTRINSIC_VS(max, std::get<0>(FMax(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fsgnj, std::get<0>(FSgnj(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fsgnj, std::get<0>(FSgnj(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fsgnjn, std::get<0>(FSgnjn(args...)))
@@ -954,12 +967,14 @@ DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{arg
 #undef DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_V
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VS
+#undef DEFINE_2OP_FLOAT_ARITHMETIC_INTRINSIC_VS
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_2OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_3OP_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_1OP_ARITHMETIC_INTRINSIC_X
 #undef DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF
+#undef DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VS
 #undef DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX
