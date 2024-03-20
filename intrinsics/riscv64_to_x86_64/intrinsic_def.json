@@ -14,6 +14,22 @@
     "See the License for the specific language governing permissions and",
     "limitations under the License."
   ],
+  "Aadd": {
+    "comment": "Averaging add (scalar).",
+    "class": "template",
+    "variants": [
+      "int8_t",
+      "uint8_t",
+      "int16_t",
+      "uint16_t",
+      "int32_t",
+      "uint32_t",
+      "int64_t",
+      "uint64_t"
+    ],
+    "in": [ "int8_t", "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "Adduw": {
     "comment": "Add unsigned word",
     "class": "scalar",
@@ -161,6 +177,22 @@
     "out": [ "Type0" ],
     "side_effects_comment": "Atomic instruction. Should be volatile.",
     "has_side_effects": true
+  },
+  "Asub": {
+    "comment": "Averaging subtract (scalar).",
+    "class": "template",
+    "variants": [
+      "int8_t",
+      "uint8_t",
+      "int16_t",
+      "uint16_t",
+      "int32_t",
+      "uint32_t",
+      "int64_t",
+      "uint64_t"
+    ],
+    "in": [ "int8_t", "Type0", "Type0" ],
+    "out": [ "Type0" ]
   },
   "Bclr": {
     "comment": "Single bit clear register",
@@ -632,6 +664,22 @@
     "class": "template",
     "variants": [ "int64_t", "int32_t" ],
     "in": [ "Type0", "int8_t" ],
+    "out": [ "Type0" ]
+  },
+  "Roundoff": {
+    "comment": "Fixed point conversion with rounding (but without narrowing).",
+    "class": "template",
+    "variants": [
+      "int8_t",
+      "uint8_t",
+      "int16_t",
+      "uint16_t",
+      "int32_t",
+      "uint32_t",
+      "int64_t",
+      "uint64_t"
+    ],
+    "in": [ "int8_t", "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
   "Sext": {

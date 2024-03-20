@@ -31,6 +31,47 @@ using VXRMFlags::RNE;
 using VXRMFlags::RNU;
 using VXRMFlags::ROD;
 
+TEST(Intrinsics, Aadd) {
+  auto Verify = []<typename T>(int8_t vxrm) {
+    for (int x = std::numeric_limits<T>::min(); x <= std::numeric_limits<T>::max(); ++x) {
+      for (int y = std::numeric_limits<T>::min(); y <= std::numeric_limits<T>::max(); ++y) {
+        ASSERT_EQ(Aadd<T>(vxrm, x, y), Roundoff(vxrm, x + y, 1));
+      }
+    }
+  };
+  Verify.operator()<int8_t>(RDN);
+  Verify.operator()<int8_t>(RNE);
+  Verify.operator()<int8_t>(RNU);
+  Verify.operator()<int8_t>(ROD);
+  Verify.operator()<uint8_t>(RDN);
+  Verify.operator()<uint8_t>(RNE);
+  Verify.operator()<uint8_t>(RNU);
+  Verify.operator()<uint8_t>(ROD);
+}
+
+TEST(Intrinsics, Asub) {
+  auto Verify = []<typename T>(int8_t vxrm) {
+    for (int x = std::numeric_limits<T>::min(); x <= std::numeric_limits<T>::max(); ++x) {
+      for (int y = std::numeric_limits<T>::min(); y <= std::numeric_limits<T>::max(); ++y) {
+        // Note: with Aadd we never overflow thus it's enough to compare value of Asub with
+        // Roundoff-produced integer. But with Asub we have to force the result of Roundoff
+        // into smaller type to ensure that we are producing what we are supposed to produce:
+        //   for vasub and vasubu, overflow is ignored and the result wraps around.
+        ASSERT_EQ(std::get<0>(Asub<T>(vxrm, x, y)),
+                  static_cast<T>(std::get<0>(Roundoff(vxrm, x - y, 1))));
+      }
+    }
+  };
+  Verify.operator()<int8_t>(RDN);
+  Verify.operator()<int8_t>(RNE);
+  Verify.operator()<int8_t>(RNU);
+  Verify.operator()<int8_t>(ROD);
+  Verify.operator()<uint8_t>(RDN);
+  Verify.operator()<uint8_t>(RNE);
+  Verify.operator()<uint8_t>(RNU);
+  Verify.operator()<uint8_t>(ROD);
+}
+
 TEST(Intrinsics, Div) {
   ASSERT_EQ(std::get<0>(Div<int8_t>(int8_t{-128}, int8_t{0})), int8_t{-1});
   ASSERT_EQ(std::get<0>(Div<int8_t>(int8_t{-128}, int8_t{-1})), int8_t{-128});
