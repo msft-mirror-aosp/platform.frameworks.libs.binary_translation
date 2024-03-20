@@ -1667,6 +1667,21 @@ class Riscv64InterpreterTest : public ::testing::Test {
   }
 
   void TestVectorReductionInstruction(uint32_t insn_bytes,
+                                      const uint32_t (&expected_result_vd0_int32)[8],
+                                      const uint64_t (&expected_result_vd0_int64)[8],
+                                      const uint32_t (&expected_result_vd0_with_mask_int32)[8],
+                                      const uint64_t (&expected_result_vd0_with_mask_int64)[8],
+                                      const __v2du (&source)[16]) {
+    TestVectorReductionInstruction(
+        insn_bytes,
+        source,
+        std::tuple<const uint32_t(&)[8], const uint32_t(&)[8]>{expected_result_vd0_int32,
+                                                               expected_result_vd0_with_mask_int32},
+        std::tuple<const uint64_t(&)[8], const uint64_t(&)[8]>{
+            expected_result_vd0_int64, expected_result_vd0_with_mask_int64});
+  }
+
+  void TestVectorReductionInstruction(uint32_t insn_bytes,
                                       const uint8_t (&expected_result_vd0_int8)[8],
                                       const uint16_t (&expected_result_vd0_int16)[8],
                                       const uint32_t (&expected_result_vd0_int32)[8],
@@ -8265,6 +8280,44 @@ TEST_F(Riscv64InterpreterTest, TestVredsum) {
       kVectorCalculationsSource);
 }
 
+TEST_F(Riscv64InterpreterTest, TestVfredosum) {
+  TestVectorReductionInstruction(
+      0xd0c1457,  // vfredosum.vs v8, v16, v24, v0.t
+      // expected_result_vd0_int32
+      {0x9e0c'9a8e, 0xbe2c'bace, 0xfe6c'fb4e, 0x7e6b'fc4d, /* unused */ 0, /* unused */ 0,
+       0x9604'9200, 0x9e0c'9a8e},
+      // expected_result_vd0_int64
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xfe6c'fa69'f664'f260, 0x7eec'5def'0cee'0dee,
+       /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x9e0c'9a09'9604'9200},
+      // expected_result_vd0_with_mask_int32
+      {0x9604'929d, 0xbe2c'ba29, 0xfe6c'fb4e, 0x7e6b'fa84, /* unused */ 0, /* unused */ 0,
+       0x9604'9200, 0x9604'9200},
+      // expected_result_vd0_with_mask_int64
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xee7c'ea78'e674'e271, 0x6efc'4e0d'ee0d'ee0f,
+       /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x9e0c'9a09'9604'9200},
+      kVectorCalculationsSource);
+}
+
+// Currently Vfredusum is implemented as Vfredosum (as explicitly permitted by RVV 1.0).
+// If we would implement some speedups which would change results then we may need to alter tests.
+TEST_F(Riscv64InterpreterTest, TestVfredusum) {
+  TestVectorReductionInstruction(
+      0x50c1457,  // vfredusum.vs v8, v16, v24, v0.t
+      // expected_result_vd0_int32
+      {0x9e0c'9a8e, 0xbe2c'bace, 0xfe6c'fb4e, 0x7e6b'fc4d, /* unused */ 0, /* unused */ 0,
+       0x9604'9200, 0x9e0c'9a8e},
+      // expected_result_vd0_int64
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xfe6c'fa69'f664'f260, 0x7eec'5def'0cee'0dee,
+       /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x9e0c'9a09'9604'9200},
+      // expected_result_vd0_with_mask_int32
+      {0x9604'929d, 0xbe2c'ba29, 0xfe6c'fb4e, 0x7e6b'fa84, /* unused */ 0, /* unused */ 0,
+       0x9604'9200, 0x9604'9200},
+      // expected_result_vd0_with_mask_int64
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xee7c'ea78'e674'e271, 0x6efc'4e0d'ee0d'ee0f,
+       /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x9e0c'9a09'9604'9200},
+      kVectorCalculationsSource);
+}
+
 TEST_F(Riscv64InterpreterTest, TestVredand) {
   TestVectorReductionInstruction(
       0x50c2457,  // vredand.vs v8,v16,v24,v0.t
@@ -8395,6 +8448,24 @@ TEST_F(Riscv64InterpreterTest, TestVredmin) {
       kVectorCalculationsSource);
 }
 
+TEST_F(Riscv64InterpreterTest, TestVfredmin) {
+  TestVectorReductionInstruction(
+      0x150c1457,  // vfredmin.vs v8, v16, v24, v0.t
+      // expected_result_vd0_int32
+      {0x9e0c'9a09, 0xbe2c'ba29, 0xfe6c'fa69, 0xfe6c'fa69, /* unused */ 0, /* unused */ 0,
+       0x9604'9200, 0x9e0c'9a09},
+      // expected_result_vd0_int64
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xfe6c'fa69'f664'f260, 0xfe6c'fa69'f664'f260,
+       /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x9e0c'9a09'9604'9200},
+      // expected_result_vd0_with_mask_int32
+      {0x9604'9200, 0xbe2c'ba29, 0xfe6c'fa69, 0xfe6c'fa69, /* unused */ 0, /* unused */ 0,
+       0x9604'9200, 0x9604'9200},
+      // expected_result_vd0_with_mask_int64
+      {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xee7c'ea78'e674'e271, 0xee7c'ea78'e674'e271,
+       /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x9e0c'9a09'9604'9200},
+      kVectorCalculationsSource);
+}
+
 TEST_F(Riscv64InterpreterTest, TestVredmaxu) {
   TestVectorReductionInstruction(
       0x190c2457,  // vredmaxu.vs v8,v16,v24,v0.t
@@ -8444,6 +8515,24 @@ TEST_F(Riscv64InterpreterTest, TestVredmax) {
       // expected_result_vd0_with_mask_int64
       {0x9e0c'9a09'9604'9200, 0xbe2c'ba29'b624'b220, 0xee7c'ea78'e674'e271, 0x6efc'6af8'66f4'62f1,
        /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x9e0c'9a09'9604'9200},
+      kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfredmax) {
+  TestVectorReductionInstruction(
+      0x1d0c1457,  // vfredmax.vs v8, v16, v24, v0.t
+      // expected_result_vd0_int32
+      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x7eec'7ae9, /* unused */ 0, /* unused */ 0,
+       0x8302'8100, 0x8302'8100},
+      // expected_result_vd0_int64
+      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x7eec'7ae9'76e4'72e0,
+       /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x8706'8504'8302'8100},
+      // expected_result_vd0_with_mask_int32
+      {0x8302'8100, 0x8302'8100, 0x8302'8100, 0x7eec'7ae9, /* unused */ 0, /* unused */ 0,
+       0x8302'8100, 0x8302'8100},
+      // expected_result_vd0_with_mask_int64
+      {0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x8706'8504'8302'8100, 0x6efc'6af8'66f4'62f1,
+       /* unused */ 0, /* unused */ 0, /* unused */ 0, 0x8706'8504'8302'8100},
       kVectorCalculationsSource);
 }
 
