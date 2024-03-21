@@ -991,6 +991,7 @@ DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(sub, (args - ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX(sub, (args - ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mul, (args * ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(mulsu, std::get<0>(WideMultiplySignedUnsigned(args...)))
+DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(mul, (args * ...))
 
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VVW(macc, auto [arg1, arg2, arg3] = std::tuple{args...};
                                           (arg1 * arg2) + arg3)
