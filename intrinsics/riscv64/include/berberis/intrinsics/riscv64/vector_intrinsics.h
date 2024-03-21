@@ -977,10 +977,9 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulhsu, auto [arg1, arg2] = std::tuple{args..
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args...};
                                    NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
                                                  Widen(BitCastToUnsigned(arg1))))
-DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(div,
-                                   ElementType{static_cast<typename ElementType::BaseType>(
-                                       std::get<0>(Div<typename ElementType::BaseType>(
-                                           static_cast<typename ElementType::BaseType>(args)...)))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
+    div,
+    ElementType{std::get<0>(Div(static_cast<typename ElementType::BaseType>(args)...))})
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(add, (args + ...))
