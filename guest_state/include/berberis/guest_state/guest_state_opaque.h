@@ -90,8 +90,6 @@ GuestAddr GetTlsAddr(const ThreadState& cpu);
 // Set the appropriate stack pointer register, if it exists for a given guest architecture.
 void SetShadowCallStackPointer(CPUState& cpu, GuestAddr scs_sp);
 
-void InitFloatingPointState();
-
 std::size_t GetThreadStateRegOffset(int reg);
 
 bool DoesCpuStateHaveDedicatedFpRegs();

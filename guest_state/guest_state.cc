@@ -61,8 +61,6 @@ void InitThreadState(ThreadState* state) {
   // This is needed to set all flag values to 0.
   memset(&(state->cpu), 0, sizeof(CPUState));
 
-  InitFloatingPointState();
-
   // ATTENTION: Set fields specific for current thread when actually attaching to host thread!
   state->thread = nullptr;
   SetTlsAddr(*state, 0);
