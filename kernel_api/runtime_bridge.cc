@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-#include "runtime_bridge.h"
+#include "berberis/kernel_api/runtime_bridge.h"
 
 #include <cerrno>
-#include <csignal>
 #include <cstdlib>
 
 #include "berberis/base/bit_util.h"
-#include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
