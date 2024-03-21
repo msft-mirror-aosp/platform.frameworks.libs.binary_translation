@@ -44,6 +44,15 @@ inline constexpr uint64_t DYN = 0b111;
 
 }  // namespace FPFlags
 
+namespace VXRMFlags {
+
+inline constexpr uint64_t RNU = 0b00;
+inline constexpr uint64_t RNE = 0b01;
+inline constexpr uint64_t RDN = 0b10;
+inline constexpr uint64_t ROD = 0b11;
+
+}  // namespace VXRMFlags
+
 namespace intrinsics {
 
 // Note that not all RISC-V rounding modes are supported on popular architectures.
