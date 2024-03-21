@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <tuple>
 
-#include "berberis/intrinsics/guest_fp_flags.h"
+#include "berberis/intrinsics/guest_cpu_flags.h"
 
 namespace berberis::intrinsics {
 

@@ -345,9 +345,10 @@ class SemanticsPlayer {
     // args.opcode=0000, and standard software shall use only non-reserved configurations.
   }
 
-  void FenceI(const typename Decoder::FenceIArgs& args) {
-    Register arg = GetRegOrZero(args.src);
-    listener_->FenceI(arg, args.imm);
+  void FenceI(const typename Decoder::FenceIArgs& /* args */) {
+    // This instruction is not supported on linux. The recommendation is to use the
+    // riscv_flush_icache syscall instead.
+    Unimplemented();
     // The unused fields in the FENCE.I instruction, imm[11:0], rs1, and rd, are reserved for
     // finer-grain fences in future extensions. For forward compatibility, base implementations
     // shall ignore these fields, and standard software shall zero these fields.
