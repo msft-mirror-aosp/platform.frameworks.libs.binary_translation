@@ -2422,6 +2422,12 @@ class Interpreter {
       case Decoder::VOpMVxOpcode::kVwsubwx:
         return OpVectorWidenwx<intrinsics::Vwsubwx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpMVxOpcode::kVwmuluvx:
+        return OpVectorWidenvx<intrinsics::Vwmulvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpMVxOpcode::kVwmulvx:
+        return OpVectorWidenvx<intrinsics::Vwmulvx<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       case Decoder::VOpMVxOpcode::kVwmaccuvx:
         return OpVectorWidenvxw<intrinsics::Vwmaccvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
