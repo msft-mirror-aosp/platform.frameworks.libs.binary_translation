@@ -449,6 +449,10 @@ class Decoder {
     kVredminvs = 0b000101,
     kVredmaxuvs = 0b000110,
     kVredmaxvs = 0b000111,
+    kVaadduvv = 0b001000,
+    kVaaddvv = 0b001001,
+    kVasubuvv = 0b001010,
+    kVasubvv = 0b001011,
     kVWXUnary0 = 0b010000,
     kVFUnary0 = 0b010010,
     kVMUnary0 = 0b010100,
@@ -487,6 +491,10 @@ class Decoder {
   };
 
   enum class VOpMVxOpcode : uint8_t {
+    kVaadduvx = 0b001000,
+    kVaaddvx = 0b001001,
+    kVasubuvx = 0b001010,
+    kVasubvx = 0b001011,
     kVslide1upvx = 0b001110,
     kVslide1downvx = 0b001111,
     kVRXUnary0 = 0b010000,
