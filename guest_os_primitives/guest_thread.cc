@@ -24,7 +24,6 @@
 #endif
 
 #include "berberis/base/checks.h"
-#include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_addr.h"  // ToGuestAddr
@@ -32,11 +31,22 @@
 #include "berberis/runtime_primitives/host_stack.h"
 #include "native_bridge_support/linker/static_tls_config.h"
 
+#if defined(__BIONIC__)
 #include "get_tls.h"
+#endif
 
 extern "C" void berberis_UnmapAndExit(void* ptr, size_t size, int status);
 
 namespace berberis {
+
+// Avoid depending on the whole intrinsics module just for this symbol.
+// TODO(b/232598137): Maybe export an isolated header from intrinsics for this. Or
+// alternatively export it from runtime_library.h.
+namespace intrinsics {
+
+void InitState();
+
+}  // namespace intrinsics
 
 NativeBridgeStaticTlsConfig g_static_tls_config;
 
@@ -69,6 +79,8 @@ GuestThread* GuestThread::Create() {
     return nullptr;
   }
   SetGuestThread(*thread->state_, thread);
+
+  intrinsics::InitState();
 
   return thread;
 }
@@ -167,7 +179,7 @@ void GuestThread::Exit(GuestThread* thread, int status) {
   } else {
     syscall(__NR_exit, status);
   }
-  LOG_ALWAYS_FATAL("thread didn't exit");
+  FATAL("thread didn't exit");
 }
 
 bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) {
