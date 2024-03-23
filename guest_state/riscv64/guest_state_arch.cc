@@ -58,10 +58,6 @@ void SetShadowCallStackPointer(CPUState& cpu, GuestAddr scs_sp) {
   SetXReg<GP>(cpu, scs_sp);
 }
 
-void InitFloatingPointState() {
-  // TODO(b/276787675): Initialize host MXCSR register once riscv64 intrinsics are supported.
-}
-
 void AdvanceInsnAddrBeyondSyscall(CPUState& cpu) {
   // RV64I uses the same 4-byte ECALL instruction as RV32I.
   // See ratified RISC-V unprivileged spec v2.1.
