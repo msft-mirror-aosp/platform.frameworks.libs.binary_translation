@@ -352,8 +352,8 @@ class Decoder {
     kVssravi = 0b101011,
     kVnsrlwi = 0b101100,
     kVnsrawi = 0b101101,
-    kVnclipuvi = 0b101110,
-    kVnclipvi = 0b101111,
+    kVnclipuwi = 0b101110,
+    kVnclipwi = 0b101111,
   };
 
   enum class VOpIVvOpcode : uint8_t {
@@ -391,8 +391,8 @@ class Decoder {
     kVssravv = 0b101011,
     kVnsrlwv = 0b101100,
     kVnsrawv = 0b101101,
-    kVnclipuvv = 0b101110,
-    kVnclipvv = 0b101111,
+    kVnclipuwv = 0b101110,
+    kVnclipwv = 0b101111,
     kVwredsumuvv = 0b110000,
     kVwredsumvv = 0b110001,
   };
@@ -436,8 +436,8 @@ class Decoder {
     kVssravx = 0b101011,
     kVnsrlwx = 0b101100,
     kVnsrawx = 0b101101,
-    kVnclipuvx = 0b101110,
-    kVnclipvx = 0b101111,
+    kVnclipuwx = 0b101110,
+    kVnclipwx = 0b101111,
   };
 
   enum class VOpMVvOpcode : uint8_t {
