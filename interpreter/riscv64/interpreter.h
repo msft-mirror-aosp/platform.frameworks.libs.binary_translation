@@ -1362,6 +1362,20 @@ class Interpreter {
                                  vta,
                                  vma,
                                  kFrm>(args.dst, Vec<SignedType{}>{args.src1}, arg2);
+      case Decoder::VOpFVfOpcode::kVfsubvf:
+        return OpVectorSameWidth<intrinsics::Vfsubvf<ElementType>,
+                                 ElementType,
+                                 NumberOfRegistersInvolved(vlmul),
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, Vec<SignedType{}>{args.src1}, arg2);
+      case Decoder::VOpFVfOpcode::kVfrsubvf:
+        return OpVectorSameWidth<intrinsics::Vfrsubvf<ElementType>,
+                                 ElementType,
+                                 NumberOfRegistersInvolved(vlmul),
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, Vec<SignedType{}>{args.src1}, arg2);
       default:
         return Unimplemented();
     }
@@ -1715,6 +1729,14 @@ class Interpreter {
               args.dst, Vec<SignedType{}>{args.src1}, Vec<SignedType{}>{args.src2});
         case Decoder::VOpFVvOpcode::kVfaddvv:
           return OpVectorSameWidth<intrinsics::Vfaddvv<ElementType>,
+                                   ElementType,
+                                   NumberOfRegistersInvolved(vlmul),
+                                   vta,
+                                   vma,
+                                   kFrm>(
+              args.dst, Vec<SignedType{}>{args.src1}, Vec<SignedType{}>{args.src2});
+        case Decoder::VOpFVvOpcode::kVfsubvv:
+          return OpVectorSameWidth<intrinsics::Vfsubvv<ElementType>,
                                    ElementType,
                                    NumberOfRegistersInvolved(vlmul),
                                    vta,
