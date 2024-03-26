@@ -2191,6 +2191,10 @@ TEST_F(Riscv64InterpreterTest, TestFPExceptions) {
   TestFPExceptions<intrinsics::Float64>(0x010c1457);  // Vfadd.vv v8, v16, v24, v0.t
   TestFPExceptions<intrinsics::Float32>(0x0120d557);  // Vfadd.vf v10, v18, f1, v0.t
   TestFPExceptions<intrinsics::Float64>(0x01015457);  // Vfadd.vf v8, v16, f2, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x092d1557);  // Vfsub.vv v10, v18, v26, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x090c1457);  // Vfsub.vv v8, v16, v24, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x0920d557);  // Vfsub.vf v10, v18, f1, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x09015457);  // Vfsub.vf v8, v16, f2, v0.t
   TestFPExceptions<intrinsics::Float32>(0x812d1557);  // Vfdiv.vv v10, v18, v26, v0.t
   TestFPExceptions<intrinsics::Float64>(0x810c1457);  // Vfdiv.vv v8, v16, v24, v0.t
   TestFPExceptions<intrinsics::Float32>(0x8120d557);  // Vfdiv.vf v10, v18, f1, v0.t
@@ -2199,6 +2203,8 @@ TEST_F(Riscv64InterpreterTest, TestFPExceptions) {
   TestFPExceptions<intrinsics::Float64>(0x910c1457);  // Vfmul.vv v8, v16, v24, v0.t
   TestFPExceptions<intrinsics::Float32>(0x9120d557);  // Vfmul.vf v10, v18, f1, v0.t
   TestFPExceptions<intrinsics::Float64>(0x91015457);  // Vfmul.vf v8, v16, f2, v0.t
+  TestFPExceptions<intrinsics::Float32>(0x9d20d557);  // Vfrsub.vf v10, v18, f1, v0.t
+  TestFPExceptions<intrinsics::Float64>(0x9d015457);  // Vfrsub.vf v8, v16, f2, v0.t
 }
 
 TEST_F(Riscv64InterpreterTest, TestRNU) {
@@ -7670,6 +7676,25 @@ TEST_F(Riscv64InterpreterTest, TestVrsub) {
        {0x1899'1a9b'1c9d'1e95, 0x1091'1293'1495'168d},
        {0x0889'0a8b'0c8d'0e85, 0x0081'0283'0485'067d}},
       kVectorCalculationsSourceLegacy);
+
+  TestVectorFloatInstruction(0x9d00d457,  // vfrsub.vf v8, v16, f1, v0.t
+                             {{0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                              {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                              {0x40b4'0000, 0x40b4'0000, 0x40b4'0000, 0x40b4'0000},
+                              {0x40b4'0000, 0x40b4'0017, 0x40b4'1757, 0x40cb'd7a8},
+                              {0x4348'6140, 0x4746'cae4, 0x4b4a'c94e, 0x4f4e'cd4c},
+                              {0x5352'd150, 0x5756'd554, 0x5b5a'd958, 0x5f5e'dd5c},
+                              {0x6362'e160, 0x6766'e564, 0x6b6a'e968, 0x6f6e'ed6c},
+                              {0x7372'f170, 0x7776'f574, 0x7b7a'f978, 0x7f7e'fd7c}},
+                             {{0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                              {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                              {0x4016'8000'0000'0000, 0x4016'8000'0000'0000},
+                              {0x4016'8000'0000'0000, 0x4016'807a'f4f2'eceb},
+                              {0x4746'c544'c342'c140, 0x4f4e'cd4c'cb4a'c948},
+                              {0x5756'd554'd352'd150, 0x5f5e'dd5c'db5a'd958},
+                              {0x6766'e564'e362'e160, 0x6f6e'ed6c'eb6a'e968},
+                              {0x7776'f574'f372'f170, 0x7f7e'fd7c'fb7a'f978}},
+                             kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVsub) {
@@ -7881,6 +7906,43 @@ TEST_F(Riscv64InterpreterTest, TestVsub) {
        {0x3cbc'3aba'38b8'36b6, 0x44c4'42c2'40c0'3ebe},
        {0x4ccc'4aca'48c8'46c6, 0x54d4'52d2'50d0'4ece}},
       kVectorCalculationsSource);
+
+  TestVectorFloatInstruction(0x090c1457,  // vfsub.vv v8,v16,v24,v0.t
+                             {{0x1604'9200, 0x1e0c'9a09, 0x8b0a'63e7, 0x8ece'd50c},
+                              {0x3624'b220, 0x3e2c'ba29, 0x2634'a22f, 0x2e3c'aa38},
+                              {0x5644'd240, 0x5e4c'da49, 0x4654'c251, 0x4e5c'ca58},
+                              {0x7664'f260, 0x7e6c'fa69, 0x6674'e271, 0x6e7c'ea78},
+                              {0xc342'c140, 0xc746'c544, 0xcb4a'c948, 0xcf4e'cd4c},
+                              {0xd352'd150, 0xd756'd554, 0xdb5a'd958, 0xdf5e'dd5c},
+                              {0xe362'e160, 0xe766'e5ca, 0xeb6a'e968, 0xef6e'ed6c},
+                              {0xf6e6'58c3, 0xfeec'7cd7, 0xfb7a'f978, 0xff7e'fd7c}},
+                             {{0x1e0c'9a09'9604'9200, 0x8f0e'8cd3'76d9'7cdf},
+                              {0x3e2c'ba29'b624'b220, 0x2e3c'aa38'a634'a231},
+                              {0x5e4c'da49'd644'd240, 0x4e5c'ca58'c654'c251},
+                              {0x7e6c'fa69'f664'f260, 0x6e7c'ea78'e674'e271},
+                              {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+                              {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+                              {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+                              {0xfeec'7ae9'76e4'72e0, 0xff7e'fd7c'fb7a'f978}},
+                             kVectorCalculationsSource);
+  TestVectorFloatInstruction(0x0900d457,  // vfsub.vf v8,v16,f1,v0.t
+                             {{0xc0b4'0000, 0xc0b4'0000, 0xc0b4'0000, 0xc0b4'0000},
+                              {0xc0b4'0000, 0xc0b4'0000, 0xc0b4'0000, 0xc0b4'0000},
+                              {0xc0b4'0000, 0xc0b4'0000, 0xc0b4'0000, 0xc0b4'0000},
+                              {0xc0b4'0000, 0xc0b4'0017, 0xc0b4'1757, 0xc0cb'd7a8},
+                              {0xc348'6140, 0xc746'cae4, 0xcb4a'c94e, 0xcf4e'cd4c},
+                              {0xd352'd150, 0xd756'd554, 0xdb5a'd958, 0xdf5e'dd5c},
+                              {0xe362'e160, 0xe766'e564, 0xeb6a'e968, 0xef6e'ed6c},
+                              {0xf372'f170, 0xf776'f574, 0xfb7a'f978, 0xff7e'fd7c}},
+                             {{0xc016'8000'0000'0000, 0xc016'8000'0000'0000},
+                              {0xc016'8000'0000'0000, 0xc016'8000'0000'0000},
+                              {0xc016'8000'0000'0000, 0xc016'8000'0000'0000},
+                              {0xc016'8000'0000'0000, 0xc016'807a'f4f2'eceb},
+                              {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+                              {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+                              {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+                              {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
+                             kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVand) {
