@@ -151,14 +151,15 @@ cc_defaults {
                 "file_test.cc",
                 "futex_test.cc",
             ],
-            static_libs: ["cpufeatures"],
         },
         arm64: {
             srcs: [
+                "arm64/cpu_features_test.cc",
                 "arm64/handle_not_executable_test.cc",
             ],
         },
     },
+    static_libs: ["cpufeatures"],
     shared_libs: ["libz"],
 }
 

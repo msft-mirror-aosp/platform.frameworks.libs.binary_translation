@@ -94,18 +94,9 @@ cc_library_static {
 cc_library_static {
     name: "libberberis_guest_state_arm64",
     defaults: [
-        "berberis_guest_agnostic_defaults",
+        "berberis_arm64_defaults",
         "berberis_guest_state_defaults",
     ],
-    compile_multilib: "64",
-    arch: {
-        x86_64: {
-            // TODO(b/123294366): disconnect guest arch from host arch!
-            cflags: [
-                "-DNATIVE_BRIDGE_GUEST_ARCH_ARM64",
-            ],
-        },
-    },
     srcs: [
         "arm64/guest_state_arch.cc",
     ],
@@ -118,18 +109,9 @@ cc_library_static {
 cc_library_static {
     name: "libberberis_guest_state_arm",
     defaults: [
-        "berberis_guest_agnostic_defaults",
+        "berberis_arm_defaults",
         "berberis_guest_state_defaults",
     ],
-    compile_multilib: "32",
-    arch: {
-        x86: {
-            // TODO(b/123294366): disconnect guest arch from host arch!
-            cflags: [
-                "-DNATIVE_BRIDGE_GUEST_ARCH_ARM",
-            ],
-        },
-    },
     srcs: [
         "arm/guest_state_arch.cc",
     ],
