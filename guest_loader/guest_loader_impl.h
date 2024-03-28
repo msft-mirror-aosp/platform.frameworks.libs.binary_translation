@@ -23,6 +23,7 @@
 #include "berberis/base/stringprintf.h"
 #include "berberis/guest_abi/guest_function_wrapper.h"
 #include "berberis/guest_abi/guest_type.h"
+#include "berberis/guest_loader/guest_loader.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/host_code.h"

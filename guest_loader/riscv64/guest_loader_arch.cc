@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "guest_loader_impl.h"
+
 #include <sys/auxv.h>
 #include <cstdint>
 
