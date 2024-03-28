@@ -115,10 +115,29 @@ endef
 
 ifeq ($(BUILD_BERBERIS_RISCV64_TO_X86_64),true)
 
-$(eval $(call add_test,berberis_ndk_program_tests,\
+# berberis_ndk_program_tests
+
+$(eval $(call add_test,berberis_ndk_program_tests_interpret_only,\
 	run_test_x86_64_riscv64,\
 	$(TARGET_OUT_TESTCASES)/berberis_ndk_program_tests_static.native_bridge/x86_64/berberis_ndk_program_tests_static,\
-	))
+	BERBERIS_MODE=interpret-only))
+
+$(eval $(call add_test,berberis_ndk_program_tests_lite_translate_or_interpret,\
+	run_test_x86_64_riscv64,\
+	$(TARGET_OUT_TESTCASES)/berberis_ndk_program_tests_static.native_bridge/x86_64/berberis_ndk_program_tests_static,\
+	BERBERIS_MODE=lite-translate-or-interpret))
+
+$(eval $(call add_test,berberis_ndk_program_tests_heavy_optimize_or_interpret,\
+	run_test_x86_64_riscv64,\
+	$(TARGET_OUT_TESTCASES)/berberis_ndk_program_tests_static.native_bridge/x86_64/berberis_ndk_program_tests_static,\
+	BERBERIS_MODE=heavy-optimize-or-interpret))
+
+$(eval $(call add_test,berberis_ndk_program_tests_two_gear,\
+	run_test_x86_64_riscv64,\
+	$(TARGET_OUT_TESTCASES)/berberis_ndk_program_tests_static.native_bridge/x86_64/berberis_ndk_program_tests_static,\
+	BERBERIS_MODE=two-gear))
+
+# berberis_host_tests
 
 $(eval $(call add_test,berberis_host_tests,\
 	run_test,\
