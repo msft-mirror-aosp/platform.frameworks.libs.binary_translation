@@ -18,7 +18,7 @@ package {
 }
 
 cc_defaults {
-    name: "berberis_defaults",
+    name: "berberis_guest_agnostic_defaults",
     cflags: [
         "-Wall",
         "-Werror",
@@ -52,7 +52,6 @@ cc_defaults {
             // TODO(b/123294366): disconnect guest arch from host arch!
             cflags: [
                 "-DBERBERIS_GUEST_LP64=1",
-                "-DNATIVE_BRIDGE_GUEST_ARCH_RISCV64",
             ],
         },
     },
@@ -68,9 +67,44 @@ cc_defaults {
 }
 
 cc_defaults {
+    name: "berberis_defaults",
+    defaults: ["berberis_guest_agnostic_defaults"],
+    arch: {
+        x86_64: {
+            // TODO(b/123294366): disconnect guest arch from host arch!
+            cflags: ["-DNATIVE_BRIDGE_GUEST_ARCH_RISCV64"],
+        },
+    },
+}
+
+cc_defaults {
     name: "berberis_defaults_64",
     defaults: ["berberis_defaults"],
     compile_multilib: "64",
+}
+
+cc_defaults {
+    name: "berberis_arm64_defaults",
+    defaults: ["berberis_guest_agnostic_defaults"],
+    compile_multilib: "64",
+    arch: {
+        x86_64: {
+            // TODO(b/123294366): disconnect guest arch from host arch!
+            cflags: ["-DNATIVE_BRIDGE_GUEST_ARCH_ARM64"],
+        },
+    },
+}
+
+cc_defaults {
+    name: "berberis_arm_defaults",
+    defaults: ["berberis_guest_agnostic_defaults"],
+    compile_multilib: "32",
+    arch: {
+        x86: {
+            // TODO(b/123294366): disconnect guest arch from host arch!
+            cflags: ["-DNATIVE_BRIDGE_GUEST_ARCH_ARM"],
+        },
+    },
 }
 
 cc_defaults {

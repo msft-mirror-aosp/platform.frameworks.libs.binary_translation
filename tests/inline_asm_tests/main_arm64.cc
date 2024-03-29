@@ -16,7 +16,6 @@
 
 #include "gtest/gtest.h"
 
-#include <cmath>
 #include <cstdint>
 #include <initializer_list>
 #include <limits>
@@ -1418,6 +1417,12 @@ TEST(Arm64InsnTest, AsmConvertUX64F64) {
   ASSERT_EQ(AsmConvertUX64F64(1ULL << 63), MakeUInt128(0x4320000000000000ULL, 0U));
 }
 
+TEST(Arm64InsnTest, AsmConvertUX64F64With64BitFraction) {
+  constexpr auto AsmConvertUX64F64 = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("ucvtf %d0, %d1, #64");
+
+  ASSERT_EQ(AsmConvertUX64F64(1ULL << 63), MakeUInt128(0x3fe0'0000'0000'0000ULL, 0U));
+}
+
 TEST(Arm64InsnTest, AsmConvertX64x2F64x2) {
   constexpr auto AsmConvertX64F64 = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("scvtf %0.2d, %1.2d, #12");
   __uint128_t arg = MakeUInt128(1ULL << 63, 0x8086U);
@@ -1428,6 +1433,13 @@ TEST(Arm64InsnTest, AsmConvertUX64x2F64x2) {
   constexpr auto AsmConvertUX64F64 = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("ucvtf %0.2d, %1.2d, #12");
   __uint128_t arg = MakeUInt128(1ULL << 63, 0x6809U);
   ASSERT_EQ(AsmConvertUX64F64(arg), MakeUInt128(0x4320000000000000ULL, 0x401a024000000000ULL));
+}
+
+TEST(Arm64InsnTest, AsmConvertUX64x2F64x2With64BitFraction) {
+  constexpr auto AsmConvertUX64F64 = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("ucvtf %0.2d, %1.2d, #64");
+  __uint128_t arg = MakeUInt128(0x7874'211c'b7aa'f597ULL, 0x2c0f'5504'd25e'f673ULL);
+  ASSERT_EQ(AsmConvertUX64F64(arg),
+            MakeUInt128(0x3fde'1d08'472d'eabdULL, 0x3fc6'07aa'8269'2f7bULL));
 }
 
 TEST(Arm64InsnTest, AsmConvertF32X32Scalar) {
@@ -1521,6 +1533,12 @@ TEST(Arm64InsnTest, AsmConvertF64UX64Scalar) {
 
   uint64_t arg2 = bit_cast<uint64_t>(-6.50);
   ASSERT_EQ(AsmFcvtzu(arg2), MakeUInt128(0ULL, 0ULL));
+}
+
+TEST(Arm64InsnTest, AsmConvertF64UX64ScalarWith64BitFraction) {
+  constexpr auto AsmFcvtzu = ASM_INSN_WRAP_FUNC_R_RES_W_ARG("fcvtzu %x0, %d1, #64");
+  uint64_t arg = bit_cast<uint64_t>(0.625);
+  ASSERT_EQ(AsmFcvtzu(arg), MakeUInt128(0xa000'0000'0000'0000ULL, 0ULL));
 }
 
 TEST(Arm64InsnTest, AsmConvertF32UX32x4) {
@@ -2337,8 +2355,22 @@ TEST(Arm64InsnTest, ConvertFp16ToFp64) {
 
 TEST(Arm64InsnTest, ConvertToNarrowF64F32x2) {
   constexpr auto AsmFcvtn = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fcvtn %0.2s, %1.2d");
-  __uint128_t res = AsmFcvtn(MakeF64x2(2.0, 3.0));
-  ASSERT_EQ(res, MakeF32x4(2.0f, 3.0f, 0.0f, 0.0f));
+  ASSERT_EQ(AsmFcvtn(MakeF64x2(2.0, 3.0)), MakeF32x4(2.0f, 3.0f, 0.0f, 0.0f));
+  // Overflow or inf arguments result in inf.
+  __uint128_t res = AsmFcvtn(
+      MakeF64x2(std::numeric_limits<double>::max(), std::numeric_limits<double>::infinity()));
+  ASSERT_EQ(res,
+            MakeF32x4(std::numeric_limits<float>::infinity(),
+                      std::numeric_limits<float>::infinity(),
+                      0.0f,
+                      0.0f));
+  res = AsmFcvtn(
+      MakeF64x2(std::numeric_limits<double>::lowest(), -std::numeric_limits<double>::infinity()));
+  ASSERT_EQ(res,
+            MakeF32x4(-std::numeric_limits<float>::infinity(),
+                      -std::numeric_limits<float>::infinity(),
+                      0.0f,
+                      0.0f));
 }
 
 TEST(Arm64InsnTest, ConvertToNarrowF64F32x2Upper) {
@@ -2350,8 +2382,18 @@ TEST(Arm64InsnTest, ConvertToNarrowF64F32x2Upper) {
 
 TEST(Arm64InsnTest, ConvertToNarrowRoundToOddF64F32) {
   constexpr auto AsmFcvtxn = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fcvtxn %s0, %d1");
-  __uint128_t res = AsmFcvtxn(bit_cast<uint64_t>(2.0));
-  ASSERT_EQ(res, bit_cast<uint32_t>(2.0f));
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(2.0)), bit_cast<uint32_t>(2.0f));
+  // Overflow is saturated.
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(std::numeric_limits<double>::max())),
+            bit_cast<uint32_t>(std::numeric_limits<float>::max()));
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(std::numeric_limits<double>::lowest())),
+            bit_cast<uint32_t>(std::numeric_limits<float>::lowest()));
+  // inf is converted to inf.
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(std::numeric_limits<double>::infinity())),
+            bit_cast<uint32_t>(std::numeric_limits<float>::infinity()));
+  // -inf is converted to -inf.
+  ASSERT_EQ(AsmFcvtxn(bit_cast<uint64_t>(-std::numeric_limits<double>::infinity())),
+            bit_cast<uint32_t>(-std::numeric_limits<float>::infinity()));
 }
 
 TEST(Arm64InsnTest, ConvertToNarrowRoundToOddF64F32x2) {
@@ -2574,6 +2616,21 @@ TEST(Arm64InsnTest, RecipSqrtEstimateF32x4) {
   __uint128_t arg = MakeF32x4(2.0f, 3.0f, 4.0f, 5.0f);
   __uint128_t res = AsmFrsqrte(arg);
   ASSERT_EQ(res, MakeF32x4(0.705078125f, 0.576171875f, 0.4990234375f, 0.4462890625f));
+}
+
+TEST(Arm64InsnTest, RecipSqrtEstimateF64) {
+  constexpr auto AsmFrsqrte = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("frsqrte %d0, %d1");
+  ASSERT_EQ(AsmFrsqrte(bit_cast<uint64_t>(2.0)), bit_cast<uint64_t>(0.705078125));
+  ASSERT_EQ(AsmFrsqrte(bit_cast<uint64_t>(3.0)), bit_cast<uint64_t>(0.576171875));
+  ASSERT_EQ(AsmFrsqrte(bit_cast<uint64_t>(4.0)), bit_cast<uint64_t>(0.4990234375));
+  ASSERT_EQ(AsmFrsqrte(bit_cast<uint64_t>(5.0)), bit_cast<uint64_t>(0.4462890625));
+}
+
+TEST(Arm64InsnTest, RecipSqrtEstimateF64x2) {
+  constexpr auto AsmFrsqrte = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("frsqrte %0.2d, %1.2d");
+  __uint128_t arg = MakeF64x2(2.0, 3.0);
+  __uint128_t res = AsmFrsqrte(arg);
+  ASSERT_EQ(res, MakeUInt128(bit_cast<uint64_t>(0.705078125), bit_cast<uint64_t>(0.576171875)));
 }
 
 TEST(Arm64InsnTest, RecipSqrtStepF32) {
@@ -5428,11 +5485,21 @@ TEST(Arm64InsnTest, SignedAbsoluteDifferenceLongUpperInt16x8) {
 }
 
 TEST(Arm64InsnTest, SignedAbsoluteDifferenceAccumulateInt16x8) {
-  __uint128_t arg1 = MakeUInt128(0x8967003192586625ULL, 0x9410510533584384ULL);
-  __uint128_t arg2 = MakeUInt128(0x6560233917967492ULL, 0x6784476370847497ULL);
-  __uint128_t arg3 = MakeUInt128(0x8333655579007384ULL, 0x1914731988627135ULL);
+  // The lowest element tests the overflow.
+  __uint128_t arg1 = MakeUInt128(0x8967'0031'9258'7fffULL, 0x9410'5105'3358'4384ULL);
+  __uint128_t arg2 = MakeUInt128(0x6560'2339'1796'8000ULL, 0x6784'4763'7084'7497ULL);
+  __uint128_t arg3 = MakeUInt128(0x8333'6555'7900'5555ULL, 0x1914'7319'8862'7135ULL);
   __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("saba %0.8h, %1.8h, %2.8h")(arg1, arg2, arg3);
-  ASSERT_EQ(res, MakeUInt128(0x5f2c885dfe3e81f1ULL, 0xec887cbbc58ea248ULL));
+  ASSERT_EQ(res, MakeUInt128(0x5f2c'885d'fe3e'5554ULL, 0xec88'7cbb'c58e'a248ULL));
+}
+
+TEST(Arm64InsnTest, SignedAbsoluteDifferenceAccumulateInt32x4) {
+  // The lowest element tests the overflow.
+  __uint128_t arg1 = MakeUInt128(0x8967'0031'7fff'ffffULL, 0x9410'5105'3358'4384ULL);
+  __uint128_t arg2 = MakeUInt128(0x6560'2339'8000'0000ULL, 0x6784'4763'7084'7497ULL);
+  __uint128_t arg3 = MakeUInt128(0x8333'6555'aaaa'5555ULL, 0x1914'7319'8862'7135ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("saba %0.4s, %1.4s, %2.4s")(arg1, arg2, arg3);
+  ASSERT_EQ(res, MakeUInt128(0x5f2c'885d'aaaa'5554ULL, 0xec88'6977'c58e'a248ULL));
 }
 
 TEST(Arm64InsnTest, SignedAbsoluteDifferenceAccumulateLongInt16x4) {
