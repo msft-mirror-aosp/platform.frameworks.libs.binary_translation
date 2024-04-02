@@ -23,17 +23,16 @@
 
 #include "berberis/base/macros.h"
 #include "berberis/base/scoped_errno.h"
-#include "berberis/base/struct_check.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
+#include "berberis/kernel_api/runtime_bridge.h"
 #include "berberis/kernel_api/syscall_emulation_common.h"
 #include "berberis/kernel_api/tracing.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 
 #include "epoll_emulation.h"
 #include "guest_types.h"
-#include "runtime_bridge.h"
 
 namespace berberis {
 
