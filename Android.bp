@@ -259,3 +259,137 @@ cc_test_host {
         unit_test: true,
     },
 }
+
+soong_config_module_type {
+    name: "berberis_phony_rule",
+    module_type: "phony_rule",
+    config_namespace: "berberis", // BUILD_BERBERIS
+    variables: ["translation_arch"],
+    properties: [
+        "phony_deps",
+        "enabled",
+    ],
+}
+
+soong_config_string_variable {
+    name: "translation_arch",
+    values: [
+        "riscv64_to_x86_64", // BUILD_BERBERIS_RISCV64_TO_X86_64
+    ],
+}
+
+// Note: When the variables `BERBERIS_PRODUCT_PACKAGES`,
+//      `BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64`,
+//      `BERBERIS_DEV_PRODUCT_PACKAGES`,
+//      `BERBERIS_DEV_PRODUCT_PACKAGES_RISCV64_TO_X86_64` in `berberis_config.mk`
+//      and the variables `NATIVE_BRIDGE_PRODUCT_PACKAGES`,
+//      `NATIVE_BRIDGE_ORIG_GUEST_LIBS`, `NATIVE_BRIDGE_MODIFIED_GUEST_LIBS`
+//      in `frameworks/libs/native_bridge_support/native_bridge_support.mk` are
+//      modified, please also change the dependencies of `berberis_all`.
+//
+// TODO(b/331886818): Add pyhon_rule_defaults to reuse its dependencies.
+//
+// Note: The following are the dependencies of `berberis_all` for `arm_to_x86`,
+//       currently listed only in the comment section.
+//       BERBERIS_PRODUCT_PACKAGES:
+//           "libberberis_exec_region",
+//       BERBERIS_DEV_PRODUCT_PACKAGES:
+//           "berberis_hello_world.native_bridge",
+//           "berberis_hello_world_static.native_bridge", "berberis_host_tests",
+//           "berberis_ndk_program_tests",
+//           "berberis_ndk_program_tests.native_bridge",
+//           "dwarf_reader", "libberberis_emulated_libcamera2ndk_api_checker",
+//           "nogrod_unit_tests", "gen_intrinsics_tests"
+berberis_phony_rule {
+    name: "berberis_all",
+    soong_config_variables: {
+        translation_arch: {
+            riscv64_to_x86_64: {
+                phony_deps: [
+                    // BERBERIS_PRODUCT_PACKAGES
+                    "libberberis_exec_region",
+                    // BERBERIS_DEV_PRODUCT_PACKAGES
+                    "berberis_hello_world.native_bridge",
+                    "berberis_hello_world_static.native_bridge",
+                    "berberis_host_tests",
+                    "berberis_ndk_program_tests",
+                    "berberis_ndk_program_tests.native_bridge",
+                    "dwarf_reader",
+                    "libberberis_emulated_libcamera2ndk_api_checker",
+                    "nogrod_unit_tests",
+                    "gen_intrinsics_tests",
+                    // BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64
+                    "libberberis_proxy_libEGL",
+                    "libberberis_proxy_libGLESv1_CM",
+                    "libberberis_proxy_libGLESv2",
+                    "libberberis_proxy_libGLESv3",
+                    "libberberis_proxy_libOpenMAXAL",
+                    "libberberis_proxy_libOpenSLES",
+                    "libberberis_proxy_libaaudio",
+                    "libberberis_proxy_libamidi",
+                    "libberberis_proxy_libandroid",
+                    "libberberis_proxy_libbinder_ndk",
+                    "libberberis_proxy_libc",
+                    "libberberis_proxy_libcamera2ndk",
+                    "libberberis_proxy_libjnigraphics",
+                    "libberberis_proxy_libmediandk",
+                    "libberberis_proxy_libnativehelper",
+                    "libberberis_proxy_libnativewindow",
+                    "libberberis_proxy_libneuralnetworks",
+                    "libberberis_proxy_libwebviewchromium_plat_support",
+                    "berberis_prebuilt_riscv64",
+                    "berberis_program_runner_binfmt_misc_riscv64",
+                    "berberis_program_runner_riscv64",
+                    "libberberis_riscv64",
+                    // NATIVE_BRIDGE_PRODUCT_PACKAGES
+                    "libnative_bridge_vdso.native_bridge",
+                    "native_bridge_guest_app_process.native_bridge",
+                    "native_bridge_guest_linker.native_bridge",
+                    // $(addsuffix .native_bridge,$(NATIVE_BRIDGE_ORIG_GUEST_LIBS))
+                    "libandroidicu.bootstrap.native_bridge",
+                    "libcompiler_rt.native_bridge",
+                    "libcrypto.native_bridge",
+                    "libcutils.native_bridge",
+                    "libdl.bootstrap.native_bridge",
+                    "libdl_android.bootstrap.native_bridge",
+                    "libicu.bootstrap.native_bridge",
+                    "liblog.native_bridge",
+                    "libm.bootstrap.native_bridge",
+                    "libsqlite.native_bridge",
+                    "libssl.native_bridge",
+                    "libstdc++.native_bridge",
+                    "libsync.native_bridge",
+                    "libutils.native_bridge",
+                    "libz.native_bridge",
+                    // NATIVE_BRIDGE_MODIFIED_GUEST_LIBS
+                    "libnative_bridge_guest_libaaudio.native_bridge",
+                    "libnative_bridge_guest_libamidi.native_bridge",
+                    "libnative_bridge_guest_libandroid.native_bridge",
+                    "libnative_bridge_guest_libandroid_runtime.native_bridge",
+                    "libnative_bridge_guest_libbinder_ndk.native_bridge",
+                    "libnative_bridge_guest_libc.native_bridge",
+                    "libnative_bridge_guest_libcamera2ndk.native_bridge",
+                    "libnative_bridge_guest_libEGL.native_bridge",
+                    "libnative_bridge_guest_libGLESv1_CM.native_bridge",
+                    "libnative_bridge_guest_libGLESv2.native_bridge",
+                    "libnative_bridge_guest_libGLESv3.native_bridge",
+                    "libnative_bridge_guest_libjnigraphics.native_bridge",
+                    "libnative_bridge_guest_libmediandk.native_bridge",
+                    "libnative_bridge_guest_libnativehelper.native_bridge",
+                    "libnative_bridge_guest_libnativewindow.native_bridge",
+                    "libnative_bridge_guest_libneuralnetworks.native_bridge",
+                    "libnative_bridge_guest_libOpenMAXAL.native_bridge",
+                    "libnative_bridge_guest_libOpenSLES.native_bridge",
+                    "libnative_bridge_guest_libvulkan.native_bridge",
+                    "libnative_bridge_guest_libwebviewchromium_plat_support.native_bridge",
+                    // BERBERIS_DEV_PRODUCT_PACKAGES_RISCV64_TO_X86_64
+                    "berberis_guest_loader_riscv64_tests",
+                ],
+                enabled: true,
+            },
+            conditions_default: {
+                enabled: false,
+            },
+        },
+    },
+}
