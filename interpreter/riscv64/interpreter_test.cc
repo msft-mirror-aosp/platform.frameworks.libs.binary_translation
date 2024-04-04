@@ -1526,6 +1526,144 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  template <bool kIsMasked, typename ElementType>
+  auto MaskForElem() {
+    if constexpr (!kIsMasked) {
+      return kNoMask;
+    } else if constexpr (std::is_same_v<ElementType, uint8_t>) {
+      return kMaskInt8;
+    } else if constexpr (std::is_same_v<ElementType, uint16_t>) {
+      return kMaskInt16;
+    } else if constexpr (std::is_same_v<ElementType, uint32_t>) {
+      return kMaskInt32;
+    } else if constexpr (std::is_same_v<ElementType, uint64_t>) {
+      return kMaskInt64;
+    } else {
+      static_assert(kDependentTypeFalse<ElementType>);
+    }
+  }
+
+  template <bool kIsMasked>
+  void TestVectorIota(uint32_t insn_bytes,
+                      const uint8_t (&expected_result_int8)[8][16],
+                      const uint16_t (&expected_result_int16)[8][8],
+                      const uint32_t (&expected_result_int32)[8][4],
+                      const uint64_t (&expected_result_int64)[8][2],
+                      const __v2du(&source)) {
+    TestVectorIota<kIsMasked>(insn_bytes,
+                              source,
+                              expected_result_int8,
+                              expected_result_int16,
+                              expected_result_int32,
+                              expected_result_int64);
+  }
+
+  template <bool kIsMasked,
+            typename... ElementType,
+            size_t... kResultsCount,
+            size_t... kElementCount>
+  void TestVectorIota(uint32_t insn_bytes,
+                      const __v2du& src1,
+                      const ElementType (&... expected_result)[kResultsCount][kElementCount]) {
+    const __uint128_t mask = SIMD128Register{kMask}.Get<__uint128_t>();
+    const __uint128_t src = SIMD128Register{src1}.Get<__uint128_t>();
+    const __uint128_t undisturbed = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+
+    auto Verify = [this, &src, &mask, &undisturbed](uint32_t insn_bytes,
+                                                    uint8_t vsew,
+                                                    const auto& expected_result,
+                                                    auto elem_mask) {
+      state_.cpu.v[0] = mask;
+      state_.cpu.v[16] = src;
+      for (uint8_t vlmul = 0; vlmul < 8; ++vlmul) {
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          for (uint8_t vma = 0; vma < 2; ++vma) {
+            auto [vlmax, vtype] =
+                intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
+            // Incompatible vsew and vlmax. Skip it.
+            if (vlmax == 0) {
+              continue;
+            }
+
+            for (uint8_t vl = 0; vl < vlmax; vl += vlmax) {
+              // To make tests quick enough we don't test vl change with small register sets. Only
+              // with vlmul == 2 (4 registers) we set vl to skip last register and half of next-to
+              // last register.
+              if (vlmul == 2 && vl == vlmax) {
+                state_.cpu.vl = 5 * vlmax / 8;
+              } else {
+                state_.cpu.vl = vl;
+              }
+
+              state_.cpu.vstart = 0;
+              state_.cpu.vtype = vtype;
+              for (size_t index = 0; index < 8; ++index) {
+                state_.cpu.v[8 + index] = undisturbed;
+              }
+
+              state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+              EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+
+              __m128i expected_inactive[8];
+              std::fill_n(expected_inactive, 8, (vma ? kAgnosticResult : kUndisturbedResult));
+
+              // vl of 0 should never change dst registers
+              if (vl == 0) {
+                for (size_t index = 0; index < 8; ++index) {
+                  EXPECT_EQ(state_.cpu.v[8 + index], undisturbed);
+                }
+              } else if (vlmul < 4) {
+                for (size_t index = 0; index < 1 << vlmul; ++index) {
+                  for (size_t index = 0; index < 1 << vlmul; ++index) {
+                    if (index == 2 && vlmul == 2) {
+                      EXPECT_EQ(
+                          state_.cpu.v[8 + index],
+                          ((SIMD128Register{expected_result[index]} & elem_mask[index] &
+                            kFractionMaskInt8[3]) |
+                           (expected_inactive[index] & ~elem_mask[index] & kFractionMaskInt8[3]) |
+                           ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3]))
+                              .template Get<__uint128_t>());
+                    } else if (index == 3 && vlmul == 2) {
+                      EXPECT_EQ(state_.cpu.v[8 + index],
+                                SIMD128Register{vta ? kAgnosticResult : kUndisturbedResult});
+                    } else {
+                      EXPECT_EQ(state_.cpu.v[8 + index],
+                                ((SIMD128Register{expected_result[index]} & elem_mask[index]) |
+                                 (expected_inactive[index] & ~elem_mask[index]))
+                                    .template Get<__uint128_t>());
+                    }
+                    // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+                    EXPECT_EQ(state_.cpu.vstart, 0);
+                    if (vlmul == 2) {
+                      EXPECT_EQ(state_.cpu.vl, 5 * vlmax / 8);
+                    } else {
+                      EXPECT_EQ(state_.cpu.vl, vlmax);
+                    }
+                  }
+                }
+              } else {
+                // vlmul >= 4 only uses 1 register
+                EXPECT_EQ(
+                    state_.cpu.v[8],
+                    ((SIMD128Register{expected_result[0]} & elem_mask[0] &
+                      kFractionMaskInt8[vlmul - 4]) |
+                     (expected_inactive[0] & ~elem_mask[0] & kFractionMaskInt8[vlmul - 4]) |
+                     ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[vlmul - 4]))
+                        .template Get<__uint128_t>());
+              }
+            }
+          }
+        }
+      }
+    };
+
+    (Verify(insn_bytes,
+            BitUtilLog2(sizeof(ElementType)),
+            expected_result,
+            MaskForElem<kIsMasked, ElementType>()),
+     ...);
+  }
+
   void TestVectorMaskTargetInstruction(uint32_t insn_bytes,
                                        const uint32_t expected_result_int32,
                                        const uint16_t expected_result_int64,
@@ -7533,15 +7671,15 @@ TEST_F(Riscv64InterpreterTest, TestVectorMaskInstructions) {
   TestVectorMaskInstruction(0,
                             intrinsics::InactiveProcessing::kAgnostic,
                             0x5300a457,  // vmsbf.m v8, v16
-                            {0x0000'0000'0000'00ff, 000000'0000'0000'0000});
+                            {0x0000'0000'0000'00ff, 0x0000'0000'0000'0000});
   TestVectorMaskInstruction(0,
                             intrinsics::InactiveProcessing::kAgnostic,
                             0x53012457,  // vmsof.m v8, v16
-                            {0x0000'0000'0000'0100, 000000'0000'0000'0000});
+                            {0x0000'0000'0000'0100, 0x0000'0000'0000'0000});
   TestVectorMaskInstruction(0,
                             intrinsics::InactiveProcessing::kAgnostic,
                             0x5301a457,  // vmsif.m v8, v16
-                            {0x0000'0000'0000'01ff, 000000'0000'0000'0000});
+                            {0x0000'0000'0000'01ff, 0x0000'0000'0000'0000});
   TestVectorMaskInstruction(0,
                             intrinsics::InactiveProcessing::kAgnostic,
                             0x5100a457,  // vmsbf.m v8, v16, v0.t
@@ -7566,6 +7704,77 @@ TEST_F(Riscv64InterpreterTest, TestVectorMaskInstructions) {
                             intrinsics::InactiveProcessing::kUndisturbed,
                             0x5101a457,  // vmsif.m v8, v16, v0.t
                             {0x5505'5415'07d5'5f57, 0x4055'5511'5445'5115});
+}
+
+TEST_F(Riscv64InterpreterTest, TestIota) {
+  TestVectorIota<false>(0x53082457,  // viota.m v8, v16
+                        {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1},
+                         {2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 5, 5, 5, 5, 5, 5},
+                         {6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 9, 9, 9, 9, 9},
+                         {10, 10, 11, 12, 12, 12, 12, 12, 12, 13, 14, 15, 15, 15, 15, 15},
+                         {16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19},
+                         {20, 20, 21, 21, 22, 22, 22, 22, 22, 23, 24, 24, 25, 25, 25, 25},
+                         {26, 26, 26, 27, 28, 28, 28, 28, 28, 29, 29, 30, 31, 31, 31, 31},
+                         {32, 32, 33, 34, 35, 35, 35, 35, 35, 36, 37, 38, 39, 39, 39, 39}},
+                        {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0000, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001},
+                         {0x0002, 0x0002, 0x0003, 0x0003, 0x0003, 0x0003, 0x0003, 0x0003},
+                         {0x0003, 0x0004, 0x0005, 0x0005, 0x0005, 0x0005, 0x0005, 0x0005},
+                         {0x0006, 0x0006, 0x0006, 0x0007, 0x0007, 0x0007, 0x0007, 0x0007},
+                         {0x0007, 0x0008, 0x0008, 0x0009, 0x0009, 0x0009, 0x0009, 0x0009},
+                         {0x000a, 0x000a, 0x000b, 0x000c, 0x000c, 0x000c, 0x000c, 0x000c},
+                         {0x000c, 0x000d, 0x000e, 0x000f, 0x000f, 0x000f, 0x000f, 0x000f}},
+                        {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0001, 0x0000'0001, 0x0000'0001},
+                         {0x0000'0001, 0x0000'0001, 0x0000'0001, 0x0000'0001},
+                         {0x0000'0002, 0x0000'0002, 0x0000'0003, 0x0000'0003},
+                         {0x0000'0003, 0x0000'0003, 0x0000'0003, 0x0000'0003},
+                         {0x0000'0003, 0x0000'0004, 0x0000'0005, 0x0000'0005},
+                         {0x0000'0005, 0x0000'0005, 0x0000'0005, 0x0000'0005}},
+                        {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001}},
+                        kVectorCalculationsSource[0]);
+  TestVectorIota<true>(0x51082457,  // viota.m v8, v16, v0.t
+                       {{0, 0x55, 0, 0, 0x55, 0, 0x55, 0, 0, 0x55, 1, 0x55, 1, 1, 0x55, 1},
+                        {2, 2, 0x55, 3, 0x55, 3, 3, 0x55, 3, 0x55, 4, 4, 0x55, 4, 0x55, 4},
+                        {5, 0x55, 5, 0x55, 6, 6, 0x55, 6, 0x55, 6, 6, 0x55, 7, 0x55, 7, 7},
+                        {8, 0x55, 8, 9, 0x55, 9, 0x55, 9, 9, 0x55, 10, 0x55, 11, 0x55, 11, 11},
+                        {12, 0x55, 12, 0x55, 12, 12, 0x55, 12, 12, 13, 0x55, 13, 14, 14, 14, 0x55},
+                        {14, 0x55, 14, 14, 0x55, 15, 15, 15, 0x55, 15, 16, 16, 17, 0x55, 17, 17},
+                        {18, 18, 0x55, 18, 19, 19, 0x55, 19, 19, 20, 20, 0x55, 21, 0x55, 21, 0x55},
+                        {21, 21, 22, 0x55, 23, 23, 23, 23, 0x55, 23, 0x55, 24, 0x55, 25, 25, 0x55}},
+                       {{0x0000, 0x5555, 0x0000, 0x0000, 0x5555, 0x0000, 0x5555, 0x0000},
+                        {0x0000, 0x5555, 0x0001, 0x5555, 0x0001, 0x0001, 0x5555, 0x0001},
+                        {0x0002, 0x0002, 0x5555, 0x0003, 0x5555, 0x0003, 0x0003, 0x5555},
+                        {0x0003, 0x5555, 0x0004, 0x0004, 0x5555, 0x0004, 0x5555, 0x0004},
+                        {0x0005, 0x5555, 0x0005, 0x5555, 0x0006, 0x0006, 0x5555, 0x0006},
+                        {0x5555, 0x0006, 0x0006, 0x5555, 0x0007, 0x5555, 0x0007, 0x0007},
+                        {0x0008, 0x5555, 0x0008, 0x0009, 0x5555, 0x0009, 0x5555, 0x0009},
+                        {0x0009, 0x5555, 0x000a, 0x5555, 0x000b, 0x5555, 0x000b, 0x000b}},
+                       {{0x0000'0000, 0x5555'5555, 0x0000'0000, 0x0000'0000},
+                        {0x5555'5555, 0x0000'0000, 0x5555'5555, 0x0000'0000},
+                        {0x0000'0000, 0x5555'5555, 0x0000'0001, 0x5555'5555},
+                        {0x0000'0001, 0x0000'0001, 0x5555'5555, 0x0000'0001},
+                        {0x0000'0002, 0x0000'0002, 0x5555'5555, 0x0000'0003},
+                        {0x5555'5555, 0x0000'0003, 0x0000'0003, 0x5555'5555},
+                        {0x0000'0003, 0x5555'5555, 0x0000'0004, 0x0000'0004},
+                        {0x5555'5555, 0x0000'0004, 0x5555'5555, 0x0000'0004}},
+                       {{0x0000'0000'0000'0000, 0x5555'5555'5555'5555},
+                        {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                        {0x5555'5555'5555'5555, 0x0000'0000'0000'0000},
+                        {0x5555'5555'5555'5555, 0x0000'0000'0000'0000},
+                        {0x0000'0000'0000'0000, 0x5555'5555'5555'5555},
+                        {0x0000'0000'0000'0001, 0x5555'5555'5555'5555},
+                        {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                        {0x5555'5555'5555'5555, 0x0000'0000'0000'0001}},
+                       kVectorCalculationsSource[0]);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVid) {

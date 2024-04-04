@@ -2293,6 +2293,8 @@ class Interpreter {
             return OpVectorVMUnary0<intrinsics::Vmsofm<>, vma>(args.dst, args.src1);
           case Decoder::VMUnary0Opcode::kVmsifm:
             return OpVectorVMUnary0<intrinsics::Vmsifm<>, vma>(args.dst, args.src1);
+          case Decoder::VMUnary0Opcode::kViotam:
+            return OpVectorViotam<ElementType, vlmul, vta, vma>(args.dst, args.src1);
           case Decoder::VMUnary0Opcode::kVidv:
             if (args.src1) {
               return Unimplemented();
@@ -2641,6 +2643,44 @@ class Interpreter {
       }
       // Next group should be fully processed.
       vstart = 0;
+    }
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
+  void OpVectorViotam(uint8_t dst, uint8_t src1) {
+    return OpVectorViotam<ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(dst, src1);
+  }
+
+  template <typename ElementType, size_t kRegistersInvolved, TailProcessing vta, auto vma>
+  void OpVectorViotam(uint8_t dst, uint8_t src1) {
+    constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    if (vstart != 0) {
+      return Unimplemented();
+    }
+    // When vl = 0, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vl == 0) [[unlikely]] {
+      return;
+    }
+    SIMD128Register arg1(state_->cpu.v[src1]);
+    auto mask = GetMaskForVectorOperations<vma>();
+    if constexpr (std::is_same_v<decltype(mask), SIMD128Register>) {
+      arg1 &= mask;
+    }
+
+    size_t counter = 0;
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      SIMD128Register result{state_->cpu.v[dst + index]};
+      auto [original_dst_value, new_counter] = intrinsics::Viotam<ElementType>(arg1, counter);
+      arg1.Set(arg1.Get<__uint128_t>() >> kElementsCount);
+      counter = new_counter;
+
+      // Apply mask and put result values into dst register.
+      result =
+          VectorMasking<ElementType, vta, vma>(result, original_dst_value, vstart, vl, index, mask);
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
   }
 
