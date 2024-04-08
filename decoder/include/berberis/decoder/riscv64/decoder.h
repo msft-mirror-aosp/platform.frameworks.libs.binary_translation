@@ -567,6 +567,7 @@ class Decoder {
     kVmsbfm = 0b00001,
     kVmsofm = 0b00010,
     kVmsifm = 0b00011,
+    kViotam = 0b10000,
     kVidv = 0b10001,
   };
 
