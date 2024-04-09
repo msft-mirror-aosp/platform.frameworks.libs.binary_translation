@@ -127,7 +127,7 @@ std::tuple<ElementType> Roundoff(int8_t vxrm, ElementType unwrapped_v, ElementTy
   static_assert(sizeof(ElementType) * CHAR_BIT <= std::numeric_limits<uint8_t>::max());
   UInt8 fraction_digits{
       static_cast<uint8_t>(premasked_d & ((1 << BitUtilLog2(sizeof(ElementType) * 8)) - 1))};
-  Wrapping result = value >> fraction_digits;
+  auto result = value >> fraction_digits;
   if (fraction_digits == UInt8{0}) [[unlikely]] {
     return static_cast<ElementType>(result);
   }
