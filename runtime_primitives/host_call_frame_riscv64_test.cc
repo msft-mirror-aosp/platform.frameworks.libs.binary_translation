@@ -49,7 +49,11 @@ void RunHostCall(CPUState* cpu) {
   // Pretend guest code executed up to return address.
   cpu->insn_addr = GetXReg<RA>(*cpu);
 
-  // Host call frame allows random adjustments of ra.
+  // ScopedHostCallFrame creates a stack frame to represent the host function
+  // that is calling guest code. That pseudo-function can make arbitrary
+  // adjustments to sp and ra because those are callee-saved registers that are
+  // restored when the function returns.
+  SetXReg<SP>(*cpu, 0x000ff1ce);
   SetXReg<RA>(*cpu, 0xbaadf00d);
 }
 
