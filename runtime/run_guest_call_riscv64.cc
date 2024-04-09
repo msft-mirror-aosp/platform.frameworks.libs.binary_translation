@@ -30,6 +30,39 @@
 
 namespace berberis {
 
+// Call a guest function from the host with the given arguments. The return
+// value is stored in the first argument of the buffer after the call returns.
+//
+// Within the guest call stack, the host has its own call frame. This stack
+// frame is allocated by the ScopedHostCallFrame instance. The host call frame
+// simulates the minimum necessary prologue and epilogue for saving and
+// restoring the frame pointer and return address on the stack. Within that call
+// frame, we can make further adjustments to the stack pointer, such as
+// allocating space on the stack for arguments that spill past the registers.
+//
+// To visualize this, consider a guest function GuestFuncA, which calls
+// HostFuncB, with no arguments:
+//   void GuestFuncA() {
+//     HostFuncB();
+//   }
+//
+// HostFuncB then calls GuestFuncC with 100 arguments:
+//   void HostFuncB() {
+//     GuestFuncC(1, 2, 3, ..., 98, 99, 100);
+//   }
+//
+// At the time that HostFuncB calls GuestFuncC, GuestFuncA is at the top of the
+// guest call stack because HostFuncB was entered directly. If no call frame for
+// the host function is created, GuestFuncA would call GuestFuncC directly from
+// the perspective of the guest. The arguments for GuestFuncC would appear in
+// GuestFuncA's frame.
+//
+// RISC-V uses a calling convention with caller clean-up. In these types of
+// calling conventions, the caller is responsible for deallocating arguments
+// passed on the stack after the callee returns. However, GuestFuncC is unaware
+// of these arguments, so a stand-in call frame for HostFuncB, GuestFuncCCaller,
+// is created. GuestFuncCCaller populates the stack arguments for GuestFuncC,
+// makes the call, and then deallocates the frame.
 void RunGuestCall(GuestAddr pc, GuestArgumentBuffer* buf) {
   GuestThread* thread = GetCurrentGuestThread();
   ThreadState* state = thread->state();
