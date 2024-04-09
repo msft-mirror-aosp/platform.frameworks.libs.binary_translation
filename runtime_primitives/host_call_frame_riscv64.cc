@@ -42,6 +42,7 @@ GuestAddr ScopedHostCallFrame::g_host_call_frame_guest_pc_ = {};
 //
 // and dtor emulates the following code:
 //
+//   addi sp, x0, fp
 //   # restore registers
 //   ld fp, 0(sp)
 //   ld ra, 8(sp)
@@ -59,7 +60,7 @@ ScopedHostCallFrame::ScopedHostCallFrame(CPUState* cpu, GuestAddr pc) : cpu_(cpu
   SetXReg<FP>(*cpu_, GetXReg<SP>(*cpu_));
 
   // For safety checks!
-  stack_pointer_ = GetXReg<SP>(*cpu_);
+  stack_pointer_ = GetXReg<FP>(*cpu_);
   link_register_ = GetXReg<RA>(*cpu_);
 
   program_counter_ = cpu_->insn_addr;
@@ -72,8 +73,10 @@ ScopedHostCallFrame::ScopedHostCallFrame(CPUState* cpu, GuestAddr pc) : cpu_(cpu
 ScopedHostCallFrame::~ScopedHostCallFrame() {
   // Safety check - returned to correct pc?
   CHECK_EQ(g_host_call_frame_guest_pc_, cpu_->insn_addr);
-  // Safety check - guest call didn't preserve sp?
-  CHECK_EQ(stack_pointer_, GetXReg<SP>(*cpu_));
+  // Safety check - guest call didn't preserve fp?
+  CHECK_EQ(stack_pointer_, GetXReg<FP>(*cpu_));
+
+  SetXReg<SP>(*cpu_, GetXReg<FP>(*cpu_));
 
   const uint64_t* saved_regs = ToHostAddr<uint64_t>(GetXReg<SP>(*cpu_));
   // ld fp, 0(sp)
