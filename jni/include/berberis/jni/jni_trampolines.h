@@ -25,8 +25,6 @@
 
 namespace berberis {
 
-JNINativeMethod* ConvertJNINativeMethods(const JNINativeMethod* methods, int count);
-
 HostCode WrapGuestJNIFunction(GuestAddr pc,
                               const char* shorty,
                               const char* name,
