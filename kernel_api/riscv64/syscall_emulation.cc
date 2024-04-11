@@ -25,6 +25,7 @@
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_state.h"
+#include "berberis/instrument/syscall.h"
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
 #include "berberis/kernel_api/runtime_bridge.h"
 #include "berberis/kernel_api/syscall_emulation_common.h"
@@ -126,33 +127,33 @@ long RunGuestSyscall___NR_riscv_flush_icache(long arg_1, long arg_2, long arg_3)
 
 }  // namespace
 
-long RunGuestSyscall(long syscall_nr,
-                     long arg0,
-                     long arg1,
-                     long arg2,
-                     long arg3,
-                     long arg4,
-                     long arg5) {
+void RunGuestSyscall(ThreadState* state) {
   ScopedErrno scoped_errno;
 
-  // RISCV Linux takes arguments in a0-a5 and syscall number in a7.
-  long result = RunGuestSyscallImpl(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
-  // The result is returned in a0.
-  if (result == -1) {
-    return -errno;
-  } else {
-    return result;
+  long guest_nr = state->cpu.x[A7];
+  if (kInstrumentSyscalls) {
+    OnSyscall(state, guest_nr);
   }
-}
 
-void RunKernelSyscall(ThreadState* state) {
-  RunGuestSyscall(state->cpu.x[A7],
-                  state->cpu.x[A0],
-                  state->cpu.x[A1],
-                  state->cpu.x[A2],
-                  state->cpu.x[A3],
-                  state->cpu.x[A4],
-                  state->cpu.x[A5]);
+  // RISCV Linux takes arguments in a0-a5 and syscall number in a7.
+  // TODO(b/161722184): if syscall is interrupted by signal, signal handler might overwrite the
+  // return value, so setting A0 here might be incorrect. Investigate!
+  long result = RunGuestSyscallImpl(guest_nr,
+                                    state->cpu.x[A0],
+                                    state->cpu.x[A1],
+                                    state->cpu.x[A2],
+                                    state->cpu.x[A3],
+                                    state->cpu.x[A4],
+                                    state->cpu.x[A5]);
+  if (result == -1) {
+    state->cpu.x[A0] = -errno;
+  } else {
+    state->cpu.x[A0] = result;
+  }
+
+  if (kInstrumentSyscalls) {
+    OnSyscallReturn(state, guest_nr);
+  }
 }
 
 }  // namespace berberis
