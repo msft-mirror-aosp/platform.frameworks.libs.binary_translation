@@ -141,6 +141,17 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
 }
 
 // static
+GuestThread* GuestThread::CreateForTest(ThreadState* state) {
+  void* thread_storage = Mmap(kGuestThreadPageAlignedSize);
+  if (thread_storage == MAP_FAILED) {
+    return nullptr;
+  }
+  GuestThread* thread = new (thread_storage) GuestThread;
+  thread->state_ = state;
+  return thread;
+}
+
+// static
 void GuestThread::Destroy(GuestThread* thread) {
   CHECK(thread);
   // ATTENTION: Don't run guest code from here!
