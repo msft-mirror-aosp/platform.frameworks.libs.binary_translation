@@ -89,7 +89,7 @@ class Interpreter {
       case Decoder::CsrOpcode::kCsrrc:
         return ~arg & csr;
       default:
-        Unimplemented();
+        Undefined();
         return {};
     }
   }
@@ -200,7 +200,7 @@ class Interpreter {
       case Decoder::OpOpcode::kXnor:
         return ~(Int64(arg1) ^ Int64(arg2));
       default:
-        Unimplemented();
+        Undefined();
         return {};
     }
   }
@@ -224,7 +224,7 @@ class Interpreter {
       case Decoder::Op32Opcode::kRemuw:
         return Widen(BitCastToSigned(TruncateTo<UInt32>(arg1) % TruncateTo<UInt32>(arg2)));
       default:
-        Unimplemented();
+        Undefined();
         return {};
     }
   }
@@ -247,7 +247,7 @@ class Interpreter {
       case Decoder::LoadOperandType::k32bitSigned:
         return Load<int32_t>(ptr);
       default:
-        Unimplemented();
+        Undefined();
         return {};
     }
   }
@@ -280,7 +280,7 @@ class Interpreter {
       case Decoder::OpImmOpcode::kAndi:
         return arg & int64_t{imm};
       default:
-        Unimplemented();
+        Undefined();
         return {};
     }
   }
@@ -297,7 +297,7 @@ class Interpreter {
       case Decoder::OpImm32Opcode::kAddiw:
         return int32_t(arg) + int32_t{imm};
       default:
-        Unimplemented();
+        Undefined();
         return {};
     }
   }
@@ -328,7 +328,7 @@ class Interpreter {
       case Decoder::ShiftImm32Opcode::kSraiw:
         return int32_t(arg) >> int32_t{imm};
       default:
-        Unimplemented();
+        Undefined();
         return {};
     }
   }
@@ -362,7 +362,7 @@ class Interpreter {
         Store<uint64_t>(ptr, data);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -399,7 +399,7 @@ class Interpreter {
         cond_value = bit_cast<int64_t>(arg1) >= bit_cast<int64_t>(arg2);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
 
     if (cond_value) {
@@ -505,10 +505,10 @@ class Interpreter {
     if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadUnitStrideArgs>) {
       if (args.opcode == Decoder::VLUmOpOpcode::kVlXreXX) {
         if (!IsPowerOf2(args.nf + 1)) {
-          return Unimplemented();
+          return Undefined();
         }
         if ((args.dst & args.nf) != 0) {
-          return Unimplemented();
+          return Undefined();
         }
         auto [src] = std::tuple{extra_args...};
         __uint128_t* ptr = bit_cast<__uint128_t*>(src);
@@ -522,13 +522,13 @@ class Interpreter {
     if constexpr (std::is_same_v<VOpArgs, Decoder::VStoreUnitStrideArgs>) {
       if (args.opcode == Decoder::VSUmOpOpcode::kVsX) {
         if (args.width != Decoder::MemoryDataOperandType::k8bit) {
-          return Unimplemented();
+          return Undefined();
         }
         if (!IsPowerOf2(args.nf + 1)) {
-          return Unimplemented();
+          return Undefined();
         }
         if ((args.data & args.nf) != 0) {
-          return Unimplemented();
+          return Undefined();
         }
         auto [src] = std::tuple{extra_args...};
         __uint128_t* ptr = bit_cast<__uint128_t*>(src);
@@ -553,7 +553,7 @@ class Interpreter {
     // intrinsics not just in the interpreter. Move code from this function to semantics player.
     Register vtype = GetCsr<CsrName::kVtype>();
     if (static_cast<std::make_signed_t<Register>>(vtype) < 0) {
-      return Unimplemented();
+      return Undefined();
     }
     if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadIndexedArgs> ||
                   std::is_same_v<VOpArgs, Decoder::VLoadStrideArgs> ||
@@ -571,7 +571,7 @@ class Interpreter {
         case Decoder::MemoryDataOperandType::k64bit:
           return OpVector<UInt64>(args, vtype, extra_args...);
         default:
-          return Unimplemented();
+          return Undefined();
       }
     } else {
       VectorRegisterGroupMultiplier vlmul = static_cast<VectorRegisterGroupMultiplier>(vtype & 0x7);
@@ -582,7 +582,7 @@ class Interpreter {
             if constexpr (sizeof...(extra_args) == 0) {
               return OpVector<intrinsics::Float16>(args, vlmul, vtype);
             } else {
-              return Unimplemented();
+              return Undefined();
             }
           case VectorSelectElementWidth::k32bit:
             return OpVector<Float32>(
@@ -594,7 +594,7 @@ class Interpreter {
             // Note: if arguments are 64bit floats then we don't need to do any unboxing.
             return OpVector<Float64>(args, vlmul, vtype, bit_cast<Float64>(extra_args)...);
           default:
-            return Unimplemented();
+            return Undefined();
         }
       } else {
         switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
@@ -607,7 +607,7 @@ class Interpreter {
           case VectorSelectElementWidth::k64bit:
             return OpVector<UInt64>(args, vlmul, vtype, extra_args...);
           default:
-            return Unimplemented();
+            return Undefined();
         }
       }
     }
@@ -620,13 +620,13 @@ class Interpreter {
     vemul +=
         static_cast<std::underlying_type_t<decltype(args.width)>>(args.width);  // Multiply by EEW.
     if (vemul < -3 || vemul > 3) [[unlikely]] {
-      return Unimplemented();
+      return Undefined();
     }
     // Note: whole register loads and stores treat args.nf differently, but they are processed
     // separately above anyway, because they also ignore vtype and all the information in it!
     // For other loads and stores affected number of registers (EMUL * NF) should be 8 or less.
     if ((vemul > 0) && ((args.nf + 1) * (1 << vemul) > 8)) {
-      return Unimplemented();
+      return Undefined();
     }
     return OpVector<ElementType>(
         args, static_cast<VectorRegisterGroupMultiplier>(vemul & 0b111), vtype, extra_args...);
@@ -660,7 +660,7 @@ class Interpreter {
         return OpVector<ElementType, VectorRegisterGroupMultiplier::kHalfOfRegister>(
             args, vtype, extra_args...);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -701,43 +701,43 @@ class Interpreter {
           return OpVector<ElementType, 1, vlmul, vma>(args, vtype, extra_args...);
         case 1:
           if constexpr (kRegistersInvolved > 4) {
-            return Unimplemented();
+            return Undefined();
           } else {
             return OpVector<ElementType, 2, vlmul, vma>(args, vtype, extra_args...);
           }
         case 2:
           if constexpr (kRegistersInvolved > 2) {
-            return Unimplemented();
+            return Undefined();
           } else {
             return OpVector<ElementType, 3, vlmul, vma>(args, vtype, extra_args...);
           }
         case 3:
           if constexpr (kRegistersInvolved > 2) {
-            return Unimplemented();
+            return Undefined();
           } else {
             return OpVector<ElementType, 4, vlmul, vma>(args, vtype, extra_args...);
           }
         case 4:
           if constexpr (kRegistersInvolved > 1) {
-            return Unimplemented();
+            return Undefined();
           } else {
             return OpVector<ElementType, 5, vlmul, vma>(args, vtype, extra_args...);
           }
         case 5:
           if constexpr (kRegistersInvolved > 1) {
-            return Unimplemented();
+            return Undefined();
           } else {
             return OpVector<ElementType, 6, vlmul, vma>(args, vtype, extra_args...);
           }
         case 6:
           if constexpr (kRegistersInvolved > 1) {
-            return Unimplemented();
+            return Undefined();
           } else {
             return OpVector<ElementType, 7, vlmul, vma>(args, vtype, extra_args...);
           }
         case 7:
           if constexpr (kRegistersInvolved > 1) {
-            return Unimplemented();
+            return Undefined();
           } else {
             return OpVector<ElementType, 8, vlmul, vma>(args, vtype, extra_args...);
           }
@@ -811,7 +811,7 @@ class Interpreter {
         return OpVector<UInt64, kSegmentSize, IndexElementType, kIndexRegistersInvolved, vta, vma>(
             args, vlmul, extra_args...);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -882,7 +882,7 @@ class Interpreter {
                         vta,
                         vma>(args, extra_args...);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -927,7 +927,7 @@ class Interpreter {
             auto vma>
   void OpVector(const Decoder::VLoadIndexedArgs& args, Register src) {
     if (!IsAligned<kIndexRegistersInvolved>(args.idx)) {
-      return Unimplemented();
+      return Undefined();
     }
     constexpr size_t kElementsCount =
         static_cast<int>(sizeof(SIMD128Register) / sizeof(IndexElementType));
@@ -1002,9 +1002,9 @@ class Interpreter {
                               Decoder::VLUmOpOpcode::kVlm>(
               args.dst, src, [](size_t index) { return index; });
         }
-        return Unimplemented();
+        return Undefined();
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -1044,10 +1044,10 @@ class Interpreter {
   void OpVectorLoad(uint8_t dst, Register src, GetElementOffsetLambdaType GetElementOffset) {
     using MaskType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
     if (!IsAligned<kNumRegistersInGroup>(dst)) {
-      return Unimplemented();
+      return Undefined();
     }
     if (dst + kNumRegistersInGroup * kSegmentSize >= 32) {
-      return Unimplemented();
+      return Undefined();
     }
     constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
@@ -1219,11 +1219,11 @@ class Interpreter {
   void OpVectorGather(uint8_t dst, uint8_t src1, GetElementIndexLambdaType GetElementIndex) {
     constexpr int kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
     if (!IsAligned<kRegistersInvolved>(dst | src1)) {
-      return Unimplemented();
+      return Undefined();
     }
     // Source and destination must not overlap.
     if (dst < (src1 + kRegistersInvolved) && src1 < (dst + kRegistersInvolved)) {
-      return Unimplemented();
+      return Undefined();
     }
     constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     constexpr size_t vlmax = GetVlmax<ElementType, vlmul>();
@@ -1289,16 +1289,16 @@ class Interpreter {
             args.dst, args.src1, arg2);
       case Decoder::VOpFVfOpcode::kVfmvsf:
         if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-          return Unimplemented();
+          return Undefined();
         }
         if (args.src1 != 0) {
-          return Unimplemented();
+          return Undefined();
         }
         return OpVectorVmvsx<ElementType, vta>(args.dst, arg2);
       case Decoder::VOpFVfOpcode::kVfmergevf:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
           if (args.src1 != 0) {
-            return Unimplemented();
+            return Undefined();
           }
           return OpVectorx<intrinsics::Vcopyx<ElementType>, ElementType, vlmul, vta, vma>(args.dst,
                                                                                           arg2);
@@ -1377,7 +1377,7 @@ class Interpreter {
                                  vma,
                                  kFrm>(args.dst, Vec<SignedType{}>{args.src1}, arg2);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -1689,10 +1689,10 @@ class Interpreter {
           break;
         case Decoder::VOpFVvOpcode::kVfmvfs:
           if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-            return Unimplemented();
+            return Undefined();
           }
           if (args.src2 != 0) {
-            return Unimplemented();
+            return Undefined();
           }
           return OpVectorVmvfs<ElementType>(args.dst, args.src1);
         case Decoder::VOpFVvOpcode::kVmfeqvv:
@@ -1747,7 +1747,7 @@ class Interpreter {
           break;  // Make compiler happy.
       }
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
@@ -1827,7 +1827,7 @@ class Interpreter {
       case Decoder::VOpIViOpcode::kVmergevi:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
           if (args.src != 0) {
-            return Unimplemented();
+            return Undefined();
           }
           return OpVectorx<intrinsics::Vcopyx<SignedType>, SignedType, vlmul, vta, vma>(
               args.dst, SignedType{args.imm});
@@ -1853,10 +1853,10 @@ class Interpreter {
             case 7:
               return OpVectorVmvXrv<ElementType, 8>(args.dst, args.src);
             default:
-              return Unimplemented();
+              return Undefined();
           }
         } else {
-          return Unimplemented();
+          return Undefined();
         }
       case Decoder::VOpIViOpcode::kVnsrawi:
         // We need to pass shift value here as signed type but uimm value is always positive
@@ -1887,7 +1887,7 @@ class Interpreter {
                                 vma,
                                 kVxrm>(args.dst, args.src, UnsignedType{args.uimm});
       default:
-        Unimplemented();
+        Undefined();
     }
   }
 
@@ -1917,7 +1917,7 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVrgathervv: {
         constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
         if (!IsAligned<kRegistersInvolved>(args.src2)) {
-          return Unimplemented();
+          return Undefined();
         }
         constexpr size_t vlmax = GetVlmax<ElementType, vlmul>();
         alignas(alignof(SIMD128Register)) ElementType indexes[vlmax];
@@ -1991,7 +1991,7 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVmergevv:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
           if (args.src1 != 0) {
-            return Unimplemented();
+            return Undefined();
           }
           return OpVectorv<intrinsics::Vcopyv<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, args.src2);
@@ -2011,7 +2011,7 @@ class Interpreter {
         return OpVectorNarrowwv<intrinsics::Vnsrwv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
       default:
-        Unimplemented();
+        Undefined();
     }
   }
 
@@ -2118,7 +2118,7 @@ class Interpreter {
       case Decoder::VOpIVxOpcode::kVmergevx:
         if constexpr (std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
           if (args.src1 != 0) {
-            return Unimplemented();
+            return Undefined();
           }
           return OpVectorx<intrinsics::Vcopyx<ElementType>, ElementType, vlmul, vta, vma>(
               args.dst, MaybeTruncateTo<ElementType>(arg2));
@@ -2144,7 +2144,7 @@ class Interpreter {
         return OpVectorslidedown<ElementType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       default:
-        Unimplemented();
+        Undefined();
     }
   }
 
@@ -2231,7 +2231,7 @@ class Interpreter {
         switch (args.vwxunary0_opcode) {
           case Decoder::VWXUnary0Opcode::kVmvxs:
             if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-              return Unimplemented();
+              return Undefined();
             }
             return OpVectorVmvxs<SignedType>(args.dst, args.src1);
           case Decoder::VWXUnary0Opcode::kVcpopm:
@@ -2239,7 +2239,7 @@ class Interpreter {
           case Decoder::VWXUnary0Opcode::kVfirstm:
             return OpVectorVWXUnary0<intrinsics::Vfirstm<>, vma>(args.dst, args.src1);
           default:
-            return Unimplemented();
+            return Undefined();
         }
       case Decoder::VOpMVvOpcode::kVFUnary0:
         switch (args.vxunary0_opcode) {
@@ -2304,9 +2304,9 @@ class Interpreter {
             }
             break;
           default:
-            return Unimplemented();
+            return Undefined();
         }
-        return Unimplemented();
+        return Undefined();
       case Decoder::VOpMVvOpcode::kVMUnary0:
         switch (args.vmunary0_opcode) {
           case Decoder::VMUnary0Opcode::kVmsbfm:
@@ -2319,11 +2319,11 @@ class Interpreter {
             return OpVectorViotam<ElementType, vlmul, vta, vma>(args.dst, args.src1);
           case Decoder::VMUnary0Opcode::kVidv:
             if (args.src1) {
-              return Unimplemented();
+              return Undefined();
             }
             return OpVectorVidv<ElementType, vlmul, vta, vma>(args.dst);
           default:
-            return Unimplemented();
+            return Undefined();
         }
       case Decoder::VOpMVvOpcode::kVdivuvv:
         return OpVectorvv<intrinsics::Vdivvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
@@ -2398,7 +2398,7 @@ class Interpreter {
         return OpVectorWidenvvw<intrinsics::Vwmaccsuvv<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
       default:
-        Unimplemented();
+        Undefined();
     }
   }
 
@@ -2430,11 +2430,11 @@ class Interpreter {
         switch (args.vrxunary0_opcode) {
           case Decoder::VRXUnary0Opcode::kVmvsx:
             if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
-              return Unimplemented();
+              return Undefined();
             }
             return OpVectorVmvsx<SignedType, vta>(args.dst, MaybeTruncateTo<SignedType>(arg2));
           default:
-            return Unimplemented();
+            return Undefined();
         }
       case Decoder::VOpMVxOpcode::kVmulhuvx:
         return OpVectorvx<intrinsics::Vmulhvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
@@ -2506,7 +2506,7 @@ class Interpreter {
         return OpVectorWidenvxw<intrinsics::Vwmaccsuvx<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
       default:
-        Unimplemented();
+        Undefined();
     }
   }
 
@@ -2534,7 +2534,7 @@ class Interpreter {
             bool kUseMasking>
   void OpVector(const Decoder::VStoreIndexedArgs& args, Register src) {
     if (!IsAligned<kIndexRegistersInvolved>(args.idx)) {
-      return Unimplemented();
+      return Undefined();
     }
     constexpr size_t kElementsCount =
         static_cast<int>(sizeof(SIMD128Register) / sizeof(IndexElementType));
@@ -2583,9 +2583,9 @@ class Interpreter {
                                Decoder::VSUmOpOpcode::kVsm>(
               args.data, src, [](size_t index) { return index; });
         }
-        return Unimplemented();
+        return Undefined();
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -2600,10 +2600,10 @@ class Interpreter {
   void OpVectorStore(uint8_t data, Register src, GetElementOffsetLambdaType GetElementOffset) {
     using MaskType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
     if (!IsAligned<kNumRegistersInGroup>(data)) {
-      return Unimplemented();
+      return Undefined();
     }
     if (data + kNumRegistersInGroup * kSegmentSize > 32) {
-      return Unimplemented();
+      return Undefined();
     }
     constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
@@ -2682,7 +2682,7 @@ class Interpreter {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
-      return Unimplemented();
+      return Undefined();
     }
     // When vl = 0, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
@@ -2717,7 +2717,7 @@ class Interpreter {
   template <typename ElementType, size_t kRegistersInvolved, TailProcessing vta, auto vma>
   void OpVectorVidv(uint8_t dst) {
     if (!IsAligned<kRegistersInvolved>(dst)) {
-      return Unimplemented();
+      return Undefined();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
@@ -2782,7 +2782,7 @@ class Interpreter {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) [[unlikely]] {
-      return Unimplemented();
+      return Undefined();
     }
     // Note: vcpop.m  and vfirst.m are explicit exception to the rule that vstart >= vl doesn't
     // perform any operations, and they are explicitly defined to perform write even if vl == 0.
@@ -2827,7 +2827,7 @@ class Interpreter {
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
-      return Unimplemented();
+      return Undefined();
     }
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
@@ -2858,7 +2858,7 @@ class Interpreter {
   template <typename ElementType, size_t kRegistersInvolved>
   void OpVectorVmvXrv(uint8_t dst, uint8_t src) {
     if (!IsAligned<kRegistersInvolved>(dst | src)) {
-      return Unimplemented();
+      return Undefined();
     }
     constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
     size_t vstart = GetCsr<CsrName::kVstart>();
@@ -2923,7 +2923,7 @@ class Interpreter {
     // All args, except dst must be aligned at kRegistersInvolved amount. We'll merge them
     // together and then do a combined check for all of them at once.
     if (!IsAligned<kRegistersInvolved>(OrValuesOnlyForType<Vec>(args...) | dst)) {
-      return Unimplemented();
+      return Undefined();
     }
     SIMD128Register original_result(state_->cpu.v[dst]);
     size_t vstart = GetCsr<CsrName::kVstart>();
@@ -2985,7 +2985,7 @@ class Interpreter {
   void OpVectorv(uint8_t dst, uint8_t src, DstMaskType... dst_mask) {
     static_assert(sizeof...(dst_mask) <= 1);
     if (!IsAligned<kRegistersInvolved>(dst | src | (dst_mask | ... | 0))) {
-      return Unimplemented();
+      return Undefined();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
@@ -3043,12 +3043,12 @@ class Interpreter {
             auto kDefaultElement>
   void OpVectorvs(uint8_t dst, uint8_t src1, Vec<kDefaultElement> src2) {
     if (!IsAligned<kRegistersInvolved>(dst | src2.start_no)) {
-      return Unimplemented();
+      return Undefined();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     if (vstart != 0) {
-      return Unimplemented();
+      return Undefined();
     }
     SetCsr<CsrName::kVstart>(0);
     // If vl = 0, no operation is performed and the destination register is not updated.
@@ -3111,7 +3111,7 @@ class Interpreter {
                            vma,
                            kExtraCsrs...>(dst, Vec{src});
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   // 2*SEW = SEW op SEW
@@ -3133,7 +3133,7 @@ class Interpreter {
                            vma,
                            kExtraCsrs...>(dst, Vec{src1}, Vec{src2});
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   // 2*SEW = SEW op SEW op 2*SEW
@@ -3154,7 +3154,7 @@ class Interpreter {
                            vma,
                            kExtraCsrs...>(dst, Vec{src1}, Vec{src2}, WideVec{dst});
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   // 2*SEW = 2*SEW op SEW
@@ -3175,7 +3175,7 @@ class Interpreter {
                            vma,
                            kExtraCsrs...>(dst, WideVec{src1}, Vec{src2});
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   template <auto Intrinsic,
@@ -3195,7 +3195,7 @@ class Interpreter {
                            vma,
                            kExtraCsrs...>(dst, WideVec{src1}, arg2);
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   template <auto Intrinsic,
@@ -3215,7 +3215,7 @@ class Interpreter {
                            vma,
                            kExtraCsrs...>(dst, Vec{src1}, arg2);
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   template <auto Intrinsic,
@@ -3235,7 +3235,7 @@ class Interpreter {
                            vma,
                            kExtraCsrs...>(dst, Vec{src1}, arg2, WideVec{dst});
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   template <auto Intrinsic,
@@ -3259,7 +3259,7 @@ class Interpreter {
       uint8_t ored_wide_args = OrValuesOnlyForType<WideVec>(args...) | dst;
       if (!IsAligned<kDestRegistersInvolved>(ored_wide_args) ||
           !IsAligned<kRegistersInvolved>(ored_args)) {
-        return Unimplemented();
+        return Undefined();
       }
     }
     // From RISC-V vectors manual: If destination EEW is greater than the source EEW, the source
@@ -3269,7 +3269,7 @@ class Interpreter {
     // Here only one forbidden combination is possible because of static_asserts above and we
     // detect and reject it.
     if (OrResultsOnlyForType<Vec>([dst](auto arg) { return arg.start_no == dst; }, args...)) {
-      return Unimplemented();
+      return Undefined();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
@@ -3334,7 +3334,7 @@ class Interpreter {
     // All args must be aligned at kRegistersInvolved amount. We'll merge them
     // together and then do a combined check for all of them at once.
     if (!IsAligned<kRegistersInvolved>(OrValuesOnlyForType<Vec>(args...) | dst)) {
-      return Unimplemented();
+      return Undefined();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
@@ -3377,7 +3377,7 @@ class Interpreter {
                             vma,
                             kExtraCsrs...>(dst, WideVec{src});
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   // SEW = 2*SEW op SEW
@@ -3398,7 +3398,7 @@ class Interpreter {
                             vma,
                             kExtraCsrs...>(dst, WideVec{src1}, arg2);
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   // SEW = 2*SEW op SEW
@@ -3419,7 +3419,7 @@ class Interpreter {
                             vma,
                             kExtraCsrs...>(dst, WideVec{src1}, Vec{src2});
     }
-    return Unimplemented();
+    return Undefined();
   }
 
   template <auto Intrinsic,
@@ -3442,7 +3442,7 @@ class Interpreter {
       uint8_t ored_wide_args = OrValuesOnlyForType<WideVec>(args...);
       if (!IsAligned<kWideSrcRegistersInvolved>(ored_wide_args) ||
           !IsAligned<kRegistersInvolved>(ored_args)) {
-        return Unimplemented();
+        return Undefined();
       }
       static_assert(kWideSrcRegistersInvolved == 2 * kRegistersInvolved);
       // From RISC-V vectors manual: If destination EEW is smaller than the source EEW, [then
@@ -3451,7 +3451,7 @@ class Interpreter {
       // We only have one possible invalid value here because of alignment requirements.
       if (OrResultsOnlyForType<Vec>(
               [dst](auto arg) { return arg.start_no == dst + kRegistersInvolved; }, args...)) {
-        return Unimplemented();
+        return Undefined();
       }
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
@@ -3492,7 +3492,7 @@ class Interpreter {
     constexpr size_t kDestRegistersInvolved = NumberOfRegistersInvolved(vlmul);
     constexpr size_t kSourceRegistersInvolved = (kDestRegistersInvolved / kFactor) ?: 1;
     if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSourceRegistersInvolved>(src)) {
-      return Unimplemented();
+      return Undefined();
     }
     int vstart = GetCsr<CsrName::kVstart>();
     int vl = GetCsr<CsrName::kVl>();
@@ -3546,7 +3546,7 @@ class Interpreter {
   void OpVectorx(uint8_t dst, ElementType arg2, DstMaskType... dst_mask) {
     static_assert(sizeof...(dst_mask) <= 1);
     if (!IsAligned<kRegistersInvolved>(dst | (dst_mask | ... | 0))) {
-      return Unimplemented();
+      return Undefined();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
@@ -3582,11 +3582,11 @@ class Interpreter {
   void OpVectorslideup(uint8_t dst, uint8_t src, Register offset) {
     constexpr size_t kElementsPerRegister = 16 / sizeof(ElementType);
     if (!IsAligned<kRegistersInvolved>(dst | src)) {
-      return Unimplemented();
+      return Undefined();
     }
     // Source and destination must not intersect.
     if (dst < (src + kRegistersInvolved) && src < (dst + kRegistersInvolved)) {
-      return Unimplemented();
+      return Undefined();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
@@ -3673,7 +3673,7 @@ class Interpreter {
   void OpVectorslidedown(uint8_t dst, uint8_t src, Register offset) {
     constexpr size_t kElementsPerRegister = 16 / sizeof(ElementType);
     if (!IsAligned<kRegistersInvolved>(dst | src)) {
-      return Unimplemented();
+      return Undefined();
     }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
@@ -3790,7 +3790,7 @@ class Interpreter {
 
   void Nop() {}
 
-  void Unimplemented() {
+  void Undefined() {
     UndefinedInsn(GetInsnAddr());
     // If there is a guest handler registered for SIGILL we'll delay its processing until the next
     // sync point (likely the main dispatching loop) due to enabled pending signals. Thus we must

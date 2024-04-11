@@ -138,7 +138,7 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Notq(res);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -193,7 +193,7 @@ Register LiteTranslator::Op32(Decoder::Op32Opcode opcode, Register arg1, Registe
       as_.Movsxlq(res, as_.rdx);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -230,7 +230,7 @@ Register LiteTranslator::OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_
       as_.Andq(res, imm);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -245,7 +245,7 @@ Register LiteTranslator::OpImm32(Decoder::OpImm32Opcode opcode, Register arg, in
       as_.Movsxlq(res, res);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -284,7 +284,7 @@ Register LiteTranslator::ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register a
   } else if (opcode == ShiftImm32Opcode::kSraiw) {
     as_.SarlByCl(res);
   } else {
-    Unimplemented();
+    Undefined();
     return {};
   }
   as_.Movsxlq(res, res);
@@ -344,7 +344,7 @@ void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
       as_.Jcc(Condition::kLess, *cont);
       break;
     default:
-      return Unimplemented();
+      return Undefined();
   }
   ExitRegion(GetInsnAddr() + offset);
   as_.Bind(cont);
@@ -422,7 +422,7 @@ Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register ar
       as_.Movsxlq(res, asm_memop);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
 
@@ -459,7 +459,7 @@ void LiteTranslator::Store(Decoder::MemoryDataOperandType operand_type,
       as_.Movq(asm_memop, data);
       break;
     default:
-      return Unimplemented();
+      return Undefined();
   }
 
   // TODO(b/144326673): Emit the recovery code at the end of the region so it doesn't interrupt
@@ -488,7 +488,7 @@ Register LiteTranslator::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Regi
       }
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return arg;
@@ -509,7 +509,7 @@ Register LiteTranslator::UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Re
       as_.Andq(res, csr);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
