@@ -3675,10 +3675,6 @@ class Interpreter {
     if (!IsAligned<kRegistersInvolved>(dst | src)) {
       return Unimplemented();
     }
-    // Source and destination must not intersect.
-    if (dst < (src + kRegistersInvolved) && src < (dst + kRegistersInvolved)) {
-      return Unimplemented();
-    }
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     SetCsr<CsrName::kVstart>(0);
