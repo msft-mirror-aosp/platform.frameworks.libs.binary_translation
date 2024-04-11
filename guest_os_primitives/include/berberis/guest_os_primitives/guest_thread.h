@@ -101,6 +101,8 @@ class GuestThread {
   void* GetHostStackTop() const;
 
   [[nodiscard]] GuestSignalActionsTable* GetSignalActionsTable() { return signal_actions_; }
+  // Use to unshare signal handlers for CLONE_VM without CLONE_SIGHAND.
+  void CloneSignalActionsTableTo(GuestSignalActionsTable& new_table_storage);
 
  private:
   GuestThread() = default;

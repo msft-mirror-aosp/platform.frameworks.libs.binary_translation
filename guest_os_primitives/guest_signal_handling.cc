@@ -165,6 +165,11 @@ void GuestThread::SetDefaultSignalActionsTable() {
   signal_actions_ = &g_signal_actions;
 }
 
+void GuestThread::CloneSignalActionsTableTo(GuestSignalActionsTable& new_table_storage) {
+  new_table_storage = *signal_actions_;
+  signal_actions_ = &new_table_storage;
+}
+
 // Can be interrupted by another SetSignal!
 void GuestThread::SetSignalFromHost(const siginfo_t& host_info) {
   siginfo_t* guest_info = pending_signals_.AllocSignal();
