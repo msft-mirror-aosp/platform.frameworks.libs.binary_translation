@@ -302,15 +302,17 @@ class Interpreter {
     }
   }
 
-  Register Ecall(Register syscall_nr,
-                 Register arg0,
-                 Register arg1,
-                 Register arg2,
-                 Register arg3,
-                 Register arg4,
-                 Register arg5) {
+  // TODO(b/232598137): rework ecall to not take parameters explicitly.
+  Register Ecall(Register /* syscall_nr */,
+                 Register /* arg0 */,
+                 Register /* arg1 */,
+                 Register /* arg2 */,
+                 Register /* arg3 */,
+                 Register /* arg4 */,
+                 Register /* arg5 */) {
     CHECK(!exception_raised_);
-    return RunGuestSyscall(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
+    RunGuestSyscall(state_);
+    return state_->cpu.x[A0];
   }
 
   Register Slli(Register arg, int8_t imm) { return arg << imm; }

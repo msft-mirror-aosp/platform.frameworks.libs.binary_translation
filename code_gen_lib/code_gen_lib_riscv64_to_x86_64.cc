@@ -103,9 +103,9 @@ void EmitSyscall(x86_64::Assembler* as, GuestAddr pc) {
   as->Movq({.base = as->rbp, .disp = offsetof(ThreadState, cpu.insn_addr)}, as->rdi);
   as->Movq({.base = as->rbp, .disp = offsetof(ThreadState, residence)}, kOutsideGeneratedCode);
 
-  // void RunKernelSyscall(ThreadState*);
+  // void RunGuestSyscall(ThreadState*);
   as->Movq(as->rdi, as->rbp);
-  as->Call(AsHostCode(RunKernelSyscall));
+  as->Call(AsHostCode(RunGuestSyscall));
 
   // We are returning to generated code.
   as->Movq({.base = as->rbp, .disp = offsetof(ThreadState, residence)}, kInsideGeneratedCode);
