@@ -24,6 +24,7 @@
 #include "berberis/base/macros.h"
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/tracing.h"
+#include "berberis/guest_os_primitives/scoped_pending_signals.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/instrument/syscall.h"
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
@@ -128,6 +129,12 @@ long RunGuestSyscall___NR_riscv_flush_icache(long arg_1, long arg_2, long arg_3)
 }  // namespace
 
 void RunGuestSyscall(ThreadState* state) {
+  // ATTENTION: run guest signal handlers instantly!
+  // If signal arrives while in a syscall, syscall should immediately return with EINTR.
+  // In this case pending signals are OK, as guest handlers will run on return from syscall.
+  // BUT, if signal action has SA_RESTART, certain syscalls will restart instead of returning.
+  // In this case, pending signals will never run...
+  ScopedPendingSignalsDisabler scoped_pending_signals_disabler(state->thread);
   ScopedErrno scoped_errno;
 
   long guest_nr = state->cpu.x[A7];

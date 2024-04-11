@@ -57,6 +57,7 @@ class GuestThread {
  public:
   static GuestThread* CreatePthread(void* stack, size_t stack_size, size_t guard_size);
   static GuestThread* CreateClone(const GuestThread* parent);
+  static GuestThread* CreateForTest(ThreadState* state);
   static void Destroy(GuestThread* thread);
   static void Exit(GuestThread* thread, int status);
 

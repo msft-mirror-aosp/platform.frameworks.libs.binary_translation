@@ -25,9 +25,11 @@
 #include <csignal>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
+#include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
@@ -2297,6 +2299,11 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   // Prepare a pipe to write to.
   int pipefd[2];
   ASSERT_EQ(0, pipe(pipefd));
+
+  // Only ecall instruction needs guest thread, since it involves pending signals manipulations.
+  std::unique_ptr<GuestThread, decltype(&GuestThread::Destroy)> guest_thread(
+      GuestThread::CreateForTest(&state_), GuestThread::Destroy);
+  state_.thread = guest_thread.get();
 
   // SYS_write
   SetXReg<17>(state_.cpu, 0x40);
