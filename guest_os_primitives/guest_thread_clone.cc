@@ -60,6 +60,8 @@ int RunClonedGuestThread(void* arg) {
   // TODO(b/280551726): Clear guest thread in exit syscall.
   InsertCurrentThread(thread, false);
 
+  // TODO(b/232598137): If this thread clones children with shared handlers and then exits
+  // the children will access free'd guest handlers table. Investigate and fix.
   GuestSignalActionsTable signal_actions_storage;
   if (!info->share_signal_handlers) {
     thread->CloneSignalActionsTableTo(signal_actions_storage);
