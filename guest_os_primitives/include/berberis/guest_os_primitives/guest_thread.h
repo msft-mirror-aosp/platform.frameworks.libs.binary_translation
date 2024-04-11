@@ -28,6 +28,8 @@ struct NativeBridgeStaticTlsConfig;
 
 namespace berberis {
 
+class GuestSignalActionsTable;
+
 int CreateNewGuestThread(pthread_t* thread_id,
                          const pthread_attr_t* attr,
                          void* guest_stack,
@@ -98,6 +100,8 @@ class GuestThread {
   // TODO(b/156271630): Refactor to make this private.
   void* GetHostStackTop() const;
 
+  [[nodiscard]] GuestSignalActionsTable* GetSignalActionsTable() { return signal_actions_; }
+
  private:
   GuestThread() = default;
   static GuestThread* Create();
@@ -107,6 +111,9 @@ class GuestThread {
   bool AllocStaticTls();
 
   void ProcessPendingSignalsImpl();
+
+  // Set the default table for the main process.
+  void SetDefaultSignalActionsTable();
 
   // Host stack. Valid for cloned threads only.
   void* host_stack_ = nullptr;
@@ -127,6 +134,7 @@ class GuestThread {
   ThreadState* state_ = nullptr;
 
   SignalQueue pending_signals_;
+  GuestSignalActionsTable* signal_actions_;
 
   GuestCallExecution* guest_call_execution_ = nullptr;
 

@@ -82,6 +82,8 @@ GuestThread* GuestThread::Create() {
 
   intrinsics::InitState();
 
+  thread->SetDefaultSignalActionsTable();
+
   return thread;
 }
 
