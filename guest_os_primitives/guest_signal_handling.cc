@@ -27,6 +27,7 @@
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
+#include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/guest_os_primitives/syscall_numbers.h"
 #include "berberis/guest_state/guest_state_opaque.h"
 #include "berberis/runtime_primitives/recovery_code.h"
@@ -63,14 +64,17 @@ bool IsPendingSignalWithoutRecoveryCodeFatal(siginfo_t* info) {
   }
 }
 
-GuestSignalAction g_signal_actions[Guest__KERNEL__NSIG];
+GuestSignalActionsTable g_signal_actions;
+// Technically guest threads may work with different signal action tables, so it's possible to
+// optimize by using different mutexes. But it's rather an exotic corner case, so we keep it simple.
 std::mutex g_signal_actions_guard_mutex;
 
-const Guest_sigaction* FindSignalHandler(int signal) {
+const Guest_sigaction* FindSignalHandler(const GuestSignalActionsTable& signal_actions,
+                                         int signal) {
   CHECK_GT(signal, 0);
   CHECK_LE(signal, Guest__KERNEL__NSIG);
   std::lock_guard<std::mutex> lock(g_signal_actions_guard_mutex);
-  return &g_signal_actions[signal - 1].GetClaimedGuestAction();
+  return &signal_actions.at(signal - 1).GetClaimedGuestAction();
 }
 
 // Can be interrupted by another HandleHostSignal!
@@ -156,6 +160,15 @@ bool IsReservedSignal(int signal) {
 }
 
 }  // namespace
+
+void GuestThread::SetDefaultSignalActionsTable() {
+  signal_actions_ = &g_signal_actions;
+}
+
+void GuestThread::CloneSignalActionsTableTo(GuestSignalActionsTable& new_table_storage) {
+  new_table_storage = *signal_actions_;
+  signal_actions_ = &new_table_storage;
+}
 
 // Can be interrupted by another SetSignal!
 void GuestThread::SetSignalFromHost(const siginfo_t& host_info) {
@@ -285,7 +298,7 @@ void GuestThread::ProcessPendingSignalsImpl() {
 
   siginfo_t* signal_info;
   while ((signal_info = pending_signals_.DequeueSignalUnsafe())) {
-    const Guest_sigaction* sa = FindSignalHandler(signal_info->si_signo);
+    const Guest_sigaction* sa = FindSignalHandler(*signal_actions_, signal_info->si_signo);
     ProcessGuestSignal(this, sa, signal_info);
     pending_signals_.FreeSignal(signal_info);
   }
@@ -305,8 +318,9 @@ bool SetGuestSignalHandler(int signal,
     act = nullptr;
   }
 
+  GuestSignalAction& action = GetCurrentGuestThread()->GetSignalActionsTable()->at(signal - 1);
   std::lock_guard<std::mutex> lock(g_signal_actions_guard_mutex);
-  return g_signal_actions[signal - 1].Change(signal, act, HandleHostSignal, old_act, error);
+  return action.Change(signal, act, HandleHostSignal, old_act, error);
 }
 
 }  // namespace berberis

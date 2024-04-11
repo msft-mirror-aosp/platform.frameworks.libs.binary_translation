@@ -20,6 +20,7 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/tracing.h"
+#include "berberis/guest_os_primitives/guest_signal.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"  // ResetCurrentGuestThreadAfterFork
 #include "berberis/guest_os_primitives/scoped_pending_signals.h"
@@ -28,6 +29,7 @@
 #include "berberis/runtime/execute_guest.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 
+#include "guest_signal_action.h"
 #include "guest_thread_manager_impl.h"
 #include "scoped_signal_blocker.h"
 
@@ -47,6 +49,7 @@ struct GuestThreadCloneInfo {
   GuestThread* thread;
   HostSigset mask;
   sem_t sem;
+  bool share_signal_handlers;
 };
 
 int RunClonedGuestThread(void* arg) {
@@ -57,9 +60,16 @@ int RunClonedGuestThread(void* arg) {
   // TODO(b/280551726): Clear guest thread in exit syscall.
   InsertCurrentThread(thread, false);
 
+  GuestSignalActionsTable signal_actions_storage;
+  if (!info->share_signal_handlers) {
+    thread->CloneSignalActionsTableTo(signal_actions_storage);
+  }
+
   // ExecuteGuest requires pending signals enabled.
   ScopedPendingSignalsEnabler scoped_pending_signals_enabler(thread);
 
+  // Host signals are blocked in parent before the clone,
+  // and remain blocked in child until this point.
   RTSigprocmaskSyscallOrDie(SIG_SETMASK, &info->mask, nullptr);
 
   // Notify parent that child is ready. Now parent can:
@@ -118,6 +128,7 @@ pid_t CloneGuestThread(GuestThread* thread,
   if (info.thread == nullptr) {
     return EAGAIN;
   }
+  info.share_signal_handlers = (flags & CLONE_SIGHAND) != 0;
 
   ThreadState& clone_thread_state = *info.thread->state();
 
