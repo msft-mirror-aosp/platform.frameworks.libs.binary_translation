@@ -126,7 +126,7 @@ void HeavyOptimizerFrontend::ExitGeneratedCode(GuestAddr target) {
 void HeavyOptimizerFrontend::ExitRegionIndirect(Register target) {
   Gen<PseudoIndirectJump>(target);
 }
-void HeavyOptimizerFrontend::Unimplemented() {
+void HeavyOptimizerFrontend::Undefined() {
   success_ = false;
   ExitGeneratedCode(GetInsnAddr());
   // We don't require region to end here as control flow may jump around
@@ -399,7 +399,7 @@ Register HeavyOptimizerFrontend::Op(Decoder::OpOpcode opcode, Register arg1, Reg
       Gen<x86_64::NotqReg>(res);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
 
@@ -457,7 +457,7 @@ Register HeavyOptimizerFrontend::Op32(Decoder::Op32Opcode opcode, Register arg1,
       unextended_res = rdx;
     } break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   Gen<x86_64::MovsxlqRegReg>(res, unextended_res);
@@ -498,7 +498,7 @@ Register HeavyOptimizerFrontend::OpImm(Decoder::OpImmOpcode opcode, Register arg
       Gen<x86_64::AndqRegImm>(res, imm, GetFlagsRegister());
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -513,7 +513,7 @@ Register HeavyOptimizerFrontend::OpImm32(Decoder::OpImm32Opcode opcode, Register
       Gen<x86_64::MovsxlqRegReg>(res, res);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -559,7 +559,7 @@ Register HeavyOptimizerFrontend::ShiftImm32(Decoder::ShiftImm32Opcode opcode,
       Gen<x86_64::SarlRegReg>(res, rcx, GetFlagsRegister());
       break;
     default:
-      Unimplemented();
+      Undefined();
       break;
   }
   Gen<x86_64::MovsxlqRegReg>(res, res);
@@ -717,7 +717,7 @@ Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType op
       Gen<x86_64::MovsxlqRegMemBaseDisp>(res, base, disp);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
 
@@ -759,7 +759,7 @@ Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType op
           res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -782,7 +782,7 @@ Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrOpcode opcode, Register a
       }
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -805,7 +805,7 @@ Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrImmOpcode opcode,
       Gen<x86_64::AndqRegReg>(res, csr, GetFlagsRegister());
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -829,7 +829,7 @@ void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::MemoryDataOperandType
       Gen<x86_64::MovqMemBaseDispReg>(base, disp, data);
       break;
     default:
-      return Unimplemented();
+      return Undefined();
   }
 }
 
@@ -856,7 +856,7 @@ void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::MemoryDataOperandType
           base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
       break;
     default:
-      return Unimplemented();
+      return Undefined();
   }
 }
 
