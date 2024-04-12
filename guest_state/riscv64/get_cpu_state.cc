@@ -17,22 +17,20 @@
 #include "berberis/base/checks.h"
 #include "berberis/guest_state/get_cpu_state_opaque.h"
 #include "berberis/guest_state/guest_state_arch.h"
-#include "include/berberis/guest_state/guest_state_opaque.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 #include "native_bridge_support/guest_state_accessor/accessor.h"
 
 namespace berberis {
 
-class GuestStateAccessorImplementation {
- public:
-  int LoadGuestStateRegisters(const void* guest_state_data,
-                              size_t guest_state_data_size,
-                              NativeBridgeGuestRegs* guest_regs) {
-    CHECK_GT(guest_state_data_size, 0);
-    guest_regs->guest_arch = NATIVE_BRIDGE_ARCH_RISCV64;
-    GetCpuState(guest_regs, &(static_cast<const ThreadState*>(guest_state_data))->cpu);
-    return 0;
-  }
-};
+extern "C" __attribute__((visibility("default"))) int LoadGuestStateRegisters(
+    const void* guest_state_data,
+    size_t guest_state_data_size,
+    NativeBridgeGuestRegs* guest_regs) {
+  CHECK_GT(guest_state_data_size, 0);
+  guest_regs->guest_arch = NATIVE_BRIDGE_ARCH_RISCV64;
+  GetCpuState(guest_regs, &(static_cast<const ThreadState*>(guest_state_data))->cpu);
+  return 0;
+}
 
 void GetCpuState(NativeBridgeGuestRegs* guest_regs, const CPUState* state) {
   CHECK_EQ(guest_regs->guest_arch, NATIVE_BRIDGE_ARCH_RISCV64);
