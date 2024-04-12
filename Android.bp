@@ -150,7 +150,6 @@ cc_library_shared {
                 "libberberis_backend_riscv64_to_x86_64",
                 "libberberis_code_gen_lib_riscv64",
                 "libberberis_guest_abi_riscv64",
-                "libberberis_guest_state_riscv64",
                 "libberberis_heavy_optimizer_riscv64",
                 "libberberis_interpreter_riscv64",
                 "libberberis_kernel_api_riscv64",
@@ -164,6 +163,8 @@ cc_library_shared {
                 // Proxy libraries reference symbols from guest_os_primitives,
                 // so we need to keep them all.
                 "libberberis_guest_os_primitives_riscv64",
+                // Android debuggerd reference symbols from get_cpu_state.
+                "libberberis_guest_state_riscv64",
                 "libberberis_runtime_riscv64_to_x86_64",
             ],
             export_static_lib_headers: [
