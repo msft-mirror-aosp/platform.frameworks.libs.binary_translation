@@ -3629,6 +3629,27 @@ TEST_F(Riscv64InterpreterTest, TestVmXr) {
   TestVmvXr<8>(0x9f03b457);  // Vmv8r.v v8, v16
 }
 
+TEST_F(Riscv64InterpreterTest, TestVfrsqrt7) {
+  TestVectorFloatInstruction(0x4d821457,  // Vfrsqrt7.v v8, v24, v0.t
+                             {{0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x53fb'8000, 0x4ff4'8000, 0x5bed'8000, 0x57e7'8000},
+                              {0x43e2'0000, 0x3fdc'8000, 0x4bd7'8000, 0x47d3'0000},
+                              {0x33ce'8000, 0x2fca'8000, 0x3bc6'8000, 0x37c3'0000},
+                              {0x23bf'8000, 0x1fbc'8000, 0x2bb9'0000, 0x27b6'8000}},
+                             {{0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x50a1'1000'0000'0000, 0x5898'3000'0000'0000},
+                              {0x4091'1000'0000'0000, 0x4888'2000'0000'0000},
+                              {0x3081'0000'0000'0000, 0x3878'1000'0000'0000},
+                              {0x2071'0000'0000'0000, 0x2868'0000'0000'0000}},
+                             kVectorCalculationsSource);
+}
+
 TEST_F(Riscv64InterpreterTest, TestVfcvtxfv) {
   TestVectorFloatInstruction(0x49801457,  // Vfcvt.xu.f.v v8, v24, v0.t
                              {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},

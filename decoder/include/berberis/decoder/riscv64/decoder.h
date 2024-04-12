@@ -553,6 +553,10 @@ class Decoder {
     kVfncvtrtzxfw = 0b10111,
   };
 
+  enum class VFUnary1Opcode : uint8_t {
+    kVfrsqrt7v = 0b00100,
+  };
+
   enum class VRXUnary0Opcode : uint8_t {
     kVmvsx = 0b00000,
   };
@@ -859,6 +863,7 @@ class Decoder {
     uint8_t src1;
     union {
       VFUnary0Opcode vfunary0_opcode;
+      VFUnary1Opcode vfunary1_opcode;
       uint8_t src2;
     };
   };
