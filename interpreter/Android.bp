@@ -74,6 +74,7 @@ cc_test_library {
         "berberis_test_utils_headers",
         "libberberis_base_headers",
         "libberberis_guest_state_riscv64_headers",
+        "libberberis_guest_os_primitives_headers",
         "libberberis_interpreter_riscv64_headers",
         "libberberis_intrinsics_riscv64_headers",
         "libberberis_kernel_api_headers",

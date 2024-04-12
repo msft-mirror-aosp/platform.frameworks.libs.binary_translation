@@ -104,7 +104,7 @@ class LiteTranslator {
                  Register arg4,
                  Register arg5) {
     UNUSED(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
-    Unimplemented();
+    Undefined();
     return {};
   }
 
@@ -119,7 +119,7 @@ class LiteTranslator {
              bool /*po*/,
              bool /*pi*/) {
     UNUSED(sw, sr, pw, pr);
-    Unimplemented();
+    Undefined();
   }
 
   void Nop() {}
@@ -165,7 +165,7 @@ class LiteTranslator {
   void OpVector(const VOpArgs& /*args*/, ExtraAegs... /*extra_args*/) {
     // TODO(300690740): develop and implement strategy which would allow us to support vector
     // intrinsics not just in the interpreter.
-    Unimplemented();
+    Undefined();
   }
 
   //
@@ -330,7 +330,7 @@ class LiteTranslator {
     return result;
   }
 
-  void Unimplemented() { success_ = false; }
+  void Undefined() { success_ = false; }
 
   RegisterFileMaintainer<Register, kNumGuestRegs>* gp_maintainer() { return &gp_maintainer_; }
   RegisterFileMaintainer<SimdRegister, kNumGuestFpRegs>* simd_maintainer() {
@@ -412,13 +412,13 @@ class LiteTranslator {
 
   template <typename IntType, bool aq, bool rl>
   Register Lr(Register /* addr */) {
-    Unimplemented();
+    Undefined();
     return {};
   }
 
   template <typename IntType, bool aq, bool rl>
   Register Sc(Register /* addr */, Register /* data */) {
-    Unimplemented();
+    Undefined();
     return {};
   }
 
