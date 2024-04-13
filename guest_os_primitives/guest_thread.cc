@@ -82,6 +82,8 @@ GuestThread* GuestThread::Create() {
 
   intrinsics::InitState();
 
+  thread->SetDefaultSignalActionsTable();
+
   return thread;
 }
 
@@ -135,6 +137,17 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
     return nullptr;
   }
 
+  return thread;
+}
+
+// static
+GuestThread* GuestThread::CreateForTest(ThreadState* state) {
+  void* thread_storage = Mmap(kGuestThreadPageAlignedSize);
+  if (thread_storage == MAP_FAILED) {
+    return nullptr;
+  }
+  GuestThread* thread = new (thread_storage) GuestThread;
+  thread->state_ = state;
   return thread;
 }
 
