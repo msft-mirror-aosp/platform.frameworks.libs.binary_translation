@@ -16,7 +16,10 @@
 
 #include "berberis/runtime_primitives/interpret_helpers.h"
 
-#include <csignal>
+#include <signal.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 #include <cstdint>
 
 #include "berberis/base/checks.h"
@@ -50,7 +53,15 @@ void UndefinedInsn(GuestAddr pc) {
     memcpy(&code, addr, sizeof(code));
     ALOGE("Undefined riscv64 instruction 0x%" PRIx32 " at %p", code, addr);
   }
+#ifdef __GLIBC__
+  // Our old 2.17 glibc has a bug resulting in raise() failing after any CLONE_VM.
+  // Work around by calling tgkill directly.
+  pid_t pid = syscall(__NR_getpid);
+  pid_t tid = syscall(__NR_gettid);
+  syscall(SYS_tgkill, pid, tid, SIGILL);
+#else
   raise(SIGILL);
+#endif
 }
 
 }  // namespace berberis
