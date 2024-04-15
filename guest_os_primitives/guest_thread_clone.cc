@@ -49,7 +49,6 @@ struct GuestThreadCloneInfo {
   GuestThread* thread;
   HostSigset mask;
   sem_t sem;
-  bool share_signal_handlers;
 };
 
 int RunClonedGuestThread(void* arg) {
@@ -59,13 +58,6 @@ int RunClonedGuestThread(void* arg) {
   // Cannot use host pthread_key!
   // TODO(b/280551726): Clear guest thread in exit syscall.
   InsertCurrentThread(thread, false);
-
-  // TODO(b/232598137): If this thread clones children with shared handlers and then exits
-  // the children will access free'd guest handlers table. Investigate and fix.
-  GuestSignalActionsTable signal_actions_storage;
-  if (!info->share_signal_handlers) {
-    thread->CloneSignalActionsTableTo(signal_actions_storage);
-  }
 
   // ExecuteGuest requires pending signals enabled.
   ScopedPendingSignalsEnabler scoped_pending_signals_enabler(thread);
@@ -126,11 +118,10 @@ pid_t CloneGuestThread(GuestThread* thread,
 
   GuestThreadCloneInfo info;
 
-  info.thread = GuestThread::CreateClone(thread);
+  info.thread = GuestThread::CreateClone(thread, (flags & CLONE_SIGHAND) != 0);
   if (info.thread == nullptr) {
     return EAGAIN;
   }
-  info.share_signal_handlers = (flags & CLONE_SIGHAND) != 0;
 
   ThreadState& clone_thread_state = *info.thread->state();
 
