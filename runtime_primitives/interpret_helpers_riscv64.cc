@@ -16,7 +16,10 @@
 
 #include "berberis/runtime_primitives/interpret_helpers.h"
 
-#include <csignal>
+#include <signal.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 #include <cstdint>
 
 #include "berberis/base/checks.h"
@@ -41,16 +44,24 @@ void UndefinedInsn(GuestAddr pc) {
   auto* addr = ToHostAddr<const uint16_t>(pc);
   uint8_t size = GetRiscv64InsnSize(pc);
   if (size == 2) {
-    ALOGE("Unimplemented riscv64 instruction 0x%" PRIx16 " at %p", *addr, addr);
+    ALOGE("Undefined riscv64 instruction 0x%" PRIx16 " at %p", *addr, addr);
   } else {
     CHECK_EQ(size, 4);
     // Warning: do not cast and dereference the pointer since the address may not be 4-bytes
     // aligned.
     uint32_t code;
     memcpy(&code, addr, sizeof(code));
-    ALOGE("Unimplemented riscv64 instruction 0x%" PRIx32 " at %p", code, addr);
+    ALOGE("Undefined riscv64 instruction 0x%" PRIx32 " at %p", code, addr);
   }
+#ifdef __GLIBC__
+  // Our old 2.17 glibc has a bug resulting in raise() failing after any CLONE_VM.
+  // Work around by calling tgkill directly.
+  pid_t pid = syscall(__NR_getpid);
+  pid_t tid = syscall(__NR_gettid);
+  syscall(SYS_tgkill, pid, tid, SIGILL);
+#else
   raise(SIGILL);
+#endif
 }
 
 }  // namespace berberis

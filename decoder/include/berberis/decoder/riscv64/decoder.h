@@ -553,6 +553,10 @@ class Decoder {
     kVfncvtrtzxfw = 0b10111,
   };
 
+  enum class VFUnary1Opcode : uint8_t {
+    kVfrsqrt7v = 0b00100,
+  };
+
   enum class VRXUnary0Opcode : uint8_t {
     kVmvsx = 0b00000,
   };
@@ -859,6 +863,7 @@ class Decoder {
     uint8_t src1;
     union {
       VFUnary0Opcode vfunary0_opcode;
+      VFUnary1Opcode vfunary1_opcode;
       uint8_t src2;
     };
   };
@@ -1104,7 +1109,7 @@ class Decoder {
         DecodeCompressedStoresp<MemoryDataOperandType::k64bit>();
         break;
       default:
-        insn_consumer_->Unimplemented();
+        insn_consumer_->Undefined();
     }
     return 2;
   }
@@ -1389,8 +1394,8 @@ class Decoder {
     constexpr uint8_t kAddi4spnLow[16] = {
         0x0, 0x2, 0x1, 0x3, 0x10, 0x12, 0x11, 0x13, 0x20, 0x22, 0x21, 0x23, 0x30, 0x32, 0x31, 0x33};
     int16_t imm = (kAddi4spnHigh[GetBits<9, 4>()] | kAddi4spnLow[GetBits<5, 4>()]) << 2;
-    // If immediate is zero then this instruction is treated as unimplemented.
-    // This includes RISC-V dedicated 16bit “unimplemented instruction” 0x0000.
+    // If immediate is zero then this instruction is treated as undefined.
+    // This includes RISC-V dedicated 16bit “undefined instruction” 0x0000.
     if (imm == 0) {
       return Undefined();
     }
@@ -1529,7 +1534,7 @@ class Decoder {
         DecodeSystem();
         break;
       default:
-        insn_consumer_->Unimplemented();
+        insn_consumer_->Undefined();
     }
     return 4;
   }
@@ -1561,10 +1566,7 @@ class Decoder {
     return static_cast<ResultType>(shifted_val >> (32 - size));
   }
 
-  void Undefined() {
-    // TODO(b/265372622): Handle undefined differently from unimplemented.
-    insn_consumer_->Unimplemented();
-  }
+  void Undefined() { insn_consumer_->Undefined(); }
 
   void DecodeMiscMem() {
     uint8_t low_opcode = GetBits<12, 3>();

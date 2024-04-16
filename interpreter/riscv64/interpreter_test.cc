@@ -25,9 +25,11 @@
 #include <csignal>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
+#include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
@@ -2298,6 +2300,11 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   int pipefd[2];
   ASSERT_EQ(0, pipe(pipefd));
 
+  // Only ecall instruction needs guest thread, since it involves pending signals manipulations.
+  std::unique_ptr<GuestThread, decltype(&GuestThread::Destroy)> guest_thread(
+      GuestThread::CreateForTest(&state_), GuestThread::Destroy);
+  state_.thread = guest_thread.get();
+
   // SYS_write
   SetXReg<17>(state_.cpu, 0x40);
   // File descriptor
@@ -3620,6 +3627,27 @@ TEST_F(Riscv64InterpreterTest, TestVmXr) {
   TestVmvXr<2>(0x9f00b457);  // Vmv2r.v v8, v16
   TestVmvXr<4>(0x9f01b457);  // Vmv4r.v v8, v16
   TestVmvXr<8>(0x9f03b457);  // Vmv8r.v v8, v16
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfrsqrt7) {
+  TestVectorFloatInstruction(0x4d821457,  // Vfrsqrt7.v v8, v24, v0.t
+                             {{0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x53fb'8000, 0x4ff4'8000, 0x5bed'8000, 0x57e7'8000},
+                              {0x43e2'0000, 0x3fdc'8000, 0x4bd7'8000, 0x47d3'0000},
+                              {0x33ce'8000, 0x2fca'8000, 0x3bc6'8000, 0x37c3'0000},
+                              {0x23bf'8000, 0x1fbc'8000, 0x2bb9'0000, 0x27b6'8000}},
+                             {{0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x50a1'1000'0000'0000, 0x5898'3000'0000'0000},
+                              {0x4091'1000'0000'0000, 0x4888'2000'0000'0000},
+                              {0x3081'0000'0000'0000, 0x3878'1000'0000'0000},
+                              {0x2071'0000'0000'0000, 0x2868'0000'0000'0000}},
+                             kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVfcvtxfv) {
@@ -11631,7 +11659,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
 
   // VLMUL = 0
   TestVectorPermutationInstruction(
-      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
       {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0xaaaa},
        {},
@@ -11652,7 +11680,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
 
   // VLMUL = 1
   TestVectorPermutationInstruction(
-      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
        {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 0xaa},
        {},
@@ -11694,7 +11722,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
 
   // VLMUL = 2
   TestVectorPermutationInstruction(
-      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
        {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
        {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
@@ -11736,7 +11764,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
 
   // VLMUL = 3
   TestVectorPermutationInstruction(
-      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
        {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
        {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
@@ -11777,7 +11805,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
       /*last_elem_is_x1=*/true);
 
   // VLMUL = 4
-  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
@@ -11790,7 +11818,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
                                    /*last_elem_is_x1=*/true);
 
   // VLMUL = 5
-  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
                                    {{2, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
@@ -11803,7 +11831,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
                                    /*last_elem_is_x1=*/true);
 
   // VLMUL = 6
-  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
                                    {{2, 4, 6, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0x0604, 0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0xaaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},
@@ -11816,7 +11844,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
                                    /*last_elem_is_x1=*/true);
 
   // VLMUL = 7
-  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
                                    {{2, 4, 6, 9, 10, 12, 14, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0x0604, 0x0a09, 0x0e0c, 0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0x0e0c'0a09, 0xaaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},

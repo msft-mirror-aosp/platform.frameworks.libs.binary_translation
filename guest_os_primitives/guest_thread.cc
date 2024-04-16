@@ -86,7 +86,7 @@ GuestThread* GuestThread::Create() {
 }
 
 // static
-GuestThread* GuestThread::CreateClone(const GuestThread* parent) {
+GuestThread* GuestThread::CreateClone(const GuestThread* parent, bool share_signal_actions) {
   GuestThread* thread = Create();
   if (thread == nullptr) {
     return nullptr;
@@ -103,6 +103,13 @@ GuestThread* GuestThread::CreateClone(const GuestThread* parent) {
 
   SetCPUState(*thread->state(), GetCPUState(*parent->state()));
   SetTlsAddr(*thread->state(), GetTlsAddr(*parent->state()));
+
+  if (share_signal_actions) {
+    // New shared_ptr user.
+    thread->signal_actions_ = parent->signal_actions_;
+  } else {
+    thread->CloneSignalActionsTableFrom(parent->signal_actions_.get());
+  }
 
   return thread;
 }
@@ -135,6 +142,19 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
     return nullptr;
   }
 
+  thread->SetDefaultSignalActionsTable();
+
+  return thread;
+}
+
+// static
+GuestThread* GuestThread::CreateForTest(ThreadState* state) {
+  void* thread_storage = Mmap(kGuestThreadPageAlignedSize);
+  if (thread_storage == MAP_FAILED) {
+    return nullptr;
+  }
+  GuestThread* thread = new (thread_storage) GuestThread;
+  thread->state_ = state;
   return thread;
 }
 
@@ -145,6 +165,7 @@ void GuestThread::Destroy(GuestThread* thread) {
   if (ArePendingSignalsPresent(*thread->state_)) {
     TRACE("thread destroyed with pending signals, signals ignored!");
   }
+  thread->signal_actions_.reset();
 
   if (thread->host_stack_) {
     // This happens only on cleanup after failed creation.
