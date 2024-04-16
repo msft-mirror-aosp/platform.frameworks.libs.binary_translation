@@ -28,6 +28,31 @@ namespace berberis {
 
 using x86_64::Assembler;
 
+namespace {
+
+void ExtendIntArg(MacroAssembler<Assembler>& as,
+                  char type,
+                  Assembler::Register dst,
+                  Assembler::Register src) {
+  if (type == 'z') {
+    as.Movzxbq(dst, src);
+  } else if (type == 'b') {
+    as.Movsxbq(dst, src);
+  } else if (type == 's') {
+    as.Movsxwq(dst, src);
+  } else if (type == 'c') {
+    as.Movzxwq(dst, src);
+  } else if (type == 'i') {
+    as.Movsxlq(dst, src);
+  } else if (type == 'p' || type == 'l') {
+    // Do nothing. The parameter is already 64 bits.
+  } else {
+    FATAL("non-integer signature char '%c'", type);
+  }
+}
+
+}  // namespace
+
 void GenWrapGuestFunction(MachineCode* mc,
                           GuestAddr pc,
                           const char* signature,
@@ -80,7 +105,8 @@ void GenWrapGuestFunction(MachineCode* mc,
   int stack_argc = 0;
   int host_stack_argc = 0;
   for (size_t i = 1; signature[i] != '\0'; ++i) {
-    if (signature[i] == 'i' || signature[i] == 'p' || signature[i] == 'l') {
+    if (signature[i] == 'z' || signature[i] == 'b' || signature[i] == 's' || signature[i] == 'c' ||
+        signature[i] == 'i' || signature[i] == 'p' || signature[i] == 'l') {
       static constexpr Assembler::Register kParamRegs[] = {
           Assembler::rdi,
           Assembler::rsi,
@@ -90,16 +116,19 @@ void GenWrapGuestFunction(MachineCode* mc,
           Assembler::r9,
       };
       if (argc < static_cast<int>(std::size(kParamRegs))) {
+        ExtendIntArg(as, signature[i], kParamRegs[argc], kParamRegs[argc]);
         as.Movq({.base = Assembler::rsp, .disp = kArgvOffset + argc * 8}, kParamRegs[argc]);
       } else if (argc < 8) {
         as.Movq(Assembler::rax,
                 {.base = Assembler::rsp, .disp = params_offset + host_stack_argc * 8});
         ++host_stack_argc;
+        ExtendIntArg(as, signature[i], Assembler::rax, Assembler::rax);
         as.Movq({.base = Assembler::rsp, .disp = kArgvOffset + argc * 8}, Assembler::rax);
       } else {
         as.Movq(Assembler::rax,
                 {.base = Assembler::rsp, .disp = params_offset + host_stack_argc * 8});
         ++host_stack_argc;
+        ExtendIntArg(as, signature[i], Assembler::rax, Assembler::rax);
         as.Movq({.base = Assembler::rsp, .disp = kStackArgvOffset + stack_argc * 8},
                 Assembler::rax);
         ++stack_argc;
@@ -151,7 +180,8 @@ void GenWrapGuestFunction(MachineCode* mc,
   as.Movl({.base = Assembler::rsp, .disp = kStackArgcOffset}, stack_argc * 8);
 
   // Set resc.
-  if (signature[0] == 'i' || signature[0] == 'p' || signature[0] == 'l') {
+  if (signature[0] == 'z' || signature[0] == 'b' || signature[0] == 's' || signature[0] == 'c' ||
+      signature[0] == 'i' || signature[0] == 'p' || signature[0] == 'l') {
     as.Movl({.base = Assembler::rsp, .disp = kRescOffset}, 1);
     as.Movl({.base = Assembler::rsp, .disp = kFpRescOffset}, 0);
   } else if (signature[0] == 'f' || signature[0] == 'd') {
@@ -169,7 +199,10 @@ void GenWrapGuestFunction(MachineCode* mc,
   as.Call(guest_runner);
 
   // Get the result.
-  if (signature[0] == 'i' || signature[0] == 'p' || signature[0] == 'l') {
+  if (signature[0] == 'z' || signature[0] == 'b' || signature[0] == 's' || signature[0] == 'c' ||
+      signature[0] == 'i' || signature[0] == 'p' || signature[0] == 'l') {
+    // It is not necessary to unbox integer return values. The callee will truncate rax to only
+    // retrieve the bits appropriate for the return type.
     as.Movq(Assembler::rax, {.base = Assembler::rsp, .disp = kArgvOffset});
   } else if (signature[0] == 'f') {
     // Only take the lower 32 bits of the result register because floats are 1-extended (NaN boxed)
