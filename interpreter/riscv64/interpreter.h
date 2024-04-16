@@ -1689,6 +1689,16 @@ class Interpreter {
               break;  // Make compiler happy.
           }
           break;
+        case Decoder::VOpFVvOpcode::kVFUnary1:
+          switch (args.vfunary1_opcode) {
+            case Decoder::VFUnary1Opcode::kVfrsqrt7v:
+              return OpVectorv<intrinsics::Vfrsqrt7v<ElementType>, ElementType, vlmul, vta, vma>(
+                  args.dst, args.src1);
+              break;
+            default:
+              break;  // Make compiler happy.
+          }
+          break;
         case Decoder::VOpFVvOpcode::kVfmvfs:
           if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
             return Undefined();
