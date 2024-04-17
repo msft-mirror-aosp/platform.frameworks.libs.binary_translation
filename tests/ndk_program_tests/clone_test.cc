@@ -20,6 +20,7 @@
 #include <sched.h>
 #include <sys/wait.h>
 
+#include <atomic>
 #include <csignal>
 #include <cstdlib>
 
@@ -88,6 +89,53 @@ TEST(Clone, CloneVMSighandSharing) {
   CloneVMAndWait<kChildStack * 2>(UnsharedSighandRunner, 0, 42);
   // Verify that children didn't alter parent's signal handlers.
   VerifySignalHandler(&g_parent_handler_called);
+}
+
+// We cannot accurately detect when grandchild stack can be free'd. So
+// we just keep it in a global variable and never free.
+void* g_grandchild_stack[kChildStack];
+std::atomic<bool> g_child_finished;
+std::atomic<bool> g_grandchild_finished;
+
+int WaitUntilParentExitsAndVerifySignalHandlers(void*) {
+  while (!g_child_finished) {
+    sched_yield();
+  }
+
+  // Grandchild shares handlers with child and should still
+  // be able to use them after child terminated.
+  VerifySignalHandler(&g_child_handler_called);
+
+  g_grandchild_finished = true;
+  return 0;
+}
+
+int CloneOutlivingChild(void*) {
+  struct sigaction sa {
+    .sa_handler = +[](int) { g_child_handler_called = true; }
+  };
+  EXPECT_EQ(sigaction(SIGPWR, &sa, nullptr), 0);
+
+  clone(WaitUntilParentExitsAndVerifySignalHandlers,
+        &g_grandchild_stack[kChildStack],
+        CLONE_VM | CLONE_SIGHAND,
+        nullptr);
+  return 42;
+}
+
+TEST(Clone, CloneVMChildOutlivingParent) {
+  // We'll test grandchild outliving child.
+  g_child_finished = false;
+  g_grandchild_finished = false;
+
+  CloneVMAndWait<kChildStack>(CloneOutlivingChild, 0, 42);
+
+  g_child_finished = true;
+
+  // Wait for grandchild to finish.
+  while (!g_grandchild_finished) {
+    sched_yield();
+  }
 }
 
 }  // namespace
