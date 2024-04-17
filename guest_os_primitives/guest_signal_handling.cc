@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <csignal>
+#include <memory>
 #include <mutex>
 
 #if defined(__BIONIC__)
@@ -162,12 +163,15 @@ bool IsReservedSignal(int signal) {
 }  // namespace
 
 void GuestThread::SetDefaultSignalActionsTable() {
-  signal_actions_ = &g_signal_actions;
+  // We need to initialize shared_ptr, but we don't want to attempt to delete the default
+  // signal actions when guest thread terminates. Hence we specify a void deleter.
+  signal_actions_ = std::shared_ptr<GuestSignalActionsTable>(&g_signal_actions, [](auto) {});
 }
 
-void GuestThread::CloneSignalActionsTableTo(GuestSignalActionsTable& new_table_storage) {
-  new_table_storage = *signal_actions_;
-  signal_actions_ = &new_table_storage;
+void GuestThread::CloneSignalActionsTableFrom(GuestSignalActionsTable* from_table) {
+  // Need lock to make sure from_table isn't changed concurrently.
+  std::lock_guard<std::mutex> lock(g_signal_actions_guard_mutex);
+  signal_actions_ = std::make_shared<GuestSignalActionsTable>(*from_table);
 }
 
 // Can be interrupted by another SetSignal!
@@ -298,7 +302,7 @@ void GuestThread::ProcessPendingSignalsImpl() {
 
   siginfo_t* signal_info;
   while ((signal_info = pending_signals_.DequeueSignalUnsafe())) {
-    const Guest_sigaction* sa = FindSignalHandler(*signal_actions_, signal_info->si_signo);
+    const Guest_sigaction* sa = FindSignalHandler(*signal_actions_.get(), signal_info->si_signo);
     ProcessGuestSignal(this, sa, signal_info);
     pending_signals_.FreeSignal(signal_info);
   }
@@ -318,8 +322,8 @@ bool SetGuestSignalHandler(int signal,
     act = nullptr;
   }
 
-  GuestSignalAction& action = GetCurrentGuestThread()->GetSignalActionsTable()->at(signal - 1);
   std::lock_guard<std::mutex> lock(g_signal_actions_guard_mutex);
+  GuestSignalAction& action = GetCurrentGuestThread()->GetSignalActionsTable()->at(signal - 1);
   return action.Change(signal, act, HandleHostSignal, old_act, error);
 }
 
