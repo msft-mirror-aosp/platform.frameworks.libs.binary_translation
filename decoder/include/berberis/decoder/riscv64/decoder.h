@@ -498,6 +498,8 @@ class Decoder {
     kVslide1upvx = 0b001110,
     kVslide1downvx = 0b001111,
     kVRXUnary0 = 0b010000,
+    kVdivuvx = 0b100000,
+    kVdivvx = 0b100001,
     kVmulhuvx = 0b100100,
     kVmulvx = 0b100101,
     kVmulhsuvx = 0b100110,
