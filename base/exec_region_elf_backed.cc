@@ -21,9 +21,8 @@
 #include <sys/mman.h>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/fd.h"
 #include "berberis/base/mmap.h"
-
-#include "fd.h"
 
 // Note that we have to use absolute path for ANDROID_DLEXT_FORCE_LOAD to work correctly
 // otherwise searching by soname will trigger and the flag will have no effect.
