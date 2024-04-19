@@ -43,9 +43,13 @@ char ConvertDalvikTypeCharToWrapperTypeChar(char c) {
     case 'V':  // void
       return 'v';
     case 'Z':  // boolean
+      return 'z';
     case 'B':  // byte
+      return 'b';
     case 'S':  // short
+      return 's';
     case 'C':  // char
+      return 'c';
     case 'I':  // int
       return 'i';
     case 'L':  // class object - pointer
@@ -132,10 +136,18 @@ std::vector<jvalue> ConvertVAList(JNIEnv* env, jmethodID methodID, GuestVAListPa
     jvalue& arg = result[i];
     char c = short_signature[i];
     switch (c) {
-      case 'Z':  // boolean (u8) - passed as int
-      case 'B':  // byte (i8) - passed as int
-      case 'S':  // short (i16) - passed as int
-      case 'C':  // char (u16) - passed as int
+      case 'Z':  // boolean (u8)
+        arg.z = params.GetParam<uint8_t>();
+        break;
+      case 'B':  // byte (i8)
+        arg.b = params.GetParam<int8_t>();
+        break;
+      case 'S':  // short (i16)
+        arg.s = params.GetParam<int16_t>();
+        break;
+      case 'C':  // char (u16)
+        arg.c = params.GetParam<uint16_t>();
+        break;
       case 'I':  // int (i32)
         arg.i = params.GetParam<int32_t>();
         break;
