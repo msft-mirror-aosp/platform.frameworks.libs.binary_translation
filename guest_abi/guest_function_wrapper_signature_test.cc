@@ -22,8 +22,10 @@ namespace berberis {
 
 namespace {
 
-static_assert('i' == kGuestFunctionWrapperSignatureChar<bool>);
-static_assert('i' == kGuestFunctionWrapperSignatureChar<char>);
+static_assert('z' == kGuestFunctionWrapperSignatureChar<bool>);
+static_assert('b' == kGuestFunctionWrapperSignatureChar<char>);
+static_assert('s' == kGuestFunctionWrapperSignatureChar<int16_t>);
+static_assert('c' == kGuestFunctionWrapperSignatureChar<uint16_t>);
 static_assert('i' == kGuestFunctionWrapperSignatureChar<int>);
 static_assert('l' == kGuestFunctionWrapperSignatureChar<long long>);
 static_assert('p' == kGuestFunctionWrapperSignatureChar<void*>);
