@@ -25,9 +25,11 @@
 #include <csignal>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
+#include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
@@ -1526,6 +1528,144 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  template <bool kIsMasked, typename ElementType>
+  auto MaskForElem() {
+    if constexpr (!kIsMasked) {
+      return kNoMask;
+    } else if constexpr (std::is_same_v<ElementType, uint8_t>) {
+      return kMaskInt8;
+    } else if constexpr (std::is_same_v<ElementType, uint16_t>) {
+      return kMaskInt16;
+    } else if constexpr (std::is_same_v<ElementType, uint32_t>) {
+      return kMaskInt32;
+    } else if constexpr (std::is_same_v<ElementType, uint64_t>) {
+      return kMaskInt64;
+    } else {
+      static_assert(kDependentTypeFalse<ElementType>);
+    }
+  }
+
+  template <bool kIsMasked>
+  void TestVectorIota(uint32_t insn_bytes,
+                      const uint8_t (&expected_result_int8)[8][16],
+                      const uint16_t (&expected_result_int16)[8][8],
+                      const uint32_t (&expected_result_int32)[8][4],
+                      const uint64_t (&expected_result_int64)[8][2],
+                      const __v2du(&source)) {
+    TestVectorIota<kIsMasked>(insn_bytes,
+                              source,
+                              expected_result_int8,
+                              expected_result_int16,
+                              expected_result_int32,
+                              expected_result_int64);
+  }
+
+  template <bool kIsMasked,
+            typename... ElementType,
+            size_t... kResultsCount,
+            size_t... kElementCount>
+  void TestVectorIota(uint32_t insn_bytes,
+                      const __v2du& src1,
+                      const ElementType (&... expected_result)[kResultsCount][kElementCount]) {
+    const __uint128_t mask = SIMD128Register{kMask}.Get<__uint128_t>();
+    const __uint128_t src = SIMD128Register{src1}.Get<__uint128_t>();
+    const __uint128_t undisturbed = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
+
+    auto Verify = [this, &src, &mask, &undisturbed](uint32_t insn_bytes,
+                                                    uint8_t vsew,
+                                                    const auto& expected_result,
+                                                    auto elem_mask) {
+      state_.cpu.v[0] = mask;
+      state_.cpu.v[16] = src;
+      for (uint8_t vlmul = 0; vlmul < 8; ++vlmul) {
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          for (uint8_t vma = 0; vma < 2; ++vma) {
+            auto [vlmax, vtype] =
+                intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
+            // Incompatible vsew and vlmax. Skip it.
+            if (vlmax == 0) {
+              continue;
+            }
+
+            for (uint8_t vl = 0; vl < vlmax; vl += vlmax) {
+              // To make tests quick enough we don't test vl change with small register sets. Only
+              // with vlmul == 2 (4 registers) we set vl to skip last register and half of next-to
+              // last register.
+              if (vlmul == 2 && vl == vlmax) {
+                state_.cpu.vl = 5 * vlmax / 8;
+              } else {
+                state_.cpu.vl = vl;
+              }
+
+              state_.cpu.vstart = 0;
+              state_.cpu.vtype = vtype;
+              for (size_t index = 0; index < 8; ++index) {
+                state_.cpu.v[8 + index] = undisturbed;
+              }
+
+              state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+              EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+
+              __m128i expected_inactive[8];
+              std::fill_n(expected_inactive, 8, (vma ? kAgnosticResult : kUndisturbedResult));
+
+              // vl of 0 should never change dst registers
+              if (vl == 0) {
+                for (size_t index = 0; index < 8; ++index) {
+                  EXPECT_EQ(state_.cpu.v[8 + index], undisturbed);
+                }
+              } else if (vlmul < 4) {
+                for (size_t index = 0; index < 1 << vlmul; ++index) {
+                  for (size_t index = 0; index < 1 << vlmul; ++index) {
+                    if (index == 2 && vlmul == 2) {
+                      EXPECT_EQ(
+                          state_.cpu.v[8 + index],
+                          ((SIMD128Register{expected_result[index]} & elem_mask[index] &
+                            kFractionMaskInt8[3]) |
+                           (expected_inactive[index] & ~elem_mask[index] & kFractionMaskInt8[3]) |
+                           ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3]))
+                              .template Get<__uint128_t>());
+                    } else if (index == 3 && vlmul == 2) {
+                      EXPECT_EQ(state_.cpu.v[8 + index],
+                                SIMD128Register{vta ? kAgnosticResult : kUndisturbedResult});
+                    } else {
+                      EXPECT_EQ(state_.cpu.v[8 + index],
+                                ((SIMD128Register{expected_result[index]} & elem_mask[index]) |
+                                 (expected_inactive[index] & ~elem_mask[index]))
+                                    .template Get<__uint128_t>());
+                    }
+                    // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+                    EXPECT_EQ(state_.cpu.vstart, 0);
+                    if (vlmul == 2) {
+                      EXPECT_EQ(state_.cpu.vl, 5 * vlmax / 8);
+                    } else {
+                      EXPECT_EQ(state_.cpu.vl, vlmax);
+                    }
+                  }
+                }
+              } else {
+                // vlmul >= 4 only uses 1 register
+                EXPECT_EQ(
+                    state_.cpu.v[8],
+                    ((SIMD128Register{expected_result[0]} & elem_mask[0] &
+                      kFractionMaskInt8[vlmul - 4]) |
+                     (expected_inactive[0] & ~elem_mask[0] & kFractionMaskInt8[vlmul - 4]) |
+                     ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[vlmul - 4]))
+                        .template Get<__uint128_t>());
+              }
+            }
+          }
+        }
+      }
+    };
+
+    (Verify(insn_bytes,
+            BitUtilLog2(sizeof(ElementType)),
+            expected_result,
+            MaskForElem<kIsMasked, ElementType>()),
+     ...);
+  }
+
   void TestVectorMaskTargetInstruction(uint32_t insn_bytes,
                                        const uint32_t expected_result_int32,
                                        const uint16_t expected_result_int64,
@@ -2159,6 +2299,11 @@ TEST_F(Riscv64InterpreterTest, SyscallWrite) {
   // Prepare a pipe to write to.
   int pipefd[2];
   ASSERT_EQ(0, pipe(pipefd));
+
+  // Only ecall instruction needs guest thread, since it involves pending signals manipulations.
+  std::unique_ptr<GuestThread, decltype(&GuestThread::Destroy)> guest_thread(
+      GuestThread::CreateForTest(&state_), GuestThread::Destroy);
+  state_.thread = guest_thread.get();
 
   // SYS_write
   SetXReg<17>(state_.cpu, 0x40);
@@ -3482,6 +3627,27 @@ TEST_F(Riscv64InterpreterTest, TestVmXr) {
   TestVmvXr<2>(0x9f00b457);  // Vmv2r.v v8, v16
   TestVmvXr<4>(0x9f01b457);  // Vmv4r.v v8, v16
   TestVmvXr<8>(0x9f03b457);  // Vmv8r.v v8, v16
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfrsqrt7) {
+  TestVectorFloatInstruction(0x4d821457,  // Vfrsqrt7.v v8, v24, v0.t
+                             {{0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x53fb'8000, 0x4ff4'8000, 0x5bed'8000, 0x57e7'8000},
+                              {0x43e2'0000, 0x3fdc'8000, 0x4bd7'8000, 0x47d3'0000},
+                              {0x33ce'8000, 0x2fca'8000, 0x3bc6'8000, 0x37c3'0000},
+                              {0x23bf'8000, 0x1fbc'8000, 0x2bb9'0000, 0x27b6'8000}},
+                             {{0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x50a1'1000'0000'0000, 0x5898'3000'0000'0000},
+                              {0x4091'1000'0000'0000, 0x4888'2000'0000'0000},
+                              {0x3081'0000'0000'0000, 0x3878'1000'0000'0000},
+                              {0x2071'0000'0000'0000, 0x2868'0000'0000'0000}},
+                             kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVfcvtxfv) {
@@ -7539,15 +7705,15 @@ TEST_F(Riscv64InterpreterTest, TestVectorMaskInstructions) {
   TestVectorMaskInstruction(0,
                             intrinsics::InactiveProcessing::kAgnostic,
                             0x5300a457,  // vmsbf.m v8, v16
-                            {0x0000'0000'0000'00ff, 000000'0000'0000'0000});
+                            {0x0000'0000'0000'00ff, 0x0000'0000'0000'0000});
   TestVectorMaskInstruction(0,
                             intrinsics::InactiveProcessing::kAgnostic,
                             0x53012457,  // vmsof.m v8, v16
-                            {0x0000'0000'0000'0100, 000000'0000'0000'0000});
+                            {0x0000'0000'0000'0100, 0x0000'0000'0000'0000});
   TestVectorMaskInstruction(0,
                             intrinsics::InactiveProcessing::kAgnostic,
                             0x5301a457,  // vmsif.m v8, v16
-                            {0x0000'0000'0000'01ff, 000000'0000'0000'0000});
+                            {0x0000'0000'0000'01ff, 0x0000'0000'0000'0000});
   TestVectorMaskInstruction(0,
                             intrinsics::InactiveProcessing::kAgnostic,
                             0x5100a457,  // vmsbf.m v8, v16, v0.t
@@ -7572,6 +7738,77 @@ TEST_F(Riscv64InterpreterTest, TestVectorMaskInstructions) {
                             intrinsics::InactiveProcessing::kUndisturbed,
                             0x5101a457,  // vmsif.m v8, v16, v0.t
                             {0x5505'5415'07d5'5f57, 0x4055'5511'5445'5115});
+}
+
+TEST_F(Riscv64InterpreterTest, TestIota) {
+  TestVectorIota<false>(0x53082457,  // viota.m v8, v16
+                        {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1},
+                         {2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 5, 5, 5, 5, 5, 5},
+                         {6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 9, 9, 9, 9, 9},
+                         {10, 10, 11, 12, 12, 12, 12, 12, 12, 13, 14, 15, 15, 15, 15, 15},
+                         {16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19},
+                         {20, 20, 21, 21, 22, 22, 22, 22, 22, 23, 24, 24, 25, 25, 25, 25},
+                         {26, 26, 26, 27, 28, 28, 28, 28, 28, 29, 29, 30, 31, 31, 31, 31},
+                         {32, 32, 33, 34, 35, 35, 35, 35, 35, 36, 37, 38, 39, 39, 39, 39}},
+                        {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0000, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001},
+                         {0x0002, 0x0002, 0x0003, 0x0003, 0x0003, 0x0003, 0x0003, 0x0003},
+                         {0x0003, 0x0004, 0x0005, 0x0005, 0x0005, 0x0005, 0x0005, 0x0005},
+                         {0x0006, 0x0006, 0x0006, 0x0007, 0x0007, 0x0007, 0x0007, 0x0007},
+                         {0x0007, 0x0008, 0x0008, 0x0009, 0x0009, 0x0009, 0x0009, 0x0009},
+                         {0x000a, 0x000a, 0x000b, 0x000c, 0x000c, 0x000c, 0x000c, 0x000c},
+                         {0x000c, 0x000d, 0x000e, 0x000f, 0x000f, 0x000f, 0x000f, 0x000f}},
+                        {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0001, 0x0000'0001, 0x0000'0001},
+                         {0x0000'0001, 0x0000'0001, 0x0000'0001, 0x0000'0001},
+                         {0x0000'0002, 0x0000'0002, 0x0000'0003, 0x0000'0003},
+                         {0x0000'0003, 0x0000'0003, 0x0000'0003, 0x0000'0003},
+                         {0x0000'0003, 0x0000'0004, 0x0000'0005, 0x0000'0005},
+                         {0x0000'0005, 0x0000'0005, 0x0000'0005, 0x0000'0005}},
+                        {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001}},
+                        kVectorCalculationsSource[0]);
+  TestVectorIota<true>(0x51082457,  // viota.m v8, v16, v0.t
+                       {{0, 0x55, 0, 0, 0x55, 0, 0x55, 0, 0, 0x55, 1, 0x55, 1, 1, 0x55, 1},
+                        {2, 2, 0x55, 3, 0x55, 3, 3, 0x55, 3, 0x55, 4, 4, 0x55, 4, 0x55, 4},
+                        {5, 0x55, 5, 0x55, 6, 6, 0x55, 6, 0x55, 6, 6, 0x55, 7, 0x55, 7, 7},
+                        {8, 0x55, 8, 9, 0x55, 9, 0x55, 9, 9, 0x55, 10, 0x55, 11, 0x55, 11, 11},
+                        {12, 0x55, 12, 0x55, 12, 12, 0x55, 12, 12, 13, 0x55, 13, 14, 14, 14, 0x55},
+                        {14, 0x55, 14, 14, 0x55, 15, 15, 15, 0x55, 15, 16, 16, 17, 0x55, 17, 17},
+                        {18, 18, 0x55, 18, 19, 19, 0x55, 19, 19, 20, 20, 0x55, 21, 0x55, 21, 0x55},
+                        {21, 21, 22, 0x55, 23, 23, 23, 23, 0x55, 23, 0x55, 24, 0x55, 25, 25, 0x55}},
+                       {{0x0000, 0x5555, 0x0000, 0x0000, 0x5555, 0x0000, 0x5555, 0x0000},
+                        {0x0000, 0x5555, 0x0001, 0x5555, 0x0001, 0x0001, 0x5555, 0x0001},
+                        {0x0002, 0x0002, 0x5555, 0x0003, 0x5555, 0x0003, 0x0003, 0x5555},
+                        {0x0003, 0x5555, 0x0004, 0x0004, 0x5555, 0x0004, 0x5555, 0x0004},
+                        {0x0005, 0x5555, 0x0005, 0x5555, 0x0006, 0x0006, 0x5555, 0x0006},
+                        {0x5555, 0x0006, 0x0006, 0x5555, 0x0007, 0x5555, 0x0007, 0x0007},
+                        {0x0008, 0x5555, 0x0008, 0x0009, 0x5555, 0x0009, 0x5555, 0x0009},
+                        {0x0009, 0x5555, 0x000a, 0x5555, 0x000b, 0x5555, 0x000b, 0x000b}},
+                       {{0x0000'0000, 0x5555'5555, 0x0000'0000, 0x0000'0000},
+                        {0x5555'5555, 0x0000'0000, 0x5555'5555, 0x0000'0000},
+                        {0x0000'0000, 0x5555'5555, 0x0000'0001, 0x5555'5555},
+                        {0x0000'0001, 0x0000'0001, 0x5555'5555, 0x0000'0001},
+                        {0x0000'0002, 0x0000'0002, 0x5555'5555, 0x0000'0003},
+                        {0x5555'5555, 0x0000'0003, 0x0000'0003, 0x5555'5555},
+                        {0x0000'0003, 0x5555'5555, 0x0000'0004, 0x0000'0004},
+                        {0x5555'5555, 0x0000'0004, 0x5555'5555, 0x0000'0004}},
+                       {{0x0000'0000'0000'0000, 0x5555'5555'5555'5555},
+                        {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                        {0x5555'5555'5555'5555, 0x0000'0000'0000'0000},
+                        {0x5555'5555'5555'5555, 0x0000'0000'0000'0000},
+                        {0x0000'0000'0000'0000, 0x5555'5555'5555'5555},
+                        {0x0000'0000'0000'0001, 0x5555'5555'5555'5555},
+                        {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                        {0x5555'5555'5555'5555, 0x0000'0000'0000'0001}},
+                       kVectorCalculationsSource[0]);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVid) {
@@ -10613,6 +10850,76 @@ TEST_F(Riscv64InterpreterTest, TestVdiv) {
                          {0x0000'0000'0000'0001, 0x0000'0000'0000'0002},
                          {0x0000'0000'0000'0005, 0x0000'0000'0000'0055}},
                         kVectorComparisonSource);
+
+  TestVectorInstruction(0x8100e457,  // vdivu.vx v8, v16, x1, v0.t
+                        {{0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1},
+                         {1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1},
+                         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                         {1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+                         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+                         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+                         {1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0},
+                         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+                        {{0x0001, 0x0001, 0x0001, 0x0001, 0x0000, 0x0000, 0x0001, 0x0001},
+                         {0x0000, 0x0000, 0x0001, 0x0001, 0x0000, 0x0000, 0x0001, 0x0001},
+                         {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0001, 0x0001, 0x0001, 0x0001, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001},
+                         {0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001},
+                         {0x0001, 0x0000, 0x0001, 0x0000, 0x0001, 0x0000, 0x0001, 0x0000},
+                         {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+                        {{0x0000'0001, 0x0000'0001, 0x0000'0000, 0x0000'0001},
+                         {0x0000'0000, 0x0000'0001, 0x0000'0000, 0x0000'0001},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0001, 0x0000'0001, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0001, 0x0000'0001, 0x0000'0001, 0x0000'0001},
+                         {0x0000'0001, 0x0000'0001, 0x0000'0001, 0x0000'0001},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+                        {{0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+                        kVectorComparisonSource);
+
+  TestVectorInstruction(0x8500e457,  // vdiv.vx v8, v16, x1, v0.t
+                        {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+                         {1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+                         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                         {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1},
+                         {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
+                        {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0001, 0x0000},
+                         {0x0001, 0x0001, 0x0001, 0x0001, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+                         {0x0000, 0x0001, 0x0000, 0x0001, 0x0000, 0x0001, 0x0000, 0x0001},
+                         {0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001}},
+                        {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0001, 0x0000'0001, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+                         {0x0000'0001, 0x0000'0001, 0x0000'0001, 0x0000'0001},
+                         {0x0000'0001, 0x0000'0001, 0x0000'0001, 0x0000'0001}},
+                        {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001},
+                         {0x0000'0000'0000'0001, 0x0000'0000'0000'0001}},
+                        kVectorComparisonSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVslideup) {
@@ -11422,7 +11729,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
 
   // VLMUL = 0
   TestVectorPermutationInstruction(
-      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
       {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0xaaaa},
        {},
@@ -11443,7 +11750,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
 
   // VLMUL = 1
   TestVectorPermutationInstruction(
-      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
        {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 0xaa},
        {},
@@ -11485,7 +11792,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
 
   // VLMUL = 2
   TestVectorPermutationInstruction(
-      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
        {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
        {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
@@ -11527,7 +11834,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
 
   // VLMUL = 3
   TestVectorPermutationInstruction(
-      0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+      0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
       {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
        {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
        {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
@@ -11568,7 +11875,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
       /*last_elem_is_x1=*/true);
 
   // VLMUL = 4
-  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
@@ -11581,7 +11888,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
                                    /*last_elem_is_x1=*/true);
 
   // VLMUL = 5
-  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
                                    {{2, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{}, {}, {}, {}, {}, {}, {}, {}},
@@ -11594,7 +11901,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
                                    /*last_elem_is_x1=*/true);
 
   // VLMUL = 6
-  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
                                    {{2, 4, 6, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0x0604, 0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0xaaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},
@@ -11607,7 +11914,7 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
                                    /*last_elem_is_x1=*/true);
 
   // VLMUL = 7
-  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vi v8, v24, x1, v0.t
+  TestVectorPermutationInstruction(0x3d80e457,  // vslide1down.vx v8, v24, x1, v0.t
                                    {{2, 4, 6, 9, 10, 12, 14, 0xaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0x0604, 0x0a09, 0x0e0c, 0xaaaa}, {}, {}, {}, {}, {}, {}, {}},
                                    {{0x0e0c'0a09, 0xaaaa'aaaa}, {}, {}, {}, {}, {}, {}, {}},

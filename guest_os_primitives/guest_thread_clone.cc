@@ -20,6 +20,7 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/tracing.h"
+#include "berberis/guest_os_primitives/guest_signal.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"  // ResetCurrentGuestThreadAfterFork
 #include "berberis/guest_os_primitives/scoped_pending_signals.h"
@@ -28,6 +29,7 @@
 #include "berberis/runtime/execute_guest.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 
+#include "guest_signal_action.h"
 #include "guest_thread_manager_impl.h"
 #include "scoped_signal_blocker.h"
 
@@ -60,6 +62,8 @@ int RunClonedGuestThread(void* arg) {
   // ExecuteGuest requires pending signals enabled.
   ScopedPendingSignalsEnabler scoped_pending_signals_enabler(thread);
 
+  // Host signals are blocked in parent before the clone,
+  // and remain blocked in child until this point.
   RTSigprocmaskSyscallOrDie(SIG_SETMASK, &info->mask, nullptr);
 
   // Notify parent that child is ready. Now parent can:
@@ -114,7 +118,7 @@ pid_t CloneGuestThread(GuestThread* thread,
 
   GuestThreadCloneInfo info;
 
-  info.thread = GuestThread::CreateClone(thread);
+  info.thread = GuestThread::CreateClone(thread, (flags & CLONE_SIGHAND) != 0);
   if (info.thread == nullptr) {
     return EAGAIN;
   }

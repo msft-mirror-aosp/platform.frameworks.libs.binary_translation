@@ -96,6 +96,7 @@ uintptr_t GuestLoader::DlUnwindFindExidx(uintptr_t pc, int* pcount) {
 
 int GuestLoader::DlAddr(const void* addr, Dl_info* info) {
   TRACE("GuestLoader::DlAddr(addr=%p, info=%p)", addr, info);
+  // dladdr does *not* set dlerror
   return linker_callbacks_.dladdr_fn_(addr, info);
 }
 
@@ -106,19 +107,24 @@ void* GuestLoader::DlOpen(const char* libpath, int flags) {
 
 void* GuestLoader::DlOpenExt(const char* libpath, int flags, const android_dlextinfo* extinfo) {
   TRACE("GuestLoader::DlOpen(libpath=\"%s\", flags=0x%x, extinfo=%p)", libpath, flags, extinfo);
-  auto result = linker_callbacks_.dlopen_ext_fn_(libpath, flags, extinfo, caller_addr_);
-  TRACE("GuestLoader::DlOpen(...) = %p", result);
-  return result;
+  auto handle = linker_callbacks_.dlopen_ext_fn_(libpath, flags, extinfo, caller_addr_);
+  TRACE("GuestLoader::DlOpen(...) = %p", handle);
+  SetDlErrorIfNeeded();
+  return handle;
 }
 
 GuestAddr GuestLoader::DlSym(void* handle, const char* name) {
   TRACE("GuestLoader::DlSym(handle=%p, name=\"%s\")", handle, name);
-  return ToGuestAddr(linker_callbacks_.dlsym_fn_(handle, name, caller_addr_));
+  auto* result = linker_callbacks_.dlsym_fn_(handle, name, caller_addr_);
+  SetDlErrorIfNeeded();
+  return ToGuestAddr(result);
 }
 
 const char* GuestLoader::DlError() {
   TRACE("GuestLoader::DlError()");
-  return linker_callbacks_.dlerror_fn_();
+  const char* dlerror_msg = dl_error_;
+  dl_error_ = nullptr;
+  return dlerror_msg;
 }
 
 bool GuestLoader::InitAnonymousNamespace(const char* public_ns_sonames,
@@ -132,7 +138,10 @@ bool GuestLoader::InitAnonymousNamespace(const char* public_ns_sonames,
 #if defined(__BIONIC__)
   SetTargetSdkVersion(android_get_application_target_sdk_version());
 #endif
-  return linker_callbacks_.init_anonymous_namespace_fn_(public_ns_sonames, anon_ns_library_path);
+  bool success =
+      linker_callbacks_.init_anonymous_namespace_fn_(public_ns_sonames, anon_ns_library_path);
+  SetDlErrorIfNeeded();
+  return success;
 }
 
 android_namespace_t* GuestLoader::CreateNamespace(const char* name,
@@ -169,12 +178,14 @@ android_namespace_t* GuestLoader::CreateNamespace(const char* name,
                                                        parent_ns,
                                                        caller_addr_);
   TRACE("GuestLoader::CreateNamespace(...) .. = %p", result);
+  SetDlErrorIfNeeded();
   return result;
 }
 
 android_namespace_t* GuestLoader::GetExportedNamespace(const char* name) {
   auto result = linker_callbacks_.get_exported_namespace_fn_(name);
   TRACE("GuestLoader::GetExportedNamespace(name=\"%s\") = %p", name, result);
+  // Does *not* set dlerror()
   return result;
 }
 
@@ -185,12 +196,22 @@ bool GuestLoader::LinkNamespaces(android_namespace_t* from,
         from,
         to,
         shared_libs_sonames);
-  return linker_callbacks_.link_namespaces_fn_(from, to, shared_libs_sonames);
+  bool success = linker_callbacks_.link_namespaces_fn_(from, to, shared_libs_sonames);
+  SetDlErrorIfNeeded();
+  return success;
 }
 
 void GuestLoader::SetTargetSdkVersion(uint32_t target_sdk_version) {
   TRACE("GuestLoader::SetTargetSdkVersion(%u)", target_sdk_version);
   linker_callbacks_.set_application_target_sdk_version_fn_(target_sdk_version);
+}
+
+void GuestLoader::SetDlErrorIfNeeded() {
+  const char* dl_error = linker_callbacks_.dlerror_fn_();
+  if (dl_error != nullptr) {
+    dl_error_holder_ = dl_error;
+    dl_error_ = dl_error_holder_.c_str();
+  }
 }
 
 void InitializeLinkerCallbacksToStubs(LinkerCallbacks* linker_callbacks) {

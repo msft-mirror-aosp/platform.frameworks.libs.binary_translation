@@ -27,8 +27,12 @@ namespace berberis {
 //
 // Supported types:
 //   'v': void (as return type)
-//   'i': integer and enum types <= 32bit
-//   'l': integer and enum types == 64bit
+//   'z': unsigned integer and enum types == 8bit (jboolean equivalent)
+//   'b': signed integer and enum types == 8bit (jbyte equivalent)
+//   's': signed integer and enum types == 16bit (jshort equivalent)
+//   'c': unsigned integer types == 16bit (jchar equivalent)
+//   'i': integer and enum types == 32bit (jint equivalent)
+//   'l': integer and enum types == 64bit (jfloat equivalent)
 //   'p': pointers (to objects and functions but not to members)
 //   'f': float (floating point 32 bits)
 //   'd': double (floating point 64 bits)
@@ -47,7 +51,42 @@ class kGuestFunctionWrapperSignatureCharHelper {
   }
 
   template <typename Type,
-            std::enable_if_t<(std::is_integral_v<Type> || std::is_enum_v<Type>)&&sizeof(Type) <=
+            std::enable_if_t<(std::is_integral_v<Type> ||
+                              std::is_enum_v<Type>)&&std::is_unsigned_v<Type> &&
+                                 sizeof(Type) == sizeof(uint8_t),
+                             int> = 0>
+  static constexpr char Value() {
+    return 'z';
+  }
+
+  template <
+      typename Type,
+      std::enable_if_t<(std::is_integral_v<Type> || std::is_enum_v<Type>)&&std::is_signed_v<Type> &&
+                           sizeof(Type) == sizeof(int8_t),
+                       int> = 0>
+  static constexpr char Value() {
+    return 'b';
+  }
+
+  template <
+      typename Type,
+      std::enable_if_t<(std::is_integral_v<Type> || std::is_enum_v<Type>)&&std::is_signed_v<Type> &&
+                           sizeof(Type) == sizeof(int16_t),
+                       int> = 0>
+  static constexpr char Value() {
+    return 's';
+  }
+
+  template <typename Type,
+            std::enable_if_t<std::is_integral_v<Type> && std::is_unsigned_v<Type> &&
+                                 sizeof(Type) == sizeof(uint16_t),
+                             int> = 0>
+  static constexpr char Value() {
+    return 'c';
+  }
+
+  template <typename Type,
+            std::enable_if_t<(std::is_integral_v<Type> || std::is_enum_v<Type>)&&sizeof(Type) ==
                                  sizeof(int32_t),
                              int> = 0>
   static constexpr char Value() {

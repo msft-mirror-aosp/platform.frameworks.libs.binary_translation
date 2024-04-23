@@ -21,9 +21,14 @@
 
 include frameworks/libs/native_bridge_support/native_bridge_support.mk
 
+# Note: When modifying this variable, please also update the `phony_deps` of
+#       `berberis_deps_defaults` in frameworks/libs/binary_translation/Android.bp.
 BERBERIS_PRODUCT_PACKAGES := \
     libberberis_exec_region
 
+# Note: When modifying this variable, please also update the `phony_deps` of
+#       `berberis_riscv64_to_x86_64_defaults` in
+#       frameworks/libs/binary_translation/Android.bp.
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
     libberberis_proxy_libEGL \
     libberberis_proxy_libGLESv1_CM \
@@ -53,6 +58,9 @@ BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
 # when all its bits are ready for riscv64.
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 += $(NATIVE_BRIDGE_PRODUCT_PACKAGES_RISCV64_READY)
 
+# Note: When modifying this variable, please also update the `phony_deps` of
+#       `berberis_riscv64_to_x86_64_defaults` in
+#       frameworks/libs/binary_translation/Android.bp.
 BERBERIS_DEV_PRODUCT_PACKAGES := \
     berberis_hello_world.native_bridge \
     berberis_hello_world_static.native_bridge \
@@ -64,6 +72,9 @@ BERBERIS_DEV_PRODUCT_PACKAGES := \
     nogrod_unit_tests \
     gen_intrinsics_tests
 
+# Note: When modifying this variable, please also update the `phony_deps` of
+#       `berberis_riscv64_to_x86_64_defaults` in
+#       frameworks/libs/binary_translation/Android.bp.
 BERBERIS_DEV_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
     berberis_guest_loader_riscv64_tests
 

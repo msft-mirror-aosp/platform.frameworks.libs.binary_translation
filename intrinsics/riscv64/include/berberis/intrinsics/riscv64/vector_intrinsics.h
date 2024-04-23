@@ -679,6 +679,22 @@ inline std::tuple<SIMD128Register> Vmsofm(SIMD128Register simd_src) {
   return {std::get<0>(Vmsbfm(simd_src)) ^ std::get<0>(Vmsifm(simd_src))};
 }
 
+template <typename ElementType,
+          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
+inline std::tuple<SIMD128Register, size_t> Viotam(SIMD128Register simd_src, size_t counter) {
+  constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
+  __uint128_t src = simd_src.Get<__uint128_t>();
+  SIMD128Register result;
+  for (size_t index = 0; index < kElementsCount; ++index) {
+    typename Wrapping<typename ElementType::BaseType>::UnsignedType value{
+        static_cast<typename ElementType::BaseType>(counter)};
+    result.Set(value, index);
+    counter += static_cast<size_t>(src & 1);
+    src >>= 1;
+  }
+  return {result, counter};
+}
+
 template <typename TargetElementType,
           typename SourceElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
@@ -860,6 +876,8 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
 
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
+DEFINE_1OP_ARITHMETIC_INTRINSIC_V(frsqrt7, RSqrtEstimate(args...))
+
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redsum, (args + ...))
@@ -1013,6 +1031,10 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args..
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
     div,
     ElementType{std::get<0>(Div(static_cast<typename ElementType::BaseType>(args)...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(
+    div,
+    ElementType{std::get<0>(Div(static_cast<typename ElementType::BaseType>(args)...))})
+
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV(add, (args + ...))

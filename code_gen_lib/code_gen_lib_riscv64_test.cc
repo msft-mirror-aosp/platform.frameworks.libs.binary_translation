@@ -147,24 +147,163 @@ TEST(CodeGenLib, GenWrapGuestFunction) {
   ASSERT_TRUE(g_called);
 }
 
+void Run10UInt8(GuestAddr pc, GuestArgumentBuffer* buf) {
+  ASSERT_EQ(ToGuestAddr(&g_insn), pc);
+  ASSERT_NE(buf, nullptr);
+  ASSERT_EQ(buf->argc, 8);
+  ASSERT_EQ(buf->stack_argc, 16);
+  ASSERT_EQ(buf->resc, 1);
+  ASSERT_EQ(buf->argv[0], 0U);
+  ASSERT_EQ(buf->argv[1], 0xffU);
+  ASSERT_EQ(buf->argv[2], 2U);
+  ASSERT_EQ(buf->argv[3], 3U);
+  ASSERT_EQ(buf->argv[4], 4U);
+  ASSERT_EQ(buf->argv[5], 5U);
+  ASSERT_EQ(buf->argv[6], 6U);
+  ASSERT_EQ(buf->argv[7], 0xf9U);
+  ASSERT_EQ(buf->stack_argv[0], 0xf8U);
+  ASSERT_EQ(buf->stack_argv[1], 9U);
+  buf->argv[0] = 0xf6;
+}
+
+TEST(CodeGenLib, GenWrapGuestFunction_Run10UInt8) {
+  MachineCode machine_code;
+
+  GenWrapGuestFunction(
+      &machine_code, ToGuestAddr(&g_insn), "zzzzzzzzzzz", AsHostCode(Run10UInt8), "Run10UInt8");
+
+  ScopedExecRegion exec(&machine_code);
+
+  using Func = uint8_t(
+      uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  uint8_t res = exec.get<Func>()(0, 0xff, 2, 3, 4, 5, 6, 0xf9, 0xf8, 9);
+  ASSERT_EQ(res, 0xF6u);
+}
+
+void Run10Int8(GuestAddr pc, GuestArgumentBuffer* buf) {
+  ASSERT_EQ(ToGuestAddr(&g_insn), pc);
+  ASSERT_NE(buf, nullptr);
+  ASSERT_EQ(buf->argc, 8);
+  ASSERT_EQ(buf->stack_argc, 16);
+  ASSERT_EQ(buf->resc, 1);
+  ASSERT_EQ(buf->argv[0], 0U);
+  ASSERT_EQ(buf->argv[1], 0xffff'ffff'ffff'ffffULL);
+  ASSERT_EQ(buf->argv[2], 2U);
+  ASSERT_EQ(buf->argv[3], 3U);
+  ASSERT_EQ(buf->argv[4], 4U);
+  ASSERT_EQ(buf->argv[5], 5U);
+  ASSERT_EQ(buf->argv[6], 6U);
+  ASSERT_EQ(buf->argv[7], 0xffff'ffff'ffff'fff9ULL);
+  ASSERT_EQ(buf->stack_argv[0], 0xffff'ffff'ffff'fff8ULL);
+  ASSERT_EQ(buf->stack_argv[1], 9U);
+  buf->argv[0] = 0xffff'ffff'ffff'fff6;
+}
+
+TEST(CodeGenLib, GenWrapGuestFunction_Run10Int8) {
+  MachineCode machine_code;
+
+  GenWrapGuestFunction(
+      &machine_code, ToGuestAddr(&g_insn), "bbbbbbbbbbb", AsHostCode(Run10Int8), "Run10Int8");
+
+  ScopedExecRegion exec(&machine_code);
+
+  using Func =
+      int8_t(int8_t, int8_t, int8_t, int8_t, int8_t, int8_t, int8_t, int8_t, int8_t, int8_t);
+  int8_t res = exec.get<Func>()(0, -1, 2, 3, 4, 5, 6, -7, -8, 9);
+  ASSERT_EQ(res, -10);
+}
+
+void Run10UInt16(GuestAddr pc, GuestArgumentBuffer* buf) {
+  ASSERT_EQ(ToGuestAddr(&g_insn), pc);
+  ASSERT_NE(buf, nullptr);
+  ASSERT_EQ(buf->argc, 8);
+  ASSERT_EQ(buf->stack_argc, 16);
+  ASSERT_EQ(buf->resc, 1);
+  ASSERT_EQ(buf->argv[0], 0U);
+  ASSERT_EQ(buf->argv[1], 0xffffU);
+  ASSERT_EQ(buf->argv[2], 2U);
+  ASSERT_EQ(buf->argv[3], 3U);
+  ASSERT_EQ(buf->argv[4], 4U);
+  ASSERT_EQ(buf->argv[5], 5U);
+  ASSERT_EQ(buf->argv[6], 6U);
+  ASSERT_EQ(buf->argv[7], 0xfff9U);
+  ASSERT_EQ(buf->stack_argv[0], 0xfff8U);
+  ASSERT_EQ(buf->stack_argv[1], 9U);
+  buf->argv[0] = 0xfff6;
+}
+
+TEST(CodeGenLib, GenWrapGuestFunction_Run10UInt16) {
+  MachineCode machine_code;
+
+  GenWrapGuestFunction(
+      &machine_code, ToGuestAddr(&g_insn), "ccccccccccc", AsHostCode(Run10UInt16), "Run10UInt16");
+
+  ScopedExecRegion exec(&machine_code);
+
+  using Func = uint16_t(uint16_t,
+                        uint16_t,
+                        uint16_t,
+                        uint16_t,
+                        uint16_t,
+                        uint16_t,
+                        uint16_t,
+                        uint16_t,
+                        uint16_t,
+                        uint16_t);
+  uint16_t res = exec.get<Func>()(0, 0xffff, 2, 3, 4, 5, 6, 0xfff9, 0xfff8, 9);
+  ASSERT_EQ(res, 0xfff6U);
+}
+
+void Run10Int16(GuestAddr pc, GuestArgumentBuffer* buf) {
+  ASSERT_EQ(ToGuestAddr(&g_insn), pc);
+  ASSERT_NE(buf, nullptr);
+  ASSERT_EQ(buf->argc, 8);
+  ASSERT_EQ(buf->stack_argc, 16);
+  ASSERT_EQ(buf->resc, 1);
+  ASSERT_EQ(buf->argv[0], 0U);
+  ASSERT_EQ(buf->argv[1], 0xffff'ffff'ffff'ffffULL);
+  ASSERT_EQ(buf->argv[2], 2U);
+  ASSERT_EQ(buf->argv[3], 3U);
+  ASSERT_EQ(buf->argv[4], 4U);
+  ASSERT_EQ(buf->argv[5], 5U);
+  ASSERT_EQ(buf->argv[6], 6U);
+  ASSERT_EQ(buf->argv[7], 0xffff'ffff'ffff'fff9ULL);
+  ASSERT_EQ(buf->stack_argv[0], 0xffff'ffff'ffff'fff8ULL);
+  ASSERT_EQ(buf->stack_argv[1], 9U);
+  buf->argv[0] = 0xffff'ffff'ffff'fff6;
+}
+
+TEST(CodeGenLib, GenWrapGuestFunction_Run10Int16) {
+  MachineCode machine_code;
+
+  GenWrapGuestFunction(
+      &machine_code, ToGuestAddr(&g_insn), "sssssssssss", AsHostCode(Run10Int16), "Run10Int16");
+
+  ScopedExecRegion exec(&machine_code);
+
+  using Func = int16_t(
+      int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t);
+  int16_t res = exec.get<Func>()(0, -1, 2, 3, 4, 5, 6, -7, -8, 9);
+  ASSERT_EQ(res, -10);
+}
+
 void Run10Int(GuestAddr pc, GuestArgumentBuffer* buf) {
-  ASSERT_EQ(pc, ToGuestAddr(&g_insn));
-  ASSERT_NE(nullptr, buf);
-  ASSERT_EQ(8, buf->argc);
-  ASSERT_EQ(16, buf->stack_argc);
-  ASSERT_EQ(1, buf->resc);
-  // For 32-bit parameters, only least-significant bits are defined!
-  ASSERT_EQ(0u, static_cast<uint32_t>(buf->argv[0]));
-  ASSERT_EQ(1u, static_cast<uint32_t>(buf->argv[1]));
-  ASSERT_EQ(2u, static_cast<uint32_t>(buf->argv[2]));
-  ASSERT_EQ(3u, static_cast<uint32_t>(buf->argv[3]));
-  ASSERT_EQ(4u, static_cast<uint32_t>(buf->argv[4]));
-  ASSERT_EQ(5u, static_cast<uint32_t>(buf->argv[5]));
-  ASSERT_EQ(6u, static_cast<uint32_t>(buf->argv[6]));
-  ASSERT_EQ(7u, static_cast<uint32_t>(buf->argv[7]));
-  ASSERT_EQ(8u, static_cast<uint32_t>(buf->stack_argv[0]));
-  ASSERT_EQ(9u, static_cast<uint32_t>(buf->stack_argv[1]));
-  buf->argv[0] = 45;
+  ASSERT_EQ(ToGuestAddr(&g_insn), pc);
+  ASSERT_NE(buf, nullptr);
+  ASSERT_EQ(buf->argc, 8);
+  ASSERT_EQ(buf->stack_argc, 16);
+  ASSERT_EQ(buf->resc, 1);
+  ASSERT_EQ(buf->argv[0], 0U);
+  ASSERT_EQ(buf->argv[1], 0xffff'ffff'ffff'ffffULL);
+  ASSERT_EQ(buf->argv[2], 2U);
+  ASSERT_EQ(buf->argv[3], 3U);
+  ASSERT_EQ(buf->argv[4], 4U);
+  ASSERT_EQ(buf->argv[5], 5U);
+  ASSERT_EQ(buf->argv[6], 6U);
+  ASSERT_EQ(buf->argv[7], 0xffff'ffff'ffff'fff9ULL);
+  ASSERT_EQ(buf->stack_argv[0], 0xffff'ffff'ffff'fff8ULL);
+  ASSERT_EQ(buf->stack_argv[1], 9U);
+  buf->argv[0] = 0xffff'ffff'ffff'fff6;
 }
 
 TEST(CodeGenLib, GenWrapGuestFunction_Run10Int) {
@@ -176,8 +315,8 @@ TEST(CodeGenLib, GenWrapGuestFunction_Run10Int) {
   ScopedExecRegion exec(&machine_code);
 
   using Func = int(int, int, int, int, int, int, int, int, int, int);
-  int res = exec.get<Func>()(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-  ASSERT_EQ(45, res);
+  int res = exec.get<Func>()(0, -1, 2, 3, 4, 5, 6, -7, -8, 9);
+  ASSERT_EQ(res, -10);
 }
 
 void Run10Fp(GuestAddr pc, GuestArgumentBuffer* buf) {
