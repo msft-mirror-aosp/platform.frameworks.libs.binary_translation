@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "berberis/runtime_primitives/host_call_frame.h"
+#include "berberis/runtime_primitives/virtual_guest_call_frame.h"
 
 #include <cstdint>
 
@@ -24,7 +24,7 @@
 
 namespace berberis {
 
-GuestAddr ScopedHostCallFrame::g_host_call_frame_guest_pc_ = {};
+GuestAddr ScopedVirtualGuestCallFrame::g_return_address_ = {};
 
 // For RISC-V, guest function preserves at least sp and returns by jumping
 // to address provided in ra. So here ctor emulates the following code:
@@ -48,7 +48,7 @@ GuestAddr ScopedHostCallFrame::g_host_call_frame_guest_pc_ = {};
 //   ld ra, 8(sp)
 //   addi sp, sp, 16
 //
-ScopedHostCallFrame::ScopedHostCallFrame(CPUState* cpu, GuestAddr pc) : cpu_(cpu) {
+ScopedVirtualGuestCallFrame::ScopedVirtualGuestCallFrame(CPUState* cpu, GuestAddr pc) : cpu_(cpu) {
   // addi sp, sp, -16
   SetXReg<SP>(*cpu_, GetXReg<SP>(*cpu_) - 16);
   // sd fp, 0(sp)
@@ -66,13 +66,13 @@ ScopedHostCallFrame::ScopedHostCallFrame(CPUState* cpu, GuestAddr pc) : cpu_(cpu
   program_counter_ = cpu_->insn_addr;
 
   // Set pc and ra as for 'jalr ra, <guest>'.
-  SetXReg<RA>(*cpu_, g_host_call_frame_guest_pc_);
+  SetXReg<RA>(*cpu_, g_return_address_);
   cpu_->insn_addr = pc;
 }
 
-ScopedHostCallFrame::~ScopedHostCallFrame() {
+ScopedVirtualGuestCallFrame::~ScopedVirtualGuestCallFrame() {
   // Safety check - returned to correct pc?
-  CHECK_EQ(g_host_call_frame_guest_pc_, cpu_->insn_addr);
+  CHECK_EQ(g_return_address_, cpu_->insn_addr);
   // Safety check - guest call didn't preserve fp?
   CHECK_EQ(stack_pointer_, GetXReg<FP>(*cpu_));
 

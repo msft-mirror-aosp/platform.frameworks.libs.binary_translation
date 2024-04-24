@@ -26,7 +26,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_arch.h"
 #include "berberis/instrument/guest_call.h"
-#include "berberis/runtime_primitives/host_call_frame.h"
+#include "berberis/runtime_primitives/virtual_guest_call_frame.h"
 
 namespace berberis {
 
@@ -34,7 +34,7 @@ namespace berberis {
 // value is stored in the first argument of the buffer after the call returns.
 //
 // Within the guest call stack, the host has its own call frame. This stack
-// frame is allocated by the ScopedHostCallFrame instance. The host call frame
+// frame is allocated by the ScopedVirtualGuestCallFrame instance. Virtual guest call frame
 // simulates the minimum necessary prologue and epilogue for saving and
 // restoring the frame pointer and return address on the stack. Within that call
 // frame, we can make further adjustments to the stack pointer, such as
@@ -69,7 +69,7 @@ void RunGuestCall(GuestAddr pc, GuestArgumentBuffer* buf) {
 
   ScopedPendingSignalsEnabler scoped_pending_signals_enabler(thread);
 
-  ScopedHostCallFrame host_call_frame(&state->cpu, pc);
+  ScopedVirtualGuestCallFrame virtual_guest_call_frame(&state->cpu, pc);
 
   // Copy argc int and fp_argc float registers for the arguments into the argument buffer.
   memcpy(&(state->cpu.x[A0]), buf->argv, buf->argc * sizeof(buf->argv[0]));
