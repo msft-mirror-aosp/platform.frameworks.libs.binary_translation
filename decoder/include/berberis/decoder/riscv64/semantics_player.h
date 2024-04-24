@@ -415,6 +415,10 @@ class SemanticsPlayer {
                                        return listener_->template Div<int64_t>(arg1, arg2);
                                      case Decoder::OpOpcode::kDivu:
                                        return listener_->template Div<uint64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kRem:
+                                       return listener_->template Rem<int64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kRemu:
+                                       return listener_->template Rem<uint64_t>(arg1, arg2);
                                      case Decoder::OpOpcode::kMax:
                                        return listener_->template Max<int64_t>(arg1, arg2);
                                      case Decoder::OpOpcode::kMaxu:
@@ -453,6 +457,10 @@ class SemanticsPlayer {
                                        return listener_->template Div<int32_t>(arg1, arg2);
                                      case Decoder::Op32Opcode::kDivuw:
                                        return listener_->template Div<uint32_t>(arg1, arg2);
+                                     case Decoder::Op32Opcode::kRemw:
+                                       return listener_->template Rem<int32_t>(arg1, arg2);
+                                     case Decoder::Op32Opcode::kRemuw:
+                                       return listener_->template Rem<uint32_t>(arg1, arg2);
                                      case Decoder::Op32Opcode::kRolw:
                                        return listener_->template Rol<int32_t>(arg1, arg2);
                                      case Decoder::Op32Opcode::kRorw:

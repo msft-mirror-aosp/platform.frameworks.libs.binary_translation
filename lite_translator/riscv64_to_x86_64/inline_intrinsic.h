@@ -373,6 +373,10 @@ class TryBindingBasedInlineIntrinsic {
           Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
               as_, as_.rcx, std::get<arg_info.from>(input_args_));
           return std::tuple{};
+        } else if constexpr (RegisterClass::kAsRegister == 'a') {
+          Mov<std::tuple_element_t<arg_info.from, typename AsmCallInfo::InputArguments>>(
+              as_, as_.rax, std::get<arg_info.from>(input_args_));
+          return std::tuple{};
         } else {
           static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
           static_assert(!RegisterClass::kIsImplicitReg);
@@ -414,6 +418,13 @@ class TryBindingBasedInlineIntrinsic {
           } else {
             return std::tuple{result_};
           }
+        }
+      } else if constexpr (arg_info.arg_type == ArgInfo::OUT_TMP_ARG) {
+        if constexpr (RegisterClass::kAsRegister == 'd') {
+          result_reg_ = as_.rdx;
+          return std::tuple{};
+        } else {
+          static_assert(kDependentValueFalse<arg_info.arg_type>);
         }
       } else if constexpr (arg_info.arg_type == ArgInfo::TMP_ARG) {
         static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||

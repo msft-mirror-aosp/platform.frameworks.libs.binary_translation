@@ -189,10 +189,6 @@ class Interpreter {
         return NarrowTopHalf(Widen(Int64(arg1)) * BitCastToSigned(Widen(UInt64(arg2))));
       case Decoder::OpOpcode::kMulhu:
         return NarrowTopHalf(Widen(UInt64(arg1)) * Widen(UInt64(arg2)));
-      case Decoder::OpOpcode::kRem:
-        return Int64(arg1) % Int64(arg2);
-      case Decoder::OpOpcode::kRemu:
-        return UInt64(arg1) % UInt64(arg2);
       case Decoder::OpOpcode::kAndn:
         return Int64(arg1) & (~Int64(arg2));
       case Decoder::OpOpcode::kOrn:
@@ -219,10 +215,6 @@ class Interpreter {
         return Widen(TruncateTo<Int32>(arg1) >> TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kMulw:
         return Widen(TruncateTo<Int32>(arg1) * TruncateTo<Int32>(arg2));
-      case Decoder::Op32Opcode::kRemw:
-        return Widen(TruncateTo<Int32>(arg1) % TruncateTo<Int32>(arg2));
-      case Decoder::Op32Opcode::kRemuw:
-        return Widen(BitCastToSigned(TruncateTo<UInt32>(arg1) % TruncateTo<UInt32>(arg2)));
       default:
         Undefined();
         return {};
