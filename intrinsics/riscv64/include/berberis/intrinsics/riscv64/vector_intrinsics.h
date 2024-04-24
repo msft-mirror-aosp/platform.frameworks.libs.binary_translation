@@ -1034,6 +1034,12 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(
     div,
     ElementType{std::get<0>(Div(static_cast<typename ElementType::BaseType>(args)...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
+    rem,
+    ElementType{std::get<0>(Rem(static_cast<typename ElementType::BaseType>(args)...))})
+DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(
+    rem,
+    ElementType{std::get<0>(Rem(static_cast<typename ElementType::BaseType>(args)...))})
 
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX(add, (args + ...))

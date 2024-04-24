@@ -182,6 +182,54 @@
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
+    {
+    "name": "Rem<int8_t>",
+    "insn": "RemInt8",
+    "in": [ 1, 0 ],
+    "out": [ 1 ]
+  },
+  {
+    "name": "Rem<uint8_t>",
+    "insn": "RemUInt8",
+    "in": [ 1, 0 ],
+    "out": [ 1 ]
+  },
+  {
+    "name": "Rem<int16_t>",
+    "insn": "RemInt16",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<uint16_t>",
+    "insn": "RemUInt16",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<int32_t>",
+    "insn": "RemInt32",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<uint32_t>",
+    "insn": "RemUInt32",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<int64_t>",
+    "insn": "RemInt64",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<uint64_t>",
+    "insn": "RemUInt64",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
   {
     "name": "FAddHostRounding<Float32>",
     "insn": "AddssXRegXReg",
