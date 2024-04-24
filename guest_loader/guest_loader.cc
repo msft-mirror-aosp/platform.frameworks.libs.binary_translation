@@ -37,9 +37,9 @@
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/kernel_api/sys_mman_emulation.h"
 #include "berberis/proxy_loader/proxy_loader.h"
-#include "berberis/runtime_primitives/host_call_frame.h"
 #include "berberis/runtime_primitives/host_function_wrapper_impl.h"  // MakeTrampolineCallable
 #include "berberis/runtime_primitives/runtime_library.h"             // ExecuteGuestCall
+#include "berberis/runtime_primitives/virtual_guest_call_frame.h"
 #include "berberis/tiny_loader/tiny_loader.h"
 #include "native_bridge_support/linker/static_tls_config.h"
 
@@ -111,7 +111,7 @@ void FillRandomBuf(uint8_t* buf, size_t size) {
   ScopedPendingSignalsEnabler scoped_pending_signals_enabler(main_thread);
 
   CPUState& cpu = state->cpu;
-  ScopedHostCallFrame host_call_frame(&cpu, entry_point);
+  ScopedVirtualGuestCallFrame virtual_guest_call_frame(&cpu, entry_point);
 
   GuestAddr updated_stack = InitKernelArgs(GetStackRegister(cpu),
                                            argc,
@@ -221,7 +221,7 @@ bool InitializeVdso(const LoadedElfFile& vdso_elf_file, std::string* error_msg) 
     *error_msg = "couldn't find \"native_bridge_call_guest\" symbol in vdso";
     return false;
   }
-  InitHostCallFrameGuestPC(ToGuestAddr(call_guest_addr));
+  InitVirtualGuestCallFrameReturnAddress(ToGuestAddr(call_guest_addr));
 
   return true;
 }

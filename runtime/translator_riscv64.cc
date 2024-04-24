@@ -32,11 +32,11 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 #include "berberis/lite_translator/lite_translate_region.h"
 #include "berberis/runtime_primitives/code_pool.h"
-#include "berberis/runtime_primitives/host_call_frame.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/profiler_interface.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 #include "berberis/runtime_primitives/translation_cache.h"
+#include "berberis/runtime_primitives/virtual_guest_call_frame.h"
 
 namespace berberis {
 
@@ -122,7 +122,7 @@ HostCodePiece InstallTranslated(MachineCode* machine_code,
 
 void InitTranslator() {
   UpdateTranslationMode();
-  InitHostCallFrameGuestPC(ToGuestAddr(g_native_bridge_call_guest + 1));
+  InitVirtualGuestCallFrameReturnAddress(ToGuestAddr(g_native_bridge_call_guest + 1));
   InitInterpreter();
 }
 
