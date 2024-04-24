@@ -42,7 +42,6 @@ cc_library_static {
         "code_pool.cc",
         "crash_reporter.cc",
         "guest_function_wrapper_impl.cc",
-        "host_call_frame.cc",
         "host_function_wrapper_impl.cc",
         "known_guest_function_wrapper.cc",
         "platform.cc",
@@ -50,6 +49,7 @@ cc_library_static {
         "recovery_code.cc",
         "signal_queue.cc",
         "translation_cache.cc",
+        "virtual_guest_call_frame.cc",
     ],
     header_libs: [
         "libberberis_code_gen_lib_headers",
@@ -101,8 +101,8 @@ cc_library_static {
     host_supported: true,
     srcs: [
         "checks_riscv64.cc",
-        "host_call_frame_riscv64.cc",
         "interpret_helpers_riscv64.cc",
+        "virtual_guest_call_frame_riscv64.cc",
     ],
     whole_static_libs: [
         "libberberis_runtime_primitives",
@@ -142,11 +142,11 @@ cc_test_library {
     defaults: ["berberis_test_library_defaults_64"],
     host_supported: true,
     srcs: [
-        "host_call_frame_riscv64_test.cc",
         "memory_region_reservation_test.cc",
         // Translation cache test relies on implementation of runtime_library
         // function pointers to link.
         "translation_cache_test.cc",
+        "virtual_guest_call_frame_riscv64_test.cc",
     ],
     header_libs: [
         "berberis_test_utils_headers",
