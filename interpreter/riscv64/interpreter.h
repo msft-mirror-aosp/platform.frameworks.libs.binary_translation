@@ -189,10 +189,6 @@ class Interpreter {
         return NarrowTopHalf(Widen(Int64(arg1)) * BitCastToSigned(Widen(UInt64(arg2))));
       case Decoder::OpOpcode::kMulhu:
         return NarrowTopHalf(Widen(UInt64(arg1)) * Widen(UInt64(arg2)));
-      case Decoder::OpOpcode::kRem:
-        return Int64(arg1) % Int64(arg2);
-      case Decoder::OpOpcode::kRemu:
-        return UInt64(arg1) % UInt64(arg2);
       case Decoder::OpOpcode::kAndn:
         return Int64(arg1) & (~Int64(arg2));
       case Decoder::OpOpcode::kOrn:
@@ -219,10 +215,6 @@ class Interpreter {
         return Widen(TruncateTo<Int32>(arg1) >> TruncateTo<Int32>(arg2));
       case Decoder::Op32Opcode::kMulw:
         return Widen(TruncateTo<Int32>(arg1) * TruncateTo<Int32>(arg2));
-      case Decoder::Op32Opcode::kRemw:
-        return Widen(TruncateTo<Int32>(arg1) % TruncateTo<Int32>(arg2));
-      case Decoder::Op32Opcode::kRemuw:
-        return Widen(BitCastToSigned(TruncateTo<UInt32>(arg1) % TruncateTo<UInt32>(arg2)));
       default:
         Undefined();
         return {};
@@ -2343,6 +2335,12 @@ class Interpreter {
       case Decoder::VOpMVvOpcode::kVdivvv:
         return OpVectorvv<intrinsics::Vdivvv<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVremuvv:
+        return OpVectorvv<intrinsics::Vremvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpMVvOpcode::kVremvv:
+        return OpVectorvv<intrinsics::Vremvv<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, args.src2);
       case Decoder::VOpMVvOpcode::kVmulhuvv:
         return OpVectorvv<intrinsics::Vmulhvv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
@@ -2459,6 +2457,12 @@ class Interpreter {
             args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       case Decoder::VOpMVxOpcode::kVdivvx:
         return OpVectorvx<intrinsics::Vdivvx<SignedType>, SignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpMVxOpcode::kVremuvx:
+        return OpVectorvx<intrinsics::Vremvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpMVxOpcode::kVremvx:
+        return OpVectorvx<intrinsics::Vremvx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       case Decoder::VOpMVxOpcode::kVmulhsuvx:
         return OpVectorvx<intrinsics::Vmulhsuvx<SignedType>, SignedType, vlmul, vta, vma>(
