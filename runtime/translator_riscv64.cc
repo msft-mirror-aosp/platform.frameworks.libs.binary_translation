@@ -58,7 +58,7 @@ enum class TranslationMode {
   kNumModes
 };
 
-TranslationMode g_translation_mode = TranslationMode::kLiteTranslateOrFallbackToInterpret;
+TranslationMode g_translation_mode = TranslationMode::kTwoGear;
 
 void UpdateTranslationMode() {
   // Indices must match TranslationMode enum.
