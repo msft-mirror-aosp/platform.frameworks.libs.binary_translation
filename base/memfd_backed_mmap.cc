@@ -19,11 +19,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include "berberis/base/fd.h"
 #include "berberis/base/large_mmap.h"
 #include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
-
-#include "fd.h"
 
 namespace berberis {
 
