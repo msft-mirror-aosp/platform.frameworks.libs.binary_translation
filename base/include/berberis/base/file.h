@@ -28,6 +28,8 @@ using android::base::Dirname;
 
 using android::base::GetExecutableDirectory;
 
+using android::base::ReadFileToString;
+
 }  // namespace berberis
 
 #endif  // BERBERIS_BASE_FILE_H_
