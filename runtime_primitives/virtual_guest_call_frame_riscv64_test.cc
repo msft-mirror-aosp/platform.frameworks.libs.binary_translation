@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "gtest/gtest.h"
 
 #include <array>
@@ -20,36 +21,36 @@
 
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
-#include "berberis/runtime_primitives/host_call_frame.h"
+#include "berberis/runtime_primitives/virtual_guest_call_frame.h"
 
 namespace berberis {
 
 namespace {
 
-TEST(HostCallFrame, InitPC) {
-  constexpr GuestAddr kHostCallFrameGuestPC = 0xbeefface;
-  ScopedHostCallFrame::SetGuestPC(kHostCallFrameGuestPC);
+TEST(VirtualGuestFrame, InitReturnAddress) {
+  constexpr GuestAddr kVirtualGuestFrameReturnAddress = 0xbeefface;
+  ScopedVirtualGuestCallFrame::SetReturnAddress(kVirtualGuestFrameReturnAddress);
 
   CPUState cpu{};
 
   alignas(uint64_t) std::array<char, 128> stack;
   SetXReg<SP>(cpu, ToGuestAddr(stack.data() + stack.size()));
 
-  ScopedHostCallFrame host_call_frame(&cpu, 0xdeadbeef);
+  ScopedVirtualGuestCallFrame virtual_guest_call_frame(&cpu, 0xdeadbeef);
 
-  EXPECT_EQ(kHostCallFrameGuestPC, GetXReg<RA>(cpu));
+  EXPECT_EQ(kVirtualGuestFrameReturnAddress, GetXReg<RA>(cpu));
 
   // Pretend guest code executed up to return address.
   cpu.insn_addr = GetXReg<RA>(cpu);
 }
 
-void RunHostCall(CPUState* cpu) {
-  ScopedHostCallFrame host_call_frame(cpu, 0xbaaaaaad);
+void RunGuestCall(CPUState* cpu) {
+  ScopedVirtualGuestCallFrame virtual_guest_call_frame(cpu, 0xbaaaaaad);
 
   // Pretend guest code executed up to return address.
   cpu->insn_addr = GetXReg<RA>(*cpu);
 
-  // ScopedHostCallFrame creates a stack frame to represent the host function
+  // ScopedVirtualGuestCallFrame creates a stack frame to represent the host function
   // that is calling guest code. That pseudo-function can make arbitrary
   // adjustments to sp and ra because those are callee-saved registers that are
   // restored when the function returns.
@@ -57,7 +58,7 @@ void RunHostCall(CPUState* cpu) {
   SetXReg<RA>(*cpu, 0xbaadf00d);
 }
 
-TEST(HostCallFrame, Restore) {
+TEST(VirtualGuestFrame, Restore) {
   CPUState cpu{};
 
   alignas(uint64_t) std::array<char, 128> stack;
@@ -69,7 +70,7 @@ TEST(HostCallFrame, Restore) {
   SetXReg<SP>(cpu, sp);
   SetXReg<FP>(cpu, fp);
 
-  RunHostCall(&cpu);
+  RunGuestCall(&cpu);
 
   EXPECT_EQ(ra, GetXReg<RA>(cpu));
   EXPECT_EQ(sp, GetXReg<SP>(cpu));
