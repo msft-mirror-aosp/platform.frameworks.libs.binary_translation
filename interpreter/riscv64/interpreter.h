@@ -2940,7 +2940,7 @@ class Interpreter {
   void OpVectorToMask(uint8_t dst, Args... args) {
     // All args, except dst must be aligned at kRegistersInvolved amount. We'll merge them
     // together and then do a combined check for all of them at once.
-    if (!IsAligned<kRegistersInvolved>(OrValuesOnlyForType<Vec>(args...) | dst)) {
+    if (!IsAligned<kRegistersInvolved>(OrValuesOnlyForType<Vec>(args...))) {
       return Undefined();
     }
     SIMD128Register original_result(state_->cpu.v[dst]);
