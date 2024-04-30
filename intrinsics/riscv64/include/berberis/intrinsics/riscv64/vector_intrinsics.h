@@ -915,6 +915,8 @@ DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(add, std::get<0>(FAdd(FPFlags::DYN
 DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(sub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(sub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(mul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(mul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
 
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fsub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fsub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))

@@ -10547,6 +10547,26 @@ TEST_F(Riscv64InterpreterTest, TestVmul) {
                               {0xe790'194a'efe1'8678, 0xef95'bef0'9587'2c1d},
                               {0xf7a0'2496'3b2c'd1c3, 0xffa5'ca3b'e0d2'7768}},
                              kVectorCalculationsSourceLegacy);
+  TestWideningVectorFloatInstruction(0xe10c1457,  // vfwmul.vv v8, v16, v24, v0.t
+                                     {{0x3330'e53c'6480'0000, 0x34b2'786b'bbc5'4900},
+                                      {0x3234'1766'da4a'6200, 0x33b5'cab6'2d6c'4800},
+                                      {0x3937'92ba'5bd0'8000, 0x3ab9'666a'779a'0d00},
+                                      {0x383b'4565'd61f'6600, 0x39bd'3935'e5bd'8800},
+                                      {0x3f3f'423b'5522'0000, 0x40c0'ab36'1ab7'e880},
+                                      {0x3e41'bab3'e9fa'b500, 0x3fc2'd4dc'5007'e400},
+                                      {0x4543'f9df'a83a'4000, 0x46c5'2438'7aa3'4a80},
+                                      {0x4446'53b6'69e6'3700, 0x45c7'8e1f'2e31'8400}},
+                                     kVectorCalculationsSource);
+  TestWideningVectorFloatInstruction(0xe100d457,  // vfwmul.vf v8, v16, f1, v0.t
+                                     {{0xb886'f0ad'0000'0000, 0xb907'a561'b400'0000},
+                                      {0xb988'5a16'6800'0000, 0xba09'0ecb'1c00'0000},
+                                      {0xba89'c37f'd000'0000, 0xbb0a'7834'8400'0000},
+                                      {0xbb8b'2ce9'3800'0000, 0xbc0b'e19d'ec00'0000},
+                                      {0xbc8c'9652'a000'0000, 0xbd0d'4b07'5400'0000},
+                                      {0xbd8d'ffbc'0800'0000, 0xbe0e'b470'bc00'0000},
+                                      {0xbe8f'6925'7000'0000, 0xbf10'0eed'1200'0000},
+                                      {0xbf90'6947'6c00'0000, 0xc010'c3a1'c600'0000}},
+                                     kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVmulh) {
