@@ -942,7 +942,7 @@ template <typename BaseType>
 template <typename BaseType>
 [[nodiscard]] constexpr auto Widen(intrinsics::WrappedFloatType<BaseType> source) ->
     typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Wide {
-  return {source.value};
+  return {source};
 }
 
 template <typename T>
@@ -971,7 +971,7 @@ template <typename BaseType>
 template <typename BaseType>
 [[nodiscard]] constexpr auto Narrow(intrinsics::WrappedFloatType<BaseType> source) ->
     typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Narrow {
-  return {source.value};
+  return {source};
 }
 
 template <typename T>
