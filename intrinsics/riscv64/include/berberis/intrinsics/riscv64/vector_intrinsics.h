@@ -828,6 +828,16 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
   DEFINE_W_ARITHMETIC_INTRINSIC(Vw##name##vv, Widenvv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, SIMD128Register src2), (), (src1, src2))
 
+#define DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(name, ...) \
+  DEFINE_W_ARITHMETIC_INTRINSIC(                                 \
+      Vfw##name##vv, Widenvv, return ({ __VA_ARGS__; });         \
+      , (int8_t csr, SIMD128Register src1, SIMD128Register src2), (csr), (src1, src2))
+
+#define DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(name, ...) \
+  DEFINE_W_ARITHMETIC_INTRINSIC(                                 \
+      Vfw##name##vf, Widenvv, return ({ __VA_ARGS__; });         \
+      , (int8_t csr, SIMD128Register src1, ElementType src2), (csr), (src1, src2))
+
 #define DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VVW(name, ...)              \
   DEFINE_W_ARITHMETIC_INTRINSIC(                                          \
       Vw##name##vv, Widenvvw, return ({ __VA_ARGS__; });                  \
@@ -901,6 +911,11 @@ DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VX(
     ElementType{std::get<0>(Aadd(csr, static_cast<typename ElementType::BaseType>(args)...))})
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fadd, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fadd, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(sub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(sub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
+
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fsub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fsub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(frsub, auto [arg1, arg2] = std::tuple{args...};
@@ -1095,6 +1110,8 @@ DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WX(
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV
 #undef DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VV
+#undef DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV
+#undef DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VVW
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WV
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX
