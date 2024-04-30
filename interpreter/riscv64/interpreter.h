@@ -1288,6 +1288,20 @@ class Interpreter {
                                  vta,
                                  vma,
                                  kFrm>(args.dst, args.src1, arg2);
+        case Decoder::VOpFVfOpcode::kVfwaddwf:
+          return OpVectorWidenwx<intrinsics::Vfwaddwf<ElementType>,
+                                 ElementType,
+                                 vlmul,
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, args.src1, arg2);
+        case Decoder::VOpFVfOpcode::kVfwsubwf:
+          return OpVectorWidenwx<intrinsics::Vfwsubwf<ElementType>,
+                                 ElementType,
+                                 vlmul,
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, args.src1, arg2);
         default:
           break;
       }
@@ -1502,6 +1516,20 @@ class Interpreter {
                                  kFrm>(args.dst, args.src1, args.src2);
         case Decoder::VOpFVvOpcode::kVfwmulvv:
           return OpVectorWidenvv<intrinsics::Vfwmulvv<ElementType>,
+                                 ElementType,
+                                 vlmul,
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfwaddwv:
+          return OpVectorWidenwv<intrinsics::Vfwaddwv<ElementType>,
+                                 ElementType,
+                                 vlmul,
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfwsubwv:
+          return OpVectorWidenwv<intrinsics::Vfwsubwv<ElementType>,
                                  ElementType,
                                  vlmul,
                                  vta,
