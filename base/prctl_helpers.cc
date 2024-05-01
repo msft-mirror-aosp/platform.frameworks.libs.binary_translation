@@ -16,21 +16,21 @@
 
 #include "berberis/base/prctl_helpers.h"
 
-#if defined(__BIONIC__)
 #include <sys/prctl.h>
-#else
-#include "berberis/base/macros.h"
+
+// These are not defined in our glibc, but are supported in kernel since 5.17 (but not necessarily
+// enabled). It's always enabled in Android kernerls, but otherwise on Linux may be disabled
+// depending on CONFIG_ANON_VMA_NAME boot config flag. So the caller needs to check the result to
+// see if it actually worked.
+#if defined(__GLIBC__)
+#define PR_SET_VMA 0x53564d41
+#define PR_SET_VMA_ANON_NAME 0
 #endif
 
 namespace berberis {
 
 int SetVmaAnonName(void* addr, size_t size, const char* name) {
-#if defined(__BIONIC__)
   return prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, addr, size, name);
-#else
-  UNUSED(addr, size, name);
-  return 0;
-#endif
 }
 
 }  // namespace berberis

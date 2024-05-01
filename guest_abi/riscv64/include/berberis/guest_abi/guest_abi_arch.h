@@ -31,7 +31,7 @@ class GuestAbi {
   enum CallingConventionsVariant {
     kLp64,   // Soft float.
     kLp64d,  // Hardware float and double.
-    kDefaultAbi = kLp64
+    kDefaultAbi = kLp64d
   };
 
   template <typename, CallingConventionsVariant = kDefaultAbi, typename = void>

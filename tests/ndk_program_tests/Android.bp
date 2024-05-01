@@ -87,6 +87,7 @@ cc_test {
     defaults: ["berberis_ndk_program_tests_defaults"],
     shared_libs: ["libz"],
     srcs: [
+        "proc_self_maps_test.cc",
         // TODO(b/187471779): Signal stress test is unstable with high number of repetitions.
         // TODO(b/188086209): Errno emulation is not thread-safe - some checks fail.
         "signal_stress_test.cc",
@@ -202,6 +203,9 @@ cc_test {
     srcs: [
         // TODO(b/187471779): fix for static executable.
         // "handle_not_executable_test.cc",
+        // TODO(b/297942688): We do not support accurate exec bit emulation in /proc/self/maps
+        // on systems without CONFIG_ANON_VMA_NAME.
+        // "proc_self_maps_test.cc",
         // TODO(b/187471779): Signal stress test is unstable with high number of repeatitions.
         // TODO(b/188086209): Errno emulation is not thread-safe - some checks fail.
         // "signal_stress_test.cc",

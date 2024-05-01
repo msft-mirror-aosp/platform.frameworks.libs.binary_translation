@@ -29,10 +29,11 @@
 
 .PHONY: berberis_run_host_tests
 
-# TODO(b/295236834): Add berberis_host_tests_result to berberis_all once the tests pass in
-# post-submit.  They are currently failing due to unimplemented bit vector instructions in
-# stock builds.
-# berberis_all: berberis_host_tests_result
+# Test binaries are build as native bridge targets. So we only enable test runs when native bridge
+# is configured for riscv64.
+ifeq ($(NATIVE_BRIDGE_ABI),riscv64)
+berberis_all: berberis_host_tests_result
+endif
 
 test_dir := $(call intermediates-dir-for,PACKAGING,berberis_tests)
 
