@@ -785,13 +785,9 @@ inline void AssemblerX86<Assembler>::Xchgl(Register dest, Register src) {
     Register other = Assembler::IsAccumulator(src) ? dest : src;
     EmitInstruction<Opcodes<0x90>>(Register32Bit(other));
   } else {
-    // Clang 8 (after r330298) swaps these two arguments.  We are comparing output
+    // Clang 8 (after r330298) puts dest before src.  We are comparing output
     // to clang in exhaustive test thus we want to match clang behavior exactly.
-#if __clang_major__ >= 8
     EmitInstruction<Opcodes<0x87>>(Register32Bit(dest), Register32Bit(src));
-#else
-    EmitInstruction<Opcodes<0x87>>(Register32Bit(src), Register32Bit(dest));
-#endif
   }
 }
 
