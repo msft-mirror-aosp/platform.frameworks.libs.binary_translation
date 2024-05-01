@@ -201,6 +201,12 @@
       "params": ["void*", "void*", "int32"]
     }
   },
+  "__NR_riscv_hwprobe": {
+    "riscv64": {
+      "id": "258",
+      "params": ["struct riscv_hwprobe*", "size_t", "size_t", "unsigned long*", "unsigned int"]
+    }
+  },
   "__NR_rt_sigaction": {
     "custom_reason": "changes signal action"
   },
