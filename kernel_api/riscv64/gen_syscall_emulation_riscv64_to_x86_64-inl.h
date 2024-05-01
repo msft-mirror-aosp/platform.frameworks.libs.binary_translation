@@ -524,6 +524,9 @@ long RunGuestSyscallImpl(long guest_nr,
     case 259:  // __NR_riscv_flush_icache
       // missing on x86_64
       return RunGuestSyscall___NR_riscv_flush_icache(arg_1, arg_2, arg_3);
+    case 258:  // __NR_riscv_hwprobe
+      // missing on x86_64
+      return RunGuestSyscall___NR_riscv_hwprobe(arg_1, arg_2, arg_3, arg_4, arg_5);
     case 293:  // __NR_rseq
       // missing prototype
       KAPI_TRACE("unsupported syscall __NR_rseq");
