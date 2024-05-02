@@ -179,7 +179,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
-  auto Jmp(Condition cc, T* target) -> void = delete;
+  auto Jmp(T* target) -> void = delete;
 
   void Jmp(const void* target) {
     // There are no jump instruction with properties we need thus we emulate it.
@@ -533,22 +533,15 @@ inline void Assembler::Xchgq(Register dest, Register src) {
   // We compare output to that from clang and thus want to produce the same code.
   // 0x48 0x90 is suboptimal encoding for that operation (pure 0x90 does the same
   // and this is what gcc + gas are producing), but this is what clang <= 8 does.
-#if __clang_major__ >= 8
   if (IsAccumulator(src) && IsAccumulator(dest)) {
     Emit8(0x90);
-  } else
-#endif
-  if (IsAccumulator(src) || IsAccumulator(dest)) {
+  } else if (IsAccumulator(src) || IsAccumulator(dest)) {
     Register other = IsAccumulator(src) ? dest : src;
     EmitInstruction<Opcodes<0x90>>(Register64Bit(other));
   } else {
-  // Clang 8 (after r330298) swaps these two arguments.  We are comparing output
+  // Clang 8 (after r330298) puts dest before src.  We are comparing output
   // to clang in exhaustive test thus we want to match clang behavior exactly.
-#if __clang_major__ >= 8
     EmitInstruction<Opcodes<0x87>>(Register64Bit(dest), Register64Bit(src));
-#else
-    EmitInstruction<Opcodes<0x87>>(Register64Bit(src), Register64Bit(dest));
-#endif
   }
 }
 

@@ -469,7 +469,7 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul>
   static constexpr size_t GetVlmax() {
-    constexpr int kElementsCount = static_cast<int>(sizeof(SIMD128Register) / sizeof(ElementType));
+    constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
     switch (vlmul) {
       case VectorRegisterGroupMultiplier::k1register:
         return kElementsCount;
@@ -923,8 +923,7 @@ class Interpreter {
     if (!IsAligned<kIndexRegistersInvolved>(args.idx)) {
       return Undefined();
     }
-    constexpr size_t kElementsCount =
-        static_cast<int>(sizeof(SIMD128Register) / sizeof(IndexElementType));
+    constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(IndexElementType);
     alignas(alignof(SIMD128Register))
         IndexElementType indexes[kElementsCount * kIndexRegistersInvolved];
     memcpy(indexes, state_->cpu.v + args.idx, sizeof(SIMD128Register) * kIndexRegistersInvolved);
@@ -1043,7 +1042,7 @@ class Interpreter {
     if (dst + kNumRegistersInGroup * kSegmentSize >= 32) {
       return Undefined();
     }
-    constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    constexpr size_t kElementsCount = 16 / sizeof(ElementType);
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     if constexpr (opcode == Decoder::VLUmOpOpcode::kVlm) {
@@ -1211,7 +1210,7 @@ class Interpreter {
             auto vma,
             typename GetElementIndexLambdaType>
   void OpVectorGather(uint8_t dst, uint8_t src1, GetElementIndexLambdaType GetElementIndex) {
-    constexpr int kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
+    constexpr size_t kRegistersInvolved = NumberOfRegistersInvolved(vlmul);
     if (!IsAligned<kRegistersInvolved>(dst | src1)) {
       return Undefined();
     }
@@ -1219,7 +1218,7 @@ class Interpreter {
     if (dst < (src1 + kRegistersInvolved) && src1 < (dst + kRegistersInvolved)) {
       return Undefined();
     }
-    constexpr int kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    constexpr size_t kElementsCount = 16 / sizeof(ElementType);
     constexpr size_t vlmax = GetVlmax<ElementType, vlmul>();
 
     size_t vstart = GetCsr<CsrName::kVstart>();
@@ -1283,6 +1282,20 @@ class Interpreter {
                                  kFrm>(args.dst, args.src1, arg2);
         case Decoder::VOpFVfOpcode::kVfwmulvf:
           return OpVectorWidenvx<intrinsics::Vfwmulvf<ElementType>,
+                                 ElementType,
+                                 vlmul,
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, args.src1, arg2);
+        case Decoder::VOpFVfOpcode::kVfwaddwf:
+          return OpVectorWidenwx<intrinsics::Vfwaddwf<ElementType>,
+                                 ElementType,
+                                 vlmul,
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, args.src1, arg2);
+        case Decoder::VOpFVfOpcode::kVfwsubwf:
+          return OpVectorWidenwx<intrinsics::Vfwsubwf<ElementType>,
                                  ElementType,
                                  vlmul,
                                  vta,
@@ -1502,6 +1515,20 @@ class Interpreter {
                                  kFrm>(args.dst, args.src1, args.src2);
         case Decoder::VOpFVvOpcode::kVfwmulvv:
           return OpVectorWidenvv<intrinsics::Vfwmulvv<ElementType>,
+                                 ElementType,
+                                 vlmul,
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfwaddwv:
+          return OpVectorWidenwv<intrinsics::Vfwaddwv<ElementType>,
+                                 ElementType,
+                                 vlmul,
+                                 vta,
+                                 vma,
+                                 kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfwsubwv:
+          return OpVectorWidenwv<intrinsics::Vfwsubwv<ElementType>,
                                  ElementType,
                                  vlmul,
                                  vta,
@@ -2607,8 +2634,7 @@ class Interpreter {
     if (!IsAligned<kIndexRegistersInvolved>(args.idx)) {
       return Undefined();
     }
-    constexpr size_t kElementsCount =
-        static_cast<int>(sizeof(SIMD128Register) / sizeof(IndexElementType));
+    constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(IndexElementType);
     alignas(alignof(SIMD128Register))
         IndexElementType indexes[kElementsCount * kIndexRegistersInvolved];
     memcpy(indexes, state_->cpu.v + args.idx, sizeof(SIMD128Register) * kIndexRegistersInvolved);
@@ -2676,7 +2702,7 @@ class Interpreter {
     if (data + kNumRegistersInGroup * kSegmentSize > 32) {
       return Undefined();
     }
-    constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    constexpr size_t kElementsCount = 16 / sizeof(ElementType);
     size_t vstart = GetCsr<CsrName::kVstart>();
     size_t vl = GetCsr<CsrName::kVl>();
     if constexpr (opcode == Decoder::VSUmOpOpcode::kVsm) {
@@ -2931,7 +2957,7 @@ class Interpreter {
     if (!IsAligned<kRegistersInvolved>(dst | src)) {
       return Undefined();
     }
-    constexpr size_t kElementsCount = static_cast<int>(16 / sizeof(ElementType));
+    constexpr size_t kElementsCount = 16 / sizeof(ElementType);
     size_t vstart = GetCsr<CsrName::kVstart>();
     SetCsr<CsrName::kVstart>(0);
     // The usual property that no elements are written if vstart >= vl does not apply to these
@@ -3565,8 +3591,8 @@ class Interpreter {
     if (!IsAligned<kDestRegistersInvolved>(dst) || !IsAligned<kSourceRegistersInvolved>(src)) {
       return Undefined();
     }
-    int vstart = GetCsr<CsrName::kVstart>();
-    int vl = GetCsr<CsrName::kVl>();
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
     // When vstart >= vl, there are no body elements, and no elements are updated in any destination
     // vector register group, including that no tail elements are updated with agnostic values.
     if (vstart >= vl) [[unlikely]] {
