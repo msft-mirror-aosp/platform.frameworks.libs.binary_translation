@@ -15,8 +15,10 @@
  */
 
 #include <fcntl.h>  // AT_FDCWD, AT_SYMLINK_NOFOLLOW
+#include <linux/sched.h>
 #include <linux/unistd.h>
 #include <sys/stat.h>
+#include <sys/sysinfo.h>
 #include <sys/types.h>
 
 #include <cerrno>
@@ -65,6 +67,35 @@ int FstatatForGuest(int dirfd, const char* path, struct stat* buf, int flags) {
   return syscall(__NR_newfstatat, dirfd, real_path ? real_path : path, buf, flags);
 }
 
+void Hwprobe(Guest_riscv_hwprobe& pair) {
+  switch (pair.key) {
+    case RISCV_HWPROBE_KEY_MVENDORID:
+      pair.value = 0;
+      break;
+    case RISCV_HWPROBE_KEY_MARCHID:
+      pair.value = 0;
+      break;
+    case RISCV_HWPROBE_KEY_MIMPID:
+      pair.value = 0;
+      break;
+    case RISCV_HWPROBE_KEY_BASE_BEHAVIOR:
+      pair.value = RISCV_HWPROBE_BASE_BEHAVIOR_IMA;
+      break;
+    case RISCV_HWPROBE_KEY_IMA_EXT_0:
+      pair.value = RISCV_HWPROBE_IMA_FD | RISCV_HWPROBE_IMA_C | RISCV_HWPROBE_IMA_V |
+                   RISCV_HWPROBE_EXT_ZBA | RISCV_HWPROBE_EXT_ZBB | RISCV_HWPROBE_EXT_ZBS;
+      break;
+    case RISCV_HWPROBE_KEY_CPUPERF_0:
+      pair.value = RISCV_HWPROBE_MISALIGNED_FAST;
+      break;
+    default:
+      TRACE("unsupported __riscv_hwprobe capability key: %ld", pair.key);
+      pair.key = -1;
+      pair.value = 0;
+      break;
+  }
+}
+
 long RunGuestSyscall___NR_execveat(long arg_1, long arg_2, long arg_3, long arg_4, long arg_5) {
   UNUSED(arg_1, arg_2, arg_3, arg_4, arg_5);
   KAPI_TRACE("unimplemented syscall __NR_execveat");
@@ -102,6 +133,29 @@ long RunGuestSyscall___NR_newfstatat(long arg_1, long arg_2, long arg_3, long ar
     ConvertHostStatToGuest(host_stat, bit_cast<Guest_stat*>(arg_3));
   }
   return result;
+}
+
+long RunGuestSyscall___NR_riscv_hwprobe(long arg_1,
+                                        long arg_2,
+                                        long arg_3,
+                                        long arg_4,
+                                        long arg_5) {
+  UNUSED(arg_3, arg_4);  // cpu_count, cpus_in
+
+  // There are currently no flags defined by the kernel. This may change in the future.
+  static constexpr unsigned int kFlagsAll = 0;
+
+  auto pairs = bit_cast<Guest_riscv_hwprobe*>(arg_1);
+  auto pair_count = bit_cast<size_t>(arg_2);
+  auto flags = static_cast<unsigned int>(bit_cast<unsigned long>(arg_5));
+  if ((flags & ~kFlagsAll) != 0) {
+    return -EINVAL;
+  }
+
+  for (size_t i = 0; i < pair_count; ++i) {
+    Hwprobe(pairs[i]);
+  }
+  return 0;
 }
 
 long RunGuestSyscall___NR_riscv_flush_icache(long arg_1, long arg_2, long arg_3) {

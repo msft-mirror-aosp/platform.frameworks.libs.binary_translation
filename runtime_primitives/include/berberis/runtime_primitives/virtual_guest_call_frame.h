@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_RUNTIME_PRIMITIVES_HOST_CALL_FRAME_H_
-#define BERBERIS_RUNTIME_PRIMITIVES_HOST_CALL_FRAME_H_
+#ifndef BERBERIS_RUNTIME_PRIMITIVES_VIRTUAL_GUEST_CALL_FRAME_H_
+#define BERBERIS_RUNTIME_PRIMITIVES_VIRTUAL_GUEST_CALL_FRAME_H_
 
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
@@ -43,15 +43,15 @@ namespace berberis {
 // register.
 //
 // Finally, we need to save the registers that are not preserved by guest function.
-class ScopedHostCallFrame {
+class ScopedVirtualGuestCallFrame {
  public:
-  ScopedHostCallFrame(CPUState* cpu, GuestAddr pc);
-  ~ScopedHostCallFrame();
+  ScopedVirtualGuestCallFrame(CPUState* cpu, GuestAddr pc);
+  ~ScopedVirtualGuestCallFrame();
 
-  static void SetGuestPC(GuestAddr pc) { g_host_call_frame_guest_pc_ = pc; }
+  static void SetReturnAddress(GuestAddr ra) { g_return_address_ = ra; }
 
  private:
-  static GuestAddr g_host_call_frame_guest_pc_;
+  static GuestAddr g_return_address_;
 
   CPUState* cpu_;
 
@@ -62,8 +62,8 @@ class ScopedHostCallFrame {
 };
 
 // Set return address for guest calls. On this address, guest execution will stop.
-void InitHostCallFrameGuestPC(GuestAddr pc);
+void InitVirtualGuestCallFrameReturnAddress(GuestAddr ra);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_RUNTIME_PRIMITIVES_HOST_CALL_FRAME_H_
+#endif  // BERBERIS_RUNTIME_PRIMITIVES_VIRTUAL_GUEST_CALL_FRAME_H_
