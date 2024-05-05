@@ -1039,7 +1039,7 @@ class Interpreter {
     if (!IsAligned<kNumRegistersInGroup>(dst)) {
       return Undefined();
     }
-    if (dst + kNumRegistersInGroup * kSegmentSize >= 32) {
+    if (dst + kNumRegistersInGroup * kSegmentSize > 32) {
       return Undefined();
     }
     constexpr size_t kElementsCount = 16 / sizeof(ElementType);
