@@ -183,7 +183,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
-  auto Jmp(Condition cc, T* target) -> void = delete;
+  auto Jmp(T* target) -> void = delete;
 
   void Jmp(const void* target) {
     Emit8(0xe9);
