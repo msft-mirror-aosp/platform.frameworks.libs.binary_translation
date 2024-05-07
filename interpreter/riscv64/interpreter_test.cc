@@ -2662,6 +2662,69 @@ TEST_F(Riscv64InterpreterTest, TestRNU) {
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000}},
       kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(0xb900c457,  // Vnclipu.wx v8, v16, x1, v0.t
+                                 {{32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 39, 39, 40},
+                                  {40, 41, 41, 42, 42, 43, 43, 44, 44, 45, 45, 46, 46, 47, 47, 48},
+                                  {48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55, 56},
+                                  {56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63, 64}},
+                                 {{0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff}},
+                                 {{0x0021'c1a1, 0x0023'c3a3, 0x0025'c5a5, 0x0027'c7a7},
+                                  {0x0029'c9a9, 0x002b'cbab, 0x002d'cdad, 0x002f'cfaf},
+                                  {0x0031'd1b1, 0x0033'd3b3, 0x0035'd5b5, 0x0037'd7b7},
+                                  {0x0039'd9b9, 0x003b'dbbb, 0x003d'ddbd, 0x003f'dfbf}},
+                                 kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xbd00c457,  // Vnclip.wx v8, v16, x1, v0.t
+      {{224, 225, 225, 226, 226, 227, 227, 228, 228, 229, 229, 230, 230, 231, 231, 232},
+       {232, 233, 233, 234, 234, 235, 235, 236, 236, 237, 237, 238, 238, 239, 239, 240},
+       {240, 241, 241, 242, 242, 243, 243, 244, 244, 245, 245, 246, 246, 247, 247, 248},
+       {248, 249, 249, 250, 250, 251, 251, 252, 252, 253, 253, 254, 254, 255, 255, 0}},
+      {{0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0xdfbf}},
+      {{0xffe1'c1a1, 0xffe3'c3a3, 0xffe5'c5a5, 0xffe7'c7a7},
+       {0xffe9'c9a9, 0xffeb'cbab, 0xffed'cdad, 0xffef'cfaf},
+       {0xfff1'd1b1, 0xfff3'd3b3, 0xfff5'd5b5, 0xfff7'd7b7},
+       {0xfff9'd9b9, 0xfffb'dbbb, 0xfffd'ddbd, 0xffff'dfbf}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xb90c0457,  // Vnclipu.wv v8, v16, v24, v0.t
+      {{255, 255, 255, 255, 69, 35, 9, 2, 255, 255, 255, 255, 153, 39, 10, 2},
+       {255, 255, 255, 255, 85, 43, 11, 3, 255, 255, 255, 255, 185, 47, 12, 3},
+       {255, 255, 255, 255, 101, 51, 13, 3, 255, 255, 255, 255, 217, 55, 14, 3},
+       {255, 255, 255, 255, 117, 59, 15, 4, 255, 255, 255, 255, 249, 63, 16, 4}},
+      {{0xffff, 0xffff, 0xffff, 0xffff, 0x4989, 0x0971, 0x009b, 0x000a},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x5999, 0x0b73, 0x00bb, 0x000c},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x69a9, 0x0d75, 0x00db, 0x000e},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x79b9, 0x0f77, 0x00fb, 0x0010}},
+      {{0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
+       {0xa726'a525, 0x0057'9757, 0x0000'5b9b, 0x0000'00bf},
+       {0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
+       {0xe766'e565, 0x0077'b777, 0x0000'7bbb, 0x0000'00ff}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xbd0c0457,  // Vnclip.wv v8, v16, v24, v0.t
+      {{128, 128, 128, 128, 197, 227, 249, 254, 128, 128, 128, 128, 153, 231, 250, 254},
+       {128, 128, 128, 128, 213, 235, 251, 255, 128, 128, 128, 128, 185, 239, 252, 255},
+       {128, 128, 128, 128, 229, 243, 253, 255, 128, 128, 128, 128, 217, 247, 254, 255},
+       {128, 128, 128, 158, 245, 251, 255, 0, 128, 128, 128, 222, 249, 255, 0, 0}},
+      {{0x8000, 0x8000, 0x8000, 0x8000, 0xc989, 0xf971, 0xff9b, 0xfffa},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xd999, 0xfb73, 0xffbb, 0xfffc},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xe9a9, 0xfd75, 0xffdb, 0xfffe},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xf9b9, 0xff77, 0xfffb, 0x0000}},
+      {{0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0xa726'a525, 0xffd7'9757, 0xffff'db9b, 0xffff'ffbf},
+       {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0xe766'e565, 0xfff7'b777, 0xffff'fbbb, 0xffff'ffff}},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestRNE) {
@@ -2973,6 +3036,69 @@ TEST_F(Riscv64InterpreterTest, TestRNE) {
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(0xb900c457,  // Vnclipu.wx v8, v16, x1, v0.t
+                                 {{32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 39, 39, 40},
+                                  {40, 41, 41, 42, 42, 43, 43, 44, 44, 45, 45, 46, 46, 47, 47, 48},
+                                  {48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55, 56},
+                                  {56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63, 64}},
+                                 {{0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff}},
+                                 {{0x0021'c1a1, 0x0023'c3a3, 0x0025'c5a5, 0x0027'c7a7},
+                                  {0x0029'c9a9, 0x002b'cbab, 0x002d'cdad, 0x002f'cfaf},
+                                  {0x0031'd1b1, 0x0033'd3b3, 0x0035'd5b5, 0x0037'd7b7},
+                                  {0x0039'd9b9, 0x003b'dbbb, 0x003d'ddbd, 0x003f'dfbf}},
+                                 kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xbd00c457,  // Vnclip.wx v8, v16, x1, v0.t
+      {{224, 225, 225, 226, 226, 227, 227, 228, 228, 229, 229, 230, 230, 231, 231, 232},
+       {232, 233, 233, 234, 234, 235, 235, 236, 236, 237, 237, 238, 238, 239, 239, 240},
+       {240, 241, 241, 242, 242, 243, 243, 244, 244, 245, 245, 246, 246, 247, 247, 248},
+       {248, 249, 249, 250, 250, 251, 251, 252, 252, 253, 253, 254, 254, 255, 255, 0}},
+      {{0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0xdfbf}},
+      {{0xffe1'c1a1, 0xffe3'c3a3, 0xffe5'c5a5, 0xffe7'c7a7},
+       {0xffe9'c9a9, 0xffeb'cbab, 0xffed'cdad, 0xffef'cfaf},
+       {0xfff1'd1b1, 0xfff3'd3b3, 0xfff5'd5b5, 0xfff7'd7b7},
+       {0xfff9'd9b9, 0xfffb'dbbb, 0xfffd'ddbd, 0xffff'dfbf}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xb90c0457,  // Vnclipu.wv v8, v16, v24, v0.t
+      {{255, 255, 255, 255, 69, 35, 9, 2, 255, 255, 255, 255, 153, 39, 10, 2},
+       {255, 255, 255, 255, 85, 43, 11, 3, 255, 255, 255, 255, 185, 47, 12, 3},
+       {255, 255, 255, 255, 101, 51, 13, 3, 255, 255, 255, 255, 217, 55, 14, 3},
+       {255, 255, 255, 255, 117, 59, 15, 4, 255, 255, 255, 255, 249, 63, 16, 4}},
+      {{0xffff, 0xffff, 0xffff, 0xffff, 0x4989, 0x0971, 0x009b, 0x000a},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x5999, 0x0b73, 0x00bb, 0x000c},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x69a9, 0x0d75, 0x00db, 0x000e},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x79b9, 0x0f77, 0x00fb, 0x0010}},
+      {{0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
+       {0xa726'a525, 0x0057'9757, 0x0000'5b9b, 0x0000'00bf},
+       {0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
+       {0xe766'e565, 0x0077'b777, 0x0000'7bbb, 0x0000'00ff}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xbd0c0457,  // Vnclip.wv v8, v16, v24, v0.t
+      {{128, 128, 128, 128, 197, 227, 249, 254, 128, 128, 128, 128, 153, 231, 250, 254},
+       {128, 128, 128, 128, 213, 235, 251, 255, 128, 128, 128, 128, 185, 239, 252, 255},
+       {128, 128, 128, 128, 229, 243, 253, 255, 128, 128, 128, 128, 217, 247, 254, 255},
+       {128, 128, 128, 158, 245, 251, 255, 0, 128, 128, 128, 222, 249, 255, 0, 0}},
+      {{0x8000, 0x8000, 0x8000, 0x8000, 0xc989, 0xf971, 0xff9b, 0xfffa},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xd999, 0xfb73, 0xffbb, 0xfffc},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xe9a9, 0xfd75, 0xffdb, 0xfffe},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xf9b9, 0xff77, 0xfffb, 0x0000}},
+      {{0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0xa726'a525, 0xffd7'9757, 0xffff'db9b, 0xffff'ffbf},
+       {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0xe766'e565, 0xfff7'b777, 0xffff'fbbb, 0xffff'ffff}},
       kVectorCalculationsSource);
 }
 
@@ -3286,6 +3412,69 @@ TEST_F(Riscv64InterpreterTest, TestRDN) {
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000}},
       kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(0xb900c457,  // Vnclipu.wx v8, v16, x1, v0.t
+                                 {{32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 39, 39},
+                                  {40, 40, 41, 41, 42, 42, 43, 43, 44, 44, 45, 45, 46, 46, 47, 47},
+                                  {48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55},
+                                  {56, 56, 57, 57, 58, 58, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63}},
+                                 {{0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff}},
+                                 {{0x0021'c1a1, 0x0023'c3a3, 0x0025'c5a5, 0x0027'c7a7},
+                                  {0x0029'c9a9, 0x002b'cbab, 0x002d'cdad, 0x002f'cfaf},
+                                  {0x0031'd1b1, 0x0033'd3b3, 0x0035'd5b5, 0x0037'd7b7},
+                                  {0x0039'd9b9, 0x003b'dbbb, 0x003d'ddbd, 0x003f'dfbf}},
+                                 kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xbd00c457,  // Vnclip.wx v8, v16, x1, v0.t
+      {{224, 224, 225, 225, 226, 226, 227, 227, 228, 228, 229, 229, 230, 230, 231, 231},
+       {232, 232, 233, 233, 234, 234, 235, 235, 236, 236, 237, 237, 238, 238, 239, 239},
+       {240, 240, 241, 241, 242, 242, 243, 243, 244, 244, 245, 245, 246, 246, 247, 247},
+       {248, 248, 249, 249, 250, 250, 251, 251, 252, 252, 253, 253, 254, 254, 255, 255}},
+      {{0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0xdfbf}},
+      {{0xffe1'c1a1, 0xffe3'c3a3, 0xffe5'c5a5, 0xffe7'c7a7},
+       {0xffe9'c9a9, 0xffeb'cbab, 0xffed'cdad, 0xffef'cfaf},
+       {0xfff1'd1b1, 0xfff3'd3b3, 0xfff5'd5b5, 0xfff7'd7b7},
+       {0xfff9'd9b9, 0xfffb'dbbb, 0xfffd'ddbd, 0xffff'dfbf}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xb90c0457,  // Vnclipu.wv v8, v16, v24, v0.t
+      {{255, 255, 255, 255, 68, 34, 8, 2, 255, 255, 255, 255, 153, 38, 9, 2},
+       {255, 255, 255, 255, 84, 42, 10, 2, 255, 255, 255, 255, 185, 46, 11, 2},
+       {255, 255, 255, 255, 100, 50, 12, 3, 255, 255, 255, 255, 217, 54, 13, 3},
+       {255, 255, 255, 255, 116, 58, 14, 3, 255, 255, 255, 255, 249, 62, 15, 3}},
+      {{0xffff, 0xffff, 0xffff, 0xffff, 0x4989, 0x0971, 0x009b, 0x0009},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x5999, 0x0b73, 0x00bb, 0x000b},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x69a9, 0x0d75, 0x00db, 0x000d},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x79b9, 0x0f77, 0x00fb, 0x000f}},
+      {{0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
+       {0xa726'a524, 0x0057'9756, 0x0000'5b9b, 0x0000'00bf},
+       {0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
+       {0xe766'e564, 0x0077'b776, 0x0000'7bbb, 0x0000'00ff}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xbd0c0457,  // Vnclip.wv v8, v16, v24, v0.t
+      {{128, 128, 128, 128, 196, 226, 248, 254, 128, 128, 128, 128, 153, 230, 249, 254},
+       {128, 128, 128, 128, 212, 234, 250, 254, 128, 128, 128, 128, 185, 238, 251, 254},
+       {128, 128, 128, 128, 228, 242, 252, 255, 128, 128, 128, 128, 217, 246, 253, 255},
+       {128, 128, 128, 157, 244, 250, 254, 255, 128, 128, 128, 221, 249, 254, 255, 255}},
+      {{0x8000, 0x8000, 0x8000, 0x8000, 0xc989, 0xf971, 0xff9b, 0xfff9},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xd999, 0xfb73, 0xffbb, 0xfffb},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xe9a9, 0xfd75, 0xffdb, 0xfffd},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xf9b9, 0xff77, 0xfffb, 0xffff}},
+      {{0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0xa726'a524, 0xffd7'9756, 0xffff'db9b, 0xffff'ffbf},
+       {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0xe766'e564, 0xfff7'b776, 0xffff'fbbb, 0xffff'ffff}},
+      kVectorCalculationsSource);
 }
 
 TEST_F(Riscv64InterpreterTest, TestROD) {
@@ -3597,6 +3786,69 @@ TEST_F(Riscv64InterpreterTest, TestROD) {
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
        {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(0xb900c457,  // Vnclipu.wx v8, v16, x1, v0.t
+                                 {{33, 33, 33, 33, 35, 35, 35, 35, 37, 37, 37, 37, 39, 39, 39, 39},
+                                  {41, 41, 41, 41, 43, 43, 43, 43, 45, 45, 45, 45, 47, 47, 47, 47},
+                                  {49, 49, 49, 49, 51, 51, 51, 51, 53, 53, 53, 53, 55, 55, 55, 55},
+                                  {57, 57, 57, 57, 59, 59, 59, 59, 61, 61, 61, 61, 63, 63, 63, 63}},
+                                 {{0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff},
+                                  {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff}},
+                                 {{0x0021'c1a1, 0x0023'c3a3, 0x0025'c5a5, 0x0027'c7a7},
+                                  {0x0029'c9a9, 0x002b'cbab, 0x002d'cdad, 0x002f'cfaf},
+                                  {0x0031'd1b1, 0x0033'd3b3, 0x0035'd5b5, 0x0037'd7b7},
+                                  {0x0039'd9b9, 0x003b'dbbb, 0x003d'ddbd, 0x003f'dfbf}},
+                                 kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xbd00c457,  // Vnclip.wx v8, v16, x1, v0.t
+      {{225, 225, 225, 225, 227, 227, 227, 227, 229, 229, 229, 229, 231, 231, 231, 231},
+       {233, 233, 233, 233, 235, 235, 235, 235, 237, 237, 237, 237, 239, 239, 239, 239},
+       {241, 241, 241, 241, 243, 243, 243, 243, 245, 245, 245, 245, 247, 247, 247, 247},
+       {249, 249, 249, 249, 251, 251, 251, 251, 253, 253, 253, 253, 255, 255, 255, 255}},
+      {{0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0xdfbf}},
+      {{0xffe1'c1a1, 0xffe3'c3a3, 0xffe5'c5a5, 0xffe7'c7a7},
+       {0xffe9'c9a9, 0xffeb'cbab, 0xffed'cdad, 0xffef'cfaf},
+       {0xfff1'd1b1, 0xfff3'd3b3, 0xfff5'd5b5, 0xfff7'd7b7},
+       {0xfff9'd9b9, 0xfffb'dbbb, 0xfffd'ddbd, 0xffff'dfbf}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xb90c0457,  // Vnclipu.wv v8, v16, v24, v0.t
+      {{255, 255, 255, 255, 69, 35, 9, 3, 255, 255, 255, 255, 153, 39, 9, 3},
+       {255, 255, 255, 255, 85, 43, 11, 3, 255, 255, 255, 255, 185, 47, 11, 3},
+       {255, 255, 255, 255, 101, 51, 13, 3, 255, 255, 255, 255, 217, 55, 13, 3},
+       {255, 255, 255, 255, 117, 59, 15, 3, 255, 255, 255, 255, 249, 63, 15, 3}},
+      {{0xffff, 0xffff, 0xffff, 0xffff, 0x4989, 0x0971, 0x009b, 0x0009},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x5999, 0x0b73, 0x00bb, 0x000b},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x69a9, 0x0d75, 0x00db, 0x000d},
+       {0xffff, 0xffff, 0xffff, 0xffff, 0x79b9, 0x0f77, 0x00fb, 0x000f}},
+      {{0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
+       {0xa726'a525, 0x0057'9757, 0x0000'5b9b, 0x0000'00bf},
+       {0xffff'ffff, 0xffff'ffff, 0xffff'ffff, 0xffff'ffff},
+       {0xe766'e565, 0x0077'b777, 0x0000'7bbb, 0x0000'00ff}},
+      kVectorCalculationsSource);
+
+  TestNarrowingVectorInstruction(
+      0xbd0c0457,  // Vnclip.wv v8, v16, v24, v0.t
+      {{128, 128, 128, 128, 197, 227, 249, 255, 128, 128, 128, 128, 153, 231, 249, 255},
+       {128, 128, 128, 128, 213, 235, 251, 255, 128, 128, 128, 128, 185, 239, 251, 255},
+       {128, 128, 128, 128, 229, 243, 253, 255, 128, 128, 128, 128, 217, 247, 253, 255},
+       {128, 128, 128, 157, 245, 251, 255, 255, 128, 128, 128, 221, 249, 255, 255, 255}},
+      {{0x8000, 0x8000, 0x8000, 0x8000, 0xc989, 0xf971, 0xff9b, 0xfff9},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xd999, 0xfb73, 0xffbb, 0xfffb},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xe9a9, 0xfd75, 0xffdb, 0xfffd},
+       {0x8000, 0x8000, 0x8000, 0x8000, 0xf9b9, 0xff77, 0xfffb, 0xffff}},
+      {{0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0xa726'a525, 0xffd7'9757, 0xffff'db9b, 0xffff'ffbf},
+       {0x8000'0000, 0x8000'0000, 0x8000'0000, 0x8000'0000},
+       {0xe766'e565, 0xfff7'b777, 0xffff'fbbb, 0xffff'ffff}},
       kVectorCalculationsSource);
 }
 

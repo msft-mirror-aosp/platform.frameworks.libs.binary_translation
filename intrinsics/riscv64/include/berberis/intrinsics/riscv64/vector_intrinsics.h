@@ -873,6 +873,11 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
   DEFINE_W_ARITHMETIC_INTRINSIC(Vn##name##wx, Narrowwv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, ElementType src2), (), (src1, src2))
 
+#define DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WV(name, ...) \
+  DEFINE_W_ARITHMETIC_INTRINSIC(                                  \
+      Vn##name##wv, Narrowwv, return ({ __VA_ARGS__; });          \
+      , (int8_t csr, SIMD128Register src1, SIMD128Register src2), (csr), (src1, src2))
+
 #define DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WX(name, ...) \
   DEFINE_W_ARITHMETIC_INTRINSIC(                                  \
       Vn##name##wx, Narrowwv, return ({ __VA_ARGS__; });          \
@@ -1103,6 +1108,10 @@ DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(sr, auto [arg1, arg2] = std::tuple{arg
                                           (arg1 >> arg2))
 DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{args...};
                                           (arg1 >> arg2))
+DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WV(
+    clip,
+    WideType<ElementType>{(std::get<0>(
+        Roundoff(csr, static_cast<typename WideType<ElementType>::BaseType>(args)...)))})
 DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WX(
     clip,
     WideType<ElementType>{(std::get<0>(
