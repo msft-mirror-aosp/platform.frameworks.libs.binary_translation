@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include <cstdint>
 #include <tuple>
 
 namespace {
@@ -53,8 +54,80 @@ constexpr __v2du kVectorCalculationsSource[16] = {
 constexpr __v2du kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 constexpr __v2du kAgnosticResult = {~uint64_t{0U}, ~uint64_t{0U}};
 
+// Mask in form suitable for storing in v0 and use in v0.t form.
+static constexpr __v2du kMask = {0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5};
+
+using ExecInsnFunc = void (*)();
+
+void RunTwoVectorArgsOneRes(ExecInsnFunc exec_insn,
+                            const __v2du* src,
+                            __v2du* res,
+                            uint64_t vtype,
+                            uint64_t vlmax) {
+  uint64_t vstart, vl;
+  // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
+  // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
+  asm(  // Load arguments and undisturbed result.
+      "vsetvli t0, zero, e64, m8, ta, ma\n\t"
+      "vle64.v v8, (%[res])\n\t"
+      "vle64.v v16, (%[src])\n\t"
+      "addi t0, %[src], 128\n\t"
+      "vle64.v v24, (t0)\n\t"
+      // Load mask.
+      "vsetvli t0, zero, e64, m1, ta, ma\n\t"
+      "vle64.v v0, (%[mask])\n\t"
+      // Execute tested instruction.
+      "vsetvl t0, zero, %[vtype]\n\t"
+      "jalr %[exec_insn]\n\t"
+      // Save vstart and vl just after insn execution for checks.
+      "csrr %[vstart], vstart\n\t"
+      "csrr %[vl], vl\n\t"
+      // Store the result.
+      "vsetvli t0, zero, e64, m8, ta, ma\n\t"
+      "vse64.v v8, (%[res])\n\t"
+      : [vstart] "=&r"(vstart), [vl] "=&r"(vl)
+      : [exec_insn] "r"(exec_insn),
+        [src] "r"(src),
+        [res] "r"(res),
+        [vtype] "r"(vtype),
+        [mask] "r"(&kMask)
+      : "t0",
+        "ra",
+        "v0",
+        "v8",
+        "v9",
+        "v10",
+        "v11",
+        "v12",
+        "v13",
+        "v14",
+        "v15",
+        "v16",
+        "v17",
+        "v18",
+        "v19",
+        "v20",
+        "v21",
+        "v22",
+        "v23",
+        "v24",
+        "v25",
+        "v26",
+        "v27",
+        "v28",
+        "v29",
+        "v30",
+        "v31",
+        "memory");
+  // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+  EXPECT_EQ(vstart, 0);
+  EXPECT_EQ(vl, vlmax);
+}
+
 template <typename... ExpectedResultType>
 void TestVectorReductionInstruction(
+    ExecInsnFunc exec_insn,
+    ExecInsnFunc exec_masked_insn,
     const __v2du (&source)[16],
     std::tuple<const ExpectedResultType (&)[8],
                const ExpectedResultType (&)[8]>... expected_result) {
@@ -62,7 +135,10 @@ void TestVectorReductionInstruction(
   // of the possible vlmul, i.e. expected_result_vd0_int8[n] = vd[0], int8, no mask, vlmul=n.
   //
   // As vlmul=4 is reserved, expected_result_vd0_*[4] is ignored.
-  auto Verify = [&source](uint8_t vsew, uint8_t vlmul, const auto& expected_result) {
+  auto Verify = [&source](ExecInsnFunc exec_insn,
+                          uint8_t vsew,
+                          uint8_t vlmul,
+                          const auto& expected_result) {
     for (uint8_t vta = 0; vta < 2; ++vta) {
       for (uint8_t vma = 0; vma < 2; ++vma) {
         uint64_t vtype = (vma << 7) | (vta << 6) | (vsew << 3) | vlmul;
@@ -78,55 +154,7 @@ void TestVectorReductionInstruction(
           memcpy(&result[index], &kUndisturbedResult, sizeof(result[index]));
         }
 
-        uint64_t vstart, vl;
-
-        asm(  // Load arguments and undisturbed result.
-            "vsetvli t0, zero, e64, m8, ta, ma\n\t"
-            "vle64.v v8, (%[res])\n\t"
-            "vle64.v v16, (%[src])\n\t"
-            "addi t0, %[src], 128\n\t"
-            "vle64.v v24, (t0)\n\t"
-            // Execute tested instruction.
-            "vsetvl t0, zero, %[vtype]\n\t"
-            "vredsum.vs v8,v16,v24\n\t"
-            // Save vstart and vl just after insn execution for checks.
-            "csrr %[vstart], vstart\n\t"
-            "csrr %[vl], vl\n\t"
-            // Store the result.
-            "vsetvli t0, zero, e64, m8, ta, ma\n\t"
-            "vse64.v v8, (%[res])\n\t"
-            : [vstart] "=&r"(vstart), [vl] "=&r"(vl)
-            : [src] "r"(&kVectorCalculationsSource[0]), [res] "r"(&result[0]), [vtype] "r"(vtype)
-            : "t0",
-              "v8",
-              "v9",
-              "v10",
-              "v11",
-              "v12",
-              "v13",
-              "v14",
-              "v15",
-              "v16",
-              "v17",
-              "v18",
-              "v19",
-              "v20",
-              "v21",
-              "v22",
-              "v23",
-              "v24",
-              "v25",
-              "v26",
-              "v27",
-              "v28",
-              "v29",
-              "v30",
-              "v31",
-              "memory");
-
-        // Every vector instruction must set vstart to 0, but shouldn't touch vl.
-        EXPECT_EQ(vstart, 0);
-        EXPECT_EQ(vl, vlmax);
+        RunTwoVectorArgsOneRes(exec_insn, &kVectorCalculationsSource[0], &result[0], vtype, vlmax);
 
         // Reduction instructions are unique in that they produce a scalar
         // output to a single vector register as opposed to a register group.
@@ -161,13 +189,21 @@ void TestVectorReductionInstruction(
   };
 
   for (int vlmul = 0; vlmul < 8; vlmul++) {
-    // TODO(b/301577077): Also test masked versions.
-    ((Verify(BitUtilLog2(sizeof(ExpectedResultType)), vlmul, std::get<0>(expected_result)[vlmul]),
-      ...));
+    ((Verify(exec_insn,
+             BitUtilLog2(sizeof(ExpectedResultType)),
+             vlmul,
+             std::get<0>(expected_result)[vlmul]),
+      Verify(exec_masked_insn,
+             BitUtilLog2(sizeof(ExpectedResultType)),
+             vlmul,
+             std::get<1>(expected_result)[vlmul])),
+     ...);
   }
 }
 
-void TestVectorReductionInstruction(const uint8_t (&expected_result_vd0_int8)[8],
+void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
+                                    ExecInsnFunc exec_masked_insn,
+                                    const uint8_t (&expected_result_vd0_int8)[8],
                                     const uint16_t (&expected_result_vd0_int16)[8],
                                     const uint32_t (&expected_result_vd0_int32)[8],
                                     const uint64_t (&expected_result_vd0_int64)[8],
@@ -177,6 +213,8 @@ void TestVectorReductionInstruction(const uint8_t (&expected_result_vd0_int8)[8]
                                     const uint64_t (&expected_result_vd0_with_mask_int64)[8],
                                     const __v2du (&source)[16]) {
   TestVectorReductionInstruction(
+      exec_insn,
+      exec_masked_insn,
       source,
       std::tuple<const uint8_t(&)[8], const uint8_t(&)[8]>{expected_result_vd0_int8,
                                                            expected_result_vd0_with_mask_int8},
@@ -188,8 +226,20 @@ void TestVectorReductionInstruction(const uint8_t (&expected_result_vd0_int8)[8]
                                                              expected_result_vd0_with_mask_int64});
 }
 
+[[gnu::naked]] void ExecVredsum() {
+  asm("vredsum.vs v8,v16,v24\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVredsum() {
+  asm("vredsum.vs v8,v16,v24,v0.t\n\t"
+      "ret\n\t");
+}
+
 TEST(InlineAsmTestRiscv64, TestVredsum) {
   TestVectorReductionInstruction(
+      ExecVredsum,
+      ExecMaskedVredsum,
       // expected_result_vd0_int8
       {242, 228, 200, 144, /* unused */ 0, 146, 44, 121},
       // expected_result_vd0_int16
