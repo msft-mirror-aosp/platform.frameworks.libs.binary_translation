@@ -1322,6 +1322,10 @@ class Interpreter {
       case Decoder::VOpFVfOpcode::kVfsgnjxvf:
         return OpVectorvx<intrinsics::Vfsgnjxvx<ElementType>, ElementType, vlmul, vta, vma>(
             args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfslide1upvf:
+        return OpVectorslide1up<ElementType, vlmul, vta, vma>(args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfslide1downvf:
+        return OpVectorslide1down<ElementType, vlmul, vta, vma>(args.dst, args.src1, arg2);
       case Decoder::VOpFVfOpcode::kVfmvsf:
         if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
           return Undefined();
