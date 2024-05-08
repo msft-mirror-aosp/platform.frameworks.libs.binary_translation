@@ -154,7 +154,12 @@ void TestVectorReductionInstruction(
           memcpy(&result[index], &kUndisturbedResult, sizeof(result[index]));
         }
 
-        RunTwoVectorArgsOneRes(exec_insn, &kVectorCalculationsSource[0], &result[0], vtype, vlmax);
+        // Exectations for reductions are for swapped source arguments.
+        __v2du sources[16]{};
+        memcpy(&sources[0], &kVectorCalculationsSource[8], sizeof(sources[0]) * 8);
+        memcpy(&sources[8], &kVectorCalculationsSource[0], sizeof(sources[0]) * 8);
+
+        RunTwoVectorArgsOneRes(exec_insn, &sources[0], &result[0], vtype, vlmax);
 
         // Reduction instructions are unique in that they produce a scalar
         // output to a single vector register as opposed to a register group.
