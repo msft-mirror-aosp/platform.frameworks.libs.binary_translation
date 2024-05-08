@@ -1224,7 +1224,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
         // instructions that work with double width floats.
         // These instructions never use float registers though and thus we don't need to store
         // anything into f1 register, if they are used.
-        // For Float32/Float64 case we load 1.0 of the appropriate type into f1.
+        // For Float32/Float64 case we load 5.625 of the appropriate type into f1.
         ASSERT_LE(vsew, 3);
         if (vsew == 2) {
           SetFReg<1>(state_.cpu, 0xffff'ffff'40b4'0000);  // float 5.625
@@ -1341,19 +1341,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
                  (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening),
              8,
              expected_result,
-             [] {
-               if constexpr (sizeof(ElementType) == sizeof(Int8)) {
-                 return kMaskInt8;
-               } else if constexpr (sizeof(ElementType) == sizeof(Int16)) {
-                 return kMaskInt16;
-               } else if constexpr (sizeof(ElementType) == sizeof(Int32)) {
-                 return kMaskInt32;
-               } else if constexpr (sizeof(ElementType) == sizeof(Int64)) {
-                 return kMaskInt64;
-               } else {
-                 static_assert(kDependentTypeFalse<ElementType>);
-               }
-             }()),
+             MaskForElem<ElementType>()),
       Verify((insn_bytes &
               ~(0x01f00000 * (kTestVectorInstructionMode == TestVectorInstructionMode::kVMerge))) |
                  (1 << 25),
@@ -1528,11 +1516,9 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
-  template <bool kIsMasked, typename ElementType>
+  template <typename ElementType>
   auto MaskForElem() {
-    if constexpr (!kIsMasked) {
-      return kNoMask;
-    } else if constexpr (std::is_same_v<ElementType, uint8_t>) {
+    if constexpr (std::is_same_v<ElementType, uint8_t>) {
       return kMaskInt8;
     } else if constexpr (std::is_same_v<ElementType, uint16_t>) {
       return kMaskInt16;
@@ -1542,6 +1528,15 @@ class Riscv64InterpreterTest : public ::testing::Test {
       return kMaskInt64;
     } else {
       static_assert(kDependentTypeFalse<ElementType>);
+    }
+  }
+
+  template <bool kIsMasked, typename ElementType>
+  auto MaskForElemIfMasked() {
+    if constexpr (!kIsMasked) {
+      return kNoMask;
+    } else {
+      return MaskForElem<ElementType>();
     }
   }
 
@@ -1662,7 +1657,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
     (Verify(insn_bytes,
             BitUtilLog2(sizeof(ElementType)),
             expected_result,
-            MaskForElem<kIsMasked, ElementType>()),
+            MaskForElemIfMasked<kIsMasked, ElementType>()),
      ...);
   }
 
@@ -1931,6 +1926,49 @@ class Riscv64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void TestVectorFloatPermutationInstruction(uint32_t insn_bytes,
+                                             const uint32_t (&expected_result_int32)[8][4],
+                                             const uint64_t (&expected_result_int64)[8][2],
+                                             const __v2du (&source)[16],
+                                             uint8_t vlmul,
+                                             uint64_t skip = 0,
+                                             bool ignore_vma_for_last = false,
+                                             bool last_elem_is_f1 = false) {
+    TestVectorPermutationInstruction<TestVectorInstructionKind::kFloat>(insn_bytes,
+                                                                        source,
+                                                                        vlmul,
+                                                                        skip,
+                                                                        ignore_vma_for_last,
+                                                                        last_elem_is_f1,
+                                                                        /* regx1 */ 0x0,
+                                                                        expected_result_int32,
+                                                                        expected_result_int64);
+  }
+
+  void TestVectorPermutationInstruction(uint32_t insn_bytes,
+                                        const uint8_t (&expected_result_int8)[8][16],
+                                        const uint16_t (&expected_result_int16)[8][8],
+                                        const uint32_t (&expected_result_int32)[8][4],
+                                        const uint64_t (&expected_result_int64)[8][2],
+                                        const __v2du (&source)[16],
+                                        uint8_t vlmul,
+                                        uint64_t regx1 = 0x0,
+                                        uint64_t skip = 0,
+                                        bool ignore_vma_for_last = false,
+                                        bool last_elem_is_x1 = false) {
+    TestVectorPermutationInstruction<TestVectorInstructionKind::kInteger>(insn_bytes,
+                                                                          source,
+                                                                          vlmul,
+                                                                          skip,
+                                                                          ignore_vma_for_last,
+                                                                          last_elem_is_x1,
+                                                                          regx1,
+                                                                          expected_result_int8,
+                                                                          expected_result_int16,
+                                                                          expected_result_int32,
+                                                                          expected_result_int64);
+  }
+
   // Unlike regular arithmetic instructions, the result of a permutation
   // instruction depends also on vlmul.  Also, the vslideup specs mention that
   // the destination vector remains unchanged the first |offset| elements (in
@@ -1940,21 +1978,23 @@ class Riscv64InterpreterTest : public ::testing::Test {
   //
   // If |ignore_vma_for_last| is true, an inactive element at vl-1 will be
   // treated as if vma=0 (Undisturbed).
-  // If |last_elem_is_x1| is true, the last element of the vector in
+  // If |last_elem_is_reg1| is true, the last element of the vector in
   // expected_result (that is, at vl-1) will be expected to be the same as
   // |regx1| when VL < VMAX and said element is active.
-  void TestVectorPermutationInstruction(uint32_t insn_bytes,
-                                        const __v16qu (&expected_result_int8)[8],
-                                        const __v8hu (&expected_result_int16)[8],
-                                        const __v4su (&expected_result_int32)[8],
-                                        const __v2du (&expected_result_int64)[8],
-                                        const __v2du (&source)[16],
-                                        uint8_t vlmul,
-                                        uint64_t regx1 = 0x0,
-                                        uint64_t skip = 0,
-                                        bool ignore_vma_for_last = false,
-                                        bool last_elem_is_x1 = false) {
-    auto Verify = [this, &source, vlmul, regx1, skip, ignore_vma_for_last, last_elem_is_x1](
+  template <TestVectorInstructionKind kTestVectorInstructionKind,
+            typename... ElementType,
+            size_t... kResultsCount,
+            size_t... kElementCount>
+  void TestVectorPermutationInstruction(
+      uint32_t insn_bytes,
+      const __v2du (&source)[16],
+      uint8_t vlmul,
+      uint64_t skip,
+      bool ignore_vma_for_last,
+      bool last_elem_is_reg1,
+      uint64_t regx1,
+      const ElementType (&... expected_result)[kResultsCount][kElementCount]) {
+    auto Verify = [this, &source, vlmul, regx1, skip, ignore_vma_for_last, last_elem_is_reg1](
                       uint32_t insn_bytes,
                       uint8_t vsew,
                       const auto& expected_result_raw,
@@ -1965,8 +2005,24 @@ class Riscv64InterpreterTest : public ::testing::Test {
       for (size_t index = 0; index < std::size(source); ++index) {
         state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
       }
-      // Set x1 for vx instructions.
-      SetXReg<1>(state_.cpu, regx1);
+
+      if constexpr (kTestVectorInstructionKind == TestVectorInstructionKind::kFloat) {
+        UNUSED(regx1);
+        // We only support Float32/Float64 for float instructions, but there are conversion
+        // instructions that work with double width floats.
+        // These instructions never use float registers though and thus we don't need to store
+        // anything into f1 register, if they are used.
+        // For Float32/Float64 case we load 5.625 of the appropriate type into f1.
+        ASSERT_LE(vsew, 3);
+        if (vsew == 2) {
+          SetFReg<1>(state_.cpu, 0xffff'ffff'40b4'0000);  // float 5.625
+        } else if (vsew == 3) {
+          SetFReg<1>(state_.cpu, 0x4016'8000'0000'0000);  // double 5.625
+        }
+      } else {
+        // Set x1 for vx instructions.
+        SetXReg<1>(state_.cpu, regx1);
+      }
 
       const size_t kElementSize = 1 << vsew;
       size_t num_regs = 1 << vlmul;
@@ -2037,7 +2093,7 @@ class Riscv64InterpreterTest : public ::testing::Test {
             expected_result[index] = SIMD128Register{expected_result_raw[index]};
           }
 
-          if (vlmul == 2 && last_elem_is_x1) {
+          if (vlmul == 2 && last_elem_is_reg1) {
             switch (kElementSize) {
               case 1:
                 expected_result[last_reg].template Set<uint8_t>(
@@ -2048,12 +2104,22 @@ class Riscv64InterpreterTest : public ::testing::Test {
                     static_cast<uint16_t>(GetXReg<1>(state_.cpu)), last_elem);
                 break;
               case 4:
-                expected_result[last_reg].template Set<uint32_t>(
-                    static_cast<uint32_t>(GetXReg<1>(state_.cpu)), last_elem);
+                if constexpr (kTestVectorInstructionKind == TestVectorInstructionKind::kFloat) {
+                  expected_result[last_reg].template Set<uint32_t>(
+                      static_cast<uint32_t>(GetFReg<1>(state_.cpu)), last_elem);
+                } else {
+                  expected_result[last_reg].template Set<uint32_t>(
+                      static_cast<uint32_t>(GetXReg<1>(state_.cpu)), last_elem);
+                }
                 break;
               case 8:
-                expected_result[last_reg].template Set<uint64_t>(
-                    static_cast<uint64_t>(GetXReg<1>(state_.cpu)), last_elem);
+                if constexpr (kTestVectorInstructionKind == TestVectorInstructionKind::kFloat) {
+                  expected_result[last_reg].template Set<uint64_t>(
+                      static_cast<uint64_t>(GetFReg<1>(state_.cpu)), last_elem);
+                } else {
+                  expected_result[last_reg].template Set<uint64_t>(
+                      static_cast<uint64_t>(GetXReg<1>(state_.cpu)), last_elem);
+                }
                 break;
               default:
                 FAIL() << "Element size is " << kElementSize;
@@ -2114,16 +2180,12 @@ class Riscv64InterpreterTest : public ::testing::Test {
       }
     };
 
-    // Some instructions don't support use of mask register, but in these instructions bit
-    // #25 is set.  Test it and skip masking tests if so.
-    Verify(insn_bytes, 0, expected_result_int8, kMaskInt8);
-    Verify(insn_bytes, 1, expected_result_int16, kMaskInt16);
-    Verify(insn_bytes, 2, expected_result_int32, kMaskInt32);
-    Verify(insn_bytes, 3, expected_result_int64, kMaskInt64);
-    Verify(insn_bytes | (1 << 25), 0, expected_result_int8, kNoMask);
-    Verify(insn_bytes | (1 << 25), 1, expected_result_int16, kNoMask);
-    Verify(insn_bytes | (1 << 25), 2, expected_result_int32, kNoMask);
-    Verify(insn_bytes | (1 << 25), 3, expected_result_int64, kNoMask);
+    // Test with and without masking enabled.
+    (Verify(
+         insn_bytes, BitUtilLog2(sizeof(ElementType)), expected_result, MaskForElem<ElementType>()),
+     ...);
+    (Verify(insn_bytes | (1 << 25), BitUtilLog2(sizeof(ElementType)), expected_result, kNoMask),
+     ...);
   }
 
  protected:
@@ -12702,6 +12764,155 @@ TEST_F(Riscv64InterpreterTest, TestVslide1down) {
                                    /*skip=*/0,
                                    /*ignore_vma_for_last=*/true,
                                    /*last_elem_is_x1=*/true);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfslide1up) {
+  TestVectorFloatInstruction(0x3980d457,  // vfslide1up.vf v8, v24, f1, v0.t
+                             {{0x40b4'0000, 0x9604'9200, 0x9e0c'9a09, 0x8614'8211},
+                              {0x8e1c'8a18, 0xb624'b220, 0xbe2c'ba29, 0xa634'a231},
+                              {0xae3c'aa38, 0xd644'd240, 0xde4c'da49, 0xc654'c251},
+                              {0xce5c'ca58, 0xf664'f260, 0xfe6c'fa69, 0xe674'e271},
+                              {0xee7c'ea78, 0x1684'1280, 0x1e8c'1a89, 0x0694'0291},
+                              {0x0e9c'0a98, 0x36a4'32a0, 0x3eac'3aa9, 0x26b4'22b1},
+                              {0x2ebc'2ab8, 0x56c4'52c0, 0x5ecc'5ac9, 0x46d4'42d1},
+                              {0x4edc'4ad8, 0x76e4'72e0, 0x7eec'7ae9, 0x66f4'62f1}},
+                             {{0x4016'8000'0000'0000, 0x9e0c'9a09'9604'9200},
+                              {0x8e1c'8a18'8614'8211, 0xbe2c'ba29'b624'b220},
+                              {0xae3c'aa38'a634'a231, 0xde4c'da49'd644'd240},
+                              {0xce5c'ca58'c654'c251, 0xfe6c'fa69'f664'f260},
+                              {0xee7c'ea78'e674'e271, 0x1e8c'1a89'1684'1280},
+                              {0x0e9c'0a98'0694'0291, 0x3eac'3aa9'36a4'32a0},
+                              {0x2ebc'2ab8'26b4'22b1, 0x5ecc'5ac9'56c4'52c0},
+                              {0x4edc'4ad8'46d4'42d1, 0x7eec'7ae9'76e4'72e0}},
+                             kVectorCalculationsSource);
+}
+
+TEST_F(Riscv64InterpreterTest, TestVfslide1down) {
+  // Where the element at the top gets inserted will depend on VLMUL so we use
+  // TestVectorFloatPermutationInstruction instead of TestVectorFloatInstruction.
+
+  // VLMUL = 0
+  TestVectorFloatPermutationInstruction(
+      0x3d80d457,  // vfslide1down.vf v8, v24, f1, v0.t
+      {{0x9e0c'9a09, 0x8614'8211, 0x8e1c'8a18, 0x40b4'0000}, {}, {}, {}, {}, {}, {}, {}},
+      {{0x8e1c'8a18'8614'8211, 0x4016'8000'0000'0000}, {}, {}, {}, {}, {}, {}, {}},
+      kVectorCalculationsSource,
+      /*vlmul=*/0,
+      /*skip=*/0,
+      /*ignore_vma_for_last=*/true,
+      /*last_elem_is_f1=*/true);
+
+  // VLMUL = 1
+  TestVectorFloatPermutationInstruction(0x3d80d457,  // vfslide1down.vf v8, v24, f1, v0.t
+                                        {{0x9e0c'9a09, 0x8614'8211, 0x8e1c'8a18, 0xb624'b220},
+                                         {0xbe2c'ba29, 0xa634'a231, 0xae3c'aa38, 0x40b4'0000},
+                                         {},
+                                         {},
+                                         {},
+                                         {},
+                                         {},
+                                         {}},
+                                        {{0x8e1c'8a18'8614'8211, 0xbe2c'ba29'b624'b220},
+                                         {0xae3c'aa38'a634'a231, 0x4016'8000'0000'0000},
+                                         {},
+                                         {},
+                                         {},
+                                         {},
+                                         {},
+                                         {}},
+                                        kVectorCalculationsSource,
+                                        /*vlmul=*/1,
+                                        /*skip=*/0,
+                                        /*ignore_vma_for_last=*/true,
+                                        /*last_elem_is_f1=*/true);
+
+  // VLMUL = 2
+  TestVectorFloatPermutationInstruction(0x3d80d457,  // vfslide1down.vf v8, v24, f1, v0.t
+                                        {{0x9e0c'9a09, 0x8614'8211, 0x8e1c'8a18, 0xb624'b220},
+                                         {0xbe2c'ba29, 0xa634'a231, 0xae3c'aa38, 0xd644'd240},
+                                         {0xde4c'da49, 0xc654'c251, 0xce5c'ca58, 0xf664'f260},
+                                         {0xfe6c'fa69, 0xe674'e271, 0xee7c'ea78, 0x40b4'0000},
+                                         {},
+                                         {},
+                                         {},
+                                         {}},
+                                        {{0x8e1c'8a18'8614'8211, 0xbe2c'ba29'b624'b220},
+                                         {0xae3c'aa38'a634'a231, 0xde4c'da49'd644'd240},
+                                         {0xce5c'ca58'c654'c251, 0xfe6c'fa69'f664'f260},
+                                         {0xee7c'ea78'e674'e271, 0x4016'8000'0000'0000},
+                                         {},
+                                         {},
+                                         {},
+                                         {}},
+                                        kVectorCalculationsSource,
+                                        /*vlmul=*/2,
+                                        /*skip=*/0,
+                                        /*ignore_vma_for_last=*/true,
+                                        /*last_elem_is_f1=*/true);
+
+  // VLMUL = 3
+  TestVectorFloatPermutationInstruction(0x3d80d457,  // vfslide1down.vf v8, v24, f1, v0.t
+                                        {{0x9e0c'9a09, 0x8614'8211, 0x8e1c'8a18, 0xb624'b220},
+                                         {0xbe2c'ba29, 0xa634'a231, 0xae3c'aa38, 0xd644'd240},
+                                         {0xde4c'da49, 0xc654'c251, 0xce5c'ca58, 0xf664'f260},
+                                         {0xfe6c'fa69, 0xe674'e271, 0xee7c'ea78, 0x1684'1280},
+                                         {0x1e8c'1a89, 0x0694'0291, 0x0e9c'0a98, 0x36a4'32a0},
+                                         {0x3eac'3aa9, 0x26b4'22b1, 0x2ebc'2ab8, 0x56c4'52c0},
+                                         {0x5ecc'5ac9, 0x46d4'42d1, 0x4edc'4ad8, 0x76e4'72e0},
+                                         {0x7eec'7ae9, 0x66f4'62f1, 0x6efc'6af8, 0x40b4'0000}},
+                                        {{0x8e1c'8a18'8614'8211, 0xbe2c'ba29'b624'b220},
+                                         {0xae3c'aa38'a634'a231, 0xde4c'da49'd644'd240},
+                                         {0xce5c'ca58'c654'c251, 0xfe6c'fa69'f664'f260},
+                                         {0xee7c'ea78'e674'e271, 0x1e8c'1a89'1684'1280},
+                                         {0x0e9c'0a98'0694'0291, 0x3eac'3aa9'36a4'32a0},
+                                         {0x2ebc'2ab8'26b4'22b1, 0x5ecc'5ac9'56c4'52c0},
+                                         {0x4edc'4ad8'46d4'42d1, 0x7eec'7ae9'76e4'72e0},
+                                         {0x6efc'6af8'66f4'62f1, 0x4016'8000'0000'0000}},
+                                        kVectorCalculationsSource,
+                                        /*vlmul=*/3,
+                                        /*skip=*/0,
+                                        /*ignore_vma_for_last=*/true,
+                                        /*last_elem_is_f1=*/true);
+
+  // VLMUL = 4
+  TestVectorFloatPermutationInstruction(0x3d80d457,  // vfslide1down.vf v8, v24, f1, v0.t
+                                        {{}, {}, {}, {}, {}, {}, {}, {}},
+                                        {{}, {}, {}, {}, {}, {}, {}, {}},
+                                        kVectorCalculationsSource,
+                                        /*vlmul=*/4,
+                                        /*skip=*/0,
+                                        /*ignore_vma_for_last=*/true,
+                                        /*last_elem_is_f1=*/true);
+
+  // VLMUL = 5
+  TestVectorFloatPermutationInstruction(0x3d80d457,  // vfslide1down.vf v8, v24, f1, v0.t
+                                        {{}, {}, {}, {}, {}, {}, {}, {}},
+                                        {{}, {}, {}, {}, {}, {}, {}, {}},
+                                        kVectorCalculationsSource,
+                                        /*vlmul=*/5,
+                                        /*skip=*/0,
+                                        /*ignore_vma_for_last=*/true,
+                                        /*last_elem_is_f1=*/true);
+
+  // VLMUL = 6
+  TestVectorFloatPermutationInstruction(0x3d80d457,  // vfslide1down.vf v8, v24, f1, v0.t
+                                        {{0x40b4'0000}, {}, {}, {}, {}, {}, {}, {}},
+                                        {{}, {}, {}, {}, {}, {}, {}, {}},
+                                        kVectorCalculationsSource,
+                                        /*vlmul=*/6,
+                                        /*skip=*/0,
+                                        /*ignore_vma_for_last=*/true,
+                                        /*last_elem_is_f1=*/true);
+
+  // VLMUL = 7
+  TestVectorFloatPermutationInstruction(0x3d80d457,  // vfslide1down.vf v8, v24, f1, v0.t
+                                        {{0x9e0c'9a09, 0x40b4'0000}, {}, {}, {}, {}, {}, {}, {}},
+                                        {{0x4016'8000'0000'0000}, {}, {}, {}, {}, {}, {}, {}},
+                                        kVectorCalculationsSource,
+                                        /*vlmul=*/7,
+                                        /*skip=*/0,
+                                        /*ignore_vma_for_last=*/true,
+                                        /*last_elem_is_f1=*/true);
 }
 
 TEST_F(Riscv64InterpreterTest, TestVwadd) {
