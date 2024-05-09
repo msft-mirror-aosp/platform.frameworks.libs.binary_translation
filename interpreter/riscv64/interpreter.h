@@ -1412,6 +1412,18 @@ class Interpreter {
                                  vta,
                                  vma,
                                  kFrm>(args.dst, Vec<SignedType{}>{args.src1}, arg2);
+      case Decoder::VOpFVfOpcode::kVfmaccvf:
+        return OpVectorvxv<intrinsics::Vfmaccvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfmsacvf:
+        return OpVectorvxv<intrinsics::Vfmsacvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfmaddvf:
+        return OpVectorvxv<intrinsics::Vfmaddvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfmsubvf:
+        return OpVectorvxv<intrinsics::Vfmsubvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+            args.dst, args.src1, arg2);
       default:
         return Undefined();
     }
@@ -1824,6 +1836,18 @@ class Interpreter {
                                    vma,
                                    kFrm>(
               args.dst, Vec<SignedType{}>{args.src1}, Vec<SignedType{}>{args.src2});
+        case Decoder::VOpFVvOpcode::kVfmaccvv:
+          return OpVectorvvv<intrinsics::Vfmaccvv<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+              args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfmsacvv:
+          return OpVectorvvv<intrinsics::Vfmsacvv<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+              args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfmaddvv:
+          return OpVectorvvv<intrinsics::Vfmaddvv<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+              args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfmsubvv:
+          return OpVectorvvv<intrinsics::Vfmsubvv<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+              args.dst, args.src1, args.src2);
         default:
           break;  // Make compiler happy.
       }
@@ -3215,10 +3239,15 @@ class Interpreter {
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
-            auto vma>
+            auto vma,
+            CsrName... kExtraCsrs>
   void OpVectorvvv(uint8_t dst, uint8_t src1, uint8_t src2) {
-    return OpVectorSameWidth<Intrinsic, ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
-        dst, Vec{src1}, Vec{src2}, Vec{dst});
+    return OpVectorSameWidth<Intrinsic,
+                             ElementType,
+                             NumberOfRegistersInvolved(vlmul),
+                             vta,
+                             vma,
+                             kExtraCsrs...>(dst, Vec{src1}, Vec{src2}, Vec{dst});
   }
 
   template <auto Intrinsic,
@@ -3647,10 +3676,15 @@ class Interpreter {
             typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
-            auto vma>
+            auto vma,
+            CsrName... kExtraCsrs>
   void OpVectorvxv(uint8_t dst, uint8_t src1, ElementType arg2) {
-    return OpVectorSameWidth<Intrinsic, ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
-        dst, Vec{src1}, arg2, Vec{dst});
+    return OpVectorSameWidth<Intrinsic,
+                             ElementType,
+                             NumberOfRegistersInvolved(vlmul),
+                             vta,
+                             vma,
+                             kExtraCsrs...>(dst, Vec{src1}, arg2, Vec{dst});
   }
 
   template <auto Intrinsic,
