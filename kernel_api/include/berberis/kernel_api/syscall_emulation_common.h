@@ -22,13 +22,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#if defined(__BIONIC__) && defined(__i386__)
-struct statfs;
-extern "C" int statfs(const char* _Nonnull __path, struct statfs* _Nonnull __buf);
-#else
-#include <sys/vfs.h>
-#endif
-
 #include <cerrno>
 
 #include "berberis/base/bit_util.h"
@@ -71,11 +64,16 @@ inline long RunGuestSyscall___NR_faccessat(long arg_1, long arg_2, long arg_3) {
 }
 
 inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
+  // We are including this structure from library headers (sys/stat.h) and assume
+  // that it matches kernel's layout.
+  // TODO(b/232598137): Add a check for this. It seems like this is an issue for 32-bit
+  // guest syscall, since compiled with bionic this declares `struct stat64` while
+  // the syscall will expect `struct stat`
   struct stat host_stat;
   long result;
   if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
     KAPI_TRACE("Emulating fstat for /proc/self/maps");
-    result = stat("/proc/self/maps", &host_stat);
+    result = syscall(__NR_stat, "/proc/self/maps", &host_stat);
   } else {
     result = syscall(__NR_fstat, arg_1, &host_stat);
   }
@@ -88,7 +86,10 @@ inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
 inline long RunGuestSyscall___NR_fstatfs(long arg_1, long arg_2) {
   if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
     KAPI_TRACE("Emulating fstatfs for /proc/self/maps");
-    return statfs("/proc/self/maps", bit_cast<struct statfs*>(arg_2));
+    // arg_2 (struct statfs*) has kernel expected layout, which is different from
+    // what libc may expect. E.g. this happens for 32-bit bionic where the library call
+    // expects struct statfs64. Thus ensure we invoke syscall, not library call.
+    return syscall(__NR_statfs, "/proc/self/maps", arg_2);
   }
   return syscall(__NR_fstatfs, arg_1, arg_2);
 }
