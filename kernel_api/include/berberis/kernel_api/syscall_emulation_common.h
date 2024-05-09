@@ -17,9 +17,17 @@
 #ifndef BERBERIS_KERNEL_API_SYSCALL_EMULATION_COMMON_H_
 #define BERBERIS_KERNEL_API_SYSCALL_EMULATION_COMMON_H_
 
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#if defined(__BIONIC__) && defined(__i386__)
+struct statfs;
+extern "C" int statfs(const char* _Nonnull __path, struct statfs* _Nonnull __buf);
+#else
+#include <sys/vfs.h>
+#endif
 
 #include <cerrno>
 
@@ -46,6 +54,7 @@ inline long RunGuestSyscall___NR_clone3(long arg_1, long arg_2) {
 }
 
 inline long RunGuestSyscall___NR_close(long arg_1) {
+  CloseEmulatedProcSelfMapsFileDescriptor(arg_1);
   return syscall(__NR_close, arg_1);
 }
 
@@ -63,7 +72,13 @@ inline long RunGuestSyscall___NR_faccessat(long arg_1, long arg_2, long arg_3) {
 
 inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
   struct stat host_stat;
-  long result = syscall(__NR_fstat, arg_1, &host_stat);
+  long result;
+  if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
+    KAPI_TRACE("Emulating fstat for /proc/self/maps");
+    result = stat("/proc/self/maps", &host_stat);
+  } else {
+    result = syscall(__NR_fstat, arg_1, &host_stat);
+  }
   if (result != -1) {
     ConvertHostStatToGuestArch(host_stat, bit_cast<GuestAddr>(arg_2));
   }
@@ -71,6 +86,10 @@ inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
 }
 
 inline long RunGuestSyscall___NR_fstatfs(long arg_1, long arg_2) {
+  if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
+    KAPI_TRACE("Emulating fstatfs for /proc/self/maps");
+    return statfs("/proc/self/maps", bit_cast<struct statfs*>(arg_2));
+  }
   return syscall(__NR_fstatfs, arg_1, arg_2);
 }
 
