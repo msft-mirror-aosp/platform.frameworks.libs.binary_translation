@@ -64,7 +64,6 @@ cc_library_static {
         "riscv64/open_emulation.cc",
         "riscv64/syscall_emulation_arch.cc",
         "riscv64/syscall_emulation.cc",
-        "riscv64/syscall_numbers.cc",
         "riscv64/tracing.cc",
     ],
     local_include_dirs: ["riscv64"],
