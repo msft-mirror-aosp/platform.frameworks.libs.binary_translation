@@ -27,6 +27,7 @@
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/scoped_pending_signals.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/instrument/syscall.h"
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
@@ -41,23 +42,6 @@
 namespace berberis {
 
 namespace {
-
-void ConvertHostStatToGuest(const struct stat& host_stat, Guest_stat* guest_stat) {
-  guest_stat->st_dev = host_stat.st_dev;
-  guest_stat->st_ino = host_stat.st_ino;
-  guest_stat->st_mode = host_stat.st_mode;
-  guest_stat->st_nlink = host_stat.st_nlink;
-  guest_stat->st_uid = host_stat.st_uid;
-  guest_stat->st_gid = host_stat.st_gid;
-  guest_stat->st_rdev = host_stat.st_rdev;
-  guest_stat->st_size = host_stat.st_size;
-  guest_stat->st_blksize = host_stat.st_blksize;
-  guest_stat->st_blocks = host_stat.st_blocks;
-  guest_stat->st_blocks = host_stat.st_blocks;
-  guest_stat->st_atim = host_stat.st_atim;
-  guest_stat->st_mtim = host_stat.st_mtim;
-  guest_stat->st_ctim = host_stat.st_ctim;
-}
 
 int FstatatForGuest(int dirfd, const char* path, struct stat* buf, int flags) {
   const char* real_path = nullptr;
@@ -108,15 +92,6 @@ long RunGuestSyscall___NR_fadvise64(long arg_1, long arg_2, long arg_3, long arg
   return syscall(__NR_fadvise64, arg_1, arg_2, arg_3, arg_4);
 }
 
-long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
-  struct stat host_stat;
-  long result = syscall(__NR_fstat, arg_1, &host_stat);
-  if (result != -1) {
-    ConvertHostStatToGuest(host_stat, bit_cast<Guest_stat*>(arg_2));
-  }
-  return result;
-}
-
 long RunGuestSyscall___NR_ioctl(long arg_1, long arg_2, long arg_3) {
   // TODO(b/128614662): translate!
   KAPI_TRACE("unimplemented ioctl 0x%lx, running host syscall as is", arg_2);
@@ -130,7 +105,7 @@ long RunGuestSyscall___NR_newfstatat(long arg_1, long arg_2, long arg_3, long ar
                                &host_stat,
                                static_cast<int>(arg_4));  // flags
   if (result != -1) {
-    ConvertHostStatToGuest(host_stat, bit_cast<Guest_stat*>(arg_3));
+    ConvertHostStatToGuestArch(host_stat, bit_cast<GuestAddr>(arg_3));
   }
   return result;
 }
