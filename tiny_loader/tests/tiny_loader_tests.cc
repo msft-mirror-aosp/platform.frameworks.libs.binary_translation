@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Google Inc. All Rights Reserved.
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 #include <sys/user.h>
 
 #include "berberis/base/file.h"
+#include "berberis/base/page_size.h"
 #include "berberis/base/stringprintf.h"
 
 namespace {
@@ -37,7 +38,7 @@ const constexpr char* kTestExecutableName = "tiny_static_executable";
 constexpr uintptr_t kStaticExecutableEntryPoint = 0x1ce00;
 constexpr const char* kTestFilesDir = "/tiny_loader/tests/files/64/";
 #else
-constexpr uintptr_t kStaticExecutableEntryPoint = 0x804804c;
+constexpr uintptr_t kStaticExecutableEntryPoint = 0x410f30;
 constexpr const char* kTestFilesDir = "/tiny_loader/tests/files/32/";
 #endif
 
@@ -113,8 +114,8 @@ void TestLoadLibrary(const char* test_library_name) {
   // The second part of the test - to Load this file from already mapped memory.
   // Check that resulted loaded_elf_file is effectively the same
   LoadedElfFile memory_elf_file;
-  ASSERT_TRUE(TinyLoader::LoadFromMemory(elf_filepath.c_str(), base_addr, PAGE_SIZE,
-                                         &memory_elf_file, &error_msg))
+  ASSERT_TRUE(TinyLoader::LoadFromMemory(
+      elf_filepath.c_str(), base_addr, berberis::kPageSize, &memory_elf_file, &error_msg))
       << error_msg;
   AssertLoadedElfFilesEqual(memory_elf_file, loaded_elf_file);
   void* memory_symbol_addr = memory_elf_file.FindSymbol(kTestSymbolName);
@@ -167,8 +168,11 @@ TEST(tiny_loader, binary) {
   // The second part of the test - to Load this file from already mapped memory.
   // Check that resulted loaded_elf_file is effectively the same
   LoadedElfFile memory_elf_file;
-  ASSERT_TRUE(TinyLoader::LoadFromMemory(elf_filepath.c_str(), loaded_elf_file.base_addr(),
-                                         PAGE_SIZE, &memory_elf_file, &error_msg))
+  ASSERT_TRUE(TinyLoader::LoadFromMemory(elf_filepath.c_str(),
+                                         loaded_elf_file.base_addr(),
+                                         berberis::kPageSize,
+                                         &memory_elf_file,
+                                         &error_msg))
       << error_msg;
   AssertLoadedElfFilesEqual(memory_elf_file, loaded_elf_file);
 }

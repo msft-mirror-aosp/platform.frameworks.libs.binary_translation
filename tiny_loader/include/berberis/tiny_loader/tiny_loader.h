@@ -27,9 +27,9 @@
 
 class TinyLoader {
  public:
-  typedef void* (*mmap64_fn_t)(void* addr, size_t length, int prot, int flags, int fd,
-                               off64_t offset);
-  typedef int (*munmap_fn_t)(void* addr, size_t length);
+  using mmap64_fn_t =
+      void* (*)(void* addr, size_t length, int prot, int flags, int fd, off64_t offset);
+  using munmap_fn_t = int (*)(void* addr, size_t length);
 
   static bool LoadFromFile(const char* path, size_t align, mmap64_fn_t mmap64_fn,
                            munmap_fn_t munmap_fn, LoadedElfFile* loaded_elf_file,

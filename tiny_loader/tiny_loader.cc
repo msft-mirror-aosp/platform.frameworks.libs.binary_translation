@@ -27,6 +27,7 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/mapped_file_fragment.h"
+#include "berberis/base/page_size.h"
 #include "berberis/base/prctl_helpers.h"
 #include "berberis/base/stringprintf.h"
 
@@ -50,12 +51,12 @@ void set_error_msg(std::string* error_msg, const char* format, ...) {
 
 template <typename T>
 constexpr T page_align_down(T addr) {
-  return berberis::AlignDown(addr, PAGE_SIZE);
+  return berberis::AlignDown(addr, berberis::kPageSize);
 }
 
 template <typename T>
 constexpr T page_align_up(T addr) {
-  return berberis::AlignUp(addr, PAGE_SIZE);
+  return berberis::AlignUp(addr, berberis::kPageSize);
 }
 
 template <typename T>
@@ -374,7 +375,7 @@ bool TinyElfLoader::ReserveAddressSpace(ElfHalf e_type, const ElfPhdr* phdr_tabl
 
       return false;
     }
-  } else if (align <= PAGE_SIZE) {
+  } else if (align <= berberis::kPageSize) {
     // Reserve.
     start = Reserve(nullptr, size, mmap64_fn);
     if (start == nullptr) {
@@ -471,7 +472,9 @@ bool TinyElfLoader::LoadSegments(int fd, size_t file_size, ElfHalf e_type,
     // if the segment is writable, and does not end on a page boundary,
     // zero-fill it until the page limit.
     if ((phdr->p_flags & PF_W) != 0 && page_offset(seg_file_end) > 0) {
-      memset(reinterpret_cast<void*>(seg_file_end), 0, PAGE_SIZE - page_offset(seg_file_end));
+      memset(reinterpret_cast<void*>(seg_file_end),
+             0,
+             berberis::kPageSize - page_offset(seg_file_end));
     }
 
     seg_file_end = page_align_up(seg_file_end);
