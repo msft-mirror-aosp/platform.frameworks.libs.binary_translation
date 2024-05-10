@@ -27,51 +27,73 @@ constexpr T BitUtilLog2(T x) {
   return __builtin_ctz(x);
 }
 
-// TODO(b/301577077): Maybe use __uint128_t instead.
-// Or provide a more versatile wrapper, that one can easily init, copy and compare.
-using __v2du = std::tuple<uint64_t, uint64_t>;
+// A wrapper around __uint128 which can be constructed from a pair of uint64_t literals.
+class SIMD128 {
+ public:
+  SIMD128(){};
+  constexpr SIMD128(std::tuple<uint64_t, uint64_t> u64_u64) : u64_u64_{u64_u64} {};
+  constexpr SIMD128(__uint128_t u128) : u128_{u128} {};
 
-constexpr __v2du kVectorCalculationsSource[16] = {
-    {0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908},
-    {0x9716'9514'9312'9110, 0x9f1e'9d1c'9b1a'9918},
-    {0xa726'a524'a322'a120, 0xaf2e'ad2c'ab2a'a928},
-    {0xb736'b534'b332'b130, 0xbf3e'bd3c'bb3a'b938},
-    {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
-    {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
-    {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
-    {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978},
+  SIMD128& operator=(const SIMD128& other) {
+    u128_ = other.u128_;
+    return *this;
+  };
+  SIMD128& operator|=(const SIMD128& other) {
+    u128_ |= other.u128_;
+    return *this;
+  }
+  bool operator==(const SIMD128& other) const { return u128_ == other.u128_; }
+  SIMD128 operator>>(size_t shift_amount) const { return u128_ >> shift_amount; }
+  SIMD128 operator<<(size_t shift_amount) const { return u128_ << shift_amount; }
 
-    {0x9e0c'9a09'9604'9200, 0x8e1c'8a18'8614'8211},
-    {0xbe2c'ba29'b624'b220, 0xae3c'aa38'a634'a231},
-    {0xde4c'da49'd644'd240, 0xce5c'ca58'c654'c251},
-    {0xfe6c'fa69'f664'f260, 0xee7c'ea78'e674'e271},
-    {0x1e8c'1a89'1684'1280, 0x0e9c'0a98'0694'0291},
-    {0x3eac'3aa9'36a4'32a0, 0x2ebc'2ab8'26b4'22b1},
-    {0x5ecc'5ac9'56c4'52c0, 0x4edc'4ad8'46d4'42d1},
-    {0x7eec'7ae9'76e4'72e0, 0x6efc'6af8'66f4'62f1},
+ private:
+  union {
+    std::tuple<uint64_t, uint64_t> u64_u64_;
+    __uint128_t u128_;
+  };
+};
+
+constexpr SIMD128 kVectorCalculationsSource[16] = {
+    {{0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908}},
+    {{0x9716'9514'9312'9110, 0x9f1e'9d1c'9b1a'9918}},
+    {{0xa726'a524'a322'a120, 0xaf2e'ad2c'ab2a'a928}},
+    {{0xb736'b534'b332'b130, 0xbf3e'bd3c'bb3a'b938}},
+    {{0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948}},
+    {{0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958}},
+    {{0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968}},
+    {{0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
+
+    {{0x9e0c'9a09'9604'9200, 0x8e1c'8a18'8614'8211}},
+    {{0xbe2c'ba29'b624'b220, 0xae3c'aa38'a634'a231}},
+    {{0xde4c'da49'd644'd240, 0xce5c'ca58'c654'c251}},
+    {{0xfe6c'fa69'f664'f260, 0xee7c'ea78'e674'e271}},
+    {{0x1e8c'1a89'1684'1280, 0x0e9c'0a98'0694'0291}},
+    {{0x3eac'3aa9'36a4'32a0, 0x2ebc'2ab8'26b4'22b1}},
+    {{0x5ecc'5ac9'56c4'52c0, 0x4edc'4ad8'46d4'42d1}},
+    {{0x7eec'7ae9'76e4'72e0, 0x6efc'6af8'66f4'62f1}},
 };
 
 // Easily recognizable bit pattern for target register.
-constexpr __v2du kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
+constexpr SIMD128 kUndisturbedResult{{0x5555'5555'5555'5555, 0x5555'5555'5555'5555}};
 
-__v2du GetAgnosticResult() {
+SIMD128 GetAgnosticResult() {
   static const bool kRvvAgnosticIsUndisturbed = getenv("RVV_AGNOSTIC_IS_UNDISTURBED") != nullptr;
   if (kRvvAgnosticIsUndisturbed) {
     return kUndisturbedResult;
   }
-  return {~uint64_t{0U}, ~uint64_t{0U}};
+  return {{~uint64_t{0U}, ~uint64_t{0U}}};
 }
 
-const __v2du kAgnosticResult = GetAgnosticResult();
+const SIMD128 kAgnosticResult = GetAgnosticResult();
 
 // Mask in form suitable for storing in v0 and use in v0.t form.
-static constexpr __v2du kMask = {0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5};
+static constexpr SIMD128 kMask{{0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5}};
 
 using ExecInsnFunc = void (*)();
 
 void RunTwoVectorArgsOneRes(ExecInsnFunc exec_insn,
-                            const __v2du* src,
-                            __v2du* res,
+                            const SIMD128* src,
+                            SIMD128* res,
                             uint64_t vtype,
                             uint64_t vlmax) {
   uint64_t vstart, vl;
@@ -138,7 +160,7 @@ template <typename... ExpectedResultType>
 void TestVectorReductionInstruction(
     ExecInsnFunc exec_insn,
     ExecInsnFunc exec_masked_insn,
-    const __v2du (&source)[16],
+    const SIMD128 (&source)[16],
     std::tuple<const ExpectedResultType (&)[8],
                const ExpectedResultType (&)[8]>... expected_result) {
   // Each expected_result input to this function is the vd[0] value of the reduction, for each
@@ -158,18 +180,18 @@ void TestVectorReductionInstruction(
           continue;
         }
 
-        __v2du result[8];
+        SIMD128 result[8];
         // Set undisturbed result vector registers.
         for (size_t index = 0; index < 8; ++index) {
-          memcpy(&result[index], &kUndisturbedResult, sizeof(result[index]));
+          result[index] = kUndisturbedResult;
         }
 
         // Exectations for reductions are for swapped source arguments.
-        __v2du sources[16]{};
-        memcpy(&sources[0], &kVectorCalculationsSource[8], sizeof(sources[0]) * 8);
-        memcpy(&sources[8], &kVectorCalculationsSource[0], sizeof(sources[0]) * 8);
+        SIMD128 two_sources[16]{};
+        memcpy(&two_sources[0], &source[8], sizeof(two_sources[0]) * 8);
+        memcpy(&two_sources[8], &source[0], sizeof(two_sources[0]) * 8);
 
-        RunTwoVectorArgsOneRes(exec_insn, &sources[0], &result[0], vtype, vlmax);
+        RunTwoVectorArgsOneRes(exec_insn, &two_sources[0], &result[0], vtype, vlmax);
 
         // Reduction instructions are unique in that they produce a scalar
         // output to a single vector register as opposed to a register group.
@@ -184,21 +206,15 @@ void TestVectorReductionInstruction(
 
         // Verify that the destination register holds the reduction in the
         // first element and the tail policy applies to the remaining.
-        __uint128_t expected_result_register;
-        if (vta) {
-          memcpy(&expected_result_register, &kAgnosticResult, sizeof(expected_result_register));
-        } else {
-          memcpy(&expected_result_register, &kUndisturbedResult, sizeof(expected_result_register));
-        }
+        SIMD128 expected_result_register = vta ? kAgnosticResult : kUndisturbedResult;
         size_t vsew_bits = 8 << vsew;
         expected_result_register = (expected_result_register >> vsew_bits) << vsew_bits;
         expected_result_register |= expected_result;
-        EXPECT_TRUE(memcmp(&result[0], &expected_result_register, sizeof(result[0])) == 0)
-            << " vtype=" << vtype;
+        EXPECT_TRUE(result[0] == expected_result_register) << " vtype=" << vtype;
 
         // Verify all non-destination registers are undisturbed.
         for (size_t index = 1; index < 8; ++index) {
-          EXPECT_TRUE(memcmp(&result[index], &kUndisturbedResult, sizeof(result[index])) == 0);
+          EXPECT_TRUE(result[index] == kUndisturbedResult) << " vtype=" << vtype;
         }
       }
     }
@@ -227,7 +243,7 @@ void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
                                     const uint16_t (&expected_result_vd0_with_mask_int16)[8],
                                     const uint32_t (&expected_result_vd0_with_mask_int32)[8],
                                     const uint64_t (&expected_result_vd0_with_mask_int64)[8],
-                                    const __v2du (&source)[16]) {
+                                    const SIMD128 (&source)[16]) {
   TestVectorReductionInstruction(
       exec_insn,
       exec_masked_insn,
