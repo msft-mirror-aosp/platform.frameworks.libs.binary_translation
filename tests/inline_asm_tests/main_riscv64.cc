@@ -17,6 +17,7 @@
 #include "gtest/gtest.h"
 
 #include <cstdint>
+#include <cstdlib>
 #include <tuple>
 
 namespace {
@@ -28,7 +29,7 @@ constexpr T BitUtilLog2(T x) {
 
 // TODO(b/301577077): Maybe use __uint128_t instead.
 // Or provide a more versatile wrapper, that one can easily init, copy and compare.
-using __v2du = uint64_t[2];
+using __v2du = std::tuple<uint64_t, uint64_t>;
 
 constexpr __v2du kVectorCalculationsSource[16] = {
     {0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908},
@@ -52,7 +53,16 @@ constexpr __v2du kVectorCalculationsSource[16] = {
 
 // Easily recognizable bit pattern for target register.
 constexpr __v2du kUndisturbedResult = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
-constexpr __v2du kAgnosticResult = {~uint64_t{0U}, ~uint64_t{0U}};
+
+__v2du GetAgnosticResult() {
+  static const bool kRvvAgnosticIsUndisturbed = getenv("RVV_AGNOSTIC_IS_UNDISTURBED") != nullptr;
+  if (kRvvAgnosticIsUndisturbed) {
+    return kUndisturbedResult;
+  }
+  return {~uint64_t{0U}, ~uint64_t{0U}};
+}
+
+const __v2du kAgnosticResult = GetAgnosticResult();
 
 // Mask in form suitable for storing in v0 and use in v0.t form.
 static constexpr __v2du kMask = {0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5};
@@ -183,7 +193,8 @@ void TestVectorReductionInstruction(
         size_t vsew_bits = 8 << vsew;
         expected_result_register = (expected_result_register >> vsew_bits) << vsew_bits;
         expected_result_register |= expected_result;
-        EXPECT_TRUE(memcmp(&result[0], &expected_result_register, sizeof(result[0])) == 0);
+        EXPECT_TRUE(memcmp(&result[0], &expected_result_register, sizeof(result[0])) == 0)
+            << " vtype=" << vtype;
 
         // Verify all non-destination registers are undisturbed.
         for (size_t index = 1; index < 8; ++index) {
