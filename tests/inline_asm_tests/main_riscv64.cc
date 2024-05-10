@@ -235,6 +235,23 @@ void TestVectorReductionInstruction(
 
 void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
                                     ExecInsnFunc exec_masked_insn,
+                                    const uint32_t (&expected_result_vd0_int32)[8],
+                                    const uint64_t (&expected_result_vd0_int64)[8],
+                                    const uint32_t (&expected_result_vd0_with_mask_int32)[8],
+                                    const uint64_t (&expected_result_vd0_with_mask_int64)[8],
+                                    const SIMD128 (&source)[16]) {
+  TestVectorReductionInstruction(
+      exec_insn,
+      exec_masked_insn,
+      source,
+      std::tuple<const uint32_t(&)[8], const uint32_t(&)[8]>{expected_result_vd0_int32,
+                                                             expected_result_vd0_with_mask_int32},
+      std::tuple<const uint64_t(&)[8], const uint64_t(&)[8]>{expected_result_vd0_int64,
+                                                             expected_result_vd0_with_mask_int64});
+}
+
+void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
+                                    ExecInsnFunc exec_masked_insn,
                                     const uint8_t (&expected_result_vd0_int8)[8],
                                     const uint16_t (&expected_result_vd0_int16)[8],
                                     const uint32_t (&expected_result_vd0_int32)[8],
@@ -258,15 +275,19 @@ void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
                                                              expected_result_vd0_with_mask_int64});
 }
 
-[[gnu::naked]] void ExecVredsum() {
-  asm("vredsum.vs v8,v16,v24\n\t"
-      "ret\n\t");
-}
+// clang-format off
+#define DEFINE_TWO_ARG_ONE_RES_FUNCTION(Name, Asm) \
+  [[gnu::naked]] void Exec##Name() {               \
+    asm(#Asm " v8,v16,v24\n\t"                     \
+        "ret\n\t");                                \
+  }                                                \
+  [[gnu::naked]] void ExecMasked##Name() {         \
+    asm(#Asm " v8,v16,v24,v0.t\n\t"                \
+        "ret\n\t");                                \
+  }
+// clang-format on
 
-[[gnu::naked]] void ExecMaskedVredsum() {
-  asm("vredsum.vs v8,v16,v24,v0.t\n\t"
-      "ret\n\t");
-}
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vredsum, vredsum.vs)
 
 TEST(InlineAsmTestRiscv64, TestVredsum) {
   TestVectorReductionInstruction(
@@ -318,5 +339,51 @@ TEST(InlineAsmTestRiscv64, TestVredsum) {
        0x2513'1f0e'1907'1300},
       kVectorCalculationsSource);
 }
+
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vfredosum, vfredosum.vs)
+
+TEST(InlineAsmTestRiscv64, TestVfredosum) {
+  TestVectorReductionInstruction(ExecVfredosum,
+                                 ExecMaskedVfredosum,
+                                 // expected_result_vd0_int32
+                                 {0x9e0c'9a8e,
+                                  0xbe2c'bace,
+                                  0xfe6c'fb4e,
+                                  0x7e6b'fc4d,
+                                  /* unused */ 0,
+                                  /* unused */ 0,
+                                  0x9604'9200,
+                                  0x9e0c'9a8e},
+                                 // expected_result_vd0_int64
+                                 {0x9e0c'9a09'9604'9200,
+                                  0xbe2c'ba29'b624'b220,
+                                  0xfe6c'fa69'f664'f260,
+                                  0x7eec'5def'0cee'0dee,
+                                  /* unused */ 0,
+                                  /* unused */ 0,
+                                  /* unused */ 0,
+                                  0x9e0c'9a09'9604'9200},
+                                 // expected_result_vd0_with_mask_int32
+                                 {0x9604'929d,
+                                  0xbe2c'ba29,
+                                  0xfe6c'fb4e,
+                                  0x7e6b'fa84,
+                                  /* unused */ 0,
+                                  /* unused */ 0,
+                                  0x9604'9200,
+                                  0x9604'9200},
+                                 // expected_result_vd0_with_mask_int64
+                                 {0x9e0c'9a09'9604'9200,
+                                  0xbe2c'ba29'b624'b220,
+                                  0xee7c'ea78'e674'e271,
+                                  0x6efc'4e0d'ee0d'ee0f,
+                                  /* unused */ 0,
+                                  /* unused */ 0,
+                                  /* unused */ 0,
+                                  0x9e0c'9a09'9604'9200},
+                                 kVectorCalculationsSource);
+}
+
+#undef DEFINE_TWO_ARG_ONE_RES_FUNCTION
 
 }  // namespace
