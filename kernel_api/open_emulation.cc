@@ -17,15 +17,17 @@
 #include "berberis/kernel_api/open_emulation.h"
 
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <cstdio>
 #include <cstring>
-#include <string>
-#include <vector>
 
+#include "berberis/base/arena_alloc.h"
+#include "berberis/base/arena_string.h"
+#include "berberis/base/arena_vector.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/fd.h"
-#include "berberis/base/file.h"
-#include "berberis/base/strings.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -38,13 +40,46 @@ namespace {
 // It's macro since we use it as string literal below.
 #define PROC_SELF_MAPS "/proc/self/maps"
 
+// Reader that works with custom allocator strings. Based on android::base::ReadFileToString.
+template <typename String>
+bool ReadProcSelfMapsToString(String& content) {
+  int fd = open(PROC_SELF_MAPS, O_RDONLY);
+  if (fd == -1) {
+    return false;
+  }
+  char buf[4096] __attribute__((__uninitialized__));
+  ssize_t n;
+  while ((n = read(fd, &buf[0], sizeof(buf))) > 0) {
+    content.append(buf, n);
+  }
+  close(fd);
+  return n == 0;
+}
+
+// String split that works with custom allocator strings. Based on android::base::Split.
+template <typename String>
+ArenaVector<String> SplitLines(Arena* arena, String& content) {
+  ArenaVector<String> lines(arena);
+  size_t base = 0;
+  size_t found;
+  while (true) {
+    found = content.find_first_of('\n', base);
+    lines.push_back(content.substr(base, found - base));
+    if (found == content.npos) break;
+    base = found + 1;
+  }
+  return lines;
+}
+
 // Note that dirfd, flags and mode are only used to fallback to
 // host's openat in case of failure.
+// Avoid mallocs since bionic tests use it under malloc_disable (b/338211718).
 int OpenatProcSelfMapsForGuest(int dirfd, int flags, mode_t mode) {
   TRACE("Openat for " PROC_SELF_MAPS);
 
-  std::string file_data;
-  bool success = ReadFileToString(PROC_SELF_MAPS, &file_data);
+  Arena arena;
+  ArenaString file_data(&arena);
+  bool success = ReadProcSelfMapsToString(file_data);
   if (!success) {
     TRACE("Cannot read " PROC_SELF_MAPS ", falling back to host's openat");
     return openat(dirfd, PROC_SELF_MAPS, flags, mode);
@@ -54,8 +89,8 @@ int OpenatProcSelfMapsForGuest(int dirfd, int flags, mode_t mode) {
 
   auto* maps_shadow = GuestMapShadow::GetInstance();
 
-  std::vector<std::string> lines = Split(file_data, "\n");
-  std::string guest_maps;
+  auto lines = SplitLines(&arena, file_data);
+  ArenaString guest_maps(&arena);
   for (size_t i = 0; i < lines.size(); i++) {
     uintptr_t start;
     uintptr_t end;
@@ -83,6 +118,11 @@ int OpenatProcSelfMapsForGuest(int dirfd, int flags, mode_t mode) {
     guest_maps.append(lines.at(i) + "\n");
   }
 
+  // Normally /proc/self/maps doesn't have newline at the end.
+  // It's simpler to remove it than to not add it in the loop.
+  CHECK_EQ(guest_maps.back(), '\n');
+  guest_maps.pop_back();
+
   TRACE("--------\n%s\n--------", guest_maps.c_str());
 
   WriteFullyOrDie(mem_fd, guest_maps.c_str(), guest_maps.size());
@@ -92,12 +132,22 @@ int OpenatProcSelfMapsForGuest(int dirfd, int flags, mode_t mode) {
   return mem_fd;
 }
 
+bool IsProcSelfMaps(const char* path, int flags) {
+  struct stat cur_stat;
+  struct stat proc_stat;
+  // This check works for /proc/self/maps itself as well as symlinks (unless AT_SYMLINK_NOFOLLOW is
+  // requested). As an added benefit it gracefully handles invalid pointers in path.
+  return stat(path, &cur_stat) == 0 && stat(PROC_SELF_MAPS, &proc_stat) == 0 &&
+         !(S_ISLNK(cur_stat.st_mode) && (flags & AT_SYMLINK_NOFOLLOW)) &&
+         cur_stat.st_ino == proc_stat.st_ino && cur_stat.st_dev == proc_stat.st_dev;
+}
+
 }  // namespace
 
 int OpenatForGuest(int dirfd, const char* path, int guest_flags, mode_t mode) {
   int host_flags = ToHostOpenFlags(guest_flags);
 
-  if (strcmp(path, PROC_SELF_MAPS) == 0) {
+  if (IsProcSelfMaps(path, host_flags)) {
     return OpenatProcSelfMapsForGuest(dirfd, host_flags, mode);
   }
 
