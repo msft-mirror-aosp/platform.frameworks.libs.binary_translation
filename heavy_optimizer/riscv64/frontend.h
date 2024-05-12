@@ -376,7 +376,7 @@ class HeavyOptimizerFrontend {
       Gen<x86_64::AndbRegImm>(tmp, kCsrMask<kName>, GetFlagsRegister());
       Gen<x86_64::MovbMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<kName>, tmp);
     } else if constexpr (sizeof(CsrFieldType<kName>) == 8) {
-      Gen<x86_64::AndqRegImm>(
+      Gen<x86_64::AndqRegMemAbsolute>(
           tmp, constants_pool::kConst<uint64_t{kCsrMask<kName>}>, GetFlagsRegister());
       Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<kName>, tmp);
     } else {
