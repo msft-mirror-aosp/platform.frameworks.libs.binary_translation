@@ -31,6 +31,7 @@
         "AddpdXRegXReg",
         "AddpsXRegXReg",
         "AndqRegImm",
+        "AndqRegMemInsns",
         "AndqRegReg",
         "BtqRegImm",
         "Cmc",
