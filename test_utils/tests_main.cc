@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_STATE_GET_CPU_STATE_OPAQUE_H_
-#define BERBERIS_GUEST_STATE_GET_CPU_STATE_OPAQUE_H_
+#include "gtest/gtest.h"
 
-#include "berberis/guest_state/guest_state_opaque.h"
-#include "native_bridge_support/guest_state_accessor/accessor.h"
+#include "berberis/runtime/berberis.h"
 
-namespace berberis {
-
-int GetCpuState(NativeBridgeGuestRegs* guest_regs, const CPUState* state);
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  berberis::InitBerberis();
+  return RUN_ALL_TESTS();
 }
-
-#endif  // BERBERIS_GUEST_STATE_GET_CPU_STATE_OPAQUE_H_
