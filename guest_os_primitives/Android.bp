@@ -187,6 +187,7 @@ cc_defaults {
         "libberberis_base_headers",
         "libberberis_guest_os_primitives_headers",
         "libberberis_guest_state_headers",
+        "libberberis_runtime_headers",
     ],
 }
 

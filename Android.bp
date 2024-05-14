@@ -238,6 +238,7 @@ cc_test_host {
                 "libberberis_code_gen_lib_riscv64",
             ],
             whole_static_libs: [
+                "libberberis_tests_main",
                 "libberberis_backend_riscv64_to_x86_64_unit_tests",
                 "libberberis_code_gen_lib_riscv64_unit_tests",
                 "libberberis_guest_abi_riscv64_unit_tests",
