@@ -18,7 +18,11 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <iomanip>
+#include <iostream>
 #include <tuple>
+#include <utility>
 
 namespace {
 
@@ -27,31 +31,91 @@ constexpr T BitUtilLog2(T x) {
   return __builtin_ctz(x);
 }
 
+using uint8_16_t = std::tuple<uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t,
+                              uint8_t>;
+using uint16_8_t =
+    std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t>;
+using uint32_4_t = std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>;
+using uint64_2_t = std::tuple<uint64_t, uint64_t>;
+
 // A wrapper around __uint128 which can be constructed from a pair of uint64_t literals.
 class SIMD128 {
  public:
   SIMD128(){};
-  constexpr SIMD128(std::tuple<uint64_t, uint64_t> u64_u64) : u64_u64_{u64_u64} {};
+
+  constexpr SIMD128(uint8_16_t u8) : uint8_{u8} {};
+  constexpr SIMD128(uint16_8_t u16) : uint16_{u16} {};
+  constexpr SIMD128(uint32_4_t u32) : uint32_{u32} {};
+  constexpr SIMD128(uint64_2_t u64) : uint64_{u64} {};
   constexpr SIMD128(__uint128_t u128) : u128_{u128} {};
 
-  SIMD128& operator=(const SIMD128& other) {
+  [[nodiscard]] constexpr __uint128_t Get() const { return u128_; }
+
+  constexpr SIMD128& operator=(const SIMD128& other) {
     u128_ = other.u128_;
     return *this;
   };
-  SIMD128& operator|=(const SIMD128& other) {
+  constexpr SIMD128& operator|=(const SIMD128& other) {
     u128_ |= other.u128_;
     return *this;
   }
-  bool operator==(const SIMD128& other) const { return u128_ == other.u128_; }
-  SIMD128 operator>>(size_t shift_amount) const { return u128_ >> shift_amount; }
-  SIMD128 operator<<(size_t shift_amount) const { return u128_ << shift_amount; }
+
+  constexpr bool operator==(const SIMD128& other) const { return u128_ == other.u128_; }
+  constexpr bool operator!=(const SIMD128& other) const { return u128_ != other.u128_; }
+  constexpr SIMD128 operator>>(size_t shift_amount) const { return u128_ >> shift_amount; }
+  constexpr SIMD128 operator<<(size_t shift_amount) const { return u128_ << shift_amount; }
+  constexpr SIMD128 operator&(SIMD128 other) const { return u128_ & other.u128_; }
+  constexpr SIMD128 operator|(SIMD128 other) const { return u128_ | other.u128_; }
+  constexpr SIMD128 operator^(SIMD128 other) const { return u128_ ^ other.u128_; }
+  constexpr SIMD128 operator~() const { return ~u128_; }
+  friend std::ostream& operator<<(std::ostream& os, const SIMD128& simd);
+
+  template <size_t N>
+  std::ostream& Print(std::ostream& os) const {
+    os << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << std::get<N>(uint16_);
+    if constexpr (N < 7) {
+      os << '\'';
+    }
+    return os;
+  }
+
+  template <size_t... N>
+  std::ostream& PrintEach(std::ostream& os, std::index_sequence<N...>) const {
+    os << "0x";
+    (Print<N>(os), ...);
+    return os;
+  }
 
  private:
   union {
-    std::tuple<uint64_t, uint64_t> u64_u64_;
-    __uint128_t u128_;
+#ifdef __GNUC__
+    [[gnu::may_alias]] uint8_16_t uint8_;
+    [[gnu::may_alias]] uint16_8_t uint16_;
+    [[gnu::may_alias]] uint32_4_t uint32_;
+    [[gnu::may_alias]] uint64_2_t uint64_;
+    [[gnu::may_alias]] __uint128_t u128_;
+#endif
   };
 };
+
+// Helps produce easy to read output on failed tests.
+std::ostream& operator<<(std::ostream& os, const SIMD128& simd) {
+  return simd.PrintEach(os, std::make_index_sequence<8>());
+}
 
 constexpr SIMD128 kVectorCalculationsSource[16] = {
     {{0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908}},
@@ -88,6 +152,85 @@ const SIMD128 kAgnosticResult = GetAgnosticResult();
 
 // Mask in form suitable for storing in v0 and use in v0.t form.
 static constexpr SIMD128 kMask{{0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5}};
+// Mask used with vsew = 0 (8bit) elements.
+static constexpr SIMD128 kMaskInt8[8] = {
+    {{255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255}},
+    {{255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255}},
+    {{255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 255}},
+    {{255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 0, 255, 255}},
+    {{255, 0, 255, 0, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 255, 0}},
+    {{255, 0, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 255, 0, 255, 255}},
+    {{255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 255, 0, 255, 0, 255, 0}},
+    {{255, 255, 255, 0, 255, 255, 255, 255, 0, 255, 0, 255, 0, 255, 255, 0}},
+};
+// Mask used with vsew = 1 (16bit) elements.
+static constexpr SIMD128 kMaskInt16[8] = {
+    {{0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff}},
+    {{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff}},
+    {{0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0x0000}},
+    {{0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff}},
+    {{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff}},
+    {{0x0000, 0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff}},
+    {{0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff}},
+    {{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff}},
+};
+// Mask used with vsew = 2 (32bit) elements.
+static constexpr SIMD128 kMaskInt32[8] = {
+    {{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff}},
+    {{0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff}},
+    {{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0x0000'0000}},
+    {{0xffff'ffff, 0xffff'ffff, 0x0000'0000, 0xffff'ffff}},
+    {{0xffff'ffff, 0xffff'ffff, 0x0000'0000, 0xffff'ffff}},
+    {{0x0000'0000, 0xffff'ffff, 0xffff'ffff, 0x0000'0000}},
+    {{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff}},
+    {{0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff}},
+};
+// Mask used with vsew = 3 (64bit) elements.
+static constexpr SIMD128 kMaskInt64[8] = {
+    {{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff}},
+    {{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff}},
+    {{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000}},
+    {{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff}},
+};
+// To verify operations without masking.
+static constexpr SIMD128 kNoMask[8] = {
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+    {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
+};
+
+// Half of sub-register lmul.
+static constexpr SIMD128 kFractionMaskInt8[5] = {
+    {{255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},                // Half of 1/8 reg = 1/16
+    {{255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},              // Half of 1/4 reg = 1/8
+    {{255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},          // Half of 1/2 reg = 1/4
+    {{255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0}},  // Half of full reg = 1/2
+    {{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}},  // Full reg
+};
+
+template <typename ElementType>
+auto MaskForElem() {
+  if constexpr (std::is_same_v<ElementType, uint8_t>) {
+    return kMaskInt8;
+  } else if constexpr (std::is_same_v<ElementType, uint16_t>) {
+    return kMaskInt16;
+  } else if constexpr (std::is_same_v<ElementType, uint32_t>) {
+    return kMaskInt32;
+  } else if constexpr (std::is_same_v<ElementType, uint64_t>) {
+    return kMaskInt64;
+  } else {
+    static_assert(false);
+  }
+}
 
 using ExecInsnFunc = void (*)();
 
