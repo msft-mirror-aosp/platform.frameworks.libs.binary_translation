@@ -537,11 +537,11 @@ void TestVectorReductionInstruction(
         size_t vsew_bits = 8 << vsew;
         expected_result_register = (expected_result_register >> vsew_bits) << vsew_bits;
         expected_result_register |= expected_result;
-        EXPECT_TRUE(result[0] == expected_result_register) << " vtype=" << vtype;
+        EXPECT_EQ(result[0], expected_result_register) << " vtype=" << vtype;
 
         // Verify all non-destination registers are undisturbed.
         for (size_t index = 1; index < 8; ++index) {
-          EXPECT_TRUE(result[index] == kUndisturbedResult) << " vtype=" << vtype;
+          EXPECT_EQ(result[index], kUndisturbedResult) << " vtype=" << vtype;
         }
       }
     }
