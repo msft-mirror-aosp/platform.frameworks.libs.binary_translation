@@ -474,6 +474,15 @@ void TestVectorInstruction(ExecInsnFunc exec_insn,
    ...);
 }
 
+void TestVectorFloatInstruction(ExecInsnFunc exec_insn,
+                                ExecInsnFunc exec_masked_insn,
+                                const uint32_4_t (&expected_result_int32)[8],
+                                const uint64_2_t (&expected_result_int64)[8],
+                                const SIMD128 (&source)[16]) {
+  TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kDefault>(
+      exec_insn, exec_masked_insn, source, expected_result_int32, expected_result_int64);
+}
+
 template <typename... ExpectedResultType>
 void TestVectorReductionInstruction(
     ExecInsnFunc exec_insn,
@@ -1208,5 +1217,37 @@ TEST(InlineAsmTestRiscv64, TestVfredmax) {
 }
 
 #undef DEFINE_TWO_ARG_ONE_RES_FUNCTION
+
+[[gnu::naked]] void ExecVfsqrtv() {
+  asm("vfsqrt.v v8,v24\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVfsqrtv() {
+  asm("vfsqrt.v v8,v24,v0.t\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVfsqrtv) {
+  TestVectorFloatInstruction(ExecVfsqrtv,
+                             ExecMaskedVfsqrtv,
+                             {{0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000, 0x7fc0'0000},
+                              {0x2b02'052b, 0x2f05'ea47, 0x2309'a451, 0x270d'53b1},
+                              {0x3b10'f937, 0x3f14'7a09, 0x3317'd8b1, 0x371b'31d0},
+                              {0x4b1e'85c1, 0x4f21'bb83, 0x4324'd4da, 0x4727'ebbf},
+                              {0x5b2b'0054, 0x5f2d'fb2f, 0x5330'dd9e, 0x5733'bf97}},
+                             {{0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x7ff8'0000'0000'0000, 0x7ff8'0000'0000'0000},
+                              {0x2f3d'fd15'c59f'19b3, 0x2745'2e80'5593'4661},
+                              {0x3f4e'0e34'c013'd37a, 0x3755'3a9e'ffea'ec9f},
+                              {0x4f5e'1f49'ff52'69b6, 0x4765'46b6'c2dc'cddd},
+                              {0x5f6e'3055'93df'fb07, 0x5775'52c7'aa27'df73}},
+                             kVectorCalculationsSource);
+}
 
 }  // namespace

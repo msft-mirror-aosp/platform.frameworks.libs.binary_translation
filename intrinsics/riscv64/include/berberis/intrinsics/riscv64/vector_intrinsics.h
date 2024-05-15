@@ -775,6 +775,10 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
 #define DEFINE_1OP_ARITHMETIC_INTRINSIC_X(name, ...) \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##x, return ({ __VA_ARGS__; });, (ElementType src), (), (src))
 
+#define DEFINE_1OP_1CSR_ARITHMETIC_INTRINSIC_V(name, ...)            \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##v, return ({ __VA_ARGS__; }); \
+                              , (int8_t csr, SIMD128Register src), (csr), (src))
+
 #define DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(name, ...) \
   DEFINE_ARITHMETIC_INTRINSIC(                             \
       V##name##vf, return ({ __VA_ARGS__; });              \
@@ -902,6 +906,9 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(frsqrt7, RSqrtEstimate(args...))
+
+DEFINE_1OP_1CSR_ARITHMETIC_INTRINSIC_V(fsqrt,
+                                       CanonicalizeNanTuple(FSqrt(FPFlags::DYN, csr, args...)))
 
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
