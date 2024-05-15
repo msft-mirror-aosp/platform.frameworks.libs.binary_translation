@@ -299,6 +299,181 @@ void RunTwoVectorArgsOneRes(ExecInsnFunc exec_insn,
   EXPECT_EQ(vl, vlmax);
 }
 
+void RunOneVectorArgOneRes(ExecInsnFunc exec_insn,
+                           const SIMD128* src,
+                           SIMD128* res,
+                           uint64_t vstart,
+                           uint64_t vtype,
+                           uint64_t vlin) {
+  uint64_t vl = vlin;
+  // Mask register is, unconditionally, v0, and we need 8 or 24 to handle full 8-registers
+  // inputs thus we use v8..v15 for destination and place sources into v24..v31.
+  asm(  // Load arguments and undisturbed result.
+      "vsetvli t0, zero, e64, m8, ta, ma\n\t"
+      "vle64.v v8, (%[res])\n\t"
+      "addi t0, %[src], 128\n\t"
+      "vle64.v v24, (t0)\n\t"
+      // Load mask.
+      "vsetvli t0, zero, e64, m1, ta, ma\n\t"
+      "vle64.v v0, (%[mask])\n\t"
+      // Execute tested instruction.
+      "vsetvl t0, %[vl], %[vtype]\n\t"
+      "csrw vstart, %[vstart]\n\t"
+      "jalr %[exec_insn]\n\t"
+      // Save vstart and vl just after insn execution for checks.
+      "csrr %[vstart], vstart\n\t"
+      "csrr %[vl], vl\n\t"
+      // Store the result.
+      "vsetvli t0, zero, e64, m8, ta, ma\n\t"
+      "vse64.v v8, (%[res])\n\t"
+      : [vstart] "=r"(vstart), [vl] "=r"(vl)
+      : [exec_insn] "r"(exec_insn),
+        [src] "r"(src),
+        [res] "r"(res),
+        [vtype] "r"(vtype),
+        "0"(vstart),
+        "1"(vl),
+        [mask] "r"(&kMask)
+      : "t0",
+        "ra",
+        "v0",
+        "v8",
+        "v9",
+        "v10",
+        "v11",
+        "v12",
+        "v13",
+        "v14",
+        "v15",
+        "v24",
+        "v25",
+        "v26",
+        "v27",
+        "v28",
+        "v29",
+        "v30",
+        "v31",
+        "memory");
+  // Every vector instruction must set vstart to 0, but shouldn't touch vl.
+  EXPECT_EQ(vstart, 0);
+  EXPECT_EQ(vl, vlin);
+}
+
+enum class TestVectorInstructionKind { kInteger, kFloat };
+enum class TestVectorInstructionMode { kDefault, kWidening, kNarrowing, kVMerge };
+
+template <TestVectorInstructionKind kTestVectorInstructionKind,
+          TestVectorInstructionMode kTestVectorInstructionMode,
+          typename... ExpectedResultType>
+void TestVectorInstruction(ExecInsnFunc exec_insn,
+                           ExecInsnFunc exec_masked_insn,
+                           const SIMD128 (&source)[16],
+                           const ExpectedResultType (&... expected_result)[8]) {
+  auto Verify = [&source](ExecInsnFunc exec_insn,
+                          uint8_t vsew,
+                          const auto& expected_result,
+                          const auto& mask) {
+    for (uint8_t vlmul = 0; vlmul < 8; ++vlmul) {
+      if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kNarrowing ||
+                    kTestVectorInstructionMode == TestVectorInstructionMode::kWidening) {
+        // Incompatible vlmul for narrowing.
+        if (vlmul == 3) {
+          continue;
+        }
+      }
+      for (uint8_t vta = 0; vta < 2; ++vta) {
+        for (uint8_t vma = 0; vma < 2; ++vma) {
+          uint64_t vtype = (vma << 7) | (vta << 6) | (vsew << 3) | vlmul;
+          uint64_t vlmax = 0;
+          asm("vsetvl %0, zero, %1" : "=r"(vlmax) : "r"(vtype));
+          // Incompatible vsew and vlmax. Skip it.
+          if (vlmax == 0) {
+            continue;
+          }
+          uint8_t emul =
+              (vlmul + (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening)) &
+              0b111;
+
+          // To make tests quick enough we don't test vstart and vl change with small register
+          // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of first
+          // register, last register and half of next-to last register.
+          // Don't use vlmul == 3 because that one may not be supported if instruction widens the
+          // result.
+          uint64_t vstart;
+          uint64_t vl;
+          if (emul == 2) {
+            vstart = vlmax / 8;
+            vl = (vlmax * 5) / 8;
+          } else {
+            vstart = 0;
+            vl = vlmax;
+          }
+
+          SIMD128 result[8];
+          // Set expected_result vector registers into 0b01010101… pattern.
+          // Set undisturbed result vector registers.
+          std::fill_n(result, 8, kUndisturbedResult);
+
+          RunOneVectorArgOneRes(exec_insn, &source[0], &result[0], vstart, vtype, vl);
+
+          // Values for inactive elements (i.e. corresponding mask bit is 0).
+          SIMD128 expected_inactive[8];
+          if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kVMerge) {
+            // vs2 is the start of the source vector register group.
+            // Note: copy_n input/output args are backwards compared to fill_n below.
+            std::copy_n(source, 8, expected_inactive);
+          } else {
+            // For most instructions, follow basic inactive processing rules based on vma flag.
+            std::fill_n(expected_inactive, 8, (vma ? kAgnosticResult : kUndisturbedResult));
+          }
+
+          if (emul < 4) {
+            for (size_t index = 0; index < 1 << emul; ++index) {
+              if (index == 0 && emul == 2) {
+                EXPECT_EQ(result[index],
+                          ((kUndisturbedResult & kFractionMaskInt8[3]) |
+                           (SIMD128{expected_result[index]} & mask[index] & ~kFractionMaskInt8[3]) |
+                           (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])));
+              } else if (index == 2 && emul == 2) {
+                EXPECT_EQ(result[index],
+                          ((SIMD128{expected_result[index]} & mask[index] & kFractionMaskInt8[3]) |
+                           (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
+                           ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])));
+              } else if (index == 3 && emul == 2 && vta) {
+                EXPECT_EQ(result[index], kAgnosticResult);
+              } else if (index == 3 && emul == 2) {
+                EXPECT_EQ(result[index], kUndisturbedResult);
+              } else {
+                EXPECT_EQ(result[index],
+                          ((SIMD128{expected_result[index]} & mask[index]) |
+                           ((expected_inactive[index] & ~mask[index]))));
+              }
+            }
+          } else {
+            EXPECT_EQ(
+                result[0],
+                ((SIMD128{expected_result[0]} & mask[0] & kFractionMaskInt8[emul - 4]) |
+                 (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[emul - 4]) |
+                 ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[emul - 4])));
+          }
+        }
+      }
+    }
+  };
+
+  ((Verify(exec_insn,
+           BitUtilLog2(sizeof(std::tuple_element_t<0, ExpectedResultType>)) -
+               (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening),
+           expected_result,
+           kNoMask),
+    Verify(exec_masked_insn,
+           BitUtilLog2(sizeof(std::tuple_element_t<0, ExpectedResultType>)) -
+               (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening),
+           expected_result,
+           MaskForElem<std::tuple_element_t<0, ExpectedResultType>>())),
+   ...);
+}
+
 template <typename... ExpectedResultType>
 void TestVectorReductionInstruction(
     ExecInsnFunc exec_insn,
