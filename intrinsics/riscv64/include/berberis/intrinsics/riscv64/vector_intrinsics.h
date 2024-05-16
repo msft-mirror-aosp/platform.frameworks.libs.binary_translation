@@ -791,6 +791,10 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
 #define DEFINE_1OP_ARITHMETIC_INTRINSIC_X(name, ...) \
   DEFINE_ARITHMETIC_INTRINSIC(V##name##x, return ({ __VA_ARGS__; });, (ElementType src), (), (src))
 
+#define DEFINE_1OP_1CSR_ARITHMETIC_INTRINSIC_V(name, ...)            \
+  DEFINE_ARITHMETIC_INTRINSIC(V##name##v, return ({ __VA_ARGS__; }); \
+                              , (int8_t csr, SIMD128Register src), (csr), (src))
+
 #define DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(name, ...) \
   DEFINE_ARITHMETIC_INTRINSIC(                             \
       V##name##vf, return ({ __VA_ARGS__; });              \
@@ -919,6 +923,9 @@ DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(frsqrt7, RSqrtEstimate(args...))
 
+DEFINE_1OP_1CSR_ARITHMETIC_INTRINSIC_V(fsqrt,
+                                       CanonicalizeNanTuple(FSqrt(FPFlags::DYN, csr, args...)))
+
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(add, (args + ...))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VS(redsum, (args + ...))
@@ -940,37 +947,67 @@ DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VX(
     aadd,
     ElementType{std::get<0>(Aadd(csr, static_cast<typename ElementType::BaseType>(args)...))})
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fadd, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fadd, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(sub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(sub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(mul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(mul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_WV(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_WF(add, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_WV(sub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_WF(sub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fadd,
+                                        CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fadd,
+                                        CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(
+    add,
+    CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(
+    add,
+    CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(
+    sub,
+    CanonicalizeNanTuple(FSub(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(
+    sub,
+    CanonicalizeNanTuple(FSub(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VV(
+    mul,
+    CanonicalizeNanTuple(FMul(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VF(
+    mul,
+    CanonicalizeNanTuple(FMul(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_WV(
+    add,
+    CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_WF(
+    add,
+    CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_WV(
+    sub,
+    CanonicalizeNanTuple(FSub(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_WF(
+    sub,
+    CanonicalizeNanTuple(FSub(FPFlags::DYN, csr, args...)))
 
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fsub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fsub, std::get<0>(FSub(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fsub,
+                                        CanonicalizeNanTuple(FSub(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fsub,
+                                        CanonicalizeNanTuple(FSub(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(frsub, auto [arg1, arg2] = std::tuple{args...};
-                                        std::get<0>(FSub(FPFlags::DYN, csr, arg2, arg1)))
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VS(osum, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VS(usum, std::get<0>(FAdd(FPFlags::DYN, csr, args...)))
+                                        CanonicalizeNanTuple(FSub(FPFlags::DYN, csr, arg2, arg1)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VS(osum,
+                                        CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VS(usum,
+                                        CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(
     asub,
     ElementType{std::get<0>(Asub(csr, static_cast<typename ElementType::BaseType>(args)...))})
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VX(
     asub,
     ElementType{std::get<0>(Asub(csr, static_cast<typename ElementType::BaseType>(args)...))})
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fmul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fmul, std::get<0>(FMul(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fdiv, std::get<0>(FDiv(FPFlags::DYN, csr, args...)))
-DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fdiv, std::get<0>(FDiv(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fmul,
+                                        CanonicalizeNanTuple(FMul(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fmul,
+                                        CanonicalizeNanTuple(FMul(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fdiv,
+                                        CanonicalizeNanTuple(FDiv(FPFlags::DYN, csr, args...)))
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fdiv,
+                                        CanonicalizeNanTuple(FDiv(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(frdiv, auto [arg1, arg2] = std::tuple{args...};
-                                        std::get<0>(FDiv(FPFlags::DYN, csr, arg2, arg1)))
+                                        CanonicalizeNanTuple(FDiv(FPFlags::DYN, csr, arg2, arg1)))
 // SIMD mask either includes results with all bits set to 0 or all bits set to 1.
 // This way it may be used with VAnd and VAndN operations to perform masking.
 // Such comparison is effectively one instruction of x86-64 (via SSE or AVX) but
