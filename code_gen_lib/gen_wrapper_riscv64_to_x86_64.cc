@@ -104,21 +104,32 @@ void GenWrapGuestFunction(MachineCode* mc,
   int fp_argc = 0;
   int stack_argc = 0;
   int host_stack_argc = 0;
+  static constexpr int kGuestParamRegs = 8;
+  static constexpr Assembler::Register kParamRegs[] = {
+      Assembler::rdi,
+      Assembler::rsi,
+      Assembler::rdx,
+      Assembler::rcx,
+      Assembler::r8,
+      Assembler::r9,
+  };
+  static constexpr Assembler::XMMRegister kFpParamRegs[] = {
+      Assembler::xmm0,
+      Assembler::xmm1,
+      Assembler::xmm2,
+      Assembler::xmm3,
+      Assembler::xmm4,
+      Assembler::xmm5,
+      Assembler::xmm6,
+      Assembler::xmm7,
+  };
   for (size_t i = 1; signature[i] != '\0'; ++i) {
     if (signature[i] == 'z' || signature[i] == 'b' || signature[i] == 's' || signature[i] == 'c' ||
         signature[i] == 'i' || signature[i] == 'p' || signature[i] == 'l') {
-      static constexpr Assembler::Register kParamRegs[] = {
-          Assembler::rdi,
-          Assembler::rsi,
-          Assembler::rdx,
-          Assembler::rcx,
-          Assembler::r8,
-          Assembler::r9,
-      };
       if (argc < static_cast<int>(std::size(kParamRegs))) {
         ExtendIntArg(as, signature[i], kParamRegs[argc], kParamRegs[argc]);
         as.Movq({.base = Assembler::rsp, .disp = kArgvOffset + argc * 8}, kParamRegs[argc]);
-      } else if (argc < 8) {
+      } else if (argc < kGuestParamRegs) {
         as.Movq(Assembler::rax,
                 {.base = Assembler::rsp, .disp = params_offset + host_stack_argc * 8});
         ++host_stack_argc;
@@ -135,32 +146,30 @@ void GenWrapGuestFunction(MachineCode* mc,
       }
       ++argc;
     } else if (signature[i] == 'f' || signature[i] == 'd') {
-      static constexpr Assembler::XMMRegister kParamRegs[] = {
-          Assembler::xmm0,
-          Assembler::xmm1,
-          Assembler::xmm2,
-          Assembler::xmm3,
-          Assembler::xmm4,
-          Assembler::xmm5,
-          Assembler::xmm6,
-          Assembler::xmm7,
-      };
-      if (fp_argc < static_cast<int>(std::size(kParamRegs))) {
+      // Floating-point parameters are passed in the floating-point parameter registers (fa0..7)
+      // first, then the general-purpose parameter registers (a0..7), then on the stack.
+      if (fp_argc < static_cast<int>(std::size(kFpParamRegs))) {
         if (signature[i] == 'f') {
           // LP64D requires 32-bit floats to be NaN boxed.
           if (host_platform::kHasAVX) {
-            as.MacroNanBoxAVX<intrinsics::Float32>(kParamRegs[fp_argc], kParamRegs[fp_argc]);
+            as.MacroNanBoxAVX<intrinsics::Float32>(kFpParamRegs[fp_argc], kFpParamRegs[fp_argc]);
           } else {
-            as.MacroNanBox<intrinsics::Float32>(kParamRegs[fp_argc]);
+            as.MacroNanBox<intrinsics::Float32>(kFpParamRegs[fp_argc]);
           }
         }
         if (host_platform::kHasAVX) {
           as.Vmovq({.base = Assembler::rsp, .disp = kFpArgvOffset + fp_argc * 8},
-                   kParamRegs[fp_argc]);
+                   kFpParamRegs[fp_argc]);
         } else {
           as.Movq({.base = Assembler::rsp, .disp = kFpArgvOffset + fp_argc * 8},
-                  kParamRegs[fp_argc]);
+                  kFpParamRegs[fp_argc]);
         }
+      } else if (argc < kGuestParamRegs) {
+        as.Movq(Assembler::rax,
+                {.base = Assembler::rsp, .disp = params_offset + host_stack_argc * 8});
+        ++host_stack_argc;
+        as.Movq({.base = Assembler::rsp, .disp = kArgvOffset + argc * 8}, Assembler::rax);
+        ++argc;
       } else {
         as.Movq(Assembler::rax,
                 {.base = Assembler::rsp, .disp = params_offset + host_stack_argc * 8});
