@@ -1066,6 +1066,22 @@ DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VV(fmsub, auto [arg1, arg2, arg3] = std::tu
                                         std::get<0>(FMSub(FPFlags::DYN, csr, arg3, arg2, arg1)))
 DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VF(fmsub, auto [arg1, arg2, arg3] = std::tuple{args...};
                                         std::get<0>(FMSub(FPFlags::DYN, csr, arg3, arg2, arg1)))
+DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VV(fnmacc, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                        std::get<0>(FNMSub(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VF(fnmacc, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                        std::get<0>(FNMSub(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VV(fnmsac, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                        std::get<0>(FNMAdd(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VF(fnmsac, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                        std::get<0>(FNMAdd(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VV(fnmadd, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                        std::get<0>(FNMSub(FPFlags::DYN, csr, arg3, arg2, arg1)))
+DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VF(fnmadd, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                        std::get<0>(FNMSub(FPFlags::DYN, csr, arg3, arg2, arg1)))
+DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VV(fnmsub, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                        std::get<0>(FNMAdd(FPFlags::DYN, csr, arg3, arg2, arg1)))
+DEFINE_3OP_1CSR_ARITHMETIC_INTRINSIC_VF(fnmsub, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                        std::get<0>(FNMAdd(FPFlags::DYN, csr, arg3, arg2, arg1)))
 
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(fmin, std::get<0>(FMin(args...)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fmin, std::get<0>(FMin(args...)))
