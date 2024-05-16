@@ -465,7 +465,7 @@ Register LiteTranslator::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Regi
       Undefined();
       return {};
   }
-  return arg;
+  return res;
 }
 
 Register LiteTranslator::UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr) {
