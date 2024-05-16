@@ -560,6 +560,7 @@ class Decoder {
   };
 
   enum class VFUnary1Opcode : uint8_t {
+    kVfsqrtv = 0b00000,
     kVfrsqrt7v = 0b00100,
   };
 
