@@ -319,18 +319,18 @@ TEST(CodeGenLib, GenWrapGuestFunction_Run10Int) {
   ASSERT_EQ(res, -10);
 }
 
-void Run10Fp(GuestAddr pc, GuestArgumentBuffer* buf) {
+void Run18Fp(GuestAddr pc, GuestArgumentBuffer* buf) {
   static_assert(sizeof(float) == sizeof(uint32_t));
   ASSERT_EQ(pc, ToGuestAddr(&g_insn));
   ASSERT_NE(nullptr, buf);
   // riscv verification
-  ASSERT_EQ(0, buf->argc);
+  ASSERT_EQ(8, buf->argc);
   ASSERT_EQ(8, buf->fp_argc);
   ASSERT_EQ(16, buf->stack_argc);
   ASSERT_EQ(0, buf->resc);
   ASSERT_EQ(1, buf->fp_resc);
   // 32-bit parameters passed in floating-point registers are 1-extended.
-  // 32-bit parameters passed on the stack are 0-extended.
+  // 32-bit parameters passed in general-purpose registers and on the stack are 0-extended.
   ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[0] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(0.0f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[0])));
   ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[1] & kNanBoxFloat32);
@@ -347,8 +347,16 @@ void Run10Fp(GuestAddr pc, GuestArgumentBuffer* buf) {
   ASSERT_FLOAT_EQ(6.6f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[6])));
   ASSERT_EQ(kNanBoxFloat32, buf->fp_argv[7] & kNanBoxFloat32);
   ASSERT_FLOAT_EQ(7.7f, bit_cast<float>(static_cast<uint32_t>(buf->fp_argv[7])));
-  ASSERT_FLOAT_EQ(8.8f, bit_cast<float>(static_cast<uint32_t>(buf->stack_argv[0])));
-  ASSERT_FLOAT_EQ(9.9f, bit_cast<float>(static_cast<uint32_t>(buf->stack_argv[1])));
+  ASSERT_FLOAT_EQ(8.8f, bit_cast<float>(static_cast<uint32_t>(buf->argv[0])));
+  ASSERT_FLOAT_EQ(9.9f, bit_cast<float>(static_cast<uint32_t>(buf->argv[1])));
+  ASSERT_FLOAT_EQ(10.01f, bit_cast<float>(static_cast<uint32_t>(buf->argv[2])));
+  ASSERT_FLOAT_EQ(20.02f, bit_cast<float>(static_cast<uint32_t>(buf->argv[3])));
+  ASSERT_FLOAT_EQ(30.03f, bit_cast<float>(static_cast<uint32_t>(buf->argv[4])));
+  ASSERT_FLOAT_EQ(40.04f, bit_cast<float>(static_cast<uint32_t>(buf->argv[5])));
+  ASSERT_FLOAT_EQ(50.05f, bit_cast<float>(static_cast<uint32_t>(buf->argv[6])));
+  ASSERT_FLOAT_EQ(60.06f, bit_cast<float>(static_cast<uint32_t>(buf->argv[7])));
+  ASSERT_FLOAT_EQ(70.07f, bit_cast<float>(static_cast<uint32_t>(buf->stack_argv[0])));
+  ASSERT_FLOAT_EQ(80.08f, bit_cast<float>(static_cast<uint32_t>(buf->stack_argv[1])));
   buf->fp_argv[0] = static_cast<uint64_t>(bit_cast<uint32_t>(45.45f)) | kNanBoxFloat32;
 }
 
@@ -356,12 +364,46 @@ TEST(CodeGenLib, GenWrapGuestFunction_Run10Fp) {
   MachineCode machine_code;
 
   GenWrapGuestFunction(
-      &machine_code, ToGuestAddr(&g_insn), "fffffffffff", AsHostCode(Run10Fp), "Run10Fp");
+      &machine_code, ToGuestAddr(&g_insn), "fffffffffffffffffff", AsHostCode(Run18Fp), "Run18Fp");
 
   ScopedExecRegion exec(&machine_code);
 
-  using Func = float(float, float, float, float, float, float, float, float, float, float);
-  float res = exec.get<Func>()(0.0f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f, 7.7f, 8.8f, 9.9f);
+  using Func = float(float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float,
+                     float);
+  float res = exec.get<Func>()(0.0f,
+                               1.1f,
+                               2.2f,
+                               3.3f,
+                               4.4f,
+                               5.5f,
+                               6.6f,
+                               7.7f,
+                               8.8f,
+                               9.9f,
+                               10.01f,
+                               20.02f,
+                               30.03f,
+                               40.04f,
+                               50.05f,
+                               60.06f,
+                               70.07f,
+                               80.08f);
   ASSERT_FLOAT_EQ(45.45f, res);
 }
 
