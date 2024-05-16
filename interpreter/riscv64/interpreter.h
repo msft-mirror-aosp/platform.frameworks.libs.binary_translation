@@ -1787,6 +1787,14 @@ class Interpreter {
           break;
         case Decoder::VOpFVvOpcode::kVFUnary1:
           switch (args.vfunary1_opcode) {
+            case Decoder::VFUnary1Opcode::kVfsqrtv:
+              return OpVectorv<intrinsics::Vfsqrtv<ElementType>,
+                               ElementType,
+                               vlmul,
+                               vta,
+                               vma,
+                               kFrm>(args.dst, args.src1);
+              break;
             case Decoder::VFUnary1Opcode::kVfrsqrt7v:
               return OpVectorv<intrinsics::Vfrsqrt7v<ElementType>, ElementType, vlmul, vta, vma>(
                   args.dst, args.src1);
