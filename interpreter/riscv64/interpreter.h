@@ -1427,6 +1427,18 @@ class Interpreter {
       case Decoder::VOpFVfOpcode::kVfmsubvf:
         return OpVectorvxv<intrinsics::Vfmsubvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
             args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfnmaccvf:
+        return OpVectorvxv<intrinsics::Vfnmaccvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfnmsacvf:
+        return OpVectorvxv<intrinsics::Vfnmsacvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfnmaddvf:
+        return OpVectorvxv<intrinsics::Vfnmaddvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+            args.dst, args.src1, arg2);
+      case Decoder::VOpFVfOpcode::kVfnmsubvf:
+        return OpVectorvxv<intrinsics::Vfnmsubvf<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
+            args.dst, args.src1, arg2);
       default:
         return Undefined();
     }
@@ -1775,6 +1787,14 @@ class Interpreter {
           break;
         case Decoder::VOpFVvOpcode::kVFUnary1:
           switch (args.vfunary1_opcode) {
+            case Decoder::VFUnary1Opcode::kVfsqrtv:
+              return OpVectorv<intrinsics::Vfsqrtv<ElementType>,
+                               ElementType,
+                               vlmul,
+                               vta,
+                               vma,
+                               kFrm>(args.dst, args.src1);
+              break;
             case Decoder::VFUnary1Opcode::kVfrsqrt7v:
               return OpVectorv<intrinsics::Vfrsqrt7v<ElementType>, ElementType, vlmul, vta, vma>(
                   args.dst, args.src1);
@@ -1851,6 +1871,34 @@ class Interpreter {
         case Decoder::VOpFVvOpcode::kVfmsubvv:
           return OpVectorvvv<intrinsics::Vfmsubvv<ElementType>, ElementType, vlmul, vta, vma, kFrm>(
               args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfnmaccvv:
+          return OpVectorvvv<intrinsics::Vfnmaccvv<ElementType>,
+                             ElementType,
+                             vlmul,
+                             vta,
+                             vma,
+                             kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfnmsacvv:
+          return OpVectorvvv<intrinsics::Vfnmsacvv<ElementType>,
+                             ElementType,
+                             vlmul,
+                             vta,
+                             vma,
+                             kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfnmaddvv:
+          return OpVectorvvv<intrinsics::Vfnmaddvv<ElementType>,
+                             ElementType,
+                             vlmul,
+                             vta,
+                             vma,
+                             kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfnmsubvv:
+          return OpVectorvvv<intrinsics::Vfnmsubvv<ElementType>,
+                             ElementType,
+                             vlmul,
+                             vta,
+                             vma,
+                             kFrm>(args.dst, args.src1, args.src2);
         default:
           break;  // Make compiler happy.
       }

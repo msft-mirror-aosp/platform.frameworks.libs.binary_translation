@@ -275,6 +275,11 @@ std::tuple<FloatType> FNMSub(int8_t rm,
 }
 
 template <typename FloatType>
+FloatType CanonicalizeNanTuple(std::tuple<FloatType> arg) {
+  return std::get<0>(CanonicalizeNan<FloatType>(std::get<0>(arg)));
+}
+
+template <typename FloatType>
 FloatType RSqrtEstimate(FloatType op) {
   if (SignBit(op)) {
     // If argument is negative - return default NaN.
