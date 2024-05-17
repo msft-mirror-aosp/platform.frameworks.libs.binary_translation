@@ -45,6 +45,8 @@
 #error "One of TESTING_INTERPRETER, TESTING_LITE_TRANSLATOR, TESTING_HEAVY_OPTIMIZER must be defined
 #endif
 
+namespace {
+
 // TODO(b/276787675): remove these files from interpreter when they are no longer needed there.
 // Maybe extract FPvalueToFPReg and TupleMap to a separate header?
 inline constexpr class FPValueToFPReg {
@@ -83,11 +85,47 @@ decltype(auto) TupleMap(const ContainerType& container, const Transformer& trans
   return result;
 }
 
+void RaiseFeExceptForGuestFlags(uint8_t riscv_fflags) {
+  EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+  if (riscv_fflags & FPFlags::NX) {
+    EXPECT_EQ(feraiseexcept(FE_INEXACT), 0);
+  }
+  if (riscv_fflags & FPFlags::UF) {
+    EXPECT_EQ(feraiseexcept(FE_UNDERFLOW), 0);
+  }
+  if (riscv_fflags & FPFlags::OF) {
+    EXPECT_EQ(feraiseexcept(FE_OVERFLOW), 0);
+  }
+  if (riscv_fflags & FPFlags::DZ) {
+    EXPECT_EQ(feraiseexcept(FE_DIVBYZERO), 0);
+  }
+  if (riscv_fflags & FPFlags::NV) {
+    EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
+  }
+}
+
+void TestFeExceptForGuestFlags(uint8_t riscv_fflags) {
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+}
+
+}  // namespace
+
 class TESTSUITE : public ::testing::Test {
  public:
   TESTSUITE()
       : state_{
             .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
+
+  template <uint8_t kInsnSize = 4>
+  void RunInstruction(uint32_t insn_bytes) {
+    auto code_start = ToGuestAddr(&insn_bytes);
+    state_.cpu.insn_addr = code_start;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + kInsnSize));
+  }
 
   // Compressed Instructions.
 
@@ -201,6 +239,15 @@ class TESTSUITE : public ::testing::Test {
 
   // Non-Compressed Instructions.
 
+  void TestFFlagsOnGuestAndHost(uint8_t expected_guest_fflags) {
+    // Read fflags register.
+    RunInstruction(0x00102173);  // frflags x2
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_guest_fflags);
+
+    // Check corresponding fenv exception flags on host.
+    TestFeExceptForGuestFlags(expected_guest_fflags);
+  }
+
   void TestFCsr(uint32_t insn_bytes,
                 uint8_t fcsr_to_set,
                 uint8_t expected_fcsr,
@@ -213,14 +260,6 @@ class TESTSUITE : public ::testing::Test {
     EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b1000'0000ULL | expected_fcsr);
     EXPECT_EQ(state_.cpu.frm, expected_cpustate_frm);
-  }
-
-  void TestFFlags(uint32_t insn_bytes, uint8_t fflags_to_set, uint8_t expected_fflags) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    SetXReg<3>(state_.cpu, fflags_to_set);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_fflags);
   }
 
   void TestFrm(uint32_t insn_bytes, uint8_t frm_to_set, uint8_t expected_rm) {
@@ -1182,107 +1221,128 @@ TEST_F(TESTSUITE, CsrInstructions) {
   TestFrm(0x0020f173, 0, 0);
 }
 
-TEST_F(TESTSUITE, FCsrRegister) {
-  fenv_t saved_environment;
-  EXPECT_EQ(fegetenv(&saved_environment), 0);
+constexpr uint8_t kFPFlagsAll = FPFlags::NX | FPFlags::UF | FPFlags::OF | FPFlags::DZ | FPFlags::NV;
+// Ensure all trailing bits are set in kFPFlagsAll so that all combinations are possible.
+static_assert(__builtin_ctz(~kFPFlagsAll) == 5);
 
-  for (uint8_t riscv_fflags = 0; riscv_fflags < 32; riscv_fflags += 1) {
-    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
-    if (riscv_fflags & FPFlags::NX) {
-      EXPECT_EQ(feraiseexcept(FE_INEXACT), 0);
-    }
-    if (riscv_fflags & FPFlags::UF) {
-      EXPECT_EQ(feraiseexcept(FE_UNDERFLOW), 0);
-    }
-    if (riscv_fflags & FPFlags::OF) {
-      EXPECT_EQ(feraiseexcept(FE_OVERFLOW), 0);
-    }
-    if (riscv_fflags & FPFlags::DZ) {
-      EXPECT_EQ(feraiseexcept(FE_DIVBYZERO), 0);
-    }
-    if (riscv_fflags & FPFlags::NV) {
-      EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
-    }
-    TestFCsr(0x00319173, 0, riscv_fflags, 0);
+// Automatically saves and restores fenv throughout the lifetime of a parent scope.
+class ScopedFenv {
+ public:
+  ScopedFenv() { EXPECT_EQ(fegetenv(&env_), 0); }
+  ~ScopedFenv() { EXPECT_EQ(fesetenv(&env_), 0); }
+
+ private:
+  fenv_t env_;
+};
+
+TEST_F(TESTSUITE, FFlagsRead) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(fflags);
+    RunInstruction(0x00102173);  // frflags x2
+    EXPECT_EQ(GetXReg<2>(state_.cpu), fflags);
   }
-
-  for (bool immediate_source : {true, false}) {
-    for (uint8_t riscv_fflags = 0; riscv_fflags < 32; ++riscv_fflags) {
-      EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
-      if (immediate_source) {
-        TestFCsr(0x00305173 | (riscv_fflags << 15), 0, 0, 0);
-      } else {
-        TestFCsr(0x00319173, 0b100'0000 | riscv_fflags, 0, 2);
-      }
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
-    }
-  }
-
-  EXPECT_EQ(fesetenv(&saved_environment), 0);
 }
 
-TEST_F(TESTSUITE, FFlagsRegister) {
-  fenv_t saved_environment;
-  EXPECT_EQ(fegetenv(&saved_environment), 0);
+TEST_F(TESTSUITE, FFlagsSwap) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(fflags);
+    // After swapping in 0 for flags, read fflags to verify.
+    SetXReg<3>(state_.cpu, 0);
+    RunInstruction(0x00119173);  // fsflags x2, x3
+    EXPECT_EQ(GetXReg<2>(state_.cpu), fflags);
+    TestFFlagsOnGuestAndHost(0u);
+  }
+}
 
-  for (uint8_t riscv_fflags = 0; riscv_fflags < 32; riscv_fflags += 1) {
-    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
-    if (riscv_fflags & FPFlags::NX) {
-      EXPECT_EQ(feraiseexcept(FE_INEXACT), 0);
-    }
-    if (riscv_fflags & FPFlags::UF) {
-      EXPECT_EQ(feraiseexcept(FE_UNDERFLOW), 0);
-    }
-    if (riscv_fflags & FPFlags::OF) {
-      EXPECT_EQ(feraiseexcept(FE_OVERFLOW), 0);
-    }
-    if (riscv_fflags & FPFlags::DZ) {
-      EXPECT_EQ(feraiseexcept(FE_DIVBYZERO), 0);
-    }
-    if (riscv_fflags & FPFlags::NV) {
-      EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
-    }
-    TestFFlags(0x00105173, 0, riscv_fflags);
+TEST_F(TESTSUITE, FFlagsSwapImmediate) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(fflags);
+    // After swapping in 0 for flags, read fflags to verify.
+    RunInstruction(0x00105173);  // fsflags x2, 0
+    EXPECT_EQ(GetXReg<2>(state_.cpu), fflags);
+    TestFFlagsOnGuestAndHost(0u);
+  }
+}
+
+TEST_F(TESTSUITE, FFlagsWrite) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    SetXReg<3>(state_.cpu, fflags);
+    RunInstruction(0x00119073);  // fsflags x3
+    TestFFlagsOnGuestAndHost(fflags);
+  }
+}
+
+TEST_F(TESTSUITE, FFlagsWriteImmediate) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RunInstruction(0x00105073 | fflags << 15);  // fsflagsi 0 (+ fflags)
+    TestFFlagsOnGuestAndHost(fflags);
+  }
+}
+
+TEST_F(TESTSUITE, FFlagsClearBits) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(kFPFlagsAll);
+    SetXReg<3>(state_.cpu, fflags);
+    RunInstruction(0x0011b073);  // csrc fflags, x3
+    // Read fflags to verify previous bitwise clear operation.
+    TestFFlagsOnGuestAndHost(static_cast<uint8_t>(~fflags & kFPFlagsAll));
+  }
+}
+
+TEST_F(TESTSUITE, FFlagsClearBitsImmediate) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(kFPFlagsAll);
+    RunInstruction(0x00107073 | fflags << 15);  // csrci fflags, 0 (+ fflags)
+    // Read fflags to verify previous bitwise clear operation.
+    TestFFlagsOnGuestAndHost(static_cast<uint8_t>(~fflags & kFPFlagsAll));
+  }
+}
+
+TEST_F(TESTSUITE, FCsrRegister) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(fflags);
+
+    // Read and verify fflags, then replace with all flags.
+    TestFCsr(0x00319173 /* fscsr x2,x3 */, fflags, fflags, 0);
+
+    // Only read fcsr and verify fflags.
+    TestFCsr(0x00302173 /* frcsr x2 */, /* ignored */ 0, fflags, /* expected_frm= */ 0b100u);
   }
 
   for (bool immediate_source : {true, false}) {
-    for (uint8_t riscv_fflags = 0; riscv_fflags < 32; ++riscv_fflags) {
+    for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
       EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
       if (immediate_source) {
-        TestFFlags(0x00105173 | (riscv_fflags << 15), 0, 0);
+        TestFCsr(0x00305173 /* csrrwi x2,fcsr,0 */ | (fflags << 15), 0, 0, 0);
       } else {
-        TestFFlags(0x00119173, riscv_fflags, 0);
+        TestFCsr(0x00319173 /* fscsr x2,x3 */, 0b100'0000 | fflags, 0, /* expected_frm= */ 0b010u);
       }
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+      TestFFlagsOnGuestAndHost(fflags);
     }
   }
-
-  EXPECT_EQ(fesetenv(&saved_environment), 0);
 }
 
 TEST_F(TESTSUITE, FsrRegister) {
   ScopedRoundingMode scoped_rounding_mode;
-  int rounding[][2] = {
-    {0, FE_TONEAREST},
-    {1, FE_TOWARDZERO},
-    {2, FE_DOWNWARD},
-    {3, FE_UPWARD},
-    {4, FE_TOWARDZERO},
-    // Only low three bits must be affecting output (for forward compatibility).
-    {8, FE_TONEAREST},
-    {9, FE_TOWARDZERO},
-    {10, FE_DOWNWARD},
-    {11, FE_UPWARD},
-    {12, FE_TOWARDZERO}
-  };
+  int rounding[][2] = {{0, FE_TONEAREST},
+                       {1, FE_TOWARDZERO},
+                       {2, FE_DOWNWARD},
+                       {3, FE_UPWARD},
+                       {4, FE_TOWARDZERO},
+                       // Only low three bits must be affecting output (for forward compatibility).
+                       {8, FE_TONEAREST},
+                       {9, FE_TOWARDZERO},
+                       {10, FE_DOWNWARD},
+                       {11, FE_UPWARD},
+                       {12, FE_TOWARDZERO}};
   for (bool immediate_source : {true, false}) {
     for (auto [guest_rounding, host_rounding] : rounding) {
       if (immediate_source) {
