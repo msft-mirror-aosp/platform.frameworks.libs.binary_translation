@@ -17,14 +17,23 @@
 #ifndef BERBERIS_KERNEL_API_SYSCALL_EMULATION_COMMON_H_
 #define BERBERIS_KERNEL_API_SYSCALL_EMULATION_COMMON_H_
 
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#if defined(__BIONIC__) && defined(__i386__)
+struct statfs;
+extern "C" int statfs(const char* _Nonnull __path, struct statfs* _Nonnull __buf);
+#else
+#include <sys/vfs.h>
+#endif
 
 #include <cerrno>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/macros.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/kernel_api/exec_emulation.h"
 #include "berberis/kernel_api/fcntl_emulation.h"
 #include "berberis/kernel_api/open_emulation.h"
@@ -35,11 +44,18 @@
 
 namespace berberis {
 
+void ConvertHostStatToGuestArch(const struct stat& host_stat, GuestAddr guest_stat);
+
 inline long RunGuestSyscall___NR_clone3(long arg_1, long arg_2) {
   UNUSED(arg_1, arg_2);
   KAPI_TRACE("unimplemented syscall __NR_clone3");
   errno = ENOSYS;
   return -1;
+}
+
+inline long RunGuestSyscall___NR_close(long arg_1) {
+  CloseEmulatedProcSelfMapsFileDescriptor(arg_1);
+  return syscall(__NR_close, arg_1);
 }
 
 inline long RunGuestSyscall___NR_execve(long arg_1, long arg_2, long arg_3) {
@@ -52,6 +68,29 @@ inline long RunGuestSyscall___NR_faccessat(long arg_1, long arg_2, long arg_3) {
   // TODO(b/128614662): translate!
   KAPI_TRACE("unimplemented syscall __NR_faccessat, running host syscall as is");
   return syscall(__NR_faccessat, arg_1, arg_2, arg_3);
+}
+
+inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
+  struct stat host_stat;
+  long result;
+  if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
+    KAPI_TRACE("Emulating fstat for /proc/self/maps");
+    result = stat("/proc/self/maps", &host_stat);
+  } else {
+    result = syscall(__NR_fstat, arg_1, &host_stat);
+  }
+  if (result != -1) {
+    ConvertHostStatToGuestArch(host_stat, bit_cast<GuestAddr>(arg_2));
+  }
+  return result;
+}
+
+inline long RunGuestSyscall___NR_fstatfs(long arg_1, long arg_2) {
+  if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
+    KAPI_TRACE("Emulating fstatfs for /proc/self/maps");
+    return statfs("/proc/self/maps", bit_cast<struct statfs*>(arg_2));
+  }
+  return syscall(__NR_fstatfs, arg_1, arg_2);
 }
 
 inline long RunGuestSyscall___NR_fcntl(long arg_1, long arg_2, long arg_3) {
