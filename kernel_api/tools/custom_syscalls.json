@@ -52,6 +52,9 @@
   "__NR_clone3": {
     "custom_reason": "custom syscall"
   },
+  "__NR_close": {
+    "custom_reason": "/proc/self/maps emulation"
+  },
   "__NR_connect": {
     "x86": {
       "custom_reason": "socketcall",
@@ -78,6 +81,17 @@
   },
   "__NR_fork": {
     "custom_reason": "custom syscall"
+  },
+  "__NR_fstat": {
+    "x86": {
+      "custom_reason": "/proc/self/maps emulation"
+    },
+    "x86_64": {
+      "custom_reason": "incompatible prototype and /proc/self/maps emulation"
+    }
+  },
+  "__NR_fstatfs": {
+    "custom_reason": "/proc/self/maps emulation"
   },
   "__NR_fstatfs64": {
     "arm": {
