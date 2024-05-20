@@ -121,62 +121,49 @@ class TESTSUITE : public ::testing::Test {
             .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
 
   template <uint8_t kInsnSize = 4>
-  void RunInstruction(uint32_t insn_bytes) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + kInsnSize));
+  void RunInstruction(const uint32_t& insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    EXPECT_TRUE(RunOneInstruction<kInsnSize>(&state_, state_.cpu.insn_addr + kInsnSize));
   }
 
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
   void TestCompressedStore(uint16_t insn_bytes, uint64_t offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     store_area_ = 0;
     SetXReg<kTargetReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
     SetReg<register_type, 9>(state_.cpu, kDataToLoad);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(store_area_, expected_result);
   }
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kSourceReg>
   void TestCompressedLoad(uint16_t insn_bytes, uint64_t offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<kSourceReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ((GetReg<register_type, 9>(state_.cpu)), expected_result);
   }
 
   void TestCAddi(uint16_t insn_bytes, uint64_t expected_increment) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_increment);
   }
 
   void TestCAddi16sp(uint16_t insn_bytes, uint64_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_offset);
   }
 
   void TestLi(uint32_t insn_bytes, uint64_t expected_result) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
   void TestCAddi4spn(uint16_t insn_bytes, uint64_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
   }
 
@@ -197,19 +184,16 @@ class TESTSUITE : public ::testing::Test {
   void TestCMiscAlu(uint16_t insn_bytes,
                     std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<8>(state_.cpu, arg1);
       SetXReg<9>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+      RunInstruction<2>(insn_bytes);
       EXPECT_EQ(GetXReg<8>(state_.cpu), expected_result);
     }
   }
 
   void TestCMiscAluImm(uint16_t insn_bytes, uint64_t value, uint64_t expected_result) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<9>(state_.cpu, value);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<9>(state_.cpu), expected_result);
   }
 
@@ -229,10 +213,9 @@ class TESTSUITE : public ::testing::Test {
   void TestCOp(uint32_t insn_bytes,
                std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<1>(state_.cpu, arg1);
       SetXReg<2>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+      RunInstruction<2>(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -252,22 +235,18 @@ class TESTSUITE : public ::testing::Test {
                 uint8_t fcsr_to_set,
                 uint8_t expected_fcsr,
                 uint8_t expected_cpustate_frm) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     state_.cpu.frm =
         0b100u;  // Pass non-zero frm to ensure that we don't accidentally rely on it being zero.
     SetXReg<3>(state_.cpu, fcsr_to_set);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b1000'0000ULL | expected_fcsr);
     EXPECT_EQ(state_.cpu.frm, expected_cpustate_frm);
   }
 
   void TestFrm(uint32_t insn_bytes, uint8_t frm_to_set, uint8_t expected_rm) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     state_.cpu.frm = 0b001u;
     SetXReg<3>(state_.cpu, frm_to_set);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
     EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
@@ -275,10 +254,9 @@ class TESTSUITE : public ::testing::Test {
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<2>(state_.cpu, arg1);
       SetXReg<3>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -286,10 +264,9 @@ class TESTSUITE : public ::testing::Test {
   template <typename... Types>
   void TestOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg1);
       SetFReg<3>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
@@ -299,24 +276,19 @@ class TESTSUITE : public ::testing::Test {
     for (auto [arg1, imm, expected_result] : args) {
       CHECK_LE(imm, 63);
       uint32_t insn_bytes_with_immediate = insn_bytes | imm << 20;
-      state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes_with_immediate);
       SetXReg<2>(state_.cpu, arg1);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes_with_immediate);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
 
   void TestAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + code_start);
+    RunInstruction(insn_bytes);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + ToGuestAddr(&insn_bytes));
   }
 
   void TestLui(uint32_t insn_bytes, uint64_t expected_result) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
@@ -341,10 +313,9 @@ class TESTSUITE : public ::testing::Test {
   }
 
   void TestLoad(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
     SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - 8));
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
@@ -365,23 +336,21 @@ class TESTSUITE : public ::testing::Test {
   }
 
   void TestStore(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
     SetXReg<1>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - 8));
     SetXReg<2>(state_.cpu, kDataToStore);
     store_area_ = 0;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(store_area_, expected_result);
   }
 
   template <typename... Types>
   void TestFma(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, arg3, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg1);
       SetFReg<3>(state_.cpu, arg2);
       SetFReg<4>(state_.cpu, arg3);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
@@ -447,12 +416,11 @@ class TESTSUITE : public ::testing::Test {
                uint64_t arg2,
                uint64_t expected_result,
                uint64_t expected_memory) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Copy arg1 into store_area_
     store_area_ = arg1;
     SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_)));
     SetXReg<3>(state_.cpu, arg2);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     EXPECT_EQ(store_area_, expected_memory);
   }
@@ -474,9 +442,8 @@ class TESTSUITE : public ::testing::Test {
   void TestFmvFloatToInteger(uint32_t insn_bytes,
                              std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<1>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -485,9 +452,8 @@ class TESTSUITE : public ::testing::Test {
   void TestFmvIntegerToFloat(uint32_t insn_bytes,
                              std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<1>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), kFPValueToFPReg(expected_result));
     }
   }
@@ -496,10 +462,9 @@ class TESTSUITE : public ::testing::Test {
   void TestOpFpGpRegisterTarget(uint32_t insn_bytes,
                                 std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg1);
       SetFReg<3>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -508,9 +473,8 @@ class TESTSUITE : public ::testing::Test {
   void TestOpFpGpRegisterTargetSingleInput(uint32_t insn_bytes,
                                            std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -519,9 +483,8 @@ class TESTSUITE : public ::testing::Test {
   void TestOpFpGpRegisterSourceSingleInput(uint32_t insn_bytes,
                                            std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<2>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
@@ -529,28 +492,25 @@ class TESTSUITE : public ::testing::Test {
   template <typename... Types>
   void TestOpFpSingleInput(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
 
   void TestLoadFp(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
     SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - 8));
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
   }
 
   void TestStoreFp(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
     SetXReg<1>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - 8));
     SetFReg<2>(state_.cpu, kDataToStore);
     store_area_ = 0;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(store_area_, expected_result);
   }
 
@@ -559,13 +519,12 @@ class TESTSUITE : public ::testing::Test {
       std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>>
           args) {
     for (auto [vl_orig, vtype_orig, avl, vtype_new, vl_expected, vtype_expected] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       state_.cpu.vl = vl_orig;
       state_.cpu.vtype = vtype_orig;
       SetXReg<1>(state_.cpu, ~0ULL);
       SetXReg<2>(state_.cpu, avl);
       SetXReg<3>(state_.cpu, vtype_new);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       if (insn_bytes & 0b11111'0000000) {
         EXPECT_EQ(GetXReg<1>(state_.cpu), vl_expected);
       } else {
