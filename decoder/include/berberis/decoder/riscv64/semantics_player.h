@@ -610,9 +610,25 @@ class SemanticsPlayer {
                       int8_t dst,
                       int8_t src1,
                       int8_t src2) {
-    FpRegister arg1 = GetFRegAndUnboxNan<FloatType>(src1);
-    FpRegister arg2 = GetFRegAndUnboxNan<FloatType>(src2);
+    FpRegister arg1;
+    FpRegister arg2;
     FpRegister result;
+    // The sign-injection instructions (FSGNJ, FSGNJN, FSGNJX) do not canonicalize NaNs;
+    // they manipulate the underlying bit patterns directly.
+    bool canonicalize_nan = true;
+    switch (opcode) {
+      case Decoder::OpFpNoRoundingOpcode::kFSgnj:
+      case Decoder::OpFpNoRoundingOpcode::kFSgnjn:
+      case Decoder::OpFpNoRoundingOpcode::kFSgnjx:
+        arg1 = GetFpReg(src1);
+        arg2 = GetFpReg(src2);
+        canonicalize_nan = false;
+        break;
+      default:
+        // Unboxing canonicalizes NaNs.
+        arg1 = GetFRegAndUnboxNan<FloatType>(src1);
+        arg2 = GetFRegAndUnboxNan<FloatType>(src2);
+    }
     switch (opcode) {
       case Decoder::OpFpNoRoundingOpcode::kFSgnj:
         result = listener_->template FSgnj<FloatType>(arg1, arg2);
@@ -633,7 +649,9 @@ class SemanticsPlayer {
         Undefined();
         return;
     }
-    result = CanonicalizeNan<FloatType>(result);
+    if (canonicalize_nan) {
+      result = CanonicalizeNan<FloatType>(result);
+    }
     NanBoxAndSetFpReg<FloatType>(dst, result);
   }
 
