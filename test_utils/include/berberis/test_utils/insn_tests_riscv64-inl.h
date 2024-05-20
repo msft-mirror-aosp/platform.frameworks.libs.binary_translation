@@ -1957,6 +1957,60 @@ TEST_F(TESTSUITE, Fmv) {
                       {std::tuple{bit_cast<uint64_t>(1.0), 1.0}, {bit_cast<uint64_t>(-1.0), -1.0}});
 }
 
+const uint32_t kPosNanFloat = kFPValueToFPReg(std::numeric_limits<float>::quiet_NaN());
+const uint32_t kNegNanFloat = kFPValueToFPReg(-std::numeric_limits<float>::quiet_NaN());
+const uint64_t kPosNanDouble = kFPValueToFPReg(std::numeric_limits<double>::quiet_NaN());
+const uint64_t kNegNanDouble = kFPValueToFPReg(-std::numeric_limits<double>::quiet_NaN());
+constexpr uint64_t kMaskFloatBits = (uint64_t{1} << 32) - 1;
+
+TEST_F(TESTSUITE, FabsSinglePrecisionNanPosToPos) {
+  SetFReg<2>(state_.cpu, kPosNanFloat);
+  RunInstruction(0x202120d3);  // fabs.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu) & kMaskFloatBits, kPosNanFloat);
+}
+
+TEST_F(TESTSUITE, FabsSinglePrecisionNanNegToPos) {
+  SetFReg<2>(state_.cpu, kNegNanFloat);
+  RunInstruction(0x202120d3);  // fabs.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu) & kMaskFloatBits, kPosNanFloat);
+}
+
+TEST_F(TESTSUITE, FabsDoublePrecisionNanPosToPos) {
+  SetFReg<2>(state_.cpu, kPosNanDouble);
+  RunInstruction(0x222120d3);  // fabs.d f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu), kPosNanDouble);
+}
+
+TEST_F(TESTSUITE, FabsDoublePrecisionNanNegToPos) {
+  SetFReg<2>(state_.cpu, kNegNanDouble);
+  RunInstruction(0x222120d3);  // fabs.d f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu), kPosNanDouble);
+}
+
+TEST_F(TESTSUITE, FnegSinglePrecisionNanPosToNeg) {
+  SetFReg<2>(state_.cpu, kPosNanFloat);
+  RunInstruction(0x202110d3);  // fneg.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu) & kMaskFloatBits, kNegNanFloat);
+}
+
+TEST_F(TESTSUITE, FnegSinglePrecisionNanNegToPos) {
+  SetFReg<2>(state_.cpu, kNegNanFloat);
+  RunInstruction(0x202110d3);  // fneg.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu) & kMaskFloatBits, kPosNanFloat);
+}
+
+TEST_F(TESTSUITE, FnegDoublePrecisionNanPosToNeg) {
+  SetFReg<2>(state_.cpu, kPosNanDouble);
+  RunInstruction(0x222110d3);  // fneg.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu), kNegNanDouble);
+}
+
+TEST_F(TESTSUITE, FnegDoublePrecisionNanNegToPos) {
+  SetFReg<2>(state_.cpu, kNegNanDouble);
+  RunInstruction(0x222110d3);  // fneg.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu), kPosNanDouble);
+}
+
 TEST_F(TESTSUITE, OpFpFcvt) {
   // Fcvt.S.D
   TestOpFpSingleInput(0x401170d3, {std::tuple{1.0, 1.0f}});
