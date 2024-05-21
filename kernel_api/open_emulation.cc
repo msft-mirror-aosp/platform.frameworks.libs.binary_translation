@@ -58,13 +58,13 @@ bool ReadProcSelfMapsToString(String& content) {
 
 // String split that works with custom allocator strings. Based on android::base::Split.
 template <typename String>
-ArenaVector<String> SplitLines(Arena* arena, String& content) {
+ArenaVector<String> SplitLines(Arena* arena, const String& content) {
   ArenaVector<String> lines(arena);
   size_t base = 0;
   size_t found;
   while (true) {
     found = content.find_first_of('\n', base);
-    lines.push_back(content.substr(base, found - base));
+    lines.emplace_back(content, base, found - base, content.get_allocator());
     if (found == content.npos) break;
     base = found + 1;
   }
