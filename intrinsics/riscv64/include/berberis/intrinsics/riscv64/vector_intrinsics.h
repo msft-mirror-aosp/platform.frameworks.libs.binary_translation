@@ -885,6 +885,22 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
       Vw##name##vx, Widenvvw, return ({ __VA_ARGS__; });     \
       , (SIMD128Register src1, ElementType src2, SIMD128Register src3), (), (src1, src2, src3))
 
+#define DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VVW(name, ...)                     \
+  DEFINE_W_ARITHMETIC_INTRINSIC(                                                      \
+      Vfw##name##vv, Widenvvw, return ({ __VA_ARGS__; });                             \
+      ,                                                                               \
+      (int8_t csr, SIMD128Register src1, SIMD128Register src2, SIMD128Register src3), \
+      (csr),                                                                          \
+      (src1, src2, src3))
+
+#define DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VXW(name, ...)                 \
+  DEFINE_W_ARITHMETIC_INTRINSIC(                                                  \
+      Vfw##name##vf, Widenvvw, return ({ __VA_ARGS__; });                         \
+      ,                                                                           \
+      (int8_t csr, SIMD128Register src1, ElementType src2, SIMD128Register src3), \
+      (csr),                                                                      \
+      (src1, src2, src3))
+
 #define DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(name, ...)                       \
   DEFINE_W_ARITHMETIC_INTRINSIC(Vn##name##wv, Narrowwv, return ({ __VA_ARGS__; }); \
                                 , (SIMD128Register src1, SIMD128Register src2), (), (src1, src2))
@@ -1189,7 +1205,30 @@ DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VXW(maccsu, auto [arg1, arg2, arg3] = std:
 DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VXW(maccus, auto [arg1, arg2, arg3] = std::tuple{args...};
                                           (std::get<0>(WideMultiplySignedUnsigned(arg1, arg2))) +
                                           arg3)
-
+DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VVW(
+    macc, auto [arg1, arg2, arg3] = std::tuple{args...};
+    std::get<0>(FMAdd(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VXW(
+    macc, auto [arg1, arg2, arg3] = std::tuple{args...};
+    std::get<0>(FMAdd(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VVW(
+    nmacc, auto [arg1, arg2, arg3] = std::tuple{args...};
+    std::get<0>(FNMSub(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VXW(
+    nmacc, auto [arg1, arg2, arg3] = std::tuple{args...};
+    std::get<0>(FNMSub(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VVW(
+    msac, auto [arg1, arg2, arg3] = std::tuple{args...};
+    std::get<0>(FMSub(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VXW(
+    msac, auto [arg1, arg2, arg3] = std::tuple{args...};
+    std::get<0>(FMSub(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VVW(
+    nmsac, auto [arg1, arg2, arg3] = std::tuple{args...};
+    std::get<0>(FNMAdd(FPFlags::DYN, csr, arg2, arg1, arg3)))
+DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VXW(
+    nmsac, auto [arg1, arg2, arg3] = std::tuple{args...};
+    std::get<0>(FNMAdd(FPFlags::DYN, csr, arg2, arg1, arg3)))
 DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WV(sr, auto [arg1, arg2] = std::tuple{args...};
                                           (arg1 >> arg2))
 DEFINE_2OP_NARROW_ARITHMETIC_INTRINSIC_WX(sr, auto [arg1, arg2] = std::tuple{args...};
@@ -1232,6 +1271,8 @@ DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WX(
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_WX
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VX
 #undef DEFINE_2OP_WIDEN_ARITHMETIC_INTRINSIC_VXW
+#undef DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VVW
+#undef DEFINE_3OP_1CSR_WIDEN_ARITHMETIC_INTRINSIC_VXW
 
 }  // namespace berberis::intrinsics
 
