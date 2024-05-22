@@ -95,6 +95,95 @@ TEST(CallingConventions_riscv64, Smoke) {
   EXPECT_EQ(0u, loc.offset);
 }
 
+TEST(CallingConventions_riscv64, FpSpilling) {
+  CallingConventions conv;
+  ArgLocation loc;
+
+  loc = conv.GetNextIntArgLoc(4, 4);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(0U, loc.offset);
+
+  loc = conv.GetNextIntArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(1U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(4, 4);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(0U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(1U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(2U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(3U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(4U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(5U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(6U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(7U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(2U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(3U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(4U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(5U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(6U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationInt, loc.kind);
+  EXPECT_EQ(7U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationStack, loc.kind);
+  EXPECT_EQ(0U, loc.offset);
+
+  loc = conv.GetNextIntArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationStack, loc.kind);
+  EXPECT_EQ(8U, loc.offset);
+
+  loc = conv.GetNextFpArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationStack, loc.kind);
+  EXPECT_EQ(16U, loc.offset);
+
+  loc = conv.GetNextIntArgLoc(8, 8);
+  EXPECT_EQ(kArgLocationStack, loc.kind);
+  EXPECT_EQ(24U, loc.offset);
+
+  loc = conv.GetFpResLoc(4);
+  EXPECT_EQ(kArgLocationFp, loc.kind);
+  EXPECT_EQ(0U, loc.offset);
+}
+
 }  // namespace
 
 }  // namespace berberis::riscv64

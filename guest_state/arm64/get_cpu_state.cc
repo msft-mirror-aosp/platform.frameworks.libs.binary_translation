@@ -30,19 +30,19 @@ extern "C" __attribute__((visibility("default"))) int LoadGuestStateRegisters(
     ALOGE("The guest state data size is invalid: %zu", guest_state_data_size);
     return NATIVE_BRIDGE_GUEST_STATE_ACCESSOR_ERROR_INVALID_STATE;
   }
-  guest_regs->guest_arch = NATIVE_BRIDGE_ARCH_RISCV64;
+  guest_regs->guest_arch = NATIVE_BRIDGE_ARCH_ARM64;
   return GetCpuState(guest_regs, &(static_cast<const ThreadState*>(guest_state_data))->cpu);
 }
 
 int GetCpuState(NativeBridgeGuestRegs* guest_regs, const CPUState* state) {
-  if (guest_regs->guest_arch != NATIVE_BRIDGE_ARCH_RISCV64) {
+  if (guest_regs->guest_arch != NATIVE_BRIDGE_ARCH_ARM64) {
     ALOGE("The guest architecture is unmatched: %lu", guest_regs->guest_arch);
     return NATIVE_BRIDGE_GUEST_STATE_ACCESSOR_ERROR_UNSUPPORTED_ARCH;
   }
-  memcpy(&guest_regs->regs_riscv64.x, &state->x, sizeof(guest_regs->regs_riscv64.x));
-  memcpy(&guest_regs->regs_riscv64.f, &state->f, sizeof(guest_regs->regs_riscv64.f));
-  memcpy(&guest_regs->regs_riscv64.v, &state->v, sizeof(guest_regs->regs_riscv64.v));
-  memcpy(&guest_regs->regs_riscv64.ip, &state->insn_addr, sizeof(guest_regs->regs_riscv64.ip));
+  memcpy(&guest_regs->regs_arm64.x, &state->x, sizeof(guest_regs->regs_arm64.x));
+  memcpy(&guest_regs->regs_arm64.sp, &state->sp, sizeof(guest_regs->regs_arm64.sp));
+  memcpy(&guest_regs->regs_arm64.ip, &state->insn_addr, sizeof(guest_regs->regs_arm64.ip));
+  memcpy(&guest_regs->regs_arm64.v, &state->v, sizeof(guest_regs->regs_arm64.v));
   return 0;
 }
 }  // namespace berberis

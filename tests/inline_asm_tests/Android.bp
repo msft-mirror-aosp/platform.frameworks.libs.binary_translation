@@ -48,3 +48,18 @@ cc_test {
     },
     static_executable: true,
 }
+
+cc_test {
+    name: "inline_asm_tests_riscv64",
+    native_bridge_supported: true,
+    enabled: false,
+    arch: {
+        riscv64: {
+            enabled: true,
+            srcs: [
+                "main_riscv64.cc",
+            ],
+        },
+    },
+    static_executable: true,
+}
