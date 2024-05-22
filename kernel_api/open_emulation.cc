@@ -22,8 +22,11 @@
 
 #include <cstdio>
 #include <cstring>
+#include <mutex>
+#include <utility>
 
 #include "berberis/base/arena_alloc.h"
+#include "berberis/base/arena_map.h"
 #include "berberis/base/arena_string.h"
 #include "berberis/base/arena_vector.h"
 #include "berberis/base/checks.h"
@@ -36,6 +39,48 @@
 namespace berberis {
 
 namespace {
+
+class EmulatedFileDescriptors {
+ public:
+  explicit EmulatedFileDescriptors() : fds_(&arena_) {}
+
+  static EmulatedFileDescriptors* GetInstance() {
+    static EmulatedFileDescriptors g_emulated_proc_self_maps_fds;
+    return &g_emulated_proc_self_maps_fds;
+  }
+
+  // Not copyable or movable.
+  EmulatedFileDescriptors(const EmulatedFileDescriptors&) = delete;
+  EmulatedFileDescriptors& operator=(const EmulatedFileDescriptors&) = delete;
+
+  void Add(int fd) {
+    std::lock_guard lock(mutex_);
+    auto [unused_it, inserted] = fds_.insert(std::make_pair(fd, 0));
+    if (!inserted) {
+      // We expect every fd to be added at most once. But if it breaks let's consider it non-fatal.
+      TRACE("Detected duplicated fd in EmulatedFileDescriptors");
+    }
+  }
+
+  bool Contains(int fd) {
+    std::lock_guard lock(mutex_);
+    return fds_.find(fd) != fds_.end();
+  }
+
+  void Remove(int fd) {
+    std::lock_guard lock(mutex_);
+    auto it = fds_.find(fd);
+    if (it != fds_.end()) {
+      fds_.erase(it);
+    }
+  }
+
+ private:
+  std::mutex mutex_;
+  Arena arena_;
+  // We use it as a set because we don't have ArenaSet, so client data isn't really used.
+  ArenaMap<int, int> fds_;
+};
 
 // It's macro since we use it as string literal below.
 #define PROC_SELF_MAPS "/proc/self/maps"
@@ -129,6 +174,8 @@ int OpenatProcSelfMapsForGuest(int dirfd, int flags, mode_t mode) {
 
   lseek(mem_fd, 0, 0);
 
+  EmulatedFileDescriptors::GetInstance()->Add(mem_fd);
+
   return mem_fd;
 }
 
@@ -143,6 +190,14 @@ bool IsProcSelfMaps(const char* path, int flags) {
 }
 
 }  // namespace
+
+bool IsFileDescriptorEmulatedProcSelfMaps(int fd) {
+  return EmulatedFileDescriptors::GetInstance()->Contains(fd);
+}
+
+void CloseEmulatedProcSelfMapsFileDescriptor(int fd) {
+  EmulatedFileDescriptors::GetInstance()->Remove(fd);
+}
 
 int OpenatForGuest(int dirfd, const char* path, int guest_flags, mode_t mode) {
   int host_flags = ToHostOpenFlags(guest_flags);
