@@ -22,8 +22,7 @@
 
 namespace berberis {
 
-void GetCpuState(NativeBridgeGuestRegs* guest_regs, const CPUState* state);
-
+int GetCpuState(NativeBridgeGuestRegs* guest_regs, const CPUState* state);
 }
 
 #endif  // BERBERIS_GUEST_STATE_GET_CPU_STATE_OPAQUE_H_
