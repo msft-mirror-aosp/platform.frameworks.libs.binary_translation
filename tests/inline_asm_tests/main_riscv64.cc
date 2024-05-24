@@ -292,6 +292,14 @@ static constexpr SIMD128 kFractionMaskInt8[5] = {
     {{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}},  // Full reg
 };
 
+SIMD128 MakeBitmaskFromVl(size_t vl) {
+  if (vl == 128) {
+    return {__uint128_t(0)};
+  } else {
+    return {(~__int128(0)) << vl};
+  }
+}
+
 template <typename ElementType>
 auto MaskForElem() {
   if constexpr (std::is_same_v<ElementType, uint8_t>) {
@@ -1041,14 +1049,6 @@ void TestExtendingVectorInstruction(ExecInsnFunc exec_insn,
   Verify(exec_insn, 3, 8, expected_result_int64, kNoMask);
 }
 
-SIMD128 MakeBitmaskFromVl(size_t vl) {
-  if (vl == 128) {
-    return {__uint128_t(0)};
-  } else {
-    return {(~__int128(0)) << vl};
-  }
-}
-
 // Unlike regular arithmetic instructions, the result of a permutation
 // instruction depends also on vlmul.  Also, the vslideup specs mention that
 // the destination vector remains unchanged the first |offset| elements (in
@@ -1280,6 +1280,114 @@ void TestVectorPermutationInstruction(ExecInsnFunc exec_insn,
                                                                         expected_result_int16,
                                                                         expected_result_int32,
                                                                         expected_result_int64);
+}
+
+template <typename... ExpectedResultType>
+void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
+                                     ExecInsnFunc exec_masked_insn,
+                                     const SIMD128 (&source)[16],
+                                     const ExpectedResultType(&... expected_result)) {
+  auto Verify = [&source](
+                    ExecInsnFunc exec_insn, uint8_t vsew, const auto& expected_result, auto mask) {
+    // Set t0 for vx instructions.
+    uint64_t scalar_src = 0xaaaa'aaaa'aaaa'aaaa;
+
+    // Set ft0 for vf instructions.
+    if (vsew == 2) {
+      scalar_src = 0xffff'ffff'40b4'0000;  // float 5.625
+    } else if (vsew == 3) {
+      scalar_src = 0x4016'8000'0000'0000;  // double 5.625
+    }
+    for (uint8_t vlmul = 0; vlmul < 8; ++vlmul) {
+      for (uint8_t vta = 0; vta < 2; ++vta) {  // vta should be ignored but we test both values!
+        for (uint8_t vma = 0; vma < 2; ++vma) {
+          uint64_t vtype = (vma << 7) | (vta << 6) | (vsew << 3) | vlmul;
+          uint64_t vlmax = 0;
+          asm("vsetvl %0, zero, %1" : "=r"(vlmax) : "r"(vtype));
+          // Incompatible vsew and vlmax. Skip it.
+          if (vlmax == 0) {
+            continue;
+          }
+
+          // To make tests quick enough we don't test vstart and vl change with small register
+          // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of first
+          // register, last register and half of next-to last register.
+          // Don't use vlmul == 3 because that one may not be supported if instruction widens the
+          // result.
+          uint64_t vstart;
+          uint64_t vl;
+          if (vlmul == 2) {
+            vstart = vlmax / 8;
+            vl = (vlmax * 5) / 8;
+          } else {
+            vstart = 0;
+            vl = vlmax;
+          }
+
+          SIMD128 result[8];
+          // Set expected_result vector registers into 0b01010101… pattern.
+          // Set undisturbed result vector registers.
+          std::fill_n(result, 8, kUndisturbedResult);
+
+          RunCommonVectorFunc(
+              exec_insn, &source[0], &result[0], nullptr, nullptr, scalar_src, vstart, vtype, vl);
+
+          SIMD128 expected_result_in_register(expected_result);
+          if (vma == 0) {
+            expected_result_in_register =
+                (expected_result_in_register & mask) | (kUndisturbedResult & ~mask);
+          } else {
+            expected_result_in_register |= ~mask;
+          }
+          // Mask registers are always processing tail like vta is set.
+          if (vlmax != 128) {
+            expected_result_in_register |= MakeBitmaskFromVl(vl);
+          }
+          if (vlmul == 2) {
+            const SIMD128 start_mask = MakeBitmaskFromVl(vstart);
+            expected_result_in_register =
+                (kUndisturbedResult & ~start_mask) | (expected_result_in_register & start_mask);
+          }
+          EXPECT_EQ(result[0], expected_result_in_register);
+        }
+      }
+    }
+  };
+
+  ((Verify(exec_insn,
+           BitUtilLog2(sizeof(__uint128_t) / sizeof(ExpectedResultType)),
+           expected_result,
+           kNoMask[0]),
+    Verify(exec_masked_insn,
+           BitUtilLog2(sizeof(__uint128_t) / sizeof(ExpectedResultType)),
+           expected_result,
+           kMask)),
+   ...);
+}
+
+void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
+                                     ExecInsnFunc exec_masked_insn,
+                                     const uint32_t expected_result_int32,
+                                     const uint16_t expected_result_int64,
+                                     const SIMD128 (&source)[16]) {
+  TestVectorMaskTargetInstruction(
+      exec_insn, exec_masked_insn, source, expected_result_int32, expected_result_int64);
+}
+
+void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
+                                     ExecInsnFunc exec_masked_insn,
+                                     const uint8_16_t expected_result_int8,
+                                     const uint64_t expected_result_int16,
+                                     const uint32_t expected_result_int32,
+                                     const uint16_t expected_result_int64,
+                                     const SIMD128 (&source)[16]) {
+  TestVectorMaskTargetInstruction(exec_insn,
+                                  exec_masked_insn,
+                                  source,
+                                  expected_result_int8,
+                                  expected_result_int16,
+                                  expected_result_int32,
+                                  expected_result_int64);
 }
 
 // clang-format off
@@ -4026,6 +4134,32 @@ TEST(InlineAsmTestRiscv64, TestVxor) {
        {0x1899'1a9b'1c9d'1e95, 0x1091'1293'1495'169d},
        {0x0889'0a8b'0c8d'0e85, 0x0081'0283'0485'068d}},
       kVectorCalculationsSourceLegacy);
+}
+
+[[gnu::naked]] void ExecVmfeqvv() {
+  asm("vmfeq.vv v8, v16, v24\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVmfeqvv() {
+  asm("vmfeq.vv v8, v16, v24, v0.t\n\t"
+      "ret\n\t");
+}
+[[gnu::naked]] void ExecVmfeqvf() {
+  asm("vmfeq.vf v8, v16, ft0\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVmfeqvf() {
+  asm("vmfeq.vf v8, v16, ft0, v0.t\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVmfeq) {
+  TestVectorMaskTargetInstruction(
+      ExecVmfeqvv, ExecMaskedVmfeqvv, 0x0000'0007, 0x0001, kVectorComparisonSource);
+  TestVectorMaskTargetInstruction(
+      ExecVmfeqvf, ExecMaskedVmfeqvf, 0x0000'0040, 0x0020, kVectorComparisonSource);
 }
 
 }  // namespace

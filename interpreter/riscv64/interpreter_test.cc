@@ -6872,17 +6872,6 @@ TEST_F(Riscv64InterpreterTest, TestVectorMaskInstructions) {
                             {0x5505'5415'07d5'5f57, 0x4055'5511'5445'5115});
 }
 
-TEST_F(Riscv64InterpreterTest, TestVmfeq) {
-  TestVectorMaskTargetInstruction(0x610c1457,  // Vmfeq.vv v8, v16, v24, v0.t
-                                  0x0000'0007,
-                                  0x0001,
-                                  kVectorComparisonSource);
-  TestVectorMaskTargetInstruction(0x6100d457,  // Vmfeq.vf v8, v16, f1, v0.t
-                                  0x0000'0040,
-                                  0x0020,
-                                  kVectorComparisonSource);
-}
-
 TEST_F(Riscv64InterpreterTest, TestVmseq) {
   TestVectorMaskTargetInstruction(0x610c0457,  // Vmseq.vv v8, v16, v24, v0.t
                                   {255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
