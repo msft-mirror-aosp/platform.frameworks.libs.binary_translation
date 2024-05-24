@@ -52,6 +52,8 @@ using uint16_8_t =
 using uint32_4_t = std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>;
 using uint64_2_t = std::tuple<uint64_t, uint64_t>;
 
+enum PrintModeEndianess { kLittleEndian, kBigEndian };
+
 // A wrapper around __uint128 which can be constructed from a pair of uint64_t literals.
 class SIMD128 {
  public:
@@ -86,9 +88,19 @@ class SIMD128 {
 
   template <size_t N>
   std::ostream& Print(std::ostream& os) const {
-    os << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << std::get<N>(uint16_);
-    if constexpr (N < 7) {
-      os << '\'';
+    if constexpr (kSimd128PrintMode == kBigEndian) {
+      os << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << std::get<N>(uint16_);
+      if constexpr (N > 0) {
+        os << '\'';
+      }
+    } else {
+      os << std::uppercase << std::hex << std::setw(2) << std::setfill('0')
+         << static_cast<int>(std::get<N * 2>(uint8_));
+      os << std::uppercase << std::hex << std::setw(2) << std::setfill('0')
+         << static_cast<int>(std::get<N * 2 + 1>(uint8_));
+      if constexpr (N < 7) {
+        os << '\'';
+      }
     }
     return os;
   }
@@ -96,7 +108,11 @@ class SIMD128 {
   template <size_t... N>
   std::ostream& PrintEach(std::ostream& os, std::index_sequence<N...>) const {
     os << "0x";
-    (Print<N>(os), ...);
+    if constexpr (kSimd128PrintMode == kBigEndian) {
+      (Print<7 - N>(os), ...);
+    } else {
+      (Print<N>(os), ...);
+    }
     return os;
   }
 
@@ -110,6 +126,10 @@ class SIMD128 {
     [[gnu::may_alias]] __uint128_t u128_;
 #endif
   };
+
+  // Support for BIG_ENDIAN or LITTLE_ENDIAN printing of SIMD128 values. Change this value
+  // if you want to see failure results in LITTLE_ENDIAN.
+  static constexpr const PrintModeEndianess kSimd128PrintMode = kBigEndian;
 };
 
 // Helps produce easy to read output on failed tests.
