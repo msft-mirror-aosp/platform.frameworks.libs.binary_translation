@@ -24,7 +24,7 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
-#include "berberis/kernel_api/syscall_numbers.h"
+#include "berberis/guest_os_primitives/syscall_numbers.h"
 
 namespace berberis {
 

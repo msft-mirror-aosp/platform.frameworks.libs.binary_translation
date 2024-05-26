@@ -77,7 +77,9 @@ class CallingConventions {
       return loc;
     }
 
-    return GetNextStackArgLoc(size, alignment);
+    // Once the floating-point registers have been exhausted, pass floating-point parameters
+    // according to the integer calling convention.
+    return GetNextIntArgLoc(size, alignment);
   }
 
   constexpr ArgLocation GetIntResLoc(unsigned size) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
-#define BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
+#include "gtest/gtest.h"
 
-namespace berberis {
+#include "berberis/runtime/berberis.h"
 
-int ToHostSyscallNumber(int);
-
-}  // namespace berberis
-
-#endif  // BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  berberis::InitBerberis();
+  return RUN_ALL_TESTS();
+}

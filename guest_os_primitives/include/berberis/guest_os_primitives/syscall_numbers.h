@@ -17,7 +17,11 @@
 #ifndef BERBERIS_GUEST_OS_PRIMITIVES_SYSCALL_NUMBERS_H_
 #define BERBERIS_GUEST_OS_PRIMITIVES_SYSCALL_NUMBERS_H_
 
-// TODO(b/280551708): Extract this include to make it more architecture agnostic.
-#include "berberis/guest_os_primitives/gen_syscall_numbers_riscv64.h"
+namespace berberis {
+
+int ToHostSyscallNumber(int nr);
+int ToGuestSyscallNumber(int nr);
+
+}  // namespace berberis
 
 #endif  // BERBERIS_GUEST_OS_PRIMITIVES_SYSCALL_NUMBERS_H_

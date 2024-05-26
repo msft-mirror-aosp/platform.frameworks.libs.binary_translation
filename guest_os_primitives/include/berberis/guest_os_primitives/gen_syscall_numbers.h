@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-#include "berberis/base/checks.h"
+#ifndef BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_H_
+#define BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_H_
 
-namespace berberis {
+#include "berberis/guest_os_primitives/gen_syscall_numbers_arch.h"  // IWYU pragma: export.
+#include "berberis/guest_os_primitives/syscall_numbers.h"           // IWYU pragma: export.
 
-int ToHostSyscallNumber(int) {
-  FATAL("Not implemented ToHostSyscallNumber");
-}
-
-}  // namespace berberis
+#endif  // BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_H_
