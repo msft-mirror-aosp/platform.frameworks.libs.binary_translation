@@ -2222,6 +2222,13 @@ class Interpreter {
       case Decoder::VOpIVvOpcode::kVnsrlwv:
         return OpVectorNarrowwv<intrinsics::Vnsrwv<UnsignedType>, UnsignedType, vlmul, vta, vma>(
             args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVsmulvv:
+        return OpVectorvv<intrinsics::Vsmulvv<SaturatingSignedType>,
+                          ElementType,
+                          vlmul,
+                          vta,
+                          vma,
+                          kVxrm>(args.dst, args.src1, args.src2);
       case Decoder::VOpIVvOpcode::kVnclipuwv:
         return OpVectorNarrowwv<intrinsics::Vnclipwv<SaturatingUnsignedType>,
                                 SaturatingUnsignedType,
@@ -2369,6 +2376,13 @@ class Interpreter {
       case Decoder::VOpIVxOpcode::kVslidedownvx:
         return OpVectorslidedown<ElementType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVsmulvx:
+        return OpVectorvx<intrinsics::Vsmulvx<SaturatingSignedType>,
+                          SaturatingSignedType,
+                          vlmul,
+                          vta,
+                          vma,
+                          kVxrm>(args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       case Decoder::VOpIVxOpcode::kVnclipuwx:
         return OpVectorNarrowwx<intrinsics::Vnclipwx<SaturatingUnsignedType>,
                                 SaturatingUnsignedType,
