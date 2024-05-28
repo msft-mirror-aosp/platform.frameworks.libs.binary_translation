@@ -1148,7 +1148,7 @@ class Interpreter {
       if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
         if (register_mask != full_mask) {
           auto [simd_mask] =
-              intrinsics::BitMaskToSimdMaskForTests<ElementType>(Int64{MaskType{register_mask}});
+              intrinsics::BitMaskToSimdMask<ElementType>(Int64{MaskType{register_mask}});
           for (size_t field = 0; field < kSegmentSize; ++field) {
             if constexpr (vma == InactiveProcessing::kAgnostic) {
               // vstart equal to zero is supposed to be exceptional. From RISV-V V manual (page 14):
