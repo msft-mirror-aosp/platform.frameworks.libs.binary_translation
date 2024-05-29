@@ -977,6 +977,15 @@ DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VX(smul, auto [arg1, arg2] = std::tuple{arg
         static_cast<typename WideType<ElementType>::BaseType>(Widen(arg1) * Widen(arg2)),
         static_cast<typename WideType<ElementType>::BaseType>((sizeof(ElementType) * CHAR_BIT) -
                                                               1)))})})
+
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(
+    ssr,
+    ElementType{std::get<0>(Roundoff(csr, static_cast<typename ElementType::BaseType>(args)...))})
+
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VX(
+    ssr,
+    ElementType{std::get<0>(Roundoff(csr, static_cast<typename ElementType::BaseType>(args)...))})
+
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fadd,
                                         CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fadd,

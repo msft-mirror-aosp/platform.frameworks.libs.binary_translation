@@ -2098,6 +2098,12 @@ class Interpreter {
                                 vta,
                                 vma,
                                 kVxrm>(args.dst, args.src, UnsignedType{args.uimm});
+      case Decoder::VOpIViOpcode::kVssrlvi:
+        return OpVectorvx<intrinsics::Vssrvx<UnsignedType>, UnsignedType, vlmul, vta, vma, kVxrm>(
+            args.dst, args.src, UnsignedType{args.uimm});
+      case Decoder::VOpIViOpcode::kVssravi:
+        return OpVectorvx<intrinsics::Vssrvx<SignedType>, SignedType, vlmul, vta, vma, kVxrm>(
+            args.dst, args.src, BitCastToSigned(UnsignedType{args.uimm}));
       default:
         Undefined();
     }
@@ -2229,6 +2235,12 @@ class Interpreter {
                           vta,
                           vma,
                           kVxrm>(args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVssrlvv:
+        return OpVectorvv<intrinsics::Vssrvv<UnsignedType>, UnsignedType, vlmul, vta, vma, kVxrm>(
+            args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVssravv:
+        return OpVectorvv<intrinsics::Vssrvv<SignedType>, SignedType, vlmul, vta, vma, kVxrm>(
+            args.dst, args.src1, args.src2);
       case Decoder::VOpIVvOpcode::kVnclipuwv:
         return OpVectorNarrowwv<intrinsics::Vnclipwv<SaturatingUnsignedType>,
                                 SaturatingUnsignedType,
@@ -2383,6 +2395,12 @@ class Interpreter {
                           vta,
                           vma,
                           kVxrm>(args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVssrlvx:
+        return OpVectorvx<intrinsics::Vssrvx<UnsignedType>, UnsignedType, vlmul, vta, vma, kVxrm>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
+      case Decoder::VOpIVxOpcode::kVssravx:
+        return OpVectorvx<intrinsics::Vssrvx<SignedType>, SignedType, vlmul, vta, vma, kVxrm>(
+            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       case Decoder::VOpIVxOpcode::kVnclipuwx:
         return OpVectorNarrowwx<intrinsics::Vnclipwx<SaturatingUnsignedType>,
                                 SaturatingUnsignedType,
