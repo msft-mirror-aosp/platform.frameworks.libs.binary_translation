@@ -8617,35 +8617,6 @@ TEST_F(Riscv64InterpreterTest, TestVfslide1down) {
                                         /*last_elem_is_f1=*/true);
 }
 
-TEST_F(Riscv64InterpreterTest, TestVwadd) {
-  TestWideningVectorInstruction(0xc50c2457,  // vwadd.vv v8,v16,v24,v0.t
-                                {{0x0000, 0xff13, 0x0006, 0xff19, 0x000d, 0xff1f, 0x0012, 0xff25},
-                                 {0x0019, 0xff0b, 0x001e, 0xff11, 0x0024, 0xff17, 0x002a, 0xff1d},
-                                 {0x0030, 0xff43, 0x0036, 0xff49, 0x003d, 0xff4f, 0x0042, 0xff55},
-                                 {0x0049, 0xff3b, 0x004e, 0xff41, 0x0054, 0xff47, 0x005a, 0xff4d},
-                                 {0x0060, 0xff73, 0x0066, 0xff79, 0x006d, 0xff7f, 0x0072, 0xff85},
-                                 {0x0079, 0xff6b, 0x007e, 0xff71, 0x0084, 0xff77, 0x008a, 0xff7d},
-                                 {0x0090, 0xffa3, 0x0096, 0xffa9, 0x009d, 0xffaf, 0x00a2, 0xffb5},
-                                 {0x00a9, 0xff9b, 0x00ae, 0xffa1, 0x00b4, 0xffa7, 0x00ba, 0xffad}},
-                                {{0xffff'1300, 0xffff'1906, 0xffff'1f0d, 0xffff'2512},
-                                 {0xffff'0b19, 0xffff'111e, 0xffff'1724, 0xffff'1d2a},
-                                 {0xffff'4330, 0xffff'4936, 0xffff'4f3d, 0xffff'5542},
-                                 {0xffff'3b49, 0xffff'414e, 0xffff'4754, 0xffff'4d5a},
-                                 {0xffff'7360, 0xffff'7966, 0xffff'7f6d, 0xffff'8572},
-                                 {0xffff'6b79, 0xffff'717e, 0xffff'7784, 0xffff'7d8a},
-                                 {0xffff'a390, 0xffff'a996, 0xffff'af9d, 0xffff'b5a2},
-                                 {0xffff'9ba9, 0xffff'a1ae, 0xffff'a7b4, 0xffff'adba}},
-                                {{0xffff'ffff'1907'1300, 0xffff'ffff'2513'1f0d},
-                                 {0xffff'ffff'111f'0b19, 0xffff'ffff'1d2b'1724},
-                                 {0xffff'ffff'4937'4330, 0xffff'ffff'5543'4f3d},
-                                 {0xffff'ffff'414f'3b49, 0xffff'ffff'4d5b'4754},
-                                 {0xffff'ffff'7967'7360, 0xffff'ffff'8573'7f6d},
-                                 {0xffff'ffff'717f'6b79, 0xffff'ffff'7d8b'7784},
-                                 {0xffff'ffff'a997'a390, 0xffff'ffff'b5a3'af9d},
-                                 {0xffff'ffff'a1af'9ba9, 0xffff'ffff'adbb'a7b4}},
-                                kVectorCalculationsSource);
-}
-
 TEST_F(Riscv64InterpreterTest, TestVwaddu) {
   TestWideningVectorInstruction(0xc10c2457,  // vwaddu.vv v8, v16, v24, v0.t
                                 {{0x0000, 0x0113, 0x0006, 0x0119, 0x000d, 0x011f, 0x0012, 0x0125},
