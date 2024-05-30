@@ -9456,3 +9456,43 @@ TEST(InlineAsmTestRiscv64, TestVwmul) {
                                  {0x06dc'a2f7'b9cf'31b8, 0x046d'fdc6'6f71'8c20}},
                                 kVectorCalculationsSource);
 }
+
+[[gnu::naked]] void ExecVwmulsuvv() {
+  asm("vwmulsu.vv  v8, v16, v24\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVwmulsuvv() {
+  asm("vwmulsu.vv  v8, v16, v24, v0.t\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVwmulsu) {
+  TestWideningVectorInstruction(ExecVwmulsuvv,
+                                ExecMaskedVwmulsuvv,
+                                {{0x0000, 0xb792, 0x0008, 0xb6c2, 0x0024, 0xb602, 0x0048, 0xb552},
+                                 {0x0088, 0xc392, 0x00c8, 0xc2c2, 0x0120, 0xc202, 0x0188, 0xc152},
+                                 {0x0200, 0xb2d2, 0x0288, 0xb282, 0x0334, 0xb242, 0x03c8, 0xb212},
+                                 {0x0498, 0xbed2, 0x0548, 0xbe82, 0x0620, 0xbe42, 0x0708, 0xbe12},
+                                 {0x0800, 0xb212, 0x0908, 0xb242, 0x0a44, 0xb282, 0x0b48, 0xb2d2},
+                                 {0x0ca8, 0xbe12, 0x0dc8, 0xbe42, 0x0f20, 0xbe82, 0x1088, 0xbed2},
+                                 {0x1200, 0xb552, 0x1388, 0xb602, 0x1554, 0xb6c2, 0x16c8, 0xb792},
+                                 {0x18b8, 0xc152, 0x1a48, 0xc202, 0x1c20, 0xc2c2, 0x1e08, 0xc392}},
+                                {{0xb792'0000, 0xb6c1'3808, 0xb600'1524, 0xb550'0848},
+                                 {0xc38e'2988, 0xc2be'18c8, 0xc1fd'b120, 0xc14d'6988},
+                                 {0xb2cf'4200, 0xb27f'7a88, 0xb23f'6834, 0xb210'4bc8},
+                                 {0xbecd'7d98, 0xbe7e'5d48, 0xbe3e'f620, 0xbe0f'af08},
+                                 {0xb214'8800, 0xb245'c108, 0xb286'bf44, 0xb2d8'9348},
+                                 {0xbe14'd5a8, 0xbe46'a5c8, 0xbe88'3f20, 0xbed9'f888},
+                                 {0xb561'd200, 0xb614'0b88, 0xb6d6'1a54, 0xb7a8'dec8},
+                                 {0xc164'31b8, 0xc216'f248, 0xc2d9'8c20, 0xc3ac'4608}},
+                                {{0xb6c1'3c57'7192'0000, 0xb550'119c'5f6f'1524},
+                                 {0xc2be'2520'79e9'2988, 0xc14d'7ae7'56b5'b120},
+                                 {0xb27f'95f3'116f'4200, 0xb210'6e3c'125e'6834},
+                                 {0xbe7e'80c0'2dd8'7d98, 0xbe0f'd98a'fd96'f620},
+                                 {0xb245'fb9e'bd54'8800, 0xb2d8'd6eb'd155'bf44},
+                                 {0xbe46'e86f'edcf'd5a8, 0xbeda'443e'b080'3f20},
+                                 {0xb614'6d5a'7541'd200, 0xb7a9'4bab'9c55'1a54},
+                                 {0xc217'5c2f'b9cf'31b8, 0xc3ac'bb02'6f71'8c20}},
+                                kVectorCalculationsSource);
+}
