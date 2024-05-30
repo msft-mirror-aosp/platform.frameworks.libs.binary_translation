@@ -7328,3 +7328,98 @@ TEST(InlineAsmTestRiscv64, TestVmadd) {
        {0x13e8'bc91'653a'0de2, 0x1bf0'c499'6d42'15ea}},
       kVectorCalculationsSource);
 }
+
+[[gnu::naked]] void ExecVmaxvv() {
+  asm("vmax.vv  v8, v16, v24\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVmaxvv() {
+  asm("vmax.vv  v8, v16, v24, v0.t\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecVmaxvx() {
+  asm("vmax.vx  v8, v16, t0\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVmaxvx() {
+  asm("vmax.vx  v8, v16, t0, v0.t\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVmax) {
+  TestVectorInstruction(
+      ExecVmaxvv,
+      ExecMaskedVmaxvv,
+      {{0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30},
+       {32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62},
+       {64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94},
+       {96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126},
+       {64, 193, 66, 195, 68, 197, 70, 199, 72, 201, 74, 203, 76, 205, 78, 207},
+       {80, 209, 82, 211, 84, 213, 86, 215, 88, 217, 90, 219, 92, 221, 94, 223},
+       {96, 225, 98, 227, 100, 229, 102, 231, 104, 233, 106, 235, 108, 237, 110, 239},
+       {112, 241, 114, 243, 116, 245, 118, 247, 120, 249, 122, 251, 124, 253, 126, 255}},
+      {{0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0xc140, 0xc342, 0xc544, 0xc746, 0xc948, 0xcb4a, 0xcd4c, 0xcf4e},
+       {0xd150, 0xd352, 0xd554, 0xd756, 0xd958, 0xdb5a, 0xdd5c, 0xdf5e},
+       {0xe160, 0xe362, 0xe564, 0xe766, 0xe968, 0xeb6a, 0xed6c, 0xef6e},
+       {0xf170, 0xf372, 0xf574, 0xf776, 0xf978, 0xfb7a, 0xfd7c, 0xff7e}},
+      {{0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0xc342'c140, 0xc746'c544, 0xcb4a'c948, 0xcf4e'cd4c},
+       {0xd352'd150, 0xd756'd554, 0xdb5a'd958, 0xdf5e'dd5c},
+       {0xe362'e160, 0xe766'e564, 0xeb6a'e968, 0xef6e'ed6c},
+       {0xf372'f170, 0xf776'f574, 0xfb7a'f978, 0xff7e'fd7c}},
+      {{0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
+       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
+       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
+       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271},
+       {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+       {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+       {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+       {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
+      kVectorCalculationsSourceLegacy);
+  TestVectorInstruction(
+      ExecVmaxvx,
+      ExecMaskedVmaxvx,
+      {{0, 170, 2, 170, 4, 170, 6, 170, 8, 170, 10, 170, 12, 170, 14, 170},
+       {16, 170, 18, 170, 20, 170, 22, 170, 24, 170, 26, 170, 28, 170, 30, 170},
+       {32, 170, 34, 170, 36, 170, 38, 170, 40, 170, 42, 171, 44, 173, 46, 175},
+       {48, 177, 50, 179, 52, 181, 54, 183, 56, 185, 58, 187, 60, 189, 62, 191},
+       {64, 193, 66, 195, 68, 197, 70, 199, 72, 201, 74, 203, 76, 205, 78, 207},
+       {80, 209, 82, 211, 84, 213, 86, 215, 88, 217, 90, 219, 92, 221, 94, 223},
+       {96, 225, 98, 227, 100, 229, 102, 231, 104, 233, 106, 235, 108, 237, 110, 239},
+       {112, 241, 114, 243, 116, 245, 118, 247, 120, 249, 122, 251, 124, 253, 126, 255}},
+      {{0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
+       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa},
+       {0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xab2a, 0xad2c, 0xaf2e},
+       {0xb130, 0xb332, 0xb534, 0xb736, 0xb938, 0xbb3a, 0xbd3c, 0xbf3e},
+       {0xc140, 0xc342, 0xc544, 0xc746, 0xc948, 0xcb4a, 0xcd4c, 0xcf4e},
+       {0xd150, 0xd352, 0xd554, 0xd756, 0xd958, 0xdb5a, 0xdd5c, 0xdf5e},
+       {0xe160, 0xe362, 0xe564, 0xe766, 0xe968, 0xeb6a, 0xed6c, 0xef6e},
+       {0xf170, 0xf372, 0xf574, 0xf776, 0xf978, 0xfb7a, 0xfd7c, 0xff7e}},
+      {{0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
+       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa, 0xaaaa'aaaa},
+       {0xaaaa'aaaa, 0xaaaa'aaaa, 0xab2a'a928, 0xaf2e'ad2c},
+       {0xb332'b130, 0xb736'b534, 0xbb3a'b938, 0xbf3e'bd3c},
+       {0xc342'c140, 0xc746'c544, 0xcb4a'c948, 0xcf4e'cd4c},
+       {0xd352'd150, 0xd756'd554, 0xdb5a'd958, 0xdf5e'dd5c},
+       {0xe362'e160, 0xe766'e564, 0xeb6a'e968, 0xef6e'ed6c},
+       {0xf372'f170, 0xf776'f574, 0xfb7a'f978, 0xff7e'fd7c}},
+      {{0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
+       {0xaaaa'aaaa'aaaa'aaaa, 0xaaaa'aaaa'aaaa'aaaa},
+       {0xaaaa'aaaa'aaaa'aaaa, 0xaf2e'ad2c'ab2a'a928},
+       {0xb736'b534'b332'b130, 0xbf3e'bd3c'bb3a'b938},
+       {0xc746'c544'c342'c140, 0xcf4e'cd4c'cb4a'c948},
+       {0xd756'd554'd352'd150, 0xdf5e'dd5c'db5a'd958},
+       {0xe766'e564'e362'e160, 0xef6e'ed6c'eb6a'e968},
+       {0xf776'f574'f372'f170, 0xff7e'fd7c'fb7a'f978}},
+      kVectorCalculationsSourceLegacy);
+}
