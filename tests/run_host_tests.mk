@@ -31,7 +31,7 @@
 
 # Test binaries are build as native bridge targets. So we only enable test runs when native bridge
 # is configured for riscv64.
-ifeq ($(NATIVE_BRIDGE_ABI),riscv64)
+ifeq ($(TARGET_NATIVE_BRIDGE_ABI),riscv64)
 berberis_all: berberis_host_tests_result
 endif
 
