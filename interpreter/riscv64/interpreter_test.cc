@@ -6194,12 +6194,18 @@ TEST_F(Riscv64InterpreterTest, TestVlm) {
           {0, 129, 2, 131, 4, 133, 6, 135, 8, 137, 10, 139, 12, 141, 14, 143});
 }
 
-TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
+TEST_F(Riscv64InterpreterTest, Vsxei8_sew8_vlmul1) {
   VsxsegXeiXX<UInt8, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                            {0x0487'8506'0283'0081, 0x0a89'0c8d'8b8f'080e});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxei8_sew8_vlmul2) {
   VsxsegXeiXX<UInt8, 1, 2>(
       0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
       {0x0487'8506'0283'0081, 0x0a89'0c8d'8b8f'080e, 0x9f93'9b1e'9714'121a, 0x9110'1899'1c95'169d});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxei8_sew8_vlmul4) {
   VsxsegXeiXX<UInt8, 1, 4>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                            {0x0487'8506'0283'0081,
                             0x0a89'0c8d'8b8f'080e,
@@ -6209,6 +6215,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0xafad'3e20'a728'b1ab,
                             0x3626'b722'b5a1'bbbf,
                             0xa932'2434'b33a'2a3c});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxei8_sew8_vlmul8) {
   VsxsegXeiXX<UInt8, 1, 8>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                            {0x0487'8506'0283'0081,
                             0x0a89'0c8d'8b8f'080e,
@@ -6226,9 +6235,15 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0x4a54'50fd'f3f7'cf68,
                             0x56cb'e57c'7044'60c9,
                             0xf1db'6440'58e9'4c5e});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew8_vlmul1) {
   VsxsegXeiXX<UInt8, 2, 1>(
       0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
       {0x1202'9383'1000'9181, 0x1404'9787'9585'1606, 0x9b8b'9f8f'1808'1e0e, 0x1a0a'9989'1c0c'9d8d});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew8_vlmul2) {
   VsxsegXeiXX<UInt8, 2, 2>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
                            {0x2202'a383'2000'a181,
                             0x2404'a787'a585'2606,
@@ -6238,6 +6253,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0xbf9f'b393'bb9b'3e1e,
                             0x3c1c'b595'3616'bd9d,
                             0xb191'3010'3818'b999});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew8_vlmul4) {
   VsxsegXeiXX<UInt8, 2, 4>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
                            {0x4202'c383'4000'c181,
                             0x4404'c787'c585'4606,
@@ -6255,6 +6273,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0x7636'6626'f7b7'6222,
                             0xf3b3'7a3a'6a2a'7c3c,
                             0xe9a9'7232'6424'7434});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg3eiXX_sew8_vlmul1) {
   VsxsegXeiXX<UInt8, 3, 1>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
                            {0x9383'2010'00a1'9181,
                             0x8526'1606'2212'02a3,
@@ -6262,6 +6283,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0x9f8f'2818'082e'1e0e,
                             0x0cad'9d8d'ab9b'8baf,
                             0x2a1a'0aa9'9989'2c1c});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg3eiXX_sew8_vlmul2) {
   VsxsegXeiXX<UInt8, 3, 2>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
                            {0xa383'4020'00c1'a181,
                             0x8546'2606'4222'02c3,
@@ -6275,6 +6299,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0xb595'5636'16dd'bd9d,
                             0x18d9'b999'5c3c'1cd5,
                             0xd1b1'9150'3010'5838});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg4eiXX_sew8_vlmul1) {
   VsxsegXeiXX<UInt8, 4, 1>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
                            {0x3020'1000'b1a1'9181,
                             0x3222'1202'b3a3'9383,
@@ -6284,6 +6311,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0xbbab'9b8b'bfaf'9f8f,
                             0x3c2c'1c0c'bdad'9d8d,
                             0x3a2a'1a0a'b9a9'9989});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg4eiXX_sew8_vlmul2) {
   VsxsegXeiXX<UInt8, 4, 2>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
                            {0x6040'2000'e1c1'a181,
                             0x6242'2202'e3c3'a383,
@@ -6301,6 +6331,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0x7c5c'3c1c'f5d5'b595,
                             0x7858'3818'f9d9'b999,
                             0xf1d1'b191'7050'3010});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg5eiXX_sew8) {
   VsxsegXeiXX<UInt8, 5, 1>(0x85008427,  // Vsuxseg5ei8.v v8, (x1), v16, v0.t
                            {0x2010'00c1'b1a1'9181,
                             0x02c3'b3a3'9383'4030,
@@ -6312,6 +6345,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0xbdad'9d8d'cbbb'ab9b,
                             0x9989'4c3c'2c1c'0ccd,
                             0x4a3a'2a1a'0ac9'b9a9});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg6eiXX_sew8) {
   VsxsegXeiXX<UInt8, 6, 1>(0xa5008427,  // Vsuxseg6ei8.v v8, (x1), v16, v0.t
                            {0x1000'd1c1'b1a1'9181,
                             0xb3a3'9383'5040'3020,
@@ -6325,6 +6361,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0x1c0c'ddcd'bdad'9d8d,
                             0xb9a9'9989'5c4c'3c2c,
                             0x5a4a'3a2a'1a0a'd9c9});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg7eiXX_sew8) {
   VsxsegXeiXX<UInt8, 7, 1>(0xc5008427,  // Vsuxseg7ei8.v v8, (x1), v16, v0.t
                            {0x00e1'd1c1'b1a1'9181,
                             0x9383'6050'4030'2010,
@@ -6340,6 +6379,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0x4c3c'2c1c'0ced'ddcd,
                             0xd9c9'b9a9'9989'6c5c,
                             0x6a5a'4a3a'2a1a'0ae9});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg8eiXX_sew8) {
   VsxsegXeiXX<UInt8, 8, 1>(0xe5008427,  // Vsuxseg8ei8.v v8, (x1), v16, v0.t
                            {0xf1e1'd1c1'b1a1'9181,
                             0x7060'5040'3020'1000,
@@ -6357,11 +6399,20 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                             0x7c6c'5c4c'3c2c'1c0c,
                             0xf9e9'd9c9'b9a9'9989,
                             0x7a6a'5a4a'3a2a'1a0a});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew16_vlmul1) {
   VsxsegXeiXX<UInt16, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8504'8706'8100'8302, 0x8908'8f0e'8b0a'8d0c});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew16_vlmul2) {
   VsxsegXeiXX<UInt16, 1, 2>(
       0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
       {0x8504'8706'8100'8302, 0x8908'8f0e'8b0a'8d0c, 0x9716'9f1e'9110'9d1c, 0x9514'9312'9918'9b1a});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew16_vlmul4) {
   VsxsegXeiXX<UInt16, 1, 4>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8504'8706'8100'8302,
                              0x8908'8f0e'8b0a'8d0c,
@@ -6371,6 +6422,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xbf3e'a726'b736'bd3c,
                              0xb938'ab2a'ad2c'bb3a,
                              0xa322'a120'b130'b332});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew16_vlmul8) {
   VsxsegXeiXX<UInt16, 1, 8>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8504'8706'8100'8302,
                              0x8908'8f0e'8b0a'8d0c,
@@ -6388,9 +6442,15 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xed6c'cd4c'ef6e'c544,
                              0xe766'f574'd554'f978,
                              0xd352'e564'c948'e968});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew16_vlmul1) {
   VsxsegXeiXX<UInt16, 2, 1>(
       0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
       {0x9110'8100'9312'8302, 0x9514'8504'9716'8706, 0x9b1a'8b0a'9d1c'8d0c, 0x9918'8908'9f1e'8f0e});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew16_vlmul2) {
   VsxsegXeiXX<UInt16, 2, 2>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
                             {0xa120'8100'a322'8302,
                              0xa524'8504'a726'8706,
@@ -6400,6 +6460,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xb736'9716'bf3e'9f1e,
                              0xb938'9918'bb3a'9b1a,
                              0xb534'9514'b332'9312});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew16_vlmul4) {
   VsxsegXeiXX<UInt16, 2, 4>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
                             {0xc140'8100'c342'8302,
                              0xc544'8504'c746'8706,
@@ -6417,6 +6480,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xf978'b938'eb6a'ab2a,
                              0xf170'b130'f372'b332,
                              0xe362'a322'e160'a120});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg3eiXX_sew16_vlmul1) {
   VsxsegXeiXX<UInt16, 3, 1>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
                             {0x8100'a322'9312'8302,
                              0x9716'8706'a120'9110,
@@ -6424,6 +6490,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x8b0a'ad2c'9d1c'8d0c,
                              0x9f1e'8f0e'ab2a'9b1a,
                              0xa928'9918'8908'af2e});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg3eiXX_sew16_vlmul2) {
   VsxsegXeiXX<UInt16, 3, 2>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
                             {0x8100'c342'a322'8302,
                              0xa726'8706'c140'a120,
@@ -6437,6 +6506,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x9918'db5a'bb3a'9b1a,
                              0xb332'9312'd958'b938,
                              0xd554'b534'9514'd352});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg4eiXX_sew16_vlmul1) {
   VsxsegXeiXX<UInt16, 4, 1>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
                             {0xb332'a322'9312'8302,
                              0xb130'a120'9110'8100,
@@ -6446,6 +6518,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xbb3a'ab2a'9b1a'8b0a,
                              0xbf3e'af2e'9f1e'8f0e,
                              0xb938'a928'9918'8908});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg4eiXX_sew16_vlmul2) {
   VsxsegXeiXX<UInt16, 4, 2>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
                             {0xe362'c342'a322'8302,
                              0xe160'c140'a120'8100,
@@ -6463,6 +6538,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xf978'd958'b938'9918,
                              0xf372'd352'b332'9312,
                              0xf574'd554'b534'9514});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg5eiXX_sew16) {
   VsxsegXeiXX<UInt16, 5, 1>(0x85008427,  // Vsuxseg5ei8.v v8, (x1), v16, v0.t
                             {0xb332'a322'9312'8302,
                              0xa120'9110'8100'c342,
@@ -6474,6 +6552,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x9f1e'8f0e'cb4a'bb3a,
                              0x8908'cf4e'bf3e'af2e,
                              0xc948'b938'a928'9918});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg6eiXX_sew16) {
   VsxsegXeiXX<UInt16, 6, 1>(0xa5008427,  // Vsuxseg6ei8.v v8, (x1), v16, v0.t
                             {0xb332'a322'9312'8302,
                              0x9110'8100'd352'c342,
@@ -6487,6 +6568,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xbf3e'af2e'9f1e'8f0e,
                              0x9918'8908'df5e'cf4e,
                              0xd958'c948'b938'a928});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg7eiXX_sew16) {
   VsxsegXeiXX<UInt16, 7, 1>(0xc5008427,  // Vsuxseg7ei8.v v8, (x1), v16, v0.t
                             {0xb332'a322'9312'8302,
                              0x8100'e362'd352'c342,
@@ -6502,6 +6586,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xdf5e'cf4e'bf3e'af2e,
                              0xa928'9918'8908'ef6e,
                              0xe968'd958'c948'b938});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg8eiXX_sew16) {
   VsxsegXeiXX<UInt16, 8, 1>(0xe5008427,  // Vsuxseg8ei8.v v8, (x1), v16, v0.t
                             {0xb332'a322'9312'8302,
                              0xf372'e362'd352'c342,
@@ -6519,11 +6606,20 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xff7e'ef6e'df5e'cf4e,
                              0xb938'a928'9918'8908,
                              0xf978'e968'd958'c948});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew32_vlmul1) {
   VsxsegXeiXX<UInt32, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8302'8100'8706'8504, 0x8b0a'8908'8f0e'8d0c});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew32_vlmul2) {
   VsxsegXeiXX<UInt32, 1, 2>(
       0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
       {0x8302'8100'8706'8504, 0x8b0a'8908'8f0e'8d0c, 0x9716'9514'9b1a'9918, 0x9312'9110'9f1e'9d1c});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew32_vlmul4) {
   VsxsegXeiXX<UInt32, 1, 4>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8302'8100'8706'8504,
                              0x8b0a'8908'8f0e'8d0c,
@@ -6533,6 +6629,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xaf2e'ad2c'bf3e'bd3c,
                              0xb332'b130'b736'b534,
                              0xab2a'a928'a726'a524});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew32_vlmul8) {
   VsxsegXeiXX<UInt32, 1, 8>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8302'8100'8706'8504,
                              0x8b0a'8908'8f0e'8d0c,
@@ -6550,9 +6649,15 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xf372'f170'd756'd554,
                              0xe362'e160'e766'e564,
                              0xc746'c544'c342'c140});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew32_vlmul1) {
   VsxsegXeiXX<UInt32, 2, 1>(
       0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
       {0x9716'9514'8706'8504, 0x9312'9110'8302'8100, 0x9f1e'9d1c'8f0e'8d0c, 0x9b1a'9918'8b0a'8908});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew32_vlmul2) {
   VsxsegXeiXX<UInt32, 2, 2>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
                             {0xa726'a524'8706'8504,
                              0xa322'a120'8302'8100,
@@ -6562,6 +6667,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xb736'b534'9716'9514,
                              0xbf3e'bd3c'9f1e'9d1c,
                              0xb332'b130'9312'9110});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew32_vlmul4) {
   VsxsegXeiXX<UInt32, 2, 4>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
                             {0xc746'c544'8706'8504,
                              0xc342'c140'8302'8100,
@@ -6579,6 +6687,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xf372'f170'b332'b130,
                              0xe766'e564'a726'a524,
                              0xeb6a'e968'ab2a'a928});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg3eiXX_sew32_vlmul1) {
   VsxsegXeiXX<UInt32, 3, 1>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
                             {0x9716'9514'8706'8504,
                              0x8302'8100'a726'a524,
@@ -6586,6 +6697,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x9f1e'9d1c'8f0e'8d0c,
                              0x8b0a'8908'af2e'ad2c,
                              0xab2a'a928'9b1a'9918});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg3eiXX_sew32_vlmul2) {
   VsxsegXeiXX<UInt32, 3, 2>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
                             {0xa726'a524'8706'8504,
                              0x8302'8100'c746'c544,
@@ -6599,6 +6713,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xbf3e'bd3c'9f1e'9d1c,
                              0x9312'9110'df5e'dd5c,
                              0xd352'd150'b332'b130});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg4eiXX_sew32_vlmul1) {
   VsxsegXeiXX<UInt32, 4, 1>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
                             {0x9716'9514'8706'8504,
                              0xb736'b534'a726'a524,
@@ -6608,6 +6725,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xbf3e'bd3c'af2e'ad2c,
                              0x9b1a'9918'8b0a'8908,
                              0xbb3a'b938'ab2a'a928});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg4eiXX_sew32_vlmul2) {
   VsxsegXeiXX<UInt32, 4, 2>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
                             {0xa726'a524'8706'8504,
                              0xe766'e564'c746'c544,
@@ -6625,6 +6745,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xff7e'fd7c'df5e'dd5c,
                              0xb332'b130'9312'9110,
                              0xf372'f170'd352'd150});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg5eiXX_sew32) {
   VsxsegXeiXX<UInt32, 5, 1>(0x85008427,  // Vsuxseg5ei8.v v8, (x1), v16, v0.t
                             {0x9716'9514'8706'8504,
                              0xb736'b534'a726'a524,
@@ -6636,6 +6759,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x8b0a'8908'cf4e'cd4c,
                              0xab2a'a928'9b1a'9918,
                              0xcb4a'c948'bb3a'b938});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg6eiXX_sew32) {
   VsxsegXeiXX<UInt32, 6, 1>(0xa5008427,  // Vsuxseg6ei8.v v8, (x1), v16, v0.t
                             {0x9716'9514'8706'8504,
                              0xb736'b534'a726'a524,
@@ -6649,6 +6775,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x9b1a'9918'8b0a'8908,
                              0xbb3a'b938'ab2a'a928,
                              0xdb5a'd958'cb4a'c948});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg7eiXX_sew32) {
   VsxsegXeiXX<UInt32, 7, 1>(0xc5008427,  // Vsuxseg7ei8.v v8, (x1), v16, v0.t
                             {0x9716'9514'8706'8504,
                              0xb736'b534'a726'a524,
@@ -6664,6 +6793,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xab2a'a928'9b1a'9918,
                              0xcb4a'c948'bb3a'b938,
                              0xeb6a'e968'db5a'd958});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg8eiXX_sew32) {
   VsxsegXeiXX<UInt32, 8, 1>(0xe5008427,  // Vsuxseg8ei8.v v8, (x1), v16, v0.t
                             {0x9716'9514'8706'8504,
                              0xb736'b534'a726'a524,
@@ -6681,11 +6813,20 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xbb3a'b938'ab2a'a928,
                              0xdb5a'd958'cb4a'c948,
                              0xfb7a'f978'eb6a'e968});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew64_vlmul1) {
   VsxsegXeiXX<UInt64, 1, 1>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908, 0x8706'8504'8302'8100});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew64_vlmul2) {
   VsxsegXeiXX<UInt64, 1, 2>(
       0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
       {0x8f0e'8d0c'8b0a'8908, 0x8706'8504'8302'8100, 0x9f1e'9d1c'9b1a'9918, 0x9716'9514'9312'9110});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew64_vlmul4) {
   VsxsegXeiXX<UInt64, 1, 4>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0x8706'8504'8302'8100,
@@ -6695,6 +6836,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xaf2e'ad2c'ab2a'a928,
                              0xbf3e'bd3c'bb3a'b938,
                              0xa726'a524'a322'a120});
+}
+
+TEST_F(Riscv64InterpreterTest, VsxeiXX_sew64_vlmul8) {
   VsxsegXeiXX<UInt64, 1, 8>(0x5008427,  // Vsuxei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0x8706'8504'8302'8100,
@@ -6712,9 +6856,15 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xe766'e564'e362'e160,
                              0xcf4e'cd4c'cb4a'c948,
                              0xd756'd554'd352'd150});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew64_vlmul1) {
   VsxsegXeiXX<UInt64, 2, 1>(
       0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
       {0x8f0e'8d0c'8b0a'8908, 0x9f1e'9d1c'9b1a'9918, 0x8706'8504'8302'8100, 0x9716'9514'9312'9110});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew64_vlmul2) {
   VsxsegXeiXX<UInt64, 2, 2>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0xaf2e'ad2c'ab2a'a928,
@@ -6724,6 +6874,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xbf3e'bd3c'bb3a'b938,
                              0x9716'9514'9312'9110,
                              0xb736'b534'b332'b130});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg2eiXX_sew64_vlmul4) {
   VsxsegXeiXX<UInt64, 2, 4>(0x25008427,  // Vsuxseg2ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0xcf4e'cd4c'cb4a'c948,
@@ -6741,6 +6894,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xff7e'fd7c'fb7a'f978,
                              0xa726'a524'a322'a120,
                              0xe766'e564'e362'e160});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg3eiXX_sew64_vlmul1) {
   VsxsegXeiXX<UInt64, 3, 1>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0x9f1e'9d1c'9b1a'9918,
@@ -6748,6 +6904,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x8706'8504'8302'8100,
                              0x9716'9514'9312'9110,
                              0xa726'a524'a322'a120});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg3eiXX_sew64_vlmul2) {
   VsxsegXeiXX<UInt64, 3, 2>(0x45008427,  // Vsuxseg3ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0xaf2e'ad2c'ab2a'a928,
@@ -6761,6 +6920,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x9716'9514'9312'9110,
                              0xb736'b534'b332'b130,
                              0xd756'd554'd352'd150});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg4eiXX_sew64_vlmul1) {
   VsxsegXeiXX<UInt64, 4, 1>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0x9f1e'9d1c'9b1a'9918,
@@ -6770,6 +6932,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0x9716'9514'9312'9110,
                              0xa726'a524'a322'a120,
                              0xb736'b534'b332'b130});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg4eiXX_sew64_vlmul2) {
   VsxsegXeiXX<UInt64, 4, 2>(0x65008427,  // Vsuxseg4ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0xaf2e'ad2c'ab2a'a928,
@@ -6787,6 +6952,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xb736'b534'b332'b130,
                              0xd756'd554'd352'd150,
                              0xf776'f574'f372'f170});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg5eiXX_sew64) {
   VsxsegXeiXX<UInt64, 5, 1>(0x85008427,  // Vsuxseg5ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0x9f1e'9d1c'9b1a'9918,
@@ -6798,6 +6966,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xa726'a524'a322'a120,
                              0xb736'b534'b332'b130,
                              0xc746'c544'c342'c140});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg6eiXX_sew64) {
   VsxsegXeiXX<UInt64, 6, 1>(0xa5008427,  // Vsuxseg6ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0x9f1e'9d1c'9b1a'9918,
@@ -6811,6 +6982,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xb736'b534'b332'b130,
                              0xc746'c544'c342'c140,
                              0xd756'd554'd352'd150});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg7eiXX_sew64) {
   VsxsegXeiXX<UInt64, 7, 1>(0xc5008427,  // Vsuxseg7ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0x9f1e'9d1c'9b1a'9918,
@@ -6826,6 +7000,9 @@ TEST_F(Riscv64InterpreterTest, VsxsegXeiXX) {
                              0xc746'c544'c342'c140,
                              0xd756'd554'd352'd150,
                              0xe766'e564'e362'e160});
+}
+
+TEST_F(Riscv64InterpreterTest, Vsxseg8eiXX_sew64) {
   VsxsegXeiXX<UInt64, 8, 1>(0xe5008427,  // Vsuxseg8ei8.v v8, (x1), v16, v0.t
                             {0x8f0e'8d0c'8b0a'8908,
                              0x9f1e'9d1c'9b1a'9918,
