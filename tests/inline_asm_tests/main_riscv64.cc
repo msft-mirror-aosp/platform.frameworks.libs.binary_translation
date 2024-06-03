@@ -3987,7 +3987,8 @@ TEST(InlineAsmTestRiscv64, TestVxor) {
 
 TEST(InlineAsmTestRiscv64, TestRDN) {
   uint64_t vxrm;
-  asm("csrr %0, vxrm\n\t"
+  asm volatile(
+      "csrr %0, vxrm\n\t"
       "csrwi vxrm, %c1\n\t"
       : "=r"(vxrm)
       : "i"(VXRMFlags::RDN));
@@ -4663,12 +4664,13 @@ TEST(InlineAsmTestRiscv64, TestRDN) {
                          {0xfff9'd9b9'5938'd8b8, 0xfffb'dbbb'5b3a'daba},
                          {0xfffd'ddbd'5d3c'dcbc, 0xffff'dfbf'5f3e'debe}},
                         kVectorCalculationsSource);
-  asm("csrw vxrm, %0\n\t" ::"r"(vxrm));
+  asm volatile("csrw vxrm, %0\n\t" ::"r"(vxrm));
 }
 
 TEST(InlineAsmTestRiscv64, TestRNE) {
   uint64_t vxrm;
-  asm("csrr %0, vxrm\n\t"
+  asm volatile(
+      "csrr %0, vxrm\n\t"
       "csrwi vxrm, %c1\n\t"
       : "=r"(vxrm)
       : "i"(VXRMFlags::RNE));
@@ -5343,12 +5345,13 @@ TEST(InlineAsmTestRiscv64, TestRNE) {
                          {0xfff9'd9b9'5938'd8b8, 0xfffb'dbbb'5b3a'daba},
                          {0xfffd'ddbd'5d3c'dcbc, 0xffff'dfbf'5f3e'debe}},
                         kVectorCalculationsSource);
-  asm("csrw vxrm, %0\n\t" ::"r"(vxrm));
+  asm volatile("csrw vxrm, %0\n\t" ::"r"(vxrm));
 }
 
 TEST(InlineAsmTestRiscv64, TestRNU) {
   uint64_t vxrm;
-  asm("csrr %0, vxrm\n\t"
+  asm volatile(
+      "csrr %0, vxrm\n\t"
       "csrwi vxrm, %c1\n\t"
       : "=r"(vxrm)
       : "i"(VXRMFlags::RNU));
@@ -6024,12 +6027,13 @@ TEST(InlineAsmTestRiscv64, TestRNU) {
                          {0xfff9'd9b9'5938'd8b8, 0xfffb'dbbb'5b3a'daba},
                          {0xfffd'ddbd'5d3c'dcbc, 0xffff'dfbf'5f3e'debe}},
                         kVectorCalculationsSource);
-  asm("csrw vxrm, %0\n\t" ::"r"(vxrm));
+  asm volatile("csrw vxrm, %0\n\t" ::"r"(vxrm));
 }
 
 TEST(InlineAsmTestRiscv64, TestROD) {
   uint64_t vxrm;
-  asm("csrr %0, vxrm\n\t"
+  asm volatile(
+      "csrr %0, vxrm\n\t"
       "csrwi vxrm, %c1\n\t"
       : "=r"(vxrm)
       : "i"(VXRMFlags::ROD));
@@ -6706,7 +6710,7 @@ TEST(InlineAsmTestRiscv64, TestROD) {
                          {0xfff9'd9b9'5938'd8b9, 0xfffb'dbbb'5b3a'dabb},
                          {0xfffd'ddbd'5d3c'dcbd, 0xffff'dfbf'5f3e'debf}},
                         kVectorCalculationsSource);
-  asm("csrw vxrm, %0\n\t" ::"r"(vxrm));
+  asm volatile("csrw vxrm, %0\n\t" ::"r"(vxrm));
 }
 
 [[gnu::naked]] void ExecVfdivvv() {
