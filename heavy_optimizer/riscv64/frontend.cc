@@ -126,7 +126,7 @@ void HeavyOptimizerFrontend::ExitGeneratedCode(GuestAddr target) {
 void HeavyOptimizerFrontend::ExitRegionIndirect(Register target) {
   Gen<PseudoIndirectJump>(target);
 }
-void HeavyOptimizerFrontend::Unimplemented() {
+void HeavyOptimizerFrontend::Undefined() {
   success_ = false;
   ExitGeneratedCode(GetInsnAddr());
   // We don't require region to end here as control flow may jump around
@@ -360,25 +360,6 @@ Register HeavyOptimizerFrontend::Op(Decoder::OpOpcode opcode, Register arg1, Reg
       Gen<x86_64::MulqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
       Gen<PseudoCopy>(res, rdx, 8);
     } break;
-    case OpOpcode::kRem: {
-      auto rax = AllocTempReg();
-      auto rdx = AllocTempReg();
-      Gen<PseudoCopy>(rax, arg1, 8);
-      Gen<PseudoCopy>(rdx, rax, 8);
-      Gen<x86_64::SarqRegImm>(rdx, 63, GetFlagsRegister());
-      Gen<x86_64::IdivqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
-      Gen<PseudoCopy>(res, rdx, 8);
-    } break;
-    case OpOpcode::kRemu: {
-      auto rax = AllocTempReg();
-      auto rdx = AllocTempReg();
-      Gen<PseudoCopy>(rax, arg1, 8);
-      // Pseudo-def for use-def operand of XOR to make sure data-flow is integrate.
-      Gen<PseudoDefReg>(rdx);
-      Gen<x86_64::XorqRegReg>(rdx, rdx, GetFlagsRegister());
-      Gen<x86_64::DivqRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
-      Gen<PseudoCopy>(res, rdx, 8);
-    } break;
     case OpOpcode::kAndn:
       if (host_platform::kHasBMI) {
         Gen<x86_64::AndnqRegRegReg>(res, arg2, arg1, GetFlagsRegister());
@@ -399,7 +380,7 @@ Register HeavyOptimizerFrontend::Op(Decoder::OpOpcode opcode, Register arg1, Reg
       Gen<x86_64::NotqReg>(res);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
 
@@ -437,27 +418,8 @@ Register HeavyOptimizerFrontend::Op32(Decoder::Op32Opcode opcode, Register arg1,
       Gen<PseudoCopy>(res, arg1, 4);
       Gen<x86_64::ImullRegReg>(res, arg2, GetFlagsRegister());
       break;
-    case Op32Opcode::kRemw: {
-      auto rax = AllocTempReg();
-      auto rdx = AllocTempReg();
-      Gen<PseudoCopy>(rax, arg1, 4);
-      Gen<PseudoCopy>(rdx, rax, 4);
-      Gen<x86_64::SarlRegImm>(rdx, int8_t{31}, GetFlagsRegister());
-      Gen<x86_64::IdivlRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
-      unextended_res = rdx;
-    } break;
-    case Op32Opcode::kRemuw: {
-      auto rax = AllocTempReg();
-      auto rdx = AllocTempReg();
-      Gen<PseudoCopy>(rax, arg1, 4);
-      // Pseudo-def for use-def operand of XOR to make sure data-flow is integrate.
-      Gen<PseudoDefReg>(rdx);
-      Gen<x86_64::XorlRegReg>(rdx, rdx, GetFlagsRegister());
-      Gen<x86_64::DivlRegRegReg>(rax, rdx, arg2, GetFlagsRegister());
-      unextended_res = rdx;
-    } break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   Gen<x86_64::MovsxlqRegReg>(res, unextended_res);
@@ -498,7 +460,7 @@ Register HeavyOptimizerFrontend::OpImm(Decoder::OpImmOpcode opcode, Register arg
       Gen<x86_64::AndqRegImm>(res, imm, GetFlagsRegister());
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -513,7 +475,7 @@ Register HeavyOptimizerFrontend::OpImm32(Decoder::OpImm32Opcode opcode, Register
       Gen<x86_64::MovsxlqRegReg>(res, res);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -559,7 +521,7 @@ Register HeavyOptimizerFrontend::ShiftImm32(Decoder::ShiftImm32Opcode opcode,
       Gen<x86_64::SarlRegReg>(res, rcx, GetFlagsRegister());
       break;
     default:
-      Unimplemented();
+      Undefined();
       break;
   }
   Gen<x86_64::MovsxlqRegReg>(res, res);
@@ -717,7 +679,7 @@ Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType op
       Gen<x86_64::MovsxlqRegMemBaseDisp>(res, base, disp);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
 
@@ -759,7 +721,7 @@ Register HeavyOptimizerFrontend::LoadWithoutRecovery(Decoder::LoadOperandType op
           res, base, index, x86_64::MachineMemOperandScale::kOne, disp);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -782,7 +744,7 @@ Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrOpcode opcode, Register a
       }
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -805,7 +767,7 @@ Register HeavyOptimizerFrontend::UpdateCsr(Decoder::CsrImmOpcode opcode,
       Gen<x86_64::AndqRegReg>(res, csr, GetFlagsRegister());
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -829,7 +791,7 @@ void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::MemoryDataOperandType
       Gen<x86_64::MovqMemBaseDispReg>(base, disp, data);
       break;
     default:
-      return Unimplemented();
+      return Undefined();
   }
 }
 
@@ -856,7 +818,7 @@ void HeavyOptimizerFrontend::StoreWithoutRecovery(Decoder::MemoryDataOperandType
           base, index, x86_64::MachineMemOperandScale::kOne, disp, data);
       break;
     default:
-      return Unimplemented();
+      return Undefined();
   }
 }
 

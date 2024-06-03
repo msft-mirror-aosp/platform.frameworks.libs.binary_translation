@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
-#define BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_
+#include "berberis/runtime_primitives/virtual_guest_call_frame.h"
+
+#include "berberis/base/checks.h"
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
 
-int ToHostSyscallNumber(int);
+void InitVirtualGuestCallFrameReturnAddress(GuestAddr pc) {
+  ScopedVirtualGuestCallFrame::SetReturnAddress(pc);
+  CHECK(TranslationCache::GetInstance()->SetStop(pc));
+}
 
 }  // namespace berberis
-
-#endif  // BERBERIS_KERNEL_API_RISCV64_SYSCALL_NUMBERS_H_

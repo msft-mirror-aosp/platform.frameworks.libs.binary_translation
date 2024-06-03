@@ -34,8 +34,8 @@ namespace berberis::intrinsics {
 // implementation may be used as a template for efficient SIMD-based implementation.
 //
 // The scheme works roughly in the following way:
-//   1. “(a + β)/2 = a/2 + β/2” (note: this only true with rationals, not integers!)
-//   2. “(2×A + B)/2 = A + B/2” (here we just replace a with 2A)
+//   1. “(α + β)/2 = a/2 + β/2” (note: this only true with rationals, not integers!)
+//   2. “(2×A + β)/2 = A + β/2” (here we just replace α with 2×A)
 //   3. “X + Y = 2×A + B” where “A = X & Y” and “B = X ^ Y”
 //      This gives us enough information to deal with Averaging Add, but for Subtract we need:
 //   4. “-Y = ~Y + 1” (that's how two's complement works)
@@ -65,24 +65,24 @@ std::tuple<ElementType> Aadd(int8_t vxrm, ElementType unwrapped_x, ElementType u
   using WrappingType = Wrapping<ElementType>;
   WrappingType x{unwrapped_x};
   WrappingType y{unwrapped_y};
-  WrappingType a = x & y;
-  WrappingType b = x ^ y;
-  WrappingType c = b >> WrappingType{1};
-  WrappingType d = a + c;
+  WrappingType same_bits = x & y;
+  WrappingType different_bits = x ^ y;
+  WrappingType different_bits_average = different_bits >> WrappingType{1};
+  WrappingType result = same_bits + different_bits_average;
   switch (vxrm) {
     case VXRMFlags::RNU:
-      d += (b & WrappingType{1});
+      result += (different_bits & WrappingType{1});
       break;
     case VXRMFlags::RNE:
-      d += (d & b & WrappingType{1});
+      result += (result & different_bits & WrappingType{1});
       break;
     case VXRMFlags::RDN:
       break;
     case VXRMFlags::ROD:
-      d |= (b & WrappingType{1});
+      result |= (different_bits & WrappingType{1});
       break;
   }
-  return static_cast<ElementType>(d);
+  return static_cast<ElementType>(result);
 }
 
 template <typename ElementType, enum PreferredIntrinsicsImplementation>
@@ -90,24 +90,24 @@ std::tuple<ElementType> Asub(int8_t vxrm, ElementType unwrapped_x, ElementType u
   using WrappingType = Wrapping<ElementType>;
   WrappingType x{unwrapped_x};
   WrappingType y{unwrapped_y};
-  WrappingType a = x & ~y;
-  WrappingType b = x ^ y;
-  WrappingType c = b >> WrappingType{1};
-  WrappingType d = a - c;
+  WrappingType same_bits = x & ~y;
+  WrappingType different_bits = x ^ y;
+  WrappingType different_bits_average = different_bits >> WrappingType{1};
+  WrappingType result = same_bits - different_bits_average;
   switch (vxrm) {
     case VXRMFlags::RNU:
       break;
     case VXRMFlags::RNE:
-      d -= d & b & WrappingType{1};
+      result -= result & different_bits & WrappingType{1};
       break;
     case VXRMFlags::RDN:
-      d -= b & WrappingType{1};
+      result -= different_bits & WrappingType{1};
       break;
     case VXRMFlags::ROD:
-      d -= ~d & b & WrappingType{1};
+      result -= ~result & different_bits & WrappingType{1};
       break;
   }
-  return static_cast<ElementType>(d);
+  return static_cast<ElementType>(result);
 }
 
 // Function that rounds off a fixed-point value.
@@ -121,30 +121,36 @@ std::tuple<ElementType> Asub(int8_t vxrm, ElementType unwrapped_x, ElementType u
 //   ROD(3): Round to nearest odd
 //
 template <typename ElementType, enum PreferredIntrinsicsImplementation>
-std::tuple<ElementType> Roundoff(int8_t vxrm, ElementType v, ElementType premasked_d) {
+std::tuple<ElementType> Roundoff(int8_t vxrm, ElementType unwrapped_v, ElementType premasked_d) {
   static_assert(std::is_integral_v<ElementType>, "Roundoff: ElementType must be integral");
-  uint8_t d = premasked_d & ((1 << BitUtilLog2(sizeof(ElementType) * 8)) - 1);
-  ElementType result = v >> d;
-  if (d == 0) [[unlikely]] {
-    return {result};
+  Wrapping value{unwrapped_v};
+  static_assert(sizeof(ElementType) * CHAR_BIT <= std::numeric_limits<uint8_t>::max());
+  UInt8 fraction_digits{
+      static_cast<uint8_t>(premasked_d & ((1 << BitUtilLog2(sizeof(ElementType) * 8)) - 1))};
+  auto result = value >> fraction_digits;
+  if (fraction_digits == UInt8{0}) [[unlikely]] {
+    return static_cast<ElementType>(result);
   }
   switch (vxrm) {
     case VXRMFlags::RNU:
-      result += (v >> (d - 1)) & 1;
+      result += (value >> (fraction_digits - UInt8{1})) & decltype(value){1};
       break;
     case VXRMFlags::RNE:
-      result += ((v >> (d - 1)) & 1) & (((v & ((1 << (d - 1)) - 1)) != 0) | ((v >> d) & 1));
+      result += ((value >> (fraction_digits - UInt8{1})) & decltype(value){1}) &
+                (decltype(value){(value & ((decltype(value){1} << (fraction_digits - UInt8{1})) -
+                                           decltype(value){1})) != decltype(value){0}} |
+                 ((value >> fraction_digits) & decltype(value){1}));
       break;
     case VXRMFlags::RDN:
       break;
     case VXRMFlags::ROD:
-      result |= (v & ((1 << d) - 1)) != 0;
+      result |= decltype(value){(value & ((decltype(value){1} << fraction_digits) -
+                                          decltype(value){1})) != decltype(value){0}};
       break;
     default:
       LOG_ALWAYS_FATAL("Roundoff: Invalid rounding mode");
   }
-
-  return {result};
+  return static_cast<ElementType>(result);
 }
 
 }  // namespace berberis::intrinsics

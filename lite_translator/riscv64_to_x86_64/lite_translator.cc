@@ -105,19 +105,6 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Mulq(arg2);
       as_.Movq(res, as_.rdx);
       break;
-    case OpOpcode::kRem:
-      as_.Movq(as_.rax, arg1);
-      as_.Movq(as_.rdx, as_.rax);
-      as_.Sarq(as_.rdx, int8_t{63});
-      as_.Idivq(arg2);
-      as_.Movq(res, opcode == OpOpcode::kDiv ? as_.rax : as_.rdx);
-      break;
-    case OpOpcode::kRemu:
-      as_.Movq(as_.rax, arg1);
-      as_.Xorq(as_.rdx, as_.rdx);
-      as_.Divq(arg2);
-      as_.Movq(res, opcode == OpOpcode::kDivu ? as_.rax : as_.rdx);
-      break;
     case Decoder::OpOpcode::kAndn:
       if (host_platform::kHasBMI) {
         as_.Andnq(res, arg2, arg1);
@@ -138,7 +125,7 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       as_.Notq(res);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -179,21 +166,8 @@ Register LiteTranslator::Op32(Decoder::Op32Opcode opcode, Register arg1, Registe
       as_.Imull(res, arg2);
       as_.Movsxlq(res, res);
       break;
-    case Op32Opcode::kRemw:
-      as_.Movl(as_.rax, arg1);
-      as_.Movl(as_.rdx, as_.rax);
-      as_.Sarl(as_.rdx, int8_t{31});
-      as_.Idivl(arg2);
-      as_.Movsxlq(res, as_.rdx);
-      break;
-    case Op32Opcode::kRemuw:
-      as_.Movl(as_.rax, arg1);
-      as_.Xorl(as_.rdx, as_.rdx);
-      as_.Divl(arg2);
-      as_.Movsxlq(res, as_.rdx);
-      break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -230,7 +204,7 @@ Register LiteTranslator::OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_
       as_.Andq(res, imm);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -245,7 +219,7 @@ Register LiteTranslator::OpImm32(Decoder::OpImm32Opcode opcode, Register arg, in
       as_.Movsxlq(res, res);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;
@@ -284,7 +258,7 @@ Register LiteTranslator::ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register a
   } else if (opcode == ShiftImm32Opcode::kSraiw) {
     as_.SarlByCl(res);
   } else {
-    Unimplemented();
+    Undefined();
     return {};
   }
   as_.Movsxlq(res, res);
@@ -344,7 +318,7 @@ void LiteTranslator::CompareAndBranch(Decoder::BranchOpcode opcode,
       as_.Jcc(Condition::kLess, *cont);
       break;
     default:
-      return Unimplemented();
+      return Undefined();
   }
   ExitRegion(GetInsnAddr() + offset);
   as_.Bind(cont);
@@ -422,7 +396,7 @@ Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register ar
       as_.Movsxlq(res, asm_memop);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
 
@@ -459,7 +433,7 @@ void LiteTranslator::Store(Decoder::MemoryDataOperandType operand_type,
       as_.Movq(asm_memop, data);
       break;
     default:
-      return Unimplemented();
+      return Undefined();
   }
 
   // TODO(b/144326673): Emit the recovery code at the end of the region so it doesn't interrupt
@@ -488,10 +462,10 @@ Register LiteTranslator::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Regi
       }
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
-  return arg;
+  return res;
 }
 
 Register LiteTranslator::UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr) {
@@ -509,7 +483,7 @@ Register LiteTranslator::UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Re
       as_.Andq(res, csr);
       break;
     default:
-      Unimplemented();
+      Undefined();
       return {};
   }
   return res;

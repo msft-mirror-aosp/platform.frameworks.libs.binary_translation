@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,10 @@
  * limitations under the License.
  */
 
-#include "berberis/runtime_primitives/host_call_frame.h"
+#ifndef BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_H_
+#define BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_H_
 
-#include "berberis/base/checks.h"
-#include "berberis/guest_state/guest_addr.h"
-#include "berberis/runtime_primitives/translation_cache.h"
+#include "berberis/guest_os_primitives/gen_syscall_numbers_arch.h"  // IWYU pragma: export.
+#include "berberis/guest_os_primitives/syscall_numbers.h"           // IWYU pragma: export.
 
-namespace berberis {
-
-void InitHostCallFrameGuestPC(GuestAddr pc) {
-  ScopedHostCallFrame::SetGuestPC(pc);
-  CHECK(TranslationCache::GetInstance()->SetStop(pc));
-}
-
-}  // namespace berberis
+#endif  // BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_H_

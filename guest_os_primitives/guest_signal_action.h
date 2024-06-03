@@ -17,10 +17,10 @@
 #ifndef BERBERIS_GUEST_OS_PRIMITIVES_GUEST_SIGNAL_ACTION_H_
 #define BERBERIS_GUEST_OS_PRIMITIVES_GUEST_SIGNAL_ACTION_H_
 
+#include <array>
 #include <csignal>
 
 #include "berberis/base/checks.h"
-#include "berberis/base/macros.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
 #include "berberis/guest_os_primitives/guest_signal_arch.h"
 
@@ -34,6 +34,9 @@ class GuestSignalAction {
 
   constexpr GuestSignalAction()
       : claimed_guest_sa_{.guest_sa_sigaction = Guest_SIG_DFL, .sa_flags = 0, .sa_mask = {}} {}
+
+  GuestSignalAction(const GuestSignalAction& other) = default;
+  GuestSignalAction& operator=(const GuestSignalAction& other) = default;
 
   bool Change(int sig,
               const Guest_sigaction* new_sa,
@@ -57,8 +60,14 @@ class GuestSignalAction {
   void Unclaim() { claimed_guest_sa_.guest_sa_sigaction = Guest_SIG_DFL; }
 
   Guest_sigaction claimed_guest_sa_;  // Guest_SIG_DFL when not claimed.
+};
 
-  DISALLOW_COPY_AND_ASSIGN(GuestSignalAction);
+// It's essentially a typedef. But we make it a class to forward declare in guest_thread.h.
+class GuestSignalActionsTable : public std::array<GuestSignalAction, Guest__KERNEL__NSIG> {
+ public:
+  GuestSignalActionsTable() = default;
+  GuestSignalActionsTable(const GuestSignalActionsTable& other) = default;
+  GuestSignalActionsTable& operator=(const GuestSignalActionsTable& other) = default;
 };
 
 }  // namespace berberis

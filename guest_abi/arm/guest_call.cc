@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2014 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,31 @@
  * limitations under the License.
  */
 
+#include "berberis/guest_abi/guest_call.h"
+
+#include <cstdint>
+
 #include "berberis/base/checks.h"
+#include "berberis/guest_abi/guest_arguments.h"
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/runtime_primitives/runtime_library.h"
 
 namespace berberis {
 
-int ToHostSyscallNumber(int) {
-  FATAL("Not implemented ToHostSyscallNumber");
+void GuestCall::AddArgInt32(uint32_t arg) {
+  CHECK_LT(buffer().argc, kMaxArgc);
+  buffer().argv[buffer().argc++] = arg;
+}
+
+void GuestCall::RunVoid(GuestAddr func_addr) {
+  buffer().resc = 0;
+  RunGuestCall(func_addr, &buffer());
+}
+
+uint32_t GuestCall::RunResInt32(GuestAddr func_addr) {
+  buffer().resc = 1;
+  RunGuestCall(func_addr, &buffer());
+  return buffer().argv[0];
 }
 
 }  // namespace berberis

@@ -37,10 +37,10 @@ def _print_header(arch):
  * limitations under the License.
  */
 
-#ifndef BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_%s_H_
-#define BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_%s_H_
+#ifndef BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_ARCH_H_
+#define BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_ARCH_H_
 
-namespace berberis {""" % (arch, arch))
+namespace berberis {""")
 
 
 def _print_footer(arch):
@@ -48,7 +48,7 @@ def _print_footer(arch):
 
 }  // namespace berberis
 
-#endif  // BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_%s_H_""" % (arch))
+#endif  // BERBERIS_GUEST_OS_PRIMITIVES_GEN_SYSCALL_NUMBERS_ARCH_H_""")
 
 
 def _print_enum(arch, kernel_syscalls):
@@ -64,28 +64,6 @@ enum {""")
   print('};')
 
 
-def _print_mapping(name, src_arch, dst_arch, kernel_syscalls):
-  print("""\
-
-inline int %s(int nr) {
-  switch (nr) {""" % (name))
-
-  for nr, syscall in sorted(kernel_syscalls.items()):
-    if src_arch in syscall:
-      if dst_arch in syscall:
-        print('    case %s:  // %s' % (syscall[src_arch]['id'], nr))
-        print('      return %s;' % (syscall[dst_arch]['id']))
-      else:
-        print('    case %s:  // %s - missing on %s' % (syscall[src_arch]['id'], nr, dst_arch))
-        print('      return -1;')
-
-  print("""\
-    default:
-      return -1;
-  }
-}""")
-
-
 def main(argv):
   src_arch = argv[1]
   dst_arch = argv[2]
@@ -99,8 +77,6 @@ def main(argv):
 
   _print_header(display_src_arch)
   _print_enum(src_arch, kernel_syscalls)
-  _print_mapping('ToHostSyscallNumber', src_arch, dst_arch, kernel_syscalls)
-  _print_mapping('ToGuestSyscallNumber', dst_arch, src_arch, kernel_syscalls)
   _print_footer(display_src_arch)
 
   return 0

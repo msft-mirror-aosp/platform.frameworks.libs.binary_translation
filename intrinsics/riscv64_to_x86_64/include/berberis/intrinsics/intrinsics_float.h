@@ -17,6 +17,7 @@
 #ifndef BERBERIS_INTRINSICS_RISCV64_TO_X86_64_INTRINSICS_FLOAT_H_
 #define BERBERIS_INTRINSICS_RISCV64_TO_X86_64_INTRINSICS_FLOAT_H_
 
+#include <cmath>
 #include <limits>
 
 #include "berberis/base/bit_util.h"
@@ -95,6 +96,35 @@ inline FloatType ExecuteFloatOperation(uint8_t requested_rm,
   }
   return operation(args...);
 }
+
+// From RISC-V ISA manual: Single-Precision Floating-Point Computational Instructions.
+// Covers behavior for both single and double precision floating point comparisons.
+#define DEFINE_FLOAT_COMPARE_FUNC(FuncName, FloatType, ZeroVal, Intrinsic) \
+  inline FloatType FuncName(FloatType op1, FloatType op2) {                \
+    FPInfo op1_class = FPClassify(op1);                                    \
+    FPInfo op2_class = FPClassify(op2);                                    \
+    if (op1_class == FPInfo::kZero && op2_class == FPInfo::kZero &&        \
+        SignBit(op1) != SignBit(op2)) {                                    \
+      return FloatType(ZeroVal);                                           \
+    }                                                                      \
+    /* If both inputs are NaNs, the result is the canonical NaN. */        \
+    if (op1_class == FPInfo::kNaN && op2_class == FPInfo::kNaN) {          \
+      return std::numeric_limits<FloatType>::quiet_NaN();                  \
+    }                                                                      \
+    /* If only one operand is a NaN, the result is the non-NaN operand. */ \
+    if (op1_class == FPInfo::kNaN) {                                       \
+      return op2;                                                          \
+    }                                                                      \
+    if (op2_class == FPInfo::kNaN) {                                       \
+      return op1;                                                          \
+    }                                                                      \
+    return FloatType(Intrinsic(op1.value_, op2.value_));                   \
+  }
+DEFINE_FLOAT_COMPARE_FUNC(Max, Float32, +0.f, std::fmax);
+DEFINE_FLOAT_COMPARE_FUNC(Max, Float64, +0.f, std::fmax);
+DEFINE_FLOAT_COMPARE_FUNC(Min, Float32, -0.f, std::fmin);
+DEFINE_FLOAT_COMPARE_FUNC(Min, Float64, -0.f, std::fmin);
+#undef DEFINE_FLOAT_COMPARE_FUNC
 
 // We only need Negative(long double) for FMA, b/120563432 doesn't affect this function.
 inline long double Negative(const long double& v) {

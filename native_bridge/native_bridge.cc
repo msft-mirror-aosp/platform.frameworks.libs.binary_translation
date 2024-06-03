@@ -472,6 +472,32 @@ void* native_bridge_getTrampolineWithJNICallType(void* handle,
   return const_cast<void*>(result);
 }
 
+void* native_bridge_getTrampolineForFunctionPointer(const void* method,
+                                                    const char* shorty,
+                                                    uint32_t len,
+                                                    enum android::JNICallType jni_call_type) {
+  LOG_NB(
+      "native_bridge_getTrampolineForFunctionPointer(method=%p, shorty='%s', len=%d, "
+      "jni_call_type=%d)",
+      method,
+      shorty ? shorty : "(null)",
+      len,
+      jni_call_type);
+
+  auto guest_addr = berberis::ToGuestAddr(method);
+  if (!berberis::GuestMapShadow::GetInstance()->IsExecutable(guest_addr, 1)) {
+    // This is not guest code - happens when native_bridge falls back
+    // to host libraries.
+    return const_cast<void*>(method);
+  }
+
+  return const_cast<void*>(berberis::WrapGuestJNIFunction(
+      guest_addr,
+      shorty,
+      "(unknown)",
+      jni_call_type != android::JNICallType::kJNICallTypeCriticalNative));
+}
+
 void* native_bridge_getTrampoline(void* handle,
                                   const char* name,
                                   const char* shorty,
@@ -629,5 +655,6 @@ android::NativeBridgeCallbacks NativeBridgeItf = {
     &native_bridge_getExportedNamespace,
     &native_bridge_preZygoteFork,
     &native_bridge_getTrampolineWithJNICallType,
+    &native_bridge_getTrampolineForFunctionPointer,
 };
 }  // extern "C"

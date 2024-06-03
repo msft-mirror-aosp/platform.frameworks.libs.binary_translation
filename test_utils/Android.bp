@@ -33,3 +33,14 @@ cc_library_headers {
         "libberberis_runtime_primitives_headers",
     ],
 }
+
+cc_test_library {
+    name: "libberberis_tests_main",
+    defaults: ["berberis_test_library_defaults"],
+    host_supported: true,
+    header_libs: [
+        "berberis_test_utils_headers",
+        "libberberis_runtime_headers",
+    ],
+    srcs: ["tests_main.cc"],
+}

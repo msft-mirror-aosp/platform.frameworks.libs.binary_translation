@@ -79,7 +79,7 @@ class HeavyOptimizerFrontend {
   [[nodiscard]] Register GetReg(uint8_t reg);
   void SetReg(uint8_t reg, Register value);
 
-  void Unimplemented();
+  void Undefined();
   //
   // Instruction implementations.
   //
@@ -104,7 +104,7 @@ class HeavyOptimizerFrontend {
                  Register /* arg3 */,
                  Register /* arg4 */,
                  Register /* arg5 */) {
-    Unimplemented();
+    Undefined();
     return {};
   }
 
@@ -304,7 +304,7 @@ class HeavyOptimizerFrontend {
   void OpVector(const VOpArgs& /*args*/, ExtraAegs... /*extra_args*/) {
     // TODO(b/300690740): develop and implement strategy which would allow us to support vector
     // intrinsics not just in the interpreter.
-    Unimplemented();
+    Undefined();
   }
 
   //
@@ -376,7 +376,7 @@ class HeavyOptimizerFrontend {
       Gen<x86_64::AndbRegImm>(tmp, kCsrMask<kName>, GetFlagsRegister());
       Gen<x86_64::MovbMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<kName>, tmp);
     } else if constexpr (sizeof(CsrFieldType<kName>) == 8) {
-      Gen<x86_64::AndqRegImm>(
+      Gen<x86_64::AndqRegMemAbsolute>(
           tmp, constants_pool::kConst<uint64_t{kCsrMask<kName>}>, GetFlagsRegister());
       Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<kName>, tmp);
     } else {
