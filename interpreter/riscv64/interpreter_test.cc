@@ -1143,16 +1143,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
         expected_result_int64);
   }
 
-  void TestNarrowingVectorInstruction(uint32_t insn_bytes,
-                                      const uint8_t (&expected_result_int8)[4][16],
-                                      const uint16_t (&expected_result_int16)[4][8],
-                                      const uint32_t (&expected_result_int32)[4][4],
-                                      const __v2du (&source)[16]) {
-    TestVectorInstruction<TestVectorInstructionKind::kInteger,
-                          TestVectorInstructionMode::kNarrowing>(
-        insn_bytes, source, expected_result_int8, expected_result_int16, expected_result_int32);
-  }
-
   void TestWideningVectorFloatInstruction(uint32_t insn_bytes,
                                           const uint64_t (&expected_result_int64)[8][2],
                                           const __v2du (&source)[16],
@@ -1168,16 +1158,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
                                           const __v2du (&source)[16]) {
     TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kWidening>(
         insn_bytes, source, expected_result_int32, expected_result_int64);
-  }
-
-  void TestWideningVectorInstruction(uint32_t insn_bytes,
-                                     const uint16_t (&expected_result_int16)[8][8],
-                                     const uint32_t (&expected_result_int32)[8][4],
-                                     const uint64_t (&expected_result_int64)[8][2],
-                                     const __v2du (&source)[16]) {
-    TestVectorInstruction<TestVectorInstructionKind::kInteger,
-                          TestVectorInstructionMode::kWidening>(
-        insn_bytes, source, expected_result_int16, expected_result_int32, expected_result_int64);
   }
 
   enum class TestVectorInstructionKind { kInteger, kFloat };
@@ -1352,125 +1332,6 @@ class Riscv64InterpreterTest : public ::testing::Test {
              expected_result,
              kNoMask)),
      ...);
-  }
-
-  void TestExtendingVectorInstruction(uint32_t insn_bytes,
-                                      const __v8hu (&expected_result_int16)[8],
-                                      const __v4su (&expected_result_int32)[8],
-                                      const __v2du (&expected_result_int64)[8],
-                                      const __v2du (&source)[16],
-                                      const uint8_t factor) {
-    auto Verify = [this, &source, &factor](uint32_t insn_bytes,
-                                           uint8_t vsew,
-                                           uint8_t vlmul_max,
-                                           const auto& expected_result,
-                                           auto mask) {
-      CHECK((factor == 2) || (factor == 4) || (factor == 8));
-      // Mask register is, unconditionally, v0, and we need 8, 16, or 24 to handle full 8-registers
-      // inputs thus we use v8..v15 for destination and place sources into v16..v23 and v24..v31.
-      state_.cpu.v[0] = SIMD128Register{kMask}.Get<__uint128_t>();
-      for (uint8_t index = 0; index < (8 / factor); ++index) {
-        state_.cpu.v[16 + index] = SIMD128Register{source[index]}.Get<__uint128_t>();
-      }
-      for (uint8_t vlmul = 0; vlmul < vlmul_max; ++vlmul) {
-        if (vlmul == 3) {
-          continue;
-        }
-        for (uint8_t vta = 0; vta < 2; ++vta) {
-          for (uint8_t vma = 0; vma < 2; ++vma) {
-            auto [vlmax, vtype] =
-                intrinsics::Vsetvl(~0ULL, (vma << 7) | (vta << 6) | (vsew << 3) | vlmul);
-            // Incompatible vsew and vlmax. Skip it.
-            if (vlmax == 0) {
-              continue;
-            }
-            // To make tests quick enough we don't test vstart and vl change with small register
-            // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of
-            // first
-            // register and half of last register.
-            // Don't use vlmul == 3 because that one may not be supported if instruction widens
-            // the result.
-            if (vlmul == 2) {
-              state_.cpu.vstart = vlmax / 8;
-              state_.cpu.vl = (vlmax * 5) / 8;
-            } else {
-              state_.cpu.vstart = 0;
-              state_.cpu.vl = vlmax;
-            }
-            state_.cpu.vtype = vtype;
-
-            // Set expected_result vector registers into 0b01010101… pattern.
-            for (size_t index = 0; index < 8; ++index) {
-              state_.cpu.v[8 + index] = SIMD128Register{kUndisturbedResult}.Get<__uint128_t>();
-            }
-
-            state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-            EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-
-            // Values for inactive elements (i.e. corresponding mask bit is 0).
-            const size_t n = std::size(source) * 2;
-            __m128i expected_inactive[n];
-            // For most instructions, follow basic inactive processing rules based on vma flag.
-            std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
-
-            if (vlmul < 4) {
-              for (size_t index = 0; index < 1 << vlmul; ++index) {
-                if (index == 0 && vlmul == 2) {
-                  EXPECT_EQ(state_.cpu.v[8 + index],
-                            SIMD128Register{
-                                (kUndisturbedResult & kFractionMaskInt8[3]) |
-                                    (expected_result[index] & mask[index] & ~kFractionMaskInt8[3]) |
-                                    (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])}
-                                .Get<__uint128_t>());
-                } else if (index == 2 && vlmul == 2) {
-                  EXPECT_EQ(
-                      state_.cpu.v[8 + index],
-                      SIMD128Register{
-                          (expected_result[index] & mask[index] & kFractionMaskInt8[3]) |
-                              (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
-                              ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])}
-                          .Get<__uint128_t>());
-                } else if (index == 3 && vlmul == 2 && vta) {
-                  EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kAgnosticResult});
-                } else if (index == 3 && vlmul == 2) {
-                  EXPECT_EQ(state_.cpu.v[8 + index], SIMD128Register{kUndisturbedResult});
-                } else {
-                  EXPECT_EQ(state_.cpu.v[8 + index],
-                            SIMD128Register{(expected_result[index] & mask[index]) |
-                                (expected_inactive[index] & ~mask[index])}
-                                .Get<__uint128_t>());
-                }
-              }
-            } else {
-              EXPECT_EQ(
-                  state_.cpu.v[8],
-                  SIMD128Register{(expected_result[0] & mask[0] & kFractionMaskInt8[vlmul - 4]) |
-                      (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[vlmul - 4]) |
-                      ((vta ? kAgnosticResult : kUndisturbedResult) &
-                          ~kFractionMaskInt8[vlmul - 4])}
-                      .Get<__uint128_t>());
-            }
-
-            if (vlmul == 2) {
-              // Every vector instruction must set vstart to 0, but shouldn't touch vl.
-              EXPECT_EQ(state_.cpu.vstart, 0);
-              EXPECT_EQ(state_.cpu.vl, (vlmax * 5) / 8);
-            }
-          }
-        }
-      }
-    };
-
-    if (factor == 2) {
-      Verify(insn_bytes, 1, 8, expected_result_int16, kMaskInt16);
-      Verify(insn_bytes | (1 << 25), 1, 8, expected_result_int16, kNoMask);
-    }
-    if (factor == 2 || factor == 4) {
-      Verify(insn_bytes, 2, 8, expected_result_int32, kMaskInt32);
-      Verify(insn_bytes | (1 << 25), 2, 8, expected_result_int32, kNoMask);
-    }
-    Verify(insn_bytes, 3, 8, expected_result_int64, kMaskInt64);
-    Verify(insn_bytes | (1 << 25), 3, 8, expected_result_int64, kNoMask);
   }
 
   void TestVectorMaskInstruction(uint8_t max_vstart,
