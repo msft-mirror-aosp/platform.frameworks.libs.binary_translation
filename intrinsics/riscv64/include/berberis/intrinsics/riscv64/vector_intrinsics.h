@@ -963,6 +963,29 @@ DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VX(
     aadd,
     ElementType{std::get<0>(Aadd(csr, static_cast<typename ElementType::BaseType>(args)...))})
+
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(smul, auto [arg1, arg2] = std::tuple{args...}; ElementType{
+    Narrow(Saturating{std::get<0>(Roundoff(
+        csr,
+        static_cast<typename WideType<ElementType>::BaseType>(Widen(arg1) * Widen(arg2)),
+        static_cast<typename WideType<ElementType>::BaseType>((sizeof(ElementType) * CHAR_BIT) -
+                                                              1)))})})
+
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VX(smul, auto [arg1, arg2] = std::tuple{args...}; ElementType{
+    Narrow(Saturating{std::get<0>(Roundoff(
+        csr,
+        static_cast<typename WideType<ElementType>::BaseType>(Widen(arg1) * Widen(arg2)),
+        static_cast<typename WideType<ElementType>::BaseType>((sizeof(ElementType) * CHAR_BIT) -
+                                                              1)))})})
+
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(
+    ssr,
+    ElementType{std::get<0>(Roundoff(csr, static_cast<typename ElementType::BaseType>(args)...))})
+
+DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VX(
+    ssr,
+    ElementType{std::get<0>(Roundoff(csr, static_cast<typename ElementType::BaseType>(args)...))})
+
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VV(fadd,
                                         CanonicalizeNanTuple(FAdd(FPFlags::DYN, csr, args...)))
 DEFINE_2OP_1CSR_ARITHMETIC_INTRINSIC_VF(fadd,
@@ -1161,11 +1184,11 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulh, auto [arg1, arg2] = std::tuple{args...}
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulh, auto [arg1, arg2] = std::tuple{args...};
                                    NarrowTopHalf(Widen(arg2) * Widen(arg1)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulhsu, auto [arg1, arg2] = std::tuple{args...};
-                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
-                                                 Widen(BitCastToUnsigned(arg1))))
+                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg1))) *
+                                                 Widen(BitCastToUnsigned(arg2))))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args...};
-                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
-                                                 Widen(BitCastToUnsigned(arg1))))
+                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg1))) *
+                                                 Widen(BitCastToUnsigned(arg2))))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
     div,
     ElementType{std::get<0>(Div(static_cast<typename ElementType::BaseType>(args)...))})
