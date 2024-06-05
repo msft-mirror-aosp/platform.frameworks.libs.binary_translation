@@ -14,18 +14,23 @@
  * limitations under the License.
  */
 
+#include <sys/stat.h>
+
 #include <cstddef>
 #include <tuple>
 #include <utility>
 
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/kernel_api/exec_emulation.h"
 #include "berberis/kernel_api/fcntl_emulation.h"
 #include "berberis/kernel_api/sys_ptrace_emulation.h"
 
+#include "riscv64/guest_types.h"
+
 namespace berberis {
 
 std::pair<const char*, size_t> GetGuestPlatformVarPrefixWithSize() {
-  constexpr char kGuestPlatformVarPrefix[] = "BERBERIS_GUEST_";
+  static constexpr char kGuestPlatformVarPrefix[] = "BERBERIS_GUEST_";
   return {kGuestPlatformVarPrefix, sizeof(kGuestPlatformVarPrefix) - 1};
 }
 
@@ -35,6 +40,23 @@ std::tuple<bool, int> GuestFcntlArch(int, int, long) {
 
 std::tuple<bool, int> PtraceForGuestArch(int, pid_t, void*, void*) {
   return {false, -1};
+}
+
+void ConvertHostStatToGuestArch(const struct stat& host_stat, GuestAddr guest_addr) {
+  auto* guest_stat = ToHostAddr<Guest_stat>(guest_addr);
+  guest_stat->st_dev = host_stat.st_dev;
+  guest_stat->st_ino = host_stat.st_ino;
+  guest_stat->st_mode = host_stat.st_mode;
+  guest_stat->st_nlink = host_stat.st_nlink;
+  guest_stat->st_uid = host_stat.st_uid;
+  guest_stat->st_gid = host_stat.st_gid;
+  guest_stat->st_rdev = host_stat.st_rdev;
+  guest_stat->st_size = host_stat.st_size;
+  guest_stat->st_blksize = host_stat.st_blksize;
+  guest_stat->st_blocks = host_stat.st_blocks;
+  guest_stat->st_atim = host_stat.st_atim;
+  guest_stat->st_mtim = host_stat.st_mtim;
+  guest_stat->st_ctim = host_stat.st_ctim;
 }
 
 }  // namespace berberis

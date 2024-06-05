@@ -23,6 +23,7 @@
 #include "berberis/base/checks.h"
 #include "berberis/base/macros.h"
 #include "berberis/base/mmap.h"
+#include "berberis/base/page_size.h"
 
 namespace berberis {
 
@@ -41,7 +42,7 @@ class ForeverAllocator {
 
   void* Allocate(size_t size, size_t align) {
     CHECK_GT(size, 0);
-    CHECK_LT(size, kPageSize);
+    CHECK_LT(size, static_cast<size_t>(kPageSize));
     CHECK(IsPowerOf2(align));
     return reinterpret_cast<void*>(AllocateImpl(size, align));
   }

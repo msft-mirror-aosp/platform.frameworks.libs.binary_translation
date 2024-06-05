@@ -14,21 +14,24 @@
  * limitations under the License.
  */
 
+#include <malloc.h>
+#include <sys/auxv.h>
 #include <unistd.h>
 
-#include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <tuple>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
-#include "berberis/base/macros.h"
+#include "berberis/base/file.h"
+#include "berberis/guest_loader/guest_loader.h"
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
-#include "berberis/runtime/execute_guest.h"
-#include "berberis/tiny_loader/loaded_elf_file.h"
-#include "berberis/tiny_loader/tiny_loader.h"
+#include "berberis/program_runner/program_runner.h"
+#include "berberis/runtime/berberis.h"
+
+// Program runner meant for testing and manual invocation.
 
 namespace berberis {
 
@@ -36,30 +39,13 @@ namespace {
 
 void Usage(const char* argv_0) {
   printf(
-      "Usage: %s [-h] [-a start_addr] guest_executable [arg1 [arg2 ...]]\n"
+      "Usage: %s [-h] guest_executable [arg1 [arg2 ...]]\n"
       "  -h             - print this message\n"
-      "  -a start_addr  - start execution at start_addr\n"
       "  guest_executable - path to the guest executable\n",
       argv_0);
 }
 
-std::tuple<GuestAddr, bool> ParseGuestAddr(const char* addr_cstr) {
-  char* end_ptr = nullptr;
-  errno = 0;
-  GuestAddr addr = bit_cast<GuestAddr>(strtoull(addr_cstr, &end_ptr, 16));
-
-  // Warning: setting errno on failure is implementation defined. So we also use extra heuristics.
-  if (errno != 0 || (*end_ptr != '\n' && *end_ptr != '\0')) {
-    printf("Cannot convert \"%s\" to integer: %s\n", addr_cstr,
-           errno != 0 ? strerror(errno) : "unexpected end of string");
-    return {kNullGuestAddr, false};
-  }
-  return {addr, true};
-}
-
 struct Options {
-  const char* guest_executable;
-  GuestAddr start_addr;
   bool print_help_and_exit;
 };
 
@@ -69,19 +55,11 @@ Options ParseArgs(int argc, char* argv[]) {
   Options opts{};
 
   while (true) {
-    int c = getopt(argc, argv, "ha:");
+    int c = getopt(argc, argv, "+h:");
     if (c < 0) {
       break;
     }
     switch (c) {
-      case 'a': {
-        auto [addr, success] = ParseGuestAddr(optarg);
-        if (!success) {
-          return Options{.print_help_and_exit = true};
-        }
-        opts.start_addr = addr;
-        break;
-      }
       case 'h':
         return Options{.print_help_and_exit = true};
       default:
@@ -93,7 +71,6 @@ Options ParseArgs(int argc, char* argv[]) {
     return Options{.print_help_and_exit = true};
   }
 
-  opts.guest_executable = argv[optind];
   opts.print_help_and_exit = false;
   return opts;
 }
@@ -102,7 +79,17 @@ Options ParseArgs(int argc, char* argv[]) {
 
 }  // namespace berberis
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[], char* envp[]) {
+#if defined(__GLIBC__)
+  // Disable brk in glibc-malloc.
+  //
+  // By default GLIBC uses brk in malloc which may lead to conflicts with
+  // executables that use brk for their own needs. See http://b/64720148 for
+  // example.
+  mallopt(M_MMAP_THRESHOLD, 0);
+  mallopt(M_TRIM_THRESHOLD, -1);
+#endif
+
   berberis::Options opts = berberis::ParseArgs(argc, argv);
 
   if (opts.print_help_and_exit) {
@@ -110,16 +97,18 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  LoadedElfFile elf_file;
   std::string error_msg;
-  if (!TinyLoader::LoadFromFile(opts.guest_executable, &elf_file, &error_msg)) {
-    printf("%s\n", error_msg.c_str());
+  if (!berberis::Run(
+          // TODO(b/276787135): Make vdso and loader configurable via command line arguments.
+          /* vdso_path */ nullptr,
+          /* loader_path */ nullptr,
+          argc - optind,
+          const_cast<const char**>(argv + optind),
+          envp,
+          &error_msg)) {
+    fprintf(stderr, "unable to start executable: %s\n", error_msg.c_str());
     return -1;
   }
-
-  berberis::ThreadState state{};
-  state.cpu.insn_addr = opts.start_addr;
-  ExecuteGuest(&state, berberis::kNullGuestAddr);
 
   return 0;
 }

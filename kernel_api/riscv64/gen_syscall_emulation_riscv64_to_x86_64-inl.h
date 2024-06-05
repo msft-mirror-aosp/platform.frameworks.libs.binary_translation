@@ -50,7 +50,8 @@ long RunGuestSyscallImpl(long guest_nr,
       // custom syscall
       return RunGuestSyscall___NR_clone3(arg_1, arg_2);
     case 57:  // __NR_close
-      return syscall(3, arg_1);
+      // /proc/self/maps emulation
+      return RunGuestSyscall___NR_close(arg_1);
     case 436:  // __NR_close_range
       return syscall(436, arg_1, arg_2, arg_3);
     case 203:  // __NR_connect
@@ -143,10 +144,11 @@ long RunGuestSyscallImpl(long guest_nr,
     case 433:  // __NR_fspick
       return syscall(433, arg_1, arg_2, arg_3);
     case 80:  // __NR_fstat
-      // incompatible prototype
+      // incompatible prototype and /proc/self/maps emulation
       return RunGuestSyscall___NR_fstat(arg_1, arg_2);
     case 44:  // __NR_fstatfs
-      return syscall(138, arg_1, arg_2);
+      // /proc/self/maps emulation
+      return RunGuestSyscall___NR_fstatfs(arg_1, arg_2);
     case 82:  // __NR_fsync
       return syscall(74, arg_1);
     case 46:  // __NR_ftruncate
@@ -521,6 +523,12 @@ long RunGuestSyscallImpl(long guest_nr,
       return syscall(249, arg_1, arg_2, arg_3, arg_4);
     case 128:  // __NR_restart_syscall
       return syscall(219);
+    case 259:  // __NR_riscv_flush_icache
+      // missing on x86_64
+      return RunGuestSyscall___NR_riscv_flush_icache(arg_1, arg_2, arg_3);
+    case 258:  // __NR_riscv_hwprobe
+      // missing on x86_64
+      return RunGuestSyscall___NR_riscv_hwprobe(arg_1, arg_2, arg_3, arg_4, arg_5);
     case 293:  // __NR_rseq
       // missing prototype
       KAPI_TRACE("unsupported syscall __NR_rseq");

@@ -61,6 +61,31 @@ class AssemblerBase {
 
   uint32_t pc() const { return code_->code_offset(); }
 
+  // GNU-assembler inspired names: https://sourceware.org/binutils/docs-2.42/as.html#g_t8byte
+  template <typename... Args>
+  void Byte(Args... args) {
+    static_assert((std::is_same_v<Args, uint8_t> && ...));
+    (Emit8(args), ...);
+  }
+
+  template <typename... Args>
+  void TwoByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint16_t> && ...));
+    (Emit16(args), ...);
+  }
+
+  template <typename... Args>
+  void FourByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint32_t> && ...));
+    (Emit32(args), ...);
+  }
+
+  template <typename... Args>
+  void EigthByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint64_t> && ...));
+    (Emit64(args), ...);
+  }
+
   // Macro operations.
   void Emit8(uint8_t v) { code_->AddU8(v); }
 
@@ -106,7 +131,7 @@ class AssemblerBase {
     uint32_t pc;
     bool is_recovery;
   };
-  typedef ArenaVector<Jump> JumpList;
+  using JumpList = ArenaVector<Jump>;
   JumpList jumps_;
 
  private:

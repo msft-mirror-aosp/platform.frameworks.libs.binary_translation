@@ -53,6 +53,7 @@ class Assembler : public AssemblerX86<Assembler> {
   static constexpr Register r14{14};
   static constexpr Register r15{15};
 
+  static constexpr XMMRegister no_xmm_register{0x80};
   static constexpr XMMRegister xmm0{0};
   static constexpr XMMRegister xmm1{1};
   static constexpr XMMRegister xmm2{2};
@@ -178,7 +179,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
-  auto Jmp(Condition cc, T* target) -> void = delete;
+  auto Jmp(T* target) -> void = delete;
 
   void Jmp(const void* target) {
     // There are no jump instruction with properties we need thus we emulate it.
@@ -217,9 +218,8 @@ class Assembler : public AssemblerX86<Assembler> {
   };
 
   // This type is only used by CmpXchg16b and acts similarly to Memory64Bit there.
-  typedef Memory64Bit Memory128Bit;
-
-  typedef Label64Bit Label128Bit;
+  using Memory128Bit = Memory64Bit;
+  using Label128Bit = Label64Bit;
 
   // Check if a given type is "a register with size" (for EmitInstruction).
   template <typename ArgumentType>
@@ -300,6 +300,13 @@ class Assembler : public AssemblerX86<Assembler> {
   uint8_t Rex(Memory64Bit operand) {
     // 64-bit argument requires REX.W bit - and thus REX itself.
     return 0b0100'1000 | Rex(operand.operand);
+  }
+
+  template <typename RegisterType>
+  [[nodiscard]] static bool IsSwapProfitable(RegisterType rm_arg, RegisterType vex_arg) {
+    // In 64bit mode we may use more compact encoding if operand encoded in rm is low register.
+    // Return true if we may achieve that by swapping arguments.
+    return rm_arg.num >= 8 && vex_arg.num < 8;
   }
 
   template <uint8_t byte1,
@@ -526,22 +533,15 @@ inline void Assembler::Xchgq(Register dest, Register src) {
   // We compare output to that from clang and thus want to produce the same code.
   // 0x48 0x90 is suboptimal encoding for that operation (pure 0x90 does the same
   // and this is what gcc + gas are producing), but this is what clang <= 8 does.
-#if __clang_major__ >= 8
   if (IsAccumulator(src) && IsAccumulator(dest)) {
     Emit8(0x90);
-  } else
-#endif
-  if (IsAccumulator(src) || IsAccumulator(dest)) {
+  } else if (IsAccumulator(src) || IsAccumulator(dest)) {
     Register other = IsAccumulator(src) ? dest : src;
     EmitInstruction<Opcodes<0x90>>(Register64Bit(other));
   } else {
-  // Clang 8 (after r330298) swaps these two arguments.  We are comparing output
+  // Clang 8 (after r330298) puts dest before src.  We are comparing output
   // to clang in exhaustive test thus we want to match clang behavior exactly.
-#if __clang_major__ >= 8
     EmitInstruction<Opcodes<0x87>>(Register64Bit(dest), Register64Bit(src));
-#else
-    EmitInstruction<Opcodes<0x87>>(Register64Bit(src), Register64Bit(dest));
-#endif
   }
 }
 

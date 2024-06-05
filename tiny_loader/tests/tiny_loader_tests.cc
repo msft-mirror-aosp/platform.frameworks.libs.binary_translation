@@ -23,6 +23,7 @@
 #include <sys/user.h>
 
 #include "berberis/base/file.h"
+#include "berberis/base/page_size.h"
 #include "berberis/base/stringprintf.h"
 
 namespace {
@@ -113,8 +114,8 @@ void TestLoadLibrary(const char* test_library_name) {
   // The second part of the test - to Load this file from already mapped memory.
   // Check that resulted loaded_elf_file is effectively the same
   LoadedElfFile memory_elf_file;
-  ASSERT_TRUE(TinyLoader::LoadFromMemory(elf_filepath.c_str(), base_addr, PAGE_SIZE,
-                                         &memory_elf_file, &error_msg))
+  ASSERT_TRUE(TinyLoader::LoadFromMemory(
+      elf_filepath.c_str(), base_addr, berberis::kPageSize, &memory_elf_file, &error_msg))
       << error_msg;
   AssertLoadedElfFilesEqual(memory_elf_file, loaded_elf_file);
   void* memory_symbol_addr = memory_elf_file.FindSymbol(kTestSymbolName);
@@ -167,8 +168,11 @@ TEST(tiny_loader, binary) {
   // The second part of the test - to Load this file from already mapped memory.
   // Check that resulted loaded_elf_file is effectively the same
   LoadedElfFile memory_elf_file;
-  ASSERT_TRUE(TinyLoader::LoadFromMemory(elf_filepath.c_str(), loaded_elf_file.base_addr(),
-                                         PAGE_SIZE, &memory_elf_file, &error_msg))
+  ASSERT_TRUE(TinyLoader::LoadFromMemory(elf_filepath.c_str(),
+                                         loaded_elf_file.base_addr(),
+                                         berberis::kPageSize,
+                                         &memory_elf_file,
+                                         &error_msg))
       << error_msg;
   AssertLoadedElfFilesEqual(memory_elf_file, loaded_elf_file);
 }

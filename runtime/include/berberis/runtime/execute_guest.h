@@ -18,11 +18,11 @@
 #define BERBERIS_RUNTIME_EXECUTE_GUEST_H_
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/guest_state/guest_state.h"
+#include "berberis/guest_state/guest_state_opaque.h"
 
 namespace berberis {
 
-void ExecuteGuest(ThreadState* state, GuestAddr stop_pc);
+void ExecuteGuest(ThreadState* state);
 
 }  // namespace berberis
 

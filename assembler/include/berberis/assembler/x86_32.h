@@ -183,7 +183,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
-  auto Jmp(Condition cc, T* target) -> void = delete;
+  auto Jmp(T* target) -> void = delete;
 
   void Jmp(const void* target) {
     Emit8(0xe9);
@@ -223,6 +223,12 @@ class Assembler : public AssemblerX86<Assembler> {
   template <typename... ArgumentsType>
   void EmitRex(ArgumentsType...) {
     // There is no REX in 32-bit mode thus we don't need to do anything here.
+  }
+
+  template <typename RegisterType>
+  [[nodiscard]] static bool IsSwapProfitable(RegisterType /*rm_arg*/, RegisterType /*vex_arg*/) {
+    // In 32bit mode swapping register to shorten VEX prefix is not possible.
+    return false;
   }
 
   template <uint8_t byte1,

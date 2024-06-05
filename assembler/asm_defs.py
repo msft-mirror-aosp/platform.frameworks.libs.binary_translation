@@ -85,6 +85,7 @@ def is_disp(arg_type):
 
 def is_mem_op(arg_type):
   return arg_type in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+                      'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                       'VecMem32', 'VecMem64', 'VecMem128')
 
 
@@ -94,6 +95,10 @@ def is_cond(arg_type):
 
 def is_label(arg_type):
   return arg_type == 'Label'
+
+
+def is_x87reg(arg_type):
+  return arg_type == 'RegX87'
 
 
 def is_greg(arg_type):
@@ -111,9 +116,9 @@ def is_xreg(arg_type):
 # Operands of this type are NOT passed to assembler
 def is_implicit_reg(arg_type):
   return arg_type in ('RAX', 'EAX', 'AX', 'AL',
-                      'RCX', 'ECX', 'CL',
-                      'RDX', 'EDX', 'DX',
-                      'RBX', 'EBX', 'BX',
+                      'RCX', 'ECX', 'CL', 'ST', 'ST1',
+                      'RDX', 'EDX', 'DX', 'CC',
+                      'RBX', 'EBX', 'BX', 'SW',
                       'RDI', 'RSI', 'RSP', 'FLAGS')
 
 
@@ -131,7 +136,7 @@ def get_mem_macro_name(insn, addr_mode = None):
     # have two different instructions where these cause the difference.
     if clazz == 'FLAGS' or is_cond(clazz) or is_label(clazz):
       pass
-    elif is_greg(clazz) or is_implicit_reg(clazz):
+    elif is_x87reg(clazz) or is_greg(clazz) or is_implicit_reg(clazz):
       macro_name += 'Reg'
     elif is_xreg(clazz):
       macro_name += 'XReg'

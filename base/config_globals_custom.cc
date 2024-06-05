@@ -17,6 +17,9 @@
 #include "berberis/base/config_globals.h"
 
 #include <bitset>
+#include <cerrno>
+#include <cstdint>
+#include <cstdlib>  // strtoull
 #include <string>
 
 #include "berberis/base/logging.h"
@@ -30,6 +33,14 @@ std::string ToString(ConfigFlag flag) {
   switch (flag) {
     case kVerboseTranslation:
       return "verbose-translation";
+    case kAccurateSigsegv:
+      return "accurate-sigsegv";
+    case kTopByteIgnore:
+      return "top-byte-ignore";
+    case kDisableRegMap:
+      return "disable-reg-map";
+    case kEnableDisjointRegionsTranslation:
+      return "enable-disjoint-regions-translation";
     case kNumConfigFlags:
       break;
   }
@@ -59,6 +70,24 @@ std::bitset<kNumConfigFlags> MakeConfigFlagsSet() {
   return flags_set;
 }
 
+uintptr_t ParseAddr(const char* addr_cstr) {
+  if (!addr_cstr) {
+    return 0;
+  }
+  char* end_ptr = nullptr;
+  errno = 0;
+  uintptr_t addr = static_cast<uintptr_t>(strtoull(addr_cstr, &end_ptr, 16));
+
+  // Warning: setting errno on failure is implementation defined. So we also use extra heuristics.
+  if (errno != 0 || (*end_ptr != '\n' && *end_ptr != '\0')) {
+    ALOGE("Cannot convert \"%s\" to integer: %s\n",
+          addr_cstr,
+          errno != 0 ? strerror(errno) : "unexpected end of string");
+    return 0;
+  }
+  return addr;
+}
+
 }  // namespace
 
 const char* GetTracingConfig() {
@@ -74,6 +103,12 @@ const char* GetTranslationModeConfig() {
 const char* GetProfilingConfig() {
   static ConfigStr var("BERBERIS_PROFILING", "berberis.profiling");
   return var.get();
+}
+
+uintptr_t GetEntryPointOverride() {
+  static ConfigStr var("BERBERIS_ENTRY_POINT", "berberis.entry_point");
+  static uintptr_t entry_point = ParseAddr(var.get());
+  return entry_point;
 }
 
 bool IsConfigFlagSet(ConfigFlag flag) {

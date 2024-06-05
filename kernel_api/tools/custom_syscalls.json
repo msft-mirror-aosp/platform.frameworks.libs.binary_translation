@@ -52,6 +52,9 @@
   "__NR_clone3": {
     "custom_reason": "custom syscall"
   },
+  "__NR_close": {
+    "custom_reason": "/proc/self/maps emulation"
+  },
   "__NR_connect": {
     "x86": {
       "custom_reason": "socketcall",
@@ -78,6 +81,17 @@
   },
   "__NR_fork": {
     "custom_reason": "custom syscall"
+  },
+  "__NR_fstat": {
+    "x86": {
+      "custom_reason": "/proc/self/maps emulation"
+    },
+    "x86_64": {
+      "custom_reason": "incompatible prototype and /proc/self/maps emulation"
+    }
+  },
+  "__NR_fstatfs": {
+    "custom_reason": "/proc/self/maps emulation"
   },
   "__NR_fstatfs64": {
     "arm": {
@@ -193,6 +207,18 @@
     "x86": {
       "custom_reason": "socketcall",
       "socketcall": "17"
+    }
+  },
+  "__NR_riscv_flush_icache": {
+    "riscv64": {
+      "id": "259",
+      "params": ["void*", "void*", "int32"]
+    }
+  },
+  "__NR_riscv_hwprobe": {
+    "riscv64": {
+      "id": "258",
+      "params": ["struct riscv_hwprobe*", "size_t", "size_t", "unsigned long*", "unsigned int"]
     }
   },
   "__NR_rt_sigaction": {

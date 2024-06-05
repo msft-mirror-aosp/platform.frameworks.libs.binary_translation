@@ -18,14 +18,12 @@
 #define BERBERIS_ASSEMBLER_COMMON_X86_H_
 
 #include <cstddef>  // std::size_t
-#include <initializer_list>
-#include <iterator>     // std::begin, std::end, std::next
-#include <limits>       // std::is_integral
+#include <cstdint>
 #include <type_traits>  // std::enable_if, std::is_integral
 
 #include "berberis/assembler/common.h"
 #include "berberis/base/bit_util.h"
-#include "berberis/base/logging.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
 
 namespace berberis {
@@ -92,6 +90,29 @@ class AssemblerX86 : public AssemblerBase {
     uint8_t num;
   };
 
+  struct X87Register {
+    // Note: we couldn't make the following private because of peculiarities of C++ (see
+    // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
+    // for explanation), but you are not supposed to access num or use GetHighBit() and GetLowBits()
+    // functions.  Treat that type as opaque cookie.
+
+    constexpr bool operator==(const Register& reg) const { return num == reg.num; }
+
+    constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
+
+    uint8_t num;
+  };
+
+  static constexpr X87Register st{0};
+  static constexpr X87Register st0{0};
+  static constexpr X87Register st1{1};
+  static constexpr X87Register st2{2};
+  static constexpr X87Register st3{3};
+  static constexpr X87Register st4{4};
+  static constexpr X87Register st5{5};
+  static constexpr X87Register st6{6};
+  static constexpr X87Register st7{7};
+
   struct XMMRegister {
     // Note: we couldn't make the following private because of peculiarities of C++ (see
     // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
@@ -129,7 +150,7 @@ class AssemblerX86 : public AssemblerBase {
   // Macro operations.
   void Finalize() { ResolveJumps(); }
 
-  void Align(uint32_t m) {
+  void P2Align(uint32_t m) {
     uint32_t mask = m - 1;
     uint32_t addr = pc();
     Nop((m - (addr & mask)) & mask);
@@ -194,38 +215,43 @@ class AssemblerX86 : public AssemblerBase {
 
   // Flow control.
   void Jmp(int32_t offset) {
-    uint32_t start = pc();
-    if (offset > -124 && offset < 124) {
+    CHECK_GE(offset, INT32_MIN + 2);
+    int32_t short_offset = offset - 2;
+    if (IsInRange<int8_t>(short_offset)) {
       Emit8(0xeb);
-      Emit8((offset - 1 - (pc() - start)) & 0xFF);
+      Emit8(static_cast<int8_t>(short_offset));
     } else {
+      CHECK_GE(offset, INT32_MIN + 5);
       Emit8(0xe9);
-      Emit32(offset - 4 - (pc() - start));
+      Emit32(offset - 5);
     }
   }
 
   void Call(int32_t offset) {
-    uint32_t start = pc();
+    CHECK_GE(offset, INT32_MIN + 5);
     Emit8(0xe8);
-    Emit32(offset - 4 - (pc() - start));
+    Emit32(offset - 5);
   }
 
   void Jcc(Condition cc, int32_t offset) {
     if (cc == Condition::kAlways) {
       Jmp(offset);
       return;
-    } else if (cc == Condition::kNever) {
+    }
+    if (cc == Condition::kNever) {
       return;
     }
-    CHECK_EQ(0, static_cast<uint8_t>(cc) & 0xF0);
-    uint32_t start = pc();
-    if (offset > -124 && offset < 124) {
+    CHECK_EQ(0, static_cast<uint8_t>(cc) & 0xf0);
+    CHECK_GE(offset, INT32_MIN + 2);
+    int32_t short_offset = offset - 2;
+    if (IsInRange<int8_t>(short_offset)) {
       Emit8(0x70 | static_cast<uint8_t>(cc));
-      Emit8(offset - 1 - (pc() - start));
+      Emit8(static_cast<int8_t>(short_offset));
     } else {
-      Emit8(0x0F);
+      CHECK_GE(offset, INT32_MIN + 6);
+      Emit8(0x0f);
       Emit8(0x80 | static_cast<uint8_t>(cc));
-      Emit32(offset - 4 - (pc() - start));
+      Emit32(offset - 6);
     }
   }
 
@@ -243,13 +269,15 @@ class AssemblerX86 : public AssemblerBase {
   };
 
   // 16-bit and 128-bit vector registers follow the same rules as 32-bit registers.
-  typedef Register32Bit Register16Bit;
-  typedef Register32Bit VectorRegister128Bit;
+  using Register16Bit = Register32Bit;
+  using VectorRegister128Bit = Register32Bit;
   // Certain instructions (Enter/Leave, Jcc/Jmp/Loop, Call/Ret, Push/Pop) always operate
   // on registers of default size (32-bit in 32-bit mode, 64-bit in 64-bit mode (see
   // "Instructions Not Requiring REX Prefix in 64-Bit Mode" table in 24594 AMD Manual)
   // Map these to Register32Bit, too, since they don't need REX.W even in 64-bit mode.
-  typedef Register32Bit RegisterDefaultBit;
+  //
+  // x87 instructions fall into that category, too, since they were not expanded in x86-64 mode.
+  using RegisterDefaultBit = Register32Bit;
 
   struct Memory32Bit {
     explicit Memory32Bit(const Operand& op) : operand(op) {}
@@ -258,15 +286,19 @@ class AssemblerX86 : public AssemblerBase {
 
   // 8-bit, 16-bit, 128-bit memory behave the same as 32-bit memory.
   // Only 64-bit memory is different.
-  typedef Memory32Bit Memory8Bit;
-  typedef Memory32Bit Memory16Bit;
-  // Most vector instructions don't need to use REX.W to access 64-bit or 128-bit memory.
-  typedef Memory32Bit VectorMemory32Bit;
-  typedef Memory32Bit VectorMemory64Bit;
-  typedef Memory32Bit VectorMemory128Bit;
+  using Memory8Bit = Memory32Bit;
+  using Memory16Bit = Memory32Bit;
   // X87 instructions always use the same encoding - even for 64-bit or 28-bytes
   // memory operands (like in fldenv/fnstenv)
-  typedef Memory32Bit MemoryX87;
+  using MemoryX87 = Memory32Bit;
+  using MemoryX8716Bit = Memory32Bit;
+  using MemoryX8732Bit = Memory32Bit;
+  using MemoryX8764Bit = Memory32Bit;
+  using MemoryX8780Bit = Memory32Bit;
+  // Most vector instructions don't need to use REX.W to access 64-bit or 128-bit memory.
+  using VectorMemory32Bit = Memory32Bit;
+  using VectorMemory64Bit = Memory32Bit;
+  using VectorMemory128Bit = Memory32Bit;
 
   // Labels types for memory quantities.  Note that names are similar to the ones before because
   // they are autogenerated.  E.g. VectorLabel32Bit should be read as “VECTOR's operation LABEL
@@ -278,15 +310,19 @@ class AssemblerX86 : public AssemblerBase {
 
   // 8-bit, 16-bit, 128-bit memory behave the same as 32-bit memory.
   // Only 64-bit memory is different.
-  typedef Label32Bit Label8Bit;
-  typedef Label32Bit Label16Bit;
-  // Most vector instructions don't need to use REX.W to access 64-bit or 128-bit memory.
-  typedef Label32Bit VectorLabel32Bit;
-  typedef Label32Bit VectorLabel64Bit;
-  typedef Label32Bit VectorLabel128Bit;
+  using Label8Bit = Label32Bit;
+  using Label16Bit = Label32Bit;
   // X87 instructions always use the same encoding - even for 64-bit or 28-bytes
   // memory operands (like in fldenv/fnstenv)
-  typedef Label32Bit LabelX87;
+  using LabelX87 = Label32Bit;
+  using LabelX8716Bit = Label32Bit;
+  using LabelX8732Bit = Label32Bit;
+  using LabelX8764Bit = Label32Bit;
+  using LabelX8780Bit = Label32Bit;
+  // Most vector instructions don't need to use REX.W to access 64-bit or 128-bit memory.
+  using VectorLabel32Bit = Label32Bit;
+  using VectorLabel64Bit = Label32Bit;
+  using VectorLabel128Bit = Label32Bit;
 
   static constexpr bool IsLegacyPrefix(int code) {
     // Legacy prefixes used as opcode extensions in SSE.
@@ -302,7 +338,8 @@ class AssemblerX86 : public AssemblerBase {
 
   template <typename ArgumentType>
   struct IsRegister {
-    static constexpr bool value = Assembler::template IsRegister<ArgumentType>::value;
+    static constexpr bool value = Assembler::template IsRegister<ArgumentType>::value ||
+                                  std::is_same_v<ArgumentType, X87Register>;
   };
 
   template <typename ArgumentType>
@@ -748,13 +785,9 @@ inline void AssemblerX86<Assembler>::Xchgl(Register dest, Register src) {
     Register other = Assembler::IsAccumulator(src) ? dest : src;
     EmitInstruction<Opcodes<0x90>>(Register32Bit(other));
   } else {
-    // Clang 8 (after r330298) swaps these two arguments.  We are comparing output
+    // Clang 8 (after r330298) puts dest before src.  We are comparing output
     // to clang in exhaustive test thus we want to match clang behavior exactly.
-#if __clang_major__ >= 8
     EmitInstruction<Opcodes<0x87>>(Register32Bit(dest), Register32Bit(src));
-#else
-    EmitInstruction<Opcodes<0x87>>(Register32Bit(src), Register32Bit(dest));
-#endif
   }
 }
 
