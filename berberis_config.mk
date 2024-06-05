@@ -48,6 +48,7 @@ BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
     libberberis_proxy_libnativehelper \
     libberberis_proxy_libnativewindow \
     libberberis_proxy_libneuralnetworks \
+    libberberis_proxy_libvulkan \
     libberberis_proxy_libwebviewchromium_plat_support \
     berberis_prebuilt_riscv64 \
     berberis_program_runner_binfmt_misc_riscv64 \
@@ -106,6 +107,7 @@ BERBERIS_DISTRIBUTION_ARTIFACTS_RISCV64 := \
     system/lib64/libberberis_proxy_libnativehelper.so \
     system/lib64/libberberis_proxy_libnativewindow.so \
     system/lib64/libberberis_proxy_libneuralnetworks.so \
+    system/lib64/libberberis_proxy_libvulkan.so \
     system/lib64/libberberis_proxy_libwebviewchromium_plat_support.so \
     system/lib64/libberberis_riscv64.so \
     system/lib64/riscv64/ld-android.so \
