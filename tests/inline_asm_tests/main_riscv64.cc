@@ -63,6 +63,11 @@ class SIMD128 {
   constexpr SIMD128(uint16_8_t u16) : uint16_{u16} {};
   constexpr SIMD128(uint32_4_t u32) : uint32_{u32} {};
   constexpr SIMD128(uint64_2_t u64) : uint64_{u64} {};
+  constexpr SIMD128(__int128_t i128) : i128_{i128} {};
+  constexpr SIMD128(uint8_t u128) : u128_{u128} {};
+  constexpr SIMD128(uint16_t u128) : u128_{u128} {};
+  constexpr SIMD128(uint32_t u128) : u128_{u128} {};
+  constexpr SIMD128(uint64_t u128) : u128_{u128} {};
   constexpr SIMD128(__uint128_t u128) : u128_{u128} {};
 
   [[nodiscard]] constexpr __uint128_t Get() const { return u128_; }
@@ -123,6 +128,7 @@ class SIMD128 {
     [[gnu::may_alias]] uint16_8_t uint16_;
     [[gnu::may_alias]] uint32_4_t uint32_;
     [[gnu::may_alias]] uint64_2_t uint64_;
+    [[gnu::may_alias]] __int128_t i128_;
     [[gnu::may_alias]] __uint128_t u128_;
 #endif
   };
@@ -286,6 +292,14 @@ static constexpr SIMD128 kFractionMaskInt8[5] = {
     {{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}},  // Full reg
 };
 
+SIMD128 MakeBitmaskFromVl(size_t vl) {
+  if (vl == 128) {
+    return {__uint128_t(0)};
+  } else {
+    return {(~__int128(0)) << vl};
+  }
+}
+
 template <typename ElementType>
 auto MaskForElem() {
   if constexpr (std::is_same_v<ElementType, uint8_t>) {
@@ -388,10 +402,20 @@ void RunTwoVectorArgsOneRes(ExecInsnFunc exec_insn,
 void RunCommonVectorFunc(ExecInsnFunc exec_insn,
                          const SIMD128* src,
                          SIMD128* res,
+                         uint64_t* scalar_int_res,
+                         uint64_t* scalar_float_res,
                          uint64_t scalar_src,
                          uint64_t vstart,
                          uint64_t vtype,
                          uint64_t vlin) {
+  uint64_t unused_local;
+  if (scalar_int_res == nullptr) {
+    scalar_int_res = &unused_local;
+  }
+  if (scalar_float_res == nullptr) {
+    scalar_float_res = &unused_local;
+  }
+
   uint64_t vl = vlin;
   // Mask register is, unconditionally, v0, and we need 8 or 24 to handle full 8-registers
   // inputs thus we use v8..v15 for destination and place sources into v24..v31.
@@ -410,6 +434,9 @@ void RunCommonVectorFunc(ExecInsnFunc exec_insn,
       "mv t0, %[scalar_src]\n\t"
       "fmv.d.x ft0, %[scalar_src]\n\t"
       "jalr %[exec_insn]\n\t"
+      // Save t0, ft0 just after insn execution for return.
+      "sd t0, %[scalar_int]\n\t"
+      "fsd ft0, %[scalar_float]\n\t"
       // Save vstart and vl just after insn execution for checks.
       "csrr %[vstart], vstart\n\t"
       "csrr %[vl], vl\n\t"
@@ -424,7 +451,9 @@ void RunCommonVectorFunc(ExecInsnFunc exec_insn,
         "0"(vstart),
         "1"(vl),
         [mask] "r"(&kMask),
-        [scalar_src] "r"(scalar_src)
+        [scalar_src] "r"(scalar_src),
+        [scalar_float] "m"(*scalar_float_res),
+        [scalar_int] "m"(*scalar_int_res)
       : "t0",
         "ra",
         "ft0",
@@ -533,7 +562,8 @@ void TestVectorInstructionInternal(ExecInsnFunc exec_insn,
           // Set undisturbed result vector registers.
           std::fill_n(result, 8, dst_result);
 
-          RunCommonVectorFunc(exec_insn, &source[0], &result[0], scalar_src, vstart, vtype, vl);
+          RunCommonVectorFunc(
+              exec_insn, &source[0], &result[0], nullptr, nullptr, scalar_src, vstart, vtype, vl);
 
           // Values for inactive elements (i.e. corresponding mask bit is 0).
           SIMD128 expected_inactive[8];
@@ -749,7 +779,7 @@ void TestVectorReductionInstruction(
         SIMD128 expected_result_register = vta ? kAgnosticResult : kUndisturbedResult;
         size_t vsew_bits = 8 << vsew;
         expected_result_register = (expected_result_register >> vsew_bits) << vsew_bits;
-        expected_result_register |= expected_result;
+        expected_result_register |= SIMD128{expected_result};
         EXPECT_EQ(result[0], expected_result_register) << " vtype=" << vtype;
 
         // Verify all non-destination registers are undisturbed.
@@ -849,7 +879,8 @@ void TestVectorIota(ExecInsnFunc exec_insn,
             // Set undisturbed result vector registers.
             std::fill_n(result, 8, kUndisturbedResult);
 
-            RunCommonVectorFunc(exec_insn, &source[0], &result[0], 0, 0, vtype, vlin);
+            RunCommonVectorFunc(
+                exec_insn, &source[0], &result[0], nullptr, nullptr, 0, 0, vtype, vlin);
 
             SIMD128 expected_inactive[8];
             std::fill_n(expected_inactive, 8, (vma ? kAgnosticResult : kUndisturbedResult));
@@ -961,7 +992,8 @@ void TestExtendingVectorInstruction(ExecInsnFunc exec_insn,
           // Set undisturbed result vector registers.
           std::fill_n(result, 8, kUndisturbedResult);
 
-          RunCommonVectorFunc(exec_insn, &source[0], &result[0], 0, vstart, vtype, vl);
+          RunCommonVectorFunc(
+              exec_insn, &source[0], &result[0], nullptr, nullptr, 0, vstart, vtype, vl);
 
           // Values for inactive elements (i.e. corresponding mask bit is 0).
           const size_t n = std::size(source) * 2;
@@ -1015,6 +1047,347 @@ void TestExtendingVectorInstruction(ExecInsnFunc exec_insn,
   }
   Verify(exec_masked_insn, 3, 8, expected_result_int64, kMaskInt64);
   Verify(exec_insn, 3, 8, expected_result_int64, kNoMask);
+}
+
+// Unlike regular arithmetic instructions, the result of a permutation
+// instruction depends also on vlmul.  Also, the vslideup specs mention that
+// the destination vector remains unchanged the first |offset| elements (in
+// effect, the offset acts akin to vstart), in those cases skip can be used
+// to specify how many elements' mask will be skipped (counting from the
+// beginning, should be the same as the offset).
+//
+// If |ignore_vma_for_last| is true, an inactive element at vl-1 will be
+// treated as if vma=0 (Undisturbed).
+// If |last_elem_is_reg1| is true, the last element of the vector in
+// expected_result (that is, at vl-1) will be expected to be the same as
+// |regx1| when VL < VMAX and said element is active.
+template <TestVectorInstructionKind kTestVectorInstructionKind,
+          typename... ExpectedResultType,
+          size_t... kResultsCount>
+void TestVectorPermutationInstruction(
+    ExecInsnFunc exec_insn,
+    ExecInsnFunc exec_masked_insn,
+    const SIMD128 (&source)[16],
+    uint8_t vlmul,
+    uint64_t skip,
+    bool ignore_vma_for_last,
+    bool last_elem_is_reg1,
+    uint64_t regt0,
+    const ExpectedResultType (&... expected_result)[kResultsCount]) {
+  auto Verify = [&source, vlmul, regt0, skip, ignore_vma_for_last, last_elem_is_reg1](
+                    ExecInsnFunc exec_insn,
+                    uint8_t vsew,
+                    const auto& expected_result_raw,
+                    auto mask) {
+    uint64_t scalar_src = 0;
+    if constexpr (kTestVectorInstructionKind == TestVectorInstructionKind::kFloat) {
+      (void)(regt0);
+      // We only support Float32/Float64 for float instructions, but there are conversion
+      // instructions that work with double width floats.
+      // These instructions never use float registers though and thus we don't need to store
+      // anything into f1 register, if they are used.
+      // For Float32/Float64 case we load 5.625 of the appropriate type into ft0.
+      ASSERT_LE(vsew, 3);
+      if (vsew == 2) {
+        scalar_src = 0xffff'ffff'40b4'0000;  // float 5.625
+      } else if (vsew == 3) {
+        scalar_src = 0x4016'8000'0000'0000;  // double 5.625
+      }
+    } else {
+      // Set t0 for vx instructions.
+      scalar_src = regt0;
+    }
+
+    const size_t kElementSize = 1 << vsew;
+    size_t num_regs = 1 << vlmul;
+    if (vlmul > 3) {
+      num_regs = 1;
+    }
+    // Values for which the mask is not applied due to being before the offset when doing
+    // vslideup.
+    SIMD128 skip_mask[num_regs];
+    int64_t toskip = skip;
+    for (size_t index = 0; index < num_regs && toskip > 0; ++index) {
+      size_t skip_bits = toskip * kElementSize * 8;
+      skip_mask[index] = ~MakeBitmaskFromVl(skip_bits > 128 ? 128 : skip_bits);
+      toskip -= 16 / kElementSize;
+    }
+
+    for (uint8_t vta = 0; vta < 2; ++vta) {
+      for (uint8_t vma = 0; vma < 2; ++vma) {
+        uint64_t vtype = (vma << 7) | (vta << 6) | (vsew << 3) | vlmul;
+        uint64_t vlmax = 0;
+        asm("vsetvl %0, zero, %1" : "=r"(vlmax) : "r"(vtype));
+        // Incompatible vsew and vlmax. Skip it.
+        if (vlmax == 0) {
+          continue;
+        }
+
+        // To make tests quick enough we don't test vstart and vl change with small register
+        // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of first
+        // register, last register and half of next-to last register.
+        // Don't use vlmul == 3 because that one may not be supported if instruction widens the
+        // result.
+        uint64_t vstart;
+        uint64_t vl;
+        if (vlmul == 2) {
+          vstart = vlmax / 8;
+          vl = (vlmax * 5) / 8;
+        } else {
+          vstart = 0;
+          vl = vlmax;
+        }
+
+        SIMD128 result[8];
+        // Set expected_result vector registers into 0b01010101… pattern.
+        // Set undisturbed result vector registers.
+        std::fill_n(result, 8, kUndisturbedResult);
+
+        uint64_t int_res, float_res;
+        RunCommonVectorFunc(
+            exec_insn, &source[0], &result[0], &int_res, &float_res, scalar_src, vstart, vtype, vl);
+
+        const size_t n = std::size(source);
+        // Values for inactive elements (i.e. corresponding mask bit is 0).
+        SIMD128 expected_inactive[n];
+        // For most instructions, follow basic inactive processing rules based on vma flag.
+        std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
+
+        const size_t kElementsPerRegister = 16 / kElementSize;
+        // TODO is this vl the input vl or vl after commands run?
+        const size_t last_reg = (vl - 1) / kElementsPerRegister;
+        const size_t last_elem = (vl - 1) % kElementsPerRegister;
+        const auto mask_for_vl = MakeBitmaskFromVl(last_elem * kElementSize * 8);
+        if (vma && ignore_vma_for_last) {
+          // Set expected value for inactive element at vl-1 to Undisturbed.
+          expected_inactive[last_reg] =
+              (expected_inactive[last_reg] & ~mask_for_vl) | (kUndisturbedResult & mask_for_vl);
+        }
+
+        SIMD128 expected_result[std::size(expected_result_raw)];
+        for (size_t index = 0; index < std::size(expected_result_raw); ++index) {
+          expected_result[index] = SIMD128{expected_result_raw[index]};
+        }
+
+        if (vlmul == 2 && last_elem_is_reg1) {
+          switch (kElementSize) {
+            case 1:
+              expected_result[last_reg] = static_cast<__uint128_t>(static_cast<uint8_t>(int_res))
+                                          << (last_elem * 8);
+              break;
+            case 2:
+              expected_result[last_reg] = static_cast<__uint128_t>(static_cast<uint16_t>(int_res))
+                                          << (last_elem * 16);
+              break;
+            case 4:
+              if constexpr (kTestVectorInstructionKind == TestVectorInstructionKind::kFloat) {
+                expected_result[last_reg] =
+                    static_cast<__uint128_t>(static_cast<uint32_t>(float_res)) << (last_elem * 32);
+              } else {
+                expected_result[last_reg] = static_cast<__uint128_t>(static_cast<uint32_t>(int_res))
+                                            << (last_elem * 32);
+              }
+              break;
+            case 8:
+              if constexpr (kTestVectorInstructionKind == TestVectorInstructionKind::kFloat) {
+                expected_result[last_reg] =
+                    static_cast<__uint128_t>(static_cast<uint64_t>(float_res)) << (last_elem * 64);
+              } else {
+                expected_result[last_reg] = static_cast<__uint128_t>(static_cast<uint64_t>(int_res))
+                                            << (last_elem * 64);
+              }
+              break;
+            default:
+              FAIL() << "Element size is " << kElementSize;
+          }
+        }
+
+        if (vlmul < 4) {
+          for (size_t index = 0; index < num_regs; ++index) {
+            if (index == 0 && vlmul == 2) {
+              EXPECT_EQ(result[index],
+                        (kUndisturbedResult & kFractionMaskInt8[3]) |
+                            (expected_result[index] & (mask[index] | skip_mask[index]) &
+                             ~kFractionMaskInt8[3]) |
+                            (expected_inactive[index] & ~mask[index] & ~skip_mask[index] &
+                             ~kFractionMaskInt8[3]));
+            } else if (index == 2 && vlmul == 2) {
+              EXPECT_EQ(result[index],
+                        (expected_result[index] & (mask[index] | skip_mask[index]) &
+                         kFractionMaskInt8[3]) |
+                            (expected_inactive[index] & ~mask[index] & ~skip_mask[index] &
+                             kFractionMaskInt8[3]) |
+                            ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3]));
+            } else if (index == 3 && vlmul == 2 && vta) {
+              EXPECT_EQ(result[index], kAgnosticResult);
+            } else if (index == 3 && vlmul == 2) {
+              EXPECT_EQ(result[index], kUndisturbedResult);
+            } else {
+              EXPECT_EQ(result[index],
+                        (expected_result[index] & (mask[index] | skip_mask[index])) |
+                            (expected_inactive[index] & ~(mask[index] | skip_mask[index])));
+            }
+          }
+        } else {
+          SIMD128 v8 = result[0];
+          SIMD128 affected_part{expected_result[0] &
+                                ((mask[0] & kFractionMaskInt8[vlmul - 4]) | skip_mask[0])};
+          SIMD128 masked_part{expected_inactive[0] & ~mask[0] & ~skip_mask[0] &
+                              kFractionMaskInt8[vlmul - 4]};
+          SIMD128 tail_part{(vta ? kAgnosticResult : kUndisturbedResult) &
+                            ~kFractionMaskInt8[vlmul - 4]};
+
+          EXPECT_EQ(v8, affected_part | masked_part | tail_part);
+        }
+      }
+    }
+  };
+
+  // Test with and without masking enabled.
+  (Verify(exec_masked_insn,
+          BitUtilLog2(sizeof(std::tuple_element_t<0, ExpectedResultType>)),
+          expected_result,
+          MaskForElem<std::tuple_element_t<0, ExpectedResultType>>()),
+   ...);
+  (Verify(exec_insn,
+          BitUtilLog2(sizeof(std::tuple_element_t<0, ExpectedResultType>)),
+          expected_result,
+          kNoMask),
+   ...);
+}
+
+void TestVectorPermutationInstruction(ExecInsnFunc exec_insn,
+                                      ExecInsnFunc exec_masked_insn,
+                                      const uint8_16_t (&expected_result_int8)[8],
+                                      const uint16_8_t (&expected_result_int16)[8],
+                                      const uint32_4_t (&expected_result_int32)[8],
+                                      const uint64_2_t (&expected_result_int64)[8],
+                                      const SIMD128 (&source)[16],
+                                      uint8_t vlmul,
+                                      uint64_t regt0 = 0x0,
+                                      uint64_t skip = 0,
+                                      bool ignore_vma_for_last = false,
+                                      bool last_elem_is_x1 = false) {
+  TestVectorPermutationInstruction<TestVectorInstructionKind::kInteger>(exec_insn,
+                                                                        exec_masked_insn,
+                                                                        source,
+                                                                        vlmul,
+                                                                        skip,
+                                                                        ignore_vma_for_last,
+                                                                        last_elem_is_x1,
+                                                                        regt0,
+                                                                        expected_result_int8,
+                                                                        expected_result_int16,
+                                                                        expected_result_int32,
+                                                                        expected_result_int64);
+}
+
+template <typename... ExpectedResultType>
+void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
+                                     ExecInsnFunc exec_masked_insn,
+                                     const SIMD128 (&source)[16],
+                                     const ExpectedResultType(&... expected_result)) {
+  auto Verify = [&source](
+                    ExecInsnFunc exec_insn, uint8_t vsew, const auto& expected_result, auto mask) {
+    // Set t0 for vx instructions.
+    uint64_t scalar_src = 0xaaaa'aaaa'aaaa'aaaa;
+
+    // Set ft0 for vf instructions.
+    if (vsew == 2) {
+      scalar_src = 0xffff'ffff'40b4'0000;  // float 5.625
+    } else if (vsew == 3) {
+      scalar_src = 0x4016'8000'0000'0000;  // double 5.625
+    }
+    for (uint8_t vlmul = 0; vlmul < 8; ++vlmul) {
+      for (uint8_t vta = 0; vta < 2; ++vta) {  // vta should be ignored but we test both values!
+        for (uint8_t vma = 0; vma < 2; ++vma) {
+          uint64_t vtype = (vma << 7) | (vta << 6) | (vsew << 3) | vlmul;
+          uint64_t vlmax = 0;
+          asm("vsetvl %0, zero, %1" : "=r"(vlmax) : "r"(vtype));
+          // Incompatible vsew and vlmax. Skip it.
+          if (vlmax == 0) {
+            continue;
+          }
+
+          // To make tests quick enough we don't test vstart and vl change with small register
+          // sets. Only with vlmul == 2 (4 registers) we set vstart and vl to skip half of first
+          // register, last register and half of next-to last register.
+          // Don't use vlmul == 3 because that one may not be supported if instruction widens the
+          // result.
+          uint64_t vstart;
+          uint64_t vl;
+          if (vlmul == 2) {
+            vstart = vlmax / 8;
+            vl = (vlmax * 5) / 8;
+          } else {
+            vstart = 0;
+            vl = vlmax;
+          }
+
+          SIMD128 result[8];
+          // Set expected_result vector registers into 0b01010101… pattern.
+          // Set undisturbed result vector registers.
+          std::fill_n(result, 8, kUndisturbedResult);
+
+          RunCommonVectorFunc(
+              exec_insn, &source[0], &result[0], nullptr, nullptr, scalar_src, vstart, vtype, vl);
+
+          SIMD128 expected_result_in_register(expected_result);
+          if (vma == 0) {
+            expected_result_in_register =
+                (expected_result_in_register & mask) | (kUndisturbedResult & ~mask);
+          } else {
+            expected_result_in_register |= ~mask;
+          }
+          // Mask registers are always processing tail like vta is set.
+          if (vlmax != 128) {
+            expected_result_in_register |= MakeBitmaskFromVl(vl);
+          }
+          if (vlmul == 2) {
+            const SIMD128 start_mask = MakeBitmaskFromVl(vstart);
+            expected_result_in_register =
+                (kUndisturbedResult & ~start_mask) | (expected_result_in_register & start_mask);
+          }
+          EXPECT_EQ(result[0], expected_result_in_register);
+        }
+      }
+    }
+  };
+
+  ((Verify(exec_insn,
+           BitUtilLog2(sizeof(__uint128_t) / sizeof(ExpectedResultType)),
+           expected_result,
+           kNoMask[0]),
+    Verify(exec_masked_insn,
+           BitUtilLog2(sizeof(__uint128_t) / sizeof(ExpectedResultType)),
+           expected_result,
+           kMask)),
+   ...);
+}
+
+void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
+                                     ExecInsnFunc exec_masked_insn,
+                                     const uint32_t expected_result_int32,
+                                     const uint16_t expected_result_int64,
+                                     const SIMD128 (&source)[16]) {
+  TestVectorMaskTargetInstruction(
+      exec_insn, exec_masked_insn, source, expected_result_int32, expected_result_int64);
+}
+
+void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
+                                     ExecInsnFunc exec_masked_insn,
+                                     const uint8_16_t expected_result_int8,
+                                     const uint64_t expected_result_int16,
+                                     const uint32_t expected_result_int32,
+                                     const uint16_t expected_result_int64,
+                                     const SIMD128 (&source)[16]) {
+  TestVectorMaskTargetInstruction(exec_insn,
+                                  exec_masked_insn,
+                                  source,
+                                  expected_result_int8,
+                                  expected_result_int16,
+                                  expected_result_int32,
+                                  expected_result_int64);
 }
 
 // clang-format off
@@ -3761,6 +4134,32 @@ TEST(InlineAsmTestRiscv64, TestVxor) {
        {0x1899'1a9b'1c9d'1e95, 0x1091'1293'1495'169d},
        {0x0889'0a8b'0c8d'0e85, 0x0081'0283'0485'068d}},
       kVectorCalculationsSourceLegacy);
+}
+
+[[gnu::naked]] void ExecVmfeqvv() {
+  asm("vmfeq.vv v8, v16, v24\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVmfeqvv() {
+  asm("vmfeq.vv v8, v16, v24, v0.t\n\t"
+      "ret\n\t");
+}
+[[gnu::naked]] void ExecVmfeqvf() {
+  asm("vmfeq.vf v8, v16, ft0\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVmfeqvf() {
+  asm("vmfeq.vf v8, v16, ft0, v0.t\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVmfeq) {
+  TestVectorMaskTargetInstruction(
+      ExecVmfeqvv, ExecMaskedVmfeqvv, 0x0000'0007, 0x0001, kVectorComparisonSource);
+  TestVectorMaskTargetInstruction(
+      ExecVmfeqvf, ExecMaskedVmfeqvf, 0x0000'0040, 0x0020, kVectorComparisonSource);
 }
 
 }  // namespace
@@ -8786,7 +9185,6 @@ TEST(InlineAsmTestRiscv64, TestVslide1up) {
        {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0}},
       kVectorCalculationsSourceLegacy);
 }
-
 [[gnu::naked]] void ExecVsllvv() {
   asm("vsll.vv  v8, v16, v24\n\t"
       "ret\n\t");
@@ -10276,4 +10674,1511 @@ TEST(InlineAsmTestRiscv64, TestVXext) {
                                   {0xffff'ffff'bb3a'b938, 0xffff'ffff'bf3e'bd3c}},
                                  kVectorCalculationsSource,
                                  2);
+}
+
+[[gnu::naked]] void ExecVmulhsuvv() {
+  asm("vmulhsu.vv  v8, v16, v24\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVmulhsuvv() {
+  asm("vmulhsu.vv  v8, v16, v24, v0.t\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecVmulhsuvx() {
+  asm("vmulhsu.vx  v8, v16, t0\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVmulhsuvx() {
+  asm("vmulhsu.vx  v8, v16, t0, v0.t\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVmulhsu) {
+  TestVectorInstruction(
+      ExecVmulhsuvv,
+      ExecMaskedVmulhsuvv,
+      {{0, 255, 0, 253, 0, 251, 0, 249, 0, 247, 0, 245, 1, 244, 1, 242},
+       {2, 241, 2, 239, 3, 238, 3, 237, 4, 235, 5, 234, 6, 233, 7, 232},
+       {8, 231, 9, 230, 10, 229, 11, 228, 12, 228, 13, 227, 15, 226, 16, 226},
+       {18, 225, 19, 225, 21, 224, 22, 224, 24, 224, 26, 224, 28, 224, 30, 224},
+       {32, 224, 34, 224, 36, 224, 38, 224, 40, 224, 42, 224, 45, 225, 47, 225},
+       {50, 226, 52, 226, 55, 227, 57, 228, 60, 228, 63, 229, 66, 230, 69, 231},
+       {72, 232, 75, 233, 78, 234, 81, 235, 84, 237, 87, 238, 91, 239, 94, 241},
+       {98, 242, 101, 244, 105, 245, 108, 247, 112, 249, 116, 251, 120, 253, 124, 255}},
+      {{0xff02, 0xfd10, 0xfb2d, 0xf95c, 0xf79a, 0xf5e9, 0xf448, 0xf2b7},
+       {0xf136, 0xefc5, 0xee64, 0xed13, 0xebd2, 0xeaa2, 0xe982, 0xe872},
+       {0xe772, 0xe682, 0xe5a2, 0xe4d3, 0xe413, 0xe364, 0xe2c4, 0xe235},
+       {0xe1b6, 0xe147, 0xe0e8, 0xe09a, 0xe05b, 0xe02d, 0xe00f, 0xe001},
+       {0xe003, 0xe015, 0xe037, 0xe069, 0xe0ac, 0xe0fe, 0xe161, 0xe1d4},
+       {0xe257, 0xe2ea, 0xe38d, 0xe441, 0xe504, 0xe5d8, 0xe6bb, 0xe7af},
+       {0xe8b3, 0xe9c7, 0xeaec, 0xec20, 0xed64, 0xeeb9, 0xf01e, 0xf193},
+       {0xf318, 0xf4ad, 0xf652, 0xf807, 0xf9cd, 0xfba2, 0xfd88, 0xff7e}},
+      {{0xfd10'1a16, 0xf95c'aad6, 0xf5e9'bc58, 0xf2b7'4e9b},
+       {0xefc5'619f, 0xed13'f564, 0xeaa3'09ea, 0xe872'9f31},
+       {0xe682'b539, 0xe4d3'4c01, 0xe364'638b, 0xe235'fbd7},
+       {0xe148'14e2, 0xe09a'aeaf, 0xe02d'c93d, 0xe001'648c},
+       {0xe015'809c, 0xe06a'1d6d, 0xe0ff'3aff, 0xe1d4'd952},
+       {0xe2ea'f866, 0xe441'983b, 0xe5d8'b8d1, 0xe7b0'5a28},
+       {0xe9c8'7c40, 0xec21'1f19, 0xeeba'42b3, 0xf193'e70e},
+       {0xf4ae'0c2a, 0xf808'b207, 0xfba3'd8a5, 0xff7f'8004}},
+      {{0xf95c'aad6'78f5'63b8, 0xf2b7'4e9b'bf9d'55cb},
+       {0xed13'f564'2968'6900, 0xe872'9f31'6a0c'5913},
+       {0xe4d3'4c01'edf3'8a67, 0xe235'fbd7'2893'787a},
+       {0xe09a'aeaf'c696'c7ef, 0xe001'648c'fb32'b402},
+       {0xe06a'1d6d'b352'2196, 0xe1d4'd952'e1ea'0ba9},
+       {0xe441'983b'b425'975e, 0xe7b0'5a28'dcb9'7f71},
+       {0xec21'1f19'c911'2946, 0xf193'e70e'eba1'0f59},
+       {0xf808'b207'f214'd74e, 0xff7f'8005'0ea0'bb61}},
+      kVectorCalculationsSourceLegacy);
+  TestVectorInstruction(ExecVmulhsuvx,
+                        ExecMaskedVmulhsuvx,
+                        {{0, 171, 1, 172, 2, 174, 3, 175, 5, 176, 6, 178, 7, 179, 9, 180},
+                         {10, 182, 11, 183, 13, 184, 14, 186, 15, 187, 17, 188, 18, 190, 19, 191},
+                         {21, 192, 22, 194, 23, 195, 25, 196, 26, 198, 27, 199, 29, 200, 30, 202},
+                         {31, 203, 33, 204, 34, 206, 35, 207, 37, 208, 38, 210, 39, 211, 41, 212},
+                         {42, 214, 43, 215, 45, 216, 46, 218, 47, 219, 49, 220, 50, 222, 51, 223},
+                         {53, 224, 54, 226, 55, 227, 57, 228, 58, 230, 59, 231, 61, 232, 62, 234},
+                         {63, 235, 65, 236, 66, 238, 67, 239, 69, 240, 70, 242, 71, 243, 73, 244},
+                         {74, 246, 75, 247, 77, 248, 78, 250, 79, 251, 81, 252, 82, 254, 83, 255}},
+                        {{0xab55, 0xacac, 0xae02, 0xaf59, 0xb0b0, 0xb206, 0xb35d, 0xb4b4},
+                         {0xb60a, 0xb761, 0xb8b8, 0xba0e, 0xbb65, 0xbcbc, 0xbe12, 0xbf69},
+                         {0xc0c0, 0xc216, 0xc36d, 0xc4c4, 0xc61a, 0xc771, 0xc8c8, 0xca1e},
+                         {0xcb75, 0xcccc, 0xce22, 0xcf79, 0xd0d0, 0xd226, 0xd37d, 0xd4d4},
+                         {0xd62a, 0xd781, 0xd8d8, 0xda2e, 0xdb85, 0xdcdc, 0xde32, 0xdf89},
+                         {0xe0e0, 0xe236, 0xe38d, 0xe4e4, 0xe63a, 0xe791, 0xe8e8, 0xea3e},
+                         {0xeb95, 0xecec, 0xee42, 0xef99, 0xf0f0, 0xf246, 0xf39d, 0xf4f4},
+                         {0xf64a, 0xf7a1, 0xf8f8, 0xfa4e, 0xfba5, 0xfcfc, 0xfe52, 0xffa9}},
+                        {{0xacac'5600, 0xaf59'ae02, 0xb207'0605, 0xb4b4'5e08},
+                         {0xb761'b60a, 0xba0f'0e0d, 0xbcbc'6610, 0xbf69'be12},
+                         {0xc217'1615, 0xc4c4'6e18, 0xc771'c61a, 0xca1f'1e1d},
+                         {0xcccc'7620, 0xcf79'ce22, 0xd227'2625, 0xd4d4'7e28},
+                         {0xd781'd62a, 0xda2f'2e2d, 0xdcdc'8630, 0xdf89'de32},
+                         {0xe237'3635, 0xe4e4'8e38, 0xe791'e63a, 0xea3f'3e3d},
+                         {0xecec'9640, 0xef99'ee42, 0xf247'4645, 0xf4f4'9e48},
+                         {0xf7a1'f64a, 0xfa4f'4e4d, 0xfcfc'a650, 0xffa9'fe52}},
+                        {{0xaf59'ae03'0201'ab55, 0xb4b4'5e08'5cb1'b0b0},
+                         {0xba0f'0e0d'b761'b60a, 0xbf69'be13'1211'bb65},
+                         {0xc4c4'6e18'6cc1'c0c0, 0xca1f'1e1d'c771'c61a},
+                         {0xcf79'ce23'2221'cb75, 0xd4d4'7e28'7cd1'd0d0},
+                         {0xda2f'2e2d'd781'd62a, 0xdf89'de33'3231'db85},
+                         {0xe4e4'8e38'8ce1'e0e0, 0xea3f'3e3d'e791'e63a},
+                         {0xef99'ee43'4241'eb95, 0xf4f4'9e48'9cf1'f0f0},
+                         {0xfa4f'4e4d'f7a1'f64a, 0xffa9'fe53'5251'fba5}},
+                        kVectorCalculationsSourceLegacy);
+}
+
+[[gnu::naked]] void ExecVslidedownvi() {
+  asm("vslidedown.vi  v8, v24, 0\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVslidedownvi() {
+  asm("vslidedown.vi  v8, v24, 0, v0.t\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecVslidedownvx() {
+  asm("vslidedown.vx  v8, v24, t0\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVslidedownvx() {
+  asm("vslidedown.vx  v8, v24, t0, v0.t\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVslidedown) {
+  // With slide offset equal zero, this is equivalent to Vmv.
+  TestVectorInstruction(
+      ExecVslidedownvi,
+      ExecMaskedVslidedownvi,
+      {{0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30},
+       {32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62},
+       {64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94},
+       {96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126},
+       {128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158},
+       {160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190},
+       {192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222},
+       {224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254}},
+      {{0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
+       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
+       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc},
+       {0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc}},
+      {{0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
+       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8},
+       {0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8},
+       {0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8}},
+      {{0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
+       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
+       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
+       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271},
+       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
+       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
+       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
+       {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}},
+      kVectorCalculationsSourceLegacy);
+
+  // VLMUL = 0.
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x1e1c'1a18'1614'1211, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/0,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{17, 18, 20, 22, 24, 26, 28, 30, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/0,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 1
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/1,
+      /*regx1=*/1,
+      /*skip=*/0);
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/1,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 2
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
+       {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
+       {98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0x4240},
+       {0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c, 0x6260},
+       {0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0x4644'4240},
+       {0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58, 0x6664'6260},
+       {0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/2,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 73, 74, 76, 78},
+       {81, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 105, 106, 108, 110},
+       {113, 114, 116, 118, 120, 122, 124, 126, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/2,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 3
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30, 32},
+       {34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62, 64},
+       {66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94, 96},
+       {98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126, 128},
+       {130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158, 160},
+       {162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190, 192},
+       {194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222, 224},
+       {226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254, 0}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c, 0x2220},
+       {0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c, 0x4240},
+       {0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c, 0x6260},
+       {0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c, 0x8280},
+       {0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c, 0xa2a0},
+       {0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc, 0xc2c0},
+       {0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc, 0xe2e0},
+       {0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc, 0x0000}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18, 0x2624'2220},
+       {0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38, 0x4644'4240},
+       {0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58, 0x6664'6260},
+       {0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78, 0x8684'8280},
+       {0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98, 0xa6a4'a2a0},
+       {0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8, 0xc6c4'c2c0},
+       {0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8, 0xe6e4'e2e0},
+       {0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8, 0x0000'0000}},
+      {{0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0x8e8c'8a89'8684'8280},
+       {0x9e9c'9a98'9694'9291, 0xaeac'aaa9'a6a4'a2a0},
+       {0xbebc'bab8'b6b4'b2b1, 0xcecc'cac9'c6c4'c2c0},
+       {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0},
+       {0xfefc'faf8'f6f4'f2f1, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/3,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 73, 74, 76, 78},
+       {81, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 105, 106, 108, 110},
+       {113, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 137, 138, 140, 142},
+       {145, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 169, 170, 172, 174},
+       {177, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 201, 202, 204, 206},
+       {209, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 233, 234, 236, 238},
+       {241, 242, 244, 246, 248, 250, 252, 254, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
+       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
+       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc},
+       {0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
+       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8},
+       {0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8},
+       {0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
+       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
+       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
+       {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/3,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 4
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/4,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/4,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 5
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0604, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/5,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{17, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/5,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 6
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{2, 4, 6, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0604, 0x0a09, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0e0c'0a09, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/6,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{17, 18, 20, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/6,
+      /*regx1=*/8,
+      /*skip=*/0);
+
+  // VLMUL = 7
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{2, 4, 6, 9, 10, 12, 14, 17, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0e0c'0a09, 0x1614'1211, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x1e1c'1a18'1614'1211, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/7,
+      /*regx1=*/1,
+      /*skip=*/0);
+
+  TestVectorPermutationInstruction(
+      ExecVslidedownvx,
+      ExecMaskedVslidedownvx,
+      {{17, 18, 20, 22, 24, 26, 28, 30, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/7,
+      /*regx1=*/8,
+      /*skip=*/0);
+}
+
+[[gnu::naked]] void ExecVslideupvi() {
+  asm("vslideup.vi  v8, v24, 0\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVslideupvi() {
+  asm("vslideup.vi  v8, v24, 0, v0.t\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecVslideupvx() {
+  asm("vslideup.vx  v8, v24, t0\n\t"
+      "ret\n\t");
+}
+
+[[gnu::naked]] void ExecMaskedVslideupvx() {
+  asm("vslideup.vx  v8, v24, t0, v0.t\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVslideup) {
+  // With slide offset equal zero, this is equivalent to Vmv.
+  TestVectorInstruction(
+      ExecVslideupvi,
+      ExecMaskedVslideupvi,
+      {{0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28, 30},
+       {32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60, 62},
+       {64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92, 94},
+       {96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124, 126},
+       {128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156, 158},
+       {160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188, 190},
+       {192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220, 222},
+       {224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252, 254}},
+      {{0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
+       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
+       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc},
+       {0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8, 0xfefc}},
+      {{0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
+       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8},
+       {0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1, 0xdedc'dad8},
+       {0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1, 0xfefc'faf8}},
+      {{0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
+       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
+       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
+       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271},
+       {0x8e8c'8a89'8684'8280, 0x9e9c'9a98'9694'9291},
+       {0xaeac'aaa9'a6a4'a2a0, 0xbebc'bab8'b6b4'b2b1},
+       {0xcecc'cac9'c6c4'c2c0, 0xdedc'dad8'd6d4'd2d1},
+       {0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}},
+      kVectorCalculationsSourceLegacy);
+
+  // VLMUL = 0.
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x5555'5555'5555'5555, 0x0e0c'0a09'0604'0200},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/0,
+      /*regx1=*/1,
+      /*skip=*/1);
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 2, 4, 6, 9, 10, 12, 14},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/0,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 1
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28},
+       {30, 32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {0x1e1c, 0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211},
+       {0x1e1c'1a18, 0x2624'2220, 0x2e2c'2a29, 0x3634'3231},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x5555'5555'5555'5555, 0x0e0c'0a09'0604'0200},
+       {0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/1,
+      /*regx1=*/1,
+      /*skip=*/1);
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 2, 4, 6, 9, 10, 12, 14},
+       {17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555},
+       {0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/1,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 2
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28},
+       {30, 32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60},
+       {62, 64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92},
+       {94, 96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {0x1e1c, 0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38},
+       {0x3e3c, 0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58},
+       {0x5e5c, 0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211},
+       {0x1e1c'1a18, 0x2624'2220, 0x2e2c'2a29, 0x3634'3231},
+       {0x3e3c'3a38, 0x4644'4240, 0x4e4c'4a49, 0x5654'5251},
+       {0x5e5c'5a58, 0x6664'6260, 0x6e6c'6a69, 0x7674'7271},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x5555'5555'5555'5555, 0x0e0c'0a09'0604'0200},
+       {0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/2,
+      /*regx1=*/1,
+      /*skip=*/1);
+
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 2, 4, 6, 9, 10, 12, 14},
+       {17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 73, 74, 76, 78},
+       {81, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 105, 106, 108, 110},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555},
+       {0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/2,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 3
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 0, 2, 4, 6, 9, 10, 12, 14, 17, 18, 20, 22, 24, 26, 28},
+       {30, 32, 34, 36, 38, 41, 42, 44, 46, 49, 50, 52, 54, 56, 58, 60},
+       {62, 64, 66, 68, 70, 73, 74, 76, 78, 81, 82, 84, 86, 88, 90, 92},
+       {94, 96, 98, 100, 102, 105, 106, 108, 110, 113, 114, 116, 118, 120, 122, 124},
+       {126, 128, 130, 132, 134, 137, 138, 140, 142, 145, 146, 148, 150, 152, 154, 156},
+       {158, 160, 162, 164, 166, 169, 170, 172, 174, 177, 178, 180, 182, 184, 186, 188},
+       {190, 192, 194, 196, 198, 201, 202, 204, 206, 209, 210, 212, 214, 216, 218, 220},
+       {222, 224, 226, 228, 230, 233, 234, 236, 238, 241, 242, 244, 246, 248, 250, 252}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18},
+       {0x1e1c, 0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38},
+       {0x3e3c, 0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58},
+       {0x5e5c, 0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78},
+       {0x7e7c, 0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98},
+       {0x9e9c, 0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8},
+       {0xbebc, 0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8},
+       {0xdedc, 0xe2e0, 0xe6e4, 0xeae9, 0xeeec, 0xf2f1, 0xf6f4, 0xfaf8}},
+      {{0x5555'5555, 0x0604'0200, 0x0e0c'0a09, 0x1614'1211},
+       {0x1e1c'1a18, 0x2624'2220, 0x2e2c'2a29, 0x3634'3231},
+       {0x3e3c'3a38, 0x4644'4240, 0x4e4c'4a49, 0x5654'5251},
+       {0x5e5c'5a58, 0x6664'6260, 0x6e6c'6a69, 0x7674'7271},
+       {0x7e7c'7a78, 0x8684'8280, 0x8e8c'8a89, 0x9694'9291},
+       {0x9e9c'9a98, 0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1},
+       {0xbebc'bab8, 0xc6c4'c2c0, 0xcecc'cac9, 0xd6d4'd2d1},
+       {0xdedc'dad8, 0xe6e4'e2e0, 0xeeec'eae9, 0xf6f4'f2f1}},
+      {{0x5555'5555'5555'5555, 0x0e0c'0a09'0604'0200},
+       {0x1e1c'1a18'1614'1211, 0x2e2c'2a29'2624'2220},
+       {0x3e3c'3a38'3634'3231, 0x4e4c'4a49'4644'4240},
+       {0x5e5c'5a58'5654'5251, 0x6e6c'6a69'6664'6260},
+       {0x7e7c'7a78'7674'7271, 0x8e8c'8a89'8684'8280},
+       {0x9e9c'9a98'9694'9291, 0xaeac'aaa9'a6a4'a2a0},
+       {0xbebc'bab8'b6b4'b2b1, 0xcecc'cac9'c6c4'c2c0},
+       {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/3,
+      /*regx1=*/1,
+      /*skip=*/1);
+
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 2, 4, 6, 9, 10, 12, 14},
+       {17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 41, 42, 44, 46},
+       {49, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 73, 74, 76, 78},
+       {81, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 105, 106, 108, 110},
+       {113, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 137, 138, 140, 142},
+       {145, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 169, 170, 172, 174},
+       {177, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 201, 202, 204, 206},
+       {209, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 233, 234, 236, 238}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555, 0x5555},
+       {0x0200, 0x0604, 0x0a09, 0x0e0c, 0x1211, 0x1614, 0x1a18, 0x1e1c},
+       {0x2220, 0x2624, 0x2a29, 0x2e2c, 0x3231, 0x3634, 0x3a38, 0x3e3c},
+       {0x4240, 0x4644, 0x4a49, 0x4e4c, 0x5251, 0x5654, 0x5a58, 0x5e5c},
+       {0x6260, 0x6664, 0x6a69, 0x6e6c, 0x7271, 0x7674, 0x7a78, 0x7e7c},
+       {0x8280, 0x8684, 0x8a89, 0x8e8c, 0x9291, 0x9694, 0x9a98, 0x9e9c},
+       {0xa2a0, 0xa6a4, 0xaaa9, 0xaeac, 0xb2b1, 0xb6b4, 0xbab8, 0xbebc},
+       {0xc2c0, 0xc6c4, 0xcac9, 0xcecc, 0xd2d1, 0xd6d4, 0xdad8, 0xdedc}},
+      {{0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x5555'5555, 0x5555'5555, 0x5555'5555, 0x5555'5555},
+       {0x0604'0200, 0x0e0c'0a09, 0x1614'1211, 0x1e1c'1a18},
+       {0x2624'2220, 0x2e2c'2a29, 0x3634'3231, 0x3e3c'3a38},
+       {0x4644'4240, 0x4e4c'4a49, 0x5654'5251, 0x5e5c'5a58},
+       {0x6664'6260, 0x6e6c'6a69, 0x7674'7271, 0x7e7c'7a78},
+       {0x8684'8280, 0x8e8c'8a89, 0x9694'9291, 0x9e9c'9a98},
+       {0xa6a4'a2a0, 0xaeac'aaa9, 0xb6b4'b2b1, 0xbebc'bab8}},
+      {{0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x5555'5555'5555'5555, 0x5555'5555'5555'5555},
+       {0x0e0c'0a09'0604'0200, 0x1e1c'1a18'1614'1211},
+       {0x2e2c'2a29'2624'2220, 0x3e3c'3a38'3634'3231},
+       {0x4e4c'4a49'4644'4240, 0x5e5c'5a58'5654'5251},
+       {0x6e6c'6a69'6664'6260, 0x7e7c'7a78'7674'7271}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/3,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 4
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/4,
+      /*regx1=*/1,
+      /*skip=*/1);
+
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/4,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 5
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/5,
+      /*regx1=*/1,
+      /*skip=*/1);
+
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 85, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/5,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 6
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 0, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x0200, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/6,
+      /*regx1=*/1,
+      /*skip=*/1);
+
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 85, 85, 85, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x5555, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/6,
+      /*regx1=*/8,
+      /*skip=*/8);
+
+  // VLMUL = 7
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 0, 2, 4, 6, 9, 10, 12, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x0200, 0x0604, 0x0a09, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x0604'0200, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x5555'5555'5555'5555, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/7,
+      /*regx1=*/1,
+      /*skip=*/1);
+
+  TestVectorPermutationInstruction(
+      ExecVslideupvx,
+      ExecMaskedVslideupvx,
+      {{85, 85, 85, 85, 85, 85, 85, 85, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {{0x5555, 0x5555, 0x5555, 0x5555, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+       {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
+      {{0x5555'5555, 0x5555'5555, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+       {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
+      {{0x5555'5555'5555'5555, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
+       {0x0000'0000'0000'0000, 0x0000'0000'0000'0000}},
+      kVectorCalculationsSourceLegacy,
+      /*vlmul=*/7,
+      /*regx1=*/8,
+      /*skip=*/8);
 }
