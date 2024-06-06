@@ -1855,6 +1855,10 @@ class Interpreter {
               return OpVectorv<intrinsics::Vfrsqrt7v<ElementType>, ElementType, vlmul, vta, vma>(
                   args.dst, args.src1);
               break;
+            case Decoder::VFUnary1Opcode::kVfclassv:
+              return OpVectorv<intrinsics::Vfclassv<ElementType>, ElementType, vlmul, vta, vma>(
+                  args.dst, args.src1);
+              break;
             default:
               break;  // Make compiler happy.
           }
