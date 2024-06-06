@@ -1184,11 +1184,11 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulh, auto [arg1, arg2] = std::tuple{args...}
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulh, auto [arg1, arg2] = std::tuple{args...};
                                    NarrowTopHalf(Widen(arg2) * Widen(arg1)))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(mulhsu, auto [arg1, arg2] = std::tuple{args...};
-                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
-                                                 Widen(BitCastToUnsigned(arg1))))
+                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg1))) *
+                                                 Widen(BitCastToUnsigned(arg2))))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(mulhsu, auto [arg1, arg2] = std::tuple{args...};
-                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg2))) *
-                                                 Widen(BitCastToUnsigned(arg1))))
+                                   NarrowTopHalf(BitCastToUnsigned(Widen(BitCastToSigned(arg1))) *
+                                                 Widen(BitCastToUnsigned(arg2))))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
     div,
     ElementType{std::get<0>(Div(static_cast<typename ElementType::BaseType>(args)...))})
