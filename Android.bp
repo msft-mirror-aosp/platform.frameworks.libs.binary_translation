@@ -311,6 +311,7 @@ phony_rule_defaults {
         "libberberis_proxy_libnativehelper",
         "libberberis_proxy_libnativewindow",
         "libberberis_proxy_libneuralnetworks",
+        "libberberis_proxy_libvulkan",
         "libberberis_proxy_libwebviewchromium_plat_support",
         "berberis_prebuilt_riscv64",
         "berberis_program_runner_binfmt_misc_riscv64",
