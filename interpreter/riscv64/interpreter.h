@@ -1855,6 +1855,10 @@ class Interpreter {
               return OpVectorv<intrinsics::Vfrsqrt7v<ElementType>, ElementType, vlmul, vta, vma>(
                   args.dst, args.src1);
               break;
+            case Decoder::VFUnary1Opcode::kVfclassv:
+              return OpVectorv<intrinsics::Vfclassv<ElementType>, ElementType, vlmul, vta, vma>(
+                  args.dst, args.src1);
+              break;
             default:
               break;  // Make compiler happy.
           }
@@ -2733,8 +2737,8 @@ class Interpreter {
         return OpVectorvx<intrinsics::Vremvx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
       case Decoder::VOpMVxOpcode::kVmulhsuvx:
-        return OpVectorvx<intrinsics::Vmulhsuvx<SignedType>, SignedType, vlmul, vta, vma>(
-            args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
+        return OpVectorvx<intrinsics::Vmulhsuvx<UnsignedType>, UnsignedType, vlmul, vta, vma>(
+            args.dst, args.src1, MaybeTruncateTo<UnsignedType>(arg2));
       case Decoder::VOpMVxOpcode::kVmulhvx:
         return OpVectorvx<intrinsics::Vmulhvx<SignedType>, SignedType, vlmul, vta, vma>(
             args.dst, args.src1, MaybeTruncateTo<SignedType>(arg2));
