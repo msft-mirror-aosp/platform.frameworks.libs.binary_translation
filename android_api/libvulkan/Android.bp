@@ -43,3 +43,25 @@ cc_library_shared {
     },
     shared_libs: ["libvulkan"],
 }
+
+cc_library_static {
+    name: "libberberis_emulated_libvulkan_api_checker",
+    defaults: ["berberis_defaults_64"],
+    host_supported: true,
+    native_bridge_supported: true,
+    srcs: [":native_bridge_proxy_libvulkan_checker"],
+    header_libs: [
+        "hwvulkan_headers",
+        "libberberis_base_headers",
+        "vulkan_headers",
+    ],
+    arch: {
+        riscv64: {
+            enabled: true,
+            generated_headers: ["libberberis_android_api_libvulkan_vulkan_xml_headers_riscv64_to_x86_64"],
+        },
+        x86_64: {
+            generated_headers: ["libberberis_android_api_libvulkan_vulkan_xml_headers_riscv64_to_x86_64"],
+        },
+    },
+}
