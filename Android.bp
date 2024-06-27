@@ -223,6 +223,9 @@ cc_test_host {
             ],
             static_libs: [
                 "libberberis_backend_riscv64_to_x86_64",
+                // Note: we don't even need to use anything from that library, just need to ensure it
+                // can be compiled successfully: all checks are done with static_asserts.
+                "libberberis_emulated_libvulkan_api_checker",
                 "libberberis_guest_abi_riscv64",
                 "libberberis_guest_os_primitives_riscv64",
                 "libberberis_guest_state_riscv64",
