@@ -189,6 +189,36 @@ bool IsProcSelfMaps(const char* path, int flags) {
          cur_stat.st_ino == proc_stat.st_ino && cur_stat.st_dev == proc_stat.st_dev;
 }
 
+// In zygote this is not needed because native bridge is mounting
+// /proc/cpuinfo to point to the emulated version. But for executables
+// this does not happen and they end up reading host cpuinfo.
+//
+// Note that current selinux policies prevent us from mounting /proc/cpuinfo
+// (replicating what zygote process does) for executables hence we need to
+// emulate it here.
+const char* TryTranslateProcCpuinfoPath(const char* path, int flags) {
+#if defined(__ANDROID__)
+  struct stat cur_stat;
+  struct stat cpuinfo_stat;
+
+  if (stat(path, &cur_stat) == -1 || stat("/proc/cpuinfo", &cpuinfo_stat) == -1) {
+    return nullptr;
+  }
+
+  if (S_ISLNK(cur_stat.st_mode) && (flags & AT_SYMLINK_NOFOLLOW)) {
+    return nullptr;
+  }
+
+  if ((cur_stat.st_ino == cpuinfo_stat.st_ino) && (cur_stat.st_dev == cpuinfo_stat.st_dev)) {
+    TRACE("openat: Translating %s to %s", path, kGuestCpuinfoPath);
+    return kGuestCpuinfoPath;
+  }
+#else
+  UNUSED(path, flags);
+#endif
+  return nullptr;
+}
+
 }  // namespace
 
 bool IsFileDescriptorEmulatedProcSelfMaps(int fd) {
@@ -211,7 +241,11 @@ int OpenatForGuest(int dirfd, const char* path, int guest_flags, mode_t mode) {
     real_path = TryReadLinkToMainExecutableRealPath(path);
   }
 
-  return openat(dirfd, real_path ? real_path : path, host_flags, mode);
+  if (real_path == nullptr) {
+    real_path = TryTranslateProcCpuinfoPath(path, host_flags);
+  }
+
+  return openat(dirfd, real_path != nullptr ? real_path : path, host_flags, mode);
 }
 
 int OpenForGuest(const char* path, int flags, mode_t mode) {
