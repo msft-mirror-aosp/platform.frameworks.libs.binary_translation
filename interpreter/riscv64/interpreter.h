@@ -1476,6 +1476,15 @@ class Interpreter {
   void OpVector(const Decoder::VOpFVvArgs& args) {
     using SignedType = Wrapping<std::make_signed_t<typename TypeTraits<ElementType>::Int>>;
     using UnsignedType = Wrapping<std::make_unsigned_t<typename TypeTraits<ElementType>::Int>>;
+    // Floating point IEEE 754 value -0.0 includes 1 top bit set and the other bits not set:
+    // https://en.wikipedia.org/wiki/Signed_zero#Representations This is the exact same
+    // representation minimum negative integer have in two's complement representation:
+    // https://en.wikipedia.org/wiki/Two%27s_complement#Most_negative_number
+    // Note: we pass filler elements as integers because `Float32`/`Float64` couldn't be template
+    // parameters.
+    constexpr SignedType kNegativeZero{std::numeric_limits<typename SignedType::BaseType>::min()};
+    // Floating point IEEE 754 value +0.0 includes only zero bits, same as integer zero.
+    constexpr SignedType kPositiveZero{};
     // We currently don't support Float16 operations, but conversion routines that deal with
     // double-width floats use these encodings to produce regular Float32 types.
     if constexpr (sizeof(ElementType) <= sizeof(Float32)) {
@@ -1562,6 +1571,27 @@ class Interpreter {
                                  vta,
                                  vma,
                                  kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfwredusumvs:
+          // 14.3. Vector Single-Width Floating-Point Reduction Instructions:
+          // The additive identity is +0.0 when rounding down or -0.0 for all other rounding
+          // modes.
+          if (GetCsr<kFrm>() != FPFlags::RDN) {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType, WideType<ElementType>>,
+                              ElementType,
+                              WideType<ElementType>,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, Vec<kNegativeZero>{args.src1}, args.src2);
+          } else {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType, WideType<ElementType>>,
+                              ElementType,
+                              WideType<ElementType>,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, Vec<kPositiveZero>{args.src1}, args.src2);
+          }
         case Decoder::VOpFVvOpcode::kVfwsubvv:
           return OpVectorWidenvv<intrinsics::Vfwsubvv<ElementType>,
                                  ElementType,
@@ -1569,6 +1599,27 @@ class Interpreter {
                                  vta,
                                  vma,
                                  kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfwredosumvs:
+          // 14.3. Vector Single-Width Floating-Point Reduction Instructions:
+          // The additive identity is +0.0 when rounding down or -0.0 for all other rounding
+          // modes.
+          if (GetCsr<kFrm>() != FPFlags::RDN) {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType, WideType<ElementType>>,
+                              ElementType,
+                              WideType<ElementType>,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, Vec<kNegativeZero>{args.src1}, args.src2);
+          } else {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType, WideType<ElementType>>,
+                              ElementType,
+                              WideType<ElementType>,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, Vec<kPositiveZero>{args.src1}, args.src2);
+          }
         case Decoder::VOpFVvOpcode::kVfwmulvv:
           return OpVectorWidenvv<intrinsics::Vfwmulvv<ElementType>,
                                  ElementType,
@@ -1703,15 +1754,6 @@ class Interpreter {
     // If our ElementType is Float16 then “straight” operations are unsupported and we whouldn't try
     // instantiate any functions since this would lead to compilke-time error.
     if constexpr (sizeof(ElementType) >= sizeof(Float32)) {
-      // Floating point IEEE 754 value -0.0 includes 1 top bit set and the other bits not set:
-      // https://en.wikipedia.org/wiki/Signed_zero#Representations This is the exact same
-      // representation minimum negative integer have in two's complement representation:
-      // https://en.wikipedia.org/wiki/Two%27s_complement#Most_negative_number
-      // Note: we pass filler elements as integers because `Float32`/`Float64` couldn't be template
-      // parameters.
-      constexpr SignedType kNegativeZero{std::numeric_limits<typename SignedType::BaseType>::min()};
-      // Floating point IEEE 754 value +0.0 includes only zero bits, same as integer zero.
-      constexpr SignedType kPositiveZero{};
       // Keep cases sorted in opcode order to match RISC-V V manual.
       switch (args.opcode) {
         case Decoder::VOpFVvOpcode::kVfredusumvs:

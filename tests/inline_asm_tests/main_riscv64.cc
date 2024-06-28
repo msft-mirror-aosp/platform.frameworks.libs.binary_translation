@@ -858,6 +858,20 @@ void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
 void TestWideningVectorReductionInstruction(
     ExecInsnFunc exec_insn,
     ExecInsnFunc exec_masked_insn,
+    const uint64_t (&expected_result_vd0_int64)[8],
+    const uint64_t (&expected_result_vd0_with_mask_int64)[8],
+    const SIMD128 (&source)[16]) {
+  TestVectorReductionInstruction<TestVectorInstructionMode::kWidening>(
+      exec_insn,
+      exec_masked_insn,
+      source,
+      std::tuple<const uint64_t(&)[8], const uint64_t(&)[8]>{expected_result_vd0_int64,
+                                                             expected_result_vd0_with_mask_int64});
+}
+
+void TestWideningVectorReductionInstruction(
+    ExecInsnFunc exec_insn,
+    ExecInsnFunc exec_masked_insn,
     const uint16_t (&expected_result_vd0_int16)[8],
     const uint32_t (&expected_result_vd0_int32)[8],
     const uint64_t (&expected_result_vd0_int64)[8],
@@ -1673,6 +1687,62 @@ TEST(InlineAsmTestRiscv64, TestVfredusum) {
                                   /* unused */ 0,
                                   0x9e0c'9a09'9604'9200},
                                  kVectorCalculationsSource);
+}
+
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vfwredusum, vfwredusum.vs)
+
+// We currently don't support half-precision (16-bit) floats, so only check 32-bit to 64-bit
+// widening.
+TEST(InlineAsmTestRiscv64, TestVfwredusum) {
+  TestWideningVectorReductionInstruction(ExecVfwredusum,
+                                         ExecMaskedVfwredusum,
+                                         // expected_result_vd0_int64
+                                         {0xbbc1'9351'b253'9156,
+                                          0xbfc5'9759'b65b'955e,
+                                          0xc7cd'9f69'be6b'9d6e,
+                                          0x47cd'7f89'9e8b'7d8d,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbbc1'9351'b240'0000},
+                                         // expected_result_vd0_with_mask_int64
+                                         {0xbac0'9253'9155'9042,
+                                          0xbfc5'9745'2017'9547,
+                                          0xc7cd'9f69'be6b'9d4f,
+                                          0x47cd'7f50'81d3'7d6f,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbac0'9240'0000'0000},
+                                         kVectorCalculationsSource);
+}
+
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vfwredosum, vfwredosum.vs)
+
+// We currently don't support half-precision (16-bit) floats, so only check 32-bit to 64-bit
+// widening.
+TEST(InlineAsmTestRiscv64, TestVfwredosum) {
+  TestWideningVectorReductionInstruction(ExecVfwredosum,
+                                         ExecMaskedVfwredosum,
+                                         // expected_result_vd0_int64
+                                         {0xbbc1'9351'b253'9156,
+                                          0xbfc5'9759'b65b'955e,
+                                          0xc7cd'9f69'be6b'9d6e,
+                                          0x47cd'7f89'9e8b'7d8d,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbbc1'9351'b240'0000},
+                                         // expected_result_vd0_with_mask_int64
+                                         {0xbac0'9253'9155'9042,
+                                          0xbfc5'9745'2017'9547,
+                                          0xc7cd'9f69'be6b'9d4f,
+                                          0x47cd'7f50'81d3'7d6f,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbac0'9240'0000'0000},
+                                         kVectorCalculationsSource);
 }
 
 DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vredand, vredand.vs)
