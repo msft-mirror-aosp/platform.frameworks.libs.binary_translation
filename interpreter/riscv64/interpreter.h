@@ -3968,11 +3968,18 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVectorslidedown(uint8_t dst, uint8_t src, Register offset) {
-    return OpVectorslidedown<ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
-        dst, src, offset);
+    return OpVectorslidedown<ElementType,
+                             NumberOfRegistersInvolved(vlmul),
+                             GetVlmax<ElementType, vlmul>(),
+                             vta,
+                             vma>(dst, src, offset);
   }
 
-  template <typename ElementType, size_t kRegistersInvolved, TailProcessing vta, auto vma>
+  template <typename ElementType,
+            size_t kRegistersInvolved,
+            size_t kVlmax,
+            TailProcessing vta,
+            auto vma>
   void OpVectorslidedown(uint8_t dst, uint8_t src, Register offset) {
     constexpr size_t kElementsPerRegister = 16 / sizeof(ElementType);
     if (!IsAligned<kRegistersInvolved>(dst | src)) {
@@ -3992,21 +3999,21 @@ class Interpreter {
       SIMD128Register result(state_->cpu.v[dst + index]);
 
       size_t first_arg_disp = index + offset / kElementsPerRegister;
-      SIMD128Register arg1 = (first_arg_disp >= kRegistersInvolved)
-                                 ? SIMD128Register{0}
-                                 : state_->cpu.v[src + first_arg_disp];
-      SIMD128Register arg2 = (first_arg_disp + 1 >= kRegistersInvolved)
-                                 ? SIMD128Register{0}
-                                 : state_->cpu.v[src + first_arg_disp + 1];
+      SIMD128Register arg1 = state_->cpu.v[src + first_arg_disp];
+      SIMD128Register arg2 = state_->cpu.v[src + first_arg_disp + 1];
+      SIMD128Register tunnel_shift_result;
+      // Elements coming from above vlmax are zeroes.
+      if (offset >= kVlmax) {
+        tunnel_shift_result = SIMD128Register{0};
+      } else {
+        tunnel_shift_result = std::get<0>(
+            intrinsics::VectorSlideDown<ElementType>(offset % kElementsPerRegister, arg1, arg2));
+        tunnel_shift_result =
+            VectorZeroFill<ElementType>(tunnel_shift_result, kVlmax - offset, kVlmax, index);
+      }
 
-      result =
-          VectorMasking<ElementType, vta, vma>(result,
-                                               std::get<0>(intrinsics::VectorSlideDown<ElementType>(
-                                                   offset % kElementsPerRegister, arg1, arg2)),
-                                               vstart,
-                                               vl,
-                                               index,
-                                               mask);
+      result = VectorMasking<ElementType, vta, vma>(
+          result, tunnel_shift_result, vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
   }
@@ -4048,7 +4055,11 @@ class Interpreter {
     }
 
     // Slide all the elements by one.
-    OpVectorslidedown<ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(dst, src, 1);
+    OpVectorslidedown<ElementType,
+                      NumberOfRegistersInvolved(vlmul),
+                      GetVlmax<ElementType, vlmul>(),
+                      vta,
+                      vma>(dst, src, 1);
     if (exception_raised_) {
       return;
     }
@@ -4356,6 +4367,14 @@ class Interpreter {
         vstart - index * (sizeof(SIMD128Register) / sizeof(ElementType)),
         vl - index * (sizeof(SIMD128Register) / sizeof(ElementType)),
         std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+  }
+
+  template <typename ElementType>
+  SIMD128Register VectorZeroFill(SIMD128Register src, size_t start, size_t end, size_t index) {
+    return VectorMasking<ElementType,
+                         TailProcessing::kUndisturbed,
+                         intrinsics::NoInactiveProcessing{}>(
+        src, SIMD128Register{0}, start, end, index, intrinsics::NoInactiveProcessing{});
   }
 
   template <template <auto> typename ProcessType,
