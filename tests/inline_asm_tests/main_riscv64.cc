@@ -1333,22 +1333,22 @@ void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
               exec_insn, &source[0], &result[0], nullptr, nullptr, scalar_src, vstart, vtype, vl);
 
           SIMD128 expected_result_in_register(expected_result);
-          if (vma == 0) {
-            expected_result_in_register =
-                (expected_result_in_register & mask) | (kUndisturbedResult & ~mask);
-          } else {
-            expected_result_in_register |= ~mask;
-          }
+          expected_result_in_register = (expected_result_in_register & mask) |
+                                        ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask);
           // Mask registers are always processing tail like vta is set.
           if (vlmax != 128) {
-            expected_result_in_register |= MakeBitmaskFromVl(vl);
+            const SIMD128 vl_mask = MakeBitmaskFromVl(vl);
+            expected_result_in_register =
+                (kAgnosticResult & vl_mask) | (expected_result_in_register & ~vl_mask);
           }
           if (vlmul == 2) {
             const SIMD128 start_mask = MakeBitmaskFromVl(vstart);
             expected_result_in_register =
                 (kUndisturbedResult & ~start_mask) | (expected_result_in_register & start_mask);
           }
-          EXPECT_EQ(result[0], expected_result_in_register);
+          EXPECT_EQ(result[0], expected_result_in_register)
+              << "vlmul=" << uint32_t{vlmul} << " vsew=" << uint32_t{vsew}
+              << " vma=" << uint32_t{vma} << " vl=" << vl << " vstart=" << vstart;
         }
       }
     }
