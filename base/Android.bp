@@ -20,10 +20,28 @@ package {
 cc_library_headers {
     name: "libberberis_base_headers",
     defaults: ["berberis_defaults"],
+    native_bridge_supported: true,
     host_supported: true,
     export_include_dirs: ["include"],
     header_libs: ["libbase_headers"],
     export_header_lib_headers: ["libbase_headers"],
+    arch: {
+        arm: {
+            enabled: true,
+        },
+        arm64: {
+            enabled: true,
+        },
+        riscv64: {
+            enabled: true,
+        },
+        x86: {
+            enabled: true,
+        },
+        x86_64: {
+            enabled: true,
+        },
+    },
 }
 
 cc_library_static {
