@@ -76,6 +76,9 @@ cc_defaults {
     arch: {
         riscv64: {
             srcs: [":berberis_ndk_program_tests_riscv64_srcs"],
+            // Note: we don't even need to use anything from that library, just need to ensure it
+            // can be compiled successfully: all checks are done with static_asserts.
+            static_libs: ["libberberis_emulated_libvulkan_api_checker"],
         },
     },
     header_libs: ["libberberis_ndk_program_tests_headers"],
