@@ -610,7 +610,7 @@ class Interpreter {
   template <typename ElementType, typename VOpArgs, typename... ExtraArgs>
   void OpVector(const VOpArgs& args, Register vtype, ExtraArgs... extra_args) {
     auto vemul = Decoder::SignExtend<3>(vtype & 0b111);
-    vemul -= ((vtype >> 3) & 0b111);        // Divide by SEW.
+    vemul -= ((vtype >> 3) & 0b111);  // Divide by SEW.
     vemul +=
         static_cast<std::underlying_type_t<decltype(args.width)>>(args.width);  // Multiply by EEW.
     if (vemul < -3 || vemul > 3) [[unlikely]] {
@@ -1855,6 +1855,10 @@ class Interpreter {
               return OpVectorv<intrinsics::Vfrsqrt7v<ElementType>, ElementType, vlmul, vta, vma>(
                   args.dst, args.src1);
               break;
+            case Decoder::VFUnary1Opcode::kVfclassv:
+              return OpVectorv<intrinsics::Vfclassv<ElementType>, ElementType, vlmul, vta, vma>(
+                  args.dst, args.src1);
+              break;
             default:
               break;  // Make compiler happy.
           }
@@ -2255,6 +2259,20 @@ class Interpreter {
                                 vta,
                                 vma,
                                 kVxrm>(args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVwredsumuvs:
+        return OpVectorvs<intrinsics::Vredsumvs<UnsignedType, WideType<UnsignedType>>,
+                          UnsignedType,
+                          WideType<UnsignedType>,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, Vec<UnsignedType{}>{args.src1}, args.src2);
+      case Decoder::VOpIVvOpcode::kVwredsumvs:
+        return OpVectorvs<intrinsics::Vredsumvs<SignedType, WideType<SignedType>>,
+                          SignedType,
+                          WideType<SignedType>,
+                          vlmul,
+                          vta,
+                          vma>(args.dst, Vec<SignedType{}>{args.src1}, args.src2);
       default:
         Undefined();
     }
@@ -3315,8 +3333,22 @@ class Interpreter {
             CsrName... kExtraCsrs,
             auto kDefaultElement>
   void OpVectorvs(uint8_t dst, Vec<kDefaultElement> src1, uint8_t src2) {
+    return OpVectorvs<Intrinsic, ElementType, ElementType, vlmul, vta, vma, kExtraCsrs...>(
+        dst, src1, src2);
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            typename ResultType,
+            VectorRegisterGroupMultiplier vlmul,
+            TailProcessing vta,
+            auto vma,
+            CsrName... kExtraCsrs,
+            auto kDefaultElement>
+  void OpVectorvs(uint8_t dst, Vec<kDefaultElement> src1, uint8_t src2) {
     return OpVectorvs<Intrinsic,
                       ElementType,
+                      ResultType,
                       NumberOfRegistersInvolved(vlmul),
                       vta,
                       vma,
@@ -3325,6 +3357,7 @@ class Interpreter {
 
   template <auto Intrinsic,
             typename ElementType,
+            typename ResultType,
             size_t kRegistersInvolved,
             TailProcessing vta,
             auto vma,
@@ -3345,7 +3378,7 @@ class Interpreter {
       return;
     }
     auto mask = GetMaskForVectorOperations<vma>();
-    ElementType init = SIMD128Register{state_->cpu.v[src2]}.Get<ElementType>(0);
+    ResultType init = SIMD128Register{state_->cpu.v[src2]}.Get<ResultType>(0);
     for (size_t index = 0; index < kRegistersInvolved; ++index) {
       init = std::get<0>(
           Intrinsic(GetCsr<kExtraCsrs>()...,
@@ -3354,7 +3387,7 @@ class Interpreter {
     }
     SIMD128Register result{state_->cpu.v[dst]};
     result.Set(init, 0);
-    result = std::get<0>(intrinsics::VectorMasking<ElementType, vta>(result, result, 0, 1));
+    result = std::get<0>(intrinsics::VectorMasking<ResultType, vta>(result, result, 0, 1));
     state_->cpu.v[dst] = result.Get<__uint128_t>();
   }
 

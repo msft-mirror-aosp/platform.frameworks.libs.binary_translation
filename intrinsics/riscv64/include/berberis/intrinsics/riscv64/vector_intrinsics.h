@@ -449,7 +449,11 @@ inline std::tuple<ResultType> VectorProcessingReduce(Lambda lambda,
   static_assert(kIsAllowedArgumentForVector<ElementType, ParameterType...>);
   constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
   for (size_t index = 0; index < kElementsCount; ++index) {
-    init = lambda(init, VectorElement<ElementType>(parameters, index)...);
+    if constexpr (std::is_same_v<ResultType, WideType<ElementType>>) {
+      init = lambda(init, Widen(VectorElement<ElementType>(parameters, index)...));
+    } else {
+      init = lambda(init, VectorElement<ElementType>(parameters, index)...);
+    }
   }
   return init;
 }
@@ -817,7 +821,7 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
   inline std::tuple<ResultType> Name(DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS parameters) { \
     return VectorProcessingReduce<ElementType>(                                              \
         [DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS capture](auto... args) {                  \
-          static_assert((std::is_same_v<decltype(args), ElementType> && ...));               \
+          static_assert((std::is_same_v<decltype(args), ResultType> && ...));                \
           arithmetic;                                                                        \
         },                                                                                   \
         DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS arguments);                                \
@@ -938,6 +942,9 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_X(copy, auto [arg] = std::tuple{args...}; arg)
 DEFINE_1OP_ARITHMETIC_INTRINSIC_V(frsqrt7, RSqrtEstimate(args...))
+DEFINE_1OP_ARITHMETIC_INTRINSIC_V(
+    fclass,
+    static_cast<typename TypeTraits<ElementType>::Int>(std::get<0>(FClass(args...))))
 
 DEFINE_1OP_1CSR_ARITHMETIC_INTRINSIC_V(fsqrt,
                                        CanonicalizeNanTuple(FSqrt(FPFlags::DYN, csr, args...)))

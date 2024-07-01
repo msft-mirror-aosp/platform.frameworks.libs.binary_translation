@@ -393,8 +393,8 @@ class Decoder {
     kVnsrawv = 0b101101,
     kVnclipuwv = 0b101110,
     kVnclipwv = 0b101111,
-    kVwredsumuvv = 0b110000,
-    kVwredsumvv = 0b110001,
+    kVwredsumuvs = 0b110000,
+    kVwredsumvs = 0b110001,
   };
 
   enum class VOpIVxOpcode : uint8_t {
@@ -562,6 +562,7 @@ class Decoder {
   enum class VFUnary1Opcode : uint8_t {
     kVfsqrtv = 0b00000,
     kVfrsqrt7v = 0b00100,
+    kVfclassv = 0b10000,
   };
 
   enum class VRXUnary0Opcode : uint8_t {
