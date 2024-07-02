@@ -47,6 +47,11 @@ const uint32_t kHostArch = NATIVE_BRIDGE_ARCH_X86_64;
 const uint32_t kGuestArch = NATIVE_BRIDGE_ARCH_RISCV64;
 const uint32_t kHostArch = NATIVE_BRIDGE_ARCH_X86_64;
 
+#elif defined(NATIVE_BRIDGE_GUEST_ARCH_RISCV64) && defined(__aarch64__)
+
+const uint32_t kGuestArch = NATIVE_BRIDGE_ARCH_RISCV64;
+const uint32_t kHostArch = NATIVE_BRIDGE_ARCH_ARM64;
+
 #else
 
 #error "Unknown guest/host arch combination"
