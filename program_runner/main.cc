@@ -125,13 +125,13 @@ int main(int argc, char* argv[], [[maybe_unused]] char* envp[]) {
     fprintf(stderr, "unable to start load file: %s\n", error_msg.c_str());
     return -1;
   }
-  if (elf_file->e_type() != ET_EXEC) {
-    fprintf(stderr, "this is not a static executable file: %s\n", elf_file->e_type().c_str());
+  if (elf_file.e_type() != ET_EXEC) {
+    fprintf(stderr, "this is not a static executable file: %hu\n", elf_file.e_type());
     return -1;
   }
 
   berberis::ThreadState state{};
-  state.cpu.insn_addr = elf_file->entry_point();
+  state.cpu.insn_addr = berberis::ToGuestAddr(elf_file.entry_point());
   while (true) {
     InterpretInsn(&state);
   }
