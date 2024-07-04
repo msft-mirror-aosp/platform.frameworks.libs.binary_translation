@@ -224,9 +224,23 @@ bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) 
     return true;
   }
 
-  guard_size_ = AlignUpPageSize(guard_size);
-  mmap_size_ = guard_size_ + AlignUpPageSize(stack_size);
+  if (AlignUpPageSizeOverflow(guard_size, &guard_size_)) {
+    return false;
+  }
+
+  size_t aligned_stack_size{};
+  if (AlignUpPageSizeOverflow(stack_size, &aligned_stack_size)) {
+    return false;
+  }
+
+  if (__builtin_add_overflow(aligned_stack_size, guard_size_, &mmap_size_)) {
+    return false;
+  }
   stack_size_ = mmap_size_;
+
+  if (stack_size_ == 0) {
+    return false;
+  }
 
   stack_ = Mmap(mmap_size_);
   if (stack_ == MAP_FAILED) {
@@ -240,7 +254,12 @@ bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) 
     return false;
   }
 
-  stack_top_ = ToGuestAddr(stack_) + stack_size_ - 16;
+  // `stack_size_ - 16` is guaranteed to not overflow since it is not 0 and
+  // aligned to the page size.
+  if (__builtin_add_overflow(ToGuestAddr(stack_), stack_size_ - 16, &stack_top_)) {
+    return false;
+  }
+
   return true;
 }
 
