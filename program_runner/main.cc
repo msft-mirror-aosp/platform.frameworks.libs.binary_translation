@@ -26,10 +26,18 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/file.h"
-#include "berberis/guest_loader/guest_loader.h"
 #include "berberis/guest_state/guest_addr.h"
+
+#if defined(__x86_64__)
+#include "berberis/guest_loader/guest_loader.h"
 #include "berberis/program_runner/program_runner.h"
 #include "berberis/runtime/berberis.h"
+#elif defined(__aarch64__)
+#include "berberis/guest_state/guest_state.h"
+#include "berberis/interpreter/riscv64/interpreter.h"
+#include "berberis/tiny_loader/loaded_elf_file.h"
+#include "berberis/tiny_loader/tiny_loader.h"
+#endif
 
 // Program runner meant for testing and manual invocation.
 
@@ -46,6 +54,7 @@ void Usage(const char* argv_0) {
 }
 
 struct Options {
+  const char* guest_executable;
   bool print_help_and_exit;
 };
 
@@ -79,7 +88,7 @@ Options ParseArgs(int argc, char* argv[]) {
 
 }  // namespace berberis
 
-int main(int argc, char* argv[], char* envp[]) {
+int main(int argc, char* argv[], [[maybe_unused]] char* envp[]) {
 #if defined(__GLIBC__)
   // Disable brk in glibc-malloc.
   //
@@ -98,6 +107,7 @@ int main(int argc, char* argv[], char* envp[]) {
   }
 
   std::string error_msg;
+#if defined(__x86_64__)
   if (!berberis::Run(
           // TODO(b/276787135): Make vdso and loader configurable via command line arguments.
           /* vdso_path */ nullptr,
@@ -109,6 +119,23 @@ int main(int argc, char* argv[], char* envp[]) {
     fprintf(stderr, "unable to start executable: %s\n", error_msg.c_str());
     return -1;
   }
+#elif defined(__aarch64__)
+  LoadedElfFile elf_file;
+  if (!TinyLoader::LoadFromFile(opts.guest_executable, &elf_file, &error_msg)) {
+    fprintf(stderr, "unable to start load file: %s\n", error_msg.c_str());
+    return -1;
+  }
+  if (elf_file.e_type() != ET_EXEC) {
+    fprintf(stderr, "this is not a static executable file: %hu\n", elf_file.e_type());
+    return -1;
+  }
+
+  berberis::ThreadState state{};
+  state.cpu.insn_addr = berberis::ToGuestAddr(elf_file.entry_point());
+  while (true) {
+    InterpretInsn(&state);
+  }
+#endif
 
   return 0;
 }
