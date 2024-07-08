@@ -78,8 +78,29 @@ cc_defaults {
 }
 
 cc_defaults {
+    name: "berberis_all_hosts_defaults",
+    defaults: ["berberis_defaults"],
+    arch: {
+        arm64: {
+            enabled: true,
+            // TODO(b/123294366): disconnect guest arch from host arch!
+            cflags: [
+                "-DNATIVE_BRIDGE_GUEST_ARCH_RISCV64",
+                "-DBERBERIS_GUEST_LP64=1",
+            ],
+        },
+    },
+}
+
+cc_defaults {
     name: "berberis_defaults_64",
     defaults: ["berberis_defaults"],
+    compile_multilib: "64",
+}
+
+cc_defaults {
+    name: "berberis_all_hosts_defaults_64",
+    defaults: ["berberis_all_hosts_defaults"],
     compile_multilib: "64",
 }
 
@@ -223,6 +244,9 @@ cc_test_host {
             ],
             static_libs: [
                 "libberberis_backend_riscv64_to_x86_64",
+                // Note: we don't even need to use anything from that library, just need to ensure it
+                // can be compiled successfully: all checks are done with static_asserts.
+                "libberberis_emulated_libvulkan_api_checker",
                 "libberberis_guest_abi_riscv64",
                 "libberberis_guest_os_primitives_riscv64",
                 "libberberis_guest_state_riscv64",
