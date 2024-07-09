@@ -71,7 +71,9 @@ class Interpreter {
   using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
+  static constexpr Register no_register = 0;
   using FpRegister = uint64_t;
+  static constexpr FpRegister no_fp_register = 0;
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
