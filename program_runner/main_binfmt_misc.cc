@@ -17,16 +17,18 @@
 #include <cstdio>
 #include <string>
 
+#if defined(__x86_64__)
 #include "berberis/program_runner/program_runner.h"
+#endif
 
 // Basic program runner meant to be used by binfmt_misc utility.
 
-int main(int argc, const char* argv[], char* envp[]) {
+int main(int argc, const char* argv[], [[maybe_unused]] char* envp[]) {
   if (argc < 3) {
     printf("Usage: %s /full/path/to/program program [args...]", argv[0]);
     return 0;
   }
-
+#if defined(__x86_64__)
   std::string error_msg;
   if (!berberis::Run(
           /* vdso_path */ nullptr,
@@ -38,4 +40,5 @@ int main(int argc, const char* argv[], char* envp[]) {
     fprintf(stderr, "Error running %s: %s", argv[1], error_msg.c_str());
     return -1;
   }
+#endif
 }
