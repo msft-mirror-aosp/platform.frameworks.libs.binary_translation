@@ -84,8 +84,8 @@ class AssemblerX86 : public AssemblerBase {
     // functions.  Treat that type as opaque cookie.
 
     constexpr bool operator==(const Register& reg) const { return num == reg.num; }
-
     constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
+    friend constexpr uint8_t ValueForFmtSpec(Register value) { return value.num; }
 
     uint8_t num;
   };
@@ -97,8 +97,8 @@ class AssemblerX86 : public AssemblerBase {
     // functions.  Treat that type as opaque cookie.
 
     constexpr bool operator==(const Register& reg) const { return num == reg.num; }
-
     constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
+    friend constexpr uint8_t ValueForFmtSpec(X87Register value) { return value.num; }
 
     uint8_t num;
   };
@@ -120,8 +120,8 @@ class AssemblerX86 : public AssemblerBase {
     // functions.  Treat that type as opaque cookie.
 
     constexpr bool operator==(const XMMRegister& reg) const { return num == reg.num; }
-
     constexpr bool operator!=(const XMMRegister& reg) const { return num != reg.num; }
+    friend constexpr uint8_t ValueForFmtSpec(XMMRegister value) { return value.num; }
 
     uint8_t num;
   };
