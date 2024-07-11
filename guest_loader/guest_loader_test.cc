@@ -47,7 +47,15 @@ TEST(guest_loader, smoke) {
 
   void* handle = loader->DlOpen("libc.so", RTLD_NOW);
   ASSERT_NE(nullptr, handle) << loader->DlError();  // dlerror called only if assertion fails.
-  ASSERT_EQ(nullptr, loader->DlError());
+  // Clear dlerror: successful dlopen(libc.so) might result in dlerror
+  // being set (because of failed dlsym("swift_demangle") during its
+  // initialization).
+  loader->DlError();
+
+  handle = loader->DlOpen("libdl.so", RTLD_NOW);
+  const char* dlerror = loader->DlError();
+  ASSERT_NE(handle, nullptr) << dlerror;
+  ASSERT_EQ(dlerror, nullptr) << dlerror;
 
   android_namespace_t* ns = loader->CreateNamespace("classloader-namespace",
                                                     nullptr,
