@@ -32,23 +32,23 @@ struct PointerAndCounter {
   //     [counter][pointer-without-align-bits]
   // bit: 63                                0
   static_assert(sizeof(T*) == 8, "wrong pointer size");
-  static const size_t kPointerBits = 48;
-  static const size_t kAlignBits = BitUtilLog2(kAlign);
+  static constexpr size_t kPointerBits = 48;
+  static constexpr size_t kAlignBits = BitUtilLog2(kAlign);
 #else
   // 32-bit pointers and size_t. KISS.
   //     [counter][pointer]
   // bit: 63   32  31    0
   static_assert(sizeof(T*) == 4, "wrong pointer size");
-  static const size_t kPointerBits = 32;
-  static const size_t kAlignBits = 0;
+  static constexpr size_t kPointerBits = 32;
+  static constexpr size_t kAlignBits = 0;
 #endif
 
-  static const size_t kRealPointerBits = kPointerBits - kAlignBits;
-  static const size_t kCounterBits = 64 - kRealPointerBits;
+  static constexpr size_t kRealPointerBits = kPointerBits - kAlignBits;
+  static constexpr size_t kCounterBits = 64 - kRealPointerBits;
 
-  static const uint64_t kRealPointerMask = uint64_t(-1) >> kCounterBits;
+  static constexpr uint64_t kRealPointerMask = uint64_t(-1) >> kCounterBits;
 
-  static const uint64_t kMaxCounter = uint64_t(1) << kCounterBits;
+  static constexpr uint64_t kMaxCounter = uint64_t(1) << kCounterBits;
 
   // ATTENTION: counter might get truncated!
   static uint64_t PackUnsafe(T* p, uint64_t cnt) {
