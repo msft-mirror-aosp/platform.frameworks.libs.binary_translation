@@ -35,18 +35,18 @@ TEST(guest_loader, smoke) {
 
   std::string error_msg;
   GuestLoader* loader = GuestLoader::StartAppProcessInNewThread(&error_msg);
-  ASSERT_NE(nullptr, loader) << error_msg;
+  ASSERT_NE(loader, nullptr) << error_msg;
 
   // Reset dlerror.
   loader->DlError();
-  ASSERT_EQ(nullptr, loader->DlError());
+  ASSERT_EQ(loader->DlError(), nullptr);
 
   Dl_info info;
-  ASSERT_EQ(0, loader->DlAddr(loader, &info));
-  ASSERT_EQ(nullptr, loader->DlError());  // dladdr doesn't set dlerror.
+  ASSERT_EQ(loader->DlAddr(loader, &info), 0);
+  ASSERT_EQ(loader->DlError(), nullptr);  // dladdr doesn't set dlerror.
 
   void* handle = loader->DlOpen("libc.so", RTLD_NOW);
-  ASSERT_NE(nullptr, handle) << loader->DlError();  // dlerror called only if assertion fails.
+  ASSERT_NE(handle, nullptr) << loader->DlError();  // dlerror called only if assertion fails.
   // Clear dlerror: successful dlopen(libc.so) might result in dlerror
   // being set (because of failed dlsym("swift_demangle") during its
   // initialization).
@@ -63,8 +63,8 @@ TEST(guest_loader, smoke) {
                                                     kNamespaceTypeIsolated,
                                                     "/data:/mnt/expand",
                                                     nullptr);
-  ASSERT_NE(nullptr, ns) << loader->DlError();  // dlerror called only if assertion fails.
-  ASSERT_EQ(nullptr, loader->DlError());
+  ASSERT_NE(ns, nullptr) << loader->DlError();  // dlerror called only if assertion fails.
+  ASSERT_EQ(loader->DlError(), nullptr);
 }
 
 }  // namespace
