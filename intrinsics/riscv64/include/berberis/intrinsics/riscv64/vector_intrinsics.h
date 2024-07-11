@@ -187,6 +187,15 @@ template <typename ElementType>
 }
 #endif
 
+// For instructions that operate on carry bits, expands single bit from mask register
+//     into vector argument
+template <typename ElementType, TailProcessing vta, auto vma>
+std::tuple<SIMD128Register> GetMaskVectorArgument(SIMD128Register mask, size_t index) {
+  using MaskType = std::conditional_t<sizeof(ElementType) == sizeof(Int8), UInt16, UInt8>;
+  auto register_mask = std::get<0>(MaskForRegisterInSequence<ElementType>(mask, index));
+  return BitMaskToSimdMaskForTests<ElementType>(Int64{MaskType{register_mask}});
+}
+
 template <typename ElementType>
 [[nodiscard]] inline ElementType VectorElement(SIMD128Register src, int index) {
   return src.Get<ElementType>(index);
@@ -1086,6 +1095,14 @@ DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fgt, auto [arg1, arg2] = std::tuple{args...};
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VX(fge, auto [arg1, arg2] = std::tuple{args...};
                                    using IntType = typename TypeTraits<ElementType>::Int;
                                    (~IntType{0}) * IntType(std::get<0>(Fle(arg2, arg1))))
+DEFINE_3OP_ARITHMETIC_INTRINSIC_VX(adc, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                   (arg2 + arg1 - arg3))
+DEFINE_3OP_ARITHMETIC_INTRINSIC_VV(adc, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                   (arg2 + arg1 - arg3))
+DEFINE_3OP_ARITHMETIC_INTRINSIC_VX(sbc, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                   (arg2 - arg1 + arg3))
+DEFINE_3OP_ARITHMETIC_INTRINSIC_VV(sbc, auto [arg1, arg2, arg3] = std::tuple{args...};
+                                   (arg2 - arg1 + arg3))
 DEFINE_2OP_ARITHMETIC_INTRINSIC_VV(
     seq,
     (~ElementType{0}) * ElementType{static_cast<typename ElementType::BaseType>((args == ...))})
