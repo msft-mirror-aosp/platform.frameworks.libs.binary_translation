@@ -47,8 +47,9 @@ Each instruction is an object with following fields:
            and how it is treated by an instruction (used, defined,
            both used and defined)
   'asm' - which internal assembler's mnemonic is used
-  'opcodes' - optional flag for autogeneration: if opcode bytes are specified
-              then implementation would be automatically generated
+  'opcode' | 'opcodes' - optional flag for autogeneration:
+                         if opcode bytes are specified then implementation
+                         would be automatically generated
   'type' - optional flag to specify extra information (encoded in the name).
   'mnemo' - how instruction shall be named in LIR dumps (ignored here)
 
@@ -171,7 +172,8 @@ def _expand_insn_by_encodings(insns):
     if insn.get('encodings'):
       assert all((f not in insn) for f in ['stems', 'name', 'asm', 'mnemo'])
       # If we have encoding then we must have at least opcodes
-      assert all('opcodes' in encoding for _, encoding in insn['encodings'].items())
+      assert all('opcode' in encoding or 'opcodes' in encoding
+                  for _, encoding in insn['encodings'].items())
       expanded_insns.extend([_expand_name(insn, stem, encoding)
                             for stem, encoding in insn['encodings'].items()])
     elif insn.get('stems'):

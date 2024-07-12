@@ -121,7 +121,25 @@ def _gen_generic_functions_h(f, insns, binary_assembler):
     # Text assembled passes "real" work down to GNU as, this works fine with
     # just a simple generic implementation.
     if binary_assembler:
+      if 'opcode' in insn:
+        assert '' not in insn
+        insn['opcodes'] = [insn['opcode']]
       if 'opcodes' in insn:
+        opcodes = []
+        for opcode in insn['opcodes']:
+          if re.match('[0-9a-fA-F]{2}', opcode):
+            opcodes.append('uint8_t{0x%s}' % opcode)
+          elif re.match('[0-9a-fA-F]{4}', opcode):
+            opcodes.append('uint16_t{0x%s}' % opcode)
+          elif re.match('[0-9a-fA-F]{8}', opcode):
+            opcodes.append('uint32_t{0x%s}' % opcode)
+          elif re.match('[0-9a-fA-F]{4}_[0-9a-fA-F]{4}', opcode):
+            opcodes.append('uint16_t{0x%s}' % re.sub('_', '\'', opcode))
+          elif re.match('[0-7]', opcode):
+            opcodes.append('uint8_t{%s}' % opcode)
+          else:
+            assert False
+        insn['processed_opcodes'] = opcodes
         print('void %s(%s) {' % (name, params), file=f)
         _gen_emit_shortcut(f, insn, insns)
         _gen_emit_instruction(f, insn)
@@ -351,9 +369,9 @@ def _gen_emit_instruction(f, insn, rip_operand=False):
   # If we want %rip--operand then we need to replace 'Memory' with 'Labal'
   if rip_operand:
     result = [arg.replace('Memory', 'Label') for arg in result]
-  print('  Emit%sInstruction<Opcodes<%s>>(%s);' % (
+  print('  Emit%sInstruction<%s>(%s);' % (
       ''.join(w.capitalize() for w in re.split('[-_ ]', insn.get('type', '').lower())),
-      ', '.join('0x%02x' % int(opcode, 16) for opcode in insn['opcodes']),
+      ', '.join(insn['processed_opcodes']),
       ', '.join(result)), file=f)
 
 

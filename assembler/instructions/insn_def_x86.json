@@ -31,8 +31,8 @@
     },
     {
       "encodings": {
-        "Adcb": { "opcodes": [ "12" ] },
-        "Sbbb": { "opcodes": [ "1A" ] }
+        "Adcb": { "opcode": "12" },
+        "Sbbb": { "opcode": "1A" }
       },
       "args": [
         { "class": "GeneralReg8", "usage": "use_def" },
@@ -42,8 +42,8 @@
     },
     {
       "encodings": {
-        "Adcb": { "opcodes": [ "10" ], "type": "reg_to_rm" },
-        "Sbbb": { "opcodes": [ "18" ], "type": "reg_to_rm" }
+        "Adcb": { "opcode": "10", "type": "reg_to_rm" },
+        "Sbbb": { "opcode": "18", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg8/Mem8", "usage": "use_def" },
@@ -53,8 +53,8 @@
     },
     {
       "encodings": {
-        "AdcbAccumulator": { "opcodes": [ "14" ] },
-        "SbbbAccumulator": { "opcodes": [ "1C" ] }
+        "AdcbAccumulator": { "opcode": "14" },
+        "SbbbAccumulator": { "opcode": "1C" }
       },
       "args": [
         { "class": "AL", "usage": "use_def" },
@@ -64,8 +64,8 @@
     },
     {
       "encodings": {
-        "Adcl": { "opcodes": [ "13" ] },
-        "Sbbl": { "opcodes": [ "1B" ] }
+        "Adcl": { "opcode": "13" },
+        "Sbbl": { "opcode": "1B" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "use_def" },
@@ -86,8 +86,8 @@
     },
     {
       "encodings": {
-        "Adcl": { "opcodes": [ "11" ], "type": "reg_to_rm" },
-        "Sbbl": { "opcodes": [ "19" ], "type": "reg_to_rm" }
+        "Adcl": { "opcode": "11", "type": "reg_to_rm" },
+        "Sbbl": { "opcode": "19", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg32/Mem32", "usage": "use_def" },
@@ -97,8 +97,8 @@
     },
     {
       "encodings": {
-        "AdclAccumulator": { "opcodes": [ "15" ] },
-        "SbblAccumulator": { "opcodes": [ "1D" ] }
+        "AdclAccumulator": { "opcode": "15" },
+        "SbblAccumulator": { "opcode": "1D" }
       },
       "args": [
         { "class": "EAX", "usage": "use_def" },
@@ -197,11 +197,11 @@
     },
     {
       "encodings": {
-        "Addb": { "opcodes": [ "02" ] },
-        "Andb": { "opcodes": [ "22" ] },
-        "Orb": { "opcodes": [ "0A" ] },
-        "Subb": { "opcodes": [ "2A" ] },
-        "Xorb": { "opcodes": [ "32" ] }
+        "Addb": { "opcode": "02" },
+        "Andb": { "opcode": "22" },
+        "Orb": { "opcode": "0A" },
+        "Subb": { "opcode": "2A" },
+        "Xorb": { "opcode": "32" }
       },
       "args": [
         { "class": "GeneralReg8", "usage": "use_def" },
@@ -211,11 +211,11 @@
     },
     {
       "encodings": {
-        "Addb": { "opcodes": [ "00" ], "type": "reg_to_rm" },
-        "Andb": { "opcodes": [ "20" ], "type": "reg_to_rm" },
-        "Orb": { "opcodes": [ "08" ], "type": "reg_to_rm" },
-        "Subb": { "opcodes": [ "28" ], "type": "reg_to_rm" },
-        "Xorb": { "opcodes": [ "30" ], "type": "reg_to_rm" }
+        "Addb": { "opcode": "00", "type": "reg_to_rm" },
+        "Andb": { "opcode": "20", "type": "reg_to_rm" },
+        "Orb": { "opcode": "08", "type": "reg_to_rm" },
+        "Subb": { "opcode": "28", "type": "reg_to_rm" },
+        "Xorb": { "opcode": "30", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg8/Mem8", "usage": "use_def" },
@@ -225,11 +225,11 @@
     },
     {
       "encodings": {
-        "AddbAccumulator": { "opcodes": [ "04" ] },
-        "AndbAccumulator": { "opcodes": [ "24" ] },
-        "OrbAccumulator": { "opcodes": [ "0C" ] },
-        "SubbAccumulator": { "opcodes": [ "2C" ] },
-        "XorbAccumulator": { "opcodes": [ "34" ] }
+        "AddbAccumulator": { "opcode": "04" },
+        "AndbAccumulator": { "opcode": "24" },
+        "OrbAccumulator": { "opcode": "0C" },
+        "SubbAccumulator": { "opcode": "2C" },
+        "XorbAccumulator": { "opcode": "34" }
       },
       "args": [
         { "class": "AL", "usage": "use_def" },
@@ -239,14 +239,14 @@
     },
     {
       "encodings": {
-        "Addl": { "opcodes": [ "01" ], "type": "reg_to_rm" },
-        "Andl": { "opcodes": [ "21" ], "type": "reg_to_rm" },
+        "Addl": { "opcode": "01", "type": "reg_to_rm" },
+        "Andl": { "opcode": "21", "type": "reg_to_rm" },
         "Btcl": { "opcodes": [ "0F", "BB" ], "type": "reg_to_rm" },
         "Btrl": { "opcodes": [ "0F", "B3" ], "type": "reg_to_rm" },
         "Btsl": { "opcodes": [ "0F", "AB" ], "type": "reg_to_rm" },
-        "Orl": { "opcodes": [ "09" ], "type": "reg_to_rm" },
-        "Subl": { "opcodes": [ "29" ], "type": "reg_to_rm" },
-        "Xorl": { "opcodes": [ "31" ], "type": "reg_to_rm" }
+        "Orl": { "opcode": "09", "type": "reg_to_rm" },
+        "Subl": { "opcode": "29", "type": "reg_to_rm" },
+        "Xorl": { "opcode": "31", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg32/Mem32", "usage": "use_def" },
@@ -256,11 +256,11 @@
     },
     {
       "encodings": {
-        "Addl": { "opcodes": [ "03" ] },
-        "Andl": { "opcodes": [ "23" ] },
-        "Orl": { "opcodes": [ "0B" ] },
-        "Subl": { "opcodes": [ "2B" ] },
-        "Xorl": { "opcodes": [ "33" ] }
+        "Addl": { "opcode": "03" },
+        "Andl": { "opcode": "23" },
+        "Orl": { "opcode": "0B" },
+        "Subl": { "opcode": "2B" },
+        "Xorl": { "opcode": "33" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "use_def" },
@@ -284,11 +284,11 @@
     },
     {
       "encodings": {
-        "AddlAccumulator": { "opcodes": [ "05" ] },
-        "AndlAccumulator": { "opcodes": [ "25" ] },
-        "OrlAccumulator": { "opcodes": [ "0D" ] },
-        "SublAccumulator": { "opcodes": [ "2D" ] },
-        "XorlAccumulator": { "opcodes": [ "35" ] }
+        "AddlAccumulator": { "opcode": "05" },
+        "AndlAccumulator": { "opcode": "25" },
+        "OrlAccumulator": { "opcode": "0D" },
+        "SublAccumulator": { "opcode": "2D" },
+        "XorlAccumulator": { "opcode": "35" }
       },
       "args": [
         { "class": "EAX", "usage": "use_def" },
@@ -619,8 +619,8 @@
     {
       "encodings": {
         "Btl": { "opcodes": [ "0F", "A3" ], "type": "reg_to_rm" },
-        "Cmpl": { "opcodes": [ "39" ], "type": "reg_to_rm" },
-        "Testl": { "opcodes": [ "85" ], "type": "reg_to_rm" }
+        "Cmpl": { "opcode": "39", "type": "reg_to_rm" },
+        "Testl": { "opcode": "85", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg32/Mem32", "usage": "use" },
@@ -643,7 +643,7 @@
     {
       "encodings": {
         "Call": { "opcodes": [ "FF", "02" ] },
-        "Push": { "opcodes": [ "50" ] }
+        "Push": { "opcode": "50" }
       },
       "args": [
         { "class": "RSP", "usage": "use_def" },
@@ -669,8 +669,8 @@
     },
     {
       "encodings": {
-        "Cdq": { "opcodes": [ "99" ] },
-        "Cltd": { "opcodes": [ "99" ] }
+        "Cdq": { "opcode": "99" },
+        "Cltd": { "opcode": "99" }
       },
       "args": [
         { "class": "EAX", "usage": "use" },
@@ -679,9 +679,9 @@
     },
     {
       "encodings": {
-        "Clc": { "opcodes": [ "F8" ] },
-        "Cmc": { "opcodes": [ "F5" ] },
-        "Stc": { "opcodes": [ "F9" ] }
+        "Clc": { "opcode": "F8" },
+        "Cmc": { "opcode": "F5" },
+        "Stc": { "opcode": "F9" }
       },
       "args": [
         { "class": "FLAGS", "usage": "use_def" }
@@ -747,8 +747,8 @@
     },
     {
       "encodings": {
-        "Cmpb": { "opcodes": [ "38" ], "type": "reg_to_rm" },
-        "Testb": { "opcodes": [ "84" ], "type": "reg_to_rm" }
+        "Cmpb": { "opcode": "38", "type": "reg_to_rm" },
+        "Testb": { "opcode": "84", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg8/Mem8", "usage": "use" },
@@ -758,7 +758,7 @@
     },
     {
       "encodings": {
-        "Cmpb": { "opcodes": [ "3A" ] }
+        "Cmpb": { "opcode": "3A" }
       },
       "args": [
         { "class": "GeneralReg8", "usage": "use" },
@@ -768,8 +768,8 @@
     },
     {
       "encodings": {
-        "CmpbAccumulator": { "opcodes": [ "3C" ] },
-        "TestbAccumulator": { "opcodes": [ "A8" ] }
+        "CmpbAccumulator": { "opcode": "3C" },
+        "TestbAccumulator": { "opcode": "A8" }
       },
       "args": [
         { "class": "AL", "usage": "use" },
@@ -790,7 +790,7 @@
     },
     {
       "encodings": {
-        "Cmpl": { "opcodes": [ "3B" ] }
+        "Cmpl": { "opcode": "3B" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "use" },
@@ -800,8 +800,8 @@
     },
     {
       "encodings": {
-        "CmplAccumulator": { "opcodes": [ "3D" ] },
-        "TestlAccumulator": { "opcodes": [ "A9" ] }
+        "CmplAccumulator": { "opcode": "3D" },
+        "TestlAccumulator": { "opcode": "A9" }
       },
       "args": [
         { "class": "EAX", "usage": "use" },
@@ -957,8 +957,8 @@
     },
     {
       "encodings": {
-        "Cwde": { "opcodes": [ "98" ] },
-        "Cwtl": { "opcodes": [ "98" ] }
+        "Cwde": { "opcode": "98" },
+        "Cwtl": { "opcode": "98" }
       },
       "args": [
         { "class": "AX", "usage": "use" },
@@ -1223,14 +1223,14 @@
         "Fdecstp": { "opcodes": [ "D9", "F6" ] },
         "Fincstp": { "opcodes": [ "D9", "F7" ] },
         "Fnop": { "opcodes": [ "D9", "D0" ] },
-        "Fwait": { "opcodes": [ "9B" ] },
-        "Int3": { "opcodes": [ "CC" ] },
+        "Fwait": { "opcode": "9B" },
+        "Int3": { "opcode": "CC" },
         "Lfence": { "opcodes": [ "0F", "AE", "E8" ] },
         "Mfence": { "opcodes": [ "0F", "AE", "F0" ] },
         "Sfence": { "opcodes": [ "0F", "AE", "F8" ] },
-        "Nop": { "opcodes": [ "90" ] },
+        "Nop": { "opcode": "90" },
         "UD2": { "opcodes": [ "0F", "0B" ] },
-        "Wait": { "opcodes": [ "9B" ] }
+        "Wait": { "opcode": "9B" }
       },
       "args": []
     },
@@ -1503,7 +1503,7 @@
     },
     {
       "encodings": {
-        "Imull": { "opcodes": [ "69" ] }
+        "Imull": { "opcode": "69" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -1524,7 +1524,7 @@
     },
     {
       "encodings": {
-        "ImullImm8": { "opcodes": [ "6B" ] }
+        "ImullImm8": { "opcode": "6B" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -1601,7 +1601,7 @@
     },
     {
       "encodings": {
-        "Lahf": { "opcodes": [ "9F" ] }
+        "Lahf": { "opcode": "9F" }
       },
       "args": [
         { "class": "EAX", "usage": "use_def" },
@@ -1620,8 +1620,8 @@
     },
     {
       "encodings": {
-        "Leal": { "opcodes": [ "8D" ] },
-        "Movl": { "opcodes": [ "8B" ] }
+        "Leal": { "opcode": "8D" },
+        "Movl": { "opcode": "8B" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -1685,7 +1685,7 @@
     },
     {
       "encodings": {
-        "Movb": { "opcodes": [ "B0" ] }
+        "Movb": { "opcode": "B0" }
       },
       "args": [
         { "class": "GeneralReg8", "usage": "def" },
@@ -1694,7 +1694,7 @@
     },
     {
       "encodings": {
-        "Movb": { "opcodes": [ "8A" ] }
+        "Movb": { "opcode": "8A" }
       },
       "args": [
         { "class": "GeneralReg8", "usage": "def" },
@@ -1703,7 +1703,7 @@
     },
     {
       "encodings": {
-        "Movb": { "opcodes": [ "88" ], "type": "reg_to_rm" }
+        "Movb": { "opcode": "88", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg8/Mem8", "usage": "def" },
@@ -1813,7 +1813,7 @@
     },
     {
       "encodings": {
-        "Movl": { "opcodes": [ "B8" ] }
+        "Movl": { "opcode": "B8" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
@@ -1822,7 +1822,7 @@
     },
     {
       "encodings": {
-        "Movl": { "opcodes": [ "89" ], "type": "reg_to_rm" }
+        "Movl": { "opcode": "89", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg32/Mem32", "usage": "def" },
@@ -2081,7 +2081,7 @@
     },
     {
       "encodings": {
-        "Pop": { "opcodes": [ "58" ] }
+        "Pop": { "opcode": "58" }
       },
       "args": [
         { "class": "RSP", "usage": "use_def" },
@@ -2127,7 +2127,7 @@
     },
     {
       "encodings": {
-        "Push": { "opcodes": [ "68" ] }
+        "Push": { "opcode": "68" }
       },
       "args": [
         { "class": "RSP", "usage": "use_def" },
@@ -2136,7 +2136,7 @@
     },
     {
       "encodings": {
-        "PushImm8": { "opcodes": [ "6A" ] }
+        "PushImm8": { "opcode": "6A" }
       },
       "args": [
         { "class": "RSP", "usage": "use_def" },
@@ -2208,7 +2208,7 @@
     },
     {
       "encodings": {
-        "Ret": { "opcodes": [ "C3" ] }
+        "Ret": { "opcode": "C3" }
       },
       "args": [
         { "class": "RSP", "usage": "use_def" }
@@ -2288,7 +2288,7 @@
     },
     {
       "encodings": {
-        "Sahf": { "opcodes": [ "9E" ] }
+        "Sahf": { "opcode": "9E" }
       },
       "args": [
         { "class": "EAX", "usage": "use" },
@@ -2927,7 +2927,7 @@
     },
     {
       "encodings": {
-        "Xchgl": { "opcodes": [ "87" ] }
+        "Xchgl": { "opcode": "87" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "use_def" },

@@ -468,64 +468,60 @@ inline void Assembler::Movq(Register dest, int64_t imm64) {
     Movl(dest, static_cast<uint32_t>(imm64));
   } else if (IsInRange<int32_t>(imm64)) {
     // Slightly longer encoding.
-    EmitInstruction<Opcodes<0xc7, 0x00>>(Register64Bit(dest), static_cast<int32_t>(imm64));
+    EmitInstruction<0xc7, 0x00>(Register64Bit(dest), static_cast<int32_t>(imm64));
   } else {
     // Longest encoding.
-    EmitInstruction<Opcodes<0xb8>>(Register64Bit(dest), imm64);
+    EmitInstruction<0xb8>(Register64Bit(dest), imm64);
   }
 }
 
 inline void Assembler::Vmovapd(XMMRegister arg0, XMMRegister arg1) {
   if (arg0.num < 8 && arg1.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x01, 0x29>>(VectorRegister128Bit(arg1),
-                                                            VectorRegister128Bit(arg0));
+    return EmitInstruction<0xc4, 0x01, 0x01, 0x29>(VectorRegister128Bit(arg1),
+                                                   VectorRegister128Bit(arg0));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x01, 0x28>>(VectorRegister128Bit(arg0),
-                                                   VectorRegister128Bit(arg1));
+  EmitInstruction<0xc4, 0x01, 0x01, 0x28>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovaps(XMMRegister arg0, XMMRegister arg1) {
   if (arg0.num < 8 && arg1.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x00, 0x29>>(VectorRegister128Bit(arg1),
-                                                            VectorRegister128Bit(arg0));
+    return EmitInstruction<0xc4, 0x01, 0x00, 0x29>(VectorRegister128Bit(arg1),
+                                                   VectorRegister128Bit(arg0));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x00, 0x28>>(VectorRegister128Bit(arg0),
-                                                   VectorRegister128Bit(arg1));
+  EmitInstruction<0xc4, 0x01, 0x00, 0x28>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovdqa(XMMRegister arg0, XMMRegister arg1) {
   if (arg0.num < 8 && arg1.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x01, 0x7F>>(VectorRegister128Bit(arg1),
-                                                            VectorRegister128Bit(arg0));
+    return EmitInstruction<0xc4, 0x01, 0x01, 0x7F>(VectorRegister128Bit(arg1),
+                                                   VectorRegister128Bit(arg0));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x01, 0x6F>>(VectorRegister128Bit(arg0),
-                                                   VectorRegister128Bit(arg1));
+  EmitInstruction<0xc4, 0x01, 0x01, 0x6F>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovdqu(XMMRegister arg0, XMMRegister arg1) {
   if (arg0.num < 8 && arg1.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x02, 0x7F>>(VectorRegister128Bit(arg1),
-                                                            VectorRegister128Bit(arg0));
+    return EmitInstruction<0xc4, 0x01, 0x02, 0x7F>(VectorRegister128Bit(arg1),
+                                                   VectorRegister128Bit(arg0));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x02, 0x6F>>(VectorRegister128Bit(arg0),
-                                                   VectorRegister128Bit(arg1));
+  EmitInstruction<0xc4, 0x01, 0x02, 0x6F>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovsd(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
   if (arg0.num < 8 && arg2.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x03, 0x11>>(
+    return EmitInstruction<0xc4, 0x01, 0x03, 0x11>(
         VectorRegister128Bit(arg2), VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x03, 0x10>>(
+  EmitInstruction<0xc4, 0x01, 0x03, 0x10>(
       VectorRegister128Bit(arg0), VectorRegister128Bit(arg2), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovss(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
   if (arg0.num < 8 && arg2.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x02, 0x11>>(
+    return EmitInstruction<0xc4, 0x01, 0x02, 0x11>(
         VectorRegister128Bit(arg2), VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x02, 0x10>>(
+  EmitInstruction<0xc4, 0x01, 0x02, 0x10>(
       VectorRegister128Bit(arg0), VectorRegister128Bit(arg2), VectorRegister128Bit(arg1));
 }
 
@@ -537,11 +533,11 @@ inline void Assembler::Xchgq(Register dest, Register src) {
     Emit8(0x90);
   } else if (IsAccumulator(src) || IsAccumulator(dest)) {
     Register other = IsAccumulator(src) ? dest : src;
-    EmitInstruction<Opcodes<0x90>>(Register64Bit(other));
+    EmitInstruction<0x90>(Register64Bit(other));
   } else {
   // Clang 8 (after r330298) puts dest before src.  We are comparing output
   // to clang in exhaustive test thus we want to match clang behavior exactly.
-    EmitInstruction<Opcodes<0x87>>(Register64Bit(dest), Register64Bit(src));
+  EmitInstruction<0x87>(Register64Bit(dest), Register64Bit(src));
   }
 }
 
