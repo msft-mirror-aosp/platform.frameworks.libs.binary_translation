@@ -18,8 +18,8 @@
   "insns": [
     {
       "encodings": {
-        "Adcq": { "opcodes": [ "13" ] },
-        "Sbbq": { "opcodes": [ "1B" ] }
+        "Adcq": { "opcode": "13" },
+        "Sbbq": { "opcode": "1B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
@@ -40,8 +40,8 @@
     },
     {
       "encodings": {
-        "Adcq": { "opcodes": [ "11" ], "type": "reg_to_rm" },
-        "Sbbq": { "opcodes": [ "19" ], "type": "reg_to_rm" }
+        "Adcq": { "opcode": "11", "type": "reg_to_rm" },
+        "Sbbq": { "opcode": "19", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use_def" },
@@ -75,14 +75,14 @@
     },
     {
       "encodings": {
-        "Addq": { "opcodes": [ "01" ], "type": "reg_to_rm" },
-        "Andq": { "opcodes": [ "21" ], "type": "reg_to_rm" },
+        "Addq": { "opcode": "01", "type": "reg_to_rm" },
+        "Andq": { "opcode": "21", "type": "reg_to_rm" },
         "Btcq": { "opcodes": [ "0F", "BB" ], "type": "reg_to_rm" },
         "Btrq": { "opcodes": [ "0F", "B3" ], "type": "reg_to_rm" },
         "Btsq": { "opcodes": [ "0F", "AB" ], "type": "reg_to_rm" },
-        "Orq": { "opcodes": [ "09" ], "type": "reg_to_rm" },
-        "Subq": { "opcodes": [ "29" ], "type": "reg_to_rm" },
-        "Xorq": { "opcodes": [ "31" ], "type": "reg_to_rm" }
+        "Orq": { "opcode": "09", "type": "reg_to_rm" },
+        "Subq": { "opcode": "29", "type": "reg_to_rm" },
+        "Xorq": { "opcode": "31", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use_def" },
@@ -92,11 +92,11 @@
     },
     {
       "encodings": {
-        "Addq": { "opcodes": [ "03" ] },
-        "Andq": { "opcodes": [ "23" ] },
-        "Orq": { "opcodes": [ "0B" ] },
-        "Subq": { "opcodes": [ "2B" ] },
-        "Xorq": { "opcodes": [ "33" ] }
+        "Addq": { "opcode": "03" },
+        "Andq": { "opcode": "23" },
+        "Orq": { "opcode": "0B" },
+        "Subq": { "opcode": "2B" },
+        "Xorq": { "opcode": "33" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
@@ -206,8 +206,8 @@
     {
       "encodings": {
         "Btq": { "opcodes": [ "0F", "A3" ], "type": "reg_to_rm" },
-        "Cmpq": { "opcodes": [ "39" ], "type": "reg_to_rm" },
-        "Testq": { "opcodes": [ "85" ], "type": "reg_to_rm" }
+        "Cmpq": { "opcode": "39", "type": "reg_to_rm" },
+        "Testq": { "opcode": "85", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use" },
@@ -283,7 +283,7 @@
     },
     {
       "encodings": {
-        "Cmpq": { "opcodes": [ "3B" ] }
+        "Cmpq": { "opcode": "3B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use" },
@@ -449,7 +449,7 @@
     },
     {
       "encodings": {
-        "Imulq": { "opcodes": [ "69" ] }
+        "Imulq": { "opcode": "69" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -470,7 +470,7 @@
     },
     {
       "encodings": {
-        "ImulqImm8": { "opcodes": [ "6B" ] }
+        "ImulqImm8": { "opcode": "6B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -489,8 +489,8 @@
     },
     {
       "encodings": {
-        "Leaq": { "opcodes": [ "8D" ] },
-        "Movq": { "opcodes": [ "8B" ] }
+        "Leaq": { "opcode": "8D" },
+        "Movq": { "opcode": "8B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -537,7 +537,7 @@
     },
     {
       "encodings": {
-        "Movq": { "opcodes": [ "89" ], "type": "reg_to_rm" }
+        "Movq": { "opcode": "89", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "def" },
@@ -565,7 +565,7 @@
     },
     {
       "encodings": {
-        "Movsxlq": { "opcodes": [ "63" ] }
+        "Movsxlq": { "opcode": "63" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -758,7 +758,7 @@
     },
     {
       "encodings": {
-        "Xchgq": { "opcodes": [ "87" ] }
+        "Xchgq": { "opcode": "87" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
