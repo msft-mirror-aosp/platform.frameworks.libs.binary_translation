@@ -49,8 +49,7 @@ Each instruction is an object with following fields:
   'asm' - which internal assembler's mnemonic is used
   'opcodes' - optional flag for autogeneration: if opcode bytes are specified
               then implementation would be automatically generated
-  'reg_to_rm' - optional flag to make RM field in ModRegRM byte destination
-                (most instructions with two registers use reg as destination)
+  'type' - optional flag to specify extra information (encoded in the name).
   'mnemo' - how instruction shall be named in LIR dumps (ignored here)
 
 Memory operand for assembler instructions can be described as either opaque
