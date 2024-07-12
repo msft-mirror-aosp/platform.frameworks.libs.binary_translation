@@ -377,10 +377,25 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
 
 template <typename IntrinsicResType, typename... IntrinsicArgType, typename... AssemblerArgType>
 void InitArgsVerify(AssemblerArgType...) {
+  constexpr auto MakeDummyAssemblerType = []<typename AssemblerType>() {
+    if constexpr (std::is_same_v<AssemblerType, x86_64::Assembler::Register>) {
+      // Note: we couldn't use no_register here, but any “real” register should work.
+      return x86_64::Assembler::rax;
+    } else if constexpr (std::is_same_v<AssemblerType, x86_64::Assembler::XMMRegister>) {
+      // Note: we couldn't use no_xmm_register here, but any “real” register should work.
+      return x86_64::Assembler::xmm0;
+    } else {
+      return AssemblerType{0};
+    }
+  };
   static_assert(InitArgs<IntrinsicResType, IntrinsicArgType...>(
-      ConstExprCheckAssembler(), true, AssemblerArgType{0}...));
+      ConstExprCheckAssembler(),
+      true,
+      MakeDummyAssemblerType.template operator()<AssemblerArgType>()...));
   static_assert(InitArgs<IntrinsicResType, IntrinsicArgType...>(
-      ConstExprCheckAssembler(), false, AssemblerArgType{0}...));
+      ConstExprCheckAssembler(),
+      false,
+      MakeDummyAssemblerType.template operator()<AssemblerArgType>()...));
 }
 
 template <typename AssemblerResType,
