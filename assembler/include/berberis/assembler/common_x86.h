@@ -663,6 +663,113 @@ class AssemblerX86 : public AssemblerBase {
     }
   }
 
+  // Normally instruction arguments come in the following order: vex, rm, reg, imm.
+  // But certain instructions can have swapped arguments in a different order.
+  // In addition to that we have special case where two arguments may need to be swapped
+  // to reduce encoding size.
+
+  template <typename InstructionOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename... ArgumentsTypes>
+  void EmitRegToRmInstruction(ArgumentsType0&& argument0,
+                              ArgumentsType1&& argument1,
+                              ArgumentsTypes&&... arguments) {
+    return EmitInstruction<InstructionOpcodes>(std::forward<ArgumentsType1>(argument1),
+                                               std::forward<ArgumentsType0>(argument0),
+                                               std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <typename InstructionOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename... ArgumentsTypes>
+  void EmitRmToVexInstruction(ArgumentsType0&& argument0,
+                              ArgumentsType1&& argument1,
+                              ArgumentsTypes&&... arguments) {
+    return EmitInstruction<InstructionOpcodes>(std::forward<ArgumentsType1>(argument1),
+                                               std::forward<ArgumentsType0>(argument0),
+                                               std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  // If vex operand is one of first 8 registers and rm operand is not then swapping these two
+  // operands produces more compact encoding.
+  // This only works with commutative instructions from first opcode map.
+  template <typename InstructionOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
+            typename... ArgumentsTypes>
+  void EmitOptimizableUsingCommutationInstruction(ArgumentsType0&& argument0,
+                                                  ArgumentsType1&& argument1,
+                                                  ArgumentsType2&& argument2,
+                                                  ArgumentsTypes&&... arguments) {
+    if constexpr (std::is_same_v<ArgumentsType2, ArgumentsType1>) {
+      if (Assembler::IsSwapProfitable(std::forward<ArgumentsType2>(argument2),
+                                      std::forward<ArgumentsType1>(argument1))) {
+        return EmitInstruction<InstructionOpcodes>(std::forward<ArgumentsType0>(argument0),
+                                                   std::forward<ArgumentsType1>(argument1),
+                                                   std::forward<ArgumentsType2>(argument2),
+                                                   std::forward<ArgumentsTypes>(arguments)...);
+      }
+    }
+    return EmitInstruction<InstructionOpcodes>(std::forward<ArgumentsType0>(argument0),
+                                               std::forward<ArgumentsType2>(argument2),
+                                               std::forward<ArgumentsType1>(argument1),
+                                               std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <typename InstructionOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
+            typename ArgumentsType3,
+            typename... ArgumentsTypes>
+  void EmitVexImmRmToRegInstruction(ArgumentsType0&& argument0,
+                                    ArgumentsType1&& argument1,
+                                    ArgumentsType2&& argument2,
+                                    ArgumentsType3&& argument3,
+                                    ArgumentsTypes&&... arguments) {
+    return EmitInstruction<InstructionOpcodes>(std::forward<ArgumentsType0>(argument0),
+                                               std::forward<ArgumentsType3>(argument3),
+                                               std::forward<ArgumentsType1>(argument1),
+                                               std::forward<ArgumentsType2>(argument2),
+                                               std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <typename InstructionOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
+            typename ArgumentsType3,
+            typename... ArgumentsTypes>
+  void EmitVexRmImmToRegInstruction(ArgumentsType0&& argument0,
+                                    ArgumentsType1&& argument1,
+                                    ArgumentsType2&& argument2,
+                                    ArgumentsType3&& argument3,
+                                    ArgumentsTypes&&... arguments) {
+    return EmitInstruction<InstructionOpcodes>(std::forward<ArgumentsType0>(argument0),
+                                               std::forward<ArgumentsType2>(argument2),
+                                               std::forward<ArgumentsType1>(argument1),
+                                               std::forward<ArgumentsType3>(argument3),
+                                               std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <typename InstructionOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
+            typename... ArgumentsTypes>
+  void EmitVexRmToRegInstruction(ArgumentsType0&& argument0,
+                                 ArgumentsType1&& argument1,
+                                 ArgumentsType2&& argument2,
+                                 ArgumentsTypes&&... arguments) {
+    return EmitInstruction<InstructionOpcodes>(std::forward<ArgumentsType0>(argument0),
+                                               std::forward<ArgumentsType2>(argument2),
+                                               std::forward<ArgumentsType1>(argument1),
+                                               std::forward<ArgumentsTypes>(arguments)...);
+  }
+
   void ResolveJumps();
 
  private:
