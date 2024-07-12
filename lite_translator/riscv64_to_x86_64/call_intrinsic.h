@@ -53,7 +53,7 @@ inline constexpr auto kRegOffsetsOnStack = []() {
 
   int8_t stack_allocation_size = 0;
   for (auto reg : kCallerSavedRegs) {
-    regs_on_stack[reg.num] = stack_allocation_size;
+    regs_on_stack[reg.GetPhysicalIndex()] = stack_allocation_size;
     ++stack_allocation_size;
   }
   return regs_on_stack;
@@ -88,7 +88,7 @@ inline constexpr auto kSimdRegOffsetsOnStack = []() {
 
   int8_t stack_allocation_size = AlignUp(std::size(kCallerSavedRegs), 2);
   for (auto reg : kCallerSavedXMMRegs) {
-    simd_regs_on_stack[reg.num] = stack_allocation_size;
+    simd_regs_on_stack[reg.GetPhysicalIndex()] = stack_allocation_size;
     stack_allocation_size += 2;
   }
   return simd_regs_on_stack;
@@ -107,11 +107,11 @@ inline void PushCallerSaved(MacroAssembler<x86_64::Assembler>& as) {
   as.Subq(as.rsp, kSaveAreaSize * 8);
 
   for (auto reg : kCallerSavedRegs) {
-    as.Movq({.base = as.rsp, .disp = kRegOffsetsOnStack[reg.num] * 8}, reg);
+    as.Movq({.base = as.rsp, .disp = kRegOffsetsOnStack[reg.GetPhysicalIndex()] * 8}, reg);
   }
 
   for (auto reg : kCallerSavedXMMRegs) {
-    as.Movdqa({.base = as.rsp, .disp = kSimdRegOffsetsOnStack[reg.num] * 8}, reg);
+    as.Movdqa({.base = as.rsp, .disp = kSimdRegOffsetsOnStack[reg.GetPhysicalIndex()] * 8}, reg);
   }
 }
 
@@ -120,13 +120,14 @@ inline void PushCallerSaved(MacroAssembler<x86_64::Assembler>& as) {
 // kRegIsNotOnStack. These registers are skipped during restoration process.
 inline void PopCallerSaved(MacroAssembler<x86_64::Assembler>& as, const StoredRegsInfo regs_info) {
   for (auto reg : kCallerSavedRegs) {
-    if (regs_info.regs_on_stack[reg.num] != kRegIsNotOnStack) {
-      as.Movq(reg, {.base = as.rsp, .disp = regs_info.regs_on_stack[reg.num] * 8});
+    if (regs_info.regs_on_stack[reg.GetPhysicalIndex()] != kRegIsNotOnStack) {
+      as.Movq(reg, {.base = as.rsp, .disp = regs_info.regs_on_stack[reg.GetPhysicalIndex()] * 8});
     }
   }
   for (auto reg : kCallerSavedXMMRegs) {
-    if (regs_info.simd_regs_on_stack[reg.num] != kRegIsNotOnStack) {
-      as.Movdqa(reg, {.base = as.rsp, .disp = regs_info.simd_regs_on_stack[reg.num] * 8});
+    if (regs_info.simd_regs_on_stack[reg.GetPhysicalIndex()] != kRegIsNotOnStack) {
+      as.Movdqa(reg,
+                {.base = as.rsp, .disp = regs_info.simd_regs_on_stack[reg.GetPhysicalIndex()] * 8});
     }
   }
 
@@ -254,27 +255,27 @@ constexpr bool InitArgs(MacroAssembler&& as, bool has_avx, AssemblerArgType... a
     } else if constexpr (std::is_integral_v<IntrinsicType> &&
                          sizeof(IntrinsicType) <= sizeof(int32_t) &&
                          std::is_same_v<AssemblerType, Register>) {
-      if (kRegOffsetsOnStack[arg.value.num] == kRegIsNotOnStack) {
+      if (kRegOffsetsOnStack[arg.value.GetPhysicalIndex()] == kRegIsNotOnStack) {
         as.template Expand<int32_t, IntrinsicType>(kAbiArgs[gp_index++], arg.value);
       } else {
         as.template Expand<int32_t, IntrinsicType>(
             kAbiArgs[gp_index++],
-            {.base = Assembler::rsp, .disp = kRegOffsetsOnStack[arg.value.num] * 8});
+            {.base = Assembler::rsp, .disp = kRegOffsetsOnStack[arg.value.GetPhysicalIndex()] * 8});
       }
     } else if constexpr (std::is_integral_v<IntrinsicType> &&
                          sizeof(IntrinsicType) == sizeof(int64_t) &&
                          std::is_same_v<AssemblerType, Register>) {
-      if (kRegOffsetsOnStack[arg.value.num] == kRegIsNotOnStack) {
+      if (kRegOffsetsOnStack[arg.value.GetPhysicalIndex()] == kRegIsNotOnStack) {
         as.template Expand<int64_t, IntrinsicType>(kAbiArgs[gp_index++], arg.value);
       } else {
         as.template Expand<int64_t, IntrinsicType>(
             kAbiArgs[gp_index++],
-            {.base = Assembler::rsp, .disp = kRegOffsetsOnStack[arg.value.num] * 8});
+            {.base = Assembler::rsp, .disp = kRegOffsetsOnStack[arg.value.GetPhysicalIndex()] * 8});
       }
     } else if constexpr ((std::is_same_v<IntrinsicType, Float32> ||
                           std::is_same_v<IntrinsicType, Float64>)&&std::is_same_v<AssemblerType,
                                                                                   XMMRegister>) {
-      if (kSimdRegOffsetsOnStack[arg.value.num] == kRegIsNotOnStack) {
+      if (kSimdRegOffsetsOnStack[arg.value.GetPhysicalIndex()] == kRegIsNotOnStack) {
         if (has_avx) {
           as.template Vmovs<IntrinsicType>(
               kAbiSimdArgs[simd_index], kAbiSimdArgs[simd_index], arg.value);
@@ -286,11 +287,11 @@ constexpr bool InitArgs(MacroAssembler&& as, bool has_avx, AssemblerArgType... a
         if (has_avx) {
           as.template Vmovs<IntrinsicType>(
               kAbiSimdArgs[simd_index++],
-              {.base = as.rsp, .disp = kSimdRegOffsetsOnStack[arg.value.num] * 8});
+              {.base = as.rsp, .disp = kSimdRegOffsetsOnStack[arg.value.GetPhysicalIndex()] * 8});
         } else {
           as.template Movs<IntrinsicType>(
               kAbiSimdArgs[simd_index++],
-              {.base = as.rsp, .disp = kSimdRegOffsetsOnStack[arg.value.num] * 8});
+              {.base = as.rsp, .disp = kSimdRegOffsetsOnStack[arg.value.GetPhysicalIndex()] * 8});
         }
       }
     } else {
@@ -318,18 +319,18 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
   if constexpr (Assembler::kFormatIs<IntrinsicResType, std::tuple<int32_t>, std::tuple<uint32_t>> &&
                 std::is_same_v<AssemblerResType, Register>) {
     // Note: even unsigned 32-bit results are sign-extended to 64bit register on RV64.
-    regs_info.regs_on_stack[result.num] = kRegIsNotOnStack;
+    regs_info.regs_on_stack[result.GetPhysicalIndex()] = kRegIsNotOnStack;
     as.Expand<int64_t, int32_t>(result, Assembler::rax);
   } else if constexpr (Assembler::
                            kFormatIs<IntrinsicResType, std::tuple<int64_t>, std::tuple<uint64_t>> &&
                        std::is_same_v<AssemblerResType, Register>) {
-    regs_info.regs_on_stack[result.num] = kRegIsNotOnStack;
+    regs_info.regs_on_stack[result.GetPhysicalIndex()] = kRegIsNotOnStack;
     as.Mov<int64_t>(result, Assembler::rax);
   } else if constexpr (Assembler::
                            kFormatIs<IntrinsicResType, std::tuple<Float32>, std::tuple<Float64>> &&
                        std::is_same_v<AssemblerResType, XMMRegister>) {
     using ResType0 = std::tuple_element_t<0, IntrinsicResType>;
-    regs_info.simd_regs_on_stack[result.num] = kRegIsNotOnStack;
+    regs_info.simd_regs_on_stack[result.GetPhysicalIndex()] = kRegIsNotOnStack;
     if (host_platform::kHasAVX) {
       as.Vmovs<ResType0>(result, result, Assembler::xmm0);
     } else {
@@ -341,11 +342,11 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
     auto [result0, result1] = result;
     if constexpr (Assembler::kFormatIs<ResType0, int32_t, uint32_t> &&
                   std::is_same_v<std::tuple_element_t<0, AssemblerResType>, Register>) {
-      regs_info.regs_on_stack[result0.num] = kRegIsNotOnStack;
+      regs_info.regs_on_stack[result0.GetPhysicalIndex()] = kRegIsNotOnStack;
       as.Expand<int64_t, int32_t>(result0, Assembler::rax);
     } else if constexpr (Assembler::kFormatIs<ResType0, int64_t, uint64_t> &&
                          std::is_same_v<std::tuple_element_t<0, AssemblerResType>, Register>) {
-      regs_info.regs_on_stack[result0.num] = kRegIsNotOnStack;
+      regs_info.regs_on_stack[result0.GetPhysicalIndex()] = kRegIsNotOnStack;
       as.Mov<int64_t>(result0, Assembler::rax);
     } else {
       static_assert(kDependentTypeFalse<std::tuple<IntrinsicResType, AssemblerResType>>,
@@ -353,11 +354,11 @@ StoredRegsInfo ForwardResults(MacroAssembler<x86_64::Assembler>& as, AssemblerRe
     }
     if constexpr (Assembler::kFormatIs<ResType1, int32_t, uint32_t> &&
                   std::is_same_v<std::tuple_element_t<1, AssemblerResType>, Register>) {
-      regs_info.regs_on_stack[result1.num] = kRegIsNotOnStack;
+      regs_info.regs_on_stack[result1.GetPhysicalIndex()] = kRegIsNotOnStack;
       as.Expand<int64_t, int32_t>(result1, Assembler::rdx);
     } else if constexpr (Assembler::kFormatIs<ResType1, int64_t, uint64_t> &&
                          std::is_same_v<std::tuple_element_t<1, AssemblerResType>, Register>) {
-      regs_info.regs_on_stack[result1.num] = kRegIsNotOnStack;
+      regs_info.regs_on_stack[result1.GetPhysicalIndex()] = kRegIsNotOnStack;
       as.Mov<int64_t>(result1, Assembler::rdx);
     } else {
       static_assert(kDependentTypeFalse<std::tuple<IntrinsicResType, AssemblerResType>>,
