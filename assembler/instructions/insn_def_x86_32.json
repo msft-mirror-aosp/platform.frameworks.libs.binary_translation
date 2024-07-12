@@ -27,8 +27,8 @@
     },
     {
       "encodings": {
-        "Decl": { "opcodes": [ "48" ] },
-        "Incl": { "opcodes": [ "40" ] }
+        "Decl": { "opcode": "48" },
+        "Incl": { "opcode": "40" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "use_def" },
