@@ -91,11 +91,6 @@ class AssemblerX86 : public AssemblerBase {
 
   class Register {
    public:
-    // Note: we couldn't make the following private because of peculiarities of C++ (see
-    // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
-    // for explanation), but you are not supposed to access num or use GetHighBit() and GetLowBits()
-    // functions.  Treat that type as opaque cookie.
-
     constexpr bool operator==(const Register& reg) const { return num == reg.num; }
     constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
     constexpr uint8_t GetPhysicalIndex() { return num; }
@@ -104,17 +99,13 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
+   private:
     constexpr Register(uint8_t num_) : num(num_) {}
     uint8_t num;
   };
 
   class X87Register {
    public:
-    // Note: we couldn't make the following private because of peculiarities of C++ (see
-    // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
-    // for explanation), but you are not supposed to access num or use GetHighBit() and GetLowBits()
-    // functions.  Treat that type as opaque cookie.
-
     constexpr bool operator==(const Register& reg) const { return num == reg.num; }
     constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
     constexpr uint8_t GetPhysicalIndex() { return num; }
@@ -123,6 +114,7 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
+   private:
     constexpr X87Register(uint8_t num_) : num(num_) {}
     uint8_t num;
   };
@@ -139,11 +131,6 @@ class AssemblerX86 : public AssemblerBase {
 
   class XMMRegister {
    public:
-    // Note: we couldn't make the following private because of peculiarities of C++ (see
-    // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
-    // for explanation), but you are not supposed to access num or use GetHighBit() and GetLowBits()
-    // functions.  Treat that type as opaque cookie.
-
     constexpr bool operator==(const XMMRegister& reg) const { return num == reg.num; }
     constexpr bool operator!=(const XMMRegister& reg) const { return num != reg.num; }
     constexpr uint8_t GetPhysicalIndex() { return num; }
@@ -152,6 +139,7 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
+   private:
     constexpr XMMRegister(uint8_t num_) : num(num_) {}
     uint8_t num;
   };
