@@ -1,0 +1,164 @@
+/*
+ * Copyright (C) 2024 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "gtest/gtest.h"
+
+#include <array>
+#include <optional>
+#include <tuple>
+
+#include "berberis/assembler/rv64i.h"
+
+namespace berberis {
+
+namespace {
+
+class Riscv64ImmediatesTest : public ::testing::Test {
+ public:
+  Riscv64ImmediatesTest() {}
+
+  template <typename ImmediateType,
+            std::optional<ImmediateType> (*make_immediate_i8)(int8_t),
+            std::optional<ImmediateType> (*make_immediate_u8)(uint8_t),
+            std::optional<ImmediateType> (*make_immediate_i16)(int16_t),
+            std::optional<ImmediateType> (*make_immediate_u16)(uint16_t),
+            std::optional<ImmediateType> (*make_immediate_i32)(int32_t),
+            std::optional<ImmediateType> (*make_immediate_u32)(uint32_t),
+            std::optional<ImmediateType> (*make_immediate_i64)(int64_t),
+            std::optional<ImmediateType> (*make_immediate_u64)(uint64_t),
+            size_t size>
+  void TestConversion(std::array<std::tuple<uint32_t, std::optional<uint32_t>>, size> test_cases) {
+    for (const auto& test_case : test_cases) {
+      int32_t source = static_cast<int32_t>(std::get<0>(test_case));
+      std::optional<uint32_t> expected_result = std::get<1>(test_case);
+      auto CheckConversion =
+          [&source, &expected_result]<typename IntType,
+                                      std::optional<ImmediateType> (*make_immediate)(IntType)>() {
+            IntType typed_source = static_cast<IntType>(source);
+            // If source is not representable as IntType, then conversion check doesn't make sense.
+            // E.e. if our test is trying to encode 0x100 which, when converted to int8_t becomes 0,
+            // then, if immediate actually accepts 0x100 expected_result would be encoding 0x100 but
+            // result would encode 0 which is correct, but different from expected_result !
+            if (static_cast<int32_t>(typed_source) != source ||
+                (!std::is_signed_v<IntType> && source < 0)) {
+              return;
+            }
+            std::optional<ImmediateType> result = make_immediate(source);
+            EXPECT_EQ(result.has_value(), expected_result.has_value());
+            if (result.has_value()) {
+              uint32_t raw_immediate_value = std::bit_cast<uint32_t>(*result);
+              EXPECT_EQ(raw_immediate_value, *expected_result);
+              ImmediateType result = ImmediateType(source);
+              raw_immediate_value = std::bit_cast<uint32_t>(result);
+              EXPECT_EQ(raw_immediate_value, *expected_result);
+            }
+          };
+      CheckConversion.template operator()<int8_t, make_immediate_i8>();
+      CheckConversion.template operator()<uint8_t, make_immediate_u8>();
+      CheckConversion.template operator()<int16_t, make_immediate_i16>();
+      CheckConversion.template operator()<uint16_t, make_immediate_u16>();
+      CheckConversion.template operator()<int32_t, make_immediate_i32>();
+      CheckConversion.template operator()<uint32_t, make_immediate_u32>();
+      CheckConversion.template operator()<int64_t, make_immediate_i64>();
+      CheckConversion.template operator()<uint64_t, make_immediate_u64>();
+    }
+  }
+};
+
+TEST_F(Riscv64ImmediatesTest, TestIImmediate) {
+  using T = std::tuple<uint32_t, std::optional<uint32_t>>;
+  TestConversion<rv64::Assembler::Immediate,
+                 rv64::Assembler::make_immediate,
+                 rv64::Assembler::make_immediate,
+                 rv64::Assembler::make_immediate,
+                 rv64::Assembler::make_immediate,
+                 rv64::Assembler::make_immediate,
+                 rv64::Assembler::make_immediate,
+                 rv64::Assembler::make_immediate,
+                 rv64::Assembler::make_immediate>(std::array{
+      T{0b000000000000000000000'000000'0000'0, 0b0'00000000000'00000'000'00000'0000000},
+      //  31                 11 10   5 4  1 0   31 30       20 19 15     11  7 6     0
+      T{0b000000000000000000000'000000'0000'1, 0b0'00000000001'00000'000'00000'0000000},
+      T{0b000000000000000000000'000000'0001'0, 0b0'00000000010'00000'000'00000'0000000},
+      T{0b000000000000000000000'000000'0010'0, 0b0'00000000100'00000'000'00000'0000000},
+      T{0b000000000000000000000'000000'0100'0, 0b0'00000001000'00000'000'00000'0000000},
+      T{0b000000000000000000000'000000'1000'0, 0b0'00000010000'00000'000'00000'0000000},
+      T{0b000000000000000000000'000001'0000'0, 0b0'00000100000'00000'000'00000'0000000},
+      T{0b000000000000000000000'000010'0000'0, 0b0'00001000000'00000'000'00000'0000000},
+      T{0b000000000000000000000'000100'0000'0, 0b0'00010000000'00000'000'00000'0000000},
+      T{0b000000000000000000000'001000'0000'0, 0b0'00100000000'00000'000'00000'0000000},
+      T{0b000000000000000000000'010000'0000'0, 0b0'01000000000'00000'000'00000'0000000},
+      T{0b000000000000000000000'100000'0000'0, 0b0'10000000000'00000'000'00000'0000000},
+      T{0b000000000000000000001'000000'0000'0, {}},
+      T{0b000000000000000000010'000000'0000'0, {}},
+      T{0b000000000000000000100'000000'0000'0, {}},
+      T{0b000000000000000001000'000000'0000'0, {}},
+      T{0b000000000000000010000'000000'0000'0, {}},
+      T{0b000000000000000100000'000000'0000'0, {}},
+      T{0b000000000000001000000'000000'0000'0, {}},
+      T{0b000000000000010000000'000000'0000'0, {}},
+      T{0b000000000000100000000'000000'0000'0, {}},
+      T{0b000000000001000000000'000000'0000'0, {}},
+      T{0b000000000010000000000'000000'0000'0, {}},
+      T{0b000000000100000000000'000000'0000'0, {}},
+      T{0b000000001000000000000'000000'0000'0, {}},
+      T{0b000000010000000000000'000000'0000'0, {}},
+      T{0b000000100000000000000'000000'0000'0, {}},
+      T{0b000001000000000000000'000000'0000'0, {}},
+      T{0b000010000000000000000'000000'0000'0, {}},
+      T{0b000100000000000000000'000000'0000'0, {}},
+      T{0b001000000000000000000'000000'0000'0, {}},
+      T{0b010000000000000000000'000000'0000'0, {}},
+      T{0b100000000000000000000'000000'0000'0, {}},
+      //  31                 11 10   5 4  1 0   31 30       20 19 15     11  7 6     0
+      T{0b111111111111111111111'111111'1111'1, 0b1'11111111111'00000'000'00000'0000000},
+      T{0b111111111111111111111'111111'1111'0, 0b1'11111111110'00000'000'00000'0000000},
+      T{0b111111111111111111111'111111'1110'0, 0b1'11111111100'00000'000'00000'0000000},
+      T{0b111111111111111111111'111111'1100'0, 0b1'11111111000'00000'000'00000'0000000},
+      T{0b111111111111111111111'111111'1000'0, 0b1'11111110000'00000'000'00000'0000000},
+      T{0b111111111111111111111'111111'0000'0, 0b1'11111100000'00000'000'00000'0000000},
+      T{0b111111111111111111111'111110'0000'0, 0b1'11111000000'00000'000'00000'0000000},
+      T{0b111111111111111111111'111100'0000'0, 0b1'11110000000'00000'000'00000'0000000},
+      T{0b111111111111111111111'111000'0000'0, 0b1'11100000000'00000'000'00000'0000000},
+      T{0b111111111111111111111'110000'0000'0, 0b1'11000000000'00000'000'00000'0000000},
+      T{0b111111111111111111111'100000'0000'0, 0b1'10000000000'00000'000'00000'0000000},
+      T{0b111111111111111111111'000000'0000'0, 0b1'00000000000'00000'000'00000'0000000},
+      T{0b111111111111111111110'000000'0000'0, {}},
+      T{0b111111111111111111100'000000'0000'0, {}},
+      T{0b111111111111111111000'000000'0000'0, {}},
+      T{0b111111111111111110000'000000'0000'0, {}},
+      T{0b111111111111111100000'000000'0000'0, {}},
+      T{0b111111111111111000000'000000'0000'0, {}},
+      T{0b111111111111110000000'000000'0000'0, {}},
+      T{0b111111111111100000000'000000'0000'0, {}},
+      T{0b111111111111000000000'000000'0000'0, {}},
+      T{0b111111111110000000000'000000'0000'0, {}},
+      T{0b111111111100000000000'000000'0000'0, {}},
+      T{0b111111111000000000000'000000'0000'0, {}},
+      T{0b111111110000000000000'000000'0000'0, {}},
+      T{0b111111100000000000000'000000'0000'0, {}},
+      T{0b111111000000000000000'000000'0000'0, {}},
+      T{0b111110000000000000000'000000'0000'0, {}},
+      T{0b111100000000000000000'000000'0000'0, {}},
+      T{0b111000000000000000000'000000'0000'0, {}},
+      T{0b110000000000000000000'000000'0000'0, {}},
+      T{0b100000000000000000000'000000'0000'0, {}},
+  });
+}
+
+}  // namespace
+
+}  // namespace berberis
