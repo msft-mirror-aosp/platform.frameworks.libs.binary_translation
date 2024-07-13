@@ -201,7 +201,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return std::get<0>(intrinsics::Foo<128>(arg0, arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported size\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
   def test_get_interpreter_hook_vector_body_fp(self):
@@ -219,7 +218,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return std::get<0>(intrinsics::Foo<intrinsics::Float32, 4>(arg0, arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported format\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
 
@@ -242,7 +240,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return std::get<0>(intrinsics::Foo<uint64_t, 2>(arg0, arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported format\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
 
@@ -263,7 +260,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return std::get<0>(intrinsics::Foo<int32_t, 4>(arg0, arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported format\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
 
@@ -284,7 +280,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return std::get<0>(intrinsics::Foo<uint32_t, 4>(arg0, arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported format\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
 
@@ -303,7 +298,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return std::get<0>(intrinsics::Foo<uint32_t, 2>(arg0, arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported format\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
 
@@ -326,7 +320,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return intrinsics::Foo<int32_t, 1>(arg0, GPRRegToInteger<uint32_t>(arg1));",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported format\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
 
@@ -363,7 +356,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return CallIntrinsic<&intrinsics::Foo<128>, SimdRegister>(arg0, arg1);",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported size\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
 
@@ -386,7 +378,6 @@ class GenIntrinsicsTests(unittest.TestCase):
                               "    return CallIntrinsic<&intrinsics::Foo<int32_t, 1>, std::tuple<SimdRegister, Register>>(arg0, arg1);",
                               "  default:",
                               "    LOG_ALWAYS_FATAL(\"Unsupported format\");",
-                              "    return {};",
                               "}")) # pyformat: disable
 
 if __name__ == "__main__":
