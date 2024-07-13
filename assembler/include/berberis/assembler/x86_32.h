@@ -78,7 +78,7 @@ class Assembler : public AssemblerX86<Assembler> {
   // Movb in 32-bit mode has certain optimizations not available in x86-64 mode
   void Movb(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
-      EmitInstruction<Opcodes<0xA0>>(src.disp);
+      EmitInstruction<0xA0>(src.disp);
     } else {
       AssemblerX86::Movb(dest, src);
     }
@@ -86,7 +86,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   void Movb(const Operand& dest, Register src) {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
-      EmitInstruction<Opcodes<0xA2>>(dest.disp);
+      EmitInstruction<0xA2>(dest.disp);
     } else {
       AssemblerX86::Movb(dest, src);
     }
@@ -98,7 +98,7 @@ class Assembler : public AssemblerX86<Assembler> {
   // Movw in 32-bit mode has certain optimizations not available in x86-64 mode
   void Movw(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
-      EmitInstruction<Opcodes<0x66, 0xA1>>(src.disp);
+      EmitInstruction<0x66, 0xA1>(src.disp);
     } else {
       AssemblerX86::Movw(dest, src);
     }
@@ -106,7 +106,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   void Movw(const Operand& dest, Register src) {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
-      EmitInstruction<Opcodes<0x66, 0xA3>>(dest.disp);
+      EmitInstruction<0x66, 0xA3>(dest.disp);
     } else {
       AssemblerX86::Movw(dest, src);
     }
@@ -118,7 +118,7 @@ class Assembler : public AssemblerX86<Assembler> {
   // Movl in 32-bit mode has certain optimizations not available in x86-64 mode
   void Movl(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
-      EmitInstruction<Opcodes<0xA1>>(src.disp);
+      EmitInstruction<0xA1>(src.disp);
     } else {
       AssemblerX86::Movl(dest, src);
     }
@@ -126,7 +126,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   void Movl(const Operand& dest, Register src) {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
-      EmitInstruction<Opcodes<0xA3>>(dest.disp);
+      EmitInstruction<0xA3>(dest.disp);
     } else {
       AssemblerX86::Movl(dest, src);
     }
