@@ -121,7 +121,25 @@ def _gen_generic_functions_h(f, insns, binary_assembler):
     # Text assembled passes "real" work down to GNU as, this works fine with
     # just a simple generic implementation.
     if binary_assembler:
+      if 'opcode' in insn:
+        assert '' not in insn
+        insn['opcodes'] = [insn['opcode']]
       if 'opcodes' in insn:
+        opcodes = []
+        for opcode in insn['opcodes']:
+          if re.match('[0-9a-fA-F]{2}', opcode):
+            opcodes.append('uint8_t{0x%s}' % opcode)
+          elif re.match('[0-9a-fA-F]{4}', opcode):
+            opcodes.append('uint16_t{0x%s}' % opcode)
+          elif re.match('[0-9a-fA-F]{8}', opcode):
+            opcodes.append('uint32_t{0x%s}' % opcode)
+          elif re.match('[0-9a-fA-F]{4}_[0-9a-fA-F]{4}', opcode):
+            opcodes.append('uint16_t{0x%s}' % re.sub('_', '\'', opcode))
+          elif re.match('[0-7]', opcode):
+            opcodes.append('uint8_t{%s}' % opcode)
+          else:
+            assert False
+        insn['processed_opcodes'] = opcodes
         print('void %s(%s) {' % (name, params), file=f)
         _gen_emit_shortcut(f, insn, insns)
         _gen_emit_instruction(f, insn)
@@ -348,34 +366,12 @@ def _gen_emit_instruction(f, insn, rip_operand=False):
       continue
     result.append('%s(arg%d)' % (_ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count))
     arg_count += 1
-  if insn.get('reg_to_rm', False):
-    result[0], result[1] = result[1], result[0]
-  if insn.get('rm_to_vex', False):
-    result[0], result[1] = result[1], result[0]
-  if insn.get('vex_imm_rm_to_reg', False):
-    result[0], result[1], result[2], result[3] = result[0], result[3], result[1], result[2]
-  if insn.get('vex_rm_imm_to_reg', False):
-    result[0], result[1], result[2], result[3] = result[0], result[2], result[1], result[3]
   # If we want %rip--operand then we need to replace 'Memory' with 'Labal'
   if rip_operand:
     result = [arg.replace('Memory', 'Label') for arg in result]
-  # If vex operand is one of first 8 registers and rm operand is not then swapping these two
-  # operands produces more compact encoding.
-  # This only works with commutative instructions from first opcode map.
-  if ((insn.get('is_optimizable_using_commutation', False) and
-    # Note: we may only swap arguments if they have the same type.
-    # E.g. if one is memory and the other is register then we couldn't swap them.
-    result[0].split('(')[0] == result[2].split('(')[0])):
-    assert insn.get('vex_rm_to_reg', False)
-    print('  if (Assembler::IsSwapProfitable(%s, %s)) {' % (result[2], result[1]), file=f)
-    print('    return EmitInstruction<Opcodes<%s>>(%s);' % (
-        ', '.join('0x%02x' % int(opcode, 16) for opcode in insn['opcodes']),
-        ', '.join(result)), file=f)
-    print('  }', file=f)
-  if insn.get('vex_rm_to_reg', False):
-    result[0], result[1], result[2] = result[0], result[2], result[1]
-  print('  EmitInstruction<Opcodes<%s>>(%s);' % (
-      ', '.join('0x%02x' % int(opcode, 16) for opcode in insn['opcodes']),
+  print('  Emit%sInstruction<%s>(%s);' % (
+      ''.join(w.capitalize() for w in re.split('[-_ ]', insn.get('type', '').lower())),
+      ', '.join(insn['processed_opcodes']),
       ', '.join(result)), file=f)
 
 
