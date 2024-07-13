@@ -18,8 +18,8 @@
   "insns": [
     {
       "encodings": {
-        "Adcq": { "opcodes": [ "13" ] },
-        "Sbbq": { "opcodes": [ "1B" ] }
+        "Adcq": { "opcode": "13" },
+        "Sbbq": { "opcode": "1B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
@@ -40,8 +40,8 @@
     },
     {
       "encodings": {
-        "Adcq": { "opcodes": [ "11" ], "reg_to_rm": true },
-        "Sbbq": { "opcodes": [ "19" ], "reg_to_rm": true }
+        "Adcq": { "opcode": "11", "type": "reg_to_rm" },
+        "Sbbq": { "opcode": "19", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use_def" },
@@ -75,14 +75,14 @@
     },
     {
       "encodings": {
-        "Addq": { "opcodes": [ "01" ], "reg_to_rm": true },
-        "Andq": { "opcodes": [ "21" ], "reg_to_rm": true },
-        "Btcq": { "opcodes": [ "0F", "BB" ], "reg_to_rm": true },
-        "Btrq": { "opcodes": [ "0F", "B3" ], "reg_to_rm": true },
-        "Btsq": { "opcodes": [ "0F", "AB" ], "reg_to_rm": true },
-        "Orq": { "opcodes": [ "09" ], "reg_to_rm": true },
-        "Subq": { "opcodes": [ "29" ], "reg_to_rm": true },
-        "Xorq": { "opcodes": [ "31" ], "reg_to_rm": true }
+        "Addq": { "opcode": "01", "type": "reg_to_rm" },
+        "Andq": { "opcode": "21", "type": "reg_to_rm" },
+        "Btcq": { "opcodes": [ "0F", "BB" ], "type": "reg_to_rm" },
+        "Btrq": { "opcodes": [ "0F", "B3" ], "type": "reg_to_rm" },
+        "Btsq": { "opcodes": [ "0F", "AB" ], "type": "reg_to_rm" },
+        "Orq": { "opcode": "09", "type": "reg_to_rm" },
+        "Subq": { "opcode": "29", "type": "reg_to_rm" },
+        "Xorq": { "opcode": "31", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use_def" },
@@ -92,11 +92,11 @@
     },
     {
       "encodings": {
-        "Addq": { "opcodes": [ "03" ] },
-        "Andq": { "opcodes": [ "23" ] },
-        "Orq": { "opcodes": [ "0B" ] },
-        "Subq": { "opcodes": [ "2B" ] },
-        "Xorq": { "opcodes": [ "33" ] }
+        "Addq": { "opcode": "03" },
+        "Andq": { "opcode": "23" },
+        "Orq": { "opcode": "0B" },
+        "Subq": { "opcode": "2B" },
+        "Xorq": { "opcode": "33" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
@@ -157,7 +157,7 @@
     },
     {
       "encodings": {
-        "Andnq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F2" ], "vex_rm_to_reg": true }
+        "Andnq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F2" ], "type": "vex_rm_to_reg" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -180,9 +180,9 @@
     },
     {
       "encodings": {
-        "Blsiq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "3" ], "rm_to_vex": true },
-        "Blsmskq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "2" ], "rm_to_vex": true },
-        "Blsrq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "1" ], "rm_to_vex": true },
+        "Blsiq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "3" ], "type": "rm_to_vex" },
+        "Blsmskq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "2" ], "type": "rm_to_vex" },
+        "Blsrq": { "feature": "BMI", "opcodes": [ "C4", "02", "80", "F3", "1" ], "type": "rm_to_vex" },
         "Bsfq": { "opcodes": [ "0F", "BC" ] },
         "Bsrq": { "opcodes": [ "0F", "BD" ] },
         "Lzcntq": { "feature": "LZCNT", "opcodes": [ "F3", "0F", "BD" ] },
@@ -205,9 +205,9 @@
     },
     {
       "encodings": {
-        "Btq": { "opcodes": [ "0F", "A3" ], "reg_to_rm": true },
-        "Cmpq": { "opcodes": [ "39" ], "reg_to_rm": true },
-        "Testq": { "opcodes": [ "85" ], "reg_to_rm": true }
+        "Btq": { "opcodes": [ "0F", "A3" ], "type": "reg_to_rm" },
+        "Cmpq": { "opcode": "39", "type": "reg_to_rm" },
+        "Testq": { "opcode": "85", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use" },
@@ -261,7 +261,7 @@
     },
     {
       "encodings": {
-        "CmpXchgq": { "opcodes": [ "0F", "B1" ], "reg_to_rm": true }
+        "CmpXchgq": { "opcodes": [ "0F", "B1" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "RAX", "usage": "use_def" },
@@ -283,7 +283,7 @@
     },
     {
       "encodings": {
-        "Cmpq": { "opcodes": [ "3B" ] }
+        "Cmpq": { "opcode": "3B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use" },
@@ -449,7 +449,7 @@
     },
     {
       "encodings": {
-        "Imulq": { "opcodes": [ "69" ] }
+        "Imulq": { "opcode": "69" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -470,7 +470,7 @@
     },
     {
       "encodings": {
-        "ImulqImm8": { "opcodes": [ "6B" ] }
+        "ImulqImm8": { "opcode": "6B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -489,8 +489,8 @@
     },
     {
       "encodings": {
-        "Leaq": { "opcodes": [ "8D" ] },
-        "Movq": { "opcodes": [ "8B" ] }
+        "Leaq": { "opcode": "8D" },
+        "Movq": { "opcode": "8B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -499,7 +499,7 @@
     },
     {
       "encodings": {
-        "LockCmpXchgq": { "opcodes": [ "F0", "0F", "B1" ], "reg_to_rm": true }
+        "LockCmpXchgq": { "opcodes": [ "F0", "0F", "B1" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "RAX", "usage": "use_def" },
@@ -510,8 +510,8 @@
     },
     {
       "encodings": {
-        "Movq": { "opcodes": [ "66", "0F", "7E" ], "reg_to_rm": true },
-        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "7E" ], "reg_to_rm": true }
+        "Movq": { "opcodes": [ "66", "0F", "7E" ], "type": "reg_to_rm" },
+        "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "7E" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -537,7 +537,7 @@
     },
     {
       "encodings": {
-        "Movq": { "opcodes": [ "89" ], "reg_to_rm": true }
+        "Movq": { "opcode": "89", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "def" },
@@ -565,7 +565,7 @@
     },
     {
       "encodings": {
-        "Movsxlq": { "opcodes": [ "63" ] }
+        "Movsxlq": { "opcode": "63" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -584,9 +584,9 @@
     },
     {
       "encodings": {
-        "Mulxq": { "feature": "BMI2", "opcodes": [ "C4", "82", "83", "F6" ], "vex_rm_to_reg": true },
-        "Pdepq": { "feature": "BMI2", "opcodes": [ "C4", "82", "83", "F5" ], "vex_rm_to_reg": true },
-        "Pextq": { "feature": "BMI2", "opcodes": [ "C4", "82", "82", "F5" ], "vex_rm_to_reg": true }
+        "Mulxq": { "feature": "BMI2", "opcodes": [ "C4", "82", "83", "F6" ], "type": "vex_rm_to_reg" },
+        "Pdepq": { "feature": "BMI2", "opcodes": [ "C4", "82", "83", "F5" ], "type": "vex_rm_to_reg" },
+        "Pextq": { "feature": "BMI2", "opcodes": [ "C4", "82", "82", "F5" ], "type": "vex_rm_to_reg" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
@@ -604,8 +604,8 @@
     },
     {
       "encodings": {
-        "Pextrq": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "16" ], "reg_to_rm": true },
-        "Vpextrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "16" ], "reg_to_rm": true }
+        "Pextrq": { "feature": "SSE4_1", "opcodes": [ "66", "0F", "3A", "16" ], "type": "reg_to_rm" },
+        "Vpextrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "16" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -700,8 +700,8 @@
     },
     {
       "encodings": {
-        "Shldq": { "opcodes": [ "0F", "A4" ], "reg_to_rm": true },
-        "Shrdq": { "opcodes": [ "0F", "AC" ], "reg_to_rm": true }
+        "Shldq": { "opcodes": [ "0F", "A4" ], "type": "reg_to_rm" },
+        "Shrdq": { "opcodes": [ "0F", "AC" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use_def" },
@@ -712,8 +712,8 @@
     },
     {
       "encodings": {
-        "ShldqByCl": { "opcodes": [ "0F", "A5" ], "reg_to_rm": true },
-        "ShrdqByCl": { "opcodes": [ "0F", "AD" ], "reg_to_rm": true }
+        "ShldqByCl": { "opcodes": [ "0F", "A5" ], "type": "reg_to_rm" },
+        "ShrdqByCl": { "opcodes": [ "0F", "AD" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use_def" },
@@ -740,7 +740,7 @@
     },
     {
       "encodings": {
-        "Vpinsrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "22" ], "vex_rm_to_reg": true }
+        "Vpinsrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "22" ], "type": "vex_rm_to_reg" }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
@@ -758,7 +758,7 @@
     },
     {
       "encodings": {
-        "Xchgq": { "opcodes": [ "87" ] }
+        "Xchgq": { "opcode": "87" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
