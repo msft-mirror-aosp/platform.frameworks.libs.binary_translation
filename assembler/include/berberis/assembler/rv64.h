@@ -32,9 +32,9 @@ class Assembler : public AssemblerRiscV<Assembler> {
   using ShiftImmediate = AssemblerRiscV<Assembler>::Shift64Immediate;
 
   // Don't use templates here to enable implicit conversions.
-#define BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(IntType)                                  \
-  static constexpr std::optional<ShiftImmediate> make_shift_immediate(IntType value) { \
-    return AssemblerRiscV<Assembler>::make_shift64_immediate(value);                   \
+#define BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(IntType)                                \
+  static constexpr std::optional<ShiftImmediate> MakeShiftImmediate(IntType value) { \
+    return AssemblerRiscV<Assembler>::MakeShift64Immediate(value);                   \
   }
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(int8_t)
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(uint8_t)
