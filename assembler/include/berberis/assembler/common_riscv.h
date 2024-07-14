@@ -119,6 +119,22 @@ class AssemblerRiscV : public AssemblerBase {
   class BImmediate;
   class Immediate;
   class JImmediate;
+  // In RISC V manual shifts are described as using I-format with complex restrictions for which
+  // immediates are accepted and allowed (with parts of what manual classifies as “immediate” used
+  // to determine the actual instruction used and rules which differ between RV32 and RV64!).
+  //
+  // Instead of doing special handling for the instructions in python scripts we just reclassify
+  // these parts of immediate as “opcode” and reclassify these instructions as “Shift32-type” and
+  // “Shift64-type”.
+  //
+  // This also means that the same instructions for RV32 and RV64 would have different types, but
+  // since we don't have a goal to make RV32 a strict subset of RV64 that's acceptable.
+  //
+  // In addition we provide aliases in RV32 and RV64 assemblers to make sure users of assembler may
+  // still use ShiftImmediate and make_shift_immediate for native width without thinking about
+  // details of implementation.
+  class Shift32Immediate;
+  class Shift64Immediate;
   class SImmediate;
 
   // Don't use templates here to enable implicit conversions.
@@ -134,6 +150,8 @@ class AssemblerRiscV : public AssemblerBase {
   BERBERIS_DEFINE_MAKE_IMMEDIATE(BImmediate, make_b_immediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(JImmediate, make_j_immediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Shift32Immediate, make_shift32_immediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Shift64Immediate, make_shift64_immediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(SImmediate, make_s_immediate);
 #undef BERBERIS_DEFINE_MAKE_IMMEDIATE
 
@@ -183,13 +201,15 @@ class AssemblerRiscV : public AssemblerBase {
                                                                                                   \
     int32_t value_;                                                                               \
   }
-  BERBERIS_DEFINE_IMMEDIATE(BImmediate, 0xfff0'0f80);
+  BERBERIS_DEFINE_IMMEDIATE(BImmediate, 0xfe00'0f80);
   BERBERIS_DEFINE_IMMEDIATE(
       Immediate, 0xfff0'0000, constexpr Immediate(SImmediate s_imm)
       : value_((s_imm.value_ & 0xfe00'0000) | ((s_imm.value_ & 0x0000'0f80) << 13)) {}
 
       friend SImmediate;);
   BERBERIS_DEFINE_IMMEDIATE(JImmediate, 0xffff'f000);
+  BERBERIS_DEFINE_IMMEDIATE(Shift32Immediate, 0x01f00000);
+  BERBERIS_DEFINE_IMMEDIATE(Shift64Immediate, 0x03f00000);
   BERBERIS_DEFINE_IMMEDIATE(
       SImmediate, 0xfe00'0f80, constexpr SImmediate(Immediate imm)
       : value_((imm.value_ & 0xfe00'0000) | ((imm.value_ & 0x01f0'0000) >> 13)) {}
@@ -234,6 +254,8 @@ class AssemblerRiscV : public AssemblerBase {
 BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(BImmediate, make_b_immediate)
 BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Immediate, make_immediate)
 BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(JImmediate, make_j_immediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift32Immediate, make_shift32_immediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift64Immediate, make_shift64_immediate)
 BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(SImmediate, make_s_immediate)
 #undef BERBERIS_DEFINE_MAKE_IMMEDIATE_SET
 #undef BERBERIS_DEFINE_MAKE_IMMEDIATE
@@ -307,6 +329,28 @@ constexpr bool AssemblerRiscV<Assembler>::JImmediate::AccetableValue(IntType val
   }
 }
 
+// Return true if value would fit into Shift32-immediate.
+template <typename Assembler>
+template <typename IntType>
+constexpr bool AssemblerRiscV<Assembler>::Shift32Immediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Shift32 immediate is unsigned immediate with possible values between 0 and 31.
+  // If we make value unsigned negative numbers would become numbers >127 and would be rejected.
+  return std::make_unsigned_t<IntType>(value) < 32;
+}
+
+// Return true if value would fit into Shift64-immediate.
+template <typename Assembler>
+template <typename IntType>
+constexpr bool AssemblerRiscV<Assembler>::Shift64Immediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Shift64 immediate is unsigned immediate with possible values between 0 and 63.
+  // If we make value unsigned negative numbers would become numbers >127 and would be rejected.
+  return std::make_unsigned_t<IntType>(value) < 64;
+}
+
 // Immediate (I-immediate in RISC V documentation) and S-Immediate are siblings: they encode
 // the same values but in a different way.
 // AccetableValue are the same for that reason, but MakeRaw are different.
@@ -358,6 +402,32 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::JIm
   return (static_cast<int32_t>(value) & static_cast<int32_t>(0x800f'f000)) |
          ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'0800)) << 9) |
          ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'07fe)) << 20);
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is make_immediate factory.
+template <typename Assembler>
+template <typename IntType>
+constexpr AssemblerRiscV<Assembler>::RawImmediate
+AssemblerRiscV<Assembler>::Shift32Immediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: this is correct if input value is between 0 and 31, but that would be checked in
+  // make_shift32_immediate.
+  return static_cast<int32_t>(value) << 20;
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is make_immediate factory.
+template <typename Assembler>
+template <typename IntType>
+constexpr AssemblerRiscV<Assembler>::RawImmediate
+AssemblerRiscV<Assembler>::Shift64Immediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: this is only correct if input value is between 0 and 63, but that would be checked in
+  // make_shift32_immediate.
+  return static_cast<int32_t>(value) << 20;
 }
 
 // Make RawImmediate from immediate value.
