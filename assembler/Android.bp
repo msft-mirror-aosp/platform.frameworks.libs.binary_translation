@@ -167,6 +167,7 @@ cc_test_library {
     header_libs: ["berberis_test_utils_headers"],
     srcs: [
         "assembler_test.cc",
+        "immediates_test.cc",
         "machine_code_test.cc",
     ],
     generated_sources: ["libberberis_assembler_test_gen_sources"],
