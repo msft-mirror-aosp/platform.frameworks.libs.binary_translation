@@ -71,10 +71,15 @@ cc_defaults {
     },
 }
 
+filegroup {
+    name: "berberis_binfmt_misc_srcs",
+    srcs: ["main_binfmt_misc.cc"],
+}
+
 cc_binary {
     name: "berberis_program_runner_binfmt_misc_riscv64",
     defaults: ["berberis_program_runner_defaults"],
-    srcs: ["main_binfmt_misc.cc"],
+    srcs: [":berberis_binfmt_misc_srcs"],
 }
 
 cc_binary {
