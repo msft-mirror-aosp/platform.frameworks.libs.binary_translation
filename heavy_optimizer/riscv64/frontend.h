@@ -43,7 +43,9 @@ class HeavyOptimizerFrontend {
   using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<HeavyOptimizerFrontend>>;
   using Register = MachineReg;
+  static constexpr Register no_register = MachineReg{};
   using FpRegister = SimdReg;
+  static constexpr SimdReg no_fp_register = SimdReg{};
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
