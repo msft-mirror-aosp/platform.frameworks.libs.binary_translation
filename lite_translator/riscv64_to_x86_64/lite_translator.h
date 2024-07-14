@@ -51,9 +51,11 @@ class LiteTranslator {
   using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<LiteTranslator>>;
   using Register = Assembler::Register;
+  static constexpr auto no_register = Assembler::no_register;
   // Note: on RISC-V architecture FP register and SIMD registers are disjoint, but on x86 they are
   // the same.
   using FpRegister = Assembler::XMMRegister;
+  static constexpr auto no_fp_register = Assembler::no_xmm_register;
   using SimdRegister = Assembler::XMMRegister;
   using Condition = Assembler::Condition;
   using Float32 = intrinsics::Float32;
@@ -105,7 +107,7 @@ class LiteTranslator {
                  Register arg5) {
     UNUSED(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
     Undefined();
-    return {};
+    return Assembler::no_register;
   }
 
   void Fence(Decoder::FenceOpcode /*opcode*/,
@@ -378,7 +380,7 @@ class LiteTranslator {
       return {alloc_result.value(), true};
     }
     success_ = false;
-    return {{}, false};
+    return {Assembler::no_register, false};
   }
 
   std::tuple<SimdRegister, bool> GetMappedFpRegOrMap(int reg) {
@@ -391,7 +393,7 @@ class LiteTranslator {
       return {alloc_result.value(), true};
     }
     success_ = false;
-    return {{}, false};
+    return {Assembler::no_xmm_register, false};
   }
 
   Register AllocTempReg() {
@@ -399,7 +401,7 @@ class LiteTranslator {
       return reg_option.value();
     }
     success_ = false;
-    return {};
+    return Assembler::no_register;
   };
 
   SimdRegister AllocTempSimdReg() {
@@ -407,19 +409,19 @@ class LiteTranslator {
       return reg_option.value();
     }
     success_ = false;
-    return {};
+    return Assembler::no_xmm_register;
   };
 
   template <typename IntType, bool aq, bool rl>
   Register Lr(Register /* addr */) {
     Undefined();
-    return {};
+    return Assembler::no_register;
   }
 
   template <typename IntType, bool aq, bool rl>
   Register Sc(Register /* addr */, Register /* data */) {
     Undefined();
-    return {};
+    return Assembler::no_register;
   }
 
  private:
@@ -436,18 +438,19 @@ class LiteTranslator {
       }
       call_intrinsic::CallIntrinsic<AssemblerResType>(as_, kFunction, args...);
     } else {
-      AssemblerResType result;
-      if constexpr (std::is_same_v<AssemblerResType, Register>) {
-        result = AllocTempReg();
-      } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<Register, Register>>) {
-        result = std::tuple{AllocTempReg(), AllocTempReg()};
-      } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
-        result = AllocTempSimdReg();
-      } else {
-        // This should not be reached by the compiler. If it is - there is a new result type that
-        // needs to be supported.
-        static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
-      }
+      AssemblerResType result = [this] {
+        if constexpr (std::is_same_v<AssemblerResType, Register>) {
+          return AllocTempReg();
+        } else if constexpr (std::is_same_v<AssemblerResType, std::tuple<Register, Register>>) {
+          return std::tuple{AllocTempReg(), AllocTempReg()};
+        } else if constexpr (std::is_same_v<AssemblerResType, SimdRegister>) {
+          return AllocTempSimdReg();
+        } else {
+          // This should not be reached by the compiler. If it is - there is a new result type that
+          // needs to be supported.
+          static_assert(kDependentTypeFalse<AssemblerResType>, "Unsupported result type");
+        }
+      }();
 
       if (inline_intrinsic::TryInlineIntrinsic<kFunction>(
               as_,

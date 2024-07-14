@@ -324,7 +324,6 @@ def _get_semantics_player_hook_raw_vector_body(name, intr, get_return_stmt):
       yield 2 * INDENT + get_return_stmt(name, intr, desc)
   yield INDENT + 'default:'
   yield 2 * INDENT + 'LOG_ALWAYS_FATAL("Unsupported size");'
-  yield 2 * INDENT + 'return {};'
   yield '}'
 
 
@@ -372,7 +371,6 @@ def _get_semantics_player_hook_vector_body(name, intr, get_return_stmt):
         yield 2 * INDENT + get_return_stmt(name, intr, desc)
   yield INDENT + 'default:'
   yield 2 * INDENT + 'LOG_ALWAYS_FATAL("Unsupported format");'
-  yield 2 * INDENT + 'return {};'
   yield '}'
 
 
