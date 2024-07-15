@@ -93,6 +93,18 @@ cc_defaults {
 }
 
 cc_defaults {
+    name: "berberis_riscv64_host_defaults",
+    arch: {
+        riscv64: {
+            enabled: true,
+            cflags: [
+                "-DBERBERIS_GUEST_LP64=1",
+            ],
+        },
+    },
+}
+
+cc_defaults {
     name: "berberis_defaults_64",
     defaults: ["berberis_defaults"],
     compile_multilib: "64",
