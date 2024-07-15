@@ -40,8 +40,8 @@ def main(argv):
     with open(arc_assembler_file_name, 'w') as arc_assembler_file:
       pass
     return 0
-  common_defs = gen_asm_x86._load_asm_defs(argv[3])
-  arch_defs = gen_asm_x86._load_asm_defs(argv[4])
+  _, common_defs = gen_asm_x86._load_asm_defs(argv[3])
+  _, arch_defs = gen_asm_x86._load_asm_defs(argv[4])
 
   fast_mode = globals()["fast_mode"]
   if len(argv) > 5 and argv[5] == '--fast':
