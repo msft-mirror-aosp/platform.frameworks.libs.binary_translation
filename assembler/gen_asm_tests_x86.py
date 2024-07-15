@@ -311,8 +311,8 @@ def _gen_att_instruction_variants(
   insn_sample_args = []
   label_present = False
   if arc_name.endswith('ByOne'):
-    assert insn_name.endswith('BYONE')
-    insn_name = insn_name[:-5]
+    assert insn_name.endswith(' BY ONE')
+    insn_name = insn_name[:-7]
   elif arc_name.endswith('Imm2'):
     assert insn_name.endswith('IMM2')
     insn_name = insn_name[:-4]
@@ -320,11 +320,11 @@ def _gen_att_instruction_variants(
     assert insn_name.endswith('IMM8')
     insn_name = insn_name[:-4]
   elif arc_name.endswith('Accumulator'):
-    assert insn_name.endswith('ACCUMULATOR')
+    assert insn_name.endswith(' ACCUMULATOR')
     insn_name = insn_name[:-11]
   elif arc_name.endswith('ByCl'):
-    assert insn_name.endswith('BYCL')
-    insn_name = insn_name[:-4]
+    assert insn_name.endswith(' BY CL')
+    insn_name = insn_name[:-6]
   elif arc_name.endswith('FromSt'):
     assert insn_name.endswith('FROMST')
     insn_name = insn_name[:-6]
@@ -391,8 +391,8 @@ def _gen_att_instruction_variants(
         else:
           insn_args = ('%E' + insn_args[0][2:],) + insn_args[1:]
     if insn_name[0:4] == 'LOCK':
-     # TODO(b/161986409): replace '\n' with ' ' when clang would be fixed.
-     fixed_name = '%s\n%s' % (insn_name[0:4], insn_name[4:])
+      # TODO(b/161986409): replace '\n' with ' ' when clang would be fixed.
+      fixed_name = '%s\n%s' % (insn_name[0:4], insn_name[4:])
     fixed_name = {
       # GNU disassembler accepts these instructions, but not Clang assembler.
       'FNDISI': '.byte 0xdb, 0xe1',
