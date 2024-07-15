@@ -41,7 +41,10 @@ python_library_host {
 
 filegroup {
     name: "libberberis_assembler_gen_inputs_riscv32",
-    srcs: ["instructions/insn_def_riscv.json"],
+    srcs: [
+        "instructions/insn_def_riscv.json",
+        "instructions/insn_def_rv32.json",
+    ],
 }
 
 filegroup {
@@ -70,7 +73,10 @@ filegroup {
 
 genrule {
     name: "libberberis_assembler_gen_public_headers_riscv32",
-    out: ["berberis/assembler/gen_assembler_common_riscv-inl.h"],
+    out: [
+        "berberis/assembler/gen_assembler_common_riscv-inl.h",
+        "berberis/assembler/gen_assembler_rv32-inl.h",
+    ],
     srcs: [":libberberis_assembler_gen_inputs_riscv32"],
     tools: ["gen_asm_x86"],
     cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
@@ -167,6 +173,7 @@ cc_test_library {
     header_libs: ["berberis_test_utils_headers"],
     srcs: [
         "assembler_test.cc",
+        "immediates_test.cc",
         "machine_code_test.cc",
     ],
     generated_sources: ["libberberis_assembler_test_gen_sources"],
