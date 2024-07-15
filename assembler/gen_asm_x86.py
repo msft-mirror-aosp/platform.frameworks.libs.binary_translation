@@ -370,7 +370,7 @@ def _gen_emit_instruction(f, insn, rip_operand=False):
   if rip_operand:
     result = [arg.replace('Memory', 'Label') for arg in result]
   print('  Emit%sInstruction<%s>(%s);' % (
-      ''.join(w.capitalize() for w in re.split('[-_ ]', insn.get('type', '').lower())),
+      asm_defs._get_cxx_name(insn.get('type', '')),
       ', '.join(insn['processed_opcodes']),
       ', '.join(result)), file=f)
 
