@@ -91,32 +91,32 @@ class AssemblerX86 : public AssemblerBase {
 
   class Register {
    public:
-    constexpr bool operator==(const Register& reg) const { return num == reg.num; }
-    constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
-    constexpr uint8_t GetPhysicalIndex() { return num; }
-    friend constexpr uint8_t ValueForFmtSpec(Register value) { return value.num; }
+    constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(Register value) { return value.num_; }
     friend class AssemblerX86<Assembler>;
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
    private:
-    constexpr Register(uint8_t num_) : num(num_) {}
-    uint8_t num;
+    constexpr Register(uint8_t num) : num_(num) {}
+    uint8_t num_;
   };
 
   class X87Register {
    public:
-    constexpr bool operator==(const Register& reg) const { return num == reg.num; }
-    constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
-    constexpr uint8_t GetPhysicalIndex() { return num; }
-    friend constexpr uint8_t ValueForFmtSpec(X87Register value) { return value.num; }
+    constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(X87Register value) { return value.num_; }
     friend class AssemblerX86<Assembler>;
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
    private:
-    constexpr X87Register(uint8_t num_) : num(num_) {}
-    uint8_t num;
+    constexpr X87Register(uint8_t num) : num_(num) {}
+    uint8_t num_;
   };
 
   static constexpr X87Register st{0};
@@ -131,28 +131,28 @@ class AssemblerX86 : public AssemblerBase {
 
   class XMMRegister {
    public:
-    constexpr bool operator==(const XMMRegister& reg) const { return num == reg.num; }
-    constexpr bool operator!=(const XMMRegister& reg) const { return num != reg.num; }
-    constexpr uint8_t GetPhysicalIndex() { return num; }
-    friend constexpr uint8_t ValueForFmtSpec(XMMRegister value) { return value.num; }
+    constexpr bool operator==(const XMMRegister& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const XMMRegister& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(XMMRegister value) { return value.num_; }
     friend class AssemblerX86<Assembler>;
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
    private:
-    constexpr XMMRegister(uint8_t num_) : num(num_) {}
-    uint8_t num;
+    constexpr XMMRegister(uint8_t num) : num_(num) {}
+    uint8_t num_;
   };
 
   enum ScaleFactor { kTimesOne = 0, kTimesTwo = 1, kTimesFour = 2, kTimesEight = 3 };
 
   struct Operand {
     constexpr uint8_t rex() const {
-      return Assembler::kIsX86_64 ? ((index.num & 0x08) >> 2) | ((base.num & 0x08) >> 3) : 0;
+      return Assembler::kIsX86_64 ? ((index.num_ & 0x08) >> 2) | ((base.num_ & 0x08) >> 3) : 0;
     }
 
     constexpr bool RequiresRex() const {
-      return Assembler::kIsX86_64 ? ((index.num & 0x08) | (base.num & 0x08)) : false;
+      return Assembler::kIsX86_64 ? ((index.num_ & 0x08) | (base.num_ & 0x08)) : false;
     }
 
     Register base = Assembler::no_register;
@@ -276,14 +276,14 @@ class AssemblerX86 : public AssemblerBase {
  protected:
   // Helper types to distinguish argument types.
   struct Register8Bit {
-    explicit constexpr Register8Bit(Register reg) : num(reg.num) {}
-    uint8_t num;
+    explicit constexpr Register8Bit(Register reg) : num_(reg.num_) {}
+    uint8_t num_;
   };
 
   struct Register32Bit {
-    explicit constexpr Register32Bit(Register reg) : num(reg.num) {}
-    explicit constexpr Register32Bit(XMMRegister reg) : num(reg.num) {}
-    uint8_t num;
+    explicit constexpr Register32Bit(Register reg) : num_(reg.num_) {}
+    explicit constexpr Register32Bit(XMMRegister reg) : num_(reg.num_) {}
+    uint8_t num_;
   };
 
   // 16-bit and 128-bit vector registers follow the same rules as 32-bit registers.
@@ -631,11 +631,11 @@ class AssemblerX86 : public AssemblerBase {
       }
       if constexpr (registers_count + operands_count + labels_count == 4) {
         if constexpr (kCountArguments<IsImmediate, ArgumentsTypes...> == 1) {
-          Emit8((ArgumentByType<registers_count - 1, IsRegister>(arguments...).num << 4) |
+          Emit8((ArgumentByType<registers_count - 1, IsRegister>(arguments...).num_ << 4) |
                 ArgumentByType<0, IsImmediate>(arguments...));
         } else {
           static_assert(kCountArguments<IsImmediate, ArgumentsTypes...> == 0);
-          Emit8(ArgumentByType<registers_count - 1, IsRegister>(arguments...).num << 4);
+          Emit8(ArgumentByType<registers_count - 1, IsRegister>(arguments...).num_ << 4);
         }
       } else {
         EmitImmediates(arguments...);
