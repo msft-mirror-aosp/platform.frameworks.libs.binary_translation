@@ -76,6 +76,11 @@ filegroup {
     srcs: ["main_binfmt_misc.cc"],
 }
 
+filegroup {
+    name: "berberis_program_runner_main_srcs",
+    srcs: ["main.cc"],
+}
+
 cc_binary {
     name: "berberis_program_runner_binfmt_misc_riscv64",
     defaults: ["berberis_program_runner_defaults"],
@@ -85,11 +90,11 @@ cc_binary {
 cc_binary {
     name: "berberis_program_runner_riscv64",
     defaults: ["berberis_program_runner_defaults"],
-    srcs: ["main.cc"],
+    srcs: [":berberis_program_runner_main_srcs"],
 }
 
 cc_binary {
     name: "berberis_program_runner_riscv64_to_arm64",
     defaults: ["berberis_program_runner_arm64_defaults"],
-    srcs: ["main.cc"],
+    srcs: [":berberis_program_runner_main_srcs"],
 }
