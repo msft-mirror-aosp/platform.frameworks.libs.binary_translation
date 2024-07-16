@@ -248,7 +248,7 @@
     {
       "encodings": {
         "CmpXchg16b": { "opcodes": [ "0F", "C7", "1" ] },
-        "LockCmpXchg16b": { "opcodes": [ "F0", "0F", "C7", "1" ] }
+        "Lock CmpXchg16b": { "opcodes": [ "F0", "0F", "C7", "1" ] }
       },
       "args": [
         { "class": "RAX", "usage": "use_def" },
@@ -499,7 +499,7 @@
     },
     {
       "encodings": {
-        "LockCmpXchgq": { "opcodes": [ "F0", "0F", "B1" ], "type": "reg_to_rm" }
+        "Lock CmpXchgq": { "opcodes": [ "F0", "0F", "B1" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "RAX", "usage": "use_def" },
