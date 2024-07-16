@@ -368,6 +368,16 @@ class AssemblerRiscV : public AssemblerBase {
   template <uint32_t kOpcode,
             typename ArgumentsType0,
             typename ArgumentsType1,
+            typename ImmediateType>
+  void EmitITypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            ImmediateType&& immediate) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(Rd(argument0), Rs1(argument1), immediate);
+  }
+
+  template <uint32_t kOpcode,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
             typename ArgumentsType2>
   void EmitRTypeInstruction(ArgumentsType0&& argument0,
                             ArgumentsType1&& argument1,

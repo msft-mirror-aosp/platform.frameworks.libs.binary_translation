@@ -77,7 +77,11 @@ import re
 
 
 def is_imm(arg_type):
-  return arg_type in ('Imm2', 'Imm8', 'Imm16', 'Imm32', 'Imm64')
+  return arg_type in (
+    'Imm2', 'Imm8', 'Imm16', 'Imm32', 'Imm64', # x86 immediates
+    'B-Imm', 'I-Imm', 'J-Imm', 'P-Imm', 'S-Imm', 'U-Imm', # Official RISC-V immediates
+    'Csr-Imm', 'Shift32-Imm', 'Shift64-Imm', # Extra RISC-V immediates
+  )
 
 
 def is_disp(arg_type):
