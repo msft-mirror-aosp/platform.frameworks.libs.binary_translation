@@ -19,7 +19,10 @@ package {
 
 cc_library_headers {
     name: "libberberis_base_headers",
-    defaults: ["berberis_all_hosts_defaults"],
+    defaults: [
+        "berberis_riscv64_host_defaults",
+        "berberis_all_hosts_defaults",
+    ],
     native_bridge_supported: true,
     host_supported: true,
     export_include_dirs: ["include"],
@@ -46,7 +49,10 @@ cc_library_headers {
 
 cc_library_static {
     name: "libberberis_base",
-    defaults: ["berberis_all_hosts_defaults"],
+    defaults: [
+        "berberis_riscv64_host_defaults",
+        "berberis_all_hosts_defaults",
+    ],
     host_supported: true,
     srcs: [
         "config_globals.cc",
@@ -67,6 +73,9 @@ cc_library_static {
         },
         x86_64: {
             srcs: ["raw_syscall_x86_64.S"],
+        },
+        riscv64: {
+            srcs: ["raw_syscall_riscv64.S"],
         },
     },
 
@@ -91,7 +100,10 @@ cc_library_static {
 // ATTENTION: do not use it outside of static tests!
 cc_library_static {
     name: "libberberis_base_elf_backed_exec_region_for_static_tests",
-    defaults: ["berberis_all_hosts_defaults"],
+    defaults: [
+        "berberis_riscv64_host_defaults",
+        "berberis_all_hosts_defaults",
+    ],
     host_supported: true,
     target: {
         bionic: {

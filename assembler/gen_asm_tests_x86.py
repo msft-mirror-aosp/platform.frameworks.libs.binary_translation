@@ -391,8 +391,8 @@ def _gen_att_instruction_variants(
         else:
           insn_args = ('%E' + insn_args[0][2:],) + insn_args[1:]
     if insn_name[0:4] == 'LOCK':
-     # TODO(b/161986409): replace '\n' with ' ' when clang would be fixed.
-     fixed_name = '%s\n%s' % (insn_name[0:4], insn_name[4:])
+      # TODO(b/161986409): replace '\n' with ' ' when clang would be fixed.
+      fixed_name = '%s\n%s' % (insn_name[0:4], insn_name[4:])
     fixed_name = {
       # GNU disassembler accepts these instructions, but not Clang assembler.
       'FNDISI': '.byte 0xdb, 0xe1',
