@@ -32,6 +32,16 @@
         { "class": "GeneralReg", "usage": "use" },
         { "class": "GeneralReg", "usage": "use" }
       ]
+    },
+    {
+      "encodings": {
+        "addiw": { "opcode": "0000_001b", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "I-Imm" }
+      ]
     }
   ]
 }

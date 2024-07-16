@@ -80,17 +80,17 @@ bool AssemblerTest() {
   MachineCode code;
   Assembler assembler(&code);
   assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
+  assembler.Addi(Assembler::x1, Assembler::x2, 42);
   assembler.Finalize();
 
   // clang-format off
   static const uint16_t kCodeTemplate[] = {
     0x00b3, 0x0031,     // add x1, x2, x3
+    0x0093, 0x02a1,     // addi x1, x2, 42
   };
   // clang-format on
 
-  CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
-
-  return true;
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
 }
 
 }  // namespace rv32
@@ -102,18 +102,20 @@ bool AssemblerTest() {
   Assembler assembler(&code);
   assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addw(Assembler::x1, Assembler::x2, Assembler::x3);
+  assembler.Addi(Assembler::x1, Assembler::x2, 42);
+  assembler.Addiw(Assembler::x1, Assembler::x2, 42);
   assembler.Finalize();
 
   // clang-format off
   static const uint16_t kCodeTemplate[] = {
     0x00b3, 0x0031,     // add x1, x2, x3
     0x00bb, 0x0031,     // addw x1, x2, x3
+    0x0093, 0x02a1,     // addi x1, x2, 42
+    0x009b, 0x02a1,     // addi x1, x2, 42
   };
   // clang-format on
 
-  CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
-
-  return true;
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
 }
 
 }  // namespace rv64
@@ -156,9 +158,7 @@ bool AssemblerTest() {
   };
   // clang-format on
 
-  CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
-
-  return true;
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
 }
 
 }  // namespace x86_32
@@ -192,9 +192,7 @@ bool AssemblerTest() {
   };
   // clang-format on
 
-  CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
-
-  return true;
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
 }
 
 }  // namespace x86_64

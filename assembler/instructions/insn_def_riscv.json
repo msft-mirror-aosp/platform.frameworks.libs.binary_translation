@@ -44,6 +44,21 @@
         { "class": "GeneralReg", "usage": "use" },
         { "class": "GeneralReg", "usage": "use" }
       ]
+    },
+    {
+      "encodings": {
+        "addi": { "opcode": "0000_0013", "type": "I-type" },
+        "andi": { "opcode": "0000_7013", "type": "I-type" },
+        "ori": { "opcode": "0000_6013", "type": "I-type" },
+        "slti": { "opcode": "0000_2013", "type": "I-type" },
+        "sltiu": { "opcode": "0000_3013", "type": "I-type" },
+        "xori": { "opcode": "0000_4013", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "I-Imm" }
+      ]
     }
   ]
 }

@@ -26,11 +26,23 @@ import sys
 INDENT = '  '
 
 _imm_types = {
+    # x86 immediates
     'Imm2': 'int8_t',
     'Imm8': 'int8_t',
     'Imm16': 'int16_t',
     'Imm32': 'int32_t',
-    'Imm64': 'int64_t'
+    'Imm64': 'int64_t',
+    # Official RISC-V immediates
+    'B-Imm': 'BImmediate',
+    'I-Imm': 'IImmediate',
+    'J-Imm': 'JImmediate',
+    'P-Imm': 'PImmediate',
+    'S-Imm': 'SImmediate',
+    'U-Imm': 'UImmediate',
+    # Extra RISC-V immediates
+    'Csr-Imm' : 'CsrImmediate',
+    'Shift32-Imm': 'Shift32Immediate',
+    'Shift64-Imm': 'Shift64Immediate'
 }
 
 
@@ -157,7 +169,9 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
           print('}\n', file=f)
       else:
         print('void %s(%s);' % (name, params), file=f)
-      if imm_type is not None:
+      # If immediate type is integer then we want to prevent automatic
+      # conversions from integers of larger sizes.
+      if imm_type is not None and "int" in imm_type:
         if template:
           print(template[:-1] + ", typename ImmType>", file=f)
         else:
