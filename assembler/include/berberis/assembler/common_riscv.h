@@ -132,7 +132,7 @@ class AssemblerRiscV : public AssemblerBase {
   // since we don't have a goal to make RV32 a strict subset of RV64 that's acceptable.
   //
   // In addition we provide aliases in RV32 and RV64 assemblers to make sure users of assembler may
-  // still use ShiftImmediate and make_shift_immediate for native width without thinking about
+  // still use ShiftImmediate and MakeShiftImmediate for native width without thinking about
   // details of implementation.
   class Shift32Immediate;
   class Shift64Immediate;
@@ -141,24 +141,24 @@ class AssemblerRiscV : public AssemblerBase {
   class UImmediate;
 
   // Don't use templates here to enable implicit conversions.
-#define BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate)           \
-  static constexpr std::optional<Immediate> make_immediate(int8_t value);   \
-  static constexpr std::optional<Immediate> make_immediate(uint8_t value);  \
-  static constexpr std::optional<Immediate> make_immediate(int16_t value);  \
-  static constexpr std::optional<Immediate> make_immediate(uint16_t value); \
-  static constexpr std::optional<Immediate> make_immediate(int32_t value);  \
-  static constexpr std::optional<Immediate> make_immediate(uint32_t value); \
-  static constexpr std::optional<Immediate> make_immediate(int64_t value);  \
-  static constexpr std::optional<Immediate> make_immediate(uint64_t value)
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(BImmediate, make_b_immediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(CsrImmediate, make_csr_immediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(JImmediate, make_j_immediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(PImmediate, make_p_immediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Shift32Immediate, make_shift32_immediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Shift64Immediate, make_shift64_immediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(SImmediate, make_s_immediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(UImmediate, make_u_immediate);
+#define BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate)           \
+  static constexpr std::optional<Immediate> MakeImmediate(int8_t value);   \
+  static constexpr std::optional<Immediate> MakeImmediate(uint8_t value);  \
+  static constexpr std::optional<Immediate> MakeImmediate(int16_t value);  \
+  static constexpr std::optional<Immediate> MakeImmediate(uint16_t value); \
+  static constexpr std::optional<Immediate> MakeImmediate(int32_t value);  \
+  static constexpr std::optional<Immediate> MakeImmediate(uint32_t value); \
+  static constexpr std::optional<Immediate> MakeImmediate(int64_t value);  \
+  static constexpr std::optional<Immediate> MakeImmediate(uint64_t value)
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(BImmediate, MakeBImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(CsrImmediate, MakeCsrImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(JImmediate, MakeJImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(PImmediate, MakePImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Shift32Immediate, MakeShift32Immediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Shift64Immediate, MakeShift64Immediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(SImmediate, MakeSImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(UImmediate, MakeUImmediate);
 #undef BERBERIS_DEFINE_MAKE_IMMEDIATE
 
  private:
@@ -175,37 +175,37 @@ class AssemblerRiscV : public AssemblerBase {
  public:
 #define BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, IntType) \
   constexpr Immediate(IntType value) : Immediate(MakeRaw(value)) { CHECK(AccetableValue(value)); }
-#define BERBERIS_DEFINE_IMMEDIATE(Immediate, kMaskValue, ...)                                     \
-  class Immediate {                                                                               \
-   public:                                                                                        \
-    static constexpr int32_t kMask = static_cast<int32_t>(kMaskValue);                            \
-                                                                                                  \
-    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int8_t)                                      \
-    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint8_t)                                     \
-    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int16_t)                                     \
-    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint16_t)                                    \
-    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int32_t)                                     \
-    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint32_t)                                    \
-    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int64_t)                                     \
-    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint64_t)                                    \
-                                                                                                  \
-    friend bool operator==(Immediate const&, Immediate const&) = default;                         \
-                                                                                                  \
-    friend class AssemblerRiscV;                                                                  \
-    __VA_ARGS__                                                                                   \
-                                                                                                  \
-   private:                                                                                       \
-    constexpr Immediate(RawImmediate raw) : value_(raw.value_) {}                                 \
-                                                                                                  \
-    /* Return true if value would fit into immediate. */                                          \
-    template <typename IntType>                                                                   \
-    static constexpr bool AccetableValue(IntType value);                                          \
-    /* Make RawImmediate from immediate value. */                                                 \
-    /* Note: value is not checked for correctness! Public interface is make_immediate factory. */ \
-    template <typename IntType>                                                                   \
-    static constexpr RawImmediate MakeRaw(IntType value);                                         \
-                                                                                                  \
-    int32_t value_;                                                                               \
+#define BERBERIS_DEFINE_IMMEDIATE(Immediate, kMaskValue, ...)                                    \
+  class Immediate {                                                                              \
+   public:                                                                                       \
+    static constexpr int32_t kMask = static_cast<int32_t>(kMaskValue);                           \
+                                                                                                 \
+    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int8_t)                                     \
+    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint8_t)                                    \
+    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int16_t)                                    \
+    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint16_t)                                   \
+    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int32_t)                                    \
+    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint32_t)                                   \
+    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int64_t)                                    \
+    BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint64_t)                                   \
+                                                                                                 \
+    friend bool operator==(Immediate const&, Immediate const&) = default;                        \
+                                                                                                 \
+    friend class AssemblerRiscV;                                                                 \
+    __VA_ARGS__                                                                                  \
+                                                                                                 \
+   private:                                                                                      \
+    constexpr Immediate(RawImmediate raw) : value_(raw.value_) {}                                \
+                                                                                                 \
+    /* Return true if value would fit into immediate. */                                         \
+    template <typename IntType>                                                                  \
+    static constexpr bool AccetableValue(IntType value);                                         \
+    /* Make RawImmediate from immediate value. */                                                \
+    /* Note: value is not checked for correctness! Public interface is MakeImmediate factory. */ \
+    template <typename IntType>                                                                  \
+    static constexpr RawImmediate MakeRaw(IntType value);                                        \
+                                                                                                 \
+    int32_t value_;                                                                              \
   }
   BERBERIS_DEFINE_IMMEDIATE(BImmediate, 0xfe00'0f80);
   BERBERIS_DEFINE_IMMEDIATE(CsrImmediate, 0x000f'8000);
@@ -242,33 +242,33 @@ class AssemblerRiscV : public AssemblerBase {
   void operator=(AssemblerRiscV&&) = delete;
 };
 
-#define BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, IntType)  \
+#define BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, IntType)   \
   template <typename Assembler>                                             \
   constexpr std::optional<typename AssemblerRiscV<Assembler>::Immediate>    \
-  AssemblerRiscV<Assembler>::make_immediate(IntType value) {                \
+  AssemblerRiscV<Assembler>::MakeImmediate(IntType value) {                 \
     if (!AssemblerRiscV<Assembler>::Immediate::AccetableValue(value)) {     \
       return {};                                                            \
     }                                                                       \
     return Immediate{AssemblerRiscV<Assembler>::Immediate::MakeRaw(value)}; \
   }
-#define BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Immediate, make_immediate) \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, int8_t)   \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, uint8_t)  \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, int16_t)  \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, uint16_t) \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, int32_t)  \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, uint32_t) \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, int64_t)  \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, make_immediate, uint64_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(BImmediate, make_b_immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(CsrImmediate, make_csr_immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Immediate, make_immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(JImmediate, make_j_immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(PImmediate, make_p_immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift32Immediate, make_shift32_immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift64Immediate, make_shift64_immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(SImmediate, make_s_immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(UImmediate, make_u_immediate)
+#define BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Immediate, MakeImmediate) \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int8_t)   \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint8_t)  \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int16_t)  \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint16_t) \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int32_t)  \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint32_t) \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int64_t)  \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint64_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(BImmediate, MakeBImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(CsrImmediate, MakeCsrImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Immediate, MakeImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(JImmediate, MakeJImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(PImmediate, MakePImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift32Immediate, MakeShift32Immediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift64Immediate, MakeShift64Immediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(SImmediate, MakeSImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(UImmediate, MakeUImmediate)
 #undef BERBERIS_DEFINE_MAKE_IMMEDIATE_SET
 #undef BERBERIS_DEFINE_MAKE_IMMEDIATE
 
@@ -430,7 +430,7 @@ constexpr bool AssemblerRiscV<Assembler>::UImmediate::AccetableValue(IntType val
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_b_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeBImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::BImmediate::MakeRaw(
@@ -447,7 +447,7 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::BIm
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::CsrImmediate::MakeRaw(
@@ -455,12 +455,12 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::Csr
   static_assert(std::is_integral_v<IntType>);
   static_assert(sizeof(IntType) <= sizeof(uint64_t));
   // Note: this is correct if input value is between 0 and 31, but that would be checked in
-  // make_csr_immediate.
+  // MakeCsrImmediate.
   return static_cast<int32_t>(value) << 15;
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::Immediate::MakeRaw(
@@ -471,7 +471,7 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::Imm
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_j_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeJImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::JImmediate::MakeRaw(
@@ -487,7 +487,7 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::JIm
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::PImmediate::MakeRaw(
@@ -495,12 +495,12 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::PIm
   static_assert(std::is_integral_v<IntType>);
   static_assert(sizeof(IntType) <= sizeof(uint64_t));
   // Note: this is correct if input value is divisible by 32, but that would be checked in
-  // make_p_immediate.
+  // MakePImmediate.
   return static_cast<int32_t>(value) << 20;
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate
@@ -508,12 +508,12 @@ AssemblerRiscV<Assembler>::Shift32Immediate::MakeRaw(IntType value) {
   static_assert(std::is_integral_v<IntType>);
   static_assert(sizeof(IntType) <= sizeof(uint64_t));
   // Note: this is correct if input value is between 0 and 31, but that would be checked in
-  // make_shift32_immediate.
+  // MakeShift32Immediate.
   return static_cast<int32_t>(value) << 20;
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate
@@ -521,12 +521,12 @@ AssemblerRiscV<Assembler>::Shift64Immediate::MakeRaw(IntType value) {
   static_assert(std::is_integral_v<IntType>);
   static_assert(sizeof(IntType) <= sizeof(uint64_t));
   // Note: this is only correct if input value is between 0 and 63, but that would be checked in
-  // make_shift32_immediate.
+  // MakeShift64Immediate.
   return static_cast<int32_t>(value) << 20;
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_s_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeSImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::SImmediate::MakeRaw(
@@ -540,7 +540,7 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::SIm
 }
 
 // Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is make_immediate factory.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
 template <typename Assembler>
 template <typename IntType>
 constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::UImmediate::MakeRaw(
@@ -548,7 +548,7 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::UIm
   static_assert(std::is_integral_v<IntType>);
   static_assert(sizeof(IntType) <= sizeof(uint64_t));
   // Note: this is only correct if input value is between divisible by 4096 , but that would be
-  // checked in make_u_immediate.
+  // checked in MakeUImmediate.
   return static_cast<int32_t>(value);
 }
 
