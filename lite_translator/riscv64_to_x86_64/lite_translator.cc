@@ -126,7 +126,7 @@ Register LiteTranslator::Op(Decoder::OpOpcode opcode, Register arg1, Register ar
       break;
     default:
       Undefined();
-      return {};
+      return Assembler::no_register;
   }
   return res;
 }
@@ -168,7 +168,7 @@ Register LiteTranslator::Op32(Decoder::Op32Opcode opcode, Register arg1, Registe
       break;
     default:
       Undefined();
-      return {};
+      return Assembler::no_register;
   }
   return res;
 }
@@ -205,7 +205,7 @@ Register LiteTranslator::OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_
       break;
     default:
       Undefined();
-      return {};
+      return Assembler::no_register;
   }
   return res;
 }
@@ -220,7 +220,7 @@ Register LiteTranslator::OpImm32(Decoder::OpImm32Opcode opcode, Register arg, in
       break;
     default:
       Undefined();
-      return {};
+      return Assembler::no_register;
   }
   return res;
 }
@@ -259,7 +259,7 @@ Register LiteTranslator::ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register a
     as_.SarlByCl(res);
   } else {
     Undefined();
-    return {};
+    return Assembler::no_register;
   }
   as_.Movsxlq(res, res);
   return res;
@@ -397,7 +397,7 @@ Register LiteTranslator::Load(Decoder::LoadOperandType operand_type, Register ar
       break;
     default:
       Undefined();
-      return {};
+      return Assembler::no_register;
   }
 
   // TODO(b/144326673): Emit the recovery code at the end of the region so it doesn't interrupt
@@ -463,7 +463,7 @@ Register LiteTranslator::UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Regi
       break;
     default:
       Undefined();
-      return {};
+      return Assembler::no_register;
   }
   return res;
 }
@@ -484,7 +484,7 @@ Register LiteTranslator::UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Re
       break;
     default:
       Undefined();
-      return {};
+      return Assembler::no_register;
   }
   return res;
 }
