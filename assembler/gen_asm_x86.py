@@ -346,6 +346,7 @@ _ARGUMENT_FORMATS_TO_SIZES = {
   'Imm16': '',
   'Imm32': '',
   'Imm64': '',
+  'Mem': 'MemoryDefaultBit',
   'Mem8' : 'Memory8Bit',
   'Mem16' : 'Memory16Bit',
   'Mem32' : 'Memory32Bit',

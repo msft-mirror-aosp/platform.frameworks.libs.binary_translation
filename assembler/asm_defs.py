@@ -89,9 +89,11 @@ def is_disp(arg_type):
 
 
 def is_mem_op(arg_type):
-  return arg_type in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
-                      'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
-                      'VecMem32', 'VecMem64', 'VecMem128')
+  return arg_type in (
+    # Universal memory operands
+    'Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+    # x86 memory operands
+    'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780', 'VecMem32', 'VecMem64', 'VecMem128')
 
 
 def is_cond(arg_type):
