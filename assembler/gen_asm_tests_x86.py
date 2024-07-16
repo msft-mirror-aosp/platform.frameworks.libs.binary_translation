@@ -249,7 +249,7 @@ def _update_arguments(x86_64):
             for index in sample_att_arguments[addr]
             for scale in ('', ',2', ',4', ',8')
             if index not in ('%ESP', '%RSP')]
-  for mem_arg in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+  for mem_arg in ('Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
                   'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                   'VecMem32', 'VecMem64', 'VecMem128'):
     sample_att_arguments[mem_arg] = tuple(addrs)
@@ -275,7 +275,7 @@ def _update_arguments(x86_64):
             for index in sample_arc_arguments[addr]
             for scale in ('One', 'Two', 'Four', 'Eight')
             if 'Assembler::esp' not in index and 'Assembler::rsp' not in index]
-  for mem_arg in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+  for mem_arg in ('Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
                   'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                   'VecMem32', 'VecMem64', 'VecMem128'):
     sample_arc_arguments[mem_arg] = tuple(addrs)
