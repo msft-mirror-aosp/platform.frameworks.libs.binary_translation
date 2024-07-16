@@ -285,14 +285,14 @@ class TryBindingBasedInlineIntrinsic {
       if constexpr (std::is_integral_v<ReturnType>) {
         if (result_reg_ != x86_64::Assembler::no_register) {
           Mov<ReturnType>(as_, result_, result_reg_);
-          CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
+          CHECK_EQ(result_xmm_reg_, x86_64::Assembler::no_xmm_register);
         } else if (result_xmm_reg_ != x86_64::Assembler::no_xmm_register) {
           Mov<typename TypeTraits<ReturnType>::Float>(as_, result_, result_xmm_reg_);
-          CHECK_EQ(result_reg_.num, x86_64::Assembler::no_register.num);
+          CHECK_EQ(result_reg_, x86_64::Assembler::no_register);
         }
       } else {
-        CHECK_EQ(result_reg_.num, x86_64::Assembler::no_register.num);
-        CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
+        CHECK_EQ(result_reg_, x86_64::Assembler::no_register);
+        CHECK_EQ(result_xmm_reg_, x86_64::Assembler::no_xmm_register);
       }
       if constexpr (std::is_integral_v<ReturnType> && sizeof(ReturnType) < sizeof(std::int32_t)) {
         // Don't handle these types just yet. We are not sure how to expand them and there
@@ -358,7 +358,7 @@ class TryBindingBasedInlineIntrinsic {
         if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
           static_assert(std::is_integral_v<
                         std::tuple_element_t<arg_info.to, typename AsmCallInfo::OutputArguments>>);
-          CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
+          CHECK_EQ(result_xmm_reg_, x86_64::Assembler::no_xmm_register);
           result_xmm_reg_ = reg_alloc();
           Mov<typename TypeTraits<int64_t>::Float>(
               as_, result_xmm_reg_, std::get<arg_info.from>(input_args_));
@@ -390,7 +390,7 @@ class TryBindingBasedInlineIntrinsic {
         static_assert(std::is_same_v<Usage, intrinsics::bindings::UseDef>);
         static_assert(RegisterClass::kIsImplicitReg);
         if constexpr (RegisterClass::kAsRegister == 'a') {
-          CHECK_EQ(result_reg_.num, x86_64::Assembler::no_register.num);
+          CHECK_EQ(result_reg_, x86_64::Assembler::no_register);
           Mov<Type>(as_, as_.rax, std::get<arg_info.from>(input_args_));
           result_reg_ = as_.rax;
           return std::tuple{};
@@ -402,17 +402,17 @@ class TryBindingBasedInlineIntrinsic {
         static_assert(std::is_same_v<Usage, intrinsics::bindings::Def> ||
                       std::is_same_v<Usage, intrinsics::bindings::DefEarlyClobber>);
         if constexpr (RegisterClass::kAsRegister == 'a') {
-          CHECK_EQ(result_reg_.num, x86_64::Assembler::no_register.num);
+          CHECK_EQ(result_reg_, x86_64::Assembler::no_register);
           result_reg_ = as_.rax;
           return std::tuple{};
         } else if constexpr (RegisterClass::kAsRegister == 'c') {
-          CHECK_EQ(result_reg_.num, x86_64::Assembler::no_register.num);
+          CHECK_EQ(result_reg_, x86_64::Assembler::no_register);
           result_reg_ = as_.rcx;
           return std::tuple{};
         } else {
           static_assert(!RegisterClass::kIsImplicitReg);
           if constexpr (RegisterClass::kAsRegister == 'x' && std::is_integral_v<Type>) {
-            CHECK_EQ(result_xmm_reg_.num, x86_64::Assembler::no_xmm_register.num);
+            CHECK_EQ(result_xmm_reg_, x86_64::Assembler::no_xmm_register);
             result_xmm_reg_ = reg_alloc();
             return std::tuple{result_xmm_reg_};
           } else {

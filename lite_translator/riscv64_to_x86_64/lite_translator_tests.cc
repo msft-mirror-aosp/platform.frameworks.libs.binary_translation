@@ -84,7 +84,7 @@ TEST(Riscv64LiteTranslatorTest, GetFpReg) {
 TEST(Riscv64LiteTranslatorTest, NanBoxAndSetFpReg) {
   MachineCode machine_code;
   LiteTranslator translator(&machine_code, 0);
-  LiteTranslator::FpRegister reg;
+  LiteTranslator::FpRegister reg = x86_64::Assembler::xmm0;
   int32_t offset = offsetof(ThreadState, cpu.f) + 1 * sizeof(LiteTranslator::Float64);
   size_t store_insn_base = machine_code.install_size();
   translator.StoreFpReg(reg, offset);
@@ -112,7 +112,7 @@ TEST(Riscv64LiteTranslatorTest, NanBoxAndSetFpReg) {
 TEST(Riscv64LiteTranslatorTest, SetReg) {
   MachineCode machine_code;
   LiteTranslator translator(&machine_code, 0);
-  LiteTranslator::Register reg;
+  LiteTranslator::Register reg = x86_64::Assembler::rax;
   int32_t offset = offsetof(ThreadState, cpu.x[0]) + 1 * 8;
   size_t store_insn_base = machine_code.install_size();
   translator.as()->Movq({.base = translator.as()->rbp, .disp = offset}, reg);
