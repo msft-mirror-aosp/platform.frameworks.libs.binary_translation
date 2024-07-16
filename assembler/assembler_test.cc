@@ -81,12 +81,17 @@ bool AssemblerTest() {
   Assembler assembler(&code);
   assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addi(Assembler::x1, Assembler::x2, 42);
+  // Jalr have two alternate forms.
+  assembler.Jalr(Assembler::x1, Assembler::x2, 42);
+  assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
   assembler.Finalize();
 
   // clang-format off
   static const uint16_t kCodeTemplate[] = {
     0x00b3, 0x0031,     // add x1, x2, x3
     0x0093, 0x02a1,     // addi x1, x2, 42
+    0x00e7, 0x02a1,     // jalr x1, x2, 42
+    0x01e7, 0x02a2,     // jalr x3, 42(x4)
   };
   // clang-format on
 
@@ -104,6 +109,9 @@ bool AssemblerTest() {
   assembler.Addw(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addi(Assembler::x1, Assembler::x2, 42);
   assembler.Addiw(Assembler::x1, Assembler::x2, 42);
+  // Jalr have two alternate forms.
+  assembler.Jalr(Assembler::x1, Assembler::x2, 42);
+  assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
   assembler.Finalize();
 
   // clang-format off
@@ -112,6 +120,8 @@ bool AssemblerTest() {
     0x00bb, 0x0031,     // addw x1, x2, x3
     0x0093, 0x02a1,     // addi x1, x2, 42
     0x009b, 0x02a1,     // addi x1, x2, 42
+    0x00e7, 0x02a1,     // jalr x1, x2, 42
+    0x01e7, 0x02a2,     // jalr x3, 42(x4)
   };
   // clang-format on
 
