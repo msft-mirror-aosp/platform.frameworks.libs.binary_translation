@@ -93,6 +93,18 @@ cc_defaults {
 }
 
 cc_defaults {
+    name: "berberis_riscv64_host_defaults",
+    arch: {
+        riscv64: {
+            enabled: true,
+            cflags: [
+                "-DBERBERIS_GUEST_LP64=1",
+            ],
+        },
+    },
+}
+
+cc_defaults {
     name: "berberis_defaults_64",
     defaults: ["berberis_defaults"],
     compile_multilib: "64",
@@ -151,6 +163,7 @@ cc_library_shared {
         "libbase",
         "libberberis_assembler",
         "libberberis_base",
+        "libberberis_base_elf_backed_exec_region",
         "libberberis_instrument",
         "libberberis_intrinsics",
         "libberberis_runtime_primitives",
@@ -214,6 +227,7 @@ cc_test_host {
     static_libs: [
         "libberberis_assembler",
         "libberberis_base",
+        "libberberis_base_elf_backed_exec_region",
         "libberberis_intrinsics",
         "libberberis_instrument",
         "libberberis_runtime_primitives",
@@ -227,6 +241,7 @@ cc_test_host {
     whole_static_libs: [
         "libberberis_assembler_unit_tests",
         "libberberis_base_unit_tests",
+        "libberberis_base_elf_backed_exec_region_unit_tests",
         "libberberis_calling_conventions_unit_tests",
         "libberberis_intrinsics_unit_tests",
         "libberberis_tinyloader_unit_tests",

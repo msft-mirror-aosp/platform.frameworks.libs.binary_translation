@@ -73,6 +73,7 @@ argument's class.
 
 import copy
 import json
+import re
 
 
 def is_imm(arg_type):
@@ -152,6 +153,11 @@ def get_mem_macro_name(insn, addr_mode = None):
   return macro_name
 
 
+def _get_cxx_name(name):
+  return ''.join(w if re.search('[A-Z]', w) else w.capitalize()
+                 for w in re.split('[-_. ]', name))
+
+
 def _expand_name(insn, stem, encoding = {}):
   # Make deep copy of the instruction to make sure consumers could treat them
   # as independent entities and add/remove marks freely.
@@ -159,7 +165,7 @@ def _expand_name(insn, stem, encoding = {}):
   # JSON never have "merged" objects thus having them in result violates
   # expectations.
   expanded_insn = copy.deepcopy(insn)
-  expanded_insn['asm'] = stem
+  expanded_insn['asm'] = _get_cxx_name(stem)
   expanded_insn['name'] = get_mem_macro_name(expanded_insn)
   expanded_insn['mnemo'] = stem.upper()
   expanded_insn.update(encoding)
