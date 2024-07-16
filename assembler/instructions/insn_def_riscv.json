@@ -16,5 +16,49 @@
   ],
   "arch": "common_riscv",
   "insns": [
+    {
+      "encodings": {
+        "add": { "opcode": "0000_0033", "type": "R-type" },
+        "and": { "opcode": "0000_7033", "type": "R-type" },
+        "div": { "opcode": "0200_4033", "type": "R-type" },
+        "divu": { "opcode": "0200_5033", "type": "R-type" },
+        "mul": { "opcode": "0200_0033", "type": "R-type" },
+        "mulh": { "opcode": "0200_1033", "type": "R-type" },
+        "mulhsu": { "opcode": "0200_2033", "type": "R-type" },
+        "mulhu": { "opcode": "0200_3033", "type": "R-type" },
+        "or": { "opcode": "0000_6033", "type": "R-type" },
+        "rem": { "opcode": "0200_6033", "type": "R-type" },
+        "remu": { "opcode": "0200_7033", "type": "R-type" },
+        "sll": { "opcode": "0000_1033", "type": "R-type" },
+        "slt": { "opcode": "0000_2033", "type": "R-type" },
+        "sltu": { "opcode": "0000_3033", "type": "R-type" },
+        "sra": { "opcode": "4000_5033", "type": "R-type" },
+        "sraw": { "opcode": "4000_503b", "type": "R-type" },
+        "srl": { "opcode": "0000_5033", "type": "R-type" },
+        "srlw": { "opcode": "0000_503b", "type": "R-type" },
+        "sub": { "opcode": "4000_0033", "type": "R-type" },
+        "xor": { "opcode": "0000_4033", "type": "R-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "addi": { "opcode": "0000_0013", "type": "I-type" },
+        "andi": { "opcode": "0000_7013", "type": "I-type" },
+        "ori": { "opcode": "0000_6013", "type": "I-type" },
+        "slti": { "opcode": "0000_2013", "type": "I-type" },
+        "sltiu": { "opcode": "0000_3013", "type": "I-type" },
+        "xori": { "opcode": "0000_4013", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "I-Imm" }
+      ]
+    }
   ]
 }

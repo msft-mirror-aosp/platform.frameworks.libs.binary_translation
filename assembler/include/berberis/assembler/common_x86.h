@@ -306,6 +306,9 @@ class AssemblerX86 : public AssemblerBase {
   // Only 64-bit memory is different.
   using Memory8Bit = Memory32Bit;
   using Memory16Bit = Memory32Bit;
+  // Some instructions have memory operand that have unspecified size (lea, prefetch, etc),
+  // they are encoded like Memory32Bit, anyway.
+  using MemoryDefaultBit = Memory32Bit;
   // X87 instructions always use the same encoding - even for 64-bit or 28-bytes
   // memory operands (like in fldenv/fnstenv)
   using MemoryX87 = Memory32Bit;
@@ -330,6 +333,9 @@ class AssemblerX86 : public AssemblerBase {
   // Only 64-bit memory is different.
   using Label8Bit = Label32Bit;
   using Label16Bit = Label32Bit;
+  // Some instructions have memory operand that have unspecified size (lea, prefetch, etc),
+  // they are encoded like Label32Bit, anyway.
+  using LabelDefaultBit = Label32Bit;
   // X87 instructions always use the same encoding - even for 64-bit or 28-bytes
   // memory operands (like in fldenv/fnstenv)
   using LabelX87 = Label32Bit;

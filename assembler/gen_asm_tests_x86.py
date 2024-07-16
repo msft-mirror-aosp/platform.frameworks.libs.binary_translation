@@ -40,8 +40,8 @@ def main(argv):
     with open(arc_assembler_file_name, 'w') as arc_assembler_file:
       pass
     return 0
-  common_defs = gen_asm_x86._load_asm_defs(argv[3])
-  arch_defs = gen_asm_x86._load_asm_defs(argv[4])
+  _, common_defs = gen_asm_x86._load_asm_defs(argv[3])
+  _, arch_defs = gen_asm_x86._load_asm_defs(argv[4])
 
   fast_mode = globals()["fast_mode"]
   if len(argv) > 5 and argv[5] == '--fast':
@@ -249,7 +249,7 @@ def _update_arguments(x86_64):
             for index in sample_att_arguments[addr]
             for scale in ('', ',2', ',4', ',8')
             if index not in ('%ESP', '%RSP')]
-  for mem_arg in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+  for mem_arg in ('Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
                   'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                   'VecMem32', 'VecMem64', 'VecMem128'):
     sample_att_arguments[mem_arg] = tuple(addrs)
@@ -275,7 +275,7 @@ def _update_arguments(x86_64):
             for index in sample_arc_arguments[addr]
             for scale in ('One', 'Two', 'Four', 'Eight')
             if 'Assembler::esp' not in index and 'Assembler::rsp' not in index]
-  for mem_arg in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+  for mem_arg in ('Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
                   'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                   'VecMem32', 'VecMem64', 'VecMem128'):
     sample_arc_arguments[mem_arg] = tuple(addrs)
@@ -311,8 +311,8 @@ def _gen_att_instruction_variants(
   insn_sample_args = []
   label_present = False
   if arc_name.endswith('ByOne'):
-    assert insn_name.endswith(' BY ONE')
-    insn_name = insn_name[:-7]
+    assert insn_name.endswith('BYONE')
+    insn_name = insn_name[:-5]
   elif arc_name.endswith('Imm2'):
     assert insn_name.endswith('IMM2')
     insn_name = insn_name[:-4]
@@ -320,11 +320,11 @@ def _gen_att_instruction_variants(
     assert insn_name.endswith('IMM8')
     insn_name = insn_name[:-4]
   elif arc_name.endswith('Accumulator'):
-    assert insn_name.endswith(' ACCUMULATOR')
+    assert insn_name.endswith('ACCUMULATOR')
     insn_name = insn_name[:-11]
   elif arc_name.endswith('ByCl'):
-    assert insn_name.endswith(' BY CL')
-    insn_name = insn_name[:-6]
+    assert insn_name.endswith('BYCL')
+    insn_name = insn_name[:-4]
   elif arc_name.endswith('FromSt'):
     assert insn_name.endswith('FROMST')
     insn_name = insn_name[:-6]

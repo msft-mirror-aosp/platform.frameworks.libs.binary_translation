@@ -19,7 +19,10 @@ package {
 
 cc_library_headers {
     name: "berberis_test_utils_headers",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_host_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     export_include_dirs: ["include"],
     header_libs: [
