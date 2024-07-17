@@ -60,6 +60,15 @@
         { "class": "GeneralReg", "usage": "def" },
         { "class": "Mem32", "usage": "use" }
       ]
+    },
+    {
+      "encodings": {
+        "sd": { "opcode": "0000_3023", "type": "S-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Mem64", "usage": "def" }
+      ]
     }
   ]
 }

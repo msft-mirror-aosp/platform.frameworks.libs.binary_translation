@@ -84,6 +84,7 @@ bool AssemblerTest() {
   // Jalr have two alternate forms.
   assembler.Jalr(Assembler::x1, Assembler::x2, 42);
   assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
+  assembler.Sw(Assembler::x1, {.base = Assembler::x2, .disp = 42});
   assembler.Finalize();
 
   // clang-format off
@@ -92,6 +93,7 @@ bool AssemblerTest() {
     0x0093, 0x02a1,     // addi x1, x2, 42
     0x00e7, 0x02a1,     // jalr x1, x2, 42
     0x01e7, 0x02a2,     // jalr x3, 42(x4)
+    0x2523, 0x0211,     // sw x1, 42(x2)
   };
   // clang-format on
 
@@ -112,6 +114,8 @@ bool AssemblerTest() {
   // Jalr have two alternate forms.
   assembler.Jalr(Assembler::x1, Assembler::x2, 42);
   assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
+  assembler.Sw(Assembler::x1, {.base = Assembler::x2, .disp = 42});
+  assembler.Sd(Assembler::x3, {.base = Assembler::x4, .disp = 42});
   assembler.Finalize();
 
   // clang-format off
@@ -122,6 +126,8 @@ bool AssemblerTest() {
     0x009b, 0x02a1,     // addi x1, x2, 42
     0x00e7, 0x02a1,     // jalr x1, x2, 42
     0x01e7, 0x02a2,     // jalr x3, 42(x4)
+    0x2523, 0x0211,     // sw x1, 42(x2)
+    0x3523, 0x0232,     // sw x3, 42(x4)
   };
   // clang-format on
 
