@@ -118,7 +118,8 @@ class AssemblerRiscV : public AssemblerBase {
   // Immediates are kept in a form ready to be used with emitter.
   class BImmediate;
   class CsrImmediate;
-  class Immediate;
+  class IImmediate;
+  using Immediate = IImmediate;
   class JImmediate;
   // In RISC V manual shifts are described as using I-format with complex restrictions for which
   // immediates are accepted and allowed (with parts of what manual classifies as “immediate” used
@@ -152,7 +153,8 @@ class AssemblerRiscV : public AssemblerBase {
   static constexpr std::optional<Immediate> MakeImmediate(uint64_t value)
   BERBERIS_DEFINE_MAKE_IMMEDIATE(BImmediate, MakeBImmediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(CsrImmediate, MakeCsrImmediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(IImmediate, MakeImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(IImmediate, MakeIImmediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(JImmediate, MakeJImmediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(PImmediate, MakePImmediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(Shift32Immediate, MakeShift32Immediate);
@@ -165,7 +167,15 @@ class AssemblerRiscV : public AssemblerBase {
   // RawImmediate is used to bypass checks in constructor. It's not supposed to be used directly.
   class RawImmediate {
    private:
-    friend class Immediate;
+    friend class BImmediate;
+    friend class CsrImmediate;
+    friend class IImmediate;
+    friend class JImmediate;
+    friend class Shift32Immediate;
+    friend class Shift64Immediate;
+    friend class PImmediate;
+    friend class SImmediate;
+    friend class UImmediate;
     friend class AssemblerRiscV;
 
     constexpr RawImmediate(int32_t value) : value_(value) {}
@@ -189,6 +199,12 @@ class AssemblerRiscV : public AssemblerBase {
     BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int64_t)                                    \
     BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint64_t)                                   \
                                                                                                  \
+    constexpr Immediate() : value_(0) {}                                                         \
+                                                                                                 \
+    constexpr int32_t EncodedValue() {                                                           \
+      return value_;                                                                             \
+    }                                                                                            \
+                                                                                                 \
     friend bool operator==(Immediate const&, Immediate const&) = default;                        \
                                                                                                  \
     friend class AssemblerRiscV;                                                                 \
@@ -196,7 +212,6 @@ class AssemblerRiscV : public AssemblerBase {
                                                                                                  \
    private:                                                                                      \
     constexpr Immediate(RawImmediate raw) : value_(raw.value_) {}                                \
-                                                                                                 \
     /* Return true if value would fit into immediate. */                                         \
     template <typename IntType>                                                                  \
     static constexpr bool AccetableValue(IntType value);                                         \
@@ -210,7 +225,7 @@ class AssemblerRiscV : public AssemblerBase {
   BERBERIS_DEFINE_IMMEDIATE(BImmediate, 0xfe00'0f80);
   BERBERIS_DEFINE_IMMEDIATE(CsrImmediate, 0x000f'8000);
   BERBERIS_DEFINE_IMMEDIATE(
-      Immediate, 0xfff0'0000, constexpr Immediate(SImmediate s_imm)
+      IImmediate, 0xfff0'0000, constexpr IImmediate(SImmediate s_imm)
       : value_((s_imm.value_ & 0xfe00'0000) | ((s_imm.value_ & 0x0000'0f80) << 13)) {}
 
       friend SImmediate;);
@@ -222,7 +237,7 @@ class AssemblerRiscV : public AssemblerBase {
       SImmediate, 0xfe00'0f80, constexpr SImmediate(Immediate imm)
       : value_((imm.value_ & 0xfe00'0000) | ((imm.value_ & 0x01f0'0000) >> 13)) {}
 
-      friend class Immediate;);
+      friend class IImmediate;);
   BERBERIS_DEFINE_IMMEDIATE(UImmediate, 0xffff'f000);
 #undef BERBERIS_DEFINE_IMMEDIATE
 #undef BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR
@@ -235,6 +250,142 @@ class AssemblerRiscV : public AssemblerBase {
 // Instructions.
 #include "berberis/assembler/gen_assembler_common_riscv-inl.h"  // NOLINT generated file!
 
+ protected:
+  // Information about operands.
+  template <typename OperandType, typename = void>
+  class OperandInfo;
+
+  // Wrapped operand with information of where in the encoded instruction should it be placed.
+  template <typename OperandMarker, typename RegisterType>
+  struct RegisterOperand {
+    constexpr int32_t EncodeImmediate() {
+      return value.GetPhysicalIndex()
+             << OperandInfo<RegisterOperand<OperandMarker, RegisterType>>::kOffset;
+    }
+
+    RegisterType value;
+  };
+
+  // Operand class  markers. Note, these classes shouldn't ever be instantiated, they are just used
+  // to carry information about operands.
+  class RdMarker;
+  class RmMarker;
+  class Rs1Marker;
+  class Rs2Marker;
+  class Rs3Marker;
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<RdMarker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 7;
+    static constexpr uint32_t kMask = 0x0000'0f80;
+  };
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<RmMarker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 12;
+    static constexpr uint32_t kMask = 0x0000'7000;
+  };
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<Rs1Marker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 15;
+    static constexpr uint32_t kMask = 0x000f'8000;
+  };
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<Rs2Marker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 20;
+    static constexpr uint32_t kMask = 0x01f0'0000;
+  };
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<Rs3Marker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 27;
+    static constexpr uint32_t kMask = 0xf800'0000;
+  };
+
+  template <typename Immediate>
+  class OperandInfo<Immediate, std::enable_if_t<sizeof(Immediate::kMask) != 0>> {
+   public:
+    static constexpr bool IsImmediate = true;
+    static constexpr uint8_t kOffset = 0;
+    static constexpr uint32_t kMask = Immediate::kMask;
+  };
+
+  template <typename RegisterType>
+  RegisterOperand<RdMarker, RegisterType> Rd(RegisterType value) {
+    return {value};
+  }
+
+  template <typename RegisterType>
+  RegisterOperand<RmMarker, RegisterType> Rm(RegisterType value) {
+    return {value};
+  }
+
+  template <typename RegisterType>
+  RegisterOperand<Rs1Marker, RegisterType> Rs1(RegisterType value) {
+    return {value};
+  }
+
+  template <typename RegisterType>
+  RegisterOperand<Rs2Marker, RegisterType> Rs2(RegisterType value) {
+    return {value};
+  }
+
+  template <typename RegisterType>
+  RegisterOperand<Rs3Marker, RegisterType> Rs3(RegisterType value) {
+    return {value};
+  }
+
+  template <uint32_t kOpcode, uint32_t kOpcodeMask, typename... ArgumentsTypes>
+  void EmitInstruction(ArgumentsTypes... arguments) {
+    // All uncompressed instructions in RISC-V have two lowest bit set and we don't handle
+    // compressed instructions here.
+    static_assert((kOpcode & 0b11) == 0b11);
+    // Instruction shouldn't have any bits set outside of its opcode mask.
+    static_assert((kOpcode & ~kOpcodeMask) == 0);
+    // Places for all operands in the opcode should not intersect with opcode.
+    static_assert((((kOpcodeMask & OperandInfo<ArgumentsTypes>::kMask) == 0) && ...));
+    Emit32((kOpcode | ... | [](auto argument) {
+      if constexpr (OperandInfo<decltype(argument)>::IsImmediate) {
+        return argument.EncodedValue();
+      } else {
+        return argument.EncodeImmediate();
+      }
+    }(arguments)));
+  }
+
+  template <uint32_t kOpcode,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ImmediateType>
+  void EmitITypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            ImmediateType&& immediate) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(Rd(argument0), Rs1(argument1), immediate);
+  }
+
+  template <uint32_t kOpcode,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2>
+  void EmitRTypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            ArgumentsType2&& argument2) {
+    return EmitInstruction<kOpcode, 0xfe00'707f>(Rd(argument0), Rs1(argument1), Rs2(argument2));
+  }
+
+ private:
   AssemblerRiscV() = delete;
   AssemblerRiscV(const AssemblerRiscV&) = delete;
   AssemblerRiscV(AssemblerRiscV&&) = delete;
@@ -551,6 +702,9 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::UIm
   // checked in MakeUImmediate.
   return static_cast<int32_t>(value);
 }
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::ResolveJumps() {}
 
 }  // namespace berberis
 
