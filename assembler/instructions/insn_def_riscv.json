@@ -197,6 +197,16 @@
     },
     {
       "encodings": {
+        "prefetch.i": { "opcode": "0000_6013", "type": "P-type" },
+        "prefetch.r": { "opcode": "0010_6013", "type": "P-type" },
+        "prefetch.w": { "opcode": "0030_6013", "type": "P-type" }
+      },
+      "args": [
+        { "class": "Mem", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "sb": { "opcode": "0000_0023", "type": "S-type" }
       },
       "args": [

@@ -110,6 +110,9 @@ bool AssemblerTest() {
   assembler.FcvtWuS(Assembler::x3, Assembler::f4);
   assembler.FsqrtS(Assembler::f1, Assembler::f2, Assembler::Rounding::kRmm);
   assembler.FsqrtD(Assembler::f3, Assembler::f4);
+  assembler.PrefetchI({.base = Assembler::x1, .disp = 32});
+  assembler.PrefetchR({.base = Assembler::x2, .disp = 64});
+  assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
   assembler.Finalize();
 
   // clang-format off
@@ -142,6 +145,9 @@ bool AssemblerTest() {
     0x71d3, 0xc012,     //        fcvt.wu.s x3, f4
     0x40d3, 0x5801,     //        fsqrt.s f1, f2, rmm
     0x71d3, 0x5a02,     //        fsqrt.d f3, f4
+    0xe013, 0x0200,     //        prefetch.i 32(x1)
+    0x6013, 0x0411,     //        prefetch.r 64(x2)
+    0xe013, 0x0631,     //        prefetch.w 96(x3)
   };
   // clang-format on
 
@@ -189,6 +195,9 @@ bool AssemblerTest() {
   assembler.FcvtLuD(Assembler::x3, Assembler::f4);
   assembler.FsqrtS(Assembler::f1, Assembler::f2, Assembler::Rounding::kRmm);
   assembler.FsqrtD(Assembler::f3, Assembler::f4);
+  assembler.PrefetchI({.base = Assembler::x1, .disp = 32});
+  assembler.PrefetchR({.base = Assembler::x2, .disp = 64});
+  assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
   assembler.Finalize();
 
   // clang-format off
@@ -226,6 +235,9 @@ bool AssemblerTest() {
     0x71d3, 0xc232,     //        fcvt.lu.d x3, f4
     0x40d3, 0x5801,     //        fsqrt.s f1, f2, rmm
     0x71d3, 0x5a02,     //        fsqrt.d f3, f4
+    0xe013, 0x0200,     //        prefetch.i 32(x1)
+    0x6013, 0x0411,     //        prefetch.r 64(x2)
+    0xe013, 0x0631,     //        prefetch.w 96(x3)
   };
   // clang-format on
 
