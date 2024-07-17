@@ -89,14 +89,14 @@ class Riscv64ImmediatesTest : public ::testing::Test {
 TEST_F(Riscv64ImmediatesTest, TestBImmediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::BImmediate,
-                 rv64::Assembler::make_b_immediate,
-                 rv64::Assembler::make_b_immediate,
-                 rv64::Assembler::make_b_immediate,
-                 rv64::Assembler::make_b_immediate,
-                 rv64::Assembler::make_b_immediate,
-                 rv64::Assembler::make_b_immediate,
-                 rv64::Assembler::make_b_immediate,
-                 rv64::Assembler::make_b_immediate>(std::array{
+                 rv64::Assembler::MakeBImmediate,
+                 rv64::Assembler::MakeBImmediate,
+                 rv64::Assembler::MakeBImmediate,
+                 rv64::Assembler::MakeBImmediate,
+                 rv64::Assembler::MakeBImmediate,
+                 rv64::Assembler::MakeBImmediate,
+                 rv64::Assembler::MakeBImmediate,
+                 rv64::Assembler::MakeBImmediate>(std::array{
       T{0b00000000000000000000'0'000000'0000'0, 0b0'000000'00000'00000'000'0000'0'0000000},
       //  31              12  11 10   5 4  1 0   31 30  25 24 20 19 15     11 8 7 6     0
       T{0b00000000000000000000'0'000000'0000'1, {}},
@@ -170,14 +170,14 @@ TEST_F(Riscv64ImmediatesTest, TestBImmediate) {
 TEST_F(Riscv64ImmediatesTest, TestCsrImmediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::CsrImmediate,
-                 rv64::Assembler::make_csr_immediate,
-                 rv64::Assembler::make_csr_immediate,
-                 rv64::Assembler::make_csr_immediate,
-                 rv64::Assembler::make_csr_immediate,
-                 rv64::Assembler::make_csr_immediate,
-                 rv64::Assembler::make_csr_immediate,
-                 rv64::Assembler::make_csr_immediate,
-                 rv64::Assembler::make_csr_immediate>(std::array{
+                 rv64::Assembler::MakeCsrImmediate,
+                 rv64::Assembler::MakeCsrImmediate,
+                 rv64::Assembler::MakeCsrImmediate,
+                 rv64::Assembler::MakeCsrImmediate,
+                 rv64::Assembler::MakeCsrImmediate,
+                 rv64::Assembler::MakeCsrImmediate,
+                 rv64::Assembler::MakeCsrImmediate,
+                 rv64::Assembler::MakeCsrImmediate>(std::array{
       T{0b000000000000000000000'000000'0000'0, 0b0'00000000000'00000'000'00000'0000000},
       //  31                 11 10   5 4  1 0   31 30       20 19 15     11  7 6     0
       T{0b000000000000000000000'000000'0000'1, 0b0'00000000000'00001'000'00000'0000000},
@@ -251,14 +251,14 @@ TEST_F(Riscv64ImmediatesTest, TestCsrImmediate) {
 TEST_F(Riscv64ImmediatesTest, TestIImmediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::Immediate,
-                 rv64::Assembler::make_immediate,
-                 rv64::Assembler::make_immediate,
-                 rv64::Assembler::make_immediate,
-                 rv64::Assembler::make_immediate,
-                 rv64::Assembler::make_immediate,
-                 rv64::Assembler::make_immediate,
-                 rv64::Assembler::make_immediate,
-                 rv64::Assembler::make_immediate>(std::array{
+                 rv64::Assembler::MakeImmediate,
+                 rv64::Assembler::MakeImmediate,
+                 rv64::Assembler::MakeImmediate,
+                 rv64::Assembler::MakeImmediate,
+                 rv64::Assembler::MakeImmediate,
+                 rv64::Assembler::MakeImmediate,
+                 rv64::Assembler::MakeImmediate,
+                 rv64::Assembler::MakeImmediate>(std::array{
       T{0b000000000000000000000'000000'0000'0, 0b0'00000000000'00000'000'00000'0000000},
       //  31                 11 10   5 4  1 0   31 30       20 19 15     11  7 6     0
       T{0b000000000000000000000'000000'0000'1, 0b0'00000000001'00000'000'00000'0000000},
@@ -332,14 +332,14 @@ TEST_F(Riscv64ImmediatesTest, TestIImmediate) {
 TEST_F(Riscv64ImmediatesTest, TestJImmediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::JImmediate,
-                 rv64::Assembler::make_j_immediate,
-                 rv64::Assembler::make_j_immediate,
-                 rv64::Assembler::make_j_immediate,
-                 rv64::Assembler::make_j_immediate,
-                 rv64::Assembler::make_j_immediate,
-                 rv64::Assembler::make_j_immediate,
-                 rv64::Assembler::make_j_immediate,
-                 rv64::Assembler::make_j_immediate>(std::array{
+                 rv64::Assembler::MakeJImmediate,
+                 rv64::Assembler::MakeJImmediate,
+                 rv64::Assembler::MakeJImmediate,
+                 rv64::Assembler::MakeJImmediate,
+                 rv64::Assembler::MakeJImmediate,
+                 rv64::Assembler::MakeJImmediate,
+                 rv64::Assembler::MakeJImmediate,
+                 rv64::Assembler::MakeJImmediate>(std::array{
       T{0b000000000000'00000000'0'0000000000'0, 0b0'0000000000'0'00000'000'0000'0'0000000},
       //  31        20 19   12 11 10   5 4  1 0   31 30     21 20 19 15     11 8 7 6     0
       T{0b000000000000'00000000'0'000000'0000'1, {}},
@@ -413,14 +413,14 @@ TEST_F(Riscv64ImmediatesTest, TestJImmediate) {
 TEST_F(Riscv64ImmediatesTest, TestPImmediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::PImmediate,
-                 rv64::Assembler::make_p_immediate,
-                 rv64::Assembler::make_p_immediate,
-                 rv64::Assembler::make_p_immediate,
-                 rv64::Assembler::make_p_immediate,
-                 rv64::Assembler::make_p_immediate,
-                 rv64::Assembler::make_p_immediate,
-                 rv64::Assembler::make_p_immediate,
-                 rv64::Assembler::make_p_immediate>(std::array{
+                 rv64::Assembler::MakePImmediate,
+                 rv64::Assembler::MakePImmediate,
+                 rv64::Assembler::MakePImmediate,
+                 rv64::Assembler::MakePImmediate,
+                 rv64::Assembler::MakePImmediate,
+                 rv64::Assembler::MakePImmediate,
+                 rv64::Assembler::MakePImmediate,
+                 rv64::Assembler::MakePImmediate>(std::array{
       T{0b000000000000000000000'000000'0000'0, 0b0'000000'00000'00000'000'00000'0000000},
       //  31                 11 10   5 4  1 0   31 30  25 24 20 19 15     11  7 6     0
       T{0b000000000000000000000'000000'0000'1, {}},
@@ -494,14 +494,14 @@ TEST_F(Riscv64ImmediatesTest, TestPImmediate) {
 TEST_F(Riscv64ImmediatesTest, TestShiftImmediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv32::Assembler::ShiftImmediate,
-                 rv32::Assembler::make_shift_immediate,
-                 rv32::Assembler::make_shift_immediate,
-                 rv32::Assembler::make_shift_immediate,
-                 rv32::Assembler::make_shift_immediate,
-                 rv32::Assembler::make_shift_immediate,
-                 rv32::Assembler::make_shift_immediate,
-                 rv32::Assembler::make_shift_immediate,
-                 rv32::Assembler::make_shift_immediate>(std::array{
+                 rv32::Assembler::MakeShiftImmediate,
+                 rv32::Assembler::MakeShiftImmediate,
+                 rv32::Assembler::MakeShiftImmediate,
+                 rv32::Assembler::MakeShiftImmediate,
+                 rv32::Assembler::MakeShiftImmediate,
+                 rv32::Assembler::MakeShiftImmediate,
+                 rv32::Assembler::MakeShiftImmediate,
+                 rv32::Assembler::MakeShiftImmediate>(std::array{
       T{0b000000000000000000000'000000'0000'0, 0b0'00000000000'00000'000'00000'0000000},
       //  31                 11 10   5 4  1 0   31 30       20 19 15     11  7 6     0
       T{0b000000000000000000000'000000'0000'1, 0b0'00000000001'00000'000'00000'0000000},
@@ -571,14 +571,14 @@ TEST_F(Riscv64ImmediatesTest, TestShiftImmediate) {
       T{0b100000000000000000000'000000'0000'0, {}},
   });
   TestConversion<rv64::Assembler::ShiftImmediate,
-                 rv64::Assembler::make_shift_immediate,
-                 rv64::Assembler::make_shift_immediate,
-                 rv64::Assembler::make_shift_immediate,
-                 rv64::Assembler::make_shift_immediate,
-                 rv64::Assembler::make_shift_immediate,
-                 rv64::Assembler::make_shift_immediate,
-                 rv64::Assembler::make_shift_immediate,
-                 rv64::Assembler::make_shift_immediate>(std::array{
+                 rv64::Assembler::MakeShiftImmediate,
+                 rv64::Assembler::MakeShiftImmediate,
+                 rv64::Assembler::MakeShiftImmediate,
+                 rv64::Assembler::MakeShiftImmediate,
+                 rv64::Assembler::MakeShiftImmediate,
+                 rv64::Assembler::MakeShiftImmediate,
+                 rv64::Assembler::MakeShiftImmediate,
+                 rv64::Assembler::MakeShiftImmediate>(std::array{
       T{0b000000000000000000000'000000'0000'0, 0b0'00000000000'00000'000'00000'0000000},
       //  31                 11 10   5 4  1 0   31 30       20 19 15     11  7 6     0
       T{0b000000000000000000000'000000'0000'1, 0b0'00000000001'00000'000'00000'0000000},
@@ -652,14 +652,14 @@ TEST_F(Riscv64ImmediatesTest, TestShiftImmediate) {
 TEST_F(Riscv64ImmediatesTest, TestShift32Immediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::Shift32Immediate,
-                 rv64::Assembler::make_shift32_immediate,
-                 rv64::Assembler::make_shift32_immediate,
-                 rv64::Assembler::make_shift32_immediate,
-                 rv64::Assembler::make_shift32_immediate,
-                 rv64::Assembler::make_shift32_immediate,
-                 rv64::Assembler::make_shift32_immediate,
-                 rv64::Assembler::make_shift32_immediate,
-                 rv64::Assembler::make_shift32_immediate>(std::array{
+                 rv64::Assembler::MakeShift32Immediate,
+                 rv64::Assembler::MakeShift32Immediate,
+                 rv64::Assembler::MakeShift32Immediate,
+                 rv64::Assembler::MakeShift32Immediate,
+                 rv64::Assembler::MakeShift32Immediate,
+                 rv64::Assembler::MakeShift32Immediate,
+                 rv64::Assembler::MakeShift32Immediate,
+                 rv64::Assembler::MakeShift32Immediate>(std::array{
       T{0b000000000000000000000'000000'0000'0, 0b0'00000000000'00000'000'00000'0000000},
       //  31                 11 10   5 4  1 0   31 30       20 19 15     11  7 6     0
       T{0b000000000000000000000'000000'0000'1, 0b0'00000000001'00000'000'00000'0000000},
@@ -733,14 +733,14 @@ TEST_F(Riscv64ImmediatesTest, TestShift32Immediate) {
 TEST_F(Riscv64ImmediatesTest, TestShift64Immediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::Shift64Immediate,
-                 rv64::Assembler::make_shift64_immediate,
-                 rv64::Assembler::make_shift64_immediate,
-                 rv64::Assembler::make_shift64_immediate,
-                 rv64::Assembler::make_shift64_immediate,
-                 rv64::Assembler::make_shift64_immediate,
-                 rv64::Assembler::make_shift64_immediate,
-                 rv64::Assembler::make_shift64_immediate,
-                 rv64::Assembler::make_shift64_immediate>(std::array{
+                 rv64::Assembler::MakeShift64Immediate,
+                 rv64::Assembler::MakeShift64Immediate,
+                 rv64::Assembler::MakeShift64Immediate,
+                 rv64::Assembler::MakeShift64Immediate,
+                 rv64::Assembler::MakeShift64Immediate,
+                 rv64::Assembler::MakeShift64Immediate,
+                 rv64::Assembler::MakeShift64Immediate,
+                 rv64::Assembler::MakeShift64Immediate>(std::array{
       T{0b000000000000000000000'000000'0000'0, 0b0'00000000000'00000'000'00000'0000000},
       //  31                 11 10   5 4  1 0   31 30       20 19 15     11  7 6     0
       T{0b000000000000000000000'000000'0000'1, 0b0'00000000001'00000'000'00000'0000000},
@@ -814,14 +814,14 @@ TEST_F(Riscv64ImmediatesTest, TestShift64Immediate) {
 TEST_F(Riscv64ImmediatesTest, TestSImmediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::SImmediate,
-                 rv64::Assembler::make_s_immediate,
-                 rv64::Assembler::make_s_immediate,
-                 rv64::Assembler::make_s_immediate,
-                 rv64::Assembler::make_s_immediate,
-                 rv64::Assembler::make_s_immediate,
-                 rv64::Assembler::make_s_immediate,
-                 rv64::Assembler::make_s_immediate,
-                 rv64::Assembler::make_s_immediate>(std::array{
+                 rv64::Assembler::MakeSImmediate,
+                 rv64::Assembler::MakeSImmediate,
+                 rv64::Assembler::MakeSImmediate,
+                 rv64::Assembler::MakeSImmediate,
+                 rv64::Assembler::MakeSImmediate,
+                 rv64::Assembler::MakeSImmediate,
+                 rv64::Assembler::MakeSImmediate,
+                 rv64::Assembler::MakeSImmediate>(std::array{
       T{0b000000000000000000000'000000'0000'0, 0b0'000000'00000'00000'000'00000'0000000},
       //  31                 11 10   5 4  1 0   31 30  25 24 20 19 15     11  7 6     0
       T{0b000000000000000000000'000000'0000'1, 0b0'000000'00000'00000'000'00001'0000000},
@@ -895,14 +895,14 @@ TEST_F(Riscv64ImmediatesTest, TestSImmediate) {
 TEST_F(Riscv64ImmediatesTest, TestUImmediate) {
   using T = std::tuple<uint32_t, std::optional<uint32_t>>;
   TestConversion<rv64::Assembler::UImmediate,
-                 rv64::Assembler::make_u_immediate,
-                 rv64::Assembler::make_u_immediate,
-                 rv64::Assembler::make_u_immediate,
-                 rv64::Assembler::make_u_immediate,
-                 rv64::Assembler::make_u_immediate,
-                 rv64::Assembler::make_u_immediate,
-                 rv64::Assembler::make_u_immediate,
-                 rv64::Assembler::make_u_immediate>(std::array{
+                 rv64::Assembler::MakeUImmediate,
+                 rv64::Assembler::MakeUImmediate,
+                 rv64::Assembler::MakeUImmediate,
+                 rv64::Assembler::MakeUImmediate,
+                 rv64::Assembler::MakeUImmediate,
+                 rv64::Assembler::MakeUImmediate,
+                 rv64::Assembler::MakeUImmediate,
+                 rv64::Assembler::MakeUImmediate>(std::array{
       T{0b0'00000000000'00000000'000000000000, 0b00000000000000000000'00000'0000000},
       // 31 30       20 19    12 11         0    31                12 11  7 6     0
       T{0b0'00000000000'00000000'000000000001, {}},

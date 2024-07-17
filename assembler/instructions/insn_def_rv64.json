@@ -16,5 +16,59 @@
   ],
   "arch": "rv64",
   "insns": [
+    {
+      "encodings": {
+        "addw": { "opcode": "0000_003b", "type": "R-type" },
+        "divuw": { "opcode": "0200_503b", "type": "R-type" },
+        "divw": { "opcode": "0200_403b", "type": "R-type" },
+        "mulw": { "opcode": "0200_003b", "type": "R-type" },
+        "remuw": { "opcode": "0200_703b", "type": "R-type" },
+        "remw": { "opcode": "0200_603b", "type": "R-type" },
+        "sllw": { "opcode": "0000_103b", "type": "R-type" },
+        "subw": { "opcode": "4000_003b", "type": "R-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "addiw": { "opcode": "0000_001b", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "I-Imm" }
+      ]
+    },
+    {
+      "encodings": {
+        "ld": { "opcode": "0000_3003", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Mem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "lwu": { "opcode": "0000_6003", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Mem32", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "sd": { "opcode": "0000_3023", "type": "S-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Mem64", "usage": "def" }
+      ]
+    }
   ]
 }
