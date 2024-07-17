@@ -20,7 +20,7 @@ package {
 cc_library_headers {
     name: "libberberis_guest_state_headers",
     defaults: [
-        "berberis_riscv64_host_defaults",
+        "berberis_riscv64_device_defaults",
         "berberis_all_hosts_defaults",
     ],
     host_supported: true,
