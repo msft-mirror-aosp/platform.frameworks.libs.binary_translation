@@ -1620,12 +1620,11 @@
     },
     {
       "encodings": {
-        "Leal": { "opcode": "8D" },
-        "Movl": { "opcode": "8B" }
+        "Leal": { "opcode": "8D" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
-        { "class": "Mem32", "usage": "use" }
+        { "class": "Mem", "usage": "use" }
       ]
     },
     {
@@ -1809,6 +1808,15 @@
       "args": [
         { "class": "XmmReg", "usage": "use_def" },
         { "class": "VecMem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Movl": { "opcode": "8B" }
+      },
+      "args": [
+        { "class": "GeneralReg32", "usage": "def" },
+        { "class": "Mem32", "usage": "use" }
       ]
     },
     {
