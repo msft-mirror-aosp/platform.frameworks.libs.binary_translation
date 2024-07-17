@@ -20,7 +20,7 @@ package {
 cc_library_headers {
     name: "libberberis_runtime_primitives_headers",
     defaults: [
-        "berberis_riscv64_host_defaults",
+        "berberis_riscv64_device_defaults",
         "berberis_defaults",
     ],
     host_supported: true,
@@ -40,7 +40,7 @@ cc_library_headers {
 cc_library_static {
     name: "libberberis_runtime_primitives",
     defaults: [
-        "berberis_riscv64_host_defaults",
+        "berberis_riscv64_device_defaults",
         "berberis_defaults",
     ],
     host_supported: true,
