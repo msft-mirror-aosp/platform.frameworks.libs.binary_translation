@@ -100,6 +100,10 @@ def is_cond(arg_type):
   return arg_type == 'Cond'
 
 
+def is_rm(arg_type):
+  return arg_type == 'Rm'
+
+
 def is_label(arg_type):
   return arg_type == 'Label'
 
@@ -112,6 +116,10 @@ def is_greg(arg_type):
   return arg_type in ('GeneralReg',
                       'GeneralReg8', 'GeneralReg16',
                       'GeneralReg32', 'GeneralReg64')
+
+
+def is_freg(arg_type):
+  return arg_type == 'FpReg'
 
 
 def is_xreg(arg_type):
@@ -143,8 +151,12 @@ def get_mem_macro_name(insn, addr_mode = None):
     # have two different instructions where these cause the difference.
     if clazz == 'FLAGS' or is_cond(clazz) or is_label(clazz):
       pass
+    elif is_rm(clazz):
+      macro_name += 'Rm'
     elif is_x87reg(clazz) or is_greg(clazz) or is_implicit_reg(clazz):
       macro_name += 'Reg'
+    elif is_freg(clazz):
+      macro_name += 'FReg'
     elif is_xreg(clazz):
       macro_name += 'XReg'
     elif is_imm(clazz):

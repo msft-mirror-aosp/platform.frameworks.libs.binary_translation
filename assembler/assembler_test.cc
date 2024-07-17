@@ -101,6 +101,12 @@ bool AssemblerTest() {
   assembler.Bge(Assembler::x7, Assembler::x8, label);
   assembler.Bltu(Assembler::x9, Assembler::x10, label);
   assembler.Bgeu(Assembler::x11, Assembler::x12, label);
+  assembler.FcvtSW(Assembler::f1, Assembler::x2, Assembler::Rounding::kRmm);
+  assembler.FcvtSWu(Assembler::f3, Assembler::x4);
+  assembler.FcvtWS(Assembler::x1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FcvtWuS(Assembler::x3, Assembler::f4);
+  assembler.FsqrtS(Assembler::f1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FsqrtD(Assembler::f3, Assembler::f4);
   assembler.Finalize();
 
   // clang-format off
@@ -124,6 +130,12 @@ bool AssemblerTest() {
     0xd2e3, 0xfe83,     //        bge x7, x8, label
     0xe0e3, 0xfea4,     //        bltu x9, x10, label
     0xfee3, 0xfcc5,     //        bgeu x11, x12, label
+    0x40d3, 0xd001,     //        fcvt.s.w f1, x2, rmm
+    0x71d3, 0xd012,     //        fcvt.s.wu f3, x4
+    0x40d3, 0xc001,     //        fcvt.w.s x1, f2, rmm
+    0x71d3, 0xc012,     //        fcvt.wu.s x3, f4
+    0x40d3, 0x5801,     //        fsqrt.s f1, f2, rmm
+    0x71d3, 0x5a02,     //        fsqrt.d f3, f4
   };
   // clang-format on
 
@@ -162,6 +174,12 @@ bool AssemblerTest() {
   assembler.Bltu(Assembler::x9, Assembler::x10, -36);
   assembler.Bgeu(Assembler::x11, Assembler::x12, -40);
   assembler.Bcc(Assembler::Condition::kAlways, Assembler::x13, Assembler::x14, -44);
+  assembler.FcvtDL(Assembler::f1, Assembler::x2, Assembler::Rounding::kRmm);
+  assembler.FcvtDLu(Assembler::f3, Assembler::x4);
+  assembler.FcvtLD(Assembler::x1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FcvtLuD(Assembler::x3, Assembler::f4);
+  assembler.FsqrtS(Assembler::f1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FsqrtD(Assembler::f3, Assembler::f4);
   assembler.Finalize();
 
   // clang-format off
@@ -190,6 +208,12 @@ bool AssemblerTest() {
     0xeee3, 0xfca4,     //        bltu x9, x10, label
     0xfce3, 0xfcc5,     //        bgeu x11, x12, label
     0xf06f, 0xfd5f,     //        jal x0, label
+    0x40d3, 0xd221,     //        fcvt.d.l f1, x2, rmm
+    0x71d3, 0xd232,     //        fcvt.d.lu f3, x4
+    0x40d3, 0xc221,     //        fcvt.l.d x1, f2, rmm
+    0x71d3, 0xc232,     //        fcvt.lu.d x3, f4
+    0x40d3, 0x5801,     //        fsqrt.s f1, f2, rmm
+    0x71d3, 0x5a02,     //        fsqrt.d f3, f4
   };
   // clang-format on
 
