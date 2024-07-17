@@ -93,7 +93,7 @@ cc_defaults {
 }
 
 cc_defaults {
-    name: "berberis_riscv64_host_defaults",
+    name: "berberis_riscv64_device_defaults",
     arch: {
         riscv64: {
             enabled: true,
