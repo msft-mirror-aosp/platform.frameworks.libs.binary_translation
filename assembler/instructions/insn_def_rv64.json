@@ -42,6 +42,24 @@
         { "class": "GeneralReg", "usage": "use" },
         { "class": "I-Imm" }
       ]
+    },
+    {
+      "encodings": {
+        "ld": { "opcode": "0000_3003", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Mem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "lwu": { "opcode": "0000_6003", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Mem32", "usage": "use" }
+      ]
     }
   ]
 }
