@@ -60,7 +60,7 @@ class Riscv64ImmediatesTest : public ::testing::Test {
             std::optional<ImmediateType> result = make_immediate(source);
             EXPECT_EQ(result.has_value(), expected_result.has_value());
             if (result.has_value()) {
-              uint32_t raw_immediate_value = std::bit_cast<uint32_t>(*result);
+              uint32_t raw_immediate_value = result->EncodedValue();
               // RISC-V I-ImmediateType and S-Immediate support the same set of values and could be
               // converted from one to another, but other types of immediates are unique.
               if constexpr (std::is_same_v<ImmediateType, rv64::Assembler::Immediate>) {
@@ -70,7 +70,7 @@ class Riscv64ImmediatesTest : public ::testing::Test {
               }
               EXPECT_EQ(raw_immediate_value, *expected_result);
               ImmediateType result = ImmediateType(source);
-              raw_immediate_value = std::bit_cast<uint32_t>(result);
+              raw_immediate_value = result.EncodedValue();
               EXPECT_EQ(raw_immediate_value, *expected_result);
             }
           };
