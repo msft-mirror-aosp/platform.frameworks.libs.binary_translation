@@ -70,7 +70,7 @@ class AssemblerX86 : public AssemblerBase {
     kBelowEqual = 6,
     kAbove = 7,
     kNegative = 8,
-    kPositive = 9,
+    kPositiveOrZero = 9,
     kParityEven = 10,
     kParityOdd = 11,
     kLess = 12,
@@ -86,7 +86,7 @@ class AssemblerX86 : public AssemblerBase {
     kZero = kEqual,
     kNotZero = kNotEqual,
     kSign = kNegative,
-    kNotSign = kPositive
+    kNotSign = kPositiveOrZero
   };
 
   class Register {
@@ -792,7 +792,7 @@ inline constexpr const char* GetCondName(Condition cond) {
       return "A";
     case Condition::kNegative:
       return "N";
-    case Condition::kPositive:
+    case Condition::kPositiveOrZero:
       return "PL";
     case Condition::kParityEven:
       return "PE";
