@@ -98,6 +98,33 @@
         { "class": "GeneralReg", "usage": "def" },
         { "class": "Mem32", "usage": "use" }
       ]
+    },
+    {
+      "encodings": {
+        "sb": { "opcode": "0000_0023", "type": "S-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Mem8", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "sh": { "opcode": "0000_1023", "type": "S-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Mem16", "usage": "def" }
+      ]
+    },
+    {
+      "encodings": {
+        "sw": { "opcode": "0000_2023", "type": "S-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Mem32", "usage": "def" }
+      ]
     }
   ]
 }
