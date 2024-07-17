@@ -78,6 +78,8 @@ const int kCompatibleOpenFlags = O_ACCMODE | O_CREAT | O_EXCL | O_NOCTTY | O_TRU
 
 }  // namespace
 
+const char* kGuestCpuinfoPath = "/system/etc/cpuinfo.riscv64.txt";
+
 int ToHostOpenFlags(int guest_flags) {
   const int kIncompatibleGuestOpenFlags = GUEST_O_LARGEFILE;
 

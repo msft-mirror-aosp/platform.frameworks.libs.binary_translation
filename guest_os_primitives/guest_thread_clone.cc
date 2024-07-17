@@ -18,6 +18,8 @@
 #include <sched.h>
 #include <semaphore.h>
 
+#include <cstring>  // strerror
+
 #include "berberis/base/checks.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
@@ -70,7 +72,8 @@ int RunClonedGuestThread(void* arg) {
   // - search for child in thread table
   // - send child a signal
   // - dispose info
-  CHECK_EQ(0, sem_post(&info->sem));
+  int error = sem_post(&info->sem);
+  LOG_ALWAYS_FATAL_IF(error != 0, "sem_post returned error=%s", strerror(errno));
   // TODO(b/77574158): Ensure caller has a chance to handle the notification.
   sched_yield();
 
@@ -152,7 +155,8 @@ pid_t CloneGuestThread(GuestThread* thread,
   SetPendingSignalsStatusAtomic(clone_thread_state, kPendingSignalsEnabled);
   SetResidence(clone_thread_state, kOutsideGeneratedCode);
 
-  sem_init(&info.sem, 0, 0);
+  int error = sem_init(&info.sem, 0, 0);
+  LOG_ALWAYS_FATAL_IF(error != 0, "sem_init returned error=%s", strerror(errno));
 
   // ATTENTION: Don't set new tls for the host - tls might be incompatible.
   // TODO(b/280551726): Consider forcing new host tls to 0.

@@ -78,8 +78,41 @@ cc_defaults {
 }
 
 cc_defaults {
+    name: "berberis_all_hosts_defaults",
+    defaults: ["berberis_defaults"],
+    arch: {
+        arm64: {
+            enabled: true,
+            // TODO(b/123294366): disconnect guest arch from host arch!
+            cflags: [
+                "-DNATIVE_BRIDGE_GUEST_ARCH_RISCV64",
+                "-DBERBERIS_GUEST_LP64=1",
+            ],
+        },
+    },
+}
+
+cc_defaults {
+    name: "berberis_riscv64_device_defaults",
+    arch: {
+        riscv64: {
+            enabled: true,
+            cflags: [
+                "-DBERBERIS_GUEST_LP64=1",
+            ],
+        },
+    },
+}
+
+cc_defaults {
     name: "berberis_defaults_64",
     defaults: ["berberis_defaults"],
+    compile_multilib: "64",
+}
+
+cc_defaults {
+    name: "berberis_all_hosts_defaults_64",
+    defaults: ["berberis_all_hosts_defaults"],
     compile_multilib: "64",
 }
 
@@ -130,6 +163,7 @@ cc_library_shared {
         "libbase",
         "libberberis_assembler",
         "libberberis_base",
+        "libberberis_base_elf_backed_exec_region",
         "libberberis_instrument",
         "libberberis_intrinsics",
         "libberberis_runtime_primitives",
@@ -193,6 +227,7 @@ cc_test_host {
     static_libs: [
         "libberberis_assembler",
         "libberberis_base",
+        "libberberis_base_elf_backed_exec_region",
         "libberberis_intrinsics",
         "libberberis_instrument",
         "libberberis_runtime_primitives",
@@ -206,6 +241,7 @@ cc_test_host {
     whole_static_libs: [
         "libberberis_assembler_unit_tests",
         "libberberis_base_unit_tests",
+        "libberberis_base_elf_backed_exec_region_unit_tests",
         "libberberis_calling_conventions_unit_tests",
         "libberberis_intrinsics_unit_tests",
         "libberberis_tinyloader_unit_tests",
@@ -223,6 +259,9 @@ cc_test_host {
             ],
             static_libs: [
                 "libberberis_backend_riscv64_to_x86_64",
+                // Note: we don't even need to use anything from that library, just need to ensure it
+                // can be compiled successfully: all checks are done with static_asserts.
+                "libberberis_emulated_libvulkan_api_checker",
                 "libberberis_guest_abi_riscv64",
                 "libberberis_guest_os_primitives_riscv64",
                 "libberberis_guest_state_riscv64",

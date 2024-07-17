@@ -21,12 +21,11 @@
 
 // Basic program runner meant to be used by binfmt_misc utility.
 
-int main(int argc, const char* argv[], char* envp[]) {
+int main(int argc, const char* argv[], [[maybe_unused]] char* envp[]) {
   if (argc < 3) {
     printf("Usage: %s /full/path/to/program program [args...]", argv[0]);
     return 0;
   }
-
   std::string error_msg;
   if (!berberis::Run(
           /* vdso_path */ nullptr,
