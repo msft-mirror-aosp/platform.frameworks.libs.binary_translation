@@ -115,6 +115,12 @@ class AssemblerRiscV : public AssemblerBase {
   static constexpr Register no_register{0x80};
   static constexpr Register zero{0};
 
+  template <typename RegisterType, typename ImmediateType>
+  struct Operand {
+    RegisterType base;
+    ImmediateType disp;
+  };
+
   // Immediates are kept in a form ready to be used with emitter.
   class BImmediate;
   class CsrImmediate;
@@ -363,6 +369,11 @@ class AssemblerRiscV : public AssemblerBase {
         return argument.EncodeImmediate();
       }
     }(arguments)));
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename OperandType>
+  void EmitITypeInstruction(ArgumentsType0&& argument0, OperandType&& operand) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(Rd(argument0), Rs1(operand.base), operand.disp);
   }
 
   template <uint32_t kOpcode,

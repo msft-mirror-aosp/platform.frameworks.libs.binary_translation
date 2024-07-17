@@ -49,6 +49,7 @@
       "encodings": {
         "addi": { "opcode": "0000_0013", "type": "I-type" },
         "andi": { "opcode": "0000_7013", "type": "I-type" },
+        "jalr": { "opcode": "0000_0067", "type": "I-type" },
         "ori": { "opcode": "0000_6013", "type": "I-type" },
         "slti": { "opcode": "0000_2013", "type": "I-type" },
         "sltiu": { "opcode": "0000_3013", "type": "I-type" },
@@ -58,6 +59,44 @@
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" },
         { "class": "I-Imm" }
+      ]
+    },
+    {
+      "encodings": {
+        "jalr": { "opcode": "0000_0067", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Mem", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "lb": { "opcode": "0000_0003", "type": "I-type" },
+        "lbu": { "opcode": "0000_4003", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Mem8", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "lh": { "opcode": "0000_1003", "type": "I-type" },
+        "lhu": { "opcode": "0000_5003", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Mem16", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "lw": { "opcode": "0000_2003", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Mem32", "usage": "use" }
       ]
     }
   ]
