@@ -79,6 +79,13 @@
       ]
     },
     {
+      "stems": [ "ld", "lwu" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Label" }
+      ]
+    },
+    {
       "encodings": {
         "lwu": { "opcode": "0000_6003", "type": "I-type" }
       },
@@ -118,6 +125,14 @@
       "args": [
         { "class": "GeneralReg", "usage": "use" },
         { "class": "Mem64", "usage": "def" }
+      ]
+    },
+    {
+      "stems": [ "sd" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Label" },
+        { "class": "GeneralReg", "usage": "def" }
       ]
     }
   ]
