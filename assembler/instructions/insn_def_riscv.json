@@ -62,6 +62,63 @@
       ]
     },
     {
+      "stems": [ "bcc" ],
+      "args": [
+        { "class": "Cond" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "B-Imm" }
+      ]
+    },
+    {
+      "stems": [ "bcc" ],
+      "args": [
+        { "class": "Cond" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Label" }
+      ]
+    },
+    {
+      "encodings": {
+         "beq": { "opcode": "0000_0063", "type": "B-Type" },
+         "bge": { "opcode": "0000_5063", "type": "B-Type" },
+         "bgeu": { "opcode": "0000_7063", "type": "B-Type" },
+         "blt": { "opcode": "0000_4063", "type": "B-Type" },
+         "bltu": { "opcode": "0000_6063", "type": "B-Type" },
+         "bne": { "opcode": "0000_1063", "type": "B-Type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "B-Imm" }
+      ]
+    },
+    {
+      "stems": [ "beq", "bge", "bgeu", "blt", "bltu", "bne" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Label" }
+      ]
+    },
+    {
+      "encodings": {
+        "jal": { "opcode": "0000_006f", "type": "J-Type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "J-Imm" }
+      ]
+    },
+    {
+      "stems": [ "jal" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Label" }
+      ]
+    },
+    {
       "encodings": {
         "jalr": { "opcode": "0000_0067", "type": "I-type" }
       },

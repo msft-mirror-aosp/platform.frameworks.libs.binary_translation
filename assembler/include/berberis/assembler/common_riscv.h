@@ -61,6 +61,25 @@ class AssemblerRiscV : public AssemblerBase {
  public:
   explicit AssemblerRiscV(MachineCode* code) : AssemblerBase(code) {}
 
+  enum class Condition {
+    kInvalidCondition = -1,
+
+    kEqual = 0,
+    kNotEqual = 1,
+    kLess = 4,
+    kGreaterEqual = 5,
+    kBelow = 6,
+    kAboveEqual = 7,
+    kAlways = 8,
+    kNever = 9,
+
+    // aka...
+    kCarry = kBelow,
+    kNotCarry = kAboveEqual,
+    kZero = kEqual,
+    kNotZero = kNotEqual
+  };
+
   class Register {
     constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
     constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
@@ -272,10 +291,17 @@ class AssemblerRiscV : public AssemblerBase {
     RegisterType value;
   };
 
+  struct ConditionOperand {
+    constexpr int32_t EncodeImmediate() {
+      return static_cast<int32_t>(value) << OperandInfo<ConditionOperand>::kOffset;
+    }
+
+    Condition value;
+  };
+
   // Operand class  markers. Note, these classes shouldn't ever be instantiated, they are just used
   // to carry information about operands.
   class RdMarker;
-  class RmMarker;
   class Rs1Marker;
   class Rs2Marker;
   class Rs3Marker;
@@ -288,8 +314,8 @@ class AssemblerRiscV : public AssemblerBase {
     static constexpr uint32_t kMask = 0x0000'0f80;
   };
 
-  template <typename RegisterType>
-  class OperandInfo<RegisterOperand<RmMarker, RegisterType>> {
+  template <>
+  class OperandInfo<ConditionOperand> {
    public:
     static constexpr bool IsImmediate = false;
     static constexpr uint8_t kOffset = 12;
@@ -333,10 +359,7 @@ class AssemblerRiscV : public AssemblerBase {
     return {value};
   }
 
-  template <typename RegisterType>
-  RegisterOperand<RmMarker, RegisterType> Rm(RegisterType value) {
-    return {value};
-  }
+  ConditionOperand Cond(Condition value) { return {value}; }
 
   template <typename RegisterType>
   RegisterOperand<Rs1Marker, RegisterType> Rs1(RegisterType value) {
@@ -371,6 +394,16 @@ class AssemblerRiscV : public AssemblerBase {
     }(arguments)));
   }
 
+  template <uint32_t kOpcode,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ImmediateType>
+  void EmitBTypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            ImmediateType&& immediate) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(Rs1(argument0), Rs2(argument1), immediate);
+  }
+
   template <uint32_t kOpcode, typename ArgumentsType0, typename OperandType>
   void EmitITypeInstruction(ArgumentsType0&& argument0, OperandType&& operand) {
     return EmitInstruction<kOpcode, 0x0000'707f>(Rd(argument0), Rs1(operand.base), operand.disp);
@@ -384,6 +417,11 @@ class AssemblerRiscV : public AssemblerBase {
                             ArgumentsType1&& argument1,
                             ImmediateType&& immediate) {
     return EmitInstruction<kOpcode, 0x0000'707f>(Rd(argument0), Rs1(argument1), immediate);
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ImmediateType>
+  void EmitJTypeInstruction(ArgumentsType0&& argument0, ImmediateType&& immediate) {
+    return EmitInstruction<kOpcode, 0x0000'007f>(Rd(argument0), immediate);
   }
 
   template <uint32_t kOpcode,
@@ -720,7 +758,95 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::UIm
 }
 
 template <typename Assembler>
-inline void AssemblerRiscV<Assembler>::ResolveJumps() {}
+inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
+                                           Register argument1,
+                                           Register argument2,
+                                           const Label& label) {
+  if (cc == Condition::kAlways) {
+    Jal(zero, label);
+    return;
+  } else if (cc == Condition::kNever) {
+    return;
+  }
+  CHECK_EQ(0, static_cast<uint8_t>(cc) & 0xf8);
+  jumps_.push_back(Jump{&label, pc(), false});
+  EmitInstruction<0x0000'0063, 0x0000'007f>(Cond(cc), Rs1(argument1), Rs2(argument2));
+}
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
+                                           Register argument1,
+                                           Register argument2,
+                                           BImmediate immediate) {
+  if (cc == Condition::kAlways) {
+    int32_t encoded_immediate_value = immediate.EncodedValue();
+    // Maybe better to provide an official interface to convert BImmediate into JImmediate?
+    // Most CPUs have uncoditional jump with longer range than condtional one (8086, ARM, RISC-V)
+    // or the same one (modern x86), thus such conversion is natural.
+    JImmediate jimmediate =
+        RawImmediate{((encoded_immediate_value >> 19) & 0x000f'f000) |
+                     ((encoded_immediate_value << 13) & 0x01f0'0000) |
+                     (encoded_immediate_value & static_cast<int32_t>(0xfe00'0000))};
+    Jal(zero, jimmediate);
+    return;
+  } else if (cc == Condition::kNever) {
+    return;
+  }
+  CHECK_EQ(0, static_cast<uint8_t>(cc) & 0xf8);
+  EmitInstruction<0x0000'0063, 0x0000'007f>(Cond(cc), Rs1(argument1), Rs2(argument2), immediate);
+}
+
+#define BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Name, Opcode)             \
+  template <typename Assembler>                                           \
+  inline void AssemblerRiscV<Assembler>::Name(                            \
+      Register argument1, Register argument2, const Label& label) {       \
+    jumps_.push_back(Jump{&label, pc(), false});                          \
+    EmitInstruction<Opcode, 0x0000'707f>(Rs1(argument1), Rs2(argument2)); \
+  }
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Beq, 0x0000'0063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bge, 0x0000'5063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bgeu, 0x0000'7063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Blt, 0x0000'4063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bltu, 0x0000'6063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bne, 0x0000'1063)
+#undef BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::Jal(Register argument0, const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  EmitInstruction<0x0000'006f, 0x0000'007f>(Rd(argument0));
+}
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::ResolveJumps() {
+  for (const auto& jump : jumps_) {
+    const Label* label = jump.label;
+    uint32_t pc = jump.pc;
+    CHECK(label->IsBound());
+    if (jump.is_recovery) {
+      // Add pc -> label correspondence to recovery map.
+      AddRelocation(0, RelocationType::RelocRecoveryPoint, pc, label->position());
+    } else {
+      int32_t offset = label->position() - pc;
+      auto ProcessLabel =
+          [this, pc, offset]<typename ImmediateType,
+                             std::optional<ImmediateType> (*MakeImmediate)(int32_t)>() {
+            auto encoded_immediate = MakeImmediate(offset);
+            if (!encoded_immediate.has_value()) {
+              return false;
+            }
+            *AddrAs<int32_t>(pc) |= encoded_immediate->EncodedValue();
+            return true;
+          };
+      // Check the instruction type: Jal uses JImmediate, while Bcc uses BImmediate.
+      bool RelocationInRange = (*AddrAs<int32_t>(pc) & 4)
+                                   ? ProcessLabel.template operator()<JImmediate, MakeJImmediate>()
+                                   : ProcessLabel.template operator()<BImmediate, MakeBImmediate>();
+      // Maybe need to propagate error to caller?
+      CHECK(RelocationInRange);
+    }
+  }
+}
 
 }  // namespace berberis
 
