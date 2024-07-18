@@ -80,6 +80,8 @@ class AssemblerRiscV : public AssemblerBase {
     kNotZero = kNotEqual
   };
 
+  enum class Rounding { kRne = 0, kRtz = 1, kRdn = 2, kRup = 3, kRmm = 4, kDyn = 7 };
+
   class Register {
     constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
     constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
@@ -133,6 +135,85 @@ class AssemblerRiscV : public AssemblerBase {
   // Aliases
   static constexpr Register no_register{0x80};
   static constexpr Register zero{0};
+
+  class FpRegister {
+    constexpr bool operator==(const FpRegister& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const FpRegister& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(FpRegister value) { return value.num_; }
+    friend class AssemblerRiscV<Assembler>;
+
+   private:
+    constexpr FpRegister(uint8_t num) : num_(num) {}
+    uint8_t num_;
+  };
+
+  static constexpr FpRegister f0{0};
+  static constexpr FpRegister f1{1};
+  static constexpr FpRegister f2{2};
+  static constexpr FpRegister f3{3};
+  static constexpr FpRegister f4{4};
+  static constexpr FpRegister f5{5};
+  static constexpr FpRegister f6{6};
+  static constexpr FpRegister f7{7};
+  static constexpr FpRegister f8{8};
+  static constexpr FpRegister f9{9};
+  static constexpr FpRegister f10{10};
+  static constexpr FpRegister f11{11};
+  static constexpr FpRegister f12{12};
+  static constexpr FpRegister f13{13};
+  static constexpr FpRegister f14{14};
+  static constexpr FpRegister f15{15};
+  static constexpr FpRegister f16{16};
+  static constexpr FpRegister f17{17};
+  static constexpr FpRegister f18{18};
+  static constexpr FpRegister f19{19};
+  static constexpr FpRegister f20{20};
+  static constexpr FpRegister f21{21};
+  static constexpr FpRegister f22{22};
+  static constexpr FpRegister f23{23};
+  static constexpr FpRegister f24{24};
+  static constexpr FpRegister f25{25};
+  static constexpr FpRegister f26{26};
+  static constexpr FpRegister f27{27};
+  static constexpr FpRegister f28{28};
+  static constexpr FpRegister f29{29};
+  static constexpr FpRegister f30{30};
+  static constexpr FpRegister f31{31};
+
+  // ABI
+  static constexpr FpRegister ft0{0};
+  static constexpr FpRegister ft1{1};
+  static constexpr FpRegister ft2{2};
+  static constexpr FpRegister ft3{3};
+  static constexpr FpRegister ft4{4};
+  static constexpr FpRegister ft5{5};
+  static constexpr FpRegister ft6{6};
+  static constexpr FpRegister ft7{7};
+  static constexpr FpRegister fs0{8};
+  static constexpr FpRegister fs1{9};
+  static constexpr FpRegister fa0{10};
+  static constexpr FpRegister fa1{11};
+  static constexpr FpRegister fa2{12};
+  static constexpr FpRegister fa3{13};
+  static constexpr FpRegister fa4{14};
+  static constexpr FpRegister fa5{15};
+  static constexpr FpRegister fa6{16};
+  static constexpr FpRegister fa7{17};
+  static constexpr FpRegister fs2{18};
+  static constexpr FpRegister fs3{19};
+  static constexpr FpRegister fs4{20};
+  static constexpr FpRegister fs5{21};
+  static constexpr FpRegister fs6{22};
+  static constexpr FpRegister fs7{23};
+  static constexpr FpRegister fs8{24};
+  static constexpr FpRegister fs9{25};
+  static constexpr FpRegister fs10{26};
+  static constexpr FpRegister fs11{27};
+  static constexpr FpRegister ft8{28};
+  static constexpr FpRegister ft9{29};
+  static constexpr FpRegister ft10{30};
+  static constexpr FpRegister ft11{31};
 
   template <typename RegisterType, typename ImmediateType>
   struct Operand {
@@ -299,6 +380,14 @@ class AssemblerRiscV : public AssemblerBase {
     Condition value;
   };
 
+  struct RoundingOperand {
+    constexpr int32_t EncodeImmediate() {
+      return static_cast<int32_t>(value) << OperandInfo<RoundingOperand>::kOffset;
+    }
+
+    Rounding value;
+  };
+
   // Operand class  markers. Note, these classes shouldn't ever be instantiated, they are just used
   // to carry information about operands.
   class RdMarker;
@@ -316,6 +405,14 @@ class AssemblerRiscV : public AssemblerBase {
 
   template <>
   class OperandInfo<ConditionOperand> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 12;
+    static constexpr uint32_t kMask = 0x0000'7000;
+  };
+
+  template <>
+  class OperandInfo<RoundingOperand> {
    public:
     static constexpr bool IsImmediate = false;
     static constexpr uint8_t kOffset = 12;
@@ -360,6 +457,8 @@ class AssemblerRiscV : public AssemblerBase {
   }
 
   ConditionOperand Cond(Condition value) { return {value}; }
+
+  RoundingOperand Rm(Rounding value) { return {value}; }
 
   template <typename RegisterType>
   RegisterOperand<Rs1Marker, RegisterType> Rs1(RegisterType value) {
@@ -422,6 +521,13 @@ class AssemblerRiscV : public AssemblerBase {
   template <uint32_t kOpcode, typename ArgumentsType0, typename ImmediateType>
   void EmitJTypeInstruction(ArgumentsType0&& argument0, ImmediateType&& immediate) {
     return EmitInstruction<kOpcode, 0x0000'007f>(Rd(argument0), immediate);
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
+  void EmitRTypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            Rounding argument2) {
+    return EmitInstruction<kOpcode, 0xfff0'007f>(Rd(argument0), Rs1(argument1), Rm(argument2));
   }
 
   template <uint32_t kOpcode,
