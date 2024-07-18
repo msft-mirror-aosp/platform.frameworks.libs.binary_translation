@@ -101,6 +101,9 @@ bool AssemblerTest() {
   assembler.Bge(Assembler::x7, Assembler::x8, label);
   assembler.Bltu(Assembler::x9, Assembler::x10, label);
   assembler.Bgeu(Assembler::x11, Assembler::x12, label);
+  assembler.Csrrc(Assembler::x1, Assembler::Csr::kVl, Assembler::x2);
+  assembler.Csrrs(Assembler::x3, Assembler::Csr::kVtype, Assembler::x4);
+  assembler.Csrrw(Assembler::x5, Assembler::Csr::kVlenb, Assembler::x6);
   assembler.Slli(Assembler::x1, Assembler::x2, 3);
   assembler.Srai(Assembler::x4, Assembler::x5, 6);
   assembler.Srli(Assembler::x7, Assembler::x8, 9);
@@ -136,6 +139,9 @@ bool AssemblerTest() {
     0xd2e3, 0xfe83,     //        bge x7, x8, label
     0xe0e3, 0xfea4,     //        bltu x9, x10, label
     0xfee3, 0xfcc5,     //        bgeu x11, x12, label
+    0x30f3, 0xc201,     //        csrrc x1, vl, x2
+    0x21f3, 0xc212,     //        csrrs x3, vtype, x4
+    0x12f3, 0xc223,     //        csrrw x5, vlenb, x6
     0x1093, 0x0031,     //        slli x1, x2, 3
     0xd213, 0x4062,     //        srai x4, x5, 6
     0x5393, 0x0094,     //        srli x7, x8, 9
@@ -186,6 +192,12 @@ bool AssemblerTest() {
   assembler.Bltu(Assembler::x9, Assembler::x10, -36);
   assembler.Bgeu(Assembler::x11, Assembler::x12, -40);
   assembler.Bcc(Assembler::Condition::kAlways, Assembler::x13, Assembler::x14, -44);
+  assembler.Csrrc(Assembler::x1, Assembler::Csr::kVl, 2);
+  assembler.Csrrs(Assembler::x3, Assembler::Csr::kVtype, 4);
+  assembler.Csrrw(Assembler::x5, Assembler::Csr::kVlenb, 6);
+  assembler.Csrrci(Assembler::x7, Assembler::Csr::kVl, 8);
+  assembler.Csrrsi(Assembler::x9, Assembler::Csr::kVtype, 10);
+  assembler.Csrrwi(Assembler::x11, Assembler::Csr::kVlenb, 12);
   assembler.Slliw(Assembler::x1, Assembler::x2, 3);
   assembler.Sraiw(Assembler::x4, Assembler::x5, 6);
   assembler.Srliw(Assembler::x7, Assembler::x8, 9);
@@ -226,6 +238,12 @@ bool AssemblerTest() {
     0xeee3, 0xfca4,     //        bltu x9, x10, label
     0xfce3, 0xfcc5,     //        bgeu x11, x12, label
     0xf06f, 0xfd5f,     //        jal x0, label
+    0x70f3, 0xc201,     //        csrrc x1, vl, 2
+    0x61f3, 0xc212,     //        csrrs x3, vtype, 4
+    0x52f3, 0xc223,     //        csrrw x5, vlenb, 6
+    0x73f3, 0xc204,     //        csrrci x7, vl, 8
+    0x64f3, 0xc215,     //        csrrsi x9, vtype, 10
+    0x55f3, 0xc226,     //        csrrwi x11, vlenb, 12
     0x109b, 0x0031,     //        slliw x1, x2, 3
     0xd21b, 0x4062,     //        sraiw x4, x5, 6
     0x539b, 0x0094,     //        srliw x7, x8, 9
