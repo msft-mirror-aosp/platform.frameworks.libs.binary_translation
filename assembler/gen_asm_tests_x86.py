@@ -151,7 +151,7 @@ sample_arc_arguments = {
              'Assembler::Condition::kBelow', 'Assembler::Condition::kAboveEqual',
              'Assembler::Condition::kEqual', 'Assembler::Condition::kNotEqual',
              'Assembler::Condition::kBelowEqual', 'Assembler::Condition::kAbove',
-             'Assembler::Condition::kNegative', 'Assembler::Condition::kPositive',
+             'Assembler::Condition::kNegative', 'Assembler::Condition::kPositiveOrZero',
              'Assembler::Condition::kParityEven', 'Assembler::Condition::kParityOdd',
              'Assembler::Condition::kLess', 'Assembler::Condition::kGreaterEqual',
              'Assembler::Condition::kLessEqual', 'Assembler::Condition::kGreater'),
