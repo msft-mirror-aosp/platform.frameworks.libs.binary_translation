@@ -762,15 +762,6 @@ class AssemblerX86 : public AssemblerBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(AssemblerX86);
 };
 
-// Return the reverse condition.
-template <typename Condition>
-inline constexpr Condition ToReverseCond(Condition cond) {
-  CHECK(cond != Condition::kInvalidCondition);
-  // Condition has a nice property that given a condition, you can get
-  // its reverse condition by flipping the least significant bit.
-  return Condition(static_cast<int>(cond) ^ 1);
-}
-
 template <typename Condition>
 inline constexpr const char* GetCondName(Condition cond) {
   switch (cond) {
