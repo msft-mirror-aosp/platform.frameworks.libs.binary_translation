@@ -89,6 +89,30 @@
     },
     {
       "encodings": {
+        "slli": { "opcode": "0000_1013", "type": "I-type" },
+        "srai": { "opcode": "4000_5013", "type": "I-type" },
+        "srli": { "opcode": "0000_5013", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Shift64-Imm" }
+      ]
+    },
+    {
+      "encodings": {
+        "slliw": { "opcode": "0000_101b", "type": "I-type" },
+        "sraiw": { "opcode": "4000_501b", "type": "I-type" },
+        "srliw": { "opcode": "0000_501b", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Shift32-Imm" }
+      ]
+    },
+    {
+      "encodings": {
         "sd": { "opcode": "0000_3023", "type": "S-type" }
       },
       "args": [

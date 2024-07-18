@@ -515,7 +515,12 @@ class AssemblerRiscV : public AssemblerBase {
   void EmitITypeInstruction(ArgumentsType0&& argument0,
                             ArgumentsType1&& argument1,
                             ImmediateType&& immediate) {
-    return EmitInstruction<kOpcode, 0x0000'707f>(Rd(argument0), Rs1(argument1), immediate);
+    // Some I-type instructions use immediate as opcode extension. In that case different, smaller,
+    // immediate with smaller mask is used. 0xfff0'707f & ~std::decay_t<ImmediateType>::kMask turns
+    // these bits that are not used as immediate into parts of opcode.
+    // For full I-immediate it produces 0x0000'707f, same as with I-type memory operand.
+    return EmitInstruction<kOpcode, 0xfff0'707f & ~std::decay_t<ImmediateType>::kMask>(
+        Rd(argument0), Rs1(argument1), immediate);
   }
 
   template <uint32_t kOpcode, typename ArgumentsType0, typename ImmediateType>

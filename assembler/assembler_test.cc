@@ -101,6 +101,9 @@ bool AssemblerTest() {
   assembler.Bge(Assembler::x7, Assembler::x8, label);
   assembler.Bltu(Assembler::x9, Assembler::x10, label);
   assembler.Bgeu(Assembler::x11, Assembler::x12, label);
+  assembler.Slli(Assembler::x1, Assembler::x2, 3);
+  assembler.Srai(Assembler::x4, Assembler::x5, 6);
+  assembler.Srli(Assembler::x7, Assembler::x8, 9);
   assembler.FcvtSW(Assembler::f1, Assembler::x2, Assembler::Rounding::kRmm);
   assembler.FcvtSWu(Assembler::f3, Assembler::x4);
   assembler.FcvtWS(Assembler::x1, Assembler::f2, Assembler::Rounding::kRmm);
@@ -130,6 +133,9 @@ bool AssemblerTest() {
     0xd2e3, 0xfe83,     //        bge x7, x8, label
     0xe0e3, 0xfea4,     //        bltu x9, x10, label
     0xfee3, 0xfcc5,     //        bgeu x11, x12, label
+    0x1093, 0x0031,     //        slli x1, x2, 3
+    0xd213, 0x4062,     //        srai x4, x5, 6
+    0x5393, 0x0094,     //        srli x7, x8, 9
     0x40d3, 0xd001,     //        fcvt.s.w f1, x2, rmm
     0x71d3, 0xd012,     //        fcvt.s.wu f3, x4
     0x40d3, 0xc001,     //        fcvt.w.s x1, f2, rmm
@@ -174,6 +180,9 @@ bool AssemblerTest() {
   assembler.Bltu(Assembler::x9, Assembler::x10, -36);
   assembler.Bgeu(Assembler::x11, Assembler::x12, -40);
   assembler.Bcc(Assembler::Condition::kAlways, Assembler::x13, Assembler::x14, -44);
+  assembler.Slliw(Assembler::x1, Assembler::x2, 3);
+  assembler.Sraiw(Assembler::x4, Assembler::x5, 6);
+  assembler.Srliw(Assembler::x7, Assembler::x8, 9);
   assembler.FcvtDL(Assembler::f1, Assembler::x2, Assembler::Rounding::kRmm);
   assembler.FcvtDLu(Assembler::f3, Assembler::x4);
   assembler.FcvtLD(Assembler::x1, Assembler::f2, Assembler::Rounding::kRmm);
@@ -208,6 +217,9 @@ bool AssemblerTest() {
     0xeee3, 0xfca4,     //        bltu x9, x10, label
     0xfce3, 0xfcc5,     //        bgeu x11, x12, label
     0xf06f, 0xfd5f,     //        jal x0, label
+    0x109b, 0x0031,     //        slliw x1, x2, 3
+    0xd21b, 0x4062,     //        sraiw x4, x5, 6
+    0x539b, 0x0094,     //        srliw x7, x8, 9
     0x40d3, 0xd221,     //        fcvt.d.l f1, x2, rmm
     0x71d3, 0xd232,     //        fcvt.d.lu f3, x4
     0x40d3, 0xc221,     //        fcvt.l.d x1, f2, rmm
