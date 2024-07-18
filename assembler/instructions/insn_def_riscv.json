@@ -104,6 +104,45 @@
     },
     {
       "encodings": {
+        "fcvt.d.s": { "opcode": "4200_0053", "type": "R-type" },
+        "fcvt.s.d": { "opcode": "4010_0053", "type": "R-type" },
+        "fsqrt.s": { "opcode": "5800_0053", "type": "R-type" },
+        "fsqrt.d": { "opcode": "5a00_0053", "type": "R-type" }
+      },
+      "args": [
+        { "class": "FpReg", "usage": "def" },
+        { "class": "FpReg", "usage": "use" },
+        { "class": "Rm", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "fcvt.d.w": { "opcode": "d200_0053", "type": "R-type" },
+        "fcvt.d.wu": { "opcode": "d210_0053", "type": "R-type" },
+        "fcvt.s.w": { "opcode": "d000_0053", "type": "R-type" },
+        "fcvt.s.wu": { "opcode": "d010_0053", "type": "R-type" }
+      },
+      "args": [
+        { "class": "FpReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Rm", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "fcvt.w.d": { "opcode": "c200_0053", "type": "R-type" },
+        "fcvt.wu.d": { "opcode": "c210_0053", "type": "R-type" },
+        "fcvt.w.s": { "opcode": "c000_0053", "type": "R-type" },
+        "fcvt.wu.s": { "opcode": "c010_0053", "type": "R-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "FpReg", "usage": "use" },
+        { "class": "Rm", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "jal": { "opcode": "0000_006f", "type": "J-Type" }
       },
       "args": [
