@@ -100,6 +100,10 @@ def is_cond(arg_type):
   return arg_type == 'Cond'
 
 
+def is_csr(arg_type):
+  return arg_type == 'CsrReg'
+
+
 def is_rm(arg_type):
   return arg_type == 'Rm'
 
@@ -147,9 +151,9 @@ def get_mem_macro_name(insn, addr_mode = None):
     macro_name = macro_name[:-4]
   for arg in insn['args']:
     clazz = arg['class']
-    # Don't reflect FLAGS or Conditions or Labels in the name - we don't ever
+    # Don't reflect FLAGS/Conditions/Csrs/Labels in the name - we don't ever
     # have two different instructions where these cause the difference.
-    if clazz == 'FLAGS' or is_cond(clazz) or is_label(clazz):
+    if clazz == 'FLAGS' or is_cond(clazz) or is_label(clazz) or is_csr(clazz):
       pass
     elif is_rm(clazz):
       macro_name += 'Rm'

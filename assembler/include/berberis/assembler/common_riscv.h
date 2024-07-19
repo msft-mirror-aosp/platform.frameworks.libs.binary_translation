@@ -80,6 +80,20 @@ class AssemblerRiscV : public AssemblerBase {
     kNotZero = kNotEqual
   };
 
+  enum class Csr {
+    kFFlags = 0b00'00'0000'0001,
+    kFrm = 0b00'00'0000'0010,
+    kFCsr = 0b00'00'0000'0011,
+    kVstart = 0b00'00'0000'1000,
+    kVxsat = 0b00'00'0000'1001,
+    kVxrm = 0b00'00'0000'1010,
+    kVcsr = 0b00'00'0000'1111,
+    kCycle = 0b11'00'0000'0000,
+    kVl = 0b11'00'0010'0000,
+    kVtype = 0b11'00'0010'0001,
+    kVlenb = 0b11'00'0010'0010,
+  };
+
   enum class Rounding { kRne = 0, kRtz = 1, kRdn = 2, kRup = 3, kRmm = 4, kDyn = 7 };
 
   class Register {
@@ -93,7 +107,7 @@ class AssemblerRiscV : public AssemblerBase {
     friend class rv64i::Assembler;
 
    private:
-    constexpr Register(uint8_t num) : num_(num) {}
+    explicit constexpr Register(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
@@ -144,7 +158,7 @@ class AssemblerRiscV : public AssemblerBase {
     friend class AssemblerRiscV<Assembler>;
 
    private:
-    constexpr FpRegister(uint8_t num) : num_(num) {}
+    explicit constexpr FpRegister(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
@@ -506,6 +520,22 @@ class AssemblerRiscV : public AssemblerBase {
   template <uint32_t kOpcode, typename ArgumentsType0, typename OperandType>
   void EmitITypeInstruction(ArgumentsType0&& argument0, OperandType&& operand) {
     return EmitInstruction<kOpcode, 0x0000'707f>(Rd(argument0), Rs1(operand.base), operand.disp);
+  }
+
+  // Csr instructions are described as I-type instructions in RISC-V manual, but unlike most I-type
+  // instructions they use IImmediate to encode Csr register number and it comes as second argument,
+  // not third. In addition Csr value is defined as unsigned and not as signed which means certain
+  // Csr values (e.g. kVlenb) wouldn't be accepted as IImmediate!
+  template <uint32_t kOpcode, typename ArgumentsType0>
+  void EmitITypeInstruction(ArgumentsType0&& argument0, Csr csr, Register argument1) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(
+        Rd(argument0), IImmediate{RawImmediate{static_cast<int32_t>(csr) << 20}}, Rs1(argument1));
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0>
+  void EmitITypeInstruction(ArgumentsType0&& argument0, Csr csr, CsrImmediate immediate) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(
+        Rd(argument0), IImmediate{RawImmediate{static_cast<int32_t>(csr) << 20}}, immediate);
   }
 
   template <uint32_t kOpcode,
