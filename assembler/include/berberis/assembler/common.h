@@ -140,6 +140,17 @@ class AssemblerBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(AssemblerBase);
 };
 
+// Return the reverse condition. On all architectures that we may care about (AArch32/AArch64,
+// RISC-V and x86) this can be achieved with a simple bitflop of the lowest bit.
+// We may need a specialization of that function for more exotic architectures.
+template <typename Condition>
+inline constexpr Condition ToReverseCond(Condition cond) {
+  CHECK(cond != Condition::kInvalidCondition);
+  // Condition has a nice property that given a condition, you can get
+  // its reverse condition by flipping the least significant bit.
+  return Condition(static_cast<int>(cond) ^ 1);
+}
+
 }  // namespace berberis
 
 #endif  // BERBERIS_ASSEMBLER_COMMON_H_
