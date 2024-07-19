@@ -79,21 +79,75 @@ namespace rv32 {
 bool AssemblerTest() {
   MachineCode code;
   Assembler assembler(&code);
+  Assembler::Label label;
+  assembler.Bcc(Assembler::Condition::kEqual, Assembler::x1, Assembler::x2, label);
+  assembler.Bcc(Assembler::Condition::kNotEqual, Assembler::x3, Assembler::x4, label);
+  assembler.Bcc(Assembler::Condition::kLess, Assembler::x5, Assembler::x6, label);
+  assembler.Bcc(Assembler::Condition::kGreaterEqual, Assembler::x7, Assembler::x8, label);
+  assembler.Bcc(Assembler::Condition::kBelow, Assembler::x9, Assembler::x10, label);
+  assembler.Bcc(Assembler::Condition::kAboveEqual, Assembler::x11, Assembler::x12, label);
+  assembler.Jal(Assembler::x1, label);
   assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addi(Assembler::x1, Assembler::x2, 42);
+  assembler.Bind(&label);
   // Jalr have two alternate forms.
   assembler.Jalr(Assembler::x1, Assembler::x2, 42);
   assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
   assembler.Sw(Assembler::x1, {.base = Assembler::x2, .disp = 42});
+  assembler.Jal(Assembler::x2, label);
+  assembler.Beq(Assembler::x1, Assembler::x2, label);
+  assembler.Bne(Assembler::x3, Assembler::x4, label);
+  assembler.Blt(Assembler::x5, Assembler::x6, label);
+  assembler.Bge(Assembler::x7, Assembler::x8, label);
+  assembler.Bltu(Assembler::x9, Assembler::x10, label);
+  assembler.Bgeu(Assembler::x11, Assembler::x12, label);
+  assembler.Slli(Assembler::x1, Assembler::x2, 3);
+  assembler.Srai(Assembler::x4, Assembler::x5, 6);
+  assembler.Srli(Assembler::x7, Assembler::x8, 9);
+  assembler.FcvtSW(Assembler::f1, Assembler::x2, Assembler::Rounding::kRmm);
+  assembler.FcvtSWu(Assembler::f3, Assembler::x4);
+  assembler.FcvtWS(Assembler::x1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FcvtWuS(Assembler::x3, Assembler::f4);
+  assembler.FsqrtS(Assembler::f1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FsqrtD(Assembler::f3, Assembler::f4);
+  assembler.PrefetchI({.base = Assembler::x1, .disp = 32});
+  assembler.PrefetchR({.base = Assembler::x2, .disp = 64});
+  assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
   assembler.Finalize();
 
   // clang-format off
   static const uint16_t kCodeTemplate[] = {
-    0x00b3, 0x0031,     // add x1, x2, x3
-    0x0093, 0x02a1,     // addi x1, x2, 42
-    0x00e7, 0x02a1,     // jalr x1, x2, 42
-    0x01e7, 0x02a2,     // jalr x3, 42(x4)
-    0x2523, 0x0211,     // sw x1, 42(x2)
+    0x8263, 0x0220,     //        beq x1, x2, label
+    0x9063, 0x0241,     //        bne x3, x4, label
+    0xce63, 0x0062,     //        blt x5, x6, label
+    0xdc63, 0x0083,     //        bge x7, x8, label
+    0xea63, 0x00a4,     //        bltu x9, x10, label
+    0xf863, 0x00c5,     //        bgeu x11, x12, label
+    0x00ef, 0x00c0,     //        jal x1, label
+    0x00b3, 0x0031,     //        add x1, x2, x3
+    0x0093, 0x02a1,     //        addi x1, x2, 42
+    0x00e7, 0x02a1,     // label: jalr x1, x2, 42
+    0x01e7, 0x02a2,     //        jalr x3, 42(x4)
+    0x2523, 0x0211,     //        sw x1, 42(x2)
+    0xf16f, 0xff5f,     //        jal x2, label
+    0x88e3, 0xfe20,     //        beq x1, x2, label
+    0x96e3, 0xfe41,     //        bne x3, x4, label
+    0xc4e3, 0xfe62,     //        blt x5, x6, label
+    0xd2e3, 0xfe83,     //        bge x7, x8, label
+    0xe0e3, 0xfea4,     //        bltu x9, x10, label
+    0xfee3, 0xfcc5,     //        bgeu x11, x12, label
+    0x1093, 0x0031,     //        slli x1, x2, 3
+    0xd213, 0x4062,     //        srai x4, x5, 6
+    0x5393, 0x0094,     //        srli x7, x8, 9
+    0x40d3, 0xd001,     //        fcvt.s.w f1, x2, rmm
+    0x71d3, 0xd012,     //        fcvt.s.wu f3, x4
+    0x40d3, 0xc001,     //        fcvt.w.s x1, f2, rmm
+    0x71d3, 0xc012,     //        fcvt.wu.s x3, f4
+    0x40d3, 0x5801,     //        fsqrt.s f1, f2, rmm
+    0x71d3, 0x5a02,     //        fsqrt.d f3, f4
+    0xe013, 0x0200,     //        prefetch.i 32(x1)
+    0x6013, 0x0411,     //        prefetch.r 64(x2)
+    0xe013, 0x0631,     //        prefetch.w 96(x3)
   };
   // clang-format on
 
@@ -107,6 +161,14 @@ namespace rv64 {
 bool AssemblerTest() {
   MachineCode code;
   Assembler assembler(&code);
+  assembler.Bcc(Assembler::Condition::kAlways, Assembler::x1, Assembler::x2, 48);
+  assembler.Bcc(Assembler::Condition::kEqual, Assembler::x3, Assembler::x4, 44);
+  assembler.Bcc(Assembler::Condition::kNotEqual, Assembler::x5, Assembler::x6, 40);
+  assembler.Bcc(Assembler::Condition::kLess, Assembler::x7, Assembler::x8, 36);
+  assembler.Bcc(Assembler::Condition::kGreaterEqual, Assembler::x9, Assembler::x10, 32);
+  assembler.Bcc(Assembler::Condition::kBelow, Assembler::x11, Assembler::x12, 28);
+  assembler.Bcc(Assembler::Condition::kAboveEqual, Assembler::x13, Assembler::x14, 24);
+  assembler.Jal(Assembler::x1, 20);
   assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addw(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addi(Assembler::x1, Assembler::x2, 42);
@@ -116,18 +178,66 @@ bool AssemblerTest() {
   assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
   assembler.Sw(Assembler::x1, {.base = Assembler::x2, .disp = 42});
   assembler.Sd(Assembler::x3, {.base = Assembler::x4, .disp = 42});
+  assembler.Jal(Assembler::x2, -16);
+  assembler.Beq(Assembler::x1, Assembler::x2, -20);
+  assembler.Bne(Assembler::x3, Assembler::x4, -24);
+  assembler.Blt(Assembler::x5, Assembler::x6, -28);
+  assembler.Bge(Assembler::x7, Assembler::x8, -32);
+  assembler.Bltu(Assembler::x9, Assembler::x10, -36);
+  assembler.Bgeu(Assembler::x11, Assembler::x12, -40);
+  assembler.Bcc(Assembler::Condition::kAlways, Assembler::x13, Assembler::x14, -44);
+  assembler.Slliw(Assembler::x1, Assembler::x2, 3);
+  assembler.Sraiw(Assembler::x4, Assembler::x5, 6);
+  assembler.Srliw(Assembler::x7, Assembler::x8, 9);
+  assembler.FcvtDL(Assembler::f1, Assembler::x2, Assembler::Rounding::kRmm);
+  assembler.FcvtDLu(Assembler::f3, Assembler::x4);
+  assembler.FcvtLD(Assembler::x1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FcvtLuD(Assembler::x3, Assembler::f4);
+  assembler.FsqrtS(Assembler::f1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FsqrtD(Assembler::f3, Assembler::f4);
+  assembler.PrefetchI({.base = Assembler::x1, .disp = 32});
+  assembler.PrefetchR({.base = Assembler::x2, .disp = 64});
+  assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
   assembler.Finalize();
 
   // clang-format off
   static const uint16_t kCodeTemplate[] = {
-    0x00b3, 0x0031,     // add x1, x2, x3
-    0x00bb, 0x0031,     // addw x1, x2, x3
-    0x0093, 0x02a1,     // addi x1, x2, 42
-    0x009b, 0x02a1,     // addi x1, x2, 42
-    0x00e7, 0x02a1,     // jalr x1, x2, 42
-    0x01e7, 0x02a2,     // jalr x3, 42(x4)
-    0x2523, 0x0211,     // sw x1, 42(x2)
-    0x3523, 0x0232,     // sw x3, 42(x4)
+    0x006f, 0x0300,     //        jal x0, label
+    0x8663, 0x0241,     //        beq x1, x2, label
+    0x9463, 0x0262,     //        bne x3, x4, label
+    0xc263, 0x0283,     //        blt x5, x6, label
+    0xd063, 0x02a4,     //        bge x7, x8, label
+    0xee63, 0x00c5,     //        bltu x9, x10, label
+    0xfc63, 0x00e6,     //        bgeu x11, x12, label
+    0x00ef, 0x0140,     //        jal x1, label
+    0x00b3, 0x0031,     //        add x1, x2, x3
+    0x00bb, 0x0031,     //        addw x1, x2, x3
+    0x0093, 0x02a1,     //        addi x1, x2, 42
+    0x009b, 0x02a1,     //        addiw x1, x2, 42
+    0x00e7, 0x02a1,     // label: jalr x1, x2, 42
+    0x01e7, 0x02a2,     //        jalr x3, 42(x4)
+    0x2523, 0x0211,     //        sw x1, 42(x2)
+    0x3523, 0x0232,     //        sd x3, 42(x4)
+    0xf16f, 0xff1f,     //        jal x2, label
+    0x86e3, 0xfe20,     //        beq x1, x2, label
+    0x94e3, 0xfe41,     //        bne x3, x4, label
+    0xc2e3, 0xfe62,     //        blt x5, x6, label
+    0xd0e3, 0xfe83,     //        bge x7, x8, label
+    0xeee3, 0xfca4,     //        bltu x9, x10, label
+    0xfce3, 0xfcc5,     //        bgeu x11, x12, label
+    0xf06f, 0xfd5f,     //        jal x0, label
+    0x109b, 0x0031,     //        slliw x1, x2, 3
+    0xd21b, 0x4062,     //        sraiw x4, x5, 6
+    0x539b, 0x0094,     //        srliw x7, x8, 9
+    0x40d3, 0xd221,     //        fcvt.d.l f1, x2, rmm
+    0x71d3, 0xd232,     //        fcvt.d.lu f3, x4
+    0x40d3, 0xc221,     //        fcvt.l.d x1, f2, rmm
+    0x71d3, 0xc232,     //        fcvt.lu.d x3, f4
+    0x40d3, 0x5801,     //        fsqrt.s f1, f2, rmm
+    0x71d3, 0x5a02,     //        fsqrt.d f3, f4
+    0xe013, 0x0200,     //        prefetch.i 32(x1)
+    0x6013, 0x0411,     //        prefetch.r 64(x2)
+    0xe013, 0x0631,     //        prefetch.w 96(x3)
   };
   // clang-format on
 
