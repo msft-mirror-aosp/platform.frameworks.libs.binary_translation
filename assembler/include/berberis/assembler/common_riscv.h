@@ -231,8 +231,8 @@ class AssemblerRiscV : public AssemblerBase {
 
   template <typename RegisterType, typename ImmediateType>
   struct Operand {
-    RegisterType base;
-    ImmediateType disp;
+    RegisterType base{0};
+    ImmediateType disp = 0;
   };
 
   // Immediates are kept in a form ready to be used with emitter.
@@ -583,6 +583,11 @@ class AssemblerRiscV : public AssemblerBase {
   template <uint32_t kOpcode, typename ArgumentsType0, typename OperandType>
   void EmitSTypeInstruction(ArgumentsType0&& argument0, OperandType&& operand) {
     return EmitInstruction<kOpcode, 0x0000'707f>(Rs2(argument0), Rs1(operand.base), operand.disp);
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ImmediateType>
+  void EmitUTypeInstruction(ArgumentsType0&& argument0, ImmediateType&& immediate) {
+    return EmitInstruction<kOpcode, 0x0000'007f>(Rd(argument0), immediate);
   }
 
  private:
@@ -942,12 +947,59 @@ inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
   EmitInstruction<0x0000'0063, 0x0000'007f>(Cond(cc), Rs1(argument1), Rs2(argument2), immediate);
 }
 
-#define BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Name, Opcode)             \
-  template <typename Assembler>                                           \
-  inline void AssemblerRiscV<Assembler>::Name(                            \
-      Register argument1, Register argument2, const Label& label) {       \
-    jumps_.push_back(Jump{&label, pc(), false});                          \
-    EmitInstruction<Opcode, 0x0000'707f>(Rs1(argument1), Rs2(argument2)); \
+#define BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Name, TargetRegister, InstructionType, Opcode) \
+  template <typename Assembler>                                                                  \
+  inline void AssemblerRiscV<Assembler>::Name(                                                   \
+      TargetRegister arg0, const Label& label, Register arg2) {                                  \
+    CHECK_NE(arg2, x0);                                                                          \
+    jumps_.push_back(Jump{&label, pc(), false});                                                 \
+    /* First issue auipc to load top 20 bits of difference between pc and target address */      \
+    EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg2, UImmediate{0});                            \
+    /* The low 12 bite of difference will be encoded in the memory accessing instruction */      \
+    Emit##InstructionType##TypeInstruction<uint32_t{Opcode}>(                                    \
+        arg0, Operand<Register, InstructionType##Immediate>{.base = arg2});                      \
+  }
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Fld, FpRegister, I, 0x0000'3007)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Flw, FpRegister, I, 0x0000'2007)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Fsd, FpRegister, S, 0x0000'3027)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Fsw, FpRegister, S, 0x0000'2027)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sb, Register, S, 0x0000'0023)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sh, Register, S, 0x0000'1023)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sw, Register, S, 0x0000'2023)
+#undef BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION
+
+#define BERBERIS_DEFINE_LOAD_INSTRUCTION(Name, Opcode)                                         \
+  template <typename Assembler>                                                                \
+  inline void AssemblerRiscV<Assembler>::Name(Register arg0, const Label& label) {             \
+    CHECK_NE(arg0, x0);                                                                        \
+    jumps_.push_back(Jump{&label, pc(), false});                                               \
+    /* First issue auipc to load top 20 bits of difference between pc and target address */    \
+    EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});                          \
+    /* The low 12 bite of difference will be encoded in the memory accessing instruction */    \
+    EmitITypeInstruction<uint32_t{Opcode}>(arg0, Operand<Register, IImmediate>{.base = arg0}); \
+  }
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lb, 0x0000'0003)
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lbu, 0x0000'4003)
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lh, 0x0000'1003)
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lhu, 0x0000'5003)
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lw, 0x0000'2003)
+#undef BERBERIS_DEFINE_LOAD_INSTRUCTION
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::Lla(Register arg0, const Label& label) {
+  CHECK_NE(arg0, x0);
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});
+  // The low 12 bite of difference will be added with addi instruction
+  EmitITypeInstruction<uint32_t{0x0000'0013}>(arg0, arg0, IImmediate{0});
+}
+
+#define BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Name, Opcode)                                     \
+  template <typename Assembler>                                                                   \
+  inline void AssemblerRiscV<Assembler>::Name(Register arg0, Register arg1, const Label& label) { \
+    jumps_.push_back(Jump{&label, pc(), false});                                                  \
+    EmitBTypeInstruction<uint32_t{Opcode}>(arg0, arg1, BImmediate{0});                            \
   }
 BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Beq, 0x0000'0063)
 BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bge, 0x0000'5063)
@@ -979,15 +1031,39 @@ inline void AssemblerRiscV<Assembler>::ResolveJumps() {
                              std::optional<ImmediateType> (*MakeImmediate)(int32_t)>() {
             auto encoded_immediate = MakeImmediate(offset);
             if (!encoded_immediate.has_value()) {
+              // UImmediate means we are dealing with auipc here, means we may accept any
+              // ±2GB offset, but need to look at the next instruction to do that.
+              if constexpr (std::is_same_v<ImmediateType, UImmediate>) {
+                // Bottom immediate is decoded with a 12 → 32 bit sign-extended.
+                // Compensate that by adding sign-bit of bottom to top.
+                // Make calculation as unsigned types to ensure we wouldn't hit any UB here.
+                int32_t top = (static_cast<uint32_t>(offset) +
+                               ((static_cast<uint32_t>(offset) & (1U << 11)) * 2)) &
+                              0xffff'f000U;
+                struct {
+                  int32_t data : 12;
+                } bottom = {offset};
+                *AddrAs<int32_t>(pc) |= UImmediate{top}.EncodedValue();
+                *AddrAs<int32_t>(pc + 4) |= (*AddrAs<int32_t>(pc + 4) & 32)
+                                                ? SImmediate{bottom.data}.EncodedValue()
+                                                : IImmediate{bottom.data}.EncodedValue();
+                return true;
+              }
               return false;
             }
             *AddrAs<int32_t>(pc) |= encoded_immediate->EncodedValue();
             return true;
           };
-      // Check the instruction type: Jal uses JImmediate, while Bcc uses BImmediate.
-      bool RelocationInRange = (*AddrAs<int32_t>(pc) & 4)
-                                   ? ProcessLabel.template operator()<JImmediate, MakeJImmediate>()
-                                   : ProcessLabel.template operator()<BImmediate, MakeBImmediate>();
+      // Check the instruction type:
+      //   AUIPC uses UImmediate, Jal uses JImmediate, while Bcc uses BImmediate.
+      bool RelocationInRange;
+      if (*AddrAs<int32_t>(pc) & 16) {
+        RelocationInRange = ProcessLabel.template operator()<UImmediate, MakeUImmediate>();
+      } else if (*AddrAs<int32_t>(pc) & 4) {
+        RelocationInRange = ProcessLabel.template operator()<JImmediate, MakeJImmediate>();
+      } else {
+        RelocationInRange = ProcessLabel.template operator()<BImmediate, MakeBImmediate>();
+      }
       // Maybe need to propagate error to caller?
       CHECK(RelocationInRange);
     }
