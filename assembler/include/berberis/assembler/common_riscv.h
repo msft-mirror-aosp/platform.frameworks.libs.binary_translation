@@ -97,6 +97,7 @@ class AssemblerRiscV : public AssemblerBase {
   enum class Rounding { kRne = 0, kRtz = 1, kRdn = 2, kRup = 3, kRmm = 4, kDyn = 7 };
 
   class Register {
+   public:
     constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
     constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
@@ -151,6 +152,7 @@ class AssemblerRiscV : public AssemblerBase {
   static constexpr Register zero{0};
 
   class FpRegister {
+   public:
     constexpr bool operator==(const FpRegister& reg) const { return num_ == reg.num_; }
     constexpr bool operator!=(const FpRegister& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
