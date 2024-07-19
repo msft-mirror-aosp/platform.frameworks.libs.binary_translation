@@ -64,6 +64,8 @@ def _get_arg_type_name(arg, insn_type):
     return 'const Label&'
   if asm_defs.is_cond(cls):
     return 'Condition'
+  if asm_defs.is_csr(cls):
+    return 'Csr'
   if asm_defs.is_rm(cls):
     return 'Rounding'
   if asm_defs.is_mem_op(cls):

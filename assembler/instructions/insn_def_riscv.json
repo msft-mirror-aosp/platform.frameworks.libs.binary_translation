@@ -104,6 +104,33 @@
     },
     {
       "encodings": {
+        "csrrc": { "opcode": "0000_3073", "type": "I-type" },
+        "csrrs": { "opcode": "0000_2073", "type": "I-type" },
+        "csrrw": { "opcode": "0000_1073", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "CsrReg", "usage": "use_def" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "csrrc": { "opcode": "0000_7073", "type": "I-type" },
+        "csrrci": { "opcode": "0000_7073", "type": "I-type" },
+        "csrrs": { "opcode": "0000_6073", "type": "I-type" },
+        "csrrsi": { "opcode": "0000_6073", "type": "I-type" },
+        "csrrw": { "opcode": "0000_5073", "type": "I-type" },
+        "csrrwi": { "opcode": "0000_5073", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "CsrReg", "usage": "use_def" },
+        { "class": "Csr-Imm" }
+      ]
+    },
+    {
+      "encodings": {
         "fcvt.d.s": { "opcode": "4200_0053", "type": "R-type" },
         "fcvt.s.d": { "opcode": "4010_0053", "type": "R-type" },
         "fsqrt.s": { "opcode": "5800_0053", "type": "R-type" },
