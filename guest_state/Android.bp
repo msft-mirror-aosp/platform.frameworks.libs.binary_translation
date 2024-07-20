@@ -100,6 +100,7 @@ cc_library_static {
 cc_library_static {
     name: "libberberis_guest_state_arm64",
     defaults: [
+        "berberis_riscv64_device_defaults",
         "berberis_arm64_defaults",
         "berberis_guest_state_defaults",
     ],
