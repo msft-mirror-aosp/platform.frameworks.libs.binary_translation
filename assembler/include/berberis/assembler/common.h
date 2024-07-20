@@ -120,6 +120,8 @@ class AssemblerBase {
 
   // These are 'static' relocations, resolved when code is finalized.
   // We also have 'dynamic' relocations, resolved when code is installed.
+  // TODO(b/232598137): rename Jump to something more appropriate since we are supporting
+  // memory-accessing instructions, not just jumps.
   struct Jump {
     const Label* label;
     // Position of field to store offset.  Note: unless it's recovery label precomputed

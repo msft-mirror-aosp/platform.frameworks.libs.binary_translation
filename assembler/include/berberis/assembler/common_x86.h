@@ -100,7 +100,7 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_64::Assembler;
 
    private:
-    constexpr Register(uint8_t num) : num_(num) {}
+    explicit constexpr Register(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
@@ -115,7 +115,7 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_64::Assembler;
 
    private:
-    constexpr X87Register(uint8_t num) : num_(num) {}
+    explicit constexpr X87Register(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
@@ -140,7 +140,7 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_64::Assembler;
 
    private:
-    constexpr XMMRegister(uint8_t num) : num_(num) {}
+    explicit constexpr XMMRegister(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
