@@ -117,7 +117,10 @@ genrule {
 
 cc_library_headers {
     name: "libberberis_assembler_headers",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     header_libs: ["libberberis_base_headers"],
     export_header_lib_headers: ["libberberis_base_headers"],

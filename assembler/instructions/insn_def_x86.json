@@ -712,7 +712,7 @@
     {
       "encodings": {
         "CmpXchg8b": { "opcodes": [ "0F", "C7", "1" ] },
-        "LockCmpXchg8b": { "opcodes": [ "F0", "0F", "C7", "1" ] }
+        "Lock CmpXchg8b": { "opcodes": [ "F0", "0F", "C7", "1" ] }
       },
       "args": [
         { "class": "EAX", "usage": "use_def" },
@@ -1620,17 +1620,16 @@
     },
     {
       "encodings": {
-        "Leal": { "opcode": "8D" },
-        "Movl": { "opcode": "8B" }
+        "Leal": { "opcode": "8D" }
       },
       "args": [
         { "class": "GeneralReg32", "usage": "def" },
-        { "class": "Mem32", "usage": "use" }
+        { "class": "Mem", "usage": "use" }
       ]
     },
     {
       "encodings": {
-        "LockCmpXchgb": { "opcodes": [ "F0", "0F", "B0" ], "type": "reg_to_rm" }
+        "Lock CmpXchgb": { "opcodes": [ "F0", "0F", "B0" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "AL", "usage": "use_def" },
@@ -1641,7 +1640,7 @@
     },
     {
       "encodings": {
-        "LockCmpXchgl": { "opcodes": [ "F0", "0F", "B1" ], "type": "reg_to_rm" }
+        "Lock CmpXchgl": { "opcodes": [ "F0", "0F", "B1" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "EAX", "usage": "use_def" },
@@ -1652,7 +1651,7 @@
     },
     {
       "encodings": {
-        "LockCmpXchgw": { "opcodes": [ "F0", "66", "0F", "B1" ], "type": "reg_to_rm" }
+        "Lock CmpXchgw": { "opcodes": [ "F0", "66", "0F", "B1" ], "type": "reg_to_rm" }
       },
       "args": [
         { "class": "AX", "usage": "use_def" },
@@ -1809,6 +1808,15 @@
       "args": [
         { "class": "XmmReg", "usage": "use_def" },
         { "class": "VecMem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Movl": { "opcode": "8B" }
+      },
+      "args": [
+        { "class": "GeneralReg32", "usage": "def" },
+        { "class": "Mem32", "usage": "use" }
       ]
     },
     {
