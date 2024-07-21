@@ -49,7 +49,7 @@ class TextAssemblerX86 {
     kBelowEqual = 6,
     kAbove = 7,
     kNegative = 8,
-    kPositive = 9,
+    kPositiveOrZero = 9,
     kParityEven = 10,
     kParityOdd = 11,
     kLess = 12,
@@ -63,7 +63,7 @@ class TextAssemblerX86 {
     kZero = kEqual,
     kNotZero = kNotEqual,
     kSign = kNegative,
-    kNotSign = kPositive
+    kNotSign = kPositiveOrZero
   };
 
   enum ScaleFactor {
@@ -89,7 +89,6 @@ class TextAssemblerX86 {
 
   class Register {
    public:
-    constexpr Register() : arg_no_(kNoRegister) {}
     constexpr Register(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
@@ -116,7 +115,6 @@ class TextAssemblerX86 {
 
   class X87Register {
    public:
-    constexpr X87Register() : arg_no_(kNoRegister) {}
     constexpr X87Register(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
@@ -142,7 +140,6 @@ class TextAssemblerX86 {
 
   class XMMRegister {
    public:
-    constexpr XMMRegister() : arg_no_(kNoRegister) {}
     constexpr XMMRegister(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
@@ -167,8 +164,8 @@ class TextAssemblerX86 {
   };
 
   struct Operand {
-    Register base = Register{};
-    Register index = Register{};
+    Register base = Register{Register::kNoRegister};
+    Register index = Register{Register::kNoRegister};
     ScaleFactor scale = kTimesOne;
     int32_t disp = 0;
 
@@ -209,9 +206,12 @@ class TextAssemblerX86 {
 
   TextAssemblerX86(int indent, FILE* out) : indent_(indent), out_(out) {}
 
-  Register gpr_a{};
-  Register gpr_c{};
-  Register gpr_d{};
+  // These start as Register::kNoRegister but can be changed if they are used as arguments to
+  // something else.
+  // If they are not coming as arguments then using them is compile-time error!
+  Register gpr_a{Register::kNoRegister};
+  Register gpr_c{Register::kNoRegister};
+  Register gpr_d{Register::kNoRegister};
   // Note: stack pointer is not reflected in list of arguments, intrinsics use
   // it implicitly.
   Register gpr_s{Register::kStackPointer};
@@ -222,12 +222,12 @@ class TextAssemblerX86 {
   // In x86-32 mode, on the other hand, we need complex dance to access it via GOT.
   // Intrinsics which use these constants receive it via additional parameter - and
   // we need to know if it's needed or not.
-  Register gpr_macroassembler_constants{};
+  Register gpr_macroassembler_constants{Register::kNoRegister};
   bool need_gpr_macroassembler_constants() const { return need_gpr_macroassembler_constants_; }
 
-  Register gpr_macroassembler_scratch{};
+  Register gpr_macroassembler_scratch{Register::kNoRegister};
   bool need_gpr_macroassembler_scratch() const { return need_gpr_macroassembler_scratch_; }
-  Register gpr_macroassembler_scratch2{};
+  Register gpr_macroassembler_scratch2{Register::kNoRegister};
 
   bool need_avx = false;
   bool need_bmi = false;
@@ -453,7 +453,7 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, Condition
     case Condition::kNegative:
       strcat(name_with_condition, "s");
       break;
-    case Condition::kPositive:
+    case Condition::kPositiveOrZero:
       strcat(name_with_condition, "ns");
       break;
     case Condition::kParityEven:
