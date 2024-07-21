@@ -18,10 +18,14 @@
 
 #include <sys/mman.h>
 
+#include <cstring>
 #include <iterator>
 #include <string>
 
 #include "berberis/assembler/machine_code.h"
+#include "berberis/assembler/rv32e.h"
+#include "berberis/assembler/rv32i.h"
+#include "berberis/assembler/rv64i.h"
 #include "berberis/assembler/x86_32.h"
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/bit_util.h"
@@ -46,10 +50,11 @@ float FloatFunc(float f1, float f2) {
   return f1 - f2;
 }
 
-inline bool CompareCode(const uint8_t* code_template_begin,
-                        const uint8_t* code_template_end,
+template <typename ParcelInt>
+inline bool CompareCode(const ParcelInt* code_template_begin,
+                        const ParcelInt* code_template_end,
                         const MachineCode& code) {
-  if ((code_template_end - code_template_begin) != static_cast<intptr_t>(code.install_size())) {
+  if ((code_template_end - code_template_begin) * sizeof(ParcelInt) != code.install_size()) {
     ALOGE("Code size mismatch: %zd != %u",
           code_template_end - code_template_begin,
           code.install_size());
@@ -69,13 +74,73 @@ inline bool CompareCode(const uint8_t* code_template_begin,
   return true;
 }
 
-#if defined(__i386__)
+namespace rv32 {
+
+bool AssemblerTest() {
+  MachineCode code;
+  Assembler assembler(&code);
+  assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
+  assembler.Addi(Assembler::x1, Assembler::x2, 42);
+  // Jalr have two alternate forms.
+  assembler.Jalr(Assembler::x1, Assembler::x2, 42);
+  assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
+  assembler.Sw(Assembler::x1, {.base = Assembler::x2, .disp = 42});
+  assembler.Finalize();
+
+  // clang-format off
+  static const uint16_t kCodeTemplate[] = {
+    0x00b3, 0x0031,     // add x1, x2, x3
+    0x0093, 0x02a1,     // addi x1, x2, 42
+    0x00e7, 0x02a1,     // jalr x1, x2, 42
+    0x01e7, 0x02a2,     // jalr x3, 42(x4)
+    0x2523, 0x0211,     // sw x1, 42(x2)
+  };
+  // clang-format on
+
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+}
+
+}  // namespace rv32
+
+namespace rv64 {
+
+bool AssemblerTest() {
+  MachineCode code;
+  Assembler assembler(&code);
+  assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
+  assembler.Addw(Assembler::x1, Assembler::x2, Assembler::x3);
+  assembler.Addi(Assembler::x1, Assembler::x2, 42);
+  assembler.Addiw(Assembler::x1, Assembler::x2, 42);
+  // Jalr have two alternate forms.
+  assembler.Jalr(Assembler::x1, Assembler::x2, 42);
+  assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
+  assembler.Sw(Assembler::x1, {.base = Assembler::x2, .disp = 42});
+  assembler.Sd(Assembler::x3, {.base = Assembler::x4, .disp = 42});
+  assembler.Finalize();
+
+  // clang-format off
+  static const uint16_t kCodeTemplate[] = {
+    0x00b3, 0x0031,     // add x1, x2, x3
+    0x00bb, 0x0031,     // addw x1, x2, x3
+    0x0093, 0x02a1,     // addi x1, x2, 42
+    0x009b, 0x02a1,     // addi x1, x2, 42
+    0x00e7, 0x02a1,     // jalr x1, x2, 42
+    0x01e7, 0x02a2,     // jalr x3, 42(x4)
+    0x2523, 0x0211,     // sw x1, 42(x2)
+    0x3523, 0x0232,     // sw x3, 42(x4)
+  };
+  // clang-format on
+
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+}
+
+}  // namespace rv64
 
 namespace x86_32 {
 
 bool AssemblerTest() {
   MachineCode code;
-  CodeEmitter assembler(&code);
+  Assembler assembler(&code);
   assembler.Movl(Assembler::eax, {.base = Assembler::esp, .disp = 4});
   assembler.CmpXchgl({.base = Assembler::esp, .disp = 4}, Assembler::eax);
   assembler.Subl(Assembler::esp, 16);
@@ -92,7 +157,7 @@ bool AssemblerTest() {
   assembler.Finalize();
 
   // clang-format off
-  static const uint8_t code_template[] = {
+  static const uint8_t kCodeTemplate[] = {
     0x8b, 0x44, 0x24, 0x04,                    // mov     0x4(%esp),%eax
     0x0f, 0xb1, 0x44, 0x24, 0x04,              // cmpxchg 0x4(%esp),%eax
     0x83, 0xec, 0x10,                          // sub     $16, %esp
@@ -109,24 +174,48 @@ bool AssemblerTest() {
   };
   // clang-format on
 
-  if (sizeof(code_template) != code.install_size()) {
-    ALOGE("Code size mismatch: %zu != %u", sizeof(code_template), code.install_size());
-    return false;
-  }
-
-  if (memcmp(code_template, code.AddrAs<uint8_t>(0), code.install_size()) != 0) {
-    ALOGE("Code mismatch");
-    MachineCode code2;
-    code2.Add(code_template);
-    std::string code_str1, code_str2;
-    code.AsString(&code_str1);
-    code2.AsString(&code_str2);
-    ALOGE("assembler generated\n%s\nshall be\n%s", code_str1.c_str(), code_str2.c_str());
-    return false;
-  }
-
-  return true;
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
 }
+
+}  // namespace x86_32
+
+namespace x86_64 {
+
+bool AssemblerTest() {
+  MachineCode code;
+  Assembler assembler(&code);
+  assembler.Movq(Assembler::rax, Assembler::rdi);
+  assembler.Subq(Assembler::rsp, 16);
+  assembler.Movq({.base = Assembler::rsp}, Assembler::rax);
+  assembler.Movq({.base = Assembler::rsp, .disp = 8}, Assembler::rax);
+  assembler.Movl({.base = Assembler::rax, .disp = 16}, 239);
+  assembler.Movq(Assembler::r11, {.base = Assembler::rsp});
+  assembler.Addq(Assembler::rsp, 16);
+  assembler.Ret();
+  assembler.Finalize();
+
+  // clang-format off
+  static const uint8_t kCodeTemplate[] = {
+    0x48, 0x89, 0xf8,               // mov %rdi, %rax
+    0x48, 0x83, 0xec, 0x10,         // sub $0x10, %rsp
+    0x48, 0x89, 0x04, 0x24,         // mov rax, (%rsp)
+    0x48, 0x89, 0x44, 0x24, 0x08,   // mov rax, 8(%rsp)
+    0xc7, 0x40, 0x10, 0xef, 0x00,   // movl $239, 0x10(%rax)
+    0x00, 0x00,
+    0x4c, 0x8b, 0x1c, 0x24,         // mov (%rsp), r11
+    0x48, 0x83, 0xc4, 0x10,         // add $0x10, %rsp
+    0xc3                            // ret
+  };
+  // clang-format on
+
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+}
+
+}  // namespace x86_64
+
+#if defined(__i386__)
+
+namespace x86_32 {
 
 bool LabelTest() {
   MachineCode code;
@@ -385,51 +474,6 @@ bool ReadGlobalTest() {
 #elif defined(__amd64__)
 
 namespace x86_64 {
-
-bool AssemblerTest() {
-  MachineCode code;
-  CodeEmitter assembler(&code);
-  assembler.Movq(Assembler::rax, Assembler::rdi);
-  assembler.Subq(Assembler::rsp, 16);
-  assembler.Movq({.base = Assembler::rsp}, Assembler::rax);
-  assembler.Movq({.base = Assembler::rsp, .disp = 8}, Assembler::rax);
-  assembler.Movl({.base = Assembler::rax, .disp = 16}, 239);
-  assembler.Movq(Assembler::r11, {.base = Assembler::rsp});
-  assembler.Addq(Assembler::rsp, 16);
-  assembler.Ret();
-  assembler.Finalize();
-
-  // clang-format off
-  static const uint8_t code_template[] = {
-    0x48, 0x89, 0xf8,               // mov %rdi, %rax
-    0x48, 0x83, 0xec, 0x10,         // sub $0x10, %rsp
-    0x48, 0x89, 0x04, 0x24,         // mov rax, (%rsp)
-    0x48, 0x89, 0x44, 0x24, 0x08,   // mov rax, 8(%rsp)
-    0xc7, 0x40, 0x10, 0xef, 0x00,   // movl $239, 0x10(%rax)
-    0x00, 0x00,
-    0x4c, 0x8b, 0x1c, 0x24,         // mov (%rsp), r11
-    0x48, 0x83, 0xc4, 0x10,         // add $0x10, %rsp
-    0xc3                            // ret
-  };
-  // clang-format on
-
-  if (sizeof(code_template) != code.install_size()) {
-    ALOGE("Code size mismatch: %zu != %u", sizeof(code_template), code.install_size());
-    return false;
-  }
-
-  if (memcmp(code_template, code.AddrAs<uint8_t>(0), code.install_size()) != 0) {
-    ALOGE("Code mismatch");
-    MachineCode code2;
-    code2.Add(code_template);
-    std::string code_str1, code_str2;
-    code.AsString(&code_str1);
-    code2.AsString(&code_str2);
-    ALOGE("assembler generated\n%s\nshall be\n%s", code_str1.c_str(), code_str2.c_str());
-    return false;
-  }
-  return true;
-}
 
 bool LabelTest() {
   MachineCode code;
@@ -873,7 +917,7 @@ bool MixedAssembler() {
   as64.Finalize();
 
   // clang-format off
-  static const uint8_t code_template[] = {
+  static const uint8_t kCodeTemplate[] = {
     0xe9, 0x08, 0x00, 0x00, 0x00,              // jmp lbl32
     0x90,                                      // xchg %eax, %eax == nop
     0xe9, 0x07, 0x00, 0x00, 0x00,              // jmp lbl64
@@ -884,15 +928,18 @@ bool MixedAssembler() {
   };
   // clang-format on
 
-  return CompareCode(std::begin(code_template), std::end(code_template), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
 }
 #endif
 
 }  // namespace berberis
 
 TEST(Assembler, AssemblerTest) {
-#if defined(__i386__)
+  EXPECT_TRUE(berberis::rv32::AssemblerTest());
+  EXPECT_TRUE(berberis::rv64::AssemblerTest());
   EXPECT_TRUE(berberis::x86_32::AssemblerTest());
+  EXPECT_TRUE(berberis::x86_64::AssemblerTest());
+#if defined(__i386__)
   EXPECT_TRUE(berberis::x86_32::LabelTest());
   EXPECT_TRUE(berberis::x86_32::CondTest1());
   EXPECT_TRUE(berberis::x86_32::CondTest2());
@@ -903,10 +950,7 @@ TEST(Assembler, AssemblerTest) {
   EXPECT_TRUE(berberis::x86_32::XmmTest());
   EXPECT_TRUE(berberis::x86_32::BsrTest());
   EXPECT_TRUE(berberis::x86_32::ReadGlobalTest());
-  EXPECT_TRUE(berberis::ExhaustiveTest());
-  EXPECT_TRUE(berberis::MixedAssembler());
 #elif defined(__amd64__)
-  EXPECT_TRUE(berberis::x86_64::AssemblerTest());
   EXPECT_TRUE(berberis::x86_64::LabelTest());
   EXPECT_TRUE(berberis::x86_64::CondTest1());
   EXPECT_TRUE(berberis::x86_64::CondTest2());
@@ -921,7 +965,7 @@ TEST(Assembler, AssemblerTest) {
   EXPECT_TRUE(berberis::x86_64::ShrdlRexTest());
   EXPECT_TRUE(berberis::x86_64::ReadGlobalTest());
   EXPECT_TRUE(berberis::x86_64::MemShiftTest());
+#endif
   EXPECT_TRUE(berberis::ExhaustiveTest());
   EXPECT_TRUE(berberis::MixedAssembler());
-#endif
 }
