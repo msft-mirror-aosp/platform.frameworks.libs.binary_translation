@@ -61,7 +61,43 @@ class AssemblerRiscV : public AssemblerBase {
  public:
   explicit AssemblerRiscV(MachineCode* code) : AssemblerBase(code) {}
 
+  enum class Condition {
+    kInvalidCondition = -1,
+
+    kEqual = 0,
+    kNotEqual = 1,
+    kLess = 4,
+    kGreaterEqual = 5,
+    kBelow = 6,
+    kAboveEqual = 7,
+    kAlways = 8,
+    kNever = 9,
+
+    // aka...
+    kCarry = kBelow,
+    kNotCarry = kAboveEqual,
+    kZero = kEqual,
+    kNotZero = kNotEqual
+  };
+
+  enum class Csr {
+    kFFlags = 0b00'00'0000'0001,
+    kFrm = 0b00'00'0000'0010,
+    kFCsr = 0b00'00'0000'0011,
+    kVstart = 0b00'00'0000'1000,
+    kVxsat = 0b00'00'0000'1001,
+    kVxrm = 0b00'00'0000'1010,
+    kVcsr = 0b00'00'0000'1111,
+    kCycle = 0b11'00'0000'0000,
+    kVl = 0b11'00'0010'0000,
+    kVtype = 0b11'00'0010'0001,
+    kVlenb = 0b11'00'0010'0010,
+  };
+
+  enum class Rounding { kRne = 0, kRtz = 1, kRdn = 2, kRup = 3, kRmm = 4, kDyn = 7 };
+
   class Register {
+   public:
     constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
     constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
@@ -72,7 +108,7 @@ class AssemblerRiscV : public AssemblerBase {
     friend class rv64i::Assembler;
 
    private:
-    constexpr Register(uint8_t num) : num_(num) {}
+    explicit constexpr Register(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
@@ -115,10 +151,97 @@ class AssemblerRiscV : public AssemblerBase {
   static constexpr Register no_register{0x80};
   static constexpr Register zero{0};
 
+  class FpRegister {
+   public:
+    constexpr bool operator==(const FpRegister& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const FpRegister& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(FpRegister value) { return value.num_; }
+    friend class AssemblerRiscV<Assembler>;
+
+   private:
+    explicit constexpr FpRegister(uint8_t num) : num_(num) {}
+    uint8_t num_;
+  };
+
+  static constexpr FpRegister f0{0};
+  static constexpr FpRegister f1{1};
+  static constexpr FpRegister f2{2};
+  static constexpr FpRegister f3{3};
+  static constexpr FpRegister f4{4};
+  static constexpr FpRegister f5{5};
+  static constexpr FpRegister f6{6};
+  static constexpr FpRegister f7{7};
+  static constexpr FpRegister f8{8};
+  static constexpr FpRegister f9{9};
+  static constexpr FpRegister f10{10};
+  static constexpr FpRegister f11{11};
+  static constexpr FpRegister f12{12};
+  static constexpr FpRegister f13{13};
+  static constexpr FpRegister f14{14};
+  static constexpr FpRegister f15{15};
+  static constexpr FpRegister f16{16};
+  static constexpr FpRegister f17{17};
+  static constexpr FpRegister f18{18};
+  static constexpr FpRegister f19{19};
+  static constexpr FpRegister f20{20};
+  static constexpr FpRegister f21{21};
+  static constexpr FpRegister f22{22};
+  static constexpr FpRegister f23{23};
+  static constexpr FpRegister f24{24};
+  static constexpr FpRegister f25{25};
+  static constexpr FpRegister f26{26};
+  static constexpr FpRegister f27{27};
+  static constexpr FpRegister f28{28};
+  static constexpr FpRegister f29{29};
+  static constexpr FpRegister f30{30};
+  static constexpr FpRegister f31{31};
+
+  // ABI
+  static constexpr FpRegister ft0{0};
+  static constexpr FpRegister ft1{1};
+  static constexpr FpRegister ft2{2};
+  static constexpr FpRegister ft3{3};
+  static constexpr FpRegister ft4{4};
+  static constexpr FpRegister ft5{5};
+  static constexpr FpRegister ft6{6};
+  static constexpr FpRegister ft7{7};
+  static constexpr FpRegister fs0{8};
+  static constexpr FpRegister fs1{9};
+  static constexpr FpRegister fa0{10};
+  static constexpr FpRegister fa1{11};
+  static constexpr FpRegister fa2{12};
+  static constexpr FpRegister fa3{13};
+  static constexpr FpRegister fa4{14};
+  static constexpr FpRegister fa5{15};
+  static constexpr FpRegister fa6{16};
+  static constexpr FpRegister fa7{17};
+  static constexpr FpRegister fs2{18};
+  static constexpr FpRegister fs3{19};
+  static constexpr FpRegister fs4{20};
+  static constexpr FpRegister fs5{21};
+  static constexpr FpRegister fs6{22};
+  static constexpr FpRegister fs7{23};
+  static constexpr FpRegister fs8{24};
+  static constexpr FpRegister fs9{25};
+  static constexpr FpRegister fs10{26};
+  static constexpr FpRegister fs11{27};
+  static constexpr FpRegister ft8{28};
+  static constexpr FpRegister ft9{29};
+  static constexpr FpRegister ft10{30};
+  static constexpr FpRegister ft11{31};
+
+  template <typename RegisterType, typename ImmediateType>
+  struct Operand {
+    RegisterType base{0};
+    ImmediateType disp = 0;
+  };
+
   // Immediates are kept in a form ready to be used with emitter.
   class BImmediate;
   class CsrImmediate;
-  class Immediate;
+  class IImmediate;
+  using Immediate = IImmediate;
   class JImmediate;
   // In RISC V manual shifts are described as using I-format with complex restrictions for which
   // immediates are accepted and allowed (with parts of what manual classifies as “immediate” used
@@ -152,7 +275,8 @@ class AssemblerRiscV : public AssemblerBase {
   static constexpr std::optional<Immediate> MakeImmediate(uint64_t value)
   BERBERIS_DEFINE_MAKE_IMMEDIATE(BImmediate, MakeBImmediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(CsrImmediate, MakeCsrImmediate);
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(IImmediate, MakeImmediate);
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(IImmediate, MakeIImmediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(JImmediate, MakeJImmediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(PImmediate, MakePImmediate);
   BERBERIS_DEFINE_MAKE_IMMEDIATE(Shift32Immediate, MakeShift32Immediate);
@@ -165,7 +289,15 @@ class AssemblerRiscV : public AssemblerBase {
   // RawImmediate is used to bypass checks in constructor. It's not supposed to be used directly.
   class RawImmediate {
    private:
-    friend class Immediate;
+    friend class BImmediate;
+    friend class CsrImmediate;
+    friend class IImmediate;
+    friend class JImmediate;
+    friend class Shift32Immediate;
+    friend class Shift64Immediate;
+    friend class PImmediate;
+    friend class SImmediate;
+    friend class UImmediate;
     friend class AssemblerRiscV;
 
     constexpr RawImmediate(int32_t value) : value_(value) {}
@@ -189,6 +321,12 @@ class AssemblerRiscV : public AssemblerBase {
     BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, int64_t)                                    \
     BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR(Immediate, uint64_t)                                   \
                                                                                                  \
+    constexpr Immediate() : value_(0) {}                                                         \
+                                                                                                 \
+    constexpr int32_t EncodedValue() {                                                           \
+      return value_;                                                                             \
+    }                                                                                            \
+                                                                                                 \
     friend bool operator==(Immediate const&, Immediate const&) = default;                        \
                                                                                                  \
     friend class AssemblerRiscV;                                                                 \
@@ -196,7 +334,6 @@ class AssemblerRiscV : public AssemblerBase {
                                                                                                  \
    private:                                                                                      \
     constexpr Immediate(RawImmediate raw) : value_(raw.value_) {}                                \
-                                                                                                 \
     /* Return true if value would fit into immediate. */                                         \
     template <typename IntType>                                                                  \
     static constexpr bool AccetableValue(IntType value);                                         \
@@ -210,7 +347,7 @@ class AssemblerRiscV : public AssemblerBase {
   BERBERIS_DEFINE_IMMEDIATE(BImmediate, 0xfe00'0f80);
   BERBERIS_DEFINE_IMMEDIATE(CsrImmediate, 0x000f'8000);
   BERBERIS_DEFINE_IMMEDIATE(
-      Immediate, 0xfff0'0000, constexpr Immediate(SImmediate s_imm)
+      IImmediate, 0xfff0'0000, constexpr IImmediate(SImmediate s_imm)
       : value_((s_imm.value_ & 0xfe00'0000) | ((s_imm.value_ & 0x0000'0f80) << 13)) {}
 
       friend SImmediate;);
@@ -222,7 +359,7 @@ class AssemblerRiscV : public AssemblerBase {
       SImmediate, 0xfe00'0f80, constexpr SImmediate(Immediate imm)
       : value_((imm.value_ & 0xfe00'0000) | ((imm.value_ & 0x01f0'0000) >> 13)) {}
 
-      friend class Immediate;);
+      friend class IImmediate;);
   BERBERIS_DEFINE_IMMEDIATE(UImmediate, 0xffff'f000);
 #undef BERBERIS_DEFINE_IMMEDIATE
 #undef BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR
@@ -235,6 +372,227 @@ class AssemblerRiscV : public AssemblerBase {
 // Instructions.
 #include "berberis/assembler/gen_assembler_common_riscv-inl.h"  // NOLINT generated file!
 
+ protected:
+  // Information about operands.
+  template <typename OperandType, typename = void>
+  class OperandInfo;
+
+  // Wrapped operand with information of where in the encoded instruction should it be placed.
+  template <typename OperandMarker, typename RegisterType>
+  struct RegisterOperand {
+    constexpr int32_t EncodeImmediate() {
+      return value.GetPhysicalIndex()
+             << OperandInfo<RegisterOperand<OperandMarker, RegisterType>>::kOffset;
+    }
+
+    RegisterType value;
+  };
+
+  struct ConditionOperand {
+    constexpr int32_t EncodeImmediate() {
+      return static_cast<int32_t>(value) << OperandInfo<ConditionOperand>::kOffset;
+    }
+
+    Condition value;
+  };
+
+  struct RoundingOperand {
+    constexpr int32_t EncodeImmediate() {
+      return static_cast<int32_t>(value) << OperandInfo<RoundingOperand>::kOffset;
+    }
+
+    Rounding value;
+  };
+
+  // Operand class  markers. Note, these classes shouldn't ever be instantiated, they are just used
+  // to carry information about operands.
+  class RdMarker;
+  class Rs1Marker;
+  class Rs2Marker;
+  class Rs3Marker;
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<RdMarker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 7;
+    static constexpr uint32_t kMask = 0x0000'0f80;
+  };
+
+  template <>
+  class OperandInfo<ConditionOperand> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 12;
+    static constexpr uint32_t kMask = 0x0000'7000;
+  };
+
+  template <>
+  class OperandInfo<RoundingOperand> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 12;
+    static constexpr uint32_t kMask = 0x0000'7000;
+  };
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<Rs1Marker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 15;
+    static constexpr uint32_t kMask = 0x000f'8000;
+  };
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<Rs2Marker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 20;
+    static constexpr uint32_t kMask = 0x01f0'0000;
+  };
+
+  template <typename RegisterType>
+  class OperandInfo<RegisterOperand<Rs3Marker, RegisterType>> {
+   public:
+    static constexpr bool IsImmediate = false;
+    static constexpr uint8_t kOffset = 27;
+    static constexpr uint32_t kMask = 0xf800'0000;
+  };
+
+  template <typename Immediate>
+  class OperandInfo<Immediate, std::enable_if_t<sizeof(Immediate::kMask) != 0>> {
+   public:
+    static constexpr bool IsImmediate = true;
+    static constexpr uint8_t kOffset = 0;
+    static constexpr uint32_t kMask = Immediate::kMask;
+  };
+
+  template <typename RegisterType>
+  RegisterOperand<RdMarker, RegisterType> Rd(RegisterType value) {
+    return {value};
+  }
+
+  ConditionOperand Cond(Condition value) { return {value}; }
+
+  RoundingOperand Rm(Rounding value) { return {value}; }
+
+  template <typename RegisterType>
+  RegisterOperand<Rs1Marker, RegisterType> Rs1(RegisterType value) {
+    return {value};
+  }
+
+  template <typename RegisterType>
+  RegisterOperand<Rs2Marker, RegisterType> Rs2(RegisterType value) {
+    return {value};
+  }
+
+  template <typename RegisterType>
+  RegisterOperand<Rs3Marker, RegisterType> Rs3(RegisterType value) {
+    return {value};
+  }
+
+  template <uint32_t kOpcode, uint32_t kOpcodeMask, typename... ArgumentsTypes>
+  void EmitInstruction(ArgumentsTypes... arguments) {
+    // All uncompressed instructions in RISC-V have two lowest bit set and we don't handle
+    // compressed instructions here.
+    static_assert((kOpcode & 0b11) == 0b11);
+    // Instruction shouldn't have any bits set outside of its opcode mask.
+    static_assert((kOpcode & ~kOpcodeMask) == 0);
+    // Places for all operands in the opcode should not intersect with opcode.
+    static_assert((((kOpcodeMask & OperandInfo<ArgumentsTypes>::kMask) == 0) && ...));
+    Emit32((kOpcode | ... | [](auto argument) {
+      if constexpr (OperandInfo<decltype(argument)>::IsImmediate) {
+        return argument.EncodedValue();
+      } else {
+        return argument.EncodeImmediate();
+      }
+    }(arguments)));
+  }
+
+  template <uint32_t kOpcode,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ImmediateType>
+  void EmitBTypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            ImmediateType&& immediate) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(Rs1(argument0), Rs2(argument1), immediate);
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename OperandType>
+  void EmitITypeInstruction(ArgumentsType0&& argument0, OperandType&& operand) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(Rd(argument0), Rs1(operand.base), operand.disp);
+  }
+
+  // Csr instructions are described as I-type instructions in RISC-V manual, but unlike most I-type
+  // instructions they use IImmediate to encode Csr register number and it comes as second argument,
+  // not third. In addition Csr value is defined as unsigned and not as signed which means certain
+  // Csr values (e.g. kVlenb) wouldn't be accepted as IImmediate!
+  template <uint32_t kOpcode, typename ArgumentsType0>
+  void EmitITypeInstruction(ArgumentsType0&& argument0, Csr csr, Register argument1) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(
+        Rd(argument0), IImmediate{RawImmediate{static_cast<int32_t>(csr) << 20}}, Rs1(argument1));
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0>
+  void EmitITypeInstruction(ArgumentsType0&& argument0, Csr csr, CsrImmediate immediate) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(
+        Rd(argument0), IImmediate{RawImmediate{static_cast<int32_t>(csr) << 20}}, immediate);
+  }
+
+  template <uint32_t kOpcode,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ImmediateType>
+  void EmitITypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            ImmediateType&& immediate) {
+    // Some I-type instructions use immediate as opcode extension. In that case different, smaller,
+    // immediate with smaller mask is used. 0xfff0'707f & ~std::decay_t<ImmediateType>::kMask turns
+    // these bits that are not used as immediate into parts of opcode.
+    // For full I-immediate it produces 0x0000'707f, same as with I-type memory operand.
+    return EmitInstruction<kOpcode, 0xfff0'707f & ~std::decay_t<ImmediateType>::kMask>(
+        Rd(argument0), Rs1(argument1), immediate);
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ImmediateType>
+  void EmitJTypeInstruction(ArgumentsType0&& argument0, ImmediateType&& immediate) {
+    return EmitInstruction<kOpcode, 0x0000'007f>(Rd(argument0), immediate);
+  }
+
+  template <uint32_t kOpcode, typename OperandType>
+  void EmitPTypeInstruction(OperandType&& operand) {
+    return EmitInstruction<kOpcode, 0x01f0'7fff>(Rs1(operand.base), operand.disp);
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
+  void EmitRTypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            Rounding argument2) {
+    return EmitInstruction<kOpcode, 0xfff0'007f>(Rd(argument0), Rs1(argument1), Rm(argument2));
+  }
+
+  template <uint32_t kOpcode,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2>
+  void EmitRTypeInstruction(ArgumentsType0&& argument0,
+                            ArgumentsType1&& argument1,
+                            ArgumentsType2&& argument2) {
+    return EmitInstruction<kOpcode, 0xfe00'707f>(Rd(argument0), Rs1(argument1), Rs2(argument2));
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename OperandType>
+  void EmitSTypeInstruction(ArgumentsType0&& argument0, OperandType&& operand) {
+    return EmitInstruction<kOpcode, 0x0000'707f>(Rs2(argument0), Rs1(operand.base), operand.disp);
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ImmediateType>
+  void EmitUTypeInstruction(ArgumentsType0&& argument0, ImmediateType&& immediate) {
+    return EmitInstruction<kOpcode, 0x0000'007f>(Rd(argument0), immediate);
+  }
+
+ private:
   AssemblerRiscV() = delete;
   AssemblerRiscV(const AssemblerRiscV&) = delete;
   AssemblerRiscV(AssemblerRiscV&&) = delete;
@@ -550,6 +908,168 @@ constexpr AssemblerRiscV<Assembler>::RawImmediate AssemblerRiscV<Assembler>::UIm
   // Note: this is only correct if input value is between divisible by 4096 , but that would be
   // checked in MakeUImmediate.
   return static_cast<int32_t>(value);
+}
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
+                                           Register argument1,
+                                           Register argument2,
+                                           const Label& label) {
+  if (cc == Condition::kAlways) {
+    Jal(zero, label);
+    return;
+  } else if (cc == Condition::kNever) {
+    return;
+  }
+  CHECK_EQ(0, static_cast<uint8_t>(cc) & 0xf8);
+  jumps_.push_back(Jump{&label, pc(), false});
+  EmitInstruction<0x0000'0063, 0x0000'007f>(Cond(cc), Rs1(argument1), Rs2(argument2));
+}
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
+                                           Register argument1,
+                                           Register argument2,
+                                           BImmediate immediate) {
+  if (cc == Condition::kAlways) {
+    int32_t encoded_immediate_value = immediate.EncodedValue();
+    // Maybe better to provide an official interface to convert BImmediate into JImmediate?
+    // Most CPUs have uncoditional jump with longer range than condtional one (8086, ARM, RISC-V)
+    // or the same one (modern x86), thus such conversion is natural.
+    JImmediate jimmediate =
+        RawImmediate{((encoded_immediate_value >> 19) & 0x000f'f000) |
+                     ((encoded_immediate_value << 13) & 0x01f0'0000) |
+                     (encoded_immediate_value & static_cast<int32_t>(0xfe00'0000))};
+    Jal(zero, jimmediate);
+    return;
+  } else if (cc == Condition::kNever) {
+    return;
+  }
+  CHECK_EQ(0, static_cast<uint8_t>(cc) & 0xf8);
+  EmitInstruction<0x0000'0063, 0x0000'007f>(Cond(cc), Rs1(argument1), Rs2(argument2), immediate);
+}
+
+#define BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Name, TargetRegister, InstructionType, Opcode) \
+  template <typename Assembler>                                                                  \
+  inline void AssemblerRiscV<Assembler>::Name(                                                   \
+      TargetRegister arg0, const Label& label, Register arg2) {                                  \
+    CHECK_NE(arg2, x0);                                                                          \
+    jumps_.push_back(Jump{&label, pc(), false});                                                 \
+    /* First issue auipc to load top 20 bits of difference between pc and target address */      \
+    EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg2, UImmediate{0});                            \
+    /* The low 12 bite of difference will be encoded in the memory accessing instruction */      \
+    Emit##InstructionType##TypeInstruction<uint32_t{Opcode}>(                                    \
+        arg0, Operand<Register, InstructionType##Immediate>{.base = arg2});                      \
+  }
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Fld, FpRegister, I, 0x0000'3007)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Flw, FpRegister, I, 0x0000'2007)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Fsd, FpRegister, S, 0x0000'3027)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Fsw, FpRegister, S, 0x0000'2027)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sb, Register, S, 0x0000'0023)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sh, Register, S, 0x0000'1023)
+BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sw, Register, S, 0x0000'2023)
+#undef BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION
+
+#define BERBERIS_DEFINE_LOAD_INSTRUCTION(Name, Opcode)                                         \
+  template <typename Assembler>                                                                \
+  inline void AssemblerRiscV<Assembler>::Name(Register arg0, const Label& label) {             \
+    CHECK_NE(arg0, x0);                                                                        \
+    jumps_.push_back(Jump{&label, pc(), false});                                               \
+    /* First issue auipc to load top 20 bits of difference between pc and target address */    \
+    EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});                          \
+    /* The low 12 bite of difference will be encoded in the memory accessing instruction */    \
+    EmitITypeInstruction<uint32_t{Opcode}>(arg0, Operand<Register, IImmediate>{.base = arg0}); \
+  }
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lb, 0x0000'0003)
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lbu, 0x0000'4003)
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lh, 0x0000'1003)
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lhu, 0x0000'5003)
+BERBERIS_DEFINE_LOAD_INSTRUCTION(Lw, 0x0000'2003)
+#undef BERBERIS_DEFINE_LOAD_INSTRUCTION
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::Lla(Register arg0, const Label& label) {
+  CHECK_NE(arg0, x0);
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});
+  // The low 12 bite of difference will be added with addi instruction
+  EmitITypeInstruction<uint32_t{0x0000'0013}>(arg0, arg0, IImmediate{0});
+}
+
+#define BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Name, Opcode)                                     \
+  template <typename Assembler>                                                                   \
+  inline void AssemblerRiscV<Assembler>::Name(Register arg0, Register arg1, const Label& label) { \
+    jumps_.push_back(Jump{&label, pc(), false});                                                  \
+    EmitBTypeInstruction<uint32_t{Opcode}>(arg0, arg1, BImmediate{0});                            \
+  }
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Beq, 0x0000'0063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bge, 0x0000'5063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bgeu, 0x0000'7063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Blt, 0x0000'4063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bltu, 0x0000'6063)
+BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bne, 0x0000'1063)
+#undef BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::Jal(Register argument0, const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  EmitInstruction<0x0000'006f, 0x0000'007f>(Rd(argument0));
+}
+
+template <typename Assembler>
+inline void AssemblerRiscV<Assembler>::ResolveJumps() {
+  for (const auto& jump : jumps_) {
+    const Label* label = jump.label;
+    uint32_t pc = jump.pc;
+    CHECK(label->IsBound());
+    if (jump.is_recovery) {
+      // Add pc -> label correspondence to recovery map.
+      AddRelocation(0, RelocationType::RelocRecoveryPoint, pc, label->position());
+    } else {
+      int32_t offset = label->position() - pc;
+      auto ProcessLabel =
+          [this, pc, offset]<typename ImmediateType,
+                             std::optional<ImmediateType> (*MakeImmediate)(int32_t)>() {
+            auto encoded_immediate = MakeImmediate(offset);
+            if (!encoded_immediate.has_value()) {
+              // UImmediate means we are dealing with auipc here, means we may accept any
+              // ±2GB offset, but need to look at the next instruction to do that.
+              if constexpr (std::is_same_v<ImmediateType, UImmediate>) {
+                // Bottom immediate is decoded with a 12 → 32 bit sign-extended.
+                // Compensate that by adding sign-bit of bottom to top.
+                // Make calculation as unsigned types to ensure we wouldn't hit any UB here.
+                int32_t top = (static_cast<uint32_t>(offset) +
+                               ((static_cast<uint32_t>(offset) & (1U << 11)) * 2)) &
+                              0xffff'f000U;
+                struct {
+                  int32_t data : 12;
+                } bottom = {offset};
+                *AddrAs<int32_t>(pc) |= UImmediate{top}.EncodedValue();
+                *AddrAs<int32_t>(pc + 4) |= (*AddrAs<int32_t>(pc + 4) & 32)
+                                                ? SImmediate{bottom.data}.EncodedValue()
+                                                : IImmediate{bottom.data}.EncodedValue();
+                return true;
+              }
+              return false;
+            }
+            *AddrAs<int32_t>(pc) |= encoded_immediate->EncodedValue();
+            return true;
+          };
+      // Check the instruction type:
+      //   AUIPC uses UImmediate, Jal uses JImmediate, while Bcc uses BImmediate.
+      bool RelocationInRange;
+      if (*AddrAs<int32_t>(pc) & 16) {
+        RelocationInRange = ProcessLabel.template operator()<UImmediate, MakeUImmediate>();
+      } else if (*AddrAs<int32_t>(pc) & 4) {
+        RelocationInRange = ProcessLabel.template operator()<JImmediate, MakeJImmediate>();
+      } else {
+        RelocationInRange = ProcessLabel.template operator()<BImmediate, MakeBImmediate>();
+      }
+      // Maybe need to propagate error to caller?
+      CHECK(RelocationInRange);
+    }
+  }
 }
 
 }  // namespace berberis

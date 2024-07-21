@@ -489,12 +489,11 @@
     },
     {
       "encodings": {
-        "Leaq": { "opcode": "8D" },
-        "Movq": { "opcode": "8B" }
+        "Leaq": { "opcode": "8D" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
-        { "class": "Mem64", "usage": "use" }
+        { "class": "Mem", "usage": "use" }
       ]
     },
     {
@@ -542,6 +541,15 @@
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "def" },
         { "class": "GeneralReg64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Movq": { "opcode": "8B" }
+      },
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "Mem64", "usage": "use" }
       ]
     },
     {

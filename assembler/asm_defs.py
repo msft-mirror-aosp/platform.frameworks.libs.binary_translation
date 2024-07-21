@@ -77,7 +77,11 @@ import re
 
 
 def is_imm(arg_type):
-  return arg_type in ('Imm2', 'Imm8', 'Imm16', 'Imm32', 'Imm64')
+  return arg_type in (
+    'Imm2', 'Imm8', 'Imm16', 'Imm32', 'Imm64', # x86 immediates
+    'B-Imm', 'I-Imm', 'J-Imm', 'P-Imm', 'S-Imm', 'U-Imm', # Official RISC-V immediates
+    'Csr-Imm', 'Shift32-Imm', 'Shift64-Imm', # Extra RISC-V immediates
+  )
 
 
 def is_disp(arg_type):
@@ -85,13 +89,23 @@ def is_disp(arg_type):
 
 
 def is_mem_op(arg_type):
-  return arg_type in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
-                      'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
-                      'VecMem32', 'VecMem64', 'VecMem128')
+  return arg_type in (
+    # Universal memory operands
+    'Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+    # x86 memory operands
+    'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780', 'VecMem32', 'VecMem64', 'VecMem128')
 
 
 def is_cond(arg_type):
   return arg_type == 'Cond'
+
+
+def is_csr(arg_type):
+  return arg_type == 'CsrReg'
+
+
+def is_rm(arg_type):
+  return arg_type == 'Rm'
 
 
 def is_label(arg_type):
@@ -106,6 +120,10 @@ def is_greg(arg_type):
   return arg_type in ('GeneralReg',
                       'GeneralReg8', 'GeneralReg16',
                       'GeneralReg32', 'GeneralReg64')
+
+
+def is_freg(arg_type):
+  return arg_type == 'FpReg'
 
 
 def is_xreg(arg_type):
@@ -133,12 +151,16 @@ def get_mem_macro_name(insn, addr_mode = None):
     macro_name = macro_name[:-4]
   for arg in insn['args']:
     clazz = arg['class']
-    # Don't reflect FLAGS or Conditions or Labels in the name - we don't ever
+    # Don't reflect FLAGS/Conditions/Csrs/Labels in the name - we don't ever
     # have two different instructions where these cause the difference.
-    if clazz == 'FLAGS' or is_cond(clazz) or is_label(clazz):
+    if clazz == 'FLAGS' or is_cond(clazz) or is_label(clazz) or is_csr(clazz):
       pass
+    elif is_rm(clazz):
+      macro_name += 'Rm'
     elif is_x87reg(clazz) or is_greg(clazz) or is_implicit_reg(clazz):
       macro_name += 'Reg'
+    elif is_freg(clazz):
+      macro_name += 'FReg'
     elif is_xreg(clazz):
       macro_name += 'XReg'
     elif is_imm(clazz):
