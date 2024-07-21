@@ -70,7 +70,7 @@ class AssemblerX86 : public AssemblerBase {
     kBelowEqual = 6,
     kAbove = 7,
     kNegative = 8,
-    kPositive = 9,
+    kPositiveOrZero = 9,
     kParityEven = 10,
     kParityOdd = 11,
     kLess = 12,
@@ -86,7 +86,7 @@ class AssemblerX86 : public AssemblerBase {
     kZero = kEqual,
     kNotZero = kNotEqual,
     kSign = kNegative,
-    kNotSign = kPositive
+    kNotSign = kPositiveOrZero
   };
 
   class Register {
@@ -100,7 +100,7 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_64::Assembler;
 
    private:
-    constexpr Register(uint8_t num) : num_(num) {}
+    explicit constexpr Register(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
@@ -115,7 +115,7 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_64::Assembler;
 
    private:
-    constexpr X87Register(uint8_t num) : num_(num) {}
+    explicit constexpr X87Register(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
@@ -140,7 +140,7 @@ class AssemblerX86 : public AssemblerBase {
     friend class x86_64::Assembler;
 
    private:
-    constexpr XMMRegister(uint8_t num) : num_(num) {}
+    explicit constexpr XMMRegister(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
 
@@ -762,15 +762,6 @@ class AssemblerX86 : public AssemblerBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(AssemblerX86);
 };
 
-// Return the reverse condition.
-template <typename Condition>
-inline constexpr Condition ToReverseCond(Condition cond) {
-  CHECK(cond != Condition::kInvalidCondition);
-  // Condition has a nice property that given a condition, you can get
-  // its reverse condition by flipping the least significant bit.
-  return Condition(static_cast<int>(cond) ^ 1);
-}
-
 template <typename Condition>
 inline constexpr const char* GetCondName(Condition cond) {
   switch (cond) {
@@ -792,7 +783,7 @@ inline constexpr const char* GetCondName(Condition cond) {
       return "A";
     case Condition::kNegative:
       return "N";
-    case Condition::kPositive:
+    case Condition::kPositiveOrZero:
       return "PL";
     case Condition::kParityEven:
       return "PE";

@@ -46,12 +46,14 @@ _imm_types = {
 }
 
 
-def _get_arg_type_name(arg):
+def _get_arg_type_name(arg, insn_type):
   cls = arg.get('class')
   if asm_defs.is_x87reg(cls):
     return 'X87Register'
   if asm_defs.is_greg(cls):
     return 'Register'
+  if asm_defs.is_freg(cls):
+    return 'FpRegister'
   if asm_defs.is_xreg(cls):
     return 'XMMRegister'
   if asm_defs.is_imm(cls):
@@ -62,7 +64,13 @@ def _get_arg_type_name(arg):
     return 'const Label&'
   if asm_defs.is_cond(cls):
     return 'Condition'
+  if asm_defs.is_csr(cls):
+    return 'Csr'
+  if asm_defs.is_rm(cls):
+    return 'Rounding'
   if asm_defs.is_mem_op(cls):
+    if insn_type is not None and insn_type.endswith('-type'):
+      return 'const Operand<Register, %sImmediate>&' % insn_type[:-5]
     return 'const Operand&'
   raise Exception('class %s is not supported' % (cls))
 
@@ -77,13 +85,16 @@ def _get_immediate_type(insn):
   return imm_type
 
 
-def _get_params(insn):
+def _get_params(insn, filter=None):
   result = []
   arg_count = 0
   for arg in insn.get('args'):
     if asm_defs.is_implicit_reg(arg.get('class')):
       continue
-    result.append("%s arg%d" % (_get_arg_type_name(arg), arg_count))
+    if filter is not None and filter(arg):
+      continue
+    result.append("%s arg%d" % (
+      _get_arg_type_name(arg, insn.get('type', None)), arg_count))
     arg_count += 1
   return ', '.join(result)
 
@@ -121,7 +132,7 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
       # full description of template function.
       template_name = str({
           'name': name,
-          'params': _get_params(insn)
+          'params': params
       })
       if template_name in template_names:
         continue
@@ -160,12 +171,18 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
         # If we have a memory operand (there may be at most one) then we also
         # have a special x86-64 exclusive form which accepts Label (it can be
         # emulated on x86-32, too, if needed).
-        if 'const Operand&' in params:
+        if 'const Operand&' in params and 'x86' in arch:
           print("", file=f)
           print('void %s(%s) {' % (
               name, params.replace('const Operand&', 'const LabelOperand')), file=f)
           _gen_emit_shortcut(f, insn, insns)
           _gen_emit_instruction(f, insn, arch, rip_operand=True)
+          print('}\n', file=f)
+        if 'Rounding' in params:
+          print("", file=f)
+          print('void %s(%s) {' % (
+              name, _get_params(insn, lambda arg: arg.get('class', '') == 'Rm')), file=f)
+          _gen_emit_instruction(f, insn, arch, dyn_rm=True)
           print('}\n', file=f)
       else:
         print('void %s(%s);' % (name, params), file=f)
@@ -194,7 +211,7 @@ def _gen_instruction_args(insn):
   for arg in insn.get('args'):
     if asm_defs.is_implicit_reg(arg.get('class')):
       continue
-    if _get_arg_type_name(arg) == 'Register':
+    if _get_arg_type_name(arg, insn.get('type', None)) == 'Register':
       yield 'typename Assembler::%s(arg%d)' % (
           _ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count)
     else:
@@ -374,7 +391,7 @@ _ARGUMENT_FORMATS_TO_SIZES = {
 # e.g. VectorMemory32Bit becomes VectorLabel32Bit.
 #
 # Note: on x86-32 that mode can also be emulated using regular instruction form, if needed.
-def _gen_emit_instruction(f, insn, arch, rip_operand=False):
+def _gen_emit_instruction(f, insn, arch, rip_operand=False, dyn_rm=False):
   result = []
   arg_count = 0
   for arg in insn['args']:
@@ -383,7 +400,10 @@ def _gen_emit_instruction(f, insn, arch, rip_operand=False):
     # Note: in RISC-V there is never any ambiguity about whether full register or its part is used.
     # Instead size of operand is always encoded in the name, e.g. addw vs add or fadd.s vs fadd.d
     if arch in ['common_riscv', 'rv32', 'rv64']:
-      result.append('arg%d' % arg_count)
+      if dyn_rm and arg['class'] == 'Rm':
+        result.append('Rounding::kDyn')
+      else:
+        result.append('arg%d' % arg_count)
     else:
       result.append('%s(arg%d)' % (_ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count))
     arg_count += 1
@@ -430,7 +450,7 @@ def _gen_memory_function_specializations_h(f, insns, arch):
           outgoing_args.append('{%s}' % (
               ', '.join(['.%s = %s' % (pair[1], pair[2]) for pair in mem_args])))
         else:
-          incoming_args.append('%s %s' % (_get_arg_type_name(arg), arg_name))
+          incoming_args.append('%s %s' % (_get_arg_type_name(arg, None), arg_name))
           outgoing_args.append(arg_name)
       if template:
         print(template, file=f)
@@ -477,7 +497,7 @@ def main(argv):
     arch, loaded_defs = _load_asm_defs(input_filename)
     with open(out_filename, 'w') as out_file:
       _gen_generic_functions_h(out_file, loaded_defs, binary_assembler, arch)
-      if binary_assembler:
+      if binary_assembler and arch is not None and 'x86' in arch:
         _gen_memory_function_specializations_h(out_file, loaded_defs, arch)
 
 if __name__ == '__main__':
