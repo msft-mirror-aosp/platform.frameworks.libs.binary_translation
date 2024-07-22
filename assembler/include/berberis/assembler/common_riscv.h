@@ -223,6 +223,302 @@ constexpr IImmediate::IImmediate(SImmediate s_imm)
 constexpr SImmediate::SImmediate(Immediate imm)
     : value_((imm.value_ & 0xfe00'0000) | ((imm.value_ & 0x01f0'0000) >> 13)) {}
 
+#define BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, IntType) \
+  constexpr std::optional<Immediate> MakeImmediate(IntType value) {       \
+    if (!Immediate::AccetableValue(value)) {                              \
+      return std::nullopt;                                                \
+    }                                                                     \
+    return Immediate{Immediate::MakeRaw(value)};                          \
+  }
+#define BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Immediate, MakeImmediate) \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int8_t)   \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint8_t)  \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int16_t)  \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint16_t) \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int32_t)  \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint32_t) \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int64_t)  \
+  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint64_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(BImmediate, MakeBImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(CsrImmediate, MakeCsrImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(IImmediate, MakeIImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(JImmediate, MakeJImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(PImmediate, MakePImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift32Immediate, MakeShift32Immediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift64Immediate, MakeShift64Immediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(SImmediate, MakeSImmediate)
+BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(UImmediate, MakeUImmediate)
+#undef BERBERIS_DEFINE_MAKE_IMMEDIATE_SET
+#undef BERBERIS_DEFINE_MAKE_IMMEDIATE
+
+#define BERBERIS_DEFINE_MAKE_IMMEDIATE(IntType)                     \
+  constexpr std::optional<Immediate> MakeImmediate(IntType value) { \
+    return MakeIImmediate(value);                                   \
+  }
+BERBERIS_DEFINE_MAKE_IMMEDIATE(int8_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE(uint8_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE(int16_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE(uint16_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE(int32_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE(uint32_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE(int64_t)
+BERBERIS_DEFINE_MAKE_IMMEDIATE(uint64_t)
+#undef BERBERIS_DEFINE_MAKE_IMMEDIATE
+
+// Return true if value would fit into B-immediate.
+template <typename IntType>
+constexpr bool BImmediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // B-immediate accepts 12 bits, but encodes signed even values, that's why we only may accept
+  // low 12 bits of any unsigned value.
+  // Encode mask as the largest accepted value plus one and cut it to IntType size.
+  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'ffff'f001;
+  if constexpr (!std::is_signed_v<IntType>) {
+    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
+  } else {
+    // For signed values we also accept the same values as for unsigned case, but also accept
+    // value that have all bits in am kUnsignedInputMask set.
+    // B-immediate compresses these into one single sign bit, but lowest bit have to be zero.
+    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
+           static_cast<IntType>(value & kSignedInputMask) == (kSignedInputMask & ~int64_t{1});
+  }
+}
+
+// Return true if value would fit into Csr-immediate.
+template <typename IntType>
+constexpr bool CsrImmediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Csr immediate is unsigned immediate with possible values between 0 and 31.
+  // If we make value unsigned negative numbers would become numbers >127 and would be rejected.
+  return std::make_unsigned_t<IntType>(value) < 32;
+}
+
+// Return true if value would fit into immediate.
+template <typename IntType>
+constexpr bool Immediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // I-immediate accepts 12 bits, but encodes signed values, that's why we only may accept low
+  // 11 bits of any unsigned value.
+  // Encode mask as the largest accepted value plus one and cut it to IntType size.
+  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'ffff'f800;
+  if constexpr (!std::is_signed_v<IntType>) {
+    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
+  } else {
+    // For signed values we accept the same values as for unsigned case, but also accept
+    // values that have all bits in kUnsignedInputMask set.
+    // I-immediate compresses these into one single sign bit.
+    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
+           static_cast<IntType>(value & kSignedInputMask) == kSignedInputMask;
+  }
+}
+
+// Return true if value would fit into J-immediate.
+template <typename IntType>
+constexpr bool JImmediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // J-immediate accepts 20 bits, but encodes signed even values, that's why we only may accept
+  // bits from 1 to 19 of any unsigned value. Encode mask as the largest accepted value plus 1 and
+  // cut it to IntType size.
+  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'fff0'0001;
+  if constexpr (!std::is_signed_v<IntType>) {
+    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
+  } else {
+    // For signed values we accept the same values as for unsigned case, but also accept
+    // value that have all bits in kUnsignedInputMask set except zero bit (which is zero).
+    // J-immediate compresses these into one single sign bit, but lowest bit have to be zero.
+    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
+           static_cast<IntType>(value & kSignedInputMask) == (kSignedInputMask & ~int64_t{1});
+  }
+}
+
+// Return true if value would fit into P-immediate.
+template <typename IntType>
+constexpr bool PImmediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // P-immediate accepts 7 bits, but encodes only values divisible by 32, that's why we only may
+  // accept bits from 5 to 10 of any unsigned value. Encode mask as the largest accepted value
+  // plus 31 and cut it to IntType size.
+  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'ffff'f81f;
+  if constexpr (!std::is_signed_v<IntType>) {
+    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
+  } else {
+    // For signed values we accept the same values as for unsigned case, but also accept
+    // value that have all bits in kUnsignedInputMask set except the lowest 5 bits (which are
+    // zero). P-immediate compresses these into one single sign bit, but lowest bits have to be
+    // zero.
+    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
+           static_cast<IntType>(value & kSignedInputMask) == (kSignedInputMask & ~int64_t{0x1f});
+  }
+}
+
+// Return true if value would fit into Shift32-immediate.
+template <typename IntType>
+constexpr bool Shift32Immediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Shift32 immediate is unsigned immediate with possible values between 0 and 31.
+  // If we make value unsigned negative numbers would become numbers >127 and would be rejected.
+  return std::make_unsigned_t<IntType>(value) < 32;
+}
+
+// Return true if value would fit into Shift64-immediate.
+template <typename IntType>
+constexpr bool Shift64Immediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Shift64 immediate is unsigned immediate with possible values between 0 and 63.
+  // If we make value unsigned negative numbers would become numbers >127 and would be rejected.
+  return std::make_unsigned_t<IntType>(value) < 64;
+}
+
+// Immediate (I-immediate in RISC V documentation) and S-Immediate are siblings: they encode
+// the same values but in a different way.
+// AccetableValue are the same for that reason, but MakeRaw are different.
+template <typename IntType>
+constexpr bool SImmediate::AccetableValue(IntType value) {
+  return Immediate::AccetableValue(value);
+}
+
+// Return true if value would fit into U-immediate.
+template <typename IntType>
+constexpr bool UImmediate::AccetableValue(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // U-immediate accepts 20 bits, but encodes only values divisible by 4096, that's why we only
+  // may accept bits from 12 to 30 of any unsigned value. Encode mask as the largest accepted
+  // value plus 4095 and cut it to IntType size.
+  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'8000'0fff;
+  if constexpr (!std::is_signed_v<IntType>) {
+    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
+  } else {
+    // For signed values we accept the same values as for unsigned case, but also accept
+    // value that have all bits in kUnsignedInputMask set except lower 12 bits (which are zero).
+    // U-immediate compresses these into one single sign bit, but lowest bits have to be zero.
+    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
+    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
+           static_cast<IntType>(value & kSignedInputMask) == (kSignedInputMask & ~int64_t{0xfff});
+  }
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeBImmediate factory.
+template <typename IntType>
+constexpr RawImmediate BImmediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: we have to convert type to int32_t before processing it! Otherwise we would produce
+  // incorrect value for negative inputs since one single input sign in the small immediate would
+  // turn into many bits in the insruction.
+  return (static_cast<int32_t>(value) & static_cast<int32_t>(0x8000'0000)) |
+         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'0800)) >> 4) |
+         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'001f)) << 7) |
+         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'07e0)) << 20);
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
+template <typename IntType>
+constexpr RawImmediate CsrImmediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: this is correct if input value is between 0 and 31, but that would be checked in
+  // MakeCsrImmediate.
+  return static_cast<int32_t>(value) << 15;
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
+template <typename IntType>
+constexpr RawImmediate Immediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  return static_cast<int32_t>(value) << 20;
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeJImmediate factory.
+template <typename IntType>
+constexpr RawImmediate JImmediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: we have to convert type to int32_t before processing it! Otherwise we would produce
+  // incorrect value for negative inputs since one single input sign in the small immediate would
+  // turn into many bits in the insruction.
+  return (static_cast<int32_t>(value) & static_cast<int32_t>(0x800f'f000)) |
+         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'0800)) << 9) |
+         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'07fe)) << 20);
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
+template <typename IntType>
+constexpr RawImmediate PImmediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: this is correct if input value is divisible by 32, but that would be checked in
+  // MakePImmediate.
+  return static_cast<int32_t>(value) << 20;
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
+template <typename IntType>
+constexpr RawImmediate Shift32Immediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: this is correct if input value is between 0 and 31, but that would be checked in
+  // MakeShift32Immediate.
+  return static_cast<int32_t>(value) << 20;
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
+template <typename IntType>
+constexpr RawImmediate Shift64Immediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: this is only correct if input value is between 0 and 63, but that would be checked in
+  // MakeShift64Immediate.
+  return static_cast<int32_t>(value) << 20;
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeSImmediate factory.
+template <typename IntType>
+constexpr RawImmediate SImmediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Here, because we are only using platforms with 32bit ints conversion to 32bit signed int may
+  // happen both before masking and after but we are doing it before for consistency.
+  return ((static_cast<int32_t>(value) & static_cast<int32_t>(0xffff'ffe0)) << 20) |
+         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'001f)) << 7);
+}
+
+// Make RawImmediate from immediate value.
+// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
+template <typename IntType>
+constexpr RawImmediate UImmediate::MakeRaw(IntType value) {
+  static_assert(std::is_integral_v<IntType>);
+  static_assert(sizeof(IntType) <= sizeof(uint64_t));
+  // Note: this is only correct if input value is between divisible by 4096 , but that would be
+  // checked in MakeUImmediate.
+  return static_cast<int32_t>(value);
+}
+
 }  // namespace riscv
 
 namespace rv32e {
@@ -680,306 +976,6 @@ class AssemblerRiscV : public AssemblerBase {
   void operator=(const AssemblerRiscV&) = delete;
   void operator=(AssemblerRiscV&&) = delete;
 };
-
-namespace riscv {
-
-#define BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, IntType) \
-  constexpr std::optional<Immediate> MakeImmediate(IntType value) {       \
-    if (!Immediate::AccetableValue(value)) {                              \
-      return {};                                                          \
-    }                                                                     \
-    return Immediate{Immediate::MakeRaw(value)};                          \
-  }
-#define BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Immediate, MakeImmediate) \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int8_t)   \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint8_t)  \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int16_t)  \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint16_t) \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int32_t)  \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint32_t) \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, int64_t)  \
-  BERBERIS_DEFINE_MAKE_IMMEDIATE(Immediate, MakeImmediate, uint64_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(BImmediate, MakeBImmediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(CsrImmediate, MakeCsrImmediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(IImmediate, MakeIImmediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(JImmediate, MakeJImmediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(PImmediate, MakePImmediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift32Immediate, MakeShift32Immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(Shift64Immediate, MakeShift64Immediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(SImmediate, MakeSImmediate)
-BERBERIS_DEFINE_MAKE_IMMEDIATE_SET(UImmediate, MakeUImmediate)
-#undef BERBERIS_DEFINE_MAKE_IMMEDIATE_SET
-#undef BERBERIS_DEFINE_MAKE_IMMEDIATE
-
-#define BERBERIS_DEFINE_MAKE_IMMEDIATE(IntType)                     \
-  constexpr std::optional<Immediate> MakeImmediate(IntType value) { \
-    return MakeIImmediate(value);                                   \
-  }
-BERBERIS_DEFINE_MAKE_IMMEDIATE(int8_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE(uint8_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE(int16_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE(uint16_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE(int32_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE(uint32_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE(int64_t)
-BERBERIS_DEFINE_MAKE_IMMEDIATE(uint64_t)
-#undef BERBERIS_DEFINE_MAKE_IMMEDIATE
-
-// Return true if value would fit into B-immediate.
-template <typename IntType>
-constexpr bool BImmediate::AccetableValue(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // B-immediate accepts 12 bits, but encodes signed even values, that's why we only may accept
-  // low 12 bits of any unsigned value.
-  // Encode mask as the largest accepted value plus one and cut it to IntType size.
-  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'ffff'f001;
-  if constexpr (!std::is_signed_v<IntType>) {
-    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
-  } else {
-    // For signed values we also accept the same values as for unsigned case, but also accept
-    // value that have all bits in am kUnsignedInputMask set.
-    // B-immediate compresses these into one single sign bit, but lowest bit have to be zero.
-    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
-           static_cast<IntType>(value & kSignedInputMask) == (kSignedInputMask & ~int64_t{1});
-  }
-}
-
-// Return true if value would fit into Csr-immediate.
-template <typename IntType>
-constexpr bool CsrImmediate::AccetableValue(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Csr immediate is unsigned immediate with possible values between 0 and 31.
-  // If we make value unsigned negative numbers would become numbers >127 and would be rejected.
-  return std::make_unsigned_t<IntType>(value) < 32;
-}
-
-// Return true if value would fit into immediate.
-template <typename IntType>
-constexpr bool Immediate::AccetableValue(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // I-immediate accepts 12 bits, but encodes signed values, that's why we only may accept low
-  // 11 bits of any unsigned value.
-  // Encode mask as the largest accepted value plus one and cut it to IntType size.
-  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'ffff'f800;
-  if constexpr (!std::is_signed_v<IntType>) {
-    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
-  } else {
-    // For signed values we accept the same values as for unsigned case, but also accept
-    // values that have all bits in kUnsignedInputMask set.
-    // I-immediate compresses these into one single sign bit.
-    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
-           static_cast<IntType>(value & kSignedInputMask) == kSignedInputMask;
-  }
-}
-
-// Return true if value would fit into J-immediate.
-template <typename IntType>
-constexpr bool JImmediate::AccetableValue(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // J-immediate accepts 20 bits, but encodes signed even values, that's why we only may accept
-  // bits from 1 to 19 of any unsigned value. Encode mask as the largest accepted value plus 1 and
-  // cut it to IntType size.
-  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'fff0'0001;
-  if constexpr (!std::is_signed_v<IntType>) {
-    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
-  } else {
-    // For signed values we accept the same values as for unsigned case, but also accept
-    // value that have all bits in kUnsignedInputMask set except zero bit (which is zero).
-    // J-immediate compresses these into one single sign bit, but lowest bit have to be zero.
-    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
-           static_cast<IntType>(value & kSignedInputMask) == (kSignedInputMask & ~int64_t{1});
-  }
-}
-
-// Return true if value would fit into P-immediate.
-template <typename IntType>
-constexpr bool PImmediate::AccetableValue(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // P-immediate accepts 7 bits, but encodes only values divisible by 32, that's why we only may
-  // accept bits from 5 to 10 of any unsigned value. Encode mask as the largest accepted value
-  // plus 31 and cut it to IntType size.
-  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'ffff'f81f;
-  if constexpr (!std::is_signed_v<IntType>) {
-    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
-  } else {
-    // For signed values we accept the same values as for unsigned case, but also accept
-    // value that have all bits in kUnsignedInputMask set except the lowest 5 bits (which are
-    // zero). P-immediate compresses these into one single sign bit, but lowest bits have to be
-    // zero.
-    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
-           static_cast<IntType>(value & kSignedInputMask) == (kSignedInputMask & ~int64_t{0x1f});
-  }
-}
-
-// Return true if value would fit into Shift32-immediate.
-template <typename IntType>
-constexpr bool Shift32Immediate::AccetableValue(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Shift32 immediate is unsigned immediate with possible values between 0 and 31.
-  // If we make value unsigned negative numbers would become numbers >127 and would be rejected.
-  return std::make_unsigned_t<IntType>(value) < 32;
-}
-
-// Return true if value would fit into Shift64-immediate.
-template <typename IntType>
-constexpr bool Shift64Immediate::AccetableValue(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Shift64 immediate is unsigned immediate with possible values between 0 and 63.
-  // If we make value unsigned negative numbers would become numbers >127 and would be rejected.
-  return std::make_unsigned_t<IntType>(value) < 64;
-}
-
-// Immediate (I-immediate in RISC V documentation) and S-Immediate are siblings: they encode
-// the same values but in a different way.
-// AccetableValue are the same for that reason, but MakeRaw are different.
-template <typename IntType>
-constexpr bool SImmediate::AccetableValue(IntType value) {
-  return Immediate::AccetableValue(value);
-}
-
-// Return true if value would fit into U-immediate.
-template <typename IntType>
-constexpr bool UImmediate::AccetableValue(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // U-immediate accepts 20 bits, but encodes only values divisible by 4096, that's why we only
-  // may accept bits from 12 to 30 of any unsigned value. Encode mask as the largest accepted
-  // value plus 4095 and cut it to IntType size.
-  constexpr uint64_t kUnsigned64bitInputMask = 0xffff'ffff'8000'0fff;
-  if constexpr (!std::is_signed_v<IntType>) {
-    constexpr IntType kUnsignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kUnsignedInputMask) == IntType{0};
-  } else {
-    // For signed values we accept the same values as for unsigned case, but also accept
-    // value that have all bits in kUnsignedInputMask set except lower 12 bits (which are zero).
-    // U-immediate compresses these into one single sign bit, but lowest bits have to be zero.
-    constexpr IntType kSignedInputMask = static_cast<IntType>(kUnsigned64bitInputMask);
-    return static_cast<IntType>(value & kSignedInputMask) == IntType{0} ||
-           static_cast<IntType>(value & kSignedInputMask) == (kSignedInputMask & ~int64_t{0xfff});
-  }
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeBImmediate factory.
-template <typename IntType>
-constexpr RawImmediate BImmediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Note: we have to convert type to int32_t before processing it! Otherwise we would produce
-  // incorrect value for negative inputs since one single input sign in the small immediate would
-  // turn into many bits in the insruction.
-  return (static_cast<int32_t>(value) & static_cast<int32_t>(0x8000'0000)) |
-         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'0800)) >> 4) |
-         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'001f)) << 7) |
-         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'07e0)) << 20);
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
-template <typename IntType>
-constexpr RawImmediate CsrImmediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Note: this is correct if input value is between 0 and 31, but that would be checked in
-  // MakeCsrImmediate.
-  return static_cast<int32_t>(value) << 15;
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
-template <typename IntType>
-constexpr RawImmediate Immediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  return static_cast<int32_t>(value) << 20;
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeJImmediate factory.
-template <typename IntType>
-constexpr RawImmediate JImmediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Note: we have to convert type to int32_t before processing it! Otherwise we would produce
-  // incorrect value for negative inputs since one single input sign in the small immediate would
-  // turn into many bits in the insruction.
-  return (static_cast<int32_t>(value) & static_cast<int32_t>(0x800f'f000)) |
-         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'0800)) << 9) |
-         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'07fe)) << 20);
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
-template <typename IntType>
-constexpr RawImmediate PImmediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Note: this is correct if input value is divisible by 32, but that would be checked in
-  // MakePImmediate.
-  return static_cast<int32_t>(value) << 20;
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
-template <typename IntType>
-constexpr RawImmediate Shift32Immediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Note: this is correct if input value is between 0 and 31, but that would be checked in
-  // MakeShift32Immediate.
-  return static_cast<int32_t>(value) << 20;
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
-template <typename IntType>
-constexpr RawImmediate Shift64Immediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Note: this is only correct if input value is between 0 and 63, but that would be checked in
-  // MakeShift64Immediate.
-  return static_cast<int32_t>(value) << 20;
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeSImmediate factory.
-template <typename IntType>
-constexpr RawImmediate SImmediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Here, because we are only using platforms with 32bit ints conversion to 32bit signed int may
-  // happen both before masking and after but we are doing it before for consistency.
-  return ((static_cast<int32_t>(value) & static_cast<int32_t>(0xffff'ffe0)) << 20) |
-         ((static_cast<int32_t>(value) & static_cast<int32_t>(0x0000'001f)) << 7);
-}
-
-// Make RawImmediate from immediate value.
-// Note: value is not checked for correctness here! Public interface is MakeImmediate factory.
-template <typename IntType>
-constexpr RawImmediate UImmediate::MakeRaw(IntType value) {
-  static_assert(std::is_integral_v<IntType>);
-  static_assert(sizeof(IntType) <= sizeof(uint64_t));
-  // Note: this is only correct if input value is between divisible by 4096 , but that would be
-  // checked in MakeUImmediate.
-  return static_cast<int32_t>(value);
-}
-
-}  // namespace riscv
 
 template <typename Assembler>
 inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
