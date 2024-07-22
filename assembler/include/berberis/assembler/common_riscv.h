@@ -195,25 +195,106 @@ class RawImmediate {
                                                                                                  \
     int32_t value_;                                                                              \
   }
-BERBERIS_DEFINE_IMMEDIATE(BImmediate, MakeBImmediate, 0xfe00'0f80);
-BERBERIS_DEFINE_IMMEDIATE(CsrImmediate, MakeCsrImmediate, 0x000f'8000);
-BERBERIS_DEFINE_IMMEDIATE(IImmediate,
-                          MakeIImmediate,
-                          0xfff0'0000,
-                          constexpr IImmediate(SImmediate s_imm);
+BERBERIS_DEFINE_IMMEDIATE(
+    BImmediate,
+    MakeBImmediate,
+    0xfe00'0f80,
+    explicit constexpr operator int16_t() const {
+      return ((value_ >> 7) & 0x001e) | ((value_ >> 20) & 0xf7e0) |
+             ((value_ << 4) & 0x0800);
+    }
+    explicit constexpr operator int32_t() const {
+      return ((value_ >> 7) & 0x0000'001e) | ((value_ >> 20) & 0xffff'f7e0) |
+             ((value_ << 4) & 0x0000'0800);
+    }
+    explicit constexpr operator int64_t() const {
+      return ((value_ >> 7) & 0x0000'0000'0000'001e) | ((value_ >> 20) & 0xffff'ffff'ffff'f7e0) |
+             ((value_ << 4) & 0x0000'0000'0000'0800);
+    });
+BERBERIS_DEFINE_IMMEDIATE(
+    CsrImmediate,
+    MakeCsrImmediate,
+    0x000f'8000,
+    explicit constexpr operator int8_t() const { return value_ >> 15; }
+    explicit constexpr operator uint8_t() const { return value_ >> 15; }
+    explicit constexpr operator int16_t() const { return value_ >> 15; }
+    explicit constexpr operator uint16_t() const { return value_ >> 15; }
+    explicit constexpr operator int32_t() const { return value_ >> 15; }
+    explicit constexpr operator uint32_t() const { return value_ >> 15; }
+    explicit constexpr operator int64_t() const { return value_ >> 15;}
+    explicit constexpr operator uint64_t() const { return value_ >> 15; });
+BERBERIS_DEFINE_IMMEDIATE(
+    IImmediate, MakeIImmediate, 0xfff0'0000, constexpr IImmediate(SImmediate s_imm);
 
-                          friend SImmediate;);
-BERBERIS_DEFINE_IMMEDIATE(JImmediate, MakeJImmediate, 0xffff'f000);
-BERBERIS_DEFINE_IMMEDIATE(PImmediate, MakePImmediate, 0xfe00'0000);
-BERBERIS_DEFINE_IMMEDIATE(Shift32Immediate, MakeShift32Immediate, 0x01f00000);
-BERBERIS_DEFINE_IMMEDIATE(Shift64Immediate, MakeShift64Immediate, 0x03f00000);
-BERBERIS_DEFINE_IMMEDIATE(SImmediate,
-                          MakeSImmediate,
-                          0xfe00'0f80,
-                          constexpr SImmediate(Immediate imm);
+    explicit constexpr operator int16_t() const { return value_ >> 20; }
+    explicit constexpr operator int32_t() const { return value_ >> 20; }
+    explicit constexpr operator int64_t() const { return value_ >> 20; }
 
-                          friend class IImmediate;);
-BERBERIS_DEFINE_IMMEDIATE(UImmediate, MakeUImmediate, 0xffff'f000);
+    friend SImmediate;);
+BERBERIS_DEFINE_IMMEDIATE(
+    JImmediate,
+    MakeJImmediate,
+    0xffff'f000,
+    explicit constexpr operator int32_t() const {
+      return ((value_ >> 20) & 0xfff0'07fe) | ((value_ >> 9) & 0x0000'0800) |
+             (value_ & 0x000f'f000);
+    }
+    explicit constexpr operator int64_t() const {
+      return ((value_ >> 20) & 0xffff'ffff'fff0'07fe) | ((value_ >> 9) & 0x0000'0000'0000'0800) |
+             (value_ & 0x0000'0000'000f'f000);
+    });
+BERBERIS_DEFINE_IMMEDIATE(
+    PImmediate,
+    MakePImmediate,
+    0xfe00'0000,
+    explicit constexpr
+    operator int16_t() const { return value_ >> 20; }
+    explicit constexpr operator int32_t() const { return value_ >> 20; }
+    explicit constexpr operator int64_t() const { return value_ >> 20; });
+BERBERIS_DEFINE_IMMEDIATE(
+    Shift32Immediate,
+    MakeShift32Immediate,
+    0x01f0'0000,
+    explicit constexpr operator int8_t() const { return value_ >> 20; }
+    explicit constexpr operator uint8_t() const { return value_ >> 20; }
+    explicit constexpr operator int16_t() const { return value_ >> 20; }
+    explicit constexpr operator uint16_t() const { return value_ >> 20; }
+    explicit constexpr operator int32_t() const { return value_ >> 20; }
+    explicit constexpr operator uint32_t() const { return value_ >> 20; }
+    explicit constexpr operator int64_t() const { return value_ >> 20;}
+    explicit constexpr operator uint64_t() const { return value_ >> 20; });
+BERBERIS_DEFINE_IMMEDIATE(
+    Shift64Immediate,
+    MakeShift64Immediate,
+    0x03f0'0000,
+    explicit constexpr operator int8_t() const { return value_ >> 20; }
+    explicit constexpr operator uint8_t() const { return value_ >> 20; }
+    explicit constexpr operator int16_t() const { return value_ >> 20; }
+    explicit constexpr operator uint16_t() const { return value_ >> 20; }
+    explicit constexpr operator int32_t() const { return value_ >> 20; }
+    explicit constexpr operator uint32_t() const { return value_ >> 20; }
+    explicit constexpr operator int64_t() const { return value_ >> 20;}
+    explicit constexpr operator uint64_t() const { return value_ >> 20; });
+BERBERIS_DEFINE_IMMEDIATE(
+    SImmediate, MakeSImmediate, 0xfe00'0f80, constexpr SImmediate(Immediate imm);
+
+    explicit constexpr operator int16_t() const {
+      return ((value_ >> 7) & 0x0000'001f) | (value_ >> 20);
+    }
+    explicit constexpr operator int32_t() const {
+      return ((value_ >> 7) & 0x0000'001f) | (value_ >> 20);
+    }
+    explicit constexpr operator int64_t() const {
+      return ((value_ >> 7) & 0x0000'001f) | (value_ >> 20);
+    }
+
+    friend class IImmediate;);
+BERBERIS_DEFINE_IMMEDIATE(
+    UImmediate,
+    MakeUImmediate,
+    0xffff'f000,
+    explicit constexpr operator int32_t() const { return value_; }
+    explicit constexpr operator int64_t() const { return value_; });
 #undef BERBERIS_DEFINE_IMMEDIATE
 #undef BERBERIS_DEFINE_IMMEDIATE_CONSTRUCTOR
 
