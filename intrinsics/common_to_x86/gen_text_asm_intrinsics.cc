@@ -353,62 +353,7 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
                        }
                      })));
   // Verify CPU vendor and SSE restrictions.
-  bool expect_avx = false;
-  bool expect_bmi = false;
-  bool expect_fma = false;
-  bool expect_fma4 = false;
-  bool expect_lzcnt = false;
-  bool expect_popcnt = false;
-  bool expect_sse3 = false;
-  bool expect_ssse3 = false;
-  bool expect_sse4_1 = false;
-  bool expect_sse4_2 = false;
-  switch (AsmCallInfo::kCPUIDRestriction) {
-    case intrinsics::bindings::kHasBMI:
-      expect_bmi = true;
-      break;
-    case intrinsics::bindings::kHasLZCNT:
-      expect_lzcnt = true;
-      break;
-    case intrinsics::bindings::kHasPOPCNT:
-      expect_popcnt = true;
-      break;
-    case intrinsics::bindings::kHasFMA:
-    case intrinsics::bindings::kHasFMA4:
-      if (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasFMA) {
-        expect_fma = true;
-      } else {
-        expect_fma4 = true;
-      }
-      [[fallthrough]];
-    case intrinsics::bindings::kHasAVX:
-      expect_avx = true;
-      [[fallthrough]];
-    case intrinsics::bindings::kHasSSE4_2:
-      expect_sse4_2 = true;
-      [[fallthrough]];
-    case intrinsics::bindings::kHasSSE4_1:
-      expect_sse4_1 = true;
-      [[fallthrough]];
-    case intrinsics::bindings::kHasSSSE3:
-      expect_ssse3 = true;
-      [[fallthrough]];
-    case intrinsics::bindings::kHasSSE3:
-      expect_sse3 = true;
-      [[fallthrough]];
-    case intrinsics::bindings::kIsAuthenticAMD:
-    case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
-  }
-  CHECK_EQ(expect_avx, as.need_avx);
-  CHECK_EQ(expect_bmi, as.need_bmi);
-  CHECK_EQ(expect_fma, as.need_fma);
-  CHECK_EQ(expect_fma4, as.need_fma4);
-  CHECK_EQ(expect_lzcnt, as.need_lzcnt);
-  CHECK_EQ(expect_popcnt, as.need_popcnt);
-  CHECK_EQ(expect_sse3, as.need_sse3);
-  CHECK_EQ(expect_ssse3, as.need_ssse3);
-  CHECK_EQ(expect_sse4_1, as.need_sse4_1);
-  CHECK_EQ(expect_sse4_2, as.need_sse4_2);
+  as.CheckCPUIDRestriction<typename AsmCallInfo::CPUIDRestriction>();
   return std::tuple{as.need_gpr_macroassembler_scratch(), as.need_gpr_macroassembler_constants()};
 }
 
@@ -598,8 +543,12 @@ constexpr bool NeedOutputShadow(Arg arg) {
 #include "text_asm_intrinsics_process_bindings-inl.h"
 
 void GenerateTextAsmIntrinsics(FILE* out) {
-  intrinsics::bindings::CPUIDRestriction cpuid_restriction =
-      intrinsics::bindings::kNoCPUIDRestriction;
+  // Note: nullptr means "NoCPUIDRestriction", other values are only assigned in one place below
+  // since the code in this function mostly cares only about three cases:
+  //   • There are no CPU restrictions.
+  //   • There are CPU restrictions but they are the same as in previous case (which is error).
+  //   • There are new CPU restrictions.
+  const char* cpuid_restriction = nullptr /* NoCPUIDRestriction */;
   bool if_opened = false;
   std::string running_name;
   ProcessAllBindings<TextAssemblerX86<TextAssembler>,
@@ -621,9 +570,9 @@ void GenerateTextAsmIntrinsics(FILE* out) {
         }
         if (full_name != running_name) {
           if (if_opened) {
-            if (cpuid_restriction != intrinsics::bindings::kNoCPUIDRestriction) {
+            if (cpuid_restriction) {
               fprintf(out, "  } else {\n    return %s;\n", running_name.c_str());
-              cpuid_restriction = intrinsics::bindings::kNoCPUIDRestriction;
+              cpuid_restriction = nullptr /* NoCPUIDRestriction */;
             }
             if_opened = false;
             fprintf(out, "  }\n");
@@ -635,58 +584,23 @@ void GenerateTextAsmIntrinsics(FILE* out) {
           GenerateFunctionHeader<AsmCallInfo>(out, 0);
           running_name = full_name;
         }
-        if (asm_call_generator.kCPUIDRestriction != cpuid_restriction) {
-          if (asm_call_generator.kCPUIDRestriction == intrinsics::bindings::kNoCPUIDRestriction) {
+        using CPUIDRestriction = AsmCallInfo::CPUIDRestriction;
+        // Note: this series of "if constexpr" expressions is the only place where cpuid_restriction
+        // may get a concrete non-zero value;
+        if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::NoCPUIDRestriction>) {
+          if (cpuid_restriction) {
             fprintf(out, "  } else {\n");
-          } else {
-            if (if_opened) {
-              fprintf(out, "  } else if (");
-            } else {
-              fprintf(out, "  if (");
-              if_opened = true;
-            }
-            switch (asm_call_generator.kCPUIDRestriction) {
-              default:
-                // Unsupported CPUID value.
-                CHECK(false);
-              case intrinsics::bindings::kIsAuthenticAMD:
-                fprintf(out, "host_platform::kIsAuthenticAMD");
-                break;
-              case intrinsics::bindings::kHasAVX:
-                fprintf(out, "host_platform::kHasAVX");
-                break;
-              case intrinsics::bindings::kHasBMI:
-                fprintf(out, "host_platform::kHasBMI");
-                break;
-              case intrinsics::bindings::kHasFMA:
-                fprintf(out, "host_platform::kHasFMA");
-                break;
-              case intrinsics::bindings::kHasFMA4:
-                fprintf(out, "host_platform::kHasFMA4");
-                break;
-              case intrinsics::bindings::kHasLZCNT:
-                fprintf(out, "host_platform::kHasLZCNT");
-                break;
-              case intrinsics::bindings::kHasPOPCNT:
-                fprintf(out, "host_platform::kHasPOPCNT");
-                break;
-              case intrinsics::bindings::kHasSSE3:
-                fprintf(out, "host_platform::kHasSSE3");
-                break;
-              case intrinsics::bindings::kHasSSSE3:
-                fprintf(out, "host_platform::kHasSSSE3");
-                break;
-              case intrinsics::bindings::kHasSSE4_1:
-                fprintf(out, "host_platform::kHasSSE4_1");
-                break;
-              case intrinsics::bindings::kHasSSE4_2:
-                fprintf(out, "host_platform::kHasSSE4_2");
-                break;
-              case intrinsics::bindings::kNoCPUIDRestriction:;  // Do nothing - make compiler happy.
-            }
-            fprintf(out, ") {\n");
+            cpuid_restriction = nullptr;
           }
-          cpuid_restriction = asm_call_generator.kCPUIDRestriction;
+        } else {
+          if (if_opened) {
+            fprintf(out, "  } else if (");
+          } else {
+            fprintf(out, "  if (");
+            if_opened = true;
+          }
+          cpuid_restriction = TextAssembler::kCPUIDRestrictionString<CPUIDRestriction>;
+          fprintf(out, "%s) {\n", cpuid_restriction);
         }
         GenerateFunctionBody<AsmCallInfo>(out, 2 + 2 * if_opened);
       });
