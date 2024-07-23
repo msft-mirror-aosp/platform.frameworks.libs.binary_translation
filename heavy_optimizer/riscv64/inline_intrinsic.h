@@ -262,8 +262,6 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
                                                       ArgTypeForFriend... args);
 
   template <auto kFunc,
-            typename Assembler_common_x86,
-            typename Assembler_x86_64,
             typename MacroAssembler,
             typename Result,
             typename Callback,
@@ -301,15 +299,11 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
         xmm_result_reg_{},
         flag_register_{flag_register},
         input_args_(std::tuple{args...}),
-        success_(
-            intrinsics::bindings::ProcessBindings<kFunction,
-                                                  AssemblerX86<x86_64::Assembler>,
-                                                  x86_64::Assembler,
-                                                  std::tuple<MacroAssembler<x86_64::Assembler>>,
-                                                  bool,
-                                                  TryBindingBasedInlineIntrinsicForHeavyOptimizer&>(
-                *this,
-                false)) {}
+        success_(intrinsics::bindings::ProcessBindings<
+                 kFunction,
+                 typename MacroAssembler<x86_64::Assembler>::MacroAssemblers,
+                 bool,
+                 TryBindingBasedInlineIntrinsicForHeavyOptimizer&>(*this, false)) {}
 
   operator bool() { return success_; }
 
