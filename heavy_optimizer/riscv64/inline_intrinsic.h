@@ -262,8 +262,6 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
                                                       ArgTypeForFriend... args);
 
   template <auto kFunc,
-            typename Assembler_common_x86,
-            typename Assembler_x86_64,
             typename MacroAssembler,
             typename Result,
             typename Callback,
@@ -272,15 +270,14 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
                                                       Result def_result,
                                                       Args&&... args);
 
-  template <
-      auto kIntrinsicTemplateName,
-      auto kMacroInstructionTemplateName,
-      auto kMnemo,
-      typename GetOpcode,
-      intrinsics::bindings::CPUIDRestriction kCPUIDRestrictionTemplateValue,
-      intrinsics::bindings::PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
-      bool kSideEffectsTemplateValue,
-      typename... Types>
+  template <auto kIntrinsicTemplateName,
+            auto kMacroInstructionTemplateName,
+            auto kMnemo,
+            typename GetOpcode,
+            typename CPUIDRestrictionTemplateValue,
+            typename PreciseNanOperationsHandlingTemplateValue,
+            bool kSideEffectsTemplateValue,
+            typename... Types>
   friend class intrinsics::bindings::AsmCallInfo;
 
   TryBindingBasedInlineIntrinsicForHeavyOptimizer() = delete;
@@ -302,15 +299,11 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
         xmm_result_reg_{},
         flag_register_{flag_register},
         input_args_(std::tuple{args...}),
-        success_(
-            intrinsics::bindings::ProcessBindings<kFunction,
-                                                  AssemblerX86<x86_64::Assembler>,
-                                                  x86_64::Assembler,
-                                                  std::tuple<MacroAssembler<x86_64::Assembler>>,
-                                                  bool,
-                                                  TryBindingBasedInlineIntrinsicForHeavyOptimizer&>(
-                *this,
-                false)) {}
+        success_(intrinsics::bindings::ProcessBindings<
+                 kFunction,
+                 typename MacroAssembler<x86_64::Assembler>::MacroAssemblers,
+                 bool,
+                 TryBindingBasedInlineIntrinsicForHeavyOptimizer&>(*this, false)) {}
 
   operator bool() { return success_; }
 
@@ -330,29 +323,30 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
                              bool> = true>
   std::optional<bool> /*ProcessBindingsClient*/ operator()(AsmCallInfo asm_call_info) {
     static_assert(std::is_same_v<decltype(kFunction), typename AsmCallInfo::IntrinsicType>);
-    if constexpr (AsmCallInfo::kPreciseNanOperationsHandling !=
-                  intrinsics::bindings::kNoNansOperation) {
+    if constexpr (!std::is_same_v<typename AsmCallInfo::PreciseNanOperationsHandling,
+                                  intrinsics::bindings::NoNansOperation>) {
       return false;
     }
 
-    if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasAVX) {
+    using CPUIDRestriction = AsmCallInfo::CPUIDRestriction;
+    if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX>) {
       if (!host_platform::kHasAVX) {
         return false;
       }
-    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasBMI) {
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>) {
       if (!host_platform::kHasBMI) {
         return false;
       }
-    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasLZCNT) {
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>) {
       if (!host_platform::kHasLZCNT) {
         return false;
       }
-    } else if constexpr (AsmCallInfo::kCPUIDRestriction == intrinsics::bindings::kHasPOPCNT) {
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>) {
       if (!host_platform::kHasPOPCNT) {
         return false;
       }
-    } else if constexpr (AsmCallInfo::kCPUIDRestriction ==
-                         intrinsics::bindings::kNoCPUIDRestriction) {
+    } else if constexpr (std::is_same_v<CPUIDRestriction,
+                                        intrinsics::bindings::NoCPUIDRestriction>) {
       // No restrictions. Do nothing.
     } else {
       static_assert(berberis::kDependentValueFalse<AsmCallInfo::kCPUIDRestriction>);

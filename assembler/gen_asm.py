@@ -52,6 +52,8 @@ def _get_arg_type_name(arg, insn_type):
     return 'X87Register'
   if asm_defs.is_greg(cls):
     return 'Register'
+  if asm_defs.is_freg(cls):
+    return 'FpRegister'
   if asm_defs.is_xreg(cls):
     return 'XMMRegister'
   if asm_defs.is_imm(cls):
@@ -62,6 +64,10 @@ def _get_arg_type_name(arg, insn_type):
     return 'const Label&'
   if asm_defs.is_cond(cls):
     return 'Condition'
+  if asm_defs.is_csr(cls):
+    return 'Csr'
+  if asm_defs.is_rm(cls):
+    return 'Rounding'
   if asm_defs.is_mem_op(cls):
     if insn_type is not None and insn_type.endswith('-type'):
       return 'const Operand<Register, %sImmediate>&' % insn_type[:-5]
@@ -79,11 +85,13 @@ def _get_immediate_type(insn):
   return imm_type
 
 
-def _get_params(insn):
+def _get_params(insn, filter=None):
   result = []
   arg_count = 0
   for arg in insn.get('args'):
     if asm_defs.is_implicit_reg(arg.get('class')):
+      continue
+    if filter is not None and filter(arg):
       continue
     result.append("%s arg%d" % (
       _get_arg_type_name(arg, insn.get('type', None)), arg_count))
@@ -124,7 +132,7 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
       # full description of template function.
       template_name = str({
           'name': name,
-          'params': _get_params(insn)
+          'params': params
       })
       if template_name in template_names:
         continue
@@ -170,6 +178,12 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
           _gen_emit_shortcut(f, insn, insns)
           _gen_emit_instruction(f, insn, arch, rip_operand=True)
           print('}\n', file=f)
+        if 'Rounding' in params:
+          print("", file=f)
+          print('void %s(%s) {' % (
+              name, _get_params(insn, lambda arg: arg.get('class', '') == 'Rm')), file=f)
+          _gen_emit_instruction(f, insn, arch, dyn_rm=True)
+          print('}\n', file=f)
       else:
         print('void %s(%s);' % (name, params), file=f)
       # If immediate type is integer then we want to prevent automatic
@@ -188,16 +202,18 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
       if 'feature' in insn:
         print('  SetRequiredFeature%s();' % insn['feature'], file=f)
       print('  Instruction(%s);' % ', '.join(
-          ['"%s"' % name] + list(_gen_instruction_args(insn))), file=f)
+          ['"%s"' % insn.get('native-asm', name)] +
+          list(_gen_instruction_args(insn, arch))), file=f)
       print('}', file=f)
 
 
-def _gen_instruction_args(insn):
+def _gen_instruction_args(insn, arch):
   arg_count = 0
   for arg in insn.get('args'):
     if asm_defs.is_implicit_reg(arg.get('class')):
       continue
-    if _get_arg_type_name(arg, insn.get('type', None)) == 'Register':
+    if (_get_arg_type_name(arg, insn.get('type', None)) == 'Register'
+        and 'x86' in arch):
       yield 'typename Assembler::%s(arg%d)' % (
           _ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count)
     else:
@@ -377,7 +393,7 @@ _ARGUMENT_FORMATS_TO_SIZES = {
 # e.g. VectorMemory32Bit becomes VectorLabel32Bit.
 #
 # Note: on x86-32 that mode can also be emulated using regular instruction form, if needed.
-def _gen_emit_instruction(f, insn, arch, rip_operand=False):
+def _gen_emit_instruction(f, insn, arch, rip_operand=False, dyn_rm=False):
   result = []
   arg_count = 0
   for arg in insn['args']:
@@ -386,7 +402,10 @@ def _gen_emit_instruction(f, insn, arch, rip_operand=False):
     # Note: in RISC-V there is never any ambiguity about whether full register or its part is used.
     # Instead size of operand is always encoded in the name, e.g. addw vs add or fadd.s vs fadd.d
     if arch in ['common_riscv', 'rv32', 'rv64']:
-      result.append('arg%d' % arg_count)
+      if dyn_rm and arg['class'] == 'Rm':
+        result.append('Rounding::kDyn')
+      else:
+        result.append('arg%d' % arg_count)
     else:
       result.append('%s(arg%d)' % (_ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count))
     arg_count += 1
