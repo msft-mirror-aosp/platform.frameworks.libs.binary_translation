@@ -734,13 +734,10 @@ def _get_reg_operand_info(arg, info_prefix=None):
 
 def _gen_make_intrinsics(f, intrs, archs):
   print("""%s
-template <%s,
-          typename MacroAssembler,
+template <typename MacroAssembler,
           typename Callback,
           typename... Args>
-void ProcessAllBindings(Callback callback, Args&&... args) {""" % (
-    AUTOGEN,
-    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs])),
+void ProcessAllBindings(Callback callback, Args&&... args) {""" % AUTOGEN,
     file=f)
   for line in _gen_c_intrinsics_generator(
           intrs, _is_interpreter_compatible_assembler, False): # False for gen_builder
@@ -803,13 +800,11 @@ def _gen_process_bindings(f, intrs, archs):
   _gen_opcode_generators_f(f, intrs)
   print("""
 template <auto kFunc,
-          %s,
           typename MacroAssembler,
           typename Result,
           typename Callback,
           typename... Args>
-Result ProcessBindings(Callback callback, Result def_result, Args&&... args) {""" % (
-    ',\n          '.join(['typename Assembler_%s' % arch for arch in archs])),
+Result ProcessBindings(Callback callback, Result def_result, Args&&... args) {""",
     file=f)
   for line in _gen_c_intrinsics_generator(
           intrs, _is_translator_compatible_assembler, True): # True for gen_builder
@@ -1013,10 +1008,7 @@ def _get_asm_reference(asm):
   #     typename Assembler_common_x86::Register,
   #     typename Assembler_common_x86::Register)>(
   #       &Assembler_common_x86::Lzcntl)
-  if 'arch' in asm:
-    assembler = 'Assembler_%s' % asm['arch']
-  else:
-    assembler = 'std::tuple_element_t<%s, MacroAssembler>' % asm['macroassembler']
+  assembler = 'std::tuple_element_t<%s, MacroAssembler>' % asm['macroassembler']
   return 'static_cast<void (%s::*)(%s)>(%s&%s::%s%s)' % (
       assembler,
       _get_asm_type(asm, 'typename %s::' % assembler),
@@ -1050,12 +1042,8 @@ def _load_intrs_arch_def(intrs_defs):
 
 def _load_macro_def(intrs, arch_intrs, insns_def, macroassembler):
   arch, insns = asm_defs.load_asm_defs(insns_def)
-  if arch is not None:
-    for insn in insns:
-      insn['arch'] = arch
-  else:
-    for insn in insns:
-      insn['macroassembler'] = macroassembler
+  for insn in insns:
+    insn['macroassembler'] = macroassembler
   insns_map = dict((insn['name'], insn) for insn in insns)
   unprocessed_intrs = []
   for arch_intr in arch_intrs:
@@ -1136,10 +1124,7 @@ def _open_asm_def_files(def_files, arch_def_files, asm_def_files, need_archs=Tru
   macro_assemblers = 0
   for macro_def in asm_def_files:
     arch, arch_intrs = _load_macro_def(expanded_intrs, arch_intrs, macro_def, macro_assemblers)
-    if arch is not None:
-      archs.append(arch)
-    else:
-      macro_assemblers += 1
+    macro_assemblers += 1
   # Make sure that all intrinsics were found during processing of arch_intrs.
   assert arch_intrs == []
   if need_archs:
