@@ -50,8 +50,8 @@ genrule {
         "gen_text_assembler_riscv64-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_riscv64"],
-    tools: ["gen_asm_x86"],
-    cmd: "$(location gen_asm_x86) --text-assembler $(out) $(in)",
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --text-assembler $(out) $(in)",
 }
 
 genrule {
@@ -61,8 +61,8 @@ genrule {
         "gen_text_assembler_x86_32-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_32"],
-    tools: ["gen_asm_x86"],
-    cmd: "$(location gen_asm_x86) --text-assembler $(out) $(in)",
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --text-assembler $(out) $(in)",
 }
 
 genrule {
@@ -72,8 +72,8 @@ genrule {
         "gen_text_assembler_x86_64-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_64"],
-    tools: ["gen_asm_x86"],
-    cmd: "$(location gen_asm_x86) --text-assembler $(out) $(in)",
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --text-assembler $(out) $(in)",
 }
 
 filegroup {
@@ -145,8 +145,8 @@ genrule {
     name: "libberberis_macro_assembler_gen_headers_riscv64_to_x86_64",
     out: ["berberis/intrinsics/macro_assembler_interface-inl.h"],
     srcs: [":libberberis_macro_assembler_gen_inputs_riscv64_to_x86_64"],
-    tools: ["gen_asm_x86"],
-    cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
 }
 
 // Note: the following two genrules and this host binary are working together.
