@@ -141,7 +141,10 @@ cc_library_headers {
 
 cc_library_static {
     name: "libberberis_assembler",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     srcs: [
         "machine_code.cc",
