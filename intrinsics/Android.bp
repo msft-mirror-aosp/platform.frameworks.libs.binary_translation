@@ -87,7 +87,7 @@ filegroup {
 
 filegroup {
     name: "gen_text_asm_intrinsics_srcs",
-    srcs: ["common_to_x86/gen_text_asm_intrinsics.cc"],
+    srcs: ["gen_text_asm_intrinsics.cc"],
 }
 
 genrule {
