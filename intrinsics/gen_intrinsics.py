@@ -737,7 +737,8 @@ def _gen_make_intrinsics(f, intrs, archs):
 template <typename MacroAssembler,
           typename Callback,
           typename... Args>
-void ProcessAllBindings(Callback callback, Args&&... args) {""" % AUTOGEN,
+void ProcessAllBindings([[maybe_unused]] Callback callback,
+                        [[maybe_unused]] Args&&... args) {""" % AUTOGEN,
     file=f)
   for line in _gen_c_intrinsics_generator(
           intrs, _is_interpreter_compatible_assembler, False): # False for gen_builder
@@ -1034,7 +1035,7 @@ def _load_intrs_arch_def(intrs_defs):
   for intrs_def in intrs_defs:
     with open(intrs_def) as intrs:
       json_array = json.load(intrs)
-      while isinstance(json_array[0], str):
+      while isinstance(len(json_array) > 0 and json_array[0], str):
         json_array.pop(0)
       json_data.extend(json_array)
   return json_data

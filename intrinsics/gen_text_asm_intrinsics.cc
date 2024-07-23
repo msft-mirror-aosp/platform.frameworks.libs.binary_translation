@@ -28,7 +28,7 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
-#include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
+#include "berberis/intrinsics/common/intrinsics_bindings.h"
 #include "berberis/intrinsics/intrinsics_args.h"
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/macro_assembler.h"
