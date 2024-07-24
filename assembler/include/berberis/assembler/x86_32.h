@@ -30,6 +30,9 @@ namespace x86_32 {
 
 class Assembler : public AssemblerX86<Assembler> {
  public:
+  using BaseAssembler = AssemblerX86<Assembler>;
+  using FinalAssembler = Assembler;
+
   explicit Assembler(MachineCode* code) : AssemblerX86(code) {}
 
   static constexpr Register no_register{0x80};

@@ -27,6 +27,9 @@ namespace berberis::rv64 {
 
 class Assembler : public AssemblerRiscV<Assembler> {
  public:
+  using BaseAssembler = AssemblerRiscV<Assembler>;
+  using FinalAssembler = Assembler;
+
   explicit Assembler(MachineCode* code) : AssemblerRiscV(code) {}
 
   using ShiftImmediate = AssemblerRiscV<Assembler>::Shift64Immediate;

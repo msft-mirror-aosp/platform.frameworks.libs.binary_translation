@@ -187,6 +187,8 @@ def _expand_name(insn, stem, encoding = {}):
   # JSON never have "merged" objects thus having them in result violates
   # expectations.
   expanded_insn = copy.deepcopy(insn)
+  # Native assembler name may include dots, spaces, etc. Keep it for text assembler.
+  expanded_insn["native-asm"] = stem
   expanded_insn['asm'] = _get_cxx_name(stem)
   expanded_insn['name'] = get_mem_macro_name(expanded_insn)
   expanded_insn['mnemo'] = stem.upper()
