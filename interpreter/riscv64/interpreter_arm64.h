@@ -20,21 +20,69 @@
 #include <cstdlib>
 
 #include "berberis/decoder/riscv64/decoder.h"
-#include "berberis/decoder/riscv64/semantics_player_arm64.h"
+#include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 
 namespace berberis {
 
 class Interpreter {
  public:
+  using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
+  static constexpr Register no_register = 0;
+  using FpRegister = uint64_t;
+  static constexpr FpRegister no_fp_register = 0;
+  using Float32 = float;
+  using Float64 = double;
 
-  explicit Interpreter(ProcessState* state) : state_(state) {}
+  explicit Interpreter(ThreadState* state)
+      : state_(state), branch_taken_(false), exception_raised_(false) {}
 
   //
   // Instruction implementations.
   //
+
+  Register UpdateCsr(Decoder::CsrOpcode opcode, Register arg, Register csr) {
+    UNUSED(opcode, arg, csr);
+    Undefined();
+    return {};
+  }
+
+  Register UpdateCsr(Decoder::CsrImmOpcode opcode, uint8_t imm, Register csr) {
+    UNUSED(opcode, imm, csr);
+    Undefined();
+    return {};
+  }
+
+  void Fence(Decoder::FenceOpcode /*opcode*/,
+             Register /*src*/,
+             bool sw,
+             bool sr,
+             bool /*so*/,
+             bool /*si*/,
+             bool pw,
+             bool pr,
+             bool /*po*/,
+             bool /*pi*/) {
+    UNUSED(sw, sr, pw, pr);
+    Undefined();
+    return;
+  }
+
+  template <typename IntType, bool aq, bool rl>
+  Register Lr(int64_t addr) {
+    UNUSED(addr);
+    Undefined();
+    return {};
+  }
+
+  template <typename IntType, bool aq, bool rl>
+  Register Sc(int64_t addr, IntType val) {
+    UNUSED(addr, val);
+    Undefined();
+    return {};
+  }
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
     switch (opcode) {
@@ -45,6 +93,263 @@ class Interpreter {
         return {};
     }
   }
+
+  Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
+    UNUSED(opcode, arg1, arg2);
+    Undefined();
+    return {};
+  }
+
+  Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
+    UNUSED(operand_type, arg, offset);
+    Undefined();
+    return {};
+  }
+
+  template <typename DataType>
+  FpRegister LoadFp(Register arg, int16_t offset) {
+    UNUSED(arg, offset);
+    Undefined();
+    return {};
+  }
+
+  Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
+    UNUSED(opcode, arg, imm);
+    Undefined();
+    return {};
+  }
+
+  Register Lui(int32_t imm) {
+    UNUSED(imm);
+    Undefined();
+    return {};
+  }
+
+  Register Auipc(int32_t imm) {
+    UNUSED(imm);
+    Undefined();
+    return {};
+  }
+
+  Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
+    UNUSED(opcode, arg, imm);
+    Undefined();
+    return {};
+  }
+
+  // TODO(b/232598137): rework ecall to not take parameters explicitly.
+  Register Ecall(Register /* syscall_nr */,
+                 Register /* arg0 */,
+                 Register /* arg1 */,
+                 Register /* arg2 */,
+                 Register /* arg3 */,
+                 Register /* arg4 */,
+                 Register /* arg5 */) {
+    Undefined();
+    return {};
+  }
+
+  Register Slli(Register arg, int8_t imm) { return arg << imm; }
+
+  Register Srli(Register arg, int8_t imm) { return arg >> imm; }
+
+  Register Srai(Register arg, int8_t imm) { return bit_cast<int64_t>(arg) >> imm; }
+
+  Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
+    UNUSED(opcode, arg, imm);
+    Undefined();
+    return {};
+  }
+
+  Register Rori(Register arg, int8_t shamt) {
+    UNUSED(arg, shamt);
+    Undefined();
+    return {};
+  }
+
+  Register Roriw(Register arg, int8_t shamt) {
+    UNUSED(arg, shamt);
+    Undefined();
+    return {};
+  }
+
+  void Store(Decoder::MemoryDataOperandType operand_type,
+             Register arg,
+             int16_t offset,
+             Register data) {
+    UNUSED(operand_type, arg, offset, data);
+    Undefined();
+  }
+
+  template <typename DataType>
+  void StoreFp(Register arg, int16_t offset, FpRegister data) {
+    UNUSED(arg, offset, data);
+    Undefined();
+  }
+
+  void CompareAndBranch(Decoder::BranchOpcode opcode,
+                        Register arg1,
+                        Register arg2,
+                        int16_t offset) {
+    UNUSED(opcode, arg1, arg2, offset);
+    Undefined();
+  }
+
+  void Branch(int32_t offset) {
+    UNUSED(offset);
+    Undefined();
+  }
+
+  void BranchRegister(Register base, int16_t offset) {
+    UNUSED(base, offset);
+    Undefined();
+  }
+
+  FpRegister Fmv(FpRegister arg) { return arg; }
+
+  //
+  // V extensions.
+  //
+
+  enum class TailProcessing {
+    kUndisturbed = 0,
+    kAgnostic = 1,
+  };
+
+  enum class InactiveProcessing {
+    kUndisturbed = 0,
+    kAgnostic = 1,
+  };
+
+  enum class VectorSelectElementWidth {
+    k8bit = 0b000,
+    k16bit = 0b001,
+    k32bit = 0b010,
+    k64bit = 0b011,
+    kMaxValue = 0b111,
+  };
+
+  enum class VectorRegisterGroupMultiplier {
+    k1register = 0b000,
+    k2registers = 0b001,
+    k4registers = 0b010,
+    k8registers = 0b011,
+    kEigthOfRegister = 0b101,
+    kQuarterOfRegister = 0b110,
+    kHalfOfRegister = 0b111,
+    kMaxValue = 0b111,
+  };
+
+  static constexpr size_t NumberOfRegistersInvolved(VectorRegisterGroupMultiplier vlmul) {
+    switch (vlmul) {
+      case VectorRegisterGroupMultiplier::k2registers:
+        return 2;
+      case VectorRegisterGroupMultiplier::k4registers:
+        return 4;
+      case VectorRegisterGroupMultiplier::k8registers:
+        return 8;
+      default:
+        return 1;
+    }
+  }
+
+  static constexpr size_t NumRegistersInvolvedForWideOperand(VectorRegisterGroupMultiplier vlmul) {
+    switch (vlmul) {
+      case VectorRegisterGroupMultiplier::k1register:
+        return 2;
+      case VectorRegisterGroupMultiplier::k2registers:
+        return 4;
+      case VectorRegisterGroupMultiplier::k4registers:
+        return 8;
+      default:
+        return 1;
+    }
+  }
+
+  template <typename ElementType, VectorRegisterGroupMultiplier vlmul>
+  static constexpr size_t GetVlmax() {
+    return 0;
+  }
+
+  template <typename VOpArgs, typename... ExtraArgs>
+  void OpVector(const VOpArgs& args, [[maybe_unused]] ExtraArgs... extra_args) {
+    UNUSED(args);
+    Undefined();
+  }
+
+  template <typename ElementType, typename VOpArgs, typename... ExtraArgs>
+  void OpVector(const VOpArgs& args, Register vtype, [[maybe_unused]] ExtraArgs... extra_args) {
+    UNUSED(args, vtype);
+    Undefined();
+  }
+
+  template <typename ElementType, typename VOpArgs, typename... ExtraArgs>
+  void OpVector(const VOpArgs& args,
+                VectorRegisterGroupMultiplier vlmul,
+                Register vtype,
+                [[maybe_unused]] ExtraArgs... extra_args) {
+    UNUSED(args, vlmul, vtype);
+    Undefined();
+  }
+
+  template <typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            typename VOpArgs,
+            typename... ExtraArgs>
+  void OpVector(const VOpArgs& args, Register vtype, [[maybe_unused]] ExtraArgs... extra_args) {
+    UNUSED(args, vtype);
+    Undefined();
+  }
+
+  template <typename ElementType,
+            VectorRegisterGroupMultiplier vlmul,
+            auto vma,
+            typename VOpArgs,
+            typename... ExtraArgs>
+  void OpVector(const VOpArgs& args, Register vtype, [[maybe_unused]] ExtraArgs... extra_args) {
+    UNUSED(args, vtype);
+    Undefined();
+  }
+
+  template <typename ElementType,
+            size_t kSegmentSize,
+            VectorRegisterGroupMultiplier vlmul,
+            auto vma,
+            typename VOpArgs,
+            typename... ExtraArgs>
+  void OpVector(const VOpArgs& args, Register vtype, [[maybe_unused]] ExtraArgs... extra_args) {
+    UNUSED(args, vtype);
+    Undefined();
+  }
+
+  template <size_t kSegmentSize,
+            typename IndexElementType,
+            size_t kIndexRegistersInvolved,
+            TailProcessing vta,
+            auto vma,
+            typename VOpArgs,
+            typename... ExtraArgs>
+  void OpVector(const VOpArgs& args, Register vtype, [[maybe_unused]] ExtraArgs... extra_args) {
+    UNUSED(args, vtype);
+    Undefined();
+  }
+
+  template <typename DataElementType,
+            size_t kSegmentSize,
+            typename IndexElementType,
+            size_t kIndexRegistersInvolved,
+            TailProcessing vta,
+            auto vma,
+            typename VOpArgs,
+            typename... ExtraArgs>
+  void OpVector(const VOpArgs& args,
+                VectorRegisterGroupMultiplier vlmul,
+                [[maybe_unused]] ExtraArgs... extra_args) {
+    UNUSED(args, vlmul);
+    Undefined();
+  }
+
+  void Nop() {}
 
   void Undefined() {
     // If there is a guest handler registered for SIGILL we'll delay its processing until the next
@@ -73,26 +378,136 @@ class Interpreter {
     state_->cpu.x[reg - 1] = value;
   }
 
+  FpRegister GetFpReg(uint8_t reg) const {
+    CheckFpRegIsValid(reg);
+    return state_->cpu.f[reg];
+  }
+
+  template <typename FloatType>
+  FpRegister GetFRegAndUnboxNan(uint8_t reg);
+
+  template <typename FloatType>
+  void NanBoxAndSetFpReg(uint8_t reg, FpRegister value);
+
   //
   // Various helper methods.
   //
 
+  template <CsrName kName>
+  [[nodiscard]] Register GetCsr() {
+    Undefined();
+    return {};
+  }
+
+  template <CsrName kName>
+  void SetCsr(Register arg) {
+    UNUSED(arg);
+    Undefined();
+  }
+
   uint64_t GetImm(uint64_t imm) const { return imm; }
+
+  [[nodiscard]] Register Copy(Register value) const { return value; }
 
   void FinalizeInsn(uint8_t insn_len) { state_->cpu.insn_addr += insn_len; }
 
   [[nodiscard]] GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
 
+#include "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h"
+
  private:
-  void CheckRegIsValid(uint8_t reg) const {
-    // TODO(b/265372622): Replace with checks from logging.h.
-    if (reg == 0 || (reg > sizeof(state_->cpu.x) / sizeof(state_->cpu.x[0]))) {
-      abort();
-    }
+  template <typename DataType>
+  Register Load(const void* ptr) {
+    UNUSED(ptr);
+    Undefined();
+    return {};
   }
 
+  void CheckShamtIsValid(int8_t shamt) const {
+    CHECK_GE(shamt, 0);
+    CHECK_LT(shamt, 64);
+  }
+
+  void CheckShamt32IsValid(int8_t shamt) const {
+    CHECK_GE(shamt, 0);
+    CHECK_LT(shamt, 32);
+  }
+
+  void CheckRegIsValid(uint8_t reg) const {
+    CHECK_GT(reg, 0u);
+    CHECK_LE(reg, std::size(state_->cpu.x));
+  }
+
+  void CheckFpRegIsValid(uint8_t reg) const { CHECK_LT(reg, std::size(state_->cpu.f)); }
+
   ProcessState* state_;
+  bool branch_taken_;
   bool exception_raised_;
 };
+
+template <>
+[[nodiscard]] Interpreter::FpRegister inline Interpreter::GetFRegAndUnboxNan<Interpreter::Float32>(
+    uint8_t reg) {
+  UNUSED(reg);
+  Interpreter::Undefined();
+  return {};
+}
+
+template <>
+[[nodiscard]] Interpreter::FpRegister inline Interpreter::GetFRegAndUnboxNan<Interpreter::Float64>(
+    uint8_t reg) {
+  UNUSED(reg);
+  Interpreter::Undefined();
+  return {};
+}
+
+template <>
+void inline Interpreter::NanBoxAndSetFpReg<Interpreter::Float32>(uint8_t reg, FpRegister value) {
+  if (exception_raised_) {
+    // Do not produce side effects.
+    return;
+  }
+  CheckFpRegIsValid(reg);
+  state_->cpu.f[reg] = NanBox<Float32>(value);
+}
+
+template <>
+void inline Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, FpRegister value) {
+  if (exception_raised_) {
+    // Do not produce side effects.
+    return;
+  }
+  CheckFpRegIsValid(reg);
+  state_->cpu.f[reg] = value;
+}
+
+#ifdef BERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadIndexedArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadStrideArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadUnitStrideArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpFVfArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpFVvArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIViArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIVvArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIVxArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVvArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVxArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreIndexedArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreStrideArgs& args);
+template <>
+extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreUnitStrideArgs& args);
+#endif
 
 }  // namespace berberis

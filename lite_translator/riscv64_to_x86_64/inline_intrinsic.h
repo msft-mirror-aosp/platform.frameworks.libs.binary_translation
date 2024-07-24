@@ -201,8 +201,6 @@ class TryBindingBasedInlineIntrinsic {
                                  AssemblerResTypeForFriend result,
                                  AssemblerArgTypeForFriend... args);
   template <auto kFunc,
-            typename Assembler_common_x86,
-            typename Assembler_x86_64,
             typename MacroAssembler,
             typename Result,
             typename Callback,
@@ -236,13 +234,11 @@ class TryBindingBasedInlineIntrinsic {
         simd_reg_alloc_(simd_reg_alloc),
         result_{result},
         input_args_(std::tuple{args...}),
-        success_(
-            intrinsics::bindings::ProcessBindings<kFunction,
-                                                  AssemblerX86<x86_64::Assembler>,
-                                                  x86_64::Assembler,
-                                                  std::tuple<MacroAssembler<x86_64::Assembler>>,
-                                                  bool,
-                                                  TryBindingBasedInlineIntrinsic&>(*this, false)) {}
+        success_(intrinsics::bindings::ProcessBindings<
+                 kFunction,
+                 typename MacroAssembler<x86_64::Assembler>::MacroAssemblers,
+                 bool,
+                 TryBindingBasedInlineIntrinsic&>(*this, false)) {}
   operator bool() { return success_; }
 
   template <typename AsmCallInfo>

@@ -27,6 +27,7 @@
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
+#include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
 
 namespace berberis {
 

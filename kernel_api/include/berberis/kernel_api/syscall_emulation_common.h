@@ -73,7 +73,11 @@ inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
   long result;
   if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
     KAPI_TRACE("Emulating fstat for /proc/self/maps");
-    result = syscall(__NR_stat, "/proc/self/maps", &host_stat);
+#if defined(__LP64__)
+    result = syscall(__NR_newfstatat, AT_FDCWD, "/proc/self/maps", &host_stat, 0);
+#else
+    result = syscall(__NR_fstatat64, AT_FDCWD, "/proc/self/maps", &host_stat, 0);
+#endif
   } else {
     result = syscall(__NR_fstat, arg_1, &host_stat);
   }
