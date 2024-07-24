@@ -28,7 +28,7 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
-#include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
+#include "berberis/intrinsics/common/intrinsics_bindings.h"
 #include "berberis/intrinsics/intrinsics_args.h"
 #include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/macro_assembler.h"
@@ -551,9 +551,7 @@ void GenerateTextAsmIntrinsics(FILE* out) {
   const char* cpuid_restriction = nullptr /* NoCPUIDRestriction */;
   bool if_opened = false;
   std::string running_name;
-  ProcessAllBindings<TextAssemblerX86<TextAssembler>,
-                     TextAssembler,
-                     MacroAssembler<TextAssembler>::MacroAssemblers>(
+  ProcessAllBindings<MacroAssembler<TextAssembler>::MacroAssemblers>(
       [&running_name, &if_opened, &cpuid_restriction, out](auto&& asm_call_generator) {
         using AsmCallInfo = std::decay_t<decltype(asm_call_generator)>;
         std::string full_name = std::string(asm_call_generator.kIntrinsic,

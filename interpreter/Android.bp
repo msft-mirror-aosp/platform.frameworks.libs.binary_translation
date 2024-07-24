@@ -24,11 +24,22 @@ cc_library_headers {
     export_include_dirs: ["include"],
 }
 
+cc_library_headers {
+    name: "libberberis_intrinsics_riscv64_to_arm64_headers",
+    defaults: ["berberis_all_hosts_defaults"],
+    host_supported: true,
+    export_include_dirs: ["riscv64_to_arm64/include"],
+    arch: {
+        x86_64: {
+            enabled: false,
+        },
+    },
+}
+
 cc_library_static {
     name: "libberberis_interpreter_riscv64",
     defaults: ["berberis_all_hosts_defaults_64"],
     host_supported: true,
-    cflags: ["-DBERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS"],
     header_libs: [
         "libberberis_decoder_riscv64_headers",
         "libberberis_interpreter_riscv64_headers",
@@ -37,7 +48,10 @@ cc_library_static {
     export_header_lib_headers: ["libberberis_interpreter_riscv64_headers"],
     arch: {
         x86_64: {
-            cflags: ["-mssse3"],
+            cflags: [
+                "-DBERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS",
+                "-mssse3",
+            ],
             header_libs: [
                 "libberberis_base_headers",
                 "libberberis_intrinsics_riscv64_headers",
@@ -59,6 +73,11 @@ cc_library_static {
                 "riscv64/interpreter-VStoreIndexedArgs.cc",
                 "riscv64/interpreter-VStoreStrideArgs.cc",
                 "riscv64/interpreter-VStoreUnitStrideArgs.cc",
+            ],
+        },
+        arm64: {
+            header_libs: [
+                "libberberis_intrinsics_riscv64_to_arm64_headers",
             ],
         },
     },
