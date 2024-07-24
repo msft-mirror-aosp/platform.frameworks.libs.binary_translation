@@ -43,7 +43,9 @@ class HeavyOptimizerFrontend {
   using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<HeavyOptimizerFrontend>>;
   using Register = MachineReg;
+  static constexpr Register no_register = MachineReg{};
   using FpRegister = SimdReg;
+  static constexpr SimdReg no_fp_register = SimdReg{};
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
@@ -79,7 +81,7 @@ class HeavyOptimizerFrontend {
   [[nodiscard]] Register GetReg(uint8_t reg);
   void SetReg(uint8_t reg, Register value);
 
-  void Unimplemented();
+  void Undefined();
   //
   // Instruction implementations.
   //
@@ -104,7 +106,7 @@ class HeavyOptimizerFrontend {
                  Register /* arg3 */,
                  Register /* arg4 */,
                  Register /* arg5 */) {
-    Unimplemented();
+    Undefined();
     return {};
   }
 
@@ -216,21 +218,16 @@ class HeavyOptimizerFrontend {
     return MemoryRegionReservationExchange(aligned_addr, reservation_value);
   }
 
-  void Fence(Decoder::FenceOpcode /*opcode*/,
-             Register /*src*/,
+  void Fence(Decoder::FenceOpcode opcode,
+             Register src,
              bool sw,
              bool sr,
-             bool /*so*/,
-             bool /*si*/,
+             bool so,
+             bool si,
              bool pw,
              bool pr,
-             bool /*po*/,
-             bool /*pi*/) {
-    UNUSED(sw, sr, pw, pr);
-    Unimplemented();
-  }
-
-  void FenceI(Register /*arg*/, int16_t /*imm*/) { Unimplemented(); }
+             bool po,
+             bool pi);
 
   //
   // F and D extensions.
@@ -309,7 +306,7 @@ class HeavyOptimizerFrontend {
   void OpVector(const VOpArgs& /*args*/, ExtraAegs... /*extra_args*/) {
     // TODO(b/300690740): develop and implement strategy which would allow us to support vector
     // intrinsics not just in the interpreter.
-    Unimplemented();
+    Undefined();
   }
 
   //
@@ -381,7 +378,7 @@ class HeavyOptimizerFrontend {
       Gen<x86_64::AndbRegImm>(tmp, kCsrMask<kName>, GetFlagsRegister());
       Gen<x86_64::MovbMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<kName>, tmp);
     } else if constexpr (sizeof(CsrFieldType<kName>) == 8) {
-      Gen<x86_64::AndqRegImm>(
+      Gen<x86_64::AndqRegMemAbsolute>(
           tmp, constants_pool::kConst<uint64_t{kCsrMask<kName>}>, GetFlagsRegister());
       Gen<x86_64::MovqMemBaseDispReg>(x86_64::kMachineRegRBP, kCsrFieldOffset<kName>, tmp);
     } else {
@@ -501,6 +498,12 @@ HeavyOptimizerFrontend::GetFRegAndUnboxNan<intrinsics::Float64>(uint8_t reg) {
 
 template <>
 inline void HeavyOptimizerFrontend::NanBoxFpReg<intrinsics::Float64>(FpRegister) {}
+
+template <>
+[[nodiscard]] inline HeavyOptimizerFrontend::Register
+HeavyOptimizerFrontend::GetCsr<CsrName::kCycle>() {
+  return CPUClockCount();
+}
 
 template <>
 [[nodiscard]] inline HeavyOptimizerFrontend::Register

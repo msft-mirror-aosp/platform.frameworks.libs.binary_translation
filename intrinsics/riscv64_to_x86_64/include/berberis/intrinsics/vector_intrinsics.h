@@ -29,14 +29,20 @@
 
 namespace berberis::intrinsics {
 
-[[nodiscard]] inline std::tuple<SIMD128Register> MakeBitmaskFromVl(size_t vl) {
+template <auto kDefaultElement>
+[[nodiscard]] inline const std::tuple<SIMD128Register>& VectorBroadcast() {
+  return *bit_cast<const std::tuple<SIMD128Register>*>(static_cast<uintptr_t>(
+      constants_pool::kVectorConst<typename decltype(kDefaultElement)::BaseType{kDefaultElement}>));
+}
+
+[[nodiscard, gnu::pure]] inline std::tuple<SIMD128Register> MakeBitmaskFromVl(size_t vl) {
   return {_mm_loadu_si128(reinterpret_cast<__m128i_u const*>(
       bit_cast<const uint8_t*>(static_cast<uintptr_t>(constants_pool::kBitMaskTable)) +
       (vl & 7U) * 32 + 16 - ((vl & (~7ULL)) >> 3)))};
 }
 
 template <typename ElementType>
-[[nodiscard]] inline std::tuple<SIMD128Register> BitMaskToSimdMask(size_t mask) {
+[[nodiscard, gnu::pure]] inline std::tuple<SIMD128Register> BitMaskToSimdMask(size_t mask) {
   SIMD128Register result;
   if constexpr (sizeof(ElementType) == sizeof(Int8)) {
     uint64_t low_mask = bit_cast<const uint64_t*>(
@@ -71,8 +77,9 @@ template <typename ElementType>
 }
 
 template <auto kElement>
-[[nodiscard]] inline std::tuple<SIMD128Register> VectorMaskedElementTo(SIMD128Register simd_mask,
-                                                                       SIMD128Register src) {
+[[nodiscard, gnu::pure]] inline std::tuple<SIMD128Register> VectorMaskedElementTo(
+    SIMD128Register simd_mask,
+    SIMD128Register src) {
   using ElementType = decltype(kElement);
   if constexpr (kElement == ElementType{0}) {
     return {src & simd_mask};
@@ -88,7 +95,7 @@ template <auto kElement>
 
 #ifdef __SSSE3__
 template <typename ElementType>
-[[nodiscard]] inline std::tuple<
+[[nodiscard, gnu::pure]] inline std::tuple<
     std::conditional_t<sizeof(ElementType) == sizeof(Int8), RawInt16, RawInt8>>
 SimdMaskToBitMask(SIMD128Register simd_mask) {
   if constexpr (sizeof(ElementType) == sizeof(Int8)) {
@@ -108,7 +115,7 @@ SimdMaskToBitMask(SIMD128Register simd_mask) {
 
 template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
-inline std::tuple<SIMD128Register> Vidv(size_t index) {
+[[nodiscard, gnu::pure]] inline std::tuple<SIMD128Register> Vidv(size_t index) {
   static_assert(sizeof(ElementType) == sizeof(UInt8) || sizeof(ElementType) == sizeof(UInt16) ||
                 sizeof(ElementType) == sizeof(UInt32) || sizeof(ElementType) == sizeof(UInt64));
   const int32_t kVid = (sizeof(ElementType) == sizeof(UInt8))    ? constants_pool::kVid8Bit

@@ -270,6 +270,20 @@ struct NativeBridgeCallbacks {
                                         const char* shorty,
                                         uint32_t len,
                                         enum JNICallType jni_call_type);
+
+  // Get a native bridge trampoline for specified native method pointer.
+  //
+  // Parameters:
+  //   method [IN] pointer to method (ususally registered via call to RegisterNatives)
+  //   shorty [IN] short descriptor of native method
+  //   len [IN] length of shorty
+  //   jni_call_type [IN] the type of JNI call
+  // Returns:
+  //   address of trampoline if successful, otherwise NULL
+  void* (*getTrampolineForFunctionPointer)(const void* method,
+                                           const char* shorty,
+                                           uint32_t len,
+                                           enum JNICallType jni_call_type);
 };
 
 // Runtime interfaces to native bridge.

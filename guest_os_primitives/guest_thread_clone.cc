@@ -18,8 +18,11 @@
 #include <sched.h>
 #include <semaphore.h>
 
+#include <cstring>  // strerror
+
 #include "berberis/base/checks.h"
 #include "berberis/base/tracing.h"
+#include "berberis/guest_os_primitives/guest_signal.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"  // ResetCurrentGuestThreadAfterFork
 #include "berberis/guest_os_primitives/scoped_pending_signals.h"
@@ -28,6 +31,7 @@
 #include "berberis/runtime/execute_guest.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 
+#include "guest_signal_action.h"
 #include "guest_thread_manager_impl.h"
 #include "scoped_signal_blocker.h"
 
@@ -60,13 +64,16 @@ int RunClonedGuestThread(void* arg) {
   // ExecuteGuest requires pending signals enabled.
   ScopedPendingSignalsEnabler scoped_pending_signals_enabler(thread);
 
+  // Host signals are blocked in parent before the clone,
+  // and remain blocked in child until this point.
   RTSigprocmaskSyscallOrDie(SIG_SETMASK, &info->mask, nullptr);
 
   // Notify parent that child is ready. Now parent can:
   // - search for child in thread table
   // - send child a signal
   // - dispose info
-  CHECK_EQ(0, sem_post(&info->sem));
+  int error = sem_post(&info->sem);
+  LOG_ALWAYS_FATAL_IF(error != 0, "sem_post returned error=%s", strerror(errno));
   // TODO(b/77574158): Ensure caller has a chance to handle the notification.
   sched_yield();
 
@@ -114,7 +121,7 @@ pid_t CloneGuestThread(GuestThread* thread,
 
   GuestThreadCloneInfo info;
 
-  info.thread = GuestThread::CreateClone(thread);
+  info.thread = GuestThread::CreateClone(thread, (flags & CLONE_SIGHAND) != 0);
   if (info.thread == nullptr) {
     return EAGAIN;
   }
@@ -148,7 +155,8 @@ pid_t CloneGuestThread(GuestThread* thread,
   SetPendingSignalsStatusAtomic(clone_thread_state, kPendingSignalsEnabled);
   SetResidence(clone_thread_state, kOutsideGeneratedCode);
 
-  sem_init(&info.sem, 0, 0);
+  int error = sem_init(&info.sem, 0, 0);
+  LOG_ALWAYS_FATAL_IF(error != 0, "sem_init returned error=%s", strerror(errno));
 
   // ATTENTION: Don't set new tls for the host - tls might be incompatible.
   // TODO(b/280551726): Consider forcing new host tls to 0.

@@ -20,8 +20,7 @@
 #include <map>
 #include <mutex>  // std::lock_guard, std::mutex
 
-#include "berberis/base/logging.h"
-#include "berberis/base/tracing.h"
+#include "berberis/base/checks.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/runtime_library.h"
@@ -39,14 +38,14 @@ GuestCodeEntry* TranslationCache::AddAndLockForTranslation(GuestAddr pc,
   // the set of the translating regions (e.g as invalidation observes it).
   std::lock_guard<std::mutex> lock(mutex_);
 
-  auto host_code_ptr = GetHostCodePtr(pc);
+  auto* host_code_ptr = GetHostCodePtrWritable(pc);
   bool added;
-  auto entry = AddUnsafe(pc,
-                         host_code_ptr,
-                         {kEntryNotTranslated, 0},  // TODO(b/232598137): set true host_size?
-                         1,                         // Non-zero size simplifies invalidation.
-                         GuestCodeEntry::Kind::kInterpreted,
-                         &added);
+  auto* entry = AddUnsafe(pc,
+                          host_code_ptr,
+                          {kEntryNotTranslated, 0},  // TODO(b/232598137): set true host_size?
+                          1,                         // Non-zero size simplifies invalidation.
+                          GuestCodeEntry::Kind::kInterpreted,
+                          &added);
   CHECK(entry);
 
   // Must not be translated yet.
@@ -139,12 +138,12 @@ GuestCodeEntry* TranslationCache::AddAndLockForWrapping(GuestAddr pc) {
 
   // ATTENTION: kEntryWrapping is a locked state, can return the entry.
   bool locked;
-  auto entry = AddUnsafe(pc,
-                         GetHostCodePtr(pc),
-                         {kEntryWrapping, 0},  // TODO(b/232598137): set true host_size?
-                         1,                    // Non-zero size simplifies invalidation.
-                         GuestCodeEntry::Kind::kUnderProcessing,
-                         &locked);
+  auto* entry = AddUnsafe(pc,
+                          GetHostCodePtrWritable(pc),
+                          {kEntryWrapping, 0},  // TODO(b/232598137): set true host_size?
+                          1,                    // Non-zero size simplifies invalidation.
+                          GuestCodeEntry::Kind::kUnderProcessing,
+                          &locked);
   return locked ? entry : nullptr;
 }
 
@@ -154,7 +153,7 @@ void TranslationCache::SetWrappedAndUnlock(GuestAddr pc,
                                            HostCodePiece code) {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  auto current = entry->host_code->load();
+  auto* current = entry->host_code->load();
 
   // Might have been invalidated while wrapping.
   if (current == kEntryInvalidating) {
@@ -178,9 +177,9 @@ void TranslationCache::SetWrappedAndUnlock(GuestAddr pc,
   CHECK_EQ(entry->guest_size, 1);
 }
 
-bool TranslationCache::IsHostFunctionWrapped(GuestAddr pc) {
+bool TranslationCache::IsHostFunctionWrapped(GuestAddr pc) const {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (auto entry = LookupGuestCodeEntryUnsafe(pc)) {
+  if (auto* entry = LookupGuestCodeEntryUnsafe(pc)) {
     return entry->kind == GuestCodeEntry::Kind::kHostWrapped;
   }
   return false;
@@ -192,14 +191,14 @@ GuestCodeEntry* TranslationCache::AddUnsafe(GuestAddr pc,
                                             uint32_t guest_size,
                                             GuestCodeEntry::Kind kind,
                                             bool* added) {
-  auto [it, result] = guest_entries_.emplace(
+  auto [it, inserted] = guest_entries_.emplace(
       std::pair{pc, GuestCodeEntry{host_code_ptr, host_code_piece.size, guest_size, kind, 0}});
 
-  if (result) {
+  if (inserted) {
     host_code_ptr->store(host_code_piece.code);
   }
 
-  *added = result;
+  *added = inserted;
   return &it->second;
 }
 
@@ -219,7 +218,7 @@ uint32_t TranslationCache::GetInvocationCounter(GuestAddr pc) const {
 
 GuestCodeEntry* TranslationCache::LookupGuestCodeEntryUnsafe(GuestAddr pc) {
   auto it = guest_entries_.find(pc);
-  if (it != end(guest_entries_)) {
+  if (it != std::end(guest_entries_)) {
     return &it->second;
   }
 

@@ -28,6 +28,7 @@ filegroup {
     name: "berberis_ndk_program_tests_srcs",
     srcs: [
         "atomics_test.cc",
+        "clone_test.cc",
         "condvar_test.cc",
         "cpp_test.cc",
         "ctype_test.cc",
@@ -75,6 +76,9 @@ cc_defaults {
     arch: {
         riscv64: {
             srcs: [":berberis_ndk_program_tests_riscv64_srcs"],
+            // Note: we don't even need to use anything from that library, just need to ensure it
+            // can be compiled successfully: all checks are done with static_asserts.
+            static_libs: ["libberberis_emulated_libvulkan_api_checker"],
         },
     },
     header_libs: ["libberberis_ndk_program_tests_headers"],
@@ -86,6 +90,7 @@ cc_test {
     defaults: ["berberis_ndk_program_tests_defaults"],
     shared_libs: ["libz"],
     srcs: [
+        "proc_self_maps_test.cc",
         // TODO(b/187471779): Signal stress test is unstable with high number of repetitions.
         // TODO(b/188086209): Errno emulation is not thread-safe - some checks fail.
         "signal_stress_test.cc",
@@ -151,14 +156,15 @@ cc_defaults {
                 "file_test.cc",
                 "futex_test.cc",
             ],
-            static_libs: ["cpufeatures"],
         },
         arm64: {
             srcs: [
+                "arm64/cpu_features_test.cc",
                 "arm64/handle_not_executable_test.cc",
             ],
         },
     },
+    static_libs: ["cpufeatures"],
     shared_libs: ["libz"],
 }
 
@@ -200,6 +206,9 @@ cc_test {
     srcs: [
         // TODO(b/187471779): fix for static executable.
         // "handle_not_executable_test.cc",
+        // TODO(b/297942688): We do not support accurate exec bit emulation in /proc/self/maps
+        // on systems without CONFIG_ANON_VMA_NAME.
+        // "proc_self_maps_test.cc",
         // TODO(b/187471779): Signal stress test is unstable with high number of repeatitions.
         // TODO(b/188086209): Errno emulation is not thread-safe - some checks fail.
         // "signal_stress_test.cc",

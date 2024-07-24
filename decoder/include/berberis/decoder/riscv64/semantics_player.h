@@ -30,9 +30,11 @@ class SemanticsPlayer {
   using CsrName = typename SemanticsListener::CsrName;
   using Decoder = Decoder<SemanticsPlayer>;
   using Register = typename SemanticsListener::Register;
+  static constexpr Register no_register = SemanticsListener::no_register;
   using Float32 = typename SemanticsListener::Float32;
   using Float64 = typename SemanticsListener::Float64;
   using FpRegister = typename SemanticsListener::FpRegister;
+  static constexpr FpRegister no_fp_register = SemanticsListener::no_fp_register;
 
   explicit SemanticsPlayer(SemanticsListener* listener) : listener_(listener) {}
 
@@ -41,7 +43,7 @@ class SemanticsPlayer {
   void Amo(const typename Decoder::AmoArgs& args) {
     Register arg1 = GetRegOrZero(args.src1);
     Register arg2 = GetRegOrZero(args.src2);
-    Register result;
+    Register result = no_register;
     switch (args.operand_type) {
       case Decoder::MemoryDataOperandType::k32bit:
         result = Amo<int32_t>(args.opcode, arg1, arg2, args.aq, args.rl);
@@ -50,7 +52,7 @@ class SemanticsPlayer {
         result = Amo<int64_t>(args.opcode, arg1, arg2, args.aq, args.rl);
         break;
       default:
-        Unimplemented();
+        Undefined();
         return;
     }
     SetRegOrIgnore(args.dst, result);
@@ -99,8 +101,8 @@ class SemanticsPlayer {
       case Decoder::AmoOpcode::kAmomaxu:
         return listener_->template AmoMax<std::make_unsigned_t<IntType>, aq, rl>(arg1, arg2);
       default:
-        Unimplemented();
-        return {};
+        Undefined();
+        return no_register;
     }
   }
 
@@ -120,7 +122,7 @@ class SemanticsPlayer {
       if (args.dst != 0) {
         auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
         if (!csr_supported) {
-          return Unimplemented();
+          return Undefined();
         }
         Register arg = listener_->GetReg(args.src);
         SetCsr(static_cast<CsrName>(args.csr), arg);
@@ -129,18 +131,18 @@ class SemanticsPlayer {
       }
       Register arg = listener_->GetReg(args.src);
       if (!SetCsr(static_cast<CsrName>(args.csr), arg)) {
-        return Unimplemented();
+        return Undefined();
       }
       return;
     }
     auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
     if (!csr_supported) {
-      return Unimplemented();
+      return Undefined();
     }
     if (args.src != 0) {
       Register arg = listener_->GetReg(args.src);
       if (!SetCsr(static_cast<CsrName>(args.csr), listener_->UpdateCsr(args.opcode, arg, csr))) {
-        return Unimplemented();
+        return Undefined();
       }
     }
     SetRegOrIgnore(args.dst, csr);
@@ -151,10 +153,10 @@ class SemanticsPlayer {
       if (args.dst != 0) {
         auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
         if (!csr_supported) {
-          return Unimplemented();
+          return Undefined();
         }
         if (!SetCsr(static_cast<CsrName>(args.csr), csr)) {
-          return Unimplemented();
+          return Undefined();
         }
         listener_->SetReg(args.dst, csr);
       }
@@ -163,12 +165,12 @@ class SemanticsPlayer {
     }
     auto [csr_supported, csr] = GetCsr(static_cast<CsrName>(args.csr));
     if (!csr_supported) {
-      return Unimplemented();
+      return Undefined();
     }
     if (args.imm != 0) {
       if (!SetCsr(static_cast<CsrName>(args.csr),
                   listener_->UpdateCsr(args.opcode, args.imm, csr))) {
-        return Unimplemented();
+        return Undefined();
       }
     }
     SetRegOrIgnore(args.dst, csr);
@@ -188,7 +190,7 @@ class SemanticsPlayer {
       FpRegister result = listener_->template FCvtFloatToFloat<Float64, Float32>(args.rm, frm, arg);
       NanBoxAndSetFpReg<Float64>(args.dst, result);
     } else {
-      Unimplemented();
+      Undefined();
       return;
     }
   }
@@ -200,7 +202,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return FcvtloatToInteger<Float64>(args.dst_type, args.rm, args.dst, args.src);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -211,7 +213,7 @@ class SemanticsPlayer {
                          int8_t src) {
     FpRegister arg = GetFRegAndUnboxNan<FLoatType>(src);
     Register frm = listener_->template GetCsr<CsrName::kFrm>();
-    Register result;
+    Register result = no_register;
     switch (dst_type) {
       case Decoder::FcvtOperandType::k32bitSigned:
         result = listener_->template FCvtFloatToInteger<int32_t, FLoatType>(rm, frm, arg);
@@ -226,7 +228,7 @@ class SemanticsPlayer {
         result = listener_->template FCvtFloatToInteger<uint64_t, FLoatType>(rm, frm, arg);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
     SetRegOrIgnore(dst, result);
   }
@@ -238,7 +240,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return FcvtIntegerToFloat<Float64>(args.src_type, args.rm, args.dst, args.src);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -249,7 +251,7 @@ class SemanticsPlayer {
                           int8_t src) {
     Register arg = GetRegOrZero(src);
     Register frm = listener_->template GetCsr<CsrName::kFrm>();
-    FpRegister result;
+    FpRegister result = no_fp_register;
     switch (src_type) {
       case Decoder::FcvtOperandType::k32bitSigned:
         result = listener_->template FCvtIntegerToFloat<FloatType, int32_t>(rm, frm, arg);
@@ -264,7 +266,7 @@ class SemanticsPlayer {
         result = listener_->template FCvtIntegerToFloat<FloatType, uint64_t>(rm, frm, arg);
         break;
       default:
-        Unimplemented();
+        Undefined();
         return;
     }
     NanBoxAndSetFpReg<FloatType>(dst, result);
@@ -279,7 +281,7 @@ class SemanticsPlayer {
         return Fma<Float64>(args.opcode, args.rm, args.dst, args.src1, args.src2, args.src3);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -294,7 +296,7 @@ class SemanticsPlayer {
     FpRegister arg2 = GetFRegAndUnboxNan<FloatType>(src2);
     FpRegister arg3 = GetFRegAndUnboxNan<FloatType>(src3);
     Register frm = listener_->template GetCsr<CsrName::kFrm>();
-    FpRegister result;
+    FpRegister result = no_fp_register;
     switch (opcode) {
       case Decoder::FmaOpcode::kFmadd:
         result = listener_->template FMAdd<FloatType>(rm, frm, arg1, arg2, arg3);
@@ -319,7 +321,7 @@ class SemanticsPlayer {
         result = listener_->template FNMSub<FloatType>(rm, frm, arg1, arg2, arg3);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
     result = CanonicalizeNan<FloatType>(result);
     NanBoxAndSetFpReg<FloatType>(dst, result);
@@ -328,7 +330,7 @@ class SemanticsPlayer {
   void Fence(const typename Decoder::FenceArgs& args) {
     listener_->Fence(args.opcode,
                      // args.src is currently unused - read below.
-                     Register{},
+                     no_register,
                      args.sw,
                      args.sr,
                      args.so,
@@ -345,9 +347,10 @@ class SemanticsPlayer {
     // args.opcode=0000, and standard software shall use only non-reserved configurations.
   }
 
-  void FenceI(const typename Decoder::FenceIArgs& args) {
-    Register arg = GetRegOrZero(args.src);
-    listener_->FenceI(arg, args.imm);
+  void FenceI(const typename Decoder::FenceIArgs& /* args */) {
+    // This instruction is not supported on linux. The recommendation is to use the
+    // riscv_flush_icache syscall instead.
+    Undefined();
     // The unused fields in the FENCE.I instruction, imm[11:0], rs1, and rd, are reserved for
     // finer-grain fences in future extensions. For forward compatibility, base implementations
     // shall ignore these fields, and standard software shall zero these fields.
@@ -386,7 +389,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return Load<Float64>(args.dst, args.src, args.offset);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -410,6 +413,14 @@ class SemanticsPlayer {
     Register arg2 = GetRegOrZero(args.src2);
     Register result = Overloaded{[&](const typename Decoder::OpArgs& args) {
                                    switch (args.opcode) {
+                                     case Decoder::OpOpcode::kDiv:
+                                       return listener_->template Div<int64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kDivu:
+                                       return listener_->template Div<uint64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kRem:
+                                       return listener_->template Rem<int64_t>(arg1, arg2);
+                                     case Decoder::OpOpcode::kRemu:
+                                       return listener_->template Rem<uint64_t>(arg1, arg2);
                                      case Decoder::OpOpcode::kMax:
                                        return listener_->template Max<int64_t>(arg1, arg2);
                                      case Decoder::OpOpcode::kMaxu:
@@ -444,6 +455,14 @@ class SemanticsPlayer {
                                    switch (args.opcode) {
                                      case Decoder::Op32Opcode::kAdduw:
                                        return listener_->Adduw(arg1, arg2);
+                                     case Decoder::Op32Opcode::kDivw:
+                                       return listener_->template Div<int32_t>(arg1, arg2);
+                                     case Decoder::Op32Opcode::kDivuw:
+                                       return listener_->template Div<uint32_t>(arg1, arg2);
+                                     case Decoder::Op32Opcode::kRemw:
+                                       return listener_->template Rem<int32_t>(arg1, arg2);
+                                     case Decoder::Op32Opcode::kRemuw:
+                                       return listener_->template Rem<uint32_t>(arg1, arg2);
                                      case Decoder::Op32Opcode::kRolw:
                                        return listener_->template Rol<int32_t>(arg1, arg2);
                                      case Decoder::Op32Opcode::kRorw:
@@ -463,13 +482,13 @@ class SemanticsPlayer {
 
   void OpSingleInput(const typename Decoder::OpSingleInputArgs& args) {
     Register arg = GetRegOrZero(args.src);
-    Register result;
+    Register result = no_register;
     switch (args.opcode) {
       case Decoder::OpSingleInputOpcode::kZexth:
         result = listener_->Zexth(arg);
         break;
       default:
-        Unimplemented();
+        Undefined();
         return;
     }
     SetRegOrIgnore(args.dst, result);
@@ -482,7 +501,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return OpFp<Float64>(args.opcode, args.rm, args.dst, args.src1, args.src2);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -491,7 +510,7 @@ class SemanticsPlayer {
     FpRegister arg1 = GetFRegAndUnboxNan<FloatType>(src1);
     FpRegister arg2 = GetFRegAndUnboxNan<FloatType>(src2);
     Register frm = listener_->template GetCsr<CsrName::kFrm>();
-    FpRegister result;
+    FpRegister result = no_fp_register;
     switch (opcode) {
       case Decoder::OpFpOpcode::kFAdd:
         result = listener_->template FAdd<FloatType>(rm, frm, arg1, arg2);
@@ -506,7 +525,7 @@ class SemanticsPlayer {
         result = listener_->template FDiv<FloatType>(rm, frm, arg1, arg2);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
     result = CanonicalizeNan<FloatType>(result);
     NanBoxAndSetFpReg<FloatType>(dst, result);
@@ -520,7 +539,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return OpFpGpRegisterTargetNoRounding<Float64>(args.opcode, args.dst, args.src1, args.src2);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -531,7 +550,7 @@ class SemanticsPlayer {
                                       int8_t src2) {
     FpRegister arg1 = GetFRegAndUnboxNan<FloatType>(src1);
     FpRegister arg2 = GetFRegAndUnboxNan<FloatType>(src2);
-    Register result;
+    Register result = no_register;
     switch (opcode) {
       case Decoder::OpFpGpRegisterTargetNoRoundingOpcode::kFle:
         result = listener_->template Fle<FloatType>(arg1, arg2);
@@ -543,7 +562,7 @@ class SemanticsPlayer {
         result = listener_->template Feq<FloatType>(arg1, arg2);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
     SetRegOrIgnore(dst, result);
   }
@@ -556,7 +575,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return OpFpGpRegisterTargetSingleInputNoRounding<Float64>(args.opcode, args.dst, args.src);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -566,13 +585,13 @@ class SemanticsPlayer {
       int8_t dst,
       int8_t src) {
     FpRegister arg = GetFRegAndUnboxNan<FloatType>(src);
-    Register result;
+    Register result = no_register;
     switch (opcode) {
       case Decoder::OpFpGpRegisterTargetSingleInputNoRoundingOpcode::kFclass:
         result = listener_->template FClass<FloatType>(arg);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
     SetRegOrIgnore(dst, result);
   }
@@ -584,7 +603,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return OpFpNoRounding<Float64>(args.opcode, args.dst, args.src1, args.src2);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -593,9 +612,25 @@ class SemanticsPlayer {
                       int8_t dst,
                       int8_t src1,
                       int8_t src2) {
-    FpRegister arg1 = GetFRegAndUnboxNan<FloatType>(src1);
-    FpRegister arg2 = GetFRegAndUnboxNan<FloatType>(src2);
-    FpRegister result;
+    FpRegister arg1 = no_fp_register;
+    FpRegister arg2 = no_fp_register;
+    FpRegister result = no_fp_register;
+    // The sign-injection instructions (FSGNJ, FSGNJN, FSGNJX) do not canonicalize NaNs;
+    // they manipulate the underlying bit patterns directly.
+    bool canonicalize_nan = true;
+    switch (opcode) {
+      case Decoder::OpFpNoRoundingOpcode::kFSgnj:
+      case Decoder::OpFpNoRoundingOpcode::kFSgnjn:
+      case Decoder::OpFpNoRoundingOpcode::kFSgnjx:
+        arg1 = GetFpReg(src1);
+        arg2 = GetFpReg(src2);
+        canonicalize_nan = false;
+        break;
+      default:
+        // Unboxing canonicalizes NaNs.
+        arg1 = GetFRegAndUnboxNan<FloatType>(src1);
+        arg2 = GetFRegAndUnboxNan<FloatType>(src2);
+    }
     switch (opcode) {
       case Decoder::OpFpNoRoundingOpcode::kFSgnj:
         result = listener_->template FSgnj<FloatType>(arg1, arg2);
@@ -613,16 +648,18 @@ class SemanticsPlayer {
         result = listener_->template FMax<FloatType>(arg1, arg2);
         break;
       default:
-        Unimplemented();
+        Undefined();
         return;
     }
-    result = CanonicalizeNan<FloatType>(result);
+    if (canonicalize_nan) {
+      result = CanonicalizeNan<FloatType>(result);
+    }
     NanBoxAndSetFpReg<FloatType>(dst, result);
   }
 
   void FmvFloatToInteger(const typename Decoder::FmvFloatToIntegerArgs& args) {
     FpRegister arg = GetFpReg(args.src);
-    Register result;
+    Register result = no_register;
     switch (args.operand_type) {
       case Decoder::FloatOperandType::kFloat:
         result = listener_->template FmvFloatToInteger<int32_t, Float32>(arg);
@@ -631,7 +668,7 @@ class SemanticsPlayer {
         result = listener_->template FmvFloatToInteger<int64_t, Float64>(arg);
         break;
       default:
-        Unimplemented();
+        Undefined();
         return;
     }
     SetRegOrIgnore(args.dst, result);
@@ -639,7 +676,7 @@ class SemanticsPlayer {
 
   void FmvIntegerToFloat(const typename Decoder::FmvIntegerToFloatArgs& args) {
     Register arg = GetRegOrZero(args.src);
-    FpRegister result;
+    FpRegister result = no_fp_register;
     switch (args.operand_type) {
       case Decoder::FloatOperandType::kFloat:
         result = listener_->template FmvIntegerToFloat<Float32, int32_t>(arg);
@@ -650,7 +687,7 @@ class SemanticsPlayer {
         NanBoxAndSetFpReg<Float64>(args.dst, result);
         break;
       default:
-        Unimplemented();
+        Undefined();
         return;
     }
   }
@@ -662,7 +699,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return OpFpSingleInput<Float64>(args.opcode, args.rm, args.dst, args.src);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -672,14 +709,14 @@ class SemanticsPlayer {
                        int8_t dst,
                        int8_t src) {
     FpRegister arg = GetFRegAndUnboxNan<FloatType>(src);
-    FpRegister result;
+    FpRegister result = no_fp_register;
     Register frm = listener_->template GetCsr<CsrName::kFrm>();
     switch (opcode) {
       case Decoder::OpFpSingleInputOpcode::kFSqrt:
         result = listener_->template FSqrt<FloatType>(rm, frm, arg);
         break;
       default:
-        return Unimplemented();
+        return Undefined();
     }
     result = CanonicalizeNan<FloatType>(result);
     NanBoxAndSetFpReg<FloatType>(dst, result);
@@ -692,7 +729,7 @@ class SemanticsPlayer {
       case Decoder::FloatOperandType::kDouble:
         return OpFpSingleInputNoRounding<Float64>(args.opcode, args.dst, args.src);
       default:
-        return Unimplemented();
+        return Undefined();
     }
   }
 
@@ -701,13 +738,13 @@ class SemanticsPlayer {
                                  int8_t dst,
                                  int8_t src) {
     FpRegister arg = GetFRegAndUnboxNan<FloatType>(src);
-    FpRegister result;
+    FpRegister result = no_fp_register;
     switch (opcode) {
       case Decoder::OpFpSingleInputNoRoundingOpcode::kFmv:
         result = listener_->Fmv(arg);
         break;
       default:
-        Unimplemented();
+        Undefined();
         return;
     }
     result = CanonicalizeNan<FloatType>(result);
@@ -732,8 +769,8 @@ class SemanticsPlayer {
                                      case Decoder::ShiftImmOpcode::kSrai:
                                        return listener_->Srai(arg, args.imm);
                                      default:
-                                       Unimplemented();
-                                       return Register{};
+                                       Undefined();
+                                       return no_register;
                                    }
                                  },
                                  [&](const typename Decoder::ShiftImm32Args& args) {
@@ -766,8 +803,8 @@ class SemanticsPlayer {
                                      case Decoder::BitmanipImmOpcode::kBseti:
                                        return listener_->Bseti(arg, args.shamt);
                                      default:
-                                       Unimplemented();
-                                       return Register{};
+                                       Undefined();
+                                       return no_register;
                                    }
                                  },
                                  [&](const typename Decoder::BitmanipImm32Args& args) {
@@ -783,8 +820,8 @@ class SemanticsPlayer {
                                      case Decoder::BitmanipImm32Opcode::kSlliuw:
                                        return listener_->Slliuw(arg, args.shamt);
                                      default:
-                                       Unimplemented();
-                                       return Register{};
+                                       Undefined();
+                                       return no_register;
                                    }
                                  }}(args);
     SetRegOrIgnore(args.dst, result);
@@ -926,7 +963,7 @@ class SemanticsPlayer {
         listener_->template StoreFp<Float64>(arg, args.offset, data);
         break;
       default:
-        Unimplemented();
+        Undefined();
         return;
     }
   }
@@ -936,7 +973,7 @@ class SemanticsPlayer {
   // change CPU state, so we don't support this at the moment for simplicity."
   void System(const typename Decoder::SystemArgs& args) {
     if (args.opcode != Decoder::SystemOpcode::kEcall) {
-      return Unimplemented();
+      return Undefined();
     }
     Register syscall_nr = GetRegOrZero(17);
     Register arg0 = GetRegOrZero(10);
@@ -949,7 +986,7 @@ class SemanticsPlayer {
     SetRegOrIgnore(10, result);
   }
 
-  void Unimplemented() { listener_->Unimplemented(); };
+  void Undefined() { listener_->Undefined(); };
 
  private:
   Register GetRegOrZero(uint8_t reg) {
@@ -978,7 +1015,7 @@ class SemanticsPlayer {
   };
 
   std::tuple<bool, Register> GetCsr(CsrName csr) {
-    Register reg;
+    Register reg = no_register;
     GetCsrProcessor get_csr(reg, listener_);
     return {ProcessCsrNameAsTemplateParameter(csr, get_csr), reg};
   }

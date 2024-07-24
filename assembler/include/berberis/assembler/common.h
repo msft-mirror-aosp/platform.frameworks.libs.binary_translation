@@ -61,6 +61,31 @@ class AssemblerBase {
 
   uint32_t pc() const { return code_->code_offset(); }
 
+  // GNU-assembler inspired names: https://sourceware.org/binutils/docs-2.42/as.html#g_t8byte
+  template <typename... Args>
+  void Byte(Args... args) {
+    static_assert((std::is_same_v<Args, uint8_t> && ...));
+    (Emit8(args), ...);
+  }
+
+  template <typename... Args>
+  void TwoByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint16_t> && ...));
+    (Emit16(args), ...);
+  }
+
+  template <typename... Args>
+  void FourByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint32_t> && ...));
+    (Emit32(args), ...);
+  }
+
+  template <typename... Args>
+  void EigthByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint64_t> && ...));
+    (Emit64(args), ...);
+  }
+
   // Macro operations.
   void Emit8(uint8_t v) { code_->AddU8(v); }
 
@@ -95,6 +120,8 @@ class AssemblerBase {
 
   // These are 'static' relocations, resolved when code is finalized.
   // We also have 'dynamic' relocations, resolved when code is installed.
+  // TODO(b/232598137): rename Jump to something more appropriate since we are supporting
+  // memory-accessing instructions, not just jumps.
   struct Jump {
     const Label* label;
     // Position of field to store offset.  Note: unless it's recovery label precomputed
@@ -114,6 +141,17 @@ class AssemblerBase {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AssemblerBase);
 };
+
+// Return the reverse condition. On all architectures that we may care about (AArch32/AArch64,
+// RISC-V and x86) this can be achieved with a simple bitflop of the lowest bit.
+// We may need a specialization of that function for more exotic architectures.
+template <typename Condition>
+inline constexpr Condition ToReverseCond(Condition cond) {
+  CHECK(cond != Condition::kInvalidCondition);
+  // Condition has a nice property that given a condition, you can get
+  // its reverse condition by flipping the least significant bit.
+  return Condition(static_cast<int>(cond) ^ 1);
+}
 
 }  // namespace berberis
 

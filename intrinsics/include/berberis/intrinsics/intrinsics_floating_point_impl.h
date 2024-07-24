@@ -22,7 +22,7 @@
 #include <type_traits>
 
 #include "berberis/base/bit_util.h"
-#include "berberis/intrinsics/guest_fp_flags.h"
+#include "berberis/intrinsics/guest_cpu_flags.h"
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64/ProcessNans
 #include "berberis/intrinsics/type_traits.h"
@@ -272,6 +272,53 @@ std::tuple<FloatType> FNMSub(int8_t rm,
       arg1,
       arg2,
       arg3);
+}
+
+template <typename FloatType>
+FloatType CanonicalizeNanTuple(std::tuple<FloatType> arg) {
+  return std::get<0>(CanonicalizeNan<FloatType>(std::get<0>(arg)));
+}
+
+template <typename FloatType>
+FloatType RSqrtEstimate(FloatType op) {
+  if (SignBit(op)) {
+    // If argument is negative - return default NaN.
+    return std::numeric_limits<FloatType>::quiet_NaN();
+  }
+  switch (FPClassify(op)) {
+    case FPInfo::kNaN:
+      // If argument is NaN - return default NaN.
+      return std::numeric_limits<FloatType>::quiet_NaN();
+    case FPInfo::kInfinite:
+      return FloatType{0.0};
+    case FPInfo::kSubnormal:
+    case FPInfo::kZero:
+      // If operand is too small - return the appropriate infinity.
+      return CopySignBit(std::numeric_limits<FloatType>::infinity(), op);
+    case FPInfo::kNormal:
+      if constexpr (std::is_same_v<FloatType, Float32>) {
+        uint32_t op_32 = bit_cast<uint32_t>(op);
+        op_32 &= ~0xffff;
+        op_32 += 0x8000;
+        Float32 fp32 = bit_cast<Float32>(op_32);
+        fp32 = (FloatType{1.0} / Sqrt(fp32));
+        op_32 = bit_cast<uint32_t>(fp32);
+        op_32 += 0x4000;
+        op_32 &= ~0x7fff;
+        return bit_cast<Float32>(op_32);
+      } else {
+        static_assert(std::is_same_v<FloatType, Float64>);
+        uint64_t op_64 = bit_cast<uint64_t>(op);
+        op_64 &= ~0x1fff'ffff'ffff;
+        op_64 += 0x1000'0000'0000;
+        Float64 fp64 = bit_cast<Float64>(op_64);
+        fp64 = (FloatType{1.0} / Sqrt(fp64));
+        op_64 = bit_cast<uint64_t>(fp64);
+        op_64 += 0x0800'0000'0000;
+        op_64 &= ~0x0fff'ffff'ffff;
+        return bit_cast<Float64>(op_64);
+      }
+  }
 }
 
 template <typename FloatType, enum PreferredIntrinsicsImplementation>

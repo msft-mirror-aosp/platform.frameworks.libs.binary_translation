@@ -19,7 +19,10 @@ package {
 
 cc_library_headers {
     name: "libberberis_guest_os_primitives_headers",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     export_include_dirs: ["include"],
     header_libs: [
@@ -38,7 +41,10 @@ cc_library_headers {
 // Don't depend on these headers in other modules.
 cc_library_headers {
     name: "_libberberis_guest_os_primitives_private_headers",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     export_include_dirs: ["."],
 }
@@ -154,6 +160,7 @@ cc_library_static {
     ],
     host_supported: true,
     srcs: [
+        "riscv64/gen_syscall_numbers.cc",
         "riscv64/guest_setjmp.cc",
         "riscv64/guest_signal.cc",
     ],
@@ -187,6 +194,7 @@ cc_defaults {
         "libberberis_base_headers",
         "libberberis_guest_os_primitives_headers",
         "libberberis_guest_state_headers",
+        "libberberis_runtime_headers",
     ],
 }
 

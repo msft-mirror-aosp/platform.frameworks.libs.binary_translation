@@ -33,6 +33,9 @@ namespace x86_64 {
 
 class Assembler : public AssemblerX86<Assembler> {
  public:
+  using BaseAssembler = AssemblerX86<Assembler>;
+  using FinalAssembler = Assembler;
+
   explicit Assembler(MachineCode* code) : AssemblerX86(code) {}
 
   static constexpr Register no_register{0x80};
@@ -179,7 +182,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
-  auto Jmp(Condition cc, T* target) -> void = delete;
+  auto Jmp(T* target) -> void = delete;
 
   void Jmp(const void* target) {
     // There are no jump instruction with properties we need thus we emulate it.
@@ -203,8 +206,8 @@ class Assembler : public AssemblerX86<Assembler> {
   static bool IsAccumulator(Register reg) { return reg == rax; }
 
   struct Register64Bit {
-    explicit constexpr Register64Bit(Register reg) : num(reg.num) {}
-    uint8_t num;
+    explicit constexpr Register64Bit(Register reg) : num_(reg.num_) {}
+    uint8_t num_;
   };
 
   struct Memory64Bit {
@@ -267,7 +270,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   template <uint8_t base_rex, typename ArgumentType>
   uint8_t Rex(ArgumentType argument) {
-    if (argument.num & 0b1000) {
+    if (argument.num_ & 0b1000) {
       // 64-bit argument requires REX.W bit
       if (std::is_same_v<ArgumentType, Register64Bit>) {
         return 0b0100'1000 | base_rex;
@@ -275,7 +278,7 @@ class Assembler : public AssemblerX86<Assembler> {
       return 0b0100'0000 | base_rex;
     }
     // 8-bit argument requires REX (even if without any bits).
-    if (std::is_same_v<ArgumentType, Register8Bit> && argument.num > 3) {
+    if (std::is_same_v<ArgumentType, Register8Bit> && argument.num_ > 3) {
       return 0b0100'0000;
     }
     if (std::is_same_v<ArgumentType, Register64Bit>) {
@@ -286,7 +289,7 @@ class Assembler : public AssemblerX86<Assembler> {
 
   uint8_t Rex(Operand operand) {
     // REX.B and REX.X always come from operand.
-    uint8_t rex = ((operand.base.num & 0b1000) >> 3) | ((operand.index.num & 0b1000) >> 2);
+    uint8_t rex = ((operand.base.num_ & 0b1000) >> 3) | ((operand.index.num_ & 0b1000) >> 2);
     if (rex) {
       // We actually need rex byte here.
       return 0b0100'0000 | rex;
@@ -306,7 +309,7 @@ class Assembler : public AssemblerX86<Assembler> {
   [[nodiscard]] static bool IsSwapProfitable(RegisterType rm_arg, RegisterType vex_arg) {
     // In 64bit mode we may use more compact encoding if operand encoded in rm is low register.
     // Return true if we may achieve that by swapping arguments.
-    return rm_arg.num >= 8 && vex_arg.num < 8;
+    return rm_arg.num_ >= 8 && vex_arg.num_ < 8;
   }
 
   template <uint8_t byte1,
@@ -321,26 +324,26 @@ class Assembler : public AssemblerX86<Assembler> {
     constexpr auto vvvv_parameter = 2 - reg_is_opcode_extension - operands_count - labels_count;
     int vvvv = 0;
     if constexpr (registers_count > vvvv_parameter) {
-      vvvv = ArgumentByType<vvvv_parameter, IsRegister>(arguments...).num;
+      vvvv = ArgumentByType<vvvv_parameter, IsRegister>(arguments...).num_;
     }
     auto vex2 = byte2 | 0b111'00000;
     if constexpr (operands_count == 1) {
       auto operand = ArgumentByType<0, IsMemoryOperand>(arguments...);
-      vex2 ^= (operand.operand.base.num & 0b1000) << 2;
-      vex2 ^= (operand.operand.index.num & 0b1000) << 3;
+      vex2 ^= (operand.operand.base.num_ & 0b1000) << 2;
+      vex2 ^= (operand.operand.index.num_ & 0b1000) << 3;
       if constexpr (!reg_is_opcode_extension) {
-        vex2 ^= (ArgumentByType<0, IsRegister>(arguments...).num & 0b1000) << 4;
+        vex2 ^= (ArgumentByType<0, IsRegister>(arguments...).num_ & 0b1000) << 4;
       }
     } else if constexpr (labels_count == 1) {
       if constexpr (!reg_is_opcode_extension) {
-        vex2 ^= (ArgumentByType<0, IsRegister>(arguments...).num & 0b1000) << 4;
+        vex2 ^= (ArgumentByType<0, IsRegister>(arguments...).num_ & 0b1000) << 4;
       }
     } else if constexpr (registers_count > 0) {
       if constexpr (reg_is_opcode_extension) {
-        vex2 ^= (ArgumentByType<0, IsRegister>(arguments...).num & 0b1000) << 2;
+        vex2 ^= (ArgumentByType<0, IsRegister>(arguments...).num_ & 0b1000) << 2;
       } else {
-        vex2 ^= (ArgumentByType<0, IsRegister>(arguments...).num & 0b1000) << 4;
-        vex2 ^= (ArgumentByType<1, IsRegister>(arguments...).num & 0b1000) << 2;
+        vex2 ^= (ArgumentByType<0, IsRegister>(arguments...).num_ & 0b1000) << 4;
+        vex2 ^= (ArgumentByType<1, IsRegister>(arguments...).num_ & 0b1000) << 2;
       }
     }
     if (byte1 == 0xC4 && (vex2 & 0b0'1'1'11111) == 0b0'1'1'00001 && (byte3 & 0b1'0000'0'00) == 0) {
@@ -354,34 +357,34 @@ class Assembler : public AssemblerX86<Assembler> {
 
   template <typename ArgumentType>
   void EmitRegisterInOpcode(uint8_t opcode, ArgumentType argument) {
-    Emit8(opcode | (argument.num & 0b111));
+    Emit8(opcode | (argument.num_ & 0b111));
   }
 
   template <typename ArgumentType1, typename ArgumentType2>
   void EmitModRM(ArgumentType1 argument1, ArgumentType2 argument2) {
-    Emit8(0xC0 | ((argument1.num & 0b111) << 3) | (argument2.num & 0b111));
+    Emit8(0xC0 | ((argument1.num_ & 0b111) << 3) | (argument2.num_ & 0b111));
   }
 
   template <typename ArgumentType>
   void EmitModRM(uint8_t opcode_extension, ArgumentType argument) {
     CHECK_LE(opcode_extension, 0b111);
-    Emit8(0xC0 | (opcode_extension << 3) | (argument.num & 0b111));
+    Emit8(0xC0 | (opcode_extension << 3) | (argument.num_ & 0b111));
   }
 
   template <typename ArgumentType>
   void EmitOperandOp(ArgumentType argument, Operand operand) {
-    EmitOperandOp(static_cast<int>(argument.num & 0b111), operand);
+    EmitOperandOp(static_cast<int>(argument.num_ & 0b111), operand);
   }
 
   template <size_t kImmediatesSize, typename ArgumentType>
   void EmitRipOp(ArgumentType argument, const Label& label) {
-    EmitRipOp<kImmediatesSize>(static_cast<int>(argument.num) & 0b111, label);
+    EmitRipOp<kImmediatesSize>(static_cast<int>(argument.num_) & 0b111, label);
   }
 
   // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also used to encode
   // a three-bit opcode extension into the ModR/M byte.
-  void EmitOperandOp(int number, const Operand& addr);
+  void EmitOperandOp(int num_ber, const Operand& addr);
   // Helper functions to handle various ModR/M and SIB combinations.
   // Should *only* be called from EmitOperandOp!
   void EmitIndexDispOperand(int reg, const Operand& addr);
@@ -389,7 +392,7 @@ class Assembler : public AssemblerX86<Assembler> {
   void EmitBaseIndexDispOperand(int base_modrm_and_sib, const Operand& addr);
   // Emit ModR/M for rip-addressig.
   template <size_t kImmediatesSize>
-  void EmitRipOp(int num, const Label& label);
+  void EmitRipOp(int num_, const Label& label);
 
   friend AssemblerX86<Assembler>;
 };
@@ -399,12 +402,12 @@ class Assembler : public AssemblerX86<Assembler> {
 // makes effective size of that function very small.
 //
 // But for this to happen function have to be inline and in header.
-inline void Assembler::EmitOperandOp(int number, const Operand& addr) {
-  // Additional info (register number, etc) is limited to 3 bits.
-  CHECK_LE(unsigned(number), 7);
+inline void Assembler::EmitOperandOp(int num_ber, const Operand& addr) {
+  // Additional info (register num_ber, etc) is limited to 3 bits.
+  CHECK_LE(unsigned(num_ber), 7);
 
   // Reg field must be shifted by 3 bits.
-  int reg = number << 3;
+  int reg = num_ber << 3;
 
   // On x86 %rsp cannot be index, only base.
   CHECK(addr.index != rsp);
@@ -414,7 +417,7 @@ inline void Assembler::EmitOperandOp(int number, const Operand& addr) {
   if (addr.base != rsp && addr.base != r12 && addr.index == no_register) {
     // If we have base register then we could use the same logic as for other common cases.
     if (addr.base != no_register) {
-      EmitBaseIndexDispOperand<uint8_t, &Assembler::Emit8>((addr.base.num & 7) | reg, addr);
+      EmitBaseIndexDispOperand<uint8_t, &Assembler::Emit8>((addr.base.num_ & 7) | reg, addr);
     } else {
       Emit16(0x2504 | reg);
       Emit32(addr.disp);
@@ -422,26 +425,27 @@ inline void Assembler::EmitOperandOp(int number, const Operand& addr) {
   } else if (addr.index == no_register) {
     // Note: when ModR/M and SIB are used "no index" is encoded as if %rsp is used in place of
     // index (that's why %rsp couldn't be used as index - see check above).
-    EmitBaseIndexDispOperand<int16_t, &Assembler::Emit16>(0x2004 | ((addr.base.num & 7) << 8) | reg,
-                                                          addr);
+    EmitBaseIndexDispOperand<int16_t, &Assembler::Emit16>(
+        0x2004 | ((addr.base.num_ & 7) << 8) | reg, addr);
   } else if (addr.base == no_register) {
     EmitIndexDispOperand(reg, addr);
   } else {
-    EmitBaseIndexDispOperand<int16_t, &Assembler::Emit16>(
-        0x04 | (addr.scale << 14) | ((addr.index.num & 7) << 11) | ((addr.base.num & 7) << 8) | reg,
-        addr);
+    EmitBaseIndexDispOperand<int16_t, &Assembler::Emit16>(0x04 | (addr.scale << 14) |
+                                                              ((addr.index.num_ & 7) << 11) |
+                                                              ((addr.base.num_ & 7) << 8) | reg,
+                                                          addr);
   }
 }
 
 inline void Assembler::EmitIndexDispOperand(int reg, const Operand& addr) {
   // We only have index here, no base, use SIB but put %rbp in "base" field.
-  Emit16(0x0504 | (addr.scale << 14) | ((addr.index.num & 7) << 11) | reg);
+  Emit16(0x0504 | (addr.scale << 14) | ((addr.index.num_ & 7) << 11) | reg);
   Emit32(addr.disp);
 }
 
 template <size_t kImmediatesSize>
-inline void Assembler::EmitRipOp(int num, const Label& label) {
-  Emit8(0x05 | (num << 3));
+inline void Assembler::EmitRipOp(int num_, const Label& label) {
+  Emit8(0x05 | (num_ << 3));
   jumps_.push_back(Jump{&label, pc(), false});
   Emit32(0xfffffffc - kImmediatesSize);
 }
@@ -468,64 +472,60 @@ inline void Assembler::Movq(Register dest, int64_t imm64) {
     Movl(dest, static_cast<uint32_t>(imm64));
   } else if (IsInRange<int32_t>(imm64)) {
     // Slightly longer encoding.
-    EmitInstruction<Opcodes<0xc7, 0x00>>(Register64Bit(dest), static_cast<int32_t>(imm64));
+    EmitInstruction<0xc7, 0x00>(Register64Bit(dest), static_cast<int32_t>(imm64));
   } else {
     // Longest encoding.
-    EmitInstruction<Opcodes<0xb8>>(Register64Bit(dest), imm64);
+    EmitInstruction<0xb8>(Register64Bit(dest), imm64);
   }
 }
 
 inline void Assembler::Vmovapd(XMMRegister arg0, XMMRegister arg1) {
-  if (arg0.num < 8 && arg1.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x01, 0x29>>(VectorRegister128Bit(arg1),
-                                                            VectorRegister128Bit(arg0));
+  if (arg0.num_ < 8 && arg1.num_ >= 8) {
+    return EmitInstruction<0xc4, 0x01, 0x01, 0x29>(VectorRegister128Bit(arg1),
+                                                   VectorRegister128Bit(arg0));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x01, 0x28>>(VectorRegister128Bit(arg0),
-                                                   VectorRegister128Bit(arg1));
+  EmitInstruction<0xc4, 0x01, 0x01, 0x28>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovaps(XMMRegister arg0, XMMRegister arg1) {
-  if (arg0.num < 8 && arg1.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x00, 0x29>>(VectorRegister128Bit(arg1),
-                                                            VectorRegister128Bit(arg0));
+  if (arg0.num_ < 8 && arg1.num_ >= 8) {
+    return EmitInstruction<0xc4, 0x01, 0x00, 0x29>(VectorRegister128Bit(arg1),
+                                                   VectorRegister128Bit(arg0));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x00, 0x28>>(VectorRegister128Bit(arg0),
-                                                   VectorRegister128Bit(arg1));
+  EmitInstruction<0xc4, 0x01, 0x00, 0x28>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovdqa(XMMRegister arg0, XMMRegister arg1) {
-  if (arg0.num < 8 && arg1.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x01, 0x7F>>(VectorRegister128Bit(arg1),
-                                                            VectorRegister128Bit(arg0));
+  if (arg0.num_ < 8 && arg1.num_ >= 8) {
+    return EmitInstruction<0xc4, 0x01, 0x01, 0x7F>(VectorRegister128Bit(arg1),
+                                                   VectorRegister128Bit(arg0));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x01, 0x6F>>(VectorRegister128Bit(arg0),
-                                                   VectorRegister128Bit(arg1));
+  EmitInstruction<0xc4, 0x01, 0x01, 0x6F>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovdqu(XMMRegister arg0, XMMRegister arg1) {
-  if (arg0.num < 8 && arg1.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x02, 0x7F>>(VectorRegister128Bit(arg1),
-                                                            VectorRegister128Bit(arg0));
+  if (arg0.num_ < 8 && arg1.num_ >= 8) {
+    return EmitInstruction<0xc4, 0x01, 0x02, 0x7F>(VectorRegister128Bit(arg1),
+                                                   VectorRegister128Bit(arg0));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x02, 0x6F>>(VectorRegister128Bit(arg0),
-                                                   VectorRegister128Bit(arg1));
+  EmitInstruction<0xc4, 0x01, 0x02, 0x6F>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovsd(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
-  if (arg0.num < 8 && arg2.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x03, 0x11>>(
+  if (arg0.num_ < 8 && arg2.num_ >= 8) {
+    return EmitInstruction<0xc4, 0x01, 0x03, 0x11>(
         VectorRegister128Bit(arg2), VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x03, 0x10>>(
+  EmitInstruction<0xc4, 0x01, 0x03, 0x10>(
       VectorRegister128Bit(arg0), VectorRegister128Bit(arg2), VectorRegister128Bit(arg1));
 }
 
 inline void Assembler::Vmovss(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
-  if (arg0.num < 8 && arg2.num >= 8) {
-    return EmitInstruction<Opcodes<0xc4, 0x01, 0x02, 0x11>>(
+  if (arg0.num_ < 8 && arg2.num_ >= 8) {
+    return EmitInstruction<0xc4, 0x01, 0x02, 0x11>(
         VectorRegister128Bit(arg2), VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
   }
-  EmitInstruction<Opcodes<0xc4, 0x01, 0x02, 0x10>>(
+  EmitInstruction<0xc4, 0x01, 0x02, 0x10>(
       VectorRegister128Bit(arg0), VectorRegister128Bit(arg2), VectorRegister128Bit(arg1));
 }
 
@@ -533,22 +533,15 @@ inline void Assembler::Xchgq(Register dest, Register src) {
   // We compare output to that from clang and thus want to produce the same code.
   // 0x48 0x90 is suboptimal encoding for that operation (pure 0x90 does the same
   // and this is what gcc + gas are producing), but this is what clang <= 8 does.
-#if __clang_major__ >= 8
   if (IsAccumulator(src) && IsAccumulator(dest)) {
     Emit8(0x90);
-  } else
-#endif
-  if (IsAccumulator(src) || IsAccumulator(dest)) {
+  } else if (IsAccumulator(src) || IsAccumulator(dest)) {
     Register other = IsAccumulator(src) ? dest : src;
-    EmitInstruction<Opcodes<0x90>>(Register64Bit(other));
+    EmitInstruction<0x90>(Register64Bit(other));
   } else {
-  // Clang 8 (after r330298) swaps these two arguments.  We are comparing output
+  // Clang 8 (after r330298) puts dest before src.  We are comparing output
   // to clang in exhaustive test thus we want to match clang behavior exactly.
-#if __clang_major__ >= 8
-    EmitInstruction<Opcodes<0x87>>(Register64Bit(dest), Register64Bit(src));
-#else
-    EmitInstruction<Opcodes<0x87>>(Register64Bit(src), Register64Bit(dest));
-#endif
+  EmitInstruction<0x87>(Register64Bit(dest), Register64Bit(src));
   }
 }
 

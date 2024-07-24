@@ -39,6 +39,7 @@ enum class CsrName {
   kVxsat = 0b00'00'0000'1001,
   kVxrm = 0b00'00'0000'1010,
   kVcsr = 0b00'00'0000'1111,
+  kCycle = 0b11'00'0000'0000,
   kVl = 0b11'00'0010'0000,
   kVtype = 0b11'00'0010'0001,
   kVlenb = 0b11'00'0010'0010,
@@ -66,7 +67,7 @@ enum class CsrName {
   BERBERIS_RISV64_PROCESS_SUPPORTED_CSRS                                                         \
   BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(FCsr), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(FFlags),    \
       BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxsat), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vxrm), \
-      BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vlenb)
+      BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Cycle), BERBERIS_RISV64_PROCESS_NOSTORAGE_CSR(Vlenb)
 
 static_assert(std::is_standard_layout_v<CPUState>);
 
@@ -147,6 +148,10 @@ struct ThreadState {
 
   // Arbitrary per-thread data added by instrumentation.
   void* instrument_data;
+
+  // TODO(b/329463428): Consider removing this pointer and not having ThreadState and
+  // NativeBridgeGuestStateHeader in the same mapping. The latter possibly managed by GuestThread.
+  void* thread_state_storage;
 };
 
 template <CsrName>

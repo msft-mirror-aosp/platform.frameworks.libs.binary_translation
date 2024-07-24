@@ -24,7 +24,6 @@
 #endif
 
 #include "berberis/base/checks.h"
-#include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_addr.h"  // ToGuestAddr
@@ -32,11 +31,22 @@
 #include "berberis/runtime_primitives/host_stack.h"
 #include "native_bridge_support/linker/static_tls_config.h"
 
+#if defined(__BIONIC__)
 #include "get_tls.h"
+#endif
 
 extern "C" void berberis_UnmapAndExit(void* ptr, size_t size, int status);
 
 namespace berberis {
+
+// Avoid depending on the whole intrinsics module just for this symbol.
+// TODO(b/232598137): Maybe export an isolated header from intrinsics for this. Or
+// alternatively export it from runtime_library.h.
+namespace intrinsics {
+
+void InitState();
+
+}  // namespace intrinsics
 
 NativeBridgeStaticTlsConfig g_static_tls_config;
 
@@ -70,11 +80,13 @@ GuestThread* GuestThread::Create() {
   }
   SetGuestThread(*thread->state_, thread);
 
+  intrinsics::InitState();
+
   return thread;
 }
 
 // static
-GuestThread* GuestThread::CreateClone(const GuestThread* parent) {
+GuestThread* GuestThread::CreateClone(const GuestThread* parent, bool share_signal_actions) {
   GuestThread* thread = Create();
   if (thread == nullptr) {
     return nullptr;
@@ -91,6 +103,13 @@ GuestThread* GuestThread::CreateClone(const GuestThread* parent) {
 
   SetCPUState(*thread->state(), GetCPUState(*parent->state()));
   SetTlsAddr(*thread->state(), GetTlsAddr(*parent->state()));
+
+  if (share_signal_actions) {
+    // New shared_ptr user.
+    thread->signal_actions_ = parent->signal_actions_;
+  } else {
+    thread->CloneSignalActionsTableFrom(parent->signal_actions_.get());
+  }
 
   return thread;
 }
@@ -123,6 +142,19 @@ GuestThread* GuestThread::CreatePthread(void* stack, size_t stack_size, size_t g
     return nullptr;
   }
 
+  thread->SetDefaultSignalActionsTable();
+
+  return thread;
+}
+
+// static
+GuestThread* GuestThread::CreateForTest(ThreadState* state) {
+  void* thread_storage = Mmap(kGuestThreadPageAlignedSize);
+  if (thread_storage == MAP_FAILED) {
+    return nullptr;
+  }
+  GuestThread* thread = new (thread_storage) GuestThread;
+  thread->state_ = state;
   return thread;
 }
 
@@ -133,6 +165,7 @@ void GuestThread::Destroy(GuestThread* thread) {
   if (ArePendingSignalsPresent(*thread->state_)) {
     TRACE("thread destroyed with pending signals, signals ignored!");
   }
+  thread->signal_actions_.reset();
 
   if (thread->host_stack_) {
     // This happens only on cleanup after failed creation.
@@ -167,7 +200,7 @@ void GuestThread::Exit(GuestThread* thread, int status) {
   } else {
     syscall(__NR_exit, status);
   }
-  LOG_ALWAYS_FATAL("thread didn't exit");
+  FATAL("thread didn't exit");
 }
 
 bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) {
@@ -191,9 +224,23 @@ bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) 
     return true;
   }
 
-  guard_size_ = AlignUpPageSize(guard_size);
-  mmap_size_ = guard_size_ + AlignUpPageSize(stack_size);
+  if (AlignUpPageSizeOverflow(guard_size, &guard_size_)) {
+    return false;
+  }
+
+  size_t aligned_stack_size{};
+  if (AlignUpPageSizeOverflow(stack_size, &aligned_stack_size)) {
+    return false;
+  }
+
+  if (__builtin_add_overflow(aligned_stack_size, guard_size_, &mmap_size_)) {
+    return false;
+  }
   stack_size_ = mmap_size_;
+
+  if (stack_size_ == 0) {
+    return false;
+  }
 
   stack_ = Mmap(mmap_size_);
   if (stack_ == MAP_FAILED) {
@@ -207,7 +254,12 @@ bool GuestThread::AllocStack(void* stack, size_t stack_size, size_t guard_size) 
     return false;
   }
 
-  stack_top_ = ToGuestAddr(stack_) + stack_size_ - 16;
+  // `stack_size_ - 16` is guaranteed to not overflow since it is not 0 and
+  // aligned to the page size.
+  if (__builtin_add_overflow(ToGuestAddr(stack_), stack_size_ - 16, &stack_top_)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -274,6 +326,7 @@ void GuestThread::InitStaticTls() {
       reinterpret_cast<void**>(reinterpret_cast<char*>(static_tls_) + g_static_tls_config.tpoff);
   tls[g_static_tls_config.tls_slot_thread_id] = GetTls()[TLS_SLOT_THREAD_ID];
   tls[g_static_tls_config.tls_slot_bionic_tls] = GetTls()[TLS_SLOT_BIONIC_TLS];
+  GetTls()[TLS_SLOT_NATIVE_BRIDGE_GUEST_STATE] = GetThreadStateStorage(*state_);
   SetTlsAddr(*state_, ToGuestAddr(tls));
 #else
   // For Glibc we provide stub which is only usable to distinguish different threads.

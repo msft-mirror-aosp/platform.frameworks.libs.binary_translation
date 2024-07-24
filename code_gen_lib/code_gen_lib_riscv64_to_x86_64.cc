@@ -19,8 +19,8 @@
 #include "berberis/assembler/machine_code.h"
 #include "berberis/assembler/x86_64.h"
 #include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/config.h"
-#include "berberis/base/logging.h"
 #include "berberis/calling_conventions/calling_conventions_x86_64.h"
 #include "berberis/code_gen_lib/gen_adaptor.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -28,7 +28,6 @@
 #include "berberis/instrument/trampolines.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 #include "berberis/runtime_primitives/host_code.h"
-#include "berberis/runtime_primitives/runtime_library.h"
 #include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
@@ -104,9 +103,9 @@ void EmitSyscall(x86_64::Assembler* as, GuestAddr pc) {
   as->Movq({.base = as->rbp, .disp = offsetof(ThreadState, cpu.insn_addr)}, as->rdi);
   as->Movq({.base = as->rbp, .disp = offsetof(ThreadState, residence)}, kOutsideGeneratedCode);
 
-  // void RunKernelSyscall(ThreadState*);
+  // void RunGuestSyscall(ThreadState*);
   as->Movq(as->rdi, as->rbp);
-  as->Call(AsHostCode(RunKernelSyscall));
+  as->Call(AsHostCode(RunGuestSyscall));
 
   // We are returning to generated code.
   as->Movq({.base = as->rbp, .disp = offsetof(ThreadState, residence)}, kInsideGeneratedCode);
@@ -115,7 +114,7 @@ void EmitSyscall(x86_64::Assembler* as, GuestAddr pc) {
   // insn_addr, so incrementing insn_addr here may be incorrect. This problem also exists in the
   // interpreter. On the other hand syscalls can only be interruprted by asynchroneous signals which
   // are unlikely to overwrite insn_addr.
-  EmitDirectDispatch(as, pc + 4);
+  EmitDirectDispatch(as, pc + 4, /*check_pending_signals=*/true);
 }
 
 void EmitDirectDispatch(x86_64::Assembler* as, GuestAddr pc, bool check_pending_signals) {

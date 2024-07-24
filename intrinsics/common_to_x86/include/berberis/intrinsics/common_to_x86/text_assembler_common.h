@@ -25,7 +25,9 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
+#include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
+#include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
 
 namespace berberis {
 
@@ -49,7 +51,7 @@ class TextAssemblerX86 {
     kBelowEqual = 6,
     kAbove = 7,
     kNegative = 8,
-    kPositive = 9,
+    kPositiveOrZero = 9,
     kParityEven = 10,
     kParityOdd = 11,
     kLess = 12,
@@ -63,7 +65,7 @@ class TextAssemblerX86 {
     kZero = kEqual,
     kNotZero = kNotEqual,
     kSign = kNegative,
-    kNotSign = kPositive
+    kNotSign = kPositiveOrZero
   };
 
   enum ScaleFactor {
@@ -89,7 +91,6 @@ class TextAssemblerX86 {
 
   class Register {
    public:
-    constexpr Register() : arg_no_(kNoRegister) {}
     constexpr Register(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
@@ -116,7 +117,6 @@ class TextAssemblerX86 {
 
   class X87Register {
    public:
-    constexpr X87Register() : arg_no_(kNoRegister) {}
     constexpr X87Register(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
@@ -142,7 +142,6 @@ class TextAssemblerX86 {
 
   class XMMRegister {
    public:
-    constexpr XMMRegister() : arg_no_(kNoRegister) {}
     constexpr XMMRegister(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
@@ -167,8 +166,8 @@ class TextAssemblerX86 {
   };
 
   struct Operand {
-    Register base = Register{};
-    Register index = Register{};
+    Register base = Register{Register::kNoRegister};
+    Register index = Register{Register::kNoRegister};
     ScaleFactor scale = kTimesOne;
     int32_t disp = 0;
 
@@ -209,9 +208,12 @@ class TextAssemblerX86 {
 
   TextAssemblerX86(int indent, FILE* out) : indent_(indent), out_(out) {}
 
-  Register gpr_a{};
-  Register gpr_c{};
-  Register gpr_d{};
+  // These start as Register::kNoRegister but can be changed if they are used as arguments to
+  // something else.
+  // If they are not coming as arguments then using them is compile-time error!
+  Register gpr_a{Register::kNoRegister};
+  Register gpr_c{Register::kNoRegister};
+  Register gpr_d{Register::kNoRegister};
   // Note: stack pointer is not reflected in list of arguments, intrinsics use
   // it implicitly.
   Register gpr_s{Register::kStackPointer};
@@ -222,12 +224,12 @@ class TextAssemblerX86 {
   // In x86-32 mode, on the other hand, we need complex dance to access it via GOT.
   // Intrinsics which use these constants receive it via additional parameter - and
   // we need to know if it's needed or not.
-  Register gpr_macroassembler_constants{};
+  Register gpr_macroassembler_constants{Register::kNoRegister};
   bool need_gpr_macroassembler_constants() const { return need_gpr_macroassembler_constants_; }
 
-  Register gpr_macroassembler_scratch{};
+  Register gpr_macroassembler_scratch{Register::kNoRegister};
   bool need_gpr_macroassembler_scratch() const { return need_gpr_macroassembler_scratch_; }
-  Register gpr_macroassembler_scratch2{};
+  Register gpr_macroassembler_scratch2{Register::kNoRegister};
 
   bool need_avx = false;
   bool need_bmi = false;
@@ -252,10 +254,120 @@ class TextAssemblerX86 {
     return &labels_allocated_.back();
   }
 
+  template <typename... Args>
+  void Byte(Args... args) {
+    static_assert((std::is_same_v<Args, uint8_t> && ...));
+    bool print_kwd = true;
+    fprintf(out_, "%*s\"", indent_ + 2, "");
+    (fprintf(out_, "%s%" PRIu8, print_kwd ? print_kwd = false, ".byte " : ", ", args), ...);
+    fprintf(out_, "\\n\"\n");
+  }
+
+  template <typename... Args>
+  void TwoByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint16_t> && ...));
+    bool print_kwd = true;
+    fprintf(out_, "%*s\"", indent_ + 2, "");
+    (fprintf(out_, "%s%" PRIu16, print_kwd ? print_kwd = false, ".2byte " : ", ", args), ...);
+    fprintf(out_, "\\n\"\n");
+  }
+
+  template <typename... Args>
+  void FourByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint32_t> && ...));
+    bool print_kwd = true;
+    fprintf(out_, "%*s\"", indent_ + 2, "");
+    (fprintf(out_, "%s%" PRIu32, print_kwd ? print_kwd = false, ".4byte " : ", ", args), ...);
+    fprintf(out_, "\\n\"\n");
+  }
+
+  template <typename... Args>
+  void EigthByte(Args... args) {
+    static_assert((std::is_same_v<Args, uint64_t> && ...));
+    bool print_kwd = true;
+    fprintf(out_, "%*s\"", indent_ + 2, "");
+    (fprintf(out_, "%s%" PRIu64, print_kwd ? print_kwd = false, ".8byte " : ", ", args), ...);
+    fprintf(out_, "\\n\"\n");
+  }
+
+  void P2Align(uint32_t m) {
+    fprintf(out_, "%*s\".p2align %u\\n\"\n", indent_ + 2, "", m);
+  }
+
+  // Verify CPU vendor and SSE restrictions.
+  template <typename CPUIDRestriction>
+  void CheckCPUIDRestriction() {
+    constexpr bool expect_bmi = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>;
+    constexpr bool expect_fma = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>;
+    constexpr bool expect_fma4 = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>;
+    constexpr bool expect_lzcnt = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>;
+    constexpr bool expect_popcnt =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>;
+    constexpr bool expect_avx =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX> || expect_fma || expect_fma4;
+    constexpr bool expect_sse4_2 =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2> || expect_avx;
+    constexpr bool expect_sse4_1 =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_1> || expect_sse4_2;
+    constexpr bool expect_ssse3 =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3> || expect_sse4_1;
+    constexpr bool expect_sse3 =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE3> || expect_ssse3;
+
+    CHECK_EQ(expect_avx, need_avx);
+    CHECK_EQ(expect_bmi, need_bmi);
+    CHECK_EQ(expect_fma, need_fma);
+    CHECK_EQ(expect_fma4, need_fma4);
+    CHECK_EQ(expect_lzcnt, need_lzcnt);
+    CHECK_EQ(expect_popcnt, need_popcnt);
+    CHECK_EQ(expect_sse3, need_sse3);
+    CHECK_EQ(expect_ssse3, need_ssse3);
+    CHECK_EQ(expect_sse4_1, need_sse4_1);
+    CHECK_EQ(expect_sse4_2, need_sse4_2);
+  }
+
+  // Translate CPU restrictions into string.
+  template <typename CPUIDRestriction>
+  static constexpr const char* kCPUIDRestrictionString =
+      Assembler::template CPUIDRestrictionToString<CPUIDRestriction>();
+
 // Instructions.
 #include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
 
  protected:
+  template <typename CPUIDRestriction>
+  static constexpr const char* CPUIDRestrictionToString() {
+    if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::NoCPUIDRestriction>) {
+      return nullptr;
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::IsAuthenticAMD>) {
+      return "host_platform::kIsAuthenticAMD";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX>) {
+      return "host_platform::kHasAVX";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>) {
+      return "host_platform::kHasBMI";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>) {
+      return "host_platform::kHasFMA";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>) {
+      return "host_platform::kHasFMA4";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>) {
+      return "host_platform::kHasLZCNT";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>) {
+      return "host_platform::kHasPOPCNT";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE3>) {
+      return "host_platform::kHasSSE3";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
+      return "host_platform::kHasSSSE3";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_1>) {
+      return "host_platform::kHasSSE4_1";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2>) {
+      return "host_platform::kHasSSE4_2";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
+      return "host_platform::kHasSSSE3";
+    } else {
+      static_assert(kDependentTypeFalse<CPUIDRestriction>);
+    }
+  }
+
   bool need_gpr_macroassembler_constants_ = false;
   bool need_gpr_macroassembler_scratch_ = false;
 
@@ -413,7 +525,7 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, Condition
     case Condition::kNegative:
       strcat(name_with_condition, "s");
       break;
-    case Condition::kPositive:
+    case Condition::kPositiveOrZero:
       strcat(name_with_condition, "ns");
       break;
     case Condition::kParityEven:

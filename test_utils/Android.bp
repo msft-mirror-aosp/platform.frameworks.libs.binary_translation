@@ -19,7 +19,10 @@ package {
 
 cc_library_headers {
     name: "berberis_test_utils_headers",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     export_include_dirs: ["include"],
     header_libs: [
@@ -32,4 +35,15 @@ cc_library_headers {
         "libberberis_runtime_headers",
         "libberberis_runtime_primitives_headers",
     ],
+}
+
+cc_test_library {
+    name: "libberberis_tests_main",
+    defaults: ["berberis_test_library_defaults"],
+    host_supported: true,
+    header_libs: [
+        "berberis_test_utils_headers",
+        "libberberis_runtime_headers",
+    ],
+    srcs: ["tests_main.cc"],
 }

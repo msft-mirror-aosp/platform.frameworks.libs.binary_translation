@@ -33,6 +33,11 @@ int ToGuestOpenFlags(int host_flags);
 int OpenatForGuest(int dirfd, const char* pathname, int flags, mode_t mode);
 int OpenForGuest(const char* pathname, int flags, mode_t mode);
 
+bool IsFileDescriptorEmulatedProcSelfMaps(int fd);
+void CloseEmulatedProcSelfMapsFileDescriptor(int fd);
+
+extern const char* kGuestCpuinfoPath;
+
 }  // namespace berberis
 
 #endif  // BERBERIS_KERNEL_API_OPEN_EMULATION_H_

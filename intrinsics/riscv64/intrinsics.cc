@@ -19,8 +19,6 @@
 #include <cstdint>
 #include <tuple>
 
-#include "berberis/intrinsics/guest_fp_flags.h"
-
 namespace berberis::intrinsics {
 
 std::tuple<uint64_t> Bclri(uint64_t src, uint8_t imm) {
@@ -39,8 +37,18 @@ std::tuple<uint64_t> Bseti(uint64_t src, uint8_t imm) {
   return {src | (uint64_t{1} << imm)};
 }
 
+std::tuple<uint64_t> CPUClockCount() {
+  uint64_t a, d;
+  asm volatile("rdtsc" : "=a"(a), "=d"(d));
+  return (d << 32) | a;
+}
+
 std::tuple<uint64_t> Slliuw(uint32_t src, uint8_t imm) {
   return {uint64_t{src} << imm};
+}
+
+void InitState() {
+  // TODO(b/276787675): Initialize host MXCSR register once riscv64 intrinsics are supported.
 }
 
 }  // namespace berberis::intrinsics

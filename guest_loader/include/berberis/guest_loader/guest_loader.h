@@ -140,6 +140,12 @@ class GuestLoader {
 
   void StartGuestMainThread();
   void StartGuestExecutable(size_t argc, const char* argv[], char* envp[]);
+  void SetDlErrorIfNeeded();
+
+  // It appears that guest and host loaders share tls slot they use to store dlerror message.
+  // To work around this we need to replicate guest dlerror here.
+  std::string dl_error_holder_;
+  const char* dl_error_;
 
   const char* main_executable_path_;
   LoadedElfFile executable_elf_file_;

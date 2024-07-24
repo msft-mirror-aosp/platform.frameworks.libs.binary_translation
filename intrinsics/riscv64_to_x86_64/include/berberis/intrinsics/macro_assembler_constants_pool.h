@@ -37,11 +37,21 @@ extern const int32_t kVectorConst<int16_t{0x7fff}>;
 template <>
 extern const int32_t kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}>;
 template <>
+extern const int32_t kVectorConst<int32_t{-0x0080'0000}>;
+template <>
+extern const int32_t kVectorConst<int32_t{0x3f80'0000}>;
+template <>
+extern const int32_t kVectorConst<int32_t{0x7f80'0000}>;
+template <>
 extern const int32_t kVectorConst<int32_t{0x7fff'ffff}>;
 template <>
 extern const int32_t kVectorConst<int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}>;
 template <>
+extern const int32_t kVectorConst<int64_t{0x7ff0'0000'0000'0000}>;
+template <>
 extern const int32_t kVectorConst<int64_t{0x7fff'ffff'ffff'ffff}>;
+template <>
+extern const int32_t kVectorConst<int64_t{-0x0010'0000'0000'0000}>;
 template <>
 extern const int32_t kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
 template <>
@@ -54,18 +64,43 @@ template <>
 inline const int32_t& kVectorConst<uint16_t{0x0000}> =
     kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
 template <>
+inline const int32_t& kVectorConst<uint8_t{127}> = kVectorConst<int8_t{127}>;
+template <>
+inline const int32_t& kVectorConst<uint8_t{128}> = kVectorConst<int8_t{-128}>;
+template <>
+inline const int32_t& kVectorConst<uint16_t{0x7fff}> = kVectorConst<int16_t{0x7fff}>;
+template <>
+inline const int32_t& kVectorConst<uint16_t{0x8000}> = kVectorConst<int16_t{-0x8000}>;
+template <>
 inline const int32_t& kVectorConst<int32_t{0x0000'0000}> =
     kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
 template <>
 inline const int32_t& kVectorConst<uint32_t{0x0000'0000}> =
     kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
 template <>
+inline const int32_t& kVectorConst<uint32_t{0x3f80'0000}> = kVectorConst<int32_t{0x3f80'0000}>;
+template <>
+inline const int32_t& kVectorConst<uint32_t{0x7f80'0000}> = kVectorConst<int32_t{0x7f80'0000}>;
+template <>
+inline const int32_t& kVectorConst<uint32_t{0x7fff'ffff}> = kVectorConst<int32_t{0x7fff'ffff}>;
+template <>
+inline const int32_t& kVectorConst<uint32_t{0x8000'0000}> =
+    kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}>;
+template <>
+inline const int32_t& kVectorConst<uint32_t{0xff80'0000}> = kVectorConst<int32_t{-0x0080'0000}>;
+template <>
 inline const int32_t& kVectorConst<int64_t{0x0000'0000'0000'0000}> =
     kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
 template <>
 extern const int32_t kVectorConst<uint64_t{0x7fc'00000'7fc'00000}>;
 template <>
+inline const int32_t& kVectorConst<uint64_t{0x7ff0'0000'0000'0000}> =
+    kVectorConst<int64_t{0x7ff0'0000'0000'0000}>;
+template <>
 extern const int32_t kVectorConst<uint64_t{0x7ff8'0000'0000'0000}>;
+template <>
+inline const int32_t& kVectorConst<uint64_t{0xfff0'0000'0000'0000}> =
+    kVectorConst<int64_t{-0x0010'0000'0000'0000}>;
 template <>
 extern const int32_t kVectorConst<uint64_t{0xffff'ffff'0000'0000}>;
 template <>

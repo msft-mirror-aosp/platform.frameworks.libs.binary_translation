@@ -19,6 +19,7 @@
 
 #include <csetjmp>  // jmp_buf
 #include <csignal>  // stack_t
+#include <memory>
 
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
@@ -27,6 +28,8 @@
 struct NativeBridgeStaticTlsConfig;
 
 namespace berberis {
+
+class GuestSignalActionsTable;
 
 int CreateNewGuestThread(pthread_t* thread_id,
                          const pthread_attr_t* attr,
@@ -56,7 +59,8 @@ struct GuestCallExecution {
 class GuestThread {
  public:
   static GuestThread* CreatePthread(void* stack, size_t stack_size, size_t guard_size);
-  static GuestThread* CreateClone(const GuestThread* parent);
+  static GuestThread* CreateClone(const GuestThread* parent, bool share_signal_actions);
+  static GuestThread* CreateForTest(ThreadState* state);
   static void Destroy(GuestThread* thread);
   static void Exit(GuestThread* thread, int status);
 
@@ -98,6 +102,10 @@ class GuestThread {
   // TODO(b/156271630): Refactor to make this private.
   void* GetHostStackTop() const;
 
+  [[nodiscard]] GuestSignalActionsTable* GetSignalActionsTable() { return signal_actions_.get(); }
+  // Use to unshare signal handlers for CLONE_VM without CLONE_SIGHAND.
+  void CloneSignalActionsTableFrom(GuestSignalActionsTable* from_table);
+
  private:
   GuestThread() = default;
   static GuestThread* Create();
@@ -107,6 +115,9 @@ class GuestThread {
   bool AllocStaticTls();
 
   void ProcessPendingSignalsImpl();
+
+  // Set the default table for the main process.
+  void SetDefaultSignalActionsTable();
 
   // Host stack. Valid for cloned threads only.
   void* host_stack_ = nullptr;
@@ -127,6 +138,11 @@ class GuestThread {
   ThreadState* state_ = nullptr;
 
   SignalQueue pending_signals_;
+  // When created with CreateClone guest threads either share or fork signal handlers
+  // from the parent. We implement this using shared_ptr semantics.
+  // When created with CreatePthread guest threads use the default global handlers,
+  // which we should never delete. So we create shared_ptr with void deleter in this case.
+  std::shared_ptr<GuestSignalActionsTable> signal_actions_;
 
   GuestCallExecution* guest_call_execution_ = nullptr;
 

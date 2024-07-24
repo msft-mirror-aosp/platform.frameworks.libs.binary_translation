@@ -45,6 +45,8 @@
 #error "One of TESTING_INTERPRETER, TESTING_LITE_TRANSLATOR, TESTING_HEAVY_OPTIMIZER must be defined
 #endif
 
+namespace {
+
 // TODO(b/276787675): remove these files from interpreter when they are no longer needed there.
 // Maybe extract FPvalueToFPReg and TupleMap to a separate header?
 inline constexpr class FPValueToFPReg {
@@ -83,62 +85,85 @@ decltype(auto) TupleMap(const ContainerType& container, const Transformer& trans
   return result;
 }
 
+void RaiseFeExceptForGuestFlags(uint8_t riscv_fflags) {
+  EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
+  if (riscv_fflags & FPFlags::NX) {
+    EXPECT_EQ(feraiseexcept(FE_INEXACT), 0);
+  }
+  if (riscv_fflags & FPFlags::UF) {
+    EXPECT_EQ(feraiseexcept(FE_UNDERFLOW), 0);
+  }
+  if (riscv_fflags & FPFlags::OF) {
+    EXPECT_EQ(feraiseexcept(FE_OVERFLOW), 0);
+  }
+  if (riscv_fflags & FPFlags::DZ) {
+    EXPECT_EQ(feraiseexcept(FE_DIVBYZERO), 0);
+  }
+  if (riscv_fflags & FPFlags::NV) {
+    EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
+  }
+}
+
+void TestFeExceptForGuestFlags(uint8_t riscv_fflags) {
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
+  EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+}
+
+}  // namespace
+
 class TESTSUITE : public ::testing::Test {
  public:
   TESTSUITE()
       : state_{
             .cpu = {.vtype = uint64_t{1} << 63, .frm = intrinsics::GuestModeFromHostRounding()}} {}
 
+  template <uint8_t kInsnSize = 4>
+  void RunInstruction(const uint32_t& insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    EXPECT_TRUE(RunOneInstruction<kInsnSize>(&state_, state_.cpu.insn_addr + kInsnSize));
+  }
+
   // Compressed Instructions.
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kTargetReg>
   void TestCompressedStore(uint16_t insn_bytes, uint64_t offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     store_area_ = 0;
     SetXReg<kTargetReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - offset));
     SetReg<register_type, 9>(state_.cpu, kDataToLoad);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(store_area_, expected_result);
   }
 
   template <RegisterType register_type, uint64_t expected_result, uint8_t kSourceReg>
   void TestCompressedLoad(uint16_t insn_bytes, uint64_t offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<kSourceReg>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - offset));
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ((GetReg<register_type, 9>(state_.cpu)), expected_result);
   }
 
   void TestCAddi(uint16_t insn_bytes, uint64_t expected_increment) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_increment);
   }
 
   void TestCAddi16sp(uint16_t insn_bytes, uint64_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 1 + expected_offset);
   }
 
   void TestLi(uint32_t insn_bytes, uint64_t expected_result) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
   void TestCAddi4spn(uint16_t insn_bytes, uint64_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<2>(state_.cpu, 1);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<9>(state_.cpu), 1 + expected_offset);
   }
 
@@ -159,19 +184,16 @@ class TESTSUITE : public ::testing::Test {
   void TestCMiscAlu(uint16_t insn_bytes,
                     std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<8>(state_.cpu, arg1);
       SetXReg<9>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+      RunInstruction<2>(insn_bytes);
       EXPECT_EQ(GetXReg<8>(state_.cpu), expected_result);
     }
   }
 
   void TestCMiscAluImm(uint16_t insn_bytes, uint64_t value, uint64_t expected_result) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     SetXReg<9>(state_.cpu, value);
-    EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+    RunInstruction<2>(insn_bytes);
     EXPECT_EQ(GetXReg<9>(state_.cpu), expected_result);
   }
 
@@ -191,44 +213,40 @@ class TESTSUITE : public ::testing::Test {
   void TestCOp(uint32_t insn_bytes,
                std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<1>(state_.cpu, arg1);
       SetXReg<2>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction<2>(&state_, state_.cpu.insn_addr + 2));
+      RunInstruction<2>(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
 
   // Non-Compressed Instructions.
 
+  void TestFFlagsOnGuestAndHost(uint8_t expected_guest_fflags) {
+    // Read fflags register.
+    RunInstruction(0x00102173);  // frflags x2
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_guest_fflags);
+
+    // Check corresponding fenv exception flags on host.
+    TestFeExceptForGuestFlags(expected_guest_fflags);
+  }
+
   void TestFCsr(uint32_t insn_bytes,
                 uint8_t fcsr_to_set,
                 uint8_t expected_fcsr,
                 uint8_t expected_cpustate_frm) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     state_.cpu.frm =
         0b100u;  // Pass non-zero frm to ensure that we don't accidentally rely on it being zero.
     SetXReg<3>(state_.cpu, fcsr_to_set);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b1000'0000ULL | expected_fcsr);
     EXPECT_EQ(state_.cpu.frm, expected_cpustate_frm);
   }
 
-  void TestFFlags(uint32_t insn_bytes, uint8_t fflags_to_set, uint8_t expected_fflags) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    SetXReg<3>(state_.cpu, fflags_to_set);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_fflags);
-  }
-
   void TestFrm(uint32_t insn_bytes, uint8_t frm_to_set, uint8_t expected_rm) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
     state_.cpu.frm = 0b001u;
     SetXReg<3>(state_.cpu, frm_to_set);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<2>(state_.cpu), 0b001u);
     EXPECT_EQ(state_.cpu.frm, expected_rm);
   }
@@ -236,10 +254,9 @@ class TESTSUITE : public ::testing::Test {
   void TestOp(uint32_t insn_bytes,
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
     for (auto [arg1, arg2, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<2>(state_.cpu, arg1);
       SetXReg<3>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -247,10 +264,9 @@ class TESTSUITE : public ::testing::Test {
   template <typename... Types>
   void TestOpFp(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg1);
       SetFReg<3>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
@@ -260,24 +276,19 @@ class TESTSUITE : public ::testing::Test {
     for (auto [arg1, imm, expected_result] : args) {
       CHECK_LE(imm, 63);
       uint32_t insn_bytes_with_immediate = insn_bytes | imm << 20;
-      state_.cpu.insn_addr = bit_cast<GuestAddr>(&insn_bytes_with_immediate);
       SetXReg<2>(state_.cpu, arg1);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes_with_immediate);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
 
   void TestAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
-    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + code_start);
+    RunInstruction(insn_bytes);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + ToGuestAddr(&insn_bytes));
   }
 
   void TestLui(uint32_t insn_bytes, uint64_t expected_result) {
-    auto code_start = ToGuestAddr(&insn_bytes);
-    state_.cpu.insn_addr = code_start;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
@@ -302,10 +313,9 @@ class TESTSUITE : public ::testing::Test {
   }
 
   void TestLoad(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
     SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - 8));
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
@@ -326,23 +336,21 @@ class TESTSUITE : public ::testing::Test {
   }
 
   void TestStore(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
     SetXReg<1>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - 8));
     SetXReg<2>(state_.cpu, kDataToStore);
     store_area_ = 0;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(store_area_, expected_result);
   }
 
   template <typename... Types>
   void TestFma(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, arg3, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg1);
       SetFReg<3>(state_.cpu, arg2);
       SetFReg<4>(state_.cpu, arg3);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
@@ -408,12 +416,11 @@ class TESTSUITE : public ::testing::Test {
                uint64_t arg2,
                uint64_t expected_result,
                uint64_t expected_memory) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Copy arg1 into store_area_
     store_area_ = arg1;
     SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_)));
     SetXReg<3>(state_.cpu, arg2);
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     EXPECT_EQ(store_area_, expected_memory);
   }
@@ -435,9 +442,8 @@ class TESTSUITE : public ::testing::Test {
   void TestFmvFloatToInteger(uint32_t insn_bytes,
                              std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<1>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -446,9 +452,8 @@ class TESTSUITE : public ::testing::Test {
   void TestFmvIntegerToFloat(uint32_t insn_bytes,
                              std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<1>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), kFPValueToFPReg(expected_result));
     }
   }
@@ -457,10 +462,9 @@ class TESTSUITE : public ::testing::Test {
   void TestOpFpGpRegisterTarget(uint32_t insn_bytes,
                                 std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg1, arg2, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg1);
       SetFReg<3>(state_.cpu, arg2);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -469,9 +473,8 @@ class TESTSUITE : public ::testing::Test {
   void TestOpFpGpRegisterTargetSingleInput(uint32_t insn_bytes,
                                            std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
@@ -480,9 +483,8 @@ class TESTSUITE : public ::testing::Test {
   void TestOpFpGpRegisterSourceSingleInput(uint32_t insn_bytes,
                                            std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetXReg<2>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
@@ -490,28 +492,25 @@ class TESTSUITE : public ::testing::Test {
   template <typename... Types>
   void TestOpFpSingleInput(uint32_t insn_bytes, std::initializer_list<std::tuple<Types...>> args) {
     for (auto [arg, expected_result] : TupleMap(args, kFPValueToFPReg)) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       SetFReg<2>(state_.cpu, arg);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
     }
   }
 
   void TestLoadFp(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
     SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&kDataToLoad) - 8));
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(GetFReg<1>(state_.cpu), expected_result);
   }
 
   void TestStoreFp(uint32_t insn_bytes, uint64_t expected_result) {
-    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
     // Offset is always 8.
     SetXReg<1>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_) - 8));
     SetFReg<2>(state_.cpu, kDataToStore);
     store_area_ = 0;
-    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    RunInstruction(insn_bytes);
     EXPECT_EQ(store_area_, expected_result);
   }
 
@@ -520,13 +519,12 @@ class TESTSUITE : public ::testing::Test {
       std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>>
           args) {
     for (auto [vl_orig, vtype_orig, avl, vtype_new, vl_expected, vtype_expected] : args) {
-      state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
       state_.cpu.vl = vl_orig;
       state_.cpu.vtype = vtype_orig;
       SetXReg<1>(state_.cpu, ~0ULL);
       SetXReg<2>(state_.cpu, avl);
       SetXReg<3>(state_.cpu, vtype_new);
-      EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+      RunInstruction(insn_bytes);
       if (insn_bytes & 0b11111'0000000) {
         EXPECT_EQ(GetXReg<1>(state_.cpu), vl_expected);
       } else {
@@ -1182,107 +1180,128 @@ TEST_F(TESTSUITE, CsrInstructions) {
   TestFrm(0x0020f173, 0, 0);
 }
 
-TEST_F(TESTSUITE, FCsrRegister) {
-  fenv_t saved_environment;
-  EXPECT_EQ(fegetenv(&saved_environment), 0);
+constexpr uint8_t kFPFlagsAll = FPFlags::NX | FPFlags::UF | FPFlags::OF | FPFlags::DZ | FPFlags::NV;
+// Ensure all trailing bits are set in kFPFlagsAll so that all combinations are possible.
+static_assert(__builtin_ctz(~kFPFlagsAll) == 5);
 
-  for (uint8_t riscv_fflags = 0; riscv_fflags < 32; riscv_fflags += 1) {
-    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
-    if (riscv_fflags & FPFlags::NX) {
-      EXPECT_EQ(feraiseexcept(FE_INEXACT), 0);
-    }
-    if (riscv_fflags & FPFlags::UF) {
-      EXPECT_EQ(feraiseexcept(FE_UNDERFLOW), 0);
-    }
-    if (riscv_fflags & FPFlags::OF) {
-      EXPECT_EQ(feraiseexcept(FE_OVERFLOW), 0);
-    }
-    if (riscv_fflags & FPFlags::DZ) {
-      EXPECT_EQ(feraiseexcept(FE_DIVBYZERO), 0);
-    }
-    if (riscv_fflags & FPFlags::NV) {
-      EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
-    }
-    TestFCsr(0x00319173, 0, riscv_fflags, 0);
+// Automatically saves and restores fenv throughout the lifetime of a parent scope.
+class ScopedFenv {
+ public:
+  ScopedFenv() { EXPECT_EQ(fegetenv(&env_), 0); }
+  ~ScopedFenv() { EXPECT_EQ(fesetenv(&env_), 0); }
+
+ private:
+  fenv_t env_;
+};
+
+TEST_F(TESTSUITE, FFlagsRead) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(fflags);
+    RunInstruction(0x00102173);  // frflags x2
+    EXPECT_EQ(GetXReg<2>(state_.cpu), fflags);
   }
-
-  for (bool immediate_source : {true, false}) {
-    for (uint8_t riscv_fflags = 0; riscv_fflags < 32; ++riscv_fflags) {
-      EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
-      if (immediate_source) {
-        TestFCsr(0x00305173 | (riscv_fflags << 15), 0, 0, 0);
-      } else {
-        TestFCsr(0x00319173, 0b100'0000 | riscv_fflags, 0, 2);
-      }
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
-    }
-  }
-
-  EXPECT_EQ(fesetenv(&saved_environment), 0);
 }
 
-TEST_F(TESTSUITE, FFlagsRegister) {
-  fenv_t saved_environment;
-  EXPECT_EQ(fegetenv(&saved_environment), 0);
+TEST_F(TESTSUITE, FFlagsSwap) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(fflags);
+    // After swapping in 0 for flags, read fflags to verify.
+    SetXReg<3>(state_.cpu, 0);
+    RunInstruction(0x00119173);  // fsflags x2, x3
+    EXPECT_EQ(GetXReg<2>(state_.cpu), fflags);
+    TestFFlagsOnGuestAndHost(0u);
+  }
+}
 
-  for (uint8_t riscv_fflags = 0; riscv_fflags < 32; riscv_fflags += 1) {
-    EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
-    if (riscv_fflags & FPFlags::NX) {
-      EXPECT_EQ(feraiseexcept(FE_INEXACT), 0);
-    }
-    if (riscv_fflags & FPFlags::UF) {
-      EXPECT_EQ(feraiseexcept(FE_UNDERFLOW), 0);
-    }
-    if (riscv_fflags & FPFlags::OF) {
-      EXPECT_EQ(feraiseexcept(FE_OVERFLOW), 0);
-    }
-    if (riscv_fflags & FPFlags::DZ) {
-      EXPECT_EQ(feraiseexcept(FE_DIVBYZERO), 0);
-    }
-    if (riscv_fflags & FPFlags::NV) {
-      EXPECT_EQ(feraiseexcept(FE_INVALID), 0);
-    }
-    TestFFlags(0x00105173, 0, riscv_fflags);
+TEST_F(TESTSUITE, FFlagsSwapImmediate) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(fflags);
+    // After swapping in 0 for flags, read fflags to verify.
+    RunInstruction(0x00105173);  // fsflags x2, 0
+    EXPECT_EQ(GetXReg<2>(state_.cpu), fflags);
+    TestFFlagsOnGuestAndHost(0u);
+  }
+}
+
+TEST_F(TESTSUITE, FFlagsWrite) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    SetXReg<3>(state_.cpu, fflags);
+    RunInstruction(0x00119073);  // fsflags x3
+    TestFFlagsOnGuestAndHost(fflags);
+  }
+}
+
+TEST_F(TESTSUITE, FFlagsWriteImmediate) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RunInstruction(0x00105073 | fflags << 15);  // fsflagsi 0 (+ fflags)
+    TestFFlagsOnGuestAndHost(fflags);
+  }
+}
+
+TEST_F(TESTSUITE, FFlagsClearBits) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(kFPFlagsAll);
+    SetXReg<3>(state_.cpu, fflags);
+    RunInstruction(0x0011b073);  // csrc fflags, x3
+    // Read fflags to verify previous bitwise clear operation.
+    TestFFlagsOnGuestAndHost(static_cast<uint8_t>(~fflags & kFPFlagsAll));
+  }
+}
+
+TEST_F(TESTSUITE, FFlagsClearBitsImmediate) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(kFPFlagsAll);
+    RunInstruction(0x00107073 | fflags << 15);  // csrci fflags, 0 (+ fflags)
+    // Read fflags to verify previous bitwise clear operation.
+    TestFFlagsOnGuestAndHost(static_cast<uint8_t>(~fflags & kFPFlagsAll));
+  }
+}
+
+TEST_F(TESTSUITE, FCsrRegister) {
+  ScopedFenv fenv;
+  for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
+    RaiseFeExceptForGuestFlags(fflags);
+
+    // Read and verify fflags, then replace with all flags.
+    TestFCsr(0x00319173 /* fscsr x2,x3 */, fflags, fflags, 0);
+
+    // Only read fcsr and verify fflags.
+    TestFCsr(0x00302173 /* frcsr x2 */, /* ignored */ 0, fflags, /* expected_frm= */ 0b100u);
   }
 
   for (bool immediate_source : {true, false}) {
-    for (uint8_t riscv_fflags = 0; riscv_fflags < 32; ++riscv_fflags) {
+    for (uint8_t fflags = 0; fflags <= kFPFlagsAll; fflags++) {
       EXPECT_EQ(feclearexcept(FE_ALL_EXCEPT), 0);
       if (immediate_source) {
-        TestFFlags(0x00105173 | (riscv_fflags << 15), 0, 0);
+        TestFCsr(0x00305173 /* csrrwi x2,fcsr,0 */ | (fflags << 15), 0, 0, 0);
       } else {
-        TestFFlags(0x00119173, riscv_fflags, 0);
+        TestFCsr(0x00319173 /* fscsr x2,x3 */, 0b100'0000 | fflags, 0, /* expected_frm= */ 0b010u);
       }
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::NX), bool(fetestexcept(FE_INEXACT)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::UF), bool(fetestexcept(FE_UNDERFLOW)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::OF), bool(fetestexcept(FE_OVERFLOW)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::DZ), bool(fetestexcept(FE_DIVBYZERO)));
-      EXPECT_EQ(bool(riscv_fflags & FPFlags::NV), bool(fetestexcept(FE_INVALID)));
+      TestFFlagsOnGuestAndHost(fflags);
     }
   }
-
-  EXPECT_EQ(fesetenv(&saved_environment), 0);
 }
 
 TEST_F(TESTSUITE, FsrRegister) {
   ScopedRoundingMode scoped_rounding_mode;
-  int rounding[][2] = {
-    {0, FE_TONEAREST},
-    {1, FE_TOWARDZERO},
-    {2, FE_DOWNWARD},
-    {3, FE_UPWARD},
-    {4, FE_TOWARDZERO},
-    // Only low three bits must be affecting output (for forward compatibility).
-    {8, FE_TONEAREST},
-    {9, FE_TOWARDZERO},
-    {10, FE_DOWNWARD},
-    {11, FE_UPWARD},
-    {12, FE_TOWARDZERO}
-  };
+  int rounding[][2] = {{0, FE_TONEAREST},
+                       {1, FE_TOWARDZERO},
+                       {2, FE_DOWNWARD},
+                       {3, FE_UPWARD},
+                       {4, FE_TOWARDZERO},
+                       // Only low three bits must be affecting output (for forward compatibility).
+                       {8, FE_TONEAREST},
+                       {9, FE_TOWARDZERO},
+                       {10, FE_DOWNWARD},
+                       {11, FE_UPWARD},
+                       {12, FE_TOWARDZERO}};
   for (bool immediate_source : {true, false}) {
     for (auto [guest_rounding, host_rounding] : rounding) {
       if (immediate_source) {
@@ -1336,8 +1355,11 @@ TEST_F(TESTSUITE, OpInstructions) {
   TestOp(0x23130b3, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0x5c28'f5c2'8f5c'28f5}});
   // Div
   TestOp(0x23140b3, {{0x9999'9999'9999'9999, 0x3333, 0xfffd'fffd'fffd'fffe}});
-  // Div
   TestOp(0x23140b3, {{42, 2, 21}});
+  TestOp(0x23140b3, {{42, 0, -1}});
+  TestOp(0x23140b3, {{-2147483648, -1, 2147483648}});
+  TestOp(0x23140b3, {{0x8000'0000'0000'0000, -1, 0x8000'0000'0000'0000}});
+
   // Divu
   TestOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
   // Rem
@@ -1411,6 +1433,9 @@ TEST_F(TESTSUITE, Op32Instructions) {
   TestOp(0x023100bb, {{0x9999'9999'9999'9999, 0x9999'9999'9999'9999, 0xffff'ffff'd70a'3d71}});
   // Divw
   TestOp(0x23140bb, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'fffd'fffe}});
+  TestOp(0x23140bb, {{0x9999'9999'9999'9999, 0, -1}});
+  TestOp(0x23140bb, {{-2147483648, -1, -2147483648}});
+
   // Divuw
   TestOp(0x23150bb,
          {{0x9999'9999'9999'9999, 0x3333, 0x0000'0000'0003'0003},
@@ -1889,6 +1914,60 @@ TEST_F(TESTSUITE, Fmv) {
   // Fmv.D
   TestOpFpSingleInput(0x222100d3,
                       {std::tuple{bit_cast<uint64_t>(1.0), 1.0}, {bit_cast<uint64_t>(-1.0), -1.0}});
+}
+
+const uint32_t kPosNanFloat = kFPValueToFPReg(std::numeric_limits<float>::quiet_NaN());
+const uint32_t kNegNanFloat = kFPValueToFPReg(-std::numeric_limits<float>::quiet_NaN());
+const uint64_t kPosNanDouble = kFPValueToFPReg(std::numeric_limits<double>::quiet_NaN());
+const uint64_t kNegNanDouble = kFPValueToFPReg(-std::numeric_limits<double>::quiet_NaN());
+constexpr uint64_t kMaskFloatBits = (uint64_t{1} << 32) - 1;
+
+TEST_F(TESTSUITE, FabsSinglePrecisionNanPosToPos) {
+  SetFReg<2>(state_.cpu, kPosNanFloat);
+  RunInstruction(0x202120d3);  // fabs.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu) & kMaskFloatBits, kPosNanFloat);
+}
+
+TEST_F(TESTSUITE, FabsSinglePrecisionNanNegToPos) {
+  SetFReg<2>(state_.cpu, kNegNanFloat);
+  RunInstruction(0x202120d3);  // fabs.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu) & kMaskFloatBits, kPosNanFloat);
+}
+
+TEST_F(TESTSUITE, FabsDoublePrecisionNanPosToPos) {
+  SetFReg<2>(state_.cpu, kPosNanDouble);
+  RunInstruction(0x222120d3);  // fabs.d f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu), kPosNanDouble);
+}
+
+TEST_F(TESTSUITE, FabsDoublePrecisionNanNegToPos) {
+  SetFReg<2>(state_.cpu, kNegNanDouble);
+  RunInstruction(0x222120d3);  // fabs.d f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu), kPosNanDouble);
+}
+
+TEST_F(TESTSUITE, FnegSinglePrecisionNanPosToNeg) {
+  SetFReg<2>(state_.cpu, kPosNanFloat);
+  RunInstruction(0x202110d3);  // fneg.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu) & kMaskFloatBits, kNegNanFloat);
+}
+
+TEST_F(TESTSUITE, FnegSinglePrecisionNanNegToPos) {
+  SetFReg<2>(state_.cpu, kNegNanFloat);
+  RunInstruction(0x202110d3);  // fneg.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu) & kMaskFloatBits, kPosNanFloat);
+}
+
+TEST_F(TESTSUITE, FnegDoublePrecisionNanPosToNeg) {
+  SetFReg<2>(state_.cpu, kPosNanDouble);
+  RunInstruction(0x222110d3);  // fneg.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu), kNegNanDouble);
+}
+
+TEST_F(TESTSUITE, FnegDoublePrecisionNanNegToPos) {
+  SetFReg<2>(state_.cpu, kNegNanDouble);
+  RunInstruction(0x222110d3);  // fneg.s f1, f2
+  EXPECT_EQ(GetFReg<1>(state_.cpu), kPosNanDouble);
 }
 
 TEST_F(TESTSUITE, OpFpFcvt) {

@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <tuple>
 #include <type_traits>
 
 #include "berberis/base/checks.h"
@@ -179,6 +180,7 @@ constexpr T BitUtilLog2(T x) {
   // TODO(b/260725458): Use std::countr_zero after C++20 becomes available
   return __builtin_ctz(x);
 }
+
 // Signextend bits from size to the corresponding signed type of sizeof(Type) size.
 // If the result of this function is assigned to a wider signed type it'll automatically
 // sign-extend.
@@ -216,9 +218,47 @@ inline bool IsInRange(ArgumentType x) {
 }
 
 template <typename T>
-[[nodiscard]] constexpr T Popcount(T x) {
-  // We couldn't use std::popcount yet ( http://b/318678905 ) for __uint128_t .
+[[nodiscard]] constexpr T CountRZero(T x) {
+  // We couldn't use C++20 std::countr_zero yet ( http://b/318678905 ) for __uint128_t .
   // Switch to std::popcount when/if that bug would be fixed.
+  static_assert(!std::is_signed_v<T>);
+#if defined(__x86_64__)
+  if constexpr (sizeof(T) == sizeof(unsigned __int128)) {
+    if (static_cast<uint64_t>(x) == 0) {
+      return __builtin_ctzll(x >> 64) + 64;
+    }
+    return __builtin_ctzll(x);
+  } else
+#endif
+      if constexpr (sizeof(T) == sizeof(uint64_t)) {
+    return __builtin_ctzll(x);
+  } else if constexpr (sizeof(T) == sizeof(uint32_t)) {
+    return __builtin_ctz(x);
+  } else {
+    static_assert(kDependentTypeFalse<T>);
+  }
+}
+
+template <typename T>
+[[nodiscard]] constexpr Raw<T> CountRZero(Raw<T> x) {
+  return {CountRZero(x.value)};
+}
+
+template <typename T>
+[[nodiscard]] constexpr Saturating<T> CountRZero(Saturating<T> x) {
+  return {CountRZero(x.value)};
+}
+
+template <typename T>
+[[nodiscard]] constexpr Wrapping<T> CountRZero(Wrapping<T> x) {
+  return {CountRZero(x.value)};
+}
+
+template <typename T>
+[[nodiscard]] constexpr T Popcount(T x) {
+  // We couldn't use C++20 std::popcount yet ( http://b/318678905 ) for __uint128_t .
+  // Switch to std::popcount when/if that bug would be fixed.
+  static_assert(!std::is_signed_v<T>);
 #if defined(__x86_64__)
   if constexpr (sizeof(T) == sizeof(unsigned __int128)) {
     return __builtin_popcountll(x) + __builtin_popcountll(x >> 64);
@@ -412,7 +452,7 @@ class Saturating {
     lhs = lhs + rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator+(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Add(Saturating lhs, Saturating rhs) {
     BaseType result;
     bool overflow = __builtin_add_overflow(lhs.value, rhs.value, &result);
     if (overflow) {
@@ -426,22 +466,28 @@ class Saturating {
         result = std::numeric_limits<BaseType>::max();
       }
     }
-    return {result};
+    return {{result}, overflow};
+  }
+  [[nodiscard]] friend constexpr Saturating operator+(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Add(lhs, rhs));
   }
   friend constexpr Saturating& operator-=(Saturating& lhs, Saturating rhs) {
     lhs = lhs - rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Neg(Saturating lhs) {
     if constexpr (kIsSigned) {
       if (lhs.value == std::numeric_limits<BaseType>::min()) {
-        return {std::numeric_limits<BaseType>::max()};
+        return {std::numeric_limits<BaseType>::max(), true};
       }
-      return {-lhs.value};
+      return {{-lhs.value}, false};
     }
-    return 0;
+    return {{0}, lhs != 0};
   }
-  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs) {
+    return std::get<0>(Neg(lhs));
+  }
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Sub(Saturating lhs, Saturating rhs) {
     BaseType result;
     bool overflow = __builtin_sub_overflow(lhs.value, rhs.value, &result);
     if (overflow) {
@@ -455,13 +501,16 @@ class Saturating {
         result = 0;
       }
     }
-    return {result};
+    return {{result}, overflow};
+  }
+  [[nodiscard]] friend constexpr Saturating operator-(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Sub(lhs, rhs));
   }
   friend constexpr Saturating& operator*=(Saturating& lhs, Saturating rhs) {
     lhs = lhs * rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator*(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Mul(Saturating lhs, Saturating rhs) {
     BaseType result;
     bool overflow = __builtin_mul_overflow(lhs.value, rhs.value, &result);
     if (overflow) {
@@ -475,31 +524,40 @@ class Saturating {
         result = std::numeric_limits<BaseType>::max();
       }
     }
-    return {result};
+    return {{result}, overflow};
+  }
+  [[nodiscard]] friend constexpr Saturating operator*(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Mul(lhs, rhs));
   }
   friend constexpr Saturating& operator/=(Saturating& lhs, Saturating rhs) {
     lhs = lhs / rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator/(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Div(Saturating lhs, Saturating rhs) {
     if constexpr (kIsSigned) {
       if (lhs.value == std::numeric_limits<BaseType>::min() && rhs.value == -1) {
-        return {std::numeric_limits<BaseType>::max()};
+        return {{std::numeric_limits<BaseType>::max()}, true};
       }
     }
-    return {BaseType(lhs.value / rhs.value)};
+    return {{BaseType(lhs.value / rhs.value)}, false};
+  }
+  [[nodiscard]] friend constexpr Saturating operator/(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Div(lhs, rhs));
   }
   friend constexpr Saturating& operator%=(Saturating& lhs, Saturating rhs) {
     lhs = lhs % rhs;
     return lhs;
   }
-  [[nodiscard]] friend constexpr Saturating operator%(Saturating lhs, Saturating rhs) {
+  [[nodiscard]] friend constexpr std::tuple<Saturating, bool> Rem(Saturating lhs, Saturating rhs) {
     if constexpr (kIsSigned) {
       if (lhs.value == std::numeric_limits<BaseType>::min() && rhs.value == -1) {
-        return {1};
+        return {{1}, true};
       }
     }
-    return {BaseType(lhs.value % rhs.value)};
+    return {{BaseType(lhs.value % rhs.value)}, false};
+  }
+  [[nodiscard]] friend constexpr Saturating operator%(Saturating lhs, Saturating rhs) {
+    return std::get<0>(Rem(lhs, rhs));
   }
   BaseType value = 0;
 };
@@ -882,9 +940,9 @@ template <typename BaseType>
 }
 
 template <typename BaseType>
-[[nodiscard]] constexpr auto Widen(intrinsics::WrappedFloatType<BaseType> source)
-    -> Wrapping<typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Wide> {
-  return {source.value};
+[[nodiscard]] constexpr auto Widen(intrinsics::WrappedFloatType<BaseType> source) ->
+    typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Wide {
+  return {source};
 }
 
 template <typename T>
@@ -911,9 +969,9 @@ template <typename BaseType>
 }
 
 template <typename BaseType>
-[[nodiscard]] constexpr auto Narrow(intrinsics::WrappedFloatType<BaseType> source)
-    -> Wrapping<typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Narrow> {
-  return {source.value};
+[[nodiscard]] constexpr auto Narrow(intrinsics::WrappedFloatType<BaseType> source) ->
+    typename TypeTraits<intrinsics::WrappedFloatType<BaseType>>::Narrow {
+  return {source};
 }
 
 template <typename T>

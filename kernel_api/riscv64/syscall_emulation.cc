@@ -15,46 +15,33 @@
  */
 
 #include <fcntl.h>  // AT_FDCWD, AT_SYMLINK_NOFOLLOW
+#include <linux/sched.h>
 #include <linux/unistd.h>
 #include <sys/stat.h>
+#include <sys/sysinfo.h>
 #include <sys/types.h>
 
 #include <cerrno>
 
 #include "berberis/base/macros.h"
 #include "berberis/base/scoped_errno.h"
-#include "berberis/base/struct_check.h"
 #include "berberis/base/tracing.h"
+#include "berberis/guest_os_primitives/scoped_pending_signals.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
+#include "berberis/instrument/syscall.h"
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
+#include "berberis/kernel_api/runtime_bridge.h"
 #include "berberis/kernel_api/syscall_emulation_common.h"
 #include "berberis/kernel_api/tracing.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 
 #include "epoll_emulation.h"
 #include "guest_types.h"
-#include "runtime_bridge.h"
 
 namespace berberis {
 
 namespace {
-
-void ConvertHostStatToGuest(const struct stat& host_stat, Guest_stat* guest_stat) {
-  guest_stat->st_dev = host_stat.st_dev;
-  guest_stat->st_ino = host_stat.st_ino;
-  guest_stat->st_mode = host_stat.st_mode;
-  guest_stat->st_nlink = host_stat.st_nlink;
-  guest_stat->st_uid = host_stat.st_uid;
-  guest_stat->st_gid = host_stat.st_gid;
-  guest_stat->st_rdev = host_stat.st_rdev;
-  guest_stat->st_size = host_stat.st_size;
-  guest_stat->st_blksize = host_stat.st_blksize;
-  guest_stat->st_blocks = host_stat.st_blocks;
-  guest_stat->st_blocks = host_stat.st_blocks;
-  guest_stat->st_atim = host_stat.st_atim;
-  guest_stat->st_mtim = host_stat.st_mtim;
-  guest_stat->st_ctim = host_stat.st_ctim;
-}
 
 int FstatatForGuest(int dirfd, const char* path, struct stat* buf, int flags) {
   const char* real_path = nullptr;
@@ -62,6 +49,35 @@ int FstatatForGuest(int dirfd, const char* path, struct stat* buf, int flags) {
     real_path = TryReadLinkToMainExecutableRealPath(path);
   }
   return syscall(__NR_newfstatat, dirfd, real_path ? real_path : path, buf, flags);
+}
+
+void Hwprobe(Guest_riscv_hwprobe& pair) {
+  switch (pair.key) {
+    case RISCV_HWPROBE_KEY_MVENDORID:
+      pair.value = 0;
+      break;
+    case RISCV_HWPROBE_KEY_MARCHID:
+      pair.value = 0;
+      break;
+    case RISCV_HWPROBE_KEY_MIMPID:
+      pair.value = 0;
+      break;
+    case RISCV_HWPROBE_KEY_BASE_BEHAVIOR:
+      pair.value = RISCV_HWPROBE_BASE_BEHAVIOR_IMA;
+      break;
+    case RISCV_HWPROBE_KEY_IMA_EXT_0:
+      pair.value = RISCV_HWPROBE_IMA_FD | RISCV_HWPROBE_IMA_C | RISCV_HWPROBE_IMA_V |
+                   RISCV_HWPROBE_EXT_ZBA | RISCV_HWPROBE_EXT_ZBB | RISCV_HWPROBE_EXT_ZBS;
+      break;
+    case RISCV_HWPROBE_KEY_CPUPERF_0:
+      pair.value = RISCV_HWPROBE_MISALIGNED_FAST;
+      break;
+    default:
+      TRACE("unsupported __riscv_hwprobe capability key: %ld", pair.key);
+      pair.key = -1;
+      pair.value = 0;
+      break;
+  }
 }
 
 long RunGuestSyscall___NR_execveat(long arg_1, long arg_2, long arg_3, long arg_4, long arg_5) {
@@ -74,15 +90,6 @@ long RunGuestSyscall___NR_execveat(long arg_1, long arg_2, long arg_3, long arg_
 long RunGuestSyscall___NR_fadvise64(long arg_1, long arg_2, long arg_3, long arg_4) {
   // on 64-bit architectures, sys_fadvise64 and sys_fadvise64_64 are equal.
   return syscall(__NR_fadvise64, arg_1, arg_2, arg_3, arg_4);
-}
-
-long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
-  struct stat host_stat;
-  long result = syscall(__NR_fstat, arg_1, &host_stat);
-  if (result != -1) {
-    ConvertHostStatToGuest(host_stat, bit_cast<Guest_stat*>(arg_2));
-  }
-  return result;
 }
 
 long RunGuestSyscall___NR_ioctl(long arg_1, long arg_2, long arg_3) {
@@ -98,9 +105,32 @@ long RunGuestSyscall___NR_newfstatat(long arg_1, long arg_2, long arg_3, long ar
                                &host_stat,
                                static_cast<int>(arg_4));  // flags
   if (result != -1) {
-    ConvertHostStatToGuest(host_stat, bit_cast<Guest_stat*>(arg_3));
+    ConvertHostStatToGuestArch(host_stat, bit_cast<GuestAddr>(arg_3));
   }
   return result;
+}
+
+long RunGuestSyscall___NR_riscv_hwprobe(long arg_1,
+                                        long arg_2,
+                                        long arg_3,
+                                        long arg_4,
+                                        long arg_5) {
+  UNUSED(arg_3, arg_4);  // cpu_count, cpus_in
+
+  // There are currently no flags defined by the kernel. This may change in the future.
+  static constexpr unsigned int kFlagsAll = 0;
+
+  auto pairs = bit_cast<Guest_riscv_hwprobe*>(arg_1);
+  auto pair_count = bit_cast<size_t>(arg_2);
+  auto flags = static_cast<unsigned int>(bit_cast<unsigned long>(arg_5));
+  if ((flags & ~kFlagsAll) != 0) {
+    return -EINVAL;
+  }
+
+  for (size_t i = 0; i < pair_count; ++i) {
+    Hwprobe(pairs[i]);
+  }
+  return 0;
 }
 
 long RunGuestSyscall___NR_riscv_flush_icache(long arg_1, long arg_2, long arg_3) {
@@ -127,33 +157,39 @@ long RunGuestSyscall___NR_riscv_flush_icache(long arg_1, long arg_2, long arg_3)
 
 }  // namespace
 
-long RunGuestSyscall(long syscall_nr,
-                     long arg0,
-                     long arg1,
-                     long arg2,
-                     long arg3,
-                     long arg4,
-                     long arg5) {
+void RunGuestSyscall(ThreadState* state) {
+  // ATTENTION: run guest signal handlers instantly!
+  // If signal arrives while in a syscall, syscall should immediately return with EINTR.
+  // In this case pending signals are OK, as guest handlers will run on return from syscall.
+  // BUT, if signal action has SA_RESTART, certain syscalls will restart instead of returning.
+  // In this case, pending signals will never run...
+  ScopedPendingSignalsDisabler scoped_pending_signals_disabler(state->thread);
   ScopedErrno scoped_errno;
 
-  // RISCV Linux takes arguments in a0-a5 and syscall number in a7.
-  long result = RunGuestSyscallImpl(syscall_nr, arg0, arg1, arg2, arg3, arg4, arg5);
-  // The result is returned in a0.
-  if (result == -1) {
-    return -errno;
-  } else {
-    return result;
+  long guest_nr = state->cpu.x[A7];
+  if (kInstrumentSyscalls) {
+    OnSyscall(state, guest_nr);
   }
-}
 
-void RunKernelSyscall(ThreadState* state) {
-  RunGuestSyscall(state->cpu.x[A7],
-                  state->cpu.x[A0],
-                  state->cpu.x[A1],
-                  state->cpu.x[A2],
-                  state->cpu.x[A3],
-                  state->cpu.x[A4],
-                  state->cpu.x[A5]);
+  // RISCV Linux takes arguments in a0-a5 and syscall number in a7.
+  // TODO(b/161722184): if syscall is interrupted by signal, signal handler might overwrite the
+  // return value, so setting A0 here might be incorrect. Investigate!
+  long result = RunGuestSyscallImpl(guest_nr,
+                                    state->cpu.x[A0],
+                                    state->cpu.x[A1],
+                                    state->cpu.x[A2],
+                                    state->cpu.x[A3],
+                                    state->cpu.x[A4],
+                                    state->cpu.x[A5]);
+  if (result == -1) {
+    state->cpu.x[A0] = -errno;
+  } else {
+    state->cpu.x[A0] = result;
+  }
+
+  if (kInstrumentSyscalls) {
+    OnSyscallReturn(state, guest_nr);
+  }
 }
 
 }  // namespace berberis

@@ -35,6 +35,7 @@ ThreadState* CreateThreadState();
 void DestroyThreadState(ThreadState* state);
 
 class GuestThread;
+void* GetThreadStateStorage(ThreadState& state);
 void SetGuestThread(ThreadState& state, GuestThread* thread);
 GuestThread* GetGuestThread(const ThreadState& state);
 
@@ -88,8 +89,6 @@ GuestAddr GetTlsAddr(const ThreadState& cpu);
 
 // Set the appropriate stack pointer register, if it exists for a given guest architecture.
 void SetShadowCallStackPointer(CPUState& cpu, GuestAddr scs_sp);
-
-void InitFloatingPointState();
 
 std::size_t GetThreadStateRegOffset(int reg);
 
