@@ -78,6 +78,31 @@ const Guest_sigaction* FindSignalHandler(const GuestSignalActionsTable& signal_a
   return &signal_actions.at(signal - 1).GetClaimedGuestAction();
 }
 
+#if defined(__i386__)
+constexpr size_t kHostRegIP = REG_EIP;
+#elif defined(__x86_64__)
+constexpr size_t kHostRegIP = REG_RIP;
+#elif defined(__riscv)
+constexpr size_t kHostRegIP = REG_PC;
+#else
+#error "Unknown host arch"
+#endif
+uintptr_t GetHostRegIP(const ucontext_t* ucontext) {
+#if defined(__riscv)
+  return ucontext->uc_mcontext.__gregs[kHostRegIP];
+#else
+  return ucontext->uc_mcontext.gregs[kHostRegIP];
+#endif
+}
+
+void SetHostRegIP(ucontext* ucontext, uintptr_t addr) {
+#if defined(__riscv)
+  ucontext->uc_mcontext.__gregs[kHostRegIP] = addr;
+#else
+  ucontext->uc_mcontext.gregs[kHostRegIP] = addr;
+#endif
+}
+
 // Can be interrupted by another HandleHostSignal!
 void HandleHostSignal(int sig, siginfo_t* info, void* context) {
   TRACE("handle host signal %d", sig);
@@ -101,17 +126,9 @@ void HandleHostSignal(int sig, siginfo_t* info, void* context) {
     // We can't make signals pendings as we need to detach the thread!
     CHECK(!attached);
 
-#if defined(__i386__)
-    constexpr size_t kHostRegIP = REG_EIP;
-#elif defined(__x86_64__)
-    constexpr size_t kHostRegIP = REG_RIP;
-#else
-#error "Unknown host arch"
-#endif
-
     // Run recovery code to restore precise context and exit generated code.
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-    uintptr_t addr = ucontext->uc_mcontext.gregs[kHostRegIP];
+    uintptr_t addr = GetHostRegIP(ucontext);
     uintptr_t recovery_addr = FindRecoveryCode(addr, thread->state());
 
     if (recovery_addr) {
@@ -127,7 +144,7 @@ void HandleHostSignal(int sig, siginfo_t* info, void* context) {
             "Imprecise context at recovery, only guest pc is in sync."
             " Other registers may be stale.");
       }
-      ucontext->uc_mcontext.gregs[kHostRegIP] = recovery_addr;
+      SetHostRegIP(ucontext, recovery_addr);
       TRACE("guest signal handler suspended, run recovery for host pc %p at host pc %p",
             reinterpret_cast<void*>(addr),
             reinterpret_cast<void*>(recovery_addr));

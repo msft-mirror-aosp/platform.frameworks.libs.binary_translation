@@ -120,6 +120,8 @@ class AssemblerBase {
 
   // These are 'static' relocations, resolved when code is finalized.
   // We also have 'dynamic' relocations, resolved when code is installed.
+  // TODO(b/232598137): rename Jump to something more appropriate since we are supporting
+  // memory-accessing instructions, not just jumps.
   struct Jump {
     const Label* label;
     // Position of field to store offset.  Note: unless it's recovery label precomputed
@@ -139,6 +141,17 @@ class AssemblerBase {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AssemblerBase);
 };
+
+// Return the reverse condition. On all architectures that we may care about (AArch32/AArch64,
+// RISC-V and x86) this can be achieved with a simple bitflop of the lowest bit.
+// We may need a specialization of that function for more exotic architectures.
+template <typename Condition>
+inline constexpr Condition ToReverseCond(Condition cond) {
+  CHECK(cond != Condition::kInvalidCondition);
+  // Condition has a nice property that given a condition, you can get
+  // its reverse condition by flipping the least significant bit.
+  return Condition(static_cast<int>(cond) ^ 1);
+}
 
 }  // namespace berberis
 
