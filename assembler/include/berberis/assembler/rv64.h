@@ -27,6 +27,9 @@ namespace berberis::rv64 {
 
 class Assembler : public AssemblerRiscV<Assembler> {
  public:
+  using BaseAssembler = AssemblerRiscV<Assembler>;
+  using FinalAssembler = Assembler;
+
   explicit Assembler(MachineCode* code) : AssemblerRiscV(code) {}
 
   using ShiftImmediate = AssemblerRiscV<Assembler>::Shift64Immediate;
@@ -58,6 +61,30 @@ class Assembler : public AssemblerRiscV<Assembler> {
   void operator=(const Assembler&) = delete;
   void operator=(Assembler&&) = delete;
 };
+
+inline void Assembler::Ld(Register arg0, const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});
+  // The low 12 bite of difference will be encoded in the Ld instruction
+  EmitITypeInstruction<uint32_t{0x0000'3003}>(arg0, Operand<Register, IImmediate>{.base = arg0});
+}
+
+inline void Assembler::Lwu(Register arg0, const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});
+  // The low 12 bite of difference will be encoded in the Lwu instruction
+  EmitITypeInstruction<uint32_t{0x0000'6003}>(arg0, Operand<Register, IImmediate>{.base = arg0});
+}
+
+inline void Assembler::Sd(Register arg0, const Label& label, Register arg2) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg2, UImmediate{0});
+  // The low 12 bite of difference will be encoded in the Sd instruction
+  EmitSTypeInstruction<uint32_t{0x0000'3023}>(arg0, Operand<Register, SImmediate>{.base = arg2});
+}
 
 }  // namespace berberis::rv64
 

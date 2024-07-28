@@ -25,6 +25,9 @@ namespace berberis {
 
 class TextAssembler : public TextAssemblerX86<TextAssembler> {
  public:
+  using BaseAssembler = TextAssemblerX86<TextAssembler>;
+  using FinalAssembler = TextAssembler;
+
   TextAssembler(int indent, FILE* out) : TextAssemblerX86(indent, out) {}
 
 // Instructions.

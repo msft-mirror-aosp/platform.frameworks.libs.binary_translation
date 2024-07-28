@@ -30,6 +30,7 @@ cc_library_headers {
 cc_library_static {
     name: "libberberis_kernel_api_common",
     defaults: [
+        "berberis_riscv64_device_defaults",
         "berberis_guest_agnostic_defaults",
     ],
     host_supported: true,

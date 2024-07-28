@@ -19,7 +19,7 @@ import itertools
 import json
 import sys
 
-import gen_asm_x86
+import gen_asm
 
 
 # Enable to avoid cycles.  Only use one register combo for tests.
@@ -40,8 +40,8 @@ def main(argv):
     with open(arc_assembler_file_name, 'w') as arc_assembler_file:
       pass
     return 0
-  _, common_defs = gen_asm_x86._load_asm_defs(argv[3])
-  _, arch_defs = gen_asm_x86._load_asm_defs(argv[4])
+  _, common_defs = gen_asm._load_asm_defs(argv[3])
+  _, arch_defs = gen_asm._load_asm_defs(argv[4])
 
   fast_mode = globals()["fast_mode"]
   if len(argv) > 5 and argv[5] == '--fast':
@@ -151,7 +151,7 @@ sample_arc_arguments = {
              'Assembler::Condition::kBelow', 'Assembler::Condition::kAboveEqual',
              'Assembler::Condition::kEqual', 'Assembler::Condition::kNotEqual',
              'Assembler::Condition::kBelowEqual', 'Assembler::Condition::kAbove',
-             'Assembler::Condition::kNegative', 'Assembler::Condition::kPositive',
+             'Assembler::Condition::kNegative', 'Assembler::Condition::kPositiveOrZero',
              'Assembler::Condition::kParityEven', 'Assembler::Condition::kParityOdd',
              'Assembler::Condition::kLess', 'Assembler::Condition::kGreaterEqual',
              'Assembler::Condition::kLessEqual', 'Assembler::Condition::kGreater'),

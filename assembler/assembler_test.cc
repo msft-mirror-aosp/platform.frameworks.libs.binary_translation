@@ -56,7 +56,7 @@ inline bool CompareCode(const ParcelInt* code_template_begin,
                         const MachineCode& code) {
   if ((code_template_end - code_template_begin) * sizeof(ParcelInt) != code.install_size()) {
     ALOGE("Code size mismatch: %zd != %u",
-          code_template_end - code_template_begin,
+          (code_template_end - code_template_begin) * static_cast<unsigned>(sizeof(ParcelInt)),
           code.install_size());
     return false;
   }
@@ -79,22 +79,170 @@ namespace rv32 {
 bool AssemblerTest() {
   MachineCode code;
   Assembler assembler(&code);
+  Assembler::Label data_begin, data_end, label;
+  assembler.Bind(&data_begin);
+  // We test loads and stores twice to ensure that both positive and negative immediates are
+  // present both in auipc and in the follow-up load/store instructions.
+  assembler.Fld(Assembler::f1, data_end, Assembler::x2);
+  assembler.Flw(Assembler::f3, data_end, Assembler::x4);
+  assembler.Fsd(Assembler::f5, data_end, Assembler::x6);
+  assembler.Fsw(Assembler::f7, data_end, Assembler::x8);
+  assembler.Lb(Assembler::x9, data_end);
+  assembler.Lbu(Assembler::x10, data_end);
+  assembler.Lh(Assembler::x11, data_end);
+  assembler.Lhu(Assembler::x12, data_end);
+  assembler.Lw(Assembler::x13, data_end);
+  assembler.Sb(Assembler::x14, data_end, Assembler::x15);
+  assembler.Sh(Assembler::x16, data_end, Assembler::x17);
+  assembler.Sw(Assembler::x18, data_end, Assembler::x19);
+  assembler.Lla(Assembler::x20, data_end);
+  assembler.Bcc(Assembler::Condition::kEqual, Assembler::x1, Assembler::x2, label);
+  assembler.Bcc(Assembler::Condition::kNotEqual, Assembler::x3, Assembler::x4, label);
+  assembler.Bcc(Assembler::Condition::kLess, Assembler::x5, Assembler::x6, label);
+  assembler.Bcc(Assembler::Condition::kGreaterEqual, Assembler::x7, Assembler::x8, label);
+  assembler.Bcc(Assembler::Condition::kBelow, Assembler::x9, Assembler::x10, label);
+  assembler.Bcc(Assembler::Condition::kAboveEqual, Assembler::x11, Assembler::x12, label);
+  assembler.Jal(Assembler::x1, label);
   assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addi(Assembler::x1, Assembler::x2, 42);
+  assembler.Bind(&label);
   // Jalr have two alternate forms.
   assembler.Jalr(Assembler::x1, Assembler::x2, 42);
   assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
   assembler.Sw(Assembler::x1, {.base = Assembler::x2, .disp = 42});
+  assembler.Jal(Assembler::x2, label);
+  assembler.Beq(Assembler::x1, Assembler::x2, label);
+  assembler.Bne(Assembler::x3, Assembler::x4, label);
+  assembler.Blt(Assembler::x5, Assembler::x6, label);
+  assembler.Bge(Assembler::x7, Assembler::x8, label);
+  assembler.Bltu(Assembler::x9, Assembler::x10, label);
+  assembler.Bgeu(Assembler::x11, Assembler::x12, label);
+  assembler.Csrrc(Assembler::x1, Assembler::Csr::kVl, Assembler::x2);
+  assembler.Csrrs(Assembler::x3, Assembler::Csr::kVtype, Assembler::x4);
+  assembler.Csrrw(Assembler::x5, Assembler::Csr::kVlenb, Assembler::x6);
+  assembler.Slli(Assembler::x1, Assembler::x2, 3);
+  assembler.Srai(Assembler::x4, Assembler::x5, 6);
+  assembler.Srli(Assembler::x7, Assembler::x8, 9);
+  assembler.FcvtSW(Assembler::f1, Assembler::x2, Assembler::Rounding::kRmm);
+  assembler.FcvtSWu(Assembler::f3, Assembler::x4);
+  assembler.FcvtWS(Assembler::x1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FcvtWuS(Assembler::x3, Assembler::f4);
+  assembler.FsqrtS(Assembler::f1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FsqrtD(Assembler::f3, Assembler::f4);
+  assembler.PrefetchI({.base = Assembler::x1, .disp = 32});
+  assembler.PrefetchR({.base = Assembler::x2, .disp = 64});
+  assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
+  // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
+  // immediate.
+  for (size_t index = 120; index < 1200; ++index) {
+    assembler.TwoByte(uint16_t{0});
+  }
+  assembler.Fld(Assembler::f1, data_begin, Assembler::x2);
+  assembler.Flw(Assembler::f3, data_begin, Assembler::x4);
+  assembler.Fsd(Assembler::f5, data_begin, Assembler::x6);
+  assembler.Fsw(Assembler::f7, data_begin, Assembler::x8);
+  assembler.Lb(Assembler::x9, data_begin);
+  assembler.Lbu(Assembler::x10, data_begin);
+  assembler.Lh(Assembler::x11, data_begin);
+  assembler.Lhu(Assembler::x12, data_begin);
+  assembler.Lw(Assembler::x13, data_begin);
+  assembler.Sb(Assembler::x14, data_begin, Assembler::x15);
+  assembler.Sh(Assembler::x16, data_begin, Assembler::x17);
+  assembler.Sw(Assembler::x18, data_begin, Assembler::x19);
+  assembler.Lla(Assembler::x20, data_begin);
+  assembler.Bind(&data_end);
   assembler.Finalize();
 
   // clang-format off
   static const uint16_t kCodeTemplate[] = {
-    0x00b3, 0x0031,     // add x1, x2, x3
-    0x0093, 0x02a1,     // addi x1, x2, 42
-    0x00e7, 0x02a1,     // jalr x1, x2, 42
-    0x01e7, 0x02a2,     // jalr x3, 42(x4)
-    0x2523, 0x0211,     // sw x1, 42(x2)
-  };
+    0x1117, 0x0000,     // begin: auipc   x2, 4096
+    0x3087, 0x9c81,     //        fld     f1, -1592(x2)
+    0x1217, 0x0000,     //        auipc   x4, 4096
+    0x2187, 0x9c02,     //        flw     f3, -1600(x4)
+    0x1317, 0x0000,     //        auipc   x6, 4096
+    0x3c27, 0x9a53,     //        fsd     f5, -1608(x6)
+    0x1417, 0x0000,     //        auipc   x8, 4096
+    0x2827, 0x9a74,     //        fsw     f7, -1616(x8)
+    0x1497, 0x0000,     //        auipc   x9, 4096
+    0x8483, 0x9a84,     //        lb      x9, -1624(x9)
+    0x1517, 0x0000,     //        auipc   x10, 4096
+    0x4503, 0x9a05,     //        lbu     x10, -1632(x10)
+    0x1597, 0x0000,     //        auipc   x11, 4096
+    0x9583, 0x9985,     //        lh      x11, -1640(x11)
+    0x1617, 0x0000,     //        auipc   x12, 4096
+    0x5603, 0x9906,     //        lhu     x12, -1648(x12)
+    0x1697, 0x0000,     //        auipc   x13, 4096
+    0xa683, 0x9886,     //        lw      x13, -1656(x13)
+    0x1797, 0x0000,     //        auipc   x15, 4096
+    0x8023, 0x98e7,     //        sb      x14, -1664(x15)
+    0x1897, 0x0000,     //        auipc   x17, 4096
+    0x9c23, 0x9708,     //        sh      x16, -1672(x17)
+    0x1997, 0x0000,     //        auipc   x19, 4096
+    0xa823, 0x9729,     //        sw      x18, -1680(x19)
+    0x1a17, 0x0000,     //        auipc   x20, 4096
+    0x0a13, 0x968a,     //        addi    x20, x20, -1688
+    0x8263, 0x0220,     //        beq     x1, x2, label
+    0x9063, 0x0241,     //        bne     x3, x4, label
+    0xce63, 0x0062,     //        blt     x5, x6, label
+    0xdc63, 0x0083,     //        bge     x7, x8, label
+    0xea63, 0x00a4,     //        bltu    x9, x10, label
+    0xf863, 0x00c5,     //        bgeu    x11, x12, label
+    0x00ef, 0x00c0,     //        jal     x1, label
+    0x00b3, 0x0031,     //        add     x1, x2, x3
+    0x0093, 0x02a1,     //        addi    x1, x2, 42
+    0x00e7, 0x02a1,     // label: jalr    x1, x2, 42
+    0x01e7, 0x02a2,     //        jalr    x3, 42(x4)
+    0x2523, 0x0211,     //        sw      x1, 42(x2)
+    0xf16f, 0xff5f,     //        jal     x2, label
+    0x88e3, 0xfe20,     //        beq     x1, x2, label
+    0x96e3, 0xfe41,     //        bne     x3, x4, label
+    0xc4e3, 0xfe62,     //        blt     x5, x6, label
+    0xd2e3, 0xfe83,     //        bge     x7, x8, label
+    0xe0e3, 0xfea4,     //        bltu    x9, x10, label
+    0xfee3, 0xfcc5,     //        bgeu    x11, x12, label
+    0x30f3, 0xc201,     //        csrrc   x1, vl, x2
+    0x21f3, 0xc212,     //        csrrs   x3, vtype, x4
+    0x12f3, 0xc223,     //        csrrw   x5, vlenb, x6
+    0x1093, 0x0031,     //        slli    x1, x2, 3
+    0xd213, 0x4062,     //        srai    x4, x5, 6
+    0x5393, 0x0094,     //        srli    x7, x8, 9
+    0x40d3, 0xd001,     //        fcvt.s.w f1, x2, rmm
+    0x71d3, 0xd012,     //        fcvt.s.wu f3, x4
+    0x40d3, 0xc001,     //        fcvt.w.s x1, f2, rmm
+    0x71d3, 0xc012,     //        fcvt.wu.s x3, f4
+    0x40d3, 0x5801,     //        fsqrt.s f1, f2, rmm
+    0x71d3, 0x5a02,     //        fsqrt.d f3, f4
+    0xe013, 0x0200,     //        prefetch.i 32(x1)
+    0x6013, 0x0411,     //        prefetch.r 64(x2)
+    0xe013, 0x0631,     //        prefetch.w 96(x3)
+    [ 120 ... 1199 ] = 0,//       padding
+    0xf117, 0xffff,     //        auipc   x2, -4096
+    0x3087, 0x6a01,     //        fld     f1,1696(x2)
+    0xf217, 0xffff,     //        auipc   x4, -4096
+    0x2187, 0x6982,     //        flw     f3,1688(x4)
+    0xf317, 0xffff,     //        auipc   x6, -4096
+    0x3827, 0x6853,     //        fsd     f5,1680(x6)
+    0xf417, 0xffff,     //        auipc   x8, -4096
+    0x2427, 0x6874,     //        fsw     f7,1672(x8)
+    0xf497, 0xffff,     //        auipc   x9, -4096
+    0x8483, 0x6804,     //        lb      x9,1664(x9)
+    0xf517, 0xffff,     //        auipc   x10, -4096
+    0x4503, 0x6785,     //        lbu     x10,1656(x10)
+    0xf597, 0xffff,     //        auipc   x11, -4096
+    0x9583, 0x6705,     //        lh      x11,1648(x11)
+    0xf617, 0xffff,     //        auipc   x12, -4096
+    0x5603, 0x6686,     //        lhu     x12,1640(x12)
+    0xf697, 0xffff,     //        auipc   x13, -4096
+    0xa683, 0x6606,     //        lw      x13,1632(x13)
+    0xf797, 0xffff,     //        auipc   x15, -4096
+    0x8c23, 0x64e7,     //        sb      x14,1624(x15)
+    0xf897, 0xffff,     //        auipc   x17, -4096
+    0x9823, 0x6508,     //        sh      x16,1616(x17)
+    0xf997, 0xffff,     //        auipc   x19, -4096
+    0xa423, 0x6529,     //        sw      x18,1608(x19)
+    0xfa17, 0xffff,     //        auipc   x20, -4096
+    0x0a13, 0x640a,     //        addi    x20,x20,1600
+  };                    // end:
   // clang-format on
 
   return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
@@ -107,6 +255,21 @@ namespace rv64 {
 bool AssemblerTest() {
   MachineCode code;
   Assembler assembler(&code);
+  Assembler::Label data_begin, data_end;
+  assembler.Bind(&data_begin);
+  // We test loads and stores twice to ensure that both positive and negative immediates are
+  // present both in auipc and in the follow-up load/store instructions.
+  assembler.Ld(Assembler::x1, data_end);
+  assembler.Lwu(Assembler::x2, data_end);
+  assembler.Sd(Assembler::x3, data_end, Assembler::x4);
+  assembler.Bcc(Assembler::Condition::kAlways, Assembler::x1, Assembler::x2, 48);
+  assembler.Bcc(Assembler::Condition::kEqual, Assembler::x3, Assembler::x4, 44);
+  assembler.Bcc(Assembler::Condition::kNotEqual, Assembler::x5, Assembler::x6, 40);
+  assembler.Bcc(Assembler::Condition::kLess, Assembler::x7, Assembler::x8, 36);
+  assembler.Bcc(Assembler::Condition::kGreaterEqual, Assembler::x9, Assembler::x10, 32);
+  assembler.Bcc(Assembler::Condition::kBelow, Assembler::x11, Assembler::x12, 28);
+  assembler.Bcc(Assembler::Condition::kAboveEqual, Assembler::x13, Assembler::x14, 24);
+  assembler.Jal(Assembler::x1, 20);
   assembler.Add(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addw(Assembler::x1, Assembler::x2, Assembler::x3);
   assembler.Addi(Assembler::x1, Assembler::x2, 42);
@@ -116,19 +279,101 @@ bool AssemblerTest() {
   assembler.Jalr(Assembler::x3, {.base = Assembler::x4, .disp = 42});
   assembler.Sw(Assembler::x1, {.base = Assembler::x2, .disp = 42});
   assembler.Sd(Assembler::x3, {.base = Assembler::x4, .disp = 42});
+  assembler.Jal(Assembler::x2, -16);
+  assembler.Beq(Assembler::x1, Assembler::x2, -20);
+  assembler.Bne(Assembler::x3, Assembler::x4, -24);
+  assembler.Blt(Assembler::x5, Assembler::x6, -28);
+  assembler.Bge(Assembler::x7, Assembler::x8, -32);
+  assembler.Bltu(Assembler::x9, Assembler::x10, -36);
+  assembler.Bgeu(Assembler::x11, Assembler::x12, -40);
+  assembler.Bcc(Assembler::Condition::kAlways, Assembler::x13, Assembler::x14, -44);
+  assembler.Csrrc(Assembler::x1, Assembler::Csr::kVl, 2);
+  assembler.Csrrs(Assembler::x3, Assembler::Csr::kVtype, 4);
+  assembler.Csrrw(Assembler::x5, Assembler::Csr::kVlenb, 6);
+  assembler.Csrrci(Assembler::x7, Assembler::Csr::kVl, 8);
+  assembler.Csrrsi(Assembler::x9, Assembler::Csr::kVtype, 10);
+  assembler.Csrrwi(Assembler::x11, Assembler::Csr::kVlenb, 12);
+  assembler.Slliw(Assembler::x1, Assembler::x2, 3);
+  assembler.Sraiw(Assembler::x4, Assembler::x5, 6);
+  assembler.Srliw(Assembler::x7, Assembler::x8, 9);
+  assembler.FcvtDL(Assembler::f1, Assembler::x2, Assembler::Rounding::kRmm);
+  assembler.FcvtDLu(Assembler::f3, Assembler::x4);
+  assembler.FcvtLD(Assembler::x1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FcvtLuD(Assembler::x3, Assembler::f4);
+  assembler.FsqrtS(Assembler::f1, Assembler::f2, Assembler::Rounding::kRmm);
+  assembler.FsqrtD(Assembler::f3, Assembler::f4);
+  assembler.PrefetchI({.base = Assembler::x1, .disp = 32});
+  assembler.PrefetchR({.base = Assembler::x2, .disp = 64});
+  assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
+  // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
+  // immediate.
+  for (size_t index = 96; index < 1200; ++index) {
+    assembler.TwoByte(uint16_t{0});
+  }
+  assembler.Ld(Assembler::x1, data_begin);
+  assembler.Lwu(Assembler::x2, data_begin);
+  assembler.Sd(Assembler::x3, data_begin, Assembler::x4);
+  assembler.Bind(&data_end);
   assembler.Finalize();
 
   // clang-format off
   static const uint16_t kCodeTemplate[] = {
-    0x00b3, 0x0031,     // add x1, x2, x3
-    0x00bb, 0x0031,     // addw x1, x2, x3
-    0x0093, 0x02a1,     // addi x1, x2, 42
-    0x009b, 0x02a1,     // addi x1, x2, 42
-    0x00e7, 0x02a1,     // jalr x1, x2, 42
-    0x01e7, 0x02a2,     // jalr x3, 42(x4)
-    0x2523, 0x0211,     // sw x1, 42(x2)
-    0x3523, 0x0232,     // sw x3, 42(x4)
-  };
+    0x1097, 0x0000,     // begin: auipc   x1, 4096
+    0xb083, 0x9780,     //        ld,     x1, -1672(x1)
+    0x1117, 0x0000,     //        auipc   x2, 4096
+    0x6103, 0x9701,     //        lwu     x2,-1680(x2)
+    0x1217, 0x0000,     //        auipc   x4, 4096
+    0x3423, 0x9632,     //        sd      x3,-1688(x4)
+    0x006f, 0x0300,     //        jal     x0, label
+    0x8663, 0x0241,     //        beq     x1, x2, label
+    0x9463, 0x0262,     //        bne     x3, x4, label
+    0xc263, 0x0283,     //        blt     x5, x6, label
+    0xd063, 0x02a4,     //        bge     x7, x8, label
+    0xee63, 0x00c5,     //        bltu    x9, x10, label
+    0xfc63, 0x00e6,     //        bgeu    x11, x12, label
+    0x00ef, 0x0140,     //        jal     x1, label
+    0x00b3, 0x0031,     //        add     x1, x2, x3
+    0x00bb, 0x0031,     //        addw    x1, x2, x3
+    0x0093, 0x02a1,     //        addi    x1, x2, 42
+    0x009b, 0x02a1,     //        addiw   x1, x2, 42
+    0x00e7, 0x02a1,     // label: jalr    x1, x2, 42
+    0x01e7, 0x02a2,     //        jalr    x3, 42(x4)
+    0x2523, 0x0211,     //        sw      x1, 42(x2)
+    0x3523, 0x0232,     //        sd      x3, 42(x4)
+    0xf16f, 0xff1f,     //        jal     x2, label
+    0x86e3, 0xfe20,     //        beq     x1, x2, label
+    0x94e3, 0xfe41,     //        bne     x3, x4, label
+    0xc2e3, 0xfe62,     //        blt     x5, x6, label
+    0xd0e3, 0xfe83,     //        bge     x7, x8, label
+    0xeee3, 0xfca4,     //        bltu    x9, x10, label
+    0xfce3, 0xfcc5,     //        bgeu    x11, x12, label
+    0xf06f, 0xfd5f,     //        jal     x0, label
+    0x70f3, 0xc201,     //        csrrc   x1, vl, 2
+    0x61f3, 0xc212,     //        csrrs   x3, vtype, 4
+    0x52f3, 0xc223,     //        csrrw   x5, vlenb, 6
+    0x73f3, 0xc204,     //        csrrci  x7, vl, 8
+    0x64f3, 0xc215,     //        csrrsi  x9, vtype, 10
+    0x55f3, 0xc226,     //        csrrwi  x11, vlenb, 12
+    0x109b, 0x0031,     //        slliw   x1, x2, 3
+    0xd21b, 0x4062,     //        sraiw   x4, x5, 6
+    0x539b, 0x0094,     //        srliw   x7, x8, 9
+    0x40d3, 0xd221,     //        fcvt.d.l f1, x2, rmm
+    0x71d3, 0xd232,     //        fcvt.d.lu f3, x4
+    0x40d3, 0xc221,     //        fcvt.l.d x1, f2, rmm
+    0x71d3, 0xc232,     //        fcvt.lu.d x3, f4
+    0x40d3, 0x5801,     //        fsqrt.s f1, f2, rmm
+    0x71d3, 0x5a02,     //        fsqrt.d f3, f4
+    0xe013, 0x0200,     //        prefetch.i 32(x1)
+    0x6013, 0x0411,     //        prefetch.r 64(x2)
+    0xe013, 0x0631,     //        prefetch.w 96(x3)
+    [ 96 ... 1199 ] = 0,//        padding
+    0xf097, 0xffff,     //        auipc   x1, -4096
+    0xb083, 0x6a00,     //        ld      x1, 1696(x1)
+    0xf117, 0xffff,     //        auipc   x2, -4096
+    0x6103, 0x6981,     //        lwu     x2, 1688(x2)
+    0xf217, 0xffff,     //        auipc   x4, -4096
+    0x3823, 0x6832,     //        sd      x3, 1680(x4)
+  };                    // end:
   // clang-format on
 
   return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
