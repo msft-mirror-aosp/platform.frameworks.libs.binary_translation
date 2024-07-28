@@ -202,16 +202,18 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
       if 'feature' in insn:
         print('  SetRequiredFeature%s();' % insn['feature'], file=f)
       print('  Instruction(%s);' % ', '.join(
-          ['"%s"' % name] + list(_gen_instruction_args(insn))), file=f)
+          ['"%s"' % insn.get('native-asm', name)] +
+          list(_gen_instruction_args(insn, arch))), file=f)
       print('}', file=f)
 
 
-def _gen_instruction_args(insn):
+def _gen_instruction_args(insn, arch):
   arg_count = 0
   for arg in insn.get('args'):
     if asm_defs.is_implicit_reg(arg.get('class')):
       continue
-    if _get_arg_type_name(arg, insn.get('type', None)) == 'Register':
+    if (_get_arg_type_name(arg, insn.get('type', None)) == 'Register'
+        and 'x86' in arch):
       yield 'typename Assembler::%s(arg%d)' % (
           _ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count)
     else:
