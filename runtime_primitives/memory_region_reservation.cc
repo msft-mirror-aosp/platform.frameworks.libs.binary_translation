@@ -44,6 +44,8 @@ inline ReservationType MemoryRegionReservationLoadTemplate(GuestAddr addr,
         std::atomic_load_explicit(ToHostAddr<std::atomic<uint64_t>>(addr + 8), mem_order);
     return (high << 64) | low;
   } else if constexpr (sizeof(ReservationType) == 8) {
+    ReservationType reservation;
+#if defined(__i386__)
     // Starting from i486 all accesses for all instructions are atomic when they are used for
     // naturally-aligned variables of uint8_t, uint16_t and uint32_t types.  But situation is not so
     // straightforward when we are dealing with uint64_t.
@@ -71,8 +73,10 @@ inline ReservationType MemoryRegionReservationLoadTemplate(GuestAddr addr,
     // Not only is this slow, but this fails when we are accessing read-only memory!
     //
     // Use raw "movq" assembler instruction to circumvent that limitation of IA32 ABI.
-    ReservationType reservation;
     __asm__ __volatile__("movq (%1),%0" : "=x"(reservation) : "r"(addr));
+#else
+    reservation = std::atomic_load_explicit(ToHostAddr<std::atomic<uint64_t>>(addr), mem_order);
+#endif
     return reservation;
   } else {
     static_bad_size();

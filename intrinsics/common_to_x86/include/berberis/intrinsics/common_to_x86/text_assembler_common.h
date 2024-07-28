@@ -25,7 +25,9 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
+#include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
+#include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
 
 namespace berberis {
 
@@ -292,10 +294,80 @@ class TextAssemblerX86 {
     fprintf(out_, "%*s\".p2align %u\\n\"\n", indent_ + 2, "", m);
   }
 
+  // Verify CPU vendor and SSE restrictions.
+  template <typename CPUIDRestriction>
+  void CheckCPUIDRestriction() {
+    constexpr bool expect_bmi = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>;
+    constexpr bool expect_fma = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>;
+    constexpr bool expect_fma4 = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>;
+    constexpr bool expect_lzcnt = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>;
+    constexpr bool expect_popcnt =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>;
+    constexpr bool expect_avx =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX> || expect_fma || expect_fma4;
+    constexpr bool expect_sse4_2 =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2> || expect_avx;
+    constexpr bool expect_sse4_1 =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_1> || expect_sse4_2;
+    constexpr bool expect_ssse3 =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3> || expect_sse4_1;
+    constexpr bool expect_sse3 =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE3> || expect_ssse3;
+
+    CHECK_EQ(expect_avx, need_avx);
+    CHECK_EQ(expect_bmi, need_bmi);
+    CHECK_EQ(expect_fma, need_fma);
+    CHECK_EQ(expect_fma4, need_fma4);
+    CHECK_EQ(expect_lzcnt, need_lzcnt);
+    CHECK_EQ(expect_popcnt, need_popcnt);
+    CHECK_EQ(expect_sse3, need_sse3);
+    CHECK_EQ(expect_ssse3, need_ssse3);
+    CHECK_EQ(expect_sse4_1, need_sse4_1);
+    CHECK_EQ(expect_sse4_2, need_sse4_2);
+  }
+
+  // Translate CPU restrictions into string.
+  template <typename CPUIDRestriction>
+  static constexpr const char* kCPUIDRestrictionString =
+      Assembler::template CPUIDRestrictionToString<CPUIDRestriction>();
+
 // Instructions.
 #include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
 
  protected:
+  template <typename CPUIDRestriction>
+  static constexpr const char* CPUIDRestrictionToString() {
+    if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::NoCPUIDRestriction>) {
+      return nullptr;
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::IsAuthenticAMD>) {
+      return "host_platform::kIsAuthenticAMD";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX>) {
+      return "host_platform::kHasAVX";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>) {
+      return "host_platform::kHasBMI";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>) {
+      return "host_platform::kHasFMA";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>) {
+      return "host_platform::kHasFMA4";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>) {
+      return "host_platform::kHasLZCNT";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>) {
+      return "host_platform::kHasPOPCNT";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE3>) {
+      return "host_platform::kHasSSE3";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
+      return "host_platform::kHasSSSE3";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_1>) {
+      return "host_platform::kHasSSE4_1";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2>) {
+      return "host_platform::kHasSSE4_2";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
+      return "host_platform::kHasSSSE3";
+    } else {
+      static_assert(kDependentTypeFalse<CPUIDRestriction>);
+    }
+  }
+
   bool need_gpr_macroassembler_constants_ = false;
   bool need_gpr_macroassembler_scratch_ = false;
 
