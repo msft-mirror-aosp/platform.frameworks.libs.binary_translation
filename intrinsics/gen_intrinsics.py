@@ -1057,13 +1057,13 @@ def _load_macro_def(intrs, arch_intrs, insns_def, macroassembler):
 
 
 def _is_interpreter_compatible_assembler(intr_asm):
-  if intr_asm.get('usage', '') == 'translate-only':
+  if intr_asm.get('usage', '') == 'inline-only':
     return False
   return True
 
 
 def _is_translator_compatible_assembler(intr_asm):
-  if intr_asm.get('usage', '') == 'interpret-only':
+  if intr_asm.get('usage', '') == 'no-inline':
     return False
   return True
 
