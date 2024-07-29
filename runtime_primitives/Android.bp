@@ -19,7 +19,10 @@ package {
 
 cc_library_headers {
     name: "libberberis_runtime_primitives_headers",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     export_include_dirs: ["include"],
     header_libs: [
@@ -36,7 +39,10 @@ cc_library_headers {
 
 cc_library_static {
     name: "libberberis_runtime_primitives",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     srcs: [
         "code_pool.cc",
