@@ -121,7 +121,7 @@ int main(int argc, char* argv[], [[maybe_unused]] char* envp[]) {
   }
 
   std::string error_msg;
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__riscv)
   if (!berberis::Run(
           // TODO(b/276787135): Make vdso and loader configurable via command line arguments.
           /* vdso_path */ nullptr,
@@ -149,6 +149,8 @@ int main(int argc, char* argv[], [[maybe_unused]] char* envp[]) {
   while (true) {
     InterpretInsn(&state);
   }
+#else
+#error Unsupported platform
 #endif
 
   return 0;
