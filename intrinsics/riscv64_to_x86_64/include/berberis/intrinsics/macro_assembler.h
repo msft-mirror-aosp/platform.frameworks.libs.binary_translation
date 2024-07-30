@@ -32,7 +32,9 @@ namespace berberis {
 template <typename Assembler>
 class MacroAssembler : public Assembler {
  public:
-  using MacroAssemblers = std::tuple<MacroAssembler<Assembler>>;
+  using MacroAssemblers = std::tuple<MacroAssembler<Assembler>,
+                                     typename Assembler::BaseAssembler,
+                                     typename Assembler::FinalAssembler>;
 
   template <typename... Args>
   explicit MacroAssembler(Args&&... args) : Assembler(std::forward<Args>(args)...) {
