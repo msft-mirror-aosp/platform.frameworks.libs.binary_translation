@@ -17,10 +17,6 @@
 #ifndef BERBERIS_INTRINSICS_SIMD_REGISTER_H_
 #define BERBERIS_INTRINSICS_SIMD_REGISTER_H_
 
-#if defined(__i386__) || defined(__x86_64__)
-#include "xmmintrin.h"
-#endif
-
 #include <stdint.h>
 #include <string.h>
 
@@ -46,6 +42,19 @@ constexpr T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index) = delete
 [[nodiscard]] constexpr SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs);
 [[nodiscard]] constexpr SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs);
 [[nodiscard]] constexpr SIMD128Register operator~(SIMD128Register lhs);
+
+#if defined(__GNUC__)
+using Int8x16 = char __attribute__((__vector_size__(16)));
+using UInt8x16 = unsigned char __attribute__((__vector_size__(16)));
+using Int16x8 = short __attribute__((__vector_size__(16)));
+using UInt16x8 = unsigned short __attribute__((__vector_size__(16)));
+using Int32x4 = int __attribute__((__vector_size__(16)));
+using UInt32x4 = unsigned int __attribute__((__vector_size__(16)));
+using UInt64x2 = unsigned long long __attribute__((__vector_size__(16)));
+using Float64x2 = double __attribute__((__vector_size__(16)));
+using Int64x2 = long long __attribute__((__vector_size__(16), __aligned__(16)));
+using Float32x4 = float __attribute__((__vector_size__(16), __aligned__(16)));
+#endif
 
 class SIMD128Register {
  public:
@@ -79,7 +88,7 @@ class SIMD128Register {
   // “active union member”.
   // Attribute gnu::may_alias prevents UB at runtime, but doesn't make it possible to make “active
   // union member” diffused in constexpr.
-#if defined(__x86_64__)
+#if defined(__LP64__)
   constexpr SIMD128Register(__int128_t elem) : int128{(elem)} {}
   constexpr SIMD128Register(Int128 elem) : int128{(elem.value)} {}
   constexpr SIMD128Register(SatInt128 elem) : int128{(elem.value)} {}
@@ -87,21 +96,32 @@ class SIMD128Register {
   constexpr SIMD128Register(UInt128 elem) : uint128{(elem.value)} {}
   constexpr SIMD128Register(SatUInt128 elem) : uint128{(elem.value)} {}
 #endif
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__GNUC__)
   // Note: we couldn't use elem's below to directly initialize SIMD128Register (even if it works
   // fine with __int128_t and __uint128_t), but Set works correctly if we pick correct “active
   // union member” first.
-  constexpr SIMD128Register(__v16qi elem) : int8{} { Set(elem); }
-  constexpr SIMD128Register(__v16qu elem) : uint8{} { Set(elem); }
-  constexpr SIMD128Register(__v8hi elem) : int16{} { Set(elem); }
-  constexpr SIMD128Register(__v8hu elem) : uint16{} { Set(elem); }
-  constexpr SIMD128Register(__v4si elem) : int32{} { Set(elem); }
-  constexpr SIMD128Register(__v4su elem) : uint32{} { Set(elem); }
-  constexpr SIMD128Register(__v2du elem) : uint64{} { Set(elem); }
-  constexpr SIMD128Register(__v2df elem) : float64{} { Set(elem); }
-  constexpr SIMD128Register(__m128i elem) : int64{} { Set(elem); }
-  constexpr SIMD128Register(__m128 elem) : float32{} { Set(elem); }
+  constexpr SIMD128Register(Int8x16 elem) : int8{} { Set(elem); }
+  constexpr SIMD128Register(UInt8x16 elem) : uint8{} { Set(elem); }
+  constexpr SIMD128Register(Int16x8 elem) : int16{} { Set(elem); }
+  constexpr SIMD128Register(UInt16x8 elem) : uint16{} { Set(elem); }
+  constexpr SIMD128Register(Int32x4 elem) : int32{} { Set(elem); }
+  constexpr SIMD128Register(UInt32x4 elem) : uint32{} { Set(elem); }
+  constexpr SIMD128Register(UInt64x2 elem) : uint64{} { Set(elem); }
+  constexpr SIMD128Register(Float64x2 elem) : float64{} { Set(elem); }
+  constexpr SIMD128Register(Int64x2 elem) : int64{} { Set(elem); }
+  constexpr SIMD128Register(Float32x4 elem) : float32{} { Set(elem); }
 #endif
+
+  // Generates optimal assembly for x86 and riscv.
+  template <typename T>
+  static bool compareVectors(T x, T y) {
+    T res = x == y;
+    bool result = true;
+    for (int i = 0; i < int{sizeof(SIMD128Register) / sizeof(T)}; ++i) {
+      result &= res[i];
+    }
+    return result;
+  }
 
   template <typename T>
   [[nodiscard]] constexpr auto Get(int index) const
@@ -136,9 +156,7 @@ class SIMD128Register {
     // Note comparison of two vectors return vector of the same type. In such a case we need to
     // merge many bools that we got.
     if constexpr (sizeof(decltype(lhs == rhs.template Get<T>())) == sizeof(SIMD128Register)) {
-      // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
-      // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-      return _mm_movemask_epi8(lhs == rhs.template Get<T>()) == 0xffff;
+      return compareVectors(lhs, rhs.template Get<T>());
     } else {
       return lhs == rhs.Get<T>();
     }
@@ -148,9 +166,7 @@ class SIMD128Register {
     // Note comparison of two vectors return vector of the same type. In such a case we need to
     // merge many bools that we got.
     if constexpr (sizeof(decltype(lhs != rhs.template Get<T>())) == sizeof(SIMD128Register)) {
-      // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
-      // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-      return _mm_movemask_epi8(lhs == rhs.template Get<T>()) != 0xffff;
+      return !compareVectors(lhs, rhs.template Get<T>());
     } else {
       return lhs != rhs.Get<T>();
     }
@@ -162,7 +178,7 @@ class SIMD128Register {
     if constexpr (sizeof(decltype(lhs.template Get<T>() == rhs)) == sizeof(SIMD128Register)) {
       // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
       // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-      return _mm_movemask_epi8(lhs.template Get<T>() == rhs) == 0xffff;
+      return compareVectors(lhs.template Get<T>(), rhs);
     } else {
       return lhs.Get<T>() == rhs;
     }
@@ -174,12 +190,12 @@ class SIMD128Register {
     if constexpr (sizeof(decltype(lhs.template Get<T>() == rhs)) == sizeof(SIMD128Register)) {
       // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
       // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-      return _mm_movemask_epi8(lhs.template Get<T>() == rhs) != 0xffff;
+      return !compareVectors(lhs.template Get<T>(), rhs);
     } else {
       return lhs.Get<T>() != rhs;
     }
   }
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__GNUC__)
   friend constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs);
   friend constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs);
   friend constexpr SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs);
@@ -205,7 +221,7 @@ class SIMD128Register {
     [[gnu::vector_size(16), gnu::may_alias]] uint32_t uint32;
     [[gnu::vector_size(16), gnu::may_alias]] int64_t int64;
     [[gnu::vector_size(16), gnu::may_alias]] uint64_t uint64;
-#if defined(__x86_64__)
+#if defined(__LP64__)
     [[gnu::vector_size(16), gnu::may_alias]] __int128_t int128;
     [[gnu::vector_size(16), gnu::may_alias]] __uint128_t uint128;
 #endif
@@ -228,6 +244,8 @@ static_assert(sizeof(SIMD128Register) == 16, "Unexpected size of SIMD128Register
 #if defined(__i386__)
 static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
 #elif defined(__x86_64__)
+static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
+#elif defined(__riscv)
 static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
 #else
 #error Unsupported architecture
@@ -331,7 +349,7 @@ SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatInt64, int64);
 SIMD_128_STDINT_REGISTER_GETTER_SETTER(uint64_t, uint64);
 SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(UInt64, uint64);
 SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatUInt64, uint64);
-#if defined(__x86_64__)
+#if defined(__LP64__)
 SIMD_128_STDINT_REGISTER_GETTER_SETTER(__int128_t, int128);
 SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(RawInt128, uint128);
 SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(Int128, int128);
@@ -340,17 +358,17 @@ SIMD_128_STDINT_REGISTER_GETTER_SETTER(__uint128_t, uint128);
 SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(UInt128, uint128);
 SIMD_128_SAFEINT_REGISTER_GETTER_SETTER(SatUInt128, uint128);
 #endif
-#if defined(__i386__) || defined(__x86_64__)
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__v16qi, int8);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__v16qu, uint8);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__v8hi, int16);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__v8hu, uint16);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__v4si, int32);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__v4su, uint32);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__v2du, uint64);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__v2df, float64);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__m128i, int64);
-SIMD_128_FULL_REGISTER_GETTER_SETTER(__m128, float32);
+#if defined(__GNUC__)
+SIMD_128_FULL_REGISTER_GETTER_SETTER(Int8x16, int8);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(UInt8x16, uint8);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(Int16x8, int16);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(UInt16x8, uint16);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(Int32x4, int32);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(UInt32x4, uint32);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(UInt64x2, uint64);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(Float64x2, float64);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(Int64x2, int64);
+SIMD_128_FULL_REGISTER_GETTER_SETTER(Float32x4, float32);
 #endif
 SIMD_128_FLOAT_REGISTER_GETTER_SETTER(intrinsics::Float32, float, float32);
 SIMD_128_FLOAT_REGISTER_GETTER_SETTER(intrinsics::Float64, double, float64);
@@ -359,32 +377,32 @@ SIMD_128_FLOAT_REGISTER_GETTER_SETTER(intrinsics::Float64, double, float64);
 #undef SIMD_128_SAFEINT_REGISTER_GETTER_SETTER
 #undef SIMD_128_STDINT_REGISTER_GETTER_SETTER
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__GNUC__)
 [[nodiscard]] constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs) {
   // Note comparison of two vectors return vector of the same type. In such a case we need to
   // merge many bools that we got.
   // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
   // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-  return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) == 0xffff;
+  return SIMD128Register::compareVectors(lhs.Get<Int64x2>(), rhs.Get<Int64x2>());
 }
 [[nodiscard]] constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs) {
   // Note comparison of two vectors return vector of the same type. In such a case we need to
   // merge many bools that we got.
   // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
   // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-  return _mm_movemask_epi8(lhs.Get<__m128i>() == rhs.Get<__m128i>()) != 0xffff;
+  return !SIMD128Register::compareVectors(lhs.Get<Int64x2>(), rhs.Get<Int64x2>());
 }
 [[nodiscard]] constexpr SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs) {
-  return lhs.Get<__m128i>() & rhs.Get<__m128i>();
+  return lhs.Get<Int64x2>() & rhs.Get<Int64x2>();
 }
 [[nodiscard]] constexpr SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs) {
-  return lhs.Get<__m128i>() | rhs.Get<__m128i>();
+  return lhs.Get<Int64x2>() | rhs.Get<Int64x2>();
 }
 [[nodiscard]] constexpr SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs) {
-  return lhs.Get<__m128i>() ^ rhs.Get<__m128i>();
+  return lhs.Get<Int64x2>() ^ rhs.Get<Int64x2>();
 }
 [[nodiscard]] constexpr SIMD128Register operator~(SIMD128Register lhs) {
-  return ~lhs.Get<__m128i>();
+  return ~lhs.Get<Int64x2>();
 }
 #endif
 
