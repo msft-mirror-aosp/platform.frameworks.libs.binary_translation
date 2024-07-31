@@ -41,6 +41,18 @@ namespace berberis {
 // Certain functions are only implemented by its descendant (since there are instructions
 // which only exist in x86-32 mode and instructions which only exist in x86-64 mode).
 
+namespace x86_32 {
+
+class Assembler;
+
+}  // namespace x86_32
+
+namespace x86_64 {
+
+class Assembler;
+
+}  // namespace x86_64
+
 template <typename Assembler>
 class AssemblerX86 : public AssemblerBase {
  public:
@@ -58,7 +70,7 @@ class AssemblerX86 : public AssemblerBase {
     kBelowEqual = 6,
     kAbove = 7,
     kNegative = 8,
-    kPositive = 9,
+    kPositiveOrZero = 9,
     kParityEven = 10,
     kParityOdd = 11,
     kLess = 12,
@@ -74,33 +86,37 @@ class AssemblerX86 : public AssemblerBase {
     kZero = kEqual,
     kNotZero = kNotEqual,
     kSign = kNegative,
-    kNotSign = kPositive
+    kNotSign = kPositiveOrZero
   };
 
-  struct Register {
-    // Note: we couldn't make the following private because of peculiarities of C++ (see
-    // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
-    // for explanation), but you are not supposed to access num or use GetHighBit() and GetLowBits()
-    // functions.  Treat that type as opaque cookie.
+  class Register {
+   public:
+    constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(Register value) { return value.num_; }
+    friend class AssemblerX86<Assembler>;
+    friend class x86_32::Assembler;
+    friend class x86_64::Assembler;
 
-    constexpr bool operator==(const Register& reg) const { return num == reg.num; }
-
-    constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
-
-    uint8_t num;
+   private:
+    explicit constexpr Register(uint8_t num) : num_(num) {}
+    uint8_t num_;
   };
 
-  struct X87Register {
-    // Note: we couldn't make the following private because of peculiarities of C++ (see
-    // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
-    // for explanation), but you are not supposed to access num or use GetHighBit() and GetLowBits()
-    // functions.  Treat that type as opaque cookie.
+  class X87Register {
+   public:
+    constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(X87Register value) { return value.num_; }
+    friend class AssemblerX86<Assembler>;
+    friend class x86_32::Assembler;
+    friend class x86_64::Assembler;
 
-    constexpr bool operator==(const Register& reg) const { return num == reg.num; }
-
-    constexpr bool operator!=(const Register& reg) const { return num != reg.num; }
-
-    uint8_t num;
+   private:
+    explicit constexpr X87Register(uint8_t num) : num_(num) {}
+    uint8_t num_;
   };
 
   static constexpr X87Register st{0};
@@ -113,28 +129,30 @@ class AssemblerX86 : public AssemblerBase {
   static constexpr X87Register st6{6};
   static constexpr X87Register st7{7};
 
-  struct XMMRegister {
-    // Note: we couldn't make the following private because of peculiarities of C++ (see
-    // https://stackoverflow.com/questions/24527395/compiler-error-when-initializing-constexpr-static-class-member
-    // for explanation), but you are not supposed to access num or use GetHighBit() and GetLowBits()
-    // functions.  Treat that type as opaque cookie.
+  class XMMRegister {
+   public:
+    constexpr bool operator==(const XMMRegister& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const XMMRegister& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(XMMRegister value) { return value.num_; }
+    friend class AssemblerX86<Assembler>;
+    friend class x86_32::Assembler;
+    friend class x86_64::Assembler;
 
-    constexpr bool operator==(const XMMRegister& reg) const { return num == reg.num; }
-
-    constexpr bool operator!=(const XMMRegister& reg) const { return num != reg.num; }
-
-    uint8_t num;
+   private:
+    explicit constexpr XMMRegister(uint8_t num) : num_(num) {}
+    uint8_t num_;
   };
 
   enum ScaleFactor { kTimesOne = 0, kTimesTwo = 1, kTimesFour = 2, kTimesEight = 3 };
 
   struct Operand {
     constexpr uint8_t rex() const {
-      return Assembler::kIsX86_64 ? ((index.num & 0x08) >> 2) | ((base.num & 0x08) >> 3) : 0;
+      return Assembler::kIsX86_64 ? ((index.num_ & 0x08) >> 2) | ((base.num_ & 0x08) >> 3) : 0;
     }
 
     constexpr bool RequiresRex() const {
-      return Assembler::kIsX86_64 ? ((index.num & 0x08) | (base.num & 0x08)) : false;
+      return Assembler::kIsX86_64 ? ((index.num_ & 0x08) | (base.num_ & 0x08)) : false;
     }
 
     Register base = Assembler::no_register;
@@ -258,14 +276,14 @@ class AssemblerX86 : public AssemblerBase {
  protected:
   // Helper types to distinguish argument types.
   struct Register8Bit {
-    explicit constexpr Register8Bit(Register reg) : num(reg.num) {}
-    uint8_t num;
+    explicit constexpr Register8Bit(Register reg) : num_(reg.num_) {}
+    uint8_t num_;
   };
 
   struct Register32Bit {
-    explicit constexpr Register32Bit(Register reg) : num(reg.num) {}
-    explicit constexpr Register32Bit(XMMRegister reg) : num(reg.num) {}
-    uint8_t num;
+    explicit constexpr Register32Bit(Register reg) : num_(reg.num_) {}
+    explicit constexpr Register32Bit(XMMRegister reg) : num_(reg.num_) {}
+    uint8_t num_;
   };
 
   // 16-bit and 128-bit vector registers follow the same rules as 32-bit registers.
@@ -288,6 +306,9 @@ class AssemblerX86 : public AssemblerBase {
   // Only 64-bit memory is different.
   using Memory8Bit = Memory32Bit;
   using Memory16Bit = Memory32Bit;
+  // Some instructions have memory operand that have unspecified size (lea, prefetch, etc),
+  // they are encoded like Memory32Bit, anyway.
+  using MemoryDefaultBit = Memory32Bit;
   // X87 instructions always use the same encoding - even for 64-bit or 28-bytes
   // memory operands (like in fldenv/fnstenv)
   using MemoryX87 = Memory32Bit;
@@ -312,6 +333,9 @@ class AssemblerX86 : public AssemblerBase {
   // Only 64-bit memory is different.
   using Label8Bit = Label32Bit;
   using Label16Bit = Label32Bit;
+  // Some instructions have memory operand that have unspecified size (lea, prefetch, etc),
+  // they are encoded like Label32Bit, anyway.
+  using LabelDefaultBit = Label32Bit;
   // X87 instructions always use the same encoding - even for 64-bit or 28-bytes
   // memory operands (like in fldenv/fnstenv)
   using LabelX87 = Label32Bit;
@@ -437,35 +461,6 @@ class AssemblerX86 : public AssemblerBase {
     return (ImmediateSize<ArgumentTypes>() + ... + 0);
   }
 
-  // Struct type to pass information about opcodes.
-  template <uint8_t... kOpcodes>
-  struct Opcodes {};
-
-  template <uint8_t... kOpcodes>
-  static constexpr size_t OpcodesCount(Opcodes<kOpcodes...>) {
-    return sizeof...(kOpcodes);
-  }
-
-  template <uint8_t kOpcode, uint8_t... kOpcodes>
-  static constexpr uint8_t FirstOpcode(Opcodes<kOpcode, kOpcodes...>) {
-    return kOpcode;
-  }
-
-  template <uint8_t kOpcode, uint8_t... kOpcodes>
-  static constexpr auto SkipFirstOpcodeFromType(Opcodes<kOpcode, kOpcodes...>) {
-    return Opcodes<kOpcodes...>{};
-  }
-
-  template <uint8_t kOpcode, uint8_t... kOpcodes>
-  auto EmitLegacyPrefixes(Opcodes<kOpcode, kOpcodes...> opcodes) {
-    if constexpr (IsLegacyPrefix(kOpcode)) {
-      Emit8(kOpcode);
-      return EmitLegacyPrefixes(Opcodes<kOpcodes...>{});
-    } else {
-      return opcodes;
-    }
-  }
-
   // Note: We may need separate x87 EmitInstruction if we would want to support
   // full set of x86 instructions.
   //
@@ -505,24 +500,36 @@ class AssemblerX86 : public AssemblerBase {
   // Note: if you change this function (or any of the helper functions) then remove --fast
   // option from ExhaustiveAssemblerTest to run full blackbox comparison to clang.
 
-  template <typename InstructionOpcodes, typename... ArgumentsTypes>
+  template <uint8_t... kOpcodes, typename... ArgumentsTypes>
   void EmitInstruction(ArgumentsTypes... arguments) {
-    auto opcodes_no_prefixes = EmitLegacyPrefixes(InstructionOpcodes{});
+    static constexpr auto kOpcodesArray = std::array{kOpcodes...};
+    static constexpr size_t kLegacyPrefixesCount = []() {
+      size_t legacy_prefixes_count = 0;
+      for (legacy_prefixes_count = 0; IsLegacyPrefix(kOpcodesArray[legacy_prefixes_count]);
+           ++legacy_prefixes_count) {
+      }
+      return legacy_prefixes_count;
+    }();
+    for (size_t legacy_prefixes_index = 0; legacy_prefixes_index < kLegacyPrefixesCount;
+         ++legacy_prefixes_index) {
+      Emit8(kOpcodesArray[legacy_prefixes_index]);
+    }
     // We don't yet support any XOP-encoded instructions, but they are 100% identical to vex ones,
     // except they are using 0x8F prefix, not 0xC4 prefix.
-    constexpr auto vex_xop = [&](auto opcodes) {
-      if constexpr (OpcodesCount(opcodes) < 3) {
+    constexpr auto kVexOrXop = []() {
+      if constexpr (std::size(kOpcodesArray) < kLegacyPrefixesCount + 3) {
         return false;
-      // Note that JSON files use AMD approach: bytes are specified as in AMD manual (only we are
-      // replacing ¬R/¬X/¬B and vvvv bits with zeros).
-      //
-      // In particular it means that vex-encoded instructions should be specified with 0xC4 even if
-      // they are always emitted with 0xC4-to-0xC5 folding.
-      } else if constexpr (FirstOpcode(opcodes) == 0xC4 || FirstOpcode(opcodes) == 0x8F) {
+        // Note that JSON files use AMD approach: bytes are specified as in AMD manual (only we are
+        // replacing ¬R/¬X/¬B and vvvv bits with zeros).
+        //
+        // In particular it means that vex-encoded instructions should be specified with 0xC4 even
+        // if they are always emitted with 0xC4-to-0xC5 folding.
+      } else if constexpr (kOpcodesArray[kLegacyPrefixesCount] == 0xC4 ||
+                           kOpcodesArray[kLegacyPrefixesCount] == 0x8F) {
         return true;
       }
       return false;
-    }(opcodes_no_prefixes);
+    }();
     constexpr auto conditions_count = kCountArguments<IsCondition, ArgumentsTypes...>;
     constexpr auto operands_count = kCountArguments<IsMemoryOperand, ArgumentsTypes...>;
     constexpr auto labels_count = kCountArguments<IsLabelOperand, ArgumentsTypes...>;
@@ -532,7 +539,7 @@ class AssemblerX86 : public AssemblerBase {
     constexpr auto reg_is_opcode_extension =
         (registers_count + operands_count > 0) &&
         (registers_count + operands_count + labels_count <
-         2 + vex_xop * (OpcodesCount(opcodes_no_prefixes) - 4));
+         2 + kVexOrXop * (std::size(kOpcodesArray) - kLegacyPrefixesCount - 4));
     static_assert((registers_count + operands_count + labels_count + conditions_count +
                    kCountArguments<IsImmediate, ArgumentsTypes...>) == sizeof...(ArgumentsTypes),
                   "Only registers (with specified size), Operands (with specified size), "
@@ -540,49 +547,46 @@ class AssemblerX86 : public AssemblerBase {
     static_assert(operands_count <= 1, "Only one operand is allowed in instruction.");
     static_assert(labels_count <= 1, "Only one label is allowed in instruction.");
     // 0x0f is an opcode extension, if it's not there then we only have one byte opcode.
-    auto opcodes_no_prefixes_no_opcode_extension = [&](auto opcodes) {
-      if constexpr (vex_xop) {
+    const size_t kPrefixesAndOpcodeExtensionsCount = []() {
+      if constexpr (kVexOrXop) {
         static_assert(conditions_count == 0,
                       "No conditionals are supported in vex/xop instructions.");
         static_assert((registers_count + operands_count + labels_count) <= 4,
                       "Up to four-arguments in vex/xop instructions are supported.");
-        constexpr auto vex_xop_byte1 = FirstOpcode(opcodes);
-        constexpr auto vex_xop_byte2 = FirstOpcode(SkipFirstOpcodeFromType(opcodes));
-        constexpr auto vex_xop_byte3 =
-            FirstOpcode(SkipFirstOpcodeFromType(SkipFirstOpcodeFromType(opcodes)));
-        static_cast<Assembler*>(this)
-            ->template EmitVex<vex_xop_byte1,
-                               vex_xop_byte2,
-                               vex_xop_byte3,
-                               reg_is_opcode_extension>(arguments...);
-        return SkipFirstOpcodeFromType(SkipFirstOpcodeFromType(SkipFirstOpcodeFromType(opcodes)));
+        return kLegacyPrefixesCount + 3;
       } else {
         static_assert(conditions_count <= 1, "Only one condition is allowed in instruction.");
         static_assert((registers_count + operands_count + labels_count) <= 2,
                       "Only two-arguments legacy instructions are supported.");
-        static_cast<Assembler*>(this)->EmitRex(arguments...);
-        if constexpr (FirstOpcode(opcodes) == 0x0F) {
-          Emit8(0x0F);
-          auto opcodes_no_prefixes_no_opcode_0x0F_extension = SkipFirstOpcodeFromType(opcodes);
-          if constexpr (FirstOpcode(opcodes_no_prefixes_no_opcode_0x0F_extension) == 0x38) {
-            Emit8(0x38);
-            return SkipFirstOpcodeFromType(opcodes_no_prefixes_no_opcode_0x0F_extension);
-          } else if constexpr (FirstOpcode(opcodes_no_prefixes_no_opcode_0x0F_extension) == 0x3A) {
-            Emit8(0x3A);
-            return SkipFirstOpcodeFromType(opcodes_no_prefixes_no_opcode_0x0F_extension);
-          } else {
-            return opcodes_no_prefixes_no_opcode_0x0F_extension;
+        if constexpr (kOpcodesArray[kLegacyPrefixesCount] == 0x0F) {
+          if constexpr (kOpcodesArray[kLegacyPrefixesCount + 1] == 0x38 ||
+                        kOpcodesArray[kLegacyPrefixesCount + 1] == 0x3A) {
+            return kLegacyPrefixesCount + 2;
           }
-        } else {
-          return opcodes;
+          return kLegacyPrefixesCount + 1;
         }
+        return kLegacyPrefixesCount;
       }
-    }(opcodes_no_prefixes);
+    }();
+    if constexpr (kVexOrXop) {
+      static_cast<Assembler*>(this)
+          ->template EmitVex<kOpcodesArray[kLegacyPrefixesCount],
+                             kOpcodesArray[kLegacyPrefixesCount + 1],
+                             kOpcodesArray[kLegacyPrefixesCount + 2],
+                             reg_is_opcode_extension>(arguments...);
+    } else {
+      static_cast<Assembler*>(this)->EmitRex(arguments...);
+      for (size_t extension_opcode_index = kLegacyPrefixesCount;
+           extension_opcode_index < kPrefixesAndOpcodeExtensionsCount;
+           ++extension_opcode_index) {
+        Emit8(kOpcodesArray[extension_opcode_index]);
+      }
+    }
     // These are older 8086 instructions which encode register number in the opcode itself.
     if constexpr (registers_count == 1 && operands_count == 0 && labels_count == 0 &&
-                  OpcodesCount(opcodes_no_prefixes_no_opcode_extension) == 1) {
+                  std::size(kOpcodesArray) == kPrefixesAndOpcodeExtensionsCount + 1) {
       static_cast<Assembler*>(this)->EmitRegisterInOpcode(
-          FirstOpcode(opcodes_no_prefixes_no_opcode_extension),
+          kOpcodesArray[kPrefixesAndOpcodeExtensionsCount],
           ArgumentByType<0, IsRegister>(arguments...));
       EmitImmediates(arguments...);
     } else {
@@ -590,23 +594,23 @@ class AssemblerX86 : public AssemblerBase {
       if constexpr (conditions_count == 1) {
         auto condition_code = static_cast<uint8_t>(ArgumentByType<0, IsCondition>(arguments...));
         CHECK_EQ(0, condition_code & 0xF0);
-        Emit8(FirstOpcode(opcodes_no_prefixes_no_opcode_extension) | condition_code);
+        Emit8(kOpcodesArray[kPrefixesAndOpcodeExtensionsCount] | condition_code);
       } else {
-        Emit8(FirstOpcode(opcodes_no_prefixes_no_opcode_extension));
+        Emit8(kOpcodesArray[kPrefixesAndOpcodeExtensionsCount]);
       }
-      auto extra_opcodes = SkipFirstOpcodeFromType(opcodes_no_prefixes_no_opcode_extension);
       if constexpr (reg_is_opcode_extension) {
         if constexpr (operands_count == 1) {
           static_cast<Assembler*>(this)->EmitOperandOp(
-              static_cast<int>(FirstOpcode(extra_opcodes)),
+              static_cast<int>(kOpcodesArray[kPrefixesAndOpcodeExtensionsCount + 1]),
               ArgumentByType<0, IsMemoryOperand>(arguments...).operand);
         } else if constexpr (labels_count == 1) {
           static_cast<Assembler*>(this)->template EmitRipOp<ImmediatesSize<ArgumentsTypes...>()>(
-              static_cast<int>(FirstOpcode(extra_opcodes)),
+              static_cast<int>(kOpcodesArray[kPrefixesAndOpcodeExtensionsCount + 1]),
               ArgumentByType<0, IsLabelOperand>(arguments...).label);
         } else {
-          static_cast<Assembler*>(this)->EmitModRM(this->FirstOpcode(extra_opcodes),
-                                                   ArgumentByType<0, IsRegister>(arguments...));
+          static_cast<Assembler*>(this)->EmitModRM(
+              kOpcodesArray[kPrefixesAndOpcodeExtensionsCount + 1],
+              ArgumentByType<0, IsRegister>(arguments...));
         }
       } else if constexpr (registers_count > 0) {
         if constexpr (operands_count == 1) {
@@ -624,20 +628,20 @@ class AssemblerX86 : public AssemblerBase {
       }
       // If reg is an opcode extension then we already used that element.
       if constexpr (reg_is_opcode_extension) {
-        static_assert(OpcodesCount(extra_opcodes) == 1);
-      } else if constexpr (OpcodesCount(extra_opcodes) > 0) {
+        static_assert(std::size(kOpcodesArray) == kPrefixesAndOpcodeExtensionsCount + 2);
+      } else if constexpr (std::size(kOpcodesArray) > kPrefixesAndOpcodeExtensionsCount + 1) {
         // Final opcode byte(s) - they are in the place where immediate is expected.
         // Cmpsps/Cmppd and 3DNow! instructions are using it.
-        static_assert(OpcodesCount(extra_opcodes) == 1);
-        Emit8(FirstOpcode(extra_opcodes));
+        static_assert(std::size(kOpcodesArray) == kPrefixesAndOpcodeExtensionsCount + 2);
+        Emit8(kOpcodesArray[kPrefixesAndOpcodeExtensionsCount + 1]);
       }
       if constexpr (registers_count + operands_count + labels_count == 4) {
         if constexpr (kCountArguments<IsImmediate, ArgumentsTypes...> == 1) {
-          Emit8((ArgumentByType<registers_count - 1, IsRegister>(arguments...).num << 4) |
+          Emit8((ArgumentByType<registers_count - 1, IsRegister>(arguments...).num_ << 4) |
                 ArgumentByType<0, IsImmediate>(arguments...));
         } else {
           static_assert(kCountArguments<IsImmediate, ArgumentsTypes...> == 0);
-          Emit8(ArgumentByType<registers_count - 1, IsRegister>(arguments...).num << 4);
+          Emit8(ArgumentByType<registers_count - 1, IsRegister>(arguments...).num_ << 4);
         }
       } else {
         EmitImmediates(arguments...);
@@ -645,20 +649,118 @@ class AssemblerX86 : public AssemblerBase {
     }
   }
 
+  // Normally instruction arguments come in the following order: vex, rm, reg, imm.
+  // But certain instructions can have swapped arguments in a different order.
+  // In addition to that we have special case where two arguments may need to be swapped
+  // to reduce encoding size.
+
+  template <uint8_t... kOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename... ArgumentsTypes>
+  void EmitRegToRmInstruction(ArgumentsType0&& argument0,
+                              ArgumentsType1&& argument1,
+                              ArgumentsTypes&&... arguments) {
+    return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType1>(argument1),
+                                        std::forward<ArgumentsType0>(argument0),
+                                        std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <uint8_t... kOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename... ArgumentsTypes>
+  void EmitRmToVexInstruction(ArgumentsType0&& argument0,
+                              ArgumentsType1&& argument1,
+                              ArgumentsTypes&&... arguments) {
+    return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType1>(argument1),
+                                        std::forward<ArgumentsType0>(argument0),
+                                        std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  // If vex operand is one of first 8 registers and rm operand is not then swapping these two
+  // operands produces more compact encoding.
+  // This only works with commutative instructions from first opcode map.
+  template <uint8_t... kOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
+            typename... ArgumentsTypes>
+  void EmitOptimizableUsingCommutationInstruction(ArgumentsType0&& argument0,
+                                                  ArgumentsType1&& argument1,
+                                                  ArgumentsType2&& argument2,
+                                                  ArgumentsTypes&&... arguments) {
+    if constexpr (std::is_same_v<ArgumentsType2, ArgumentsType1>) {
+      if (Assembler::IsSwapProfitable(std::forward<ArgumentsType2>(argument2),
+                                      std::forward<ArgumentsType1>(argument1))) {
+        return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType0>(argument0),
+                                            std::forward<ArgumentsType1>(argument1),
+                                            std::forward<ArgumentsType2>(argument2),
+                                            std::forward<ArgumentsTypes>(arguments)...);
+      }
+    }
+    return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType0>(argument0),
+                                        std::forward<ArgumentsType2>(argument2),
+                                        std::forward<ArgumentsType1>(argument1),
+                                        std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <uint8_t... kOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
+            typename ArgumentsType3,
+            typename... ArgumentsTypes>
+  void EmitVexImmRmToRegInstruction(ArgumentsType0&& argument0,
+                                    ArgumentsType1&& argument1,
+                                    ArgumentsType2&& argument2,
+                                    ArgumentsType3&& argument3,
+                                    ArgumentsTypes&&... arguments) {
+    return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType0>(argument0),
+                                        std::forward<ArgumentsType3>(argument3),
+                                        std::forward<ArgumentsType1>(argument1),
+                                        std::forward<ArgumentsType2>(argument2),
+                                        std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <uint8_t... kOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
+            typename ArgumentsType3,
+            typename... ArgumentsTypes>
+  void EmitVexRmImmToRegInstruction(ArgumentsType0&& argument0,
+                                    ArgumentsType1&& argument1,
+                                    ArgumentsType2&& argument2,
+                                    ArgumentsType3&& argument3,
+                                    ArgumentsTypes&&... arguments) {
+    return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType0>(argument0),
+                                        std::forward<ArgumentsType2>(argument2),
+                                        std::forward<ArgumentsType1>(argument1),
+                                        std::forward<ArgumentsType3>(argument3),
+                                        std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <uint8_t... kOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
+            typename... ArgumentsTypes>
+  void EmitVexRmToRegInstruction(ArgumentsType0&& argument0,
+                                 ArgumentsType1&& argument1,
+                                 ArgumentsType2&& argument2,
+                                 ArgumentsTypes&&... arguments) {
+    return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType0>(argument0),
+                                        std::forward<ArgumentsType2>(argument2),
+                                        std::forward<ArgumentsType1>(argument1),
+                                        std::forward<ArgumentsTypes>(arguments)...);
+  }
+
   void ResolveJumps();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AssemblerX86);
 };
-
-// Return the reverse condition.
-template <typename Condition>
-inline constexpr Condition ToReverseCond(Condition cond) {
-  CHECK(cond != Condition::kInvalidCondition);
-  // Condition has a nice property that given a condition, you can get
-  // its reverse condition by flipping the least significant bit.
-  return Condition(static_cast<int>(cond) ^ 1);
-}
 
 template <typename Condition>
 inline constexpr const char* GetCondName(Condition cond) {
@@ -681,7 +783,7 @@ inline constexpr const char* GetCondName(Condition cond) {
       return "A";
     case Condition::kNegative:
       return "N";
-    case Condition::kPositive:
+    case Condition::kPositiveOrZero:
       return "PL";
     case Condition::kParityEven:
       return "PE";
@@ -783,11 +885,11 @@ template <typename Assembler>
 inline void AssemblerX86<Assembler>::Xchgl(Register dest, Register src) {
   if (Assembler::IsAccumulator(src) || Assembler::IsAccumulator(dest)) {
     Register other = Assembler::IsAccumulator(src) ? dest : src;
-    EmitInstruction<Opcodes<0x90>>(Register32Bit(other));
+    EmitInstruction<0x90>(Register32Bit(other));
   } else {
     // Clang 8 (after r330298) puts dest before src.  We are comparing output
     // to clang in exhaustive test thus we want to match clang behavior exactly.
-    EmitInstruction<Opcodes<0x87>>(Register32Bit(dest), Register32Bit(src));
+    EmitInstruction<0x87>(Register32Bit(dest), Register32Bit(src));
   }
 }
 

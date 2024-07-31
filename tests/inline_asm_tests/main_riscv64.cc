@@ -858,6 +858,20 @@ void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
 void TestWideningVectorReductionInstruction(
     ExecInsnFunc exec_insn,
     ExecInsnFunc exec_masked_insn,
+    const uint64_t (&expected_result_vd0_int64)[8],
+    const uint64_t (&expected_result_vd0_with_mask_int64)[8],
+    const SIMD128 (&source)[16]) {
+  TestVectorReductionInstruction<TestVectorInstructionMode::kWidening>(
+      exec_insn,
+      exec_masked_insn,
+      source,
+      std::tuple<const uint64_t(&)[8], const uint64_t(&)[8]>{expected_result_vd0_int64,
+                                                             expected_result_vd0_with_mask_int64});
+}
+
+void TestWideningVectorReductionInstruction(
+    ExecInsnFunc exec_insn,
+    ExecInsnFunc exec_masked_insn,
     const uint16_t (&expected_result_vd0_int16)[8],
     const uint32_t (&expected_result_vd0_int32)[8],
     const uint64_t (&expected_result_vd0_int64)[8],
@@ -1250,10 +1264,8 @@ void TestVectorPermutationInstruction(
                             (expected_inactive[index] & ~mask[index] & ~skip_mask[index] &
                              kFractionMaskInt8[3]) |
                             ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3]));
-            } else if (index == 3 && vlmul == 2 && vta) {
-              EXPECT_EQ(result[index], kAgnosticResult);
             } else if (index == 3 && vlmul == 2) {
-              EXPECT_EQ(result[index], kUndisturbedResult);
+              EXPECT_EQ(result[index], vta ? kAgnosticResult : kUndisturbedResult);
             } else {
               EXPECT_EQ(result[index],
                         (expected_result[index] & (mask[index] | skip_mask[index])) |
@@ -1261,7 +1273,6 @@ void TestVectorPermutationInstruction(
             }
           }
         } else {
-          SIMD128 v8 = result[0];
           SIMD128 affected_part{expected_result[0] &
                                 ((mask[0] & kFractionMaskInt8[vlmul - 4]) | skip_mask[0])};
           SIMD128 masked_part{expected_inactive[0] & ~mask[0] & ~skip_mask[0] &
@@ -1269,7 +1280,10 @@ void TestVectorPermutationInstruction(
           SIMD128 tail_part{(vta ? kAgnosticResult : kUndisturbedResult) &
                             ~kFractionMaskInt8[vlmul - 4]};
 
-          EXPECT_EQ(v8, affected_part | masked_part | tail_part);
+          EXPECT_EQ(result[0], affected_part | masked_part | tail_part)
+              << "vlmul=" << uint32_t{vlmul} << " vsew=" << uint32_t{vsew}
+              << " vma=" << uint32_t{vma} << " vl=" << vl << " vstart=" << vstart
+              << " affected_part=" << affected_part;
         }
       }
     }
@@ -1673,6 +1687,62 @@ TEST(InlineAsmTestRiscv64, TestVfredusum) {
                                   /* unused */ 0,
                                   0x9e0c'9a09'9604'9200},
                                  kVectorCalculationsSource);
+}
+
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vfwredusum, vfwredusum.vs)
+
+// We currently don't support half-precision (16-bit) floats, so only check 32-bit to 64-bit
+// widening.
+TEST(InlineAsmTestRiscv64, TestVfwredusum) {
+  TestWideningVectorReductionInstruction(ExecVfwredusum,
+                                         ExecMaskedVfwredusum,
+                                         // expected_result_vd0_int64
+                                         {0xbbc1'9351'b253'9156,
+                                          0xbfc5'9759'b65b'955e,
+                                          0xc7cd'9f69'be6b'9d6e,
+                                          0x47cd'7f89'9e8b'7d8d,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbbc1'9351'b240'0000},
+                                         // expected_result_vd0_with_mask_int64
+                                         {0xbac0'9253'9155'9042,
+                                          0xbfc5'9745'2017'9547,
+                                          0xc7cd'9f69'be6b'9d4f,
+                                          0x47cd'7f50'81d3'7d6f,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbac0'9240'0000'0000},
+                                         kVectorCalculationsSource);
+}
+
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vfwredosum, vfwredosum.vs)
+
+// We currently don't support half-precision (16-bit) floats, so only check 32-bit to 64-bit
+// widening.
+TEST(InlineAsmTestRiscv64, TestVfwredosum) {
+  TestWideningVectorReductionInstruction(ExecVfwredosum,
+                                         ExecMaskedVfwredosum,
+                                         // expected_result_vd0_int64
+                                         {0xbbc1'9351'b253'9156,
+                                          0xbfc5'9759'b65b'955e,
+                                          0xc7cd'9f69'be6b'9d6e,
+                                          0x47cd'7f89'9e8b'7d8d,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbbc1'9351'b240'0000},
+                                         // expected_result_vd0_with_mask_int64
+                                         {0xbac0'9253'9155'9042,
+                                          0xbfc5'9745'2017'9547,
+                                          0xc7cd'9f69'be6b'9d4f,
+                                          0x47cd'7f50'81d3'7d6f,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbac0'9240'0000'0000},
+                                         kVectorCalculationsSource);
 }
 
 DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vredand, vredand.vs)
@@ -9315,6 +9385,7 @@ TEST(InlineAsmTestRiscv64, TestVslide1up) {
        {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0}},
       kVectorCalculationsSourceLegacy);
 }
+
 [[gnu::naked]] void ExecVsllvv() {
   asm("vsll.vv  v8, v16, v24\n\t"
       "ret\n\t");
@@ -10900,6 +10971,7 @@ TEST(InlineAsmTestRiscv64, TestVmulhsu) {
                         kVectorCalculationsSourceLegacy);
 }
 
+// TODO(b/301577077): Add vi tests with non-zero shift.
 [[gnu::naked]] void ExecVslidedownvi() {
   asm("vslidedown.vi  v8, v24, 0\n\t"
       "ret\n\t");
@@ -11367,7 +11439,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11375,7 +11447,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-      {{0x0604, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
@@ -11407,7 +11479,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{17, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11448,7 +11520,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{2, 4, 6, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{2, 4, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11456,7 +11528,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-      {{0x0604, 0x0a09, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+      {{0x0604, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
@@ -11464,7 +11536,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
-      {{0x0e0c'0a09, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
@@ -11488,7 +11560,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{17, 18, 20, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11529,7 +11601,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{2, 4, 6, 9, 10, 12, 14, 17, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{2, 4, 6, 9, 10, 12, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11537,7 +11609,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x0000, 0x0000, 0x0000, 0x0000},
+      {{0x0604, 0x0a09, 0x0e0c, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
@@ -11545,7 +11617,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
-      {{0x0e0c'0a09, 0x1614'1211, 0x0000'0000, 0x0000'0000},
+      {{0x0e0c'0a09, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
@@ -11553,7 +11625,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
-      {{0x1e1c'1a18'1614'1211, 0x0000'0000'0000'0000},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
        {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
        {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
        {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
@@ -11569,7 +11641,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{17, 18, 20, 22, 24, 26, 28, 30, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},

@@ -63,6 +63,8 @@ void ConvertHostSigactionToGuest(const HostStructSigaction* host_sa, Guest_sigac
       if (memcmp(handler, "\x48\xc7\xc0\x0f\x00\x00\x00\x0f\x05", 9) != 0) {  // x86_64 sigreturn
         LOG_ALWAYS_FATAL("Unknown x86_64 sa_restorer in host sigaction!");
       }
+#elif defined(__riscv)
+      LOG_ALWAYS_FATAL("Unimplemented for riscv64");
 #else
 #error "Unknown host arch"
 #endif
