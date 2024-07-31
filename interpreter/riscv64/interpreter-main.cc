@@ -17,15 +17,14 @@
 #include "berberis/interpreter/riscv64/interpreter.h"
 
 #include "berberis/decoder/riscv64/decoder.h"
+#include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 
 #include "faulty_memory_accesses.h"
 #if defined(__x86_64__)
-#include "berberis/decoder/riscv64/semantics_player.h"
 #include "interpreter.h"
 #elif defined(__aarch64__)
-#include "berberis/decoder/riscv64/semantics_player_arm64.h"
 #include "interpreter_arm64.h"
 #endif
 

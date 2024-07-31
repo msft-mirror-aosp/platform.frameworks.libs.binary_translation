@@ -1783,6 +1783,7 @@ TEST_F(TESTSUITE, StoreInstructions) {
   // Sd
   TestStore(0x0020b423, kDataToStore);
 }
+
 TEST_F(TESTSUITE, FmaInstructions) {
   // Fmadd.S
   TestFma(0x203170c3, {std::tuple{1.0f, 2.0f, 3.0f, 5.0f}});

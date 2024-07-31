@@ -22,6 +22,7 @@
 #include <cstdint>
 
 #include "berberis/base/dependent_false.h"
+#include "berberis/intrinsics/common/intrinsics_bindings.h"
 #include "berberis/intrinsics/intrinsics_args.h"
 #include "berberis/intrinsics/type_traits.h"
 
@@ -207,15 +208,6 @@ class GeneralReg64 {
   static constexpr auto kRegClass = MachineInsnArch::kGeneralReg64;
 };
 
-class FLAGS {
- public:
-  static constexpr bool kIsImmediate = false;
-  static constexpr bool kIsImplicitReg = true;
-  static constexpr char kAsRegister = 0;
-  template <typename MachineInsnArch>
-  static constexpr auto kRegClass = MachineInsnArch::kFLAGS;
-};
-
 class FpReg32 {
  public:
   using Type = __m128;
@@ -256,201 +248,72 @@ class XmmReg {
   static constexpr auto kRegClass = MachineInsnArch::kXmmReg;
 };
 
-class Mem8 {
- public:
-  using Type = uint8_t;
-  static constexpr bool kIsImmediate = false;
-  static constexpr char kAsRegister = 'm';
-};
-
-class Mem16 {
- public:
-  using Type = uint16_t;
-  static constexpr bool kIsImmediate = false;
-  static constexpr char kAsRegister = 'm';
-};
-
-class Mem32 {
- public:
-  using Type = uint32_t;
-  static constexpr bool kIsImmediate = false;
-  static constexpr char kAsRegister = 'm';
-};
-
-class Mem64 {
- public:
-  using Type = uint64_t;
-  static constexpr bool kIsImmediate = false;
-  static constexpr char kAsRegister = 'm';
-};
-
 class MemX87 {
  public:
   static constexpr bool kIsImmediate = false;
   static constexpr char kAsRegister = 'm';
 };
 
-// // Tag classes. They are never instantioned, only used as tags to pass information about
+// Tag classes. They are never instantioned, only used as tags to pass information about
 // bindings.
-class Def;
-class DefEarlyClobber;
-class Use;
-class UseDef;
-
-template <typename Tag, typename MachineRegKind>
-constexpr auto ToRegKind() {
-  if constexpr (std::is_same_v<Tag, Def>) {
-    return MachineRegKind::kDef;
-  } else if constexpr (std::is_same_v<Tag, DefEarlyClobber>) {
-    return MachineRegKind::kDefEarlyClobber;
-  } else if constexpr (std::is_same_v<Tag, Use>) {
-    return MachineRegKind::kUse;
-  } else if constexpr (std::is_same_v<Tag, UseDef>) {
-    return MachineRegKind::kUseDef;
-  } else {
-    static_assert(kDependentTypeFalse<Tag>);
-  }
-}
-
-template <typename Tag, typename MachineRegKind>
-inline constexpr auto kRegKind = ToRegKind<Tag, MachineRegKind>();
-
-enum CPUIDRestriction : int {
-  kNoCPUIDRestriction = 0,
-  kHas3DNOW,
-  kHas3DNOWP,
-  kHasADX,
-  kHasAES,
-  kHasAESAVX,
-  kHasAMXBF16,
-  kHasAMXFP16,
-  kHasAMXINT8,
-  kHasAMXTILE,
-  kHasAVX,
-  kHasAVX2,
-  kHasAVX5124FMAPS,
-  kHasAVX5124VNNIW,
-  kHasAVX512BF16,
-  kHasAVX512BITALG,
-  kHasAVX512BW,
-  kHasAVX512CD,
-  kHasAVX512DQ,
-  kHasAVX512ER,
-  kHasAVX512F,
-  kHasAVX512FP16,
-  kHasAVX512IFMA,
-  kHasAVX512PF,
-  kHasAVX512VBMI,
-  kHasAVX512VBMI2,
-  kHasAVX512VL,
-  kHasAVX512VNNI,
-  kHasAVX512VPOPCNTDQ,
-  kHasBMI,
-  kHasBMI2,
-  kHasCLMUL,
-  kHasCMOV,
-  kHasCMPXCHG16B,
-  kHasCMPXCHG8B,
-  kHasF16C,
-  kHasFMA,
-  kHasFMA4,
-  kHasFXSAVE,
-  kHasLZCNT,
-  // BMI2 is set and PDEP/PEXT are ok to use. See more here:
-  //   https://twitter.com/instlatx64/status/1322503571288559617
-  kHashPDEP,
-  kHasPOPCNT,
-  kHasRDSEED,
-  kHasSERIALIZE,
-  kHasSHA,
-  kHasSSE,
-  kHasSSE2,
-  kHasSSE3,
-  kHasSSE4_1,
-  kHasSSE4_2,
-  kHasSSE4a,
-  kHasSSSE3,
-  kHasTBM,
-  kHasVAES,
-  kHasX87,
-  kIsAuthenticAMD
-};
-
-enum PreciseNanOperationsHandling : int {
-  kNoNansOperation = 0,
-  kPreciseNanOperationsHandling,
-  kImpreciseNanOperationsHandling
-};
-
-template <auto kIntrinsicTemplateName,
-          auto kMacroInstructionTemplateName,
-          auto kMnemo,
-          typename GetOpcode,
-          CPUIDRestriction kCPUIDRestrictionTemplateValue,
-          PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
-          bool kSideEffectsTemplateValue,
-          typename... Types>
-class AsmCallInfo;
-
-template <auto kIntrinsicTemplateName,
-          auto kMacroInstructionTemplateName,
-          auto kMnemo,
-          typename GetOpcode,
-          CPUIDRestriction kCPUIDRestrictionTemplateValue,
-          PreciseNanOperationsHandling kPreciseNanOperationsHandlingTemplateValue,
-          bool kSideEffectsTemplateValue,
-          typename... InputArgumentsTypes,
-          typename... OutputArgumentsTypes,
-          typename... BindingsTypes>
-class AsmCallInfo<kIntrinsicTemplateName,
-                  kMacroInstructionTemplateName,
-                  kMnemo,
-                  GetOpcode,
-                  kCPUIDRestrictionTemplateValue,
-                  kPreciseNanOperationsHandlingTemplateValue,
-                  kSideEffectsTemplateValue,
-                  std::tuple<InputArgumentsTypes...>,
-                  std::tuple<OutputArgumentsTypes...>,
-                  BindingsTypes...>
-    final {
- public:
-  static constexpr auto kIntrinsic = kIntrinsicTemplateName;
-  static constexpr auto kMacroInstruction = kMacroInstructionTemplateName;
-  // TODO(b/260725458): Use lambda template argument after C++20 becomes available.
-  template <typename Opcode>
-  static constexpr auto kOpcode = GetOpcode{}.template operator()<Opcode>();
-  static constexpr CPUIDRestriction kCPUIDRestriction = kCPUIDRestrictionTemplateValue;
-  static constexpr PreciseNanOperationsHandling kPreciseNanOperationsHandling =
-      kPreciseNanOperationsHandlingTemplateValue;
-  static constexpr bool kSideEffects = kSideEffectsTemplateValue;
-  static constexpr const char* InputArgumentsTypeNames[] = {
-      TypeTraits<InputArgumentsTypes>::kName...};
-  static constexpr const char* OutputArgumentsTypeNames[] = {
-      TypeTraits<OutputArgumentsTypes>::kName...};
-  template <typename Callback, typename... Args>
-  constexpr static void ProcessBindings(Callback&& callback, Args&&... args) {
-    (callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...), ...);
-  }
-  template <typename Callback, typename... Args>
-  constexpr static auto MakeTuplefromBindings(Callback&& callback, Args&&... args) {
-    return std::tuple_cat(callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...)...);
-  }
-  using InputArguments = std::tuple<InputArgumentsTypes...>;
-  using OutputArguments = std::tuple<OutputArgumentsTypes...>;
-  using Bindings = std::tuple<BindingsTypes...>;
-  using IntrinsicType = std::conditional_t<std::tuple_size_v<OutputArguments> == 0,
-                                           void (*)(InputArgumentsTypes...),
-                                           OutputArguments (*)(InputArgumentsTypes...)>;
-  template <template <typename, auto, auto, typename...> typename MachineInsnType,
-            template <typename...>
-            typename ConstructorArgs,
-            typename Opcode>
-  using MachineInsn = MachineInsnType<AsmCallInfo,
-                                      kMnemo,
-                                      kOpcode<Opcode>,
-                                      ConstructorArgs<BindingsTypes...>,
-                                      BindingsTypes...>;
-};
+class NoCPUIDRestriction;
+class Has3DNOW;
+class Has3DNOWP;
+class HasADX;
+class HasAES;
+class HasAESAVX;
+class HasAMXBF16;
+class HasAMXFP16;
+class HasAMXINT8;
+class HasAMXTILE;
+class HasAVX;
+class HasAVX2;
+class HasAVX5124FMAPS;
+class HasAVX5124VNNIW;
+class HasAVX512BF16;
+class HasAVX512BITALG;
+class HasAVX512BW;
+class HasAVX512CD;
+class HasAVX512DQ;
+class HasAVX512ER;
+class HasAVX512F;
+class HasAVX512FP16;
+class HasAVX512IFMA;
+class HasAVX512PF;
+class HasAVX512VBMI;
+class HasAVX512VBMI2;
+class HasAVX512VL;
+class HasAVX512VNNI;
+class HasAVX512VPOPCNTDQ;
+class HasBMI;
+class HasBMI2;
+class HasCLMUL;
+class HasCMOV;
+class HasCMPXCHG16B;
+class HasCMPXCHG8B;
+class HasF16C;
+class HasFMA;
+class HasFMA4;
+class HasFXSAVE;
+class HasLZCNT;
+// BMI2 is set and PDEP/PEXT are ok to use. See more here:
+//   https://twitter.com/instlatx64/status/1322503571288559617
+class HashPDEP;
+class HasPOPCNT;
+class HasRDSEED;
+class HasSERIALIZE;
+class HasSHA;
+class HasSSE;
+class HasSSE2;
+class HasSSE3;
+class HasSSE4_1;
+class HasSSE4_2;
+class HasSSE4a;
+class HasSSSE3;
+class HasTBM;
+class HasVAES;
+class HasX87;
+class IsAuthenticAMD;
 
 }  // namespace berberis::intrinsics::bindings
 
