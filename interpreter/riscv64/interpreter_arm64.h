@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "berberis/base/bit_util.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -87,7 +88,31 @@ class Interpreter {
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
-        return arg1 + arg2;
+        return Int64(arg1) + Int64(arg2);
+      case Decoder::OpOpcode::kSub:
+        return Int64(arg1) - Int64(arg2);
+      case Decoder::OpOpcode::kAnd:
+        return Int64(arg1) & Int64(arg2);
+      case Decoder::OpOpcode::kOr:
+        return Int64(arg1) | Int64(arg2);
+      case Decoder::OpOpcode::kXor:
+        return Int64(arg1) ^ Int64(arg2);
+      case Decoder::OpOpcode::kSll:
+        return Int64(arg1) << Int64(arg2);
+      case Decoder::OpOpcode::kSrl:
+        return UInt64(arg1) >> Int64(arg2);
+      case Decoder::OpOpcode::kSra:
+        return Int64(arg1) >> Int64(arg2);
+      case Decoder::OpOpcode::kSlt:
+        return Int64(arg1) < Int64(arg2) ? 1 : 0;
+      case Decoder::OpOpcode::kSltu:
+        return UInt64(arg1) < UInt64(arg2) ? 1 : 0;
+      case Decoder::OpOpcode::kAndn:
+        return Int64(arg1) & (~Int64(arg2));
+      case Decoder::OpOpcode::kOrn:
+        return Int64(arg1) | (~Int64(arg2));
+      case Decoder::OpOpcode::kXnor:
+        return ~(Int64(arg1) ^ Int64(arg2));
       default:
         Undefined();
         return {};
@@ -101,9 +126,26 @@ class Interpreter {
   }
 
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
-    UNUSED(operand_type, arg, offset);
-    Undefined();
-    return {};
+    void* ptr = ToHostAddr<void>(arg + offset);
+    switch (operand_type) {
+      case Decoder::LoadOperandType::k8bitUnsigned:
+        return Load<uint8_t>(ptr);
+      case Decoder::LoadOperandType::k16bitUnsigned:
+        return Load<uint16_t>(ptr);
+      case Decoder::LoadOperandType::k32bitUnsigned:
+        return Load<uint32_t>(ptr);
+      case Decoder::LoadOperandType::k64bit:
+        return Load<uint64_t>(ptr);
+      case Decoder::LoadOperandType::k8bitSigned:
+        return Load<int8_t>(ptr);
+      case Decoder::LoadOperandType::k16bitSigned:
+        return Load<int16_t>(ptr);
+      case Decoder::LoadOperandType::k32bitSigned:
+        return Load<int32_t>(ptr);
+      default:
+        Undefined();
+        return {};
+    }
   }
 
   template <typename DataType>
@@ -177,8 +219,23 @@ class Interpreter {
              Register arg,
              int16_t offset,
              Register data) {
-    UNUSED(operand_type, arg, offset, data);
-    Undefined();
+    void* ptr = ToHostAddr<void>(arg + offset);
+    switch (operand_type) {
+      case Decoder::MemoryDataOperandType::k8bit:
+        Store<uint8_t>(ptr, data);
+        break;
+      case Decoder::MemoryDataOperandType::k16bit:
+        Store<uint16_t>(ptr, data);
+        break;
+      case Decoder::MemoryDataOperandType::k32bit:
+        Store<uint32_t>(ptr, data);
+        break;
+      case Decoder::MemoryDataOperandType::k64bit:
+        Store<uint64_t>(ptr, data);
+        break;
+      default:
+        return Undefined();
+    }
   }
 
   template <typename DataType>
@@ -191,18 +248,45 @@ class Interpreter {
                         Register arg1,
                         Register arg2,
                         int16_t offset) {
-    UNUSED(opcode, arg1, arg2, offset);
-    Undefined();
+    bool cond_value;
+    switch (opcode) {
+      case Decoder::BranchOpcode::kBeq:
+        cond_value = arg1 == arg2;
+        break;
+      case Decoder::BranchOpcode::kBne:
+        cond_value = arg1 != arg2;
+        break;
+      case Decoder::BranchOpcode::kBltu:
+        cond_value = arg1 < arg2;
+        break;
+      case Decoder::BranchOpcode::kBgeu:
+        cond_value = arg1 >= arg2;
+        break;
+      case Decoder::BranchOpcode::kBlt:
+        cond_value = bit_cast<int64_t>(arg1) < bit_cast<int64_t>(arg2);
+        break;
+      case Decoder::BranchOpcode::kBge:
+        cond_value = bit_cast<int64_t>(arg1) >= bit_cast<int64_t>(arg2);
+        break;
+      default:
+        return Undefined();
+    }
+
+    if (cond_value) {
+      Branch(offset);
+    }
   }
 
   void Branch(int32_t offset) {
-    UNUSED(offset);
-    Undefined();
+    CHECK(!exception_raised_);
+    state_->cpu.insn_addr += offset;
+    branch_taken_ = true;
   }
 
   void BranchRegister(Register base, int16_t offset) {
-    UNUSED(base, offset);
-    Undefined();
+    CHECK(!exception_raised_);
+    state_->cpu.insn_addr = (base + offset) & ~uint64_t{1};
+    branch_taken_ = true;
   }
 
   FpRegister Fmv(FpRegister arg) { return arg; }
@@ -368,14 +452,18 @@ class Interpreter {
   // Guest state getters/setters.
   //
 
-  uint64_t GetReg(uint8_t reg) const {
+  Register GetReg(uint8_t reg) const {
     CheckRegIsValid(reg);
-    return state_->cpu.x[reg - 1];
+    return state_->cpu.x[reg];
   }
 
   void SetReg(uint8_t reg, Register value) {
+    if (exception_raised_) {
+      // Do not produce side effects.
+      return;
+    }
     CheckRegIsValid(reg);
-    state_->cpu.x[reg - 1] = value;
+    state_->cpu.x[reg] = value;
   }
 
   FpRegister GetFpReg(uint8_t reg) const {
@@ -409,7 +497,11 @@ class Interpreter {
 
   [[nodiscard]] Register Copy(Register value) const { return value; }
 
-  void FinalizeInsn(uint8_t insn_len) { state_->cpu.insn_addr += insn_len; }
+  void FinalizeInsn(uint8_t insn_len) {
+    if (!branch_taken_ && !exception_raised_) {
+      state_->cpu.insn_addr += insn_len;
+    }
+  }
 
   [[nodiscard]] GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
 
@@ -418,9 +510,17 @@ class Interpreter {
  private:
   template <typename DataType>
   Register Load(const void* ptr) {
-    UNUSED(ptr);
-    Undefined();
-    return {};
+    // TODO(b/346603273): update to use faulty load
+    static_assert(std::is_integral_v<DataType>);
+    CHECK(!exception_raised_);
+    return *static_cast<const DataType*>(ptr);
+  }
+
+  template <typename DataType>
+  void Store(void* ptr, uint64_t data) const {
+    // TODO(b/346603273): update to use faulty store
+    auto* typed_ptr = static_cast<DataType*>(ptr);
+    *typed_ptr = DataType(data);
   }
 
   void CheckShamtIsValid(int8_t shamt) const {
