@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "berberis/base/bit_util.h"
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -87,7 +88,31 @@ class Interpreter {
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
     switch (opcode) {
       case Decoder::OpOpcode::kAdd:
-        return arg1 + arg2;
+        return Int64(arg1) + Int64(arg2);
+      case Decoder::OpOpcode::kSub:
+        return Int64(arg1) - Int64(arg2);
+      case Decoder::OpOpcode::kAnd:
+        return Int64(arg1) & Int64(arg2);
+      case Decoder::OpOpcode::kOr:
+        return Int64(arg1) | Int64(arg2);
+      case Decoder::OpOpcode::kXor:
+        return Int64(arg1) ^ Int64(arg2);
+      case Decoder::OpOpcode::kSll:
+        return Int64(arg1) << Int64(arg2);
+      case Decoder::OpOpcode::kSrl:
+        return UInt64(arg1) >> Int64(arg2);
+      case Decoder::OpOpcode::kSra:
+        return Int64(arg1) >> Int64(arg2);
+      case Decoder::OpOpcode::kSlt:
+        return Int64(arg1) < Int64(arg2) ? 1 : 0;
+      case Decoder::OpOpcode::kSltu:
+        return UInt64(arg1) < UInt64(arg2) ? 1 : 0;
+      case Decoder::OpOpcode::kAndn:
+        return Int64(arg1) & (~Int64(arg2));
+      case Decoder::OpOpcode::kOrn:
+        return Int64(arg1) | (~Int64(arg2));
+      case Decoder::OpOpcode::kXnor:
+        return ~(Int64(arg1) ^ Int64(arg2));
       default:
         Undefined();
         return {};
@@ -368,14 +393,18 @@ class Interpreter {
   // Guest state getters/setters.
   //
 
-  uint64_t GetReg(uint8_t reg) const {
+  Register GetReg(uint8_t reg) const {
     CheckRegIsValid(reg);
-    return state_->cpu.x[reg - 1];
+    return state_->cpu.x[reg];
   }
 
   void SetReg(uint8_t reg, Register value) {
+    if (exception_raised_) {
+      // Do not produce side effects.
+      return;
+    }
     CheckRegIsValid(reg);
-    state_->cpu.x[reg - 1] = value;
+    state_->cpu.x[reg] = value;
   }
 
   FpRegister GetFpReg(uint8_t reg) const {
@@ -409,7 +438,11 @@ class Interpreter {
 
   [[nodiscard]] Register Copy(Register value) const { return value; }
 
-  void FinalizeInsn(uint8_t insn_len) { state_->cpu.insn_addr += insn_len; }
+  void FinalizeInsn(uint8_t insn_len) {
+    if (!branch_taken_ && !exception_raised_) {
+      state_->cpu.insn_addr += insn_len;
+    }
+  }
 
   [[nodiscard]] GuestAddr GetInsnAddr() const { return state_->cpu.insn_addr; }
 
