@@ -22,16 +22,18 @@
 
 #include "berberis/base/checks.h"
 
-#include "faulty_memory_accesses.h"
+#include "../faulty_memory_accesses.h"
 
 namespace berberis {
 
 namespace {
 
 #if defined(__i386__)
-constexpr size_t kRegIP = REG_EIP;
+#define IP_ACCESSOR(ucontext) ucontext->uc_mcontext.gregs[REG_EIP]
 #elif defined(__x86_64__)
-constexpr size_t kRegIP = REG_RIP;
+#define IP_ACCESSOR(ucontext) ucontext->uc_mcontext.gregs[REG_RIP]
+#elif defined(__aarch64__)
+#define IP_ACCESSOR(ucontext) ucontext->uc_mcontext.pc
 #else
 #error "Unsupported arch"
 #endif
@@ -39,10 +41,10 @@ constexpr size_t kRegIP = REG_RIP;
 void FaultHandler(int /* sig */, siginfo_t* /* info */, void* ctx) {
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(ctx);
   static_assert(sizeof(void*) == sizeof(greg_t), "Unsupported type sizes");
-  void* fault_addr = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[kRegIP]);
+  void* fault_addr = reinterpret_cast<void*>(IP_ACCESSOR(ucontext));
   void* recovery_addr = FindFaultyMemoryAccessRecoveryAddrForTesting(fault_addr);
   CHECK(recovery_addr);
-  ucontext->uc_mcontext.gregs[kRegIP] = reinterpret_cast<greg_t>(recovery_addr);
+  IP_ACCESSOR(ucontext) = reinterpret_cast<greg_t>(recovery_addr);
 }
 
 class ScopedFaultySigaction {
