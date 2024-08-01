@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,34 +37,34 @@ __asm__(
    .globl FaultyLoad8
    .balign 16
 FaultyLoad8:
-   movzbl (%rdi), %eax
-   movl $0, %edx
+   ldrb w0, [x0]    // Load 1 byte from memory pointed to by x0 into w0 (lower 32 bits of x0)
+   mov w1, #0       // Move 0 into w1 (lower 32 bits of x1)
    ret
 
    .globl FaultyLoad16
    .balign 16
 FaultyLoad16:
-   movzwl (%rdi), %eax
-   movl $0, %edx
+   ldrh w0, [x0]    // Load 2 bytes (halfword) from memory pointed to by x0 into w0
+   mov w1, #0
    ret
 
    .globl FaultyLoad32
    .balign 16
 FaultyLoad32:
-   movl (%rdi), %eax
-   movl $0, %edx
+   ldr w0, [x0]     // Load 4 bytes (word) from memory pointed to by x0 into w0
+   mov w1, #0
    ret
 
    .globl FaultyLoad64
    .balign 16
 FaultyLoad64:
-   movq (%rdi), %rax
-   movl $0, %edx
+   ldr x0, [x0]     // Load 8 bytes (doubleword) from memory pointed to by x0 into x0
+   mov w1, #0
    ret
 
    .globl g_faulty_load_recovery
 g_faulty_load_recovery:
-   movl $1, %edx
+   mov w1, #1
    ret
 )");
 
@@ -79,34 +79,34 @@ __asm__(
    .globl FaultyStore8
    .balign 16
 FaultyStore8:
-   movb %sil, (%rdi)
-   movl $0, %eax
+   strb w1, [x0]     // Store the lower 8 bits of w1 (from x1) into memory pointed to by x0
+   mov w0, #0         // Move 0 into w0 (lower 32 bits of x0)
    ret
 
    .globl FaultyStore16
    .balign 16
 FaultyStore16:
-   movw %si, (%rdi)
-   movl $0, %eax
+   strh w1, [x0]     // Store the lower 16 bits of w1 (from x1) into memory pointed to by x0
+   mov w0, #0
    ret
 
    .globl FaultyStore32
    .balign 16
 FaultyStore32:
-   movl %esi, (%rdi)
-   movl $0, %eax
+   str w1, [x0]      // Store the lower 32 bits of w1 (from x1) into memory pointed to by x0
+   mov w0, #0
    ret
 
    .globl FaultyStore64
    .balign 16
 FaultyStore64:
-   movq %rsi, (%rdi)
-   movl $0, %eax
+   str x1, [x0]      // Store the 64 bits of x1 into memory pointed to by x0
+   mov w0, #0
    ret
 
    .globl g_faulty_store_recovery
 g_faulty_store_recovery:
-   movl $1, %eax
+   mov w0, #1
    ret
 )");
 
@@ -172,10 +172,6 @@ void AddFaultyMemoryAccessRecoveryCode() {
       MakePairAdapter(&FaultyLoad16, &g_faulty_load_recovery),
       MakePairAdapter(&FaultyLoad32, &g_faulty_load_recovery),
       MakePairAdapter(&FaultyLoad64, &g_faulty_load_recovery),
-      MakePairAdapter(&FaultyStore8, &g_faulty_store_recovery),
-      MakePairAdapter(&FaultyStore16, &g_faulty_store_recovery),
-      MakePairAdapter(&FaultyStore32, &g_faulty_store_recovery),
-      MakePairAdapter(&FaultyStore64, &g_faulty_store_recovery),
   });
 }
 
