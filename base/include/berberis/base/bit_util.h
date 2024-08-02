@@ -725,7 +725,7 @@ using RawInt8 = Raw<uint8_t>;
 using RawInt16 = Raw<uint16_t>;
 using RawInt32 = Raw<uint32_t>;
 using RawInt64 = Raw<uint64_t>;
-#if defined(__x86_64__)
+#if defined(__LP64__)
 using RawInt128 = Raw<unsigned __int128>;
 #endif
 
@@ -737,7 +737,7 @@ using SatInt32 = Saturating<int32_t>;
 using SatUInt32 = Saturating<uint32_t>;
 using SatInt64 = Saturating<int64_t>;
 using SatUInt64 = Saturating<uint64_t>;
-#if defined(__x86_64__)
+#if defined(__LP64__)
 using SatInt128 = Saturating<__int128>;
 using SatUInt128 = Saturating<unsigned __int128>;
 #endif
@@ -752,7 +752,7 @@ using Int64 = Wrapping<int64_t>;
 using UInt64 = Wrapping<uint64_t>;
 using IntPtr = Wrapping<intptr_t>;
 using UIntPtr = Wrapping<uintptr_t>;
-#if defined(__x86_64__)
+#if defined(__LP64__)
 using Int128 = Wrapping<__int128>;
 using UInt128 = Wrapping<unsigned __int128>;
 #endif
