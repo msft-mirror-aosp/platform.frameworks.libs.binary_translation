@@ -38,7 +38,8 @@
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/vector_intrinsics.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
-#include "faulty_memory_accesses.h"
+
+#include "../faulty_memory_accesses.h"
 
 namespace berberis {
 

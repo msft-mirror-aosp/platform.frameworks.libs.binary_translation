@@ -119,7 +119,7 @@ cc_library_headers {
     name: "libberberis_assembler_headers",
     defaults: [
         "berberis_riscv64_device_defaults",
-        "berberis_defaults",
+        "berberis_all_hosts_defaults",
     ],
     host_supported: true,
     header_libs: ["libberberis_base_headers"],
