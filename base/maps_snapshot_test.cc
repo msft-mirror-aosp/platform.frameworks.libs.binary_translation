@@ -19,6 +19,11 @@
 #include "sys/mman.h"
 
 #include <cstdint>
+#include <cstdio>
+#include <cstring>  // strncmp
+#include <memory>
+#include <string>
+#include <tuple>
 
 #include "berberis/base/maps_snapshot.h"
 
@@ -55,6 +60,49 @@ TEST(MapsSnapshot, AnonymousMapping) {
 
   ASSERT_TRUE(result.has_value());
   ASSERT_TRUE(result.value().empty());
+}
+
+std::tuple<uintptr_t, std::string> GetAddressOfFirstMappingWithSubstring(std::string substr) {
+  std::unique_ptr<FILE, decltype(&fclose)> maps_file(fopen("/proc/self/maps", "r"), fclose);
+  if (maps_file == nullptr) {
+    ADD_FAILURE() << "Cannot open /proc/self/maps";
+    return {0, ""};
+  }
+
+  char line[512], pathname[256];
+  uintptr_t start;
+  while (fgets(line, sizeof(line), maps_file.get())) {
+    // Maximum string size 255 so that we have space for the terminating '\0'.
+    int match_count = sscanf(
+        line, "%" SCNxPTR "-%*" SCNxPTR " %*s %*lx %*x:%*x %*lu%*[ ]%255s", &start, pathname);
+    if (match_count == 2) {
+      std::string current_pathname(pathname);
+      if (current_pathname.find(substr) != current_pathname.npos) {
+        return {start, current_pathname};
+      }
+    }
+  }
+  ADD_FAILURE() << "Cannot find " << substr << " in /proc/self/maps";
+  return {0, ""};
+}
+
+TEST(MapsSnapshot, ExactFilenameMatch) {
+  auto* maps_snapshot = MapsSnapshot::GetInstance();
+
+  // Take some object that must be mapped already and is unlikely to be suddenly unmapped. "libc.so"
+  // may have a version suffix like "libc-2.19.so", which would make parsing too challenging for
+  // what this test requires. We don't want to search just for "libc" either since it's likely to
+  // match an unrelated library. "libc++.so" is taken from the local build
+  // (out/host/linux-x86/lib64/libc++.so) so we should be able to find it.
+  auto [addr, pathname] = GetAddressOfFirstMappingWithSubstring("libc++.so");
+  ASSERT_GT(addr, 0u);
+
+  maps_snapshot->Update();
+  auto result = maps_snapshot->FindMappedObjectName(reinterpret_cast<uintptr_t>(addr));
+
+  ASSERT_TRUE(result.has_value());
+  // MapsSnapshot only stores first 255 symbols plus terminating null.
+  ASSERT_TRUE(strncmp(result.value().c_str(), pathname.c_str(), 255) == 0);
 }
 
 }  // namespace
