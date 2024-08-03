@@ -24,6 +24,8 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 
+#include "../faulty_memory_accesses.h"
+
 namespace berberis {
 
 class Interpreter {
@@ -510,17 +512,21 @@ class Interpreter {
  private:
   template <typename DataType>
   Register Load(const void* ptr) {
-    // TODO(b/346603273): update to use faulty load
     static_assert(std::is_integral_v<DataType>);
     CHECK(!exception_raised_);
-    return *static_cast<const DataType*>(ptr);
+    FaultyLoadResult result = FaultyLoad(ptr, sizeof(DataType));
+    if (result.is_fault) {
+      exception_raised_ = true;
+      return {};
+    }
+    return static_cast<DataType>(result.value);
   }
 
   template <typename DataType>
-  void Store(void* ptr, uint64_t data) const {
-    // TODO(b/346603273): update to use faulty store
-    auto* typed_ptr = static_cast<DataType*>(ptr);
-    *typed_ptr = DataType(data);
+  void Store(void* ptr, uint64_t data) {
+    static_assert(std::is_integral_v<DataType>);
+    CHECK(!exception_raised_);
+    exception_raised_ = FaultyStore(ptr, sizeof(DataType), data);
   }
 
   void CheckShamtIsValid(int8_t shamt) const {
