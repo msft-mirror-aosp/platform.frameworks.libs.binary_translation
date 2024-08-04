@@ -17,15 +17,8 @@
 #ifndef BERBERIS_KERNEL_API_TRACING_H_
 #define BERBERIS_KERNEL_API_TRACING_H_
 
-namespace berberis {
+#include "berberis/base/tracing.h"
 
-void __attribute__((__format__(printf, 1, 2))) KernelApiTrace(const char* format, ...);
-
-}  // namespace berberis
-
-#define KAPI_TRACE(...)                      \
-  do {                                       \
-    ::berberis::KernelApiTrace(__VA_ARGS__); \
-  } while (0)
+#define KAPI_TRACE(...) TRACE(__VA_ARGS__)
 
 #endif  // BERBERIS_KERNEL_API_TRACING_H_

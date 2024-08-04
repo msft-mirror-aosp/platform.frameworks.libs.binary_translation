@@ -14,21 +14,9 @@
  * limitations under the License.
  */
 
-#include "berberis/kernel_api/tracing.h"
+#ifndef BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_
+#define BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_
 
-#include <cstdarg>
+#include "berberis/intrinsics/all_to_x86_common/intrinsics_bindings.h"
 
-#include "berberis/base/tracing.h"
-
-namespace berberis {
-
-void __attribute__((__format__(printf, 1, 2))) KernelApiTrace(const char* format, ...) {
-  if (Tracing::IsOn()) {
-    va_list ap;
-    va_start(ap, format);
-    Tracing::TraceV(format, ap);
-    va_end(ap);
-  }
-}
-
-}  // namespace berberis
+#endif  // BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_

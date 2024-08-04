@@ -16,13 +16,19 @@
 
 #include "berberis/runtime_primitives/profiler_interface.h"
 
-#include <fcntl.h>
+#include <fcntl.h>   // open
+#include <unistd.h>  // write
+
+#include <array>
+#include <cstring>  // str*
 
 #include "berberis/base/config_globals.h"
 #include "berberis/base/format_buffer.h"
 #include "berberis/base/gettid.h"
+#include "berberis/base/maps_snapshot.h"
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/tracing.h"
+#include "berberis/guest_state/guest_addr.h"
 
 namespace berberis {
 
@@ -76,27 +82,71 @@ int ProfilerOpenLogFile() {
   return fd;
 }
 
+constexpr size_t kMaxMappedNameLen = 16;
+// Name c-string + terminating null + underscore.
+using MappedNameBuffer = std::array<char, kMaxMappedNameLen + 2>;
+
+// Malloc-free implementation.
+MappedNameBuffer ConstructMappedNameBuffer(GuestAddr guest_addr) {
+  MappedNameBuffer buf;
+  auto* maps_snapshot = MapsSnapshot::GetInstance();
+
+  auto mapped_name = maps_snapshot->FindMappedObjectName(guest_addr);
+  if (!mapped_name.has_value()) {
+    // If no mapping is found renew the snapshot and try again.
+    maps_snapshot->Update();
+    auto updated_mapped_name = maps_snapshot->FindMappedObjectName(guest_addr);
+    if (!updated_mapped_name.has_value()) {
+      TRACE("Guest addr %p not found in /proc/self/maps", ToHostAddr<void>(guest_addr));
+      buf[0] = '\0';
+      return buf;
+    }
+    mapped_name.emplace(std::move(updated_mapped_name.value()));
+  }
+
+  // We can use more clever logic here and try to extract the basename, but the parent directory
+  // name may also be interesting (e.g. <guest_arch>/libc.so) so we just take the last
+  // kMaxMappedNameLen symbols for simplicity until it's proven we need something more advanced.
+  // An added benefit of this approach is that symbols look well aligned in the profile.
+  auto& result = mapped_name.value();
+  size_t terminator_pos;
+  if (result.length() > kMaxMappedNameLen) {
+    // In this case it should be safe to call strcpy, but we still use strncpy to be extra careful.
+    strncpy(buf.data(), result.c_str() + result.length() - kMaxMappedNameLen, kMaxMappedNameLen);
+    terminator_pos = kMaxMappedNameLen;
+  } else {
+    strncpy(buf.data(), result.c_str(), kMaxMappedNameLen);
+    terminator_pos = result.length();
+  }
+  buf[terminator_pos] = '_';
+  buf[terminator_pos + 1] = '\0';
+
+  return buf;
+}
+
 }  // namespace
 
 void ProfilerLogGeneratedCode(const void* start,
                               size_t size,
                               GuestAddr guest_start,
                               size_t guest_size,
-                              const char* prefix) {
+                              const char* jit_suffix) {
   static int fd = ProfilerOpenLogFile();
   if (fd == -1) {
     return;
   }
 
-  char buf[80];
-  // start size name
-  // TODO(b232598137): make name useful
+  MappedNameBuffer mapped_name_buf = ConstructMappedNameBuffer(guest_start);
+
+  char buf[128];
+  // start size symbol-name
   size_t n = FormatBuffer(buf,
                           sizeof(buf),
-                          "%p 0x%zx %s_jit_0x%lx+%zu\n",
+                          "%p 0x%zx %s%s_0x%lx+%zu\n",
                           start,
                           size,
-                          prefix,
+                          mapped_name_buf.data(),
+                          jit_suffix,
                           guest_start,
                           guest_size);
   UNUSED(write(fd, buf, n));
