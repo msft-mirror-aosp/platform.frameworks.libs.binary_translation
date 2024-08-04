@@ -590,6 +590,7 @@ class Decoder {
     kVsextvf4m = 0b00101,
     kVzextvf2m = 0b00110,
     kVsextvf2m = 0b00111,
+    kVbrev8v = 0b01000,
   };
 
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions
