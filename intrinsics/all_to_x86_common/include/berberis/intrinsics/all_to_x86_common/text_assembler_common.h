@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
-#define BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
+#ifndef BERBERIS_INTRINSICS_ALL_TO_X86_COMMON_TEXT_ASSEMBLER_COMMON_H_
+#define BERBERIS_INTRINSICS_ALL_TO_X86_COMMON_TEXT_ASSEMBLER_COMMON_H_
 
 #include <array>
 #include <cstdint>
@@ -27,7 +27,7 @@
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
-#include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
+#include "berberis/intrinsics/all_to_x86_common/intrinsics_bindings.h"
 
 namespace berberis {
 
@@ -600,4 +600,4 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, const Arg
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
+#endif  // BERBERIS_INTRINSICS_ALL_TO_X86_COMMON_TEXT_ASSEMBLER_COMMON_H_
