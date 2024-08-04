@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include <cstring>
+#include <utility>
 
 #include "berberis/base/mmap.h"
 #include "berberis/base/strings.h"
@@ -26,6 +27,11 @@
 namespace berberis {
 
 namespace {
+
+std::pair<const char*, size_t> GetGuestPlatformVarPrefixWithSize() {
+  static constexpr char kGuestPlatformVarPrefix[] = "BERBERIS_GUEST_";
+  return {kGuestPlatformVarPrefix, sizeof(kGuestPlatformVarPrefix) - 1};
+}
 
 bool IsPlatformVar(const char* s) {
   return StartsWith(s, "LD_CONFIG_FILE=") || StartsWith(s, "LD_LIBRARY_PATH=") ||
