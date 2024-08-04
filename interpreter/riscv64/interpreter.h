@@ -2668,6 +2668,10 @@ class Interpreter {
                                       vma>(args.dst, args.src1);
             }
             break;
+          case Decoder::VXUnary0Opcode::kVbrev8v:
+            return OpVectorv<intrinsics::Vbrev8v<ElementType>, ElementType, vlmul, vta, vma>(
+                args.dst, args.src1);
+            break;
           default:
             return Undefined();
         }
