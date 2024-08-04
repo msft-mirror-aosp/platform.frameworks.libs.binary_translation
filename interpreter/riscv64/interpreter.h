@@ -39,8 +39,9 @@
 #include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/runtime_primitives/recovery_code.h"
 
-#include "faulty_memory_accesses.h"
 #include "regs.h"
+
+#include "../faulty_memory_accesses.h"
 
 namespace berberis {
 
@@ -2666,6 +2667,10 @@ class Interpreter {
                                       vta,
                                       vma>(args.dst, args.src1);
             }
+            break;
+          case Decoder::VXUnary0Opcode::kVbrev8v:
+            return OpVectorv<intrinsics::Vbrev8v<ElementType>, ElementType, vlmul, vta, vma>(
+                args.dst, args.src1);
             break;
           default:
             return Undefined();
