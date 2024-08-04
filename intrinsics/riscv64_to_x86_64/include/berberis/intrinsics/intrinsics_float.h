@@ -21,8 +21,8 @@
 #include <limits>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/intrinsics/all_to_x86_common/intrinsics_float.h"
 #include "berberis/intrinsics/common/intrinsics_float.h"
-#include "berberis/intrinsics/common_to_x86/intrinsics_float.h"
 #include "berberis/intrinsics/guest_cpu_flags.h"       // ToHostRoundingMode
 #include "berberis/intrinsics/guest_rounding_modes.h"  // ScopedRoundingMode
 #include "berberis/intrinsics/type_traits.h"
