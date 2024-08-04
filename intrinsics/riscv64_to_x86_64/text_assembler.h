@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 
-#include "berberis/intrinsics/common_to_x86/text_assembler_common.h"
+#include "berberis/intrinsics/all_to_x86_common/text_assembler_common.h"
 
 namespace berberis {
 

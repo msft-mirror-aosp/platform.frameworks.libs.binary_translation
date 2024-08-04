@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_RISCV64_INTRINSICS_H_
-#define BERBERIS_INTRINSICS_RISCV64_INTRINSICS_H_
+#ifndef BERBERIS_INTRINSICS_RISCV64_TO_ALL_INTRINSICS_H_
+#define BERBERIS_INTRINSICS_RISCV64_TO_ALL_INTRINSICS_H_
 
 #include <limits>
 #include <tuple>
@@ -37,4 +37,4 @@ namespace berberis::intrinsics {
 #include "berberis/intrinsics/intrinsics_fixed_point_impl.h"
 #include "berberis/intrinsics/intrinsics_floating_point_impl.h"
 
-#endif  // BERBERIS_INTRINSICS_RISCV64_INTRINSICS_H_
+#endif  // BERBERIS_INTRINSICS_RISCV64_TO_ALL_INTRINSICS_H_
