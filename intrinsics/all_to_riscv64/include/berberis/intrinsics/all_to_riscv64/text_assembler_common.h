@@ -27,7 +27,7 @@
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
-#include "berberis/intrinsics/common_to_riscv64/intrinsics_bindings.h"
+#include "berberis/intrinsics/all_to_riscv64/intrinsics_bindings.h"
 
 namespace berberis {
 
