@@ -23,7 +23,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "berberis/kernel_api/tracing.h"
+#include "berberis/base/tracing.h"
 
 #define GUEST_O_LARGEFILE 00100000
 
@@ -85,9 +85,9 @@ int ToHostOpenFlags(int guest_flags) {
 
   int unknown_guest_flags = guest_flags & ~(kCompatibleOpenFlags | kIncompatibleGuestOpenFlags);
   if (unknown_guest_flags) {
-    KAPI_TRACE("Unsupported guest open flags: original=0x%x unsupported=0x%x",
-               guest_flags,
-               unknown_guest_flags);
+    TRACE("Unsupported guest open flags: original=0x%x unsupported=0x%x",
+          guest_flags,
+          unknown_guest_flags);
   }
 
   int host_flags = guest_flags & ~kIncompatibleGuestOpenFlags;
@@ -104,9 +104,9 @@ int ToGuestOpenFlags(int host_flags) {
 
   int unknown_host_flags = host_flags & ~(kCompatibleOpenFlags | kIncompatibleHostOpenFlags);
   if (unknown_host_flags) {
-    KAPI_TRACE("Unsupported host open flags: original=0x%x unsupported=0x%x",
-               host_flags,
-               unknown_host_flags);
+    TRACE("Unsupported host open flags: original=0x%x unsupported=0x%x",
+          host_flags,
+          unknown_host_flags);
   }
 
   int guest_flags = host_flags & ~kIncompatibleHostOpenFlags;
