@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_ASSEMBLER_COMMON_X86_H_
-#define BERBERIS_ASSEMBLER_COMMON_X86_H_
+#ifndef BERBERIS_ASSEMBLER_X86_32_AND_X86_64_H_
+#define BERBERIS_ASSEMBLER_X86_32_AND_X86_64_H_
 
 #include <cstddef>  // std::size_t
 #include <cstdint>
@@ -24,17 +24,16 @@
 #include "berberis/assembler/common.h"
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
-#include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
 
 namespace berberis {
 
-// AssemblerX86 includes implementation of most x86 assembler instructions.
+// Assembler includes implementation of most x86 assembler instructions.
 //
 // x86-32 and x86-64 assemblers are nearly identical, but difference lies in handling
 // of very low-level instruction details: almost all instructions on x86-64 could include
 // REX byte which is needed if new registers (%r8 to %r15 or %xmm8 to %xmm15) are used.
 //
-// To handle that difference efficiently AssemblerX86 is CRTP class: it's parameterized
+// To handle that difference efficiently Assembler is CRTP class: it's parameterized
 // by its own descendant and pull certain functions (e.g. GetHighBit or Rex8Size) from
 // its implementation.
 //
@@ -53,10 +52,12 @@ class Assembler;
 
 }  // namespace x86_64
 
-template <typename Assembler>
-class AssemblerX86 : public AssemblerBase {
+namespace x86_32_and_x86_64 {
+
+template <typename DerivedAssemblerType>
+class Assembler : public AssemblerBase {
  public:
-  explicit AssemblerX86(MachineCode* code) : AssemblerBase(code) {}
+  explicit Assembler(MachineCode* code) : AssemblerBase(code) {}
 
   enum class Condition {
     kInvalidCondition = -1,
@@ -89,13 +90,52 @@ class AssemblerX86 : public AssemblerBase {
     kNotSign = kPositiveOrZero
   };
 
+  friend constexpr const char* GetCondName(Condition cond) {
+    switch (cond) {
+      case Condition::kOverflow:
+        return "O";
+      case Condition::kNoOverflow:
+        return "NO";
+      case Condition::kBelow:
+        return "B";
+      case Condition::kAboveEqual:
+        return "AE";
+      case Condition::kEqual:
+        return "Z";
+      case Condition::kNotEqual:
+        return "NZ";
+      case Condition::kBelowEqual:
+        return "BE";
+      case Condition::kAbove:
+        return "A";
+      case Condition::kNegative:
+        return "N";
+      case Condition::kPositiveOrZero:
+        return "PL";
+      case Condition::kParityEven:
+        return "PE";
+      case Condition::kParityOdd:
+        return "PO";
+      case Condition::kLess:
+        return "LS";
+      case Condition::kGreaterEqual:
+        return "GE";
+      case Condition::kLessEqual:
+        return "LE";
+      case Condition::kGreater:
+        return "GT";
+      default:
+        return "??";
+    }
+  }
+
   class Register {
    public:
     constexpr bool operator==(const Register& reg) const { return num_ == reg.num_; }
     constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
     friend constexpr uint8_t ValueForFmtSpec(Register value) { return value.num_; }
-    friend class AssemblerX86<Assembler>;
+    friend class Assembler<DerivedAssemblerType>;
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
@@ -110,7 +150,7 @@ class AssemblerX86 : public AssemblerBase {
     constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
     friend constexpr uint8_t ValueForFmtSpec(X87Register value) { return value.num_; }
-    friend class AssemblerX86<Assembler>;
+    friend class Assembler<DerivedAssemblerType>;
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
@@ -135,7 +175,7 @@ class AssemblerX86 : public AssemblerBase {
     constexpr bool operator!=(const XMMRegister& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
     friend constexpr uint8_t ValueForFmtSpec(XMMRegister value) { return value.num_; }
-    friend class AssemblerX86<Assembler>;
+    friend class Assembler<DerivedAssemblerType>;
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
 
@@ -148,15 +188,17 @@ class AssemblerX86 : public AssemblerBase {
 
   struct Operand {
     constexpr uint8_t rex() const {
-      return Assembler::kIsX86_64 ? ((index.num_ & 0x08) >> 2) | ((base.num_ & 0x08) >> 3) : 0;
+      return DerivedAssemblerType::kIsX86_64
+                 ? ((index.num_ & 0x08) >> 2) | ((base.num_ & 0x08) >> 3)
+                 : 0;
     }
 
     constexpr bool RequiresRex() const {
-      return Assembler::kIsX86_64 ? ((index.num_ & 0x08) | (base.num_ & 0x08)) : false;
+      return DerivedAssemblerType::kIsX86_64 ? ((index.num_ & 0x08) | (base.num_ & 0x08)) : false;
     }
 
-    Register base = Assembler::no_register;
-    Register index = Assembler::no_register;
+    Register base = DerivedAssemblerType::no_register;
+    Register index = DerivedAssemblerType::no_register;
     ScaleFactor scale = kTimesOne;
     int32_t disp = 0;
   };
@@ -229,7 +271,7 @@ class AssemblerX86 : public AssemblerBase {
   }
 
 // Instructions.
-#include "berberis/assembler/gen_assembler_common_x86-inl.h"  // NOLINT generated file
+#include "berberis/assembler/gen_assembler_x86_32_and_x86_64-inl.h"  // NOLINT generated file
 
   // Flow control.
   void Jmp(int32_t offset) {
@@ -362,18 +404,20 @@ class AssemblerX86 : public AssemblerBase {
 
   template <typename ArgumentType>
   struct IsRegister {
-    static constexpr bool value = Assembler::template IsRegister<ArgumentType>::value ||
+    static constexpr bool value = DerivedAssemblerType::template IsRegister<ArgumentType>::value ||
                                   std::is_same_v<ArgumentType, X87Register>;
   };
 
   template <typename ArgumentType>
   struct IsMemoryOperand {
-    static constexpr bool value = Assembler::template IsMemoryOperand<ArgumentType>::value;
+    static constexpr bool value =
+        DerivedAssemblerType::template IsMemoryOperand<ArgumentType>::value;
   };
 
   template <typename ArgumentType>
   struct IsLabelOperand {
-    static constexpr bool value = Assembler::template IsLabelOperand<ArgumentType>::value;
+    static constexpr bool value =
+        DerivedAssemblerType::template IsLabelOperand<ArgumentType>::value;
   };
 
   template <typename ArgumentType>
@@ -386,8 +430,8 @@ class AssemblerX86 : public AssemblerBase {
 
   // Count number of arguments selected by Predicate.
   template <template <typename> typename Predicate, typename... ArgumentTypes>
-  static constexpr std::size_t kCountArguments = ((Predicate<ArgumentTypes>::value ? 1 : 0) + ... +
-                                                  0);
+  static constexpr std::size_t kCountArguments =
+      ((Predicate<ArgumentTypes>::value ? 1 : 0) + ... + 0);
 
   // Extract arguments selected by Predicate.
   //
@@ -569,13 +613,13 @@ class AssemblerX86 : public AssemblerBase {
       }
     }();
     if constexpr (kVexOrXop) {
-      static_cast<Assembler*>(this)
+      static_cast<DerivedAssemblerType*>(this)
           ->template EmitVex<kOpcodesArray[kLegacyPrefixesCount],
                              kOpcodesArray[kLegacyPrefixesCount + 1],
                              kOpcodesArray[kLegacyPrefixesCount + 2],
                              reg_is_opcode_extension>(arguments...);
     } else {
-      static_cast<Assembler*>(this)->EmitRex(arguments...);
+      static_cast<DerivedAssemblerType*>(this)->EmitRex(arguments...);
       for (size_t extension_opcode_index = kLegacyPrefixesCount;
            extension_opcode_index < kPrefixesAndOpcodeExtensionsCount;
            ++extension_opcode_index) {
@@ -585,7 +629,7 @@ class AssemblerX86 : public AssemblerBase {
     // These are older 8086 instructions which encode register number in the opcode itself.
     if constexpr (registers_count == 1 && operands_count == 0 && labels_count == 0 &&
                   std::size(kOpcodesArray) == kPrefixesAndOpcodeExtensionsCount + 1) {
-      static_cast<Assembler*>(this)->EmitRegisterInOpcode(
+      static_cast<DerivedAssemblerType*>(this)->EmitRegisterInOpcode(
           kOpcodesArray[kPrefixesAndOpcodeExtensionsCount],
           ArgumentByType<0, IsRegister>(arguments...));
       EmitImmediates(arguments...);
@@ -600,30 +644,33 @@ class AssemblerX86 : public AssemblerBase {
       }
       if constexpr (reg_is_opcode_extension) {
         if constexpr (operands_count == 1) {
-          static_cast<Assembler*>(this)->EmitOperandOp(
+          static_cast<DerivedAssemblerType*>(this)->EmitOperandOp(
               static_cast<int>(kOpcodesArray[kPrefixesAndOpcodeExtensionsCount + 1]),
               ArgumentByType<0, IsMemoryOperand>(arguments...).operand);
         } else if constexpr (labels_count == 1) {
-          static_cast<Assembler*>(this)->template EmitRipOp<ImmediatesSize<ArgumentsTypes...>()>(
-              static_cast<int>(kOpcodesArray[kPrefixesAndOpcodeExtensionsCount + 1]),
-              ArgumentByType<0, IsLabelOperand>(arguments...).label);
+          static_cast<DerivedAssemblerType*>(this)
+              ->template EmitRipOp<ImmediatesSize<ArgumentsTypes...>()>(
+                  static_cast<int>(kOpcodesArray[kPrefixesAndOpcodeExtensionsCount + 1]),
+                  ArgumentByType<0, IsLabelOperand>(arguments...).label);
         } else {
-          static_cast<Assembler*>(this)->EmitModRM(
+          static_cast<DerivedAssemblerType*>(this)->EmitModRM(
               kOpcodesArray[kPrefixesAndOpcodeExtensionsCount + 1],
               ArgumentByType<0, IsRegister>(arguments...));
         }
       } else if constexpr (registers_count > 0) {
         if constexpr (operands_count == 1) {
-          static_cast<Assembler*>(this)->EmitOperandOp(
+          static_cast<DerivedAssemblerType*>(this)->EmitOperandOp(
               ArgumentByType<0, IsRegister>(arguments...),
               ArgumentByType<0, IsMemoryOperand>(arguments...).operand);
         } else if constexpr (labels_count == 1) {
-          static_cast<Assembler*>(this)->template EmitRipOp<ImmediatesSize<ArgumentsTypes...>()>(
-              ArgumentByType<0, IsRegister>(arguments...),
-              ArgumentByType<0, IsLabelOperand>(arguments...).label);
+          static_cast<DerivedAssemblerType*>(this)
+              ->template EmitRipOp<ImmediatesSize<ArgumentsTypes...>()>(
+                  ArgumentByType<0, IsRegister>(arguments...),
+                  ArgumentByType<0, IsLabelOperand>(arguments...).label);
         } else {
-          static_cast<Assembler*>(this)->EmitModRM(ArgumentByType<0, IsRegister>(arguments...),
-                                                   ArgumentByType<1, IsRegister>(arguments...));
+          static_cast<DerivedAssemblerType*>(this)->EmitModRM(
+              ArgumentByType<0, IsRegister>(arguments...),
+              ArgumentByType<1, IsRegister>(arguments...));
         }
       }
       // If reg is an opcode extension then we already used that element.
@@ -691,8 +738,8 @@ class AssemblerX86 : public AssemblerBase {
                                                   ArgumentsType2&& argument2,
                                                   ArgumentsTypes&&... arguments) {
     if constexpr (std::is_same_v<ArgumentsType2, ArgumentsType1>) {
-      if (Assembler::IsSwapProfitable(std::forward<ArgumentsType2>(argument2),
-                                      std::forward<ArgumentsType1>(argument1))) {
+      if (DerivedAssemblerType::IsSwapProfitable(std::forward<ArgumentsType2>(argument2),
+                                                 std::forward<ArgumentsType1>(argument1))) {
         return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType0>(argument0),
                                             std::forward<ArgumentsType1>(argument1),
                                             std::forward<ArgumentsType2>(argument2),
@@ -759,51 +806,15 @@ class AssemblerX86 : public AssemblerBase {
   void ResolveJumps();
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AssemblerX86);
+  Assembler() = delete;
+  Assembler(const Assembler&) = delete;
+  Assembler(Assembler&&) = delete;
+  void operator=(const Assembler&) = delete;
+  void operator=(Assembler&&) = delete;
 };
 
-template <typename Condition>
-inline constexpr const char* GetCondName(Condition cond) {
-  switch (cond) {
-    case Condition::kOverflow:
-      return "O";
-    case Condition::kNoOverflow:
-      return "NO";
-    case Condition::kBelow:
-      return "B";
-    case Condition::kAboveEqual:
-      return "AE";
-    case Condition::kEqual:
-      return "Z";
-    case Condition::kNotEqual:
-      return "NZ";
-    case Condition::kBelowEqual:
-      return "BE";
-    case Condition::kAbove:
-      return "A";
-    case Condition::kNegative:
-      return "N";
-    case Condition::kPositiveOrZero:
-      return "PL";
-    case Condition::kParityEven:
-      return "PE";
-    case Condition::kParityOdd:
-      return "PO";
-    case Condition::kLess:
-      return "LS";
-    case Condition::kGreaterEqual:
-      return "GE";
-    case Condition::kLessEqual:
-      return "LE";
-    case Condition::kGreater:
-      return "GT";
-    default:
-      return "??";
-  }
-}
-
-template <typename Assembler>
-inline void AssemblerX86<Assembler>::Pmov(XMMRegister dest, XMMRegister src) {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Pmov(XMMRegister dest, XMMRegister src) {
   // SSE does not have operations for register-to-register integer move and
   // Intel explicitly recommends to use pshufd instead on Pentium4:
   //   See https://software.intel.com/en-us/articles/
@@ -816,8 +827,8 @@ inline void AssemblerX86<Assembler>::Pmov(XMMRegister dest, XMMRegister src) {
   Movaps(dest, src);
 }
 
-template <typename Assembler>
-inline void AssemblerX86<Assembler>::Call(const Label& label) {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
   if (label.IsBound()) {
     int32_t offset = label.position() - pc();
     Call(offset);
@@ -828,8 +839,8 @@ inline void AssemblerX86<Assembler>::Call(const Label& label) {
   }
 }
 
-template <typename Assembler>
-inline void AssemblerX86<Assembler>::Jcc(Condition cc, const Label& label) {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jcc(Condition cc, const Label& label) {
   if (cc == Condition::kAlways) {
     Jmp(label);
     return;
@@ -849,8 +860,8 @@ inline void AssemblerX86<Assembler>::Jcc(Condition cc, const Label& label) {
   }
 }
 
-template <typename Assembler>
-inline void AssemblerX86<Assembler>::Jmp(const Label& label) {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jmp(const Label& label) {
   // TODO(eaeltsin): may be remove IsBound case?
   // Then jmp by label will be of fixed size (5 bytes)
   if (label.IsBound()) {
@@ -863,8 +874,8 @@ inline void AssemblerX86<Assembler>::Jmp(const Label& label) {
   }
 }
 
-template <typename Assembler>
-inline void AssemblerX86<Assembler>::ResolveJumps() {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
   for (const auto& jump : jumps_) {
     const Label* label = jump.label;
     uint32_t pc = jump.pc;
@@ -881,10 +892,10 @@ inline void AssemblerX86<Assembler>::ResolveJumps() {
 
 // Code size optimized instructions: they have different variants depending on registers used.
 
-template <typename Assembler>
-inline void AssemblerX86<Assembler>::Xchgl(Register dest, Register src) {
-  if (Assembler::IsAccumulator(src) || Assembler::IsAccumulator(dest)) {
-    Register other = Assembler::IsAccumulator(src) ? dest : src;
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Xchgl(Register dest, Register src) {
+  if (DerivedAssemblerType::IsAccumulator(src) || DerivedAssemblerType::IsAccumulator(dest)) {
+    Register other = DerivedAssemblerType::IsAccumulator(src) ? dest : src;
     EmitInstruction<0x90>(Register32Bit(other));
   } else {
     // Clang 8 (after r330298) puts dest before src.  We are comparing output
@@ -893,6 +904,8 @@ inline void AssemblerX86<Assembler>::Xchgl(Register dest, Register src) {
   }
 }
 
+}  // namespace x86_32_and_x86_64
+
 }  // namespace berberis
 
-#endif  // BERBERIS_ASSEMBLER_COMMON_X86_H_
+#endif  // BERBERIS_ASSEMBLER_X86_32_AND_X86_64_H_

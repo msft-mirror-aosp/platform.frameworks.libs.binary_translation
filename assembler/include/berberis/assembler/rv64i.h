@@ -29,7 +29,7 @@ namespace rv64i {
 
 class Assembler : public ::berberis::rv64::Assembler {
  public:
-  using BaseAssembler = AssemblerRiscV<::berberis::rv64::Assembler>;
+  using BaseAssembler = riscv::Assembler<::berberis::rv64::Assembler>;
   using FinalAssembler = ::berberis::rv64::Assembler;
 
   explicit Assembler(MachineCode* code) : berberis::rv64::Assembler(code) {}
