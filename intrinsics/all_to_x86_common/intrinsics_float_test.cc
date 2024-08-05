@@ -20,8 +20,8 @@
 #include <utility>  // std::forward
 
 #include "berberis/base/bit_util.h"
+#include "berberis/intrinsics/all_to_x86_common/intrinsics_float.h"
 #include "berberis/intrinsics/common/intrinsics_float.h"
-#include "berberis/intrinsics/common_to_x86/intrinsics_float.h"
 
 namespace berberis {
 
