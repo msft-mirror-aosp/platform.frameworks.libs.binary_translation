@@ -31,7 +31,7 @@
 #include "berberis/intrinsics/guest_cpu_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
-#include "berberis/intrinsics/riscv64/vector_intrinsics.h"
+#include "berberis/intrinsics/riscv64_to_all/vector_intrinsics.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
@@ -2667,6 +2667,10 @@ class Interpreter {
                                       vta,
                                       vma>(args.dst, args.src1);
             }
+            break;
+          case Decoder::VXUnary0Opcode::kVbrev8v:
+            return OpVectorv<intrinsics::Vbrev8v<ElementType>, ElementType, vlmul, vta, vma>(
+                args.dst, args.src1);
             break;
           default:
             return Undefined();
