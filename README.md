@@ -95,7 +95,7 @@ adb push out/target/product/generic_riscv64/data/nativetest64/bionic-unit-tests 
 3. Run Bionic tests:
 
 ```
-adb shell /system/bin/berberis_program_runner_riscv64 /data/local/tmp/bionic-unit-tests/bionic-unit-tests --no_isolate
+adb shell /system/bin/berberis_program_runner_riscv64 /data/local/tmp/bionic-unit-tests/bionic-unit-tests
 ```
 
 ## Debugging
