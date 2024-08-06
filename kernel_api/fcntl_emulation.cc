@@ -33,8 +33,8 @@
 #include <cerrno>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/tracing.h"
 #include "berberis/kernel_api/open_emulation.h"
-#include "berberis/kernel_api/tracing.h"
 
 static_assert(F_DUPFD == 0);
 static_assert(F_GETFD == 1);
@@ -169,7 +169,7 @@ int GuestFcntl(int fd, int cmd, long arg_3) {
     case F_SETFL:
       return fcntl(fd, cmd, ToHostOpenFlags(arg_3));
     default:
-      KAPI_TRACE("Unknown fcntl command: %d", cmd);
+      TRACE("Unknown fcntl command: %d", cmd);
       errno = ENOSYS;
       return -1;
   }
