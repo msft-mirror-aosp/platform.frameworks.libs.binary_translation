@@ -98,6 +98,36 @@ adb push out/target/product/generic_riscv64/data/nativetest64/bionic-unit-tests 
 adb shell /system/bin/berberis_program_runner_riscv64 /data/local/tmp/bionic-unit-tests/bionic-unit-tests
 ```
 
+## Development
+
+### Running Android Apps (APKs) on Berberis Emulator
+
+The steps for running Android apps on a Berberis emulator simply involve building and running the emulator (see instructions above), building your Android app, then installing it onto the emulator using `adb`.
+
+For example you can build then run the JNI test APK (see `tests/jni_tests/README.txt`) by running:
+
+```
+m TARGET_BUILD_VARIANT=userdebug TARGET_PRODUCT=aosp_riscv64 berberis_jni_tests
+```
+
+Install the app:
+
+```
+adb install out/target/product/generic_riscv64/testcases/berberis_jni_tests/riscv64/berberis_jni_tests.apk
+```
+
+Start the app:
+
+```
+adb shell am instrument -w com.berberis.jnitests/androidx.test.runner.AndroidJUnitRunner
+```
+
+Uninstall the app:
+
+```
+adb uninstall com.berberis.jnitests
+```
+
 ## Debugging
 
 ### Crash Reporting for Guest State
