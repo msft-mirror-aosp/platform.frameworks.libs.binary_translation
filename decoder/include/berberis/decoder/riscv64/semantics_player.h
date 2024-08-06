@@ -484,8 +484,20 @@ class SemanticsPlayer {
     Register arg = GetRegOrZero(args.src);
     Register result = no_register;
     switch (args.opcode) {
+      case Decoder::OpSingleInputOpcode::kZextb:
+        result = listener_->template Zext<uint8_t>(arg);
+        break;
       case Decoder::OpSingleInputOpcode::kZexth:
-        result = listener_->Zexth(arg);
+        result = listener_->template Zext<uint16_t>(arg);
+        break;
+      case Decoder::OpSingleInputOpcode::kZextw:
+        result = listener_->template Zext<uint32_t>(arg);
+        break;
+      case Decoder::OpSingleInputOpcode::kSextb:
+        result = listener_->template Sext<int8_t>(arg);
+        break;
+      case Decoder::OpSingleInputOpcode::kSexth:
+        result = listener_->template Sext<int16_t>(arg);
         break;
       default:
         Undefined();

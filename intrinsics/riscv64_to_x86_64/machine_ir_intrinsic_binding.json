@@ -741,8 +741,20 @@
     "out": [ 0 ]
   },
   {
-    "name": "Zexth",
+    "name": "Zext<uint8_t>",
+    "insn": "MovzxbqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Zext<uint16_t>",
     "insn": "MovzxwqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Zext<uint32_t>",
+    "insn": "MovlRegReg",
     "in": [ 1 ],
     "out": [ 0 ]
   }
