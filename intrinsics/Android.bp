@@ -275,12 +275,12 @@ cc_library_headers {
     arch: {
         x86: {
             export_include_dirs: [
-                "all_to_x86_common/include",
+                "all_to_x86_32_or_x86_64/include",
             ],
         },
         x86_64: {
             export_include_dirs: [
-                "all_to_x86_common/include",
+                "all_to_x86_32_or_x86_64/include",
             ],
         },
     },
@@ -318,7 +318,7 @@ cc_library_headers {
     defaults: ["berberis_defaults_64"],
     host_supported: true,
     export_include_dirs: [
-        "all_to_x86_common/include",
+        "all_to_x86_32_or_x86_64/include",
         "include",
     ],
     header_libs: [
@@ -387,13 +387,13 @@ cc_test_library {
     arch: {
         x86: {
             srcs: [
-                "all_to_x86_common/intrinsics_float_test.cc",
+                "all_to_x86_32_or_x86_64/intrinsics_float_test.cc",
             ],
         },
         x86_64: {
             cflags: ["-mssse3"],
             srcs: [
-                "all_to_x86_common/intrinsics_float_test.cc",
+                "all_to_x86_32_or_x86_64/intrinsics_float_test.cc",
                 "all_to_x86_64/tuple_test.cc",
                 // Note that these two tests technically should work on any platform that supports
                 // risv64 to something translation, but currently that's only x86-64.
