@@ -33,7 +33,6 @@
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
 #include "berberis/kernel_api/runtime_bridge.h"
 #include "berberis/kernel_api/syscall_emulation_common.h"
-#include "berberis/kernel_api/tracing.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 
 #include "epoll_emulation.h"
@@ -82,7 +81,7 @@ void Hwprobe(Guest_riscv_hwprobe& pair) {
 
 long RunGuestSyscall___NR_execveat(long arg_1, long arg_2, long arg_3, long arg_4, long arg_5) {
   UNUSED(arg_1, arg_2, arg_3, arg_4, arg_5);
-  KAPI_TRACE("unimplemented syscall __NR_execveat");
+  TRACE("unimplemented syscall __NR_execveat");
   errno = ENOSYS;
   return -1;
 }
@@ -94,7 +93,7 @@ long RunGuestSyscall___NR_fadvise64(long arg_1, long arg_2, long arg_3, long arg
 
 long RunGuestSyscall___NR_ioctl(long arg_1, long arg_2, long arg_3) {
   // TODO(b/128614662): translate!
-  KAPI_TRACE("unimplemented ioctl 0x%lx, running host syscall as is", arg_2);
+  TRACE("unimplemented ioctl 0x%lx, running host syscall as is", arg_2);
   return syscall(__NR_ioctl, arg_1, arg_2, arg_3);
 }
 

@@ -19,22 +19,22 @@
 
 #include <stdio.h>
 
-#include "berberis/intrinsics/all_to_x86_common/text_assembler_common.h"
+#include "berberis/intrinsics/all_to_x86_32_or_x86_64/text_assembler_x86_32_and_x86_64.h"
 
 namespace berberis {
 
-class TextAssembler : public TextAssemblerX86<TextAssembler> {
+class TextAssembler : public x86_32_and_x86_64::TextAssembler<TextAssembler> {
  public:
-  using BaseAssembler = TextAssemblerX86<TextAssembler>;
+  using BaseAssembler = x86_32_and_x86_64::TextAssembler<TextAssembler>;
   using FinalAssembler = TextAssembler;
 
-  TextAssembler(int indent, FILE* out) : TextAssemblerX86(indent, out) {}
+  TextAssembler(int indent, FILE* out) : BaseAssembler(indent, out) {}
 
 // Instructions.
 #include "gen_text_assembler_x86_64-inl.h"  // NOLINT generated file
 
   // Unhide Movq(Mem, XMMReg) and Movq(XMMReg, Mem) hidden by Movq(Reg, Imm) and many others.
-  using TextAssemblerX86::Movq;
+  using BaseAssembler::Movq;
 
   static constexpr char kArchName[] = "riscv64";
   static constexpr char kArchGuard[] = "RISCV64_TO_X86_64";
@@ -44,9 +44,14 @@ class TextAssembler : public TextAssemblerX86<TextAssembler> {
   using RegisterDefaultBit = RegisterTemplate<kRsp, 'q'>;
 
  private:
-  using Assembler = TextAssembler;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TextAssembler);
-  friend TextAssemblerX86;
+  TextAssembler() = delete;
+  TextAssembler(const TextAssembler&) = delete;
+  TextAssembler(TextAssembler&&) = delete;
+  void operator=(const TextAssembler&) = delete;
+  void operator=(TextAssembler&&) = delete;
+  using DerivedAssemblerType = TextAssembler;
+
+  friend BaseAssembler;
 };
 
 void MakeGetSetFPEnvironment(FILE* out) {
