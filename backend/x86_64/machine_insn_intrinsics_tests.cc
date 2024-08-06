@@ -17,7 +17,7 @@
 #include "gtest/gtest.h"
 
 #include "berberis/backend/x86_64/machine_insn_intrinsics.h"
-#include "berberis/intrinsics/all_to_x86_common/intrinsics_bindings.h"
+#include "berberis/intrinsics/all_to_x86_32_or_x86_64/intrinsics_bindings.h"
 #include "berberis/intrinsics/intrinsics_args.h"
 
 namespace berberis {
