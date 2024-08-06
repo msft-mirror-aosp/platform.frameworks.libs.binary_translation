@@ -393,55 +393,53 @@ TEST(VectorIntrinsics, VlArgForVx) {
 }
 
 TEST(VectorIntrinsics, VmaskArgForVvv) {
-  auto Verify = []<typename ElementType>(
-                    auto Vaddvv,
-                    SIMD128Register arg2,
-                    [[gnu::vector_size(16),
-                      gnu::may_alias]] ElementType result_to_check_agnostic_agnostic,
-                    [[gnu::vector_size(16),
-                      gnu::may_alias]] ElementType result_to_check_agnostic_undisturbed,
-                    [[gnu::vector_size(16),
-                      gnu::may_alias]] ElementType result_to_check_undisturbed_agnostic,
-                    [[gnu::vector_size(16),
-                      gnu::may_alias]] ElementType result_to_check_undisturbed_undisturbed) {
-    constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
-    ASSERT_EQ(
-        (VectorMasking<Wrapping<ElementType>,
-                       TailProcessing::kAgnostic,
-                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
-                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
-                                                      0,
-                                                      kHalfLen,
-                                                      RawInt16{0xfdda})),
-        std::tuple{result_to_check_agnostic_agnostic});
-    ASSERT_EQ(
-        (VectorMasking<Wrapping<ElementType>,
-                       TailProcessing::kAgnostic,
-                       InactiveProcessing::kUndisturbed>(kUndisturbedResult,
-                                                         std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
-                                                         0,
-                                                         kHalfLen,
-                                                         RawInt16{0xfdda})),
-        std::tuple{result_to_check_agnostic_undisturbed});
-    ASSERT_EQ(
-        (VectorMasking<Wrapping<ElementType>,
-                       TailProcessing::kUndisturbed,
-                       InactiveProcessing::kAgnostic>(kUndisturbedResult,
-                                                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
-                                                      0,
-                                                      kHalfLen,
-                                                      RawInt16{0xfdda})),
-        std::tuple{result_to_check_undisturbed_agnostic});
-    ASSERT_EQ(
-        (VectorMasking<Wrapping<ElementType>,
-                       TailProcessing::kUndisturbed,
-                       InactiveProcessing::kUndisturbed>(kUndisturbedResult,
-                                                         std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
-                                                         0,
-                                                         kHalfLen,
-                                                         RawInt16{0xfdda})),
-        std::tuple{result_to_check_undisturbed_undisturbed});
-  };
+  auto Verify =
+      []<typename ElementType>(
+          auto Vaddvv,
+          SIMD128Register arg2,
+          [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check_agnostic_agnostic,
+          [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check_agnostic_undisturbed,
+          [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check_undisturbed_agnostic,
+          [[gnu::vector_size(16),
+            gnu::may_alias]] ElementType result_to_check_undisturbed_undisturbed) {
+        constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+        ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                                 TailProcessing::kAgnostic,
+                                 InactiveProcessing::kAgnostic>(
+                      kUndisturbedResult,
+                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                      0,
+                      kHalfLen,
+                      RawInt16{0xfdda})),
+                  std::tuple{result_to_check_agnostic_agnostic});
+        ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                                 TailProcessing::kAgnostic,
+                                 InactiveProcessing::kUndisturbed>(
+                      kUndisturbedResult,
+                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                      0,
+                      kHalfLen,
+                      RawInt16{0xfdda})),
+                  std::tuple{result_to_check_agnostic_undisturbed});
+        ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                                 TailProcessing::kUndisturbed,
+                                 InactiveProcessing::kAgnostic>(
+                      kUndisturbedResult,
+                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                      0,
+                      kHalfLen,
+                      RawInt16{0xfdda})),
+                  std::tuple{result_to_check_undisturbed_agnostic});
+        ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                                 TailProcessing::kUndisturbed,
+                                 InactiveProcessing::kUndisturbed>(
+                      kUndisturbedResult,
+                      std::get<0>(Vaddvv(__m128i{-1, -1}, arg2)),
+                      0,
+                      kHalfLen,
+                      RawInt16{0xfdda})),
+                  std::tuple{result_to_check_undisturbed_undisturbed});
+      };
   Verify(
       Vaddvv<UInt8>,
       __v16qu{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
@@ -496,51 +494,51 @@ TEST(VectorIntrinsics, VmaskArgForVvv) {
 }
 
 TEST(VectorIntrinsics, VmaskArgForVvx) {
-  auto Verify = []<typename ElementType>(
-                    auto Vaddvx,
-                    SIMD128Register arg1,
-                    [[gnu::vector_size(16),
-                      gnu::may_alias]] ElementType result_to_check_agnostic_agnostic,
-                    [[gnu::vector_size(16),
-                      gnu::may_alias]] ElementType result_to_check_agnostic_undisturbed,
-                    [[gnu::vector_size(16),
-                      gnu::may_alias]] ElementType result_to_check_undisturbed_agnostic,
-                    [[gnu::vector_size(16),
-                      gnu::may_alias]] ElementType result_to_check_undisturbed_undisturbed) {
-    constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
-    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
-                             TailProcessing::kAgnostic,
-                             InactiveProcessing::kAgnostic>(kUndisturbedResult,
-                                                            std::get<0>(Vaddvx(arg1, UInt8{1})),
-                                                            0,
-                                                            kHalfLen,
-                                                            RawInt16{0xfdda})),
-              std::tuple{result_to_check_agnostic_agnostic});
-    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
-                             TailProcessing::kAgnostic,
-                             InactiveProcessing::kUndisturbed>(kUndisturbedResult,
-                                                               std::get<0>(Vaddvx(arg1, UInt8{1})),
-                                                               0,
-                                                               kHalfLen,
-                                                               RawInt16{0xfdda})),
-              std::tuple{result_to_check_agnostic_undisturbed});
-    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
-                             TailProcessing::kUndisturbed,
-                             InactiveProcessing::kAgnostic>(kUndisturbedResult,
-                                                            std::get<0>(Vaddvx(arg1, UInt8{1})),
-                                                            0,
-                                                            kHalfLen,
-                                                            RawInt16{0xfdda})),
-              std::tuple{result_to_check_undisturbed_agnostic});
-    ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
-                             TailProcessing::kUndisturbed,
-                             InactiveProcessing::kUndisturbed>(kUndisturbedResult,
-                                                               std::get<0>(Vaddvx(arg1, UInt8{1})),
-                                                               0,
-                                                               kHalfLen,
-                                                               RawInt16{0xfdda})),
-              std::tuple{result_to_check_undisturbed_undisturbed});
-  };
+  auto Verify =
+      []<typename ElementType>(
+          auto Vaddvx,
+          SIMD128Register arg1,
+          [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check_agnostic_agnostic,
+          [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check_agnostic_undisturbed,
+          [[gnu::vector_size(16), gnu::may_alias]] ElementType result_to_check_undisturbed_agnostic,
+          [[gnu::vector_size(16),
+            gnu::may_alias]] ElementType result_to_check_undisturbed_undisturbed) {
+        constexpr size_t kHalfLen = sizeof(SIMD128Register) / sizeof(ElementType) / 2;
+        ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                                 TailProcessing::kAgnostic,
+                                 InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                                std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                                0,
+                                                                kHalfLen,
+                                                                RawInt16{0xfdda})),
+                  std::tuple{result_to_check_agnostic_agnostic});
+        ASSERT_EQ(
+            (VectorMasking<Wrapping<ElementType>,
+                           TailProcessing::kAgnostic,
+                           InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                             std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                             0,
+                                                             kHalfLen,
+                                                             RawInt16{0xfdda})),
+            std::tuple{result_to_check_agnostic_undisturbed});
+        ASSERT_EQ((VectorMasking<Wrapping<ElementType>,
+                                 TailProcessing::kUndisturbed,
+                                 InactiveProcessing::kAgnostic>(kUndisturbedResult,
+                                                                std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                                0,
+                                                                kHalfLen,
+                                                                RawInt16{0xfdda})),
+                  std::tuple{result_to_check_undisturbed_agnostic});
+        ASSERT_EQ(
+            (VectorMasking<Wrapping<ElementType>,
+                           TailProcessing::kUndisturbed,
+                           InactiveProcessing::kUndisturbed>(kUndisturbedResult,
+                                                             std::get<0>(Vaddvx(arg1, UInt8{1})),
+                                                             0,
+                                                             kHalfLen,
+                                                             RawInt16{0xfdda})),
+            std::tuple{result_to_check_undisturbed_undisturbed});
+      };
   Verify(
       Vaddvx<UInt8>,
       __v16qu{254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255, 254, 255},

@@ -21,23 +21,23 @@
 
 #include <type_traits>  // std::is_same
 
-#include "berberis/assembler/common_riscv.h"
+#include "berberis/assembler/riscv.h"
 
 namespace berberis::rv64 {
 
-class Assembler : public AssemblerRiscV<Assembler> {
+class Assembler : public riscv::Assembler<Assembler> {
  public:
-  using BaseAssembler = AssemblerRiscV<Assembler>;
+  using BaseAssembler = riscv::Assembler<Assembler>;
   using FinalAssembler = Assembler;
 
-  explicit Assembler(MachineCode* code) : AssemblerRiscV(code) {}
+  explicit Assembler(MachineCode* code) : BaseAssembler(code) {}
 
-  using ShiftImmediate = AssemblerRiscV<Assembler>::Shift64Immediate;
+  using ShiftImmediate = BaseAssembler::Shift64Immediate;
 
   // Don't use templates here to enable implicit conversions.
 #define BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(IntType)                                \
   static constexpr std::optional<ShiftImmediate> MakeShiftImmediate(IntType value) { \
-    return AssemblerRiscV<Assembler>::MakeShift64Immediate(value);                   \
+    return BaseAssembler::MakeShift64Immediate(value);                               \
   }
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(int8_t)
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(uint8_t)
@@ -49,7 +49,7 @@ class Assembler : public AssemblerRiscV<Assembler> {
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(uint64_t)
 #undef BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE
 
-  friend AssemblerRiscV<Assembler>;
+  friend BaseAssembler;
 
 // Instructions.
 #include "berberis/assembler/gen_assembler_rv64-inl.h"  // NOLINT generated file!
