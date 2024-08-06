@@ -27,7 +27,25 @@
 
 namespace berberis {
 
-// AssemblerRiscV includes implementation of most Risc V assembler instructions.
+namespace rv32e {
+
+class Assembler;
+
+}  // namespace rv32e
+
+namespace rv32i {
+
+class Assembler;
+
+}  // namespace rv32i
+
+namespace rv64i {
+
+class Assembler;
+
+}  // namespace rv64i
+
+// riscv::Assembler includes implementation of most Risc V assembler instructions.
 //
 // RV32 and RV64 assemblers are nearly identical, but difference lies in handling
 // of some instructions: RV32 uses certain encodings differently to handle compressed
@@ -35,13 +53,13 @@ namespace berberis {
 // (*not* 64bit quantities as the name implies, instead there are width-native instructions
 // and extra 32bit ones for RV64).
 //
-// To handle that difference efficiently AssemblerRiscV is CRTP class: it's parameterized
+// To handle that difference efficiently riscv::Assembler is CRTP class: it's parameterized
 // by its own descendant and pull certain functions from its implementation.
 
-template <typename Assembler>
-class AssemblerRiscV;
-
 namespace riscv {
+
+template <typename DerivedAssemblerType>
+class Assembler;
 
 enum class Condition {
   kInvalidCondition = -1,
@@ -138,8 +156,8 @@ class RawImmediate {
   friend class PImmediate;
   friend class SImmediate;
   friend class UImmediate;
-  template <typename Assembler>
-  friend class ::berberis::AssemblerRiscV;
+  template <typename DerivedAssemblerType>
+  friend class Assembler;
 
   constexpr RawImmediate(int32_t value) : value_(value) {}
   int32_t value_;
@@ -171,8 +189,8 @@ class RawImmediate {
                                                                                                  \
     friend bool operator==(Immediate const&, Immediate const&) = default;                        \
                                                                                                  \
-    template <typename Assembler>                                                                \
-    friend class ::berberis::AssemblerRiscV;                                                     \
+    template <typename DerivedAssemblerType>                                                     \
+    friend class Assembler;                                                                      \
     friend constexpr std::optional<Immediate> MakeImmediate(int8_t value);                       \
     friend constexpr std::optional<Immediate> MakeImmediate(uint8_t value);                      \
     friend constexpr std::optional<Immediate> MakeImmediate(int16_t value);                      \
@@ -600,30 +618,10 @@ constexpr RawImmediate UImmediate::MakeRaw(IntType value) {
   return static_cast<int32_t>(value);
 }
 
-}  // namespace riscv
-
-namespace rv32e {
-
-class Assembler;
-
-}  // namespace rv32e
-
-namespace rv32i {
-
-class Assembler;
-
-}  // namespace rv32i
-
-namespace rv64i {
-
-class Assembler;
-
-}  // namespace rv64i
-
-template <typename Assembler>
-class AssemblerRiscV : public AssemblerBase {
+template <typename DerivedAssemblerType>
+class Assembler : public AssemblerBase {
  public:
-  explicit AssemblerRiscV(MachineCode* code) : AssemblerBase(code) {}
+  explicit Assembler(MachineCode* code) : AssemblerBase(code) {}
 
   using Condition = riscv::Condition;
   using Csr = riscv::Csr;
@@ -635,7 +633,7 @@ class AssemblerRiscV : public AssemblerBase {
     constexpr bool operator!=(const Register& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
     friend constexpr uint8_t ValueForFmtSpec(Register value) { return value.num_; }
-    friend class AssemblerRiscV<Assembler>;
+    friend class Assembler<DerivedAssemblerType>;
     friend class rv32e::Assembler;
     friend class rv32i::Assembler;
     friend class rv64i::Assembler;
@@ -690,7 +688,7 @@ class AssemblerRiscV : public AssemblerBase {
     constexpr bool operator!=(const FpRegister& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
     friend constexpr uint8_t ValueForFmtSpec(FpRegister value) { return value.num_; }
-    friend class AssemblerRiscV<Assembler>;
+    friend class Assembler<DerivedAssemblerType>;
 
    private:
     explicit constexpr FpRegister(uint8_t num) : num_(num) {}
@@ -1051,18 +1049,18 @@ class AssemblerRiscV : public AssemblerBase {
   }
 
  private:
-  AssemblerRiscV() = delete;
-  AssemblerRiscV(const AssemblerRiscV&) = delete;
-  AssemblerRiscV(AssemblerRiscV&&) = delete;
-  void operator=(const AssemblerRiscV&) = delete;
-  void operator=(AssemblerRiscV&&) = delete;
+  Assembler() = delete;
+  Assembler(const Assembler&) = delete;
+  Assembler(Assembler&&) = delete;
+  void operator=(const Assembler&) = delete;
+  void operator=(Assembler&&) = delete;
 };
 
-template <typename Assembler>
-inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
-                                           Register argument1,
-                                           Register argument2,
-                                           const Label& label) {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bcc(Condition cc,
+                                                 Register argument1,
+                                                 Register argument2,
+                                                 const Label& label) {
   if (cc == Condition::kAlways) {
     Jal(zero, label);
     return;
@@ -1074,11 +1072,11 @@ inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
   EmitInstruction<0x0000'0063, 0x0000'007f>(Cond(cc), Rs1(argument1), Rs2(argument2));
 }
 
-template <typename Assembler>
-inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
-                                           Register argument1,
-                                           Register argument2,
-                                           BImmediate immediate) {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bcc(Condition cc,
+                                                 Register argument1,
+                                                 Register argument2,
+                                                 BImmediate immediate) {
   if (cc == Condition::kAlways) {
     int32_t encoded_immediate_value = immediate.EncodedValue();
     // Maybe better to provide an official interface to convert BImmediate into JImmediate?
@@ -1098,8 +1096,8 @@ inline void AssemblerRiscV<Assembler>::Bcc(Condition cc,
 }
 
 #define BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Name, TargetRegister, InstructionType, Opcode) \
-  template <typename Assembler>                                                                  \
-  inline void AssemblerRiscV<Assembler>::Name(                                                   \
+  template <typename DerivedAssemblerType>                                                       \
+  inline void Assembler<DerivedAssemblerType>::Name(                                             \
       TargetRegister arg0, const Label& label, Register arg2) {                                  \
     CHECK_NE(arg2, x0);                                                                          \
     jumps_.push_back(Jump{&label, pc(), false});                                                 \
@@ -1119,8 +1117,8 @@ BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sw, Register, S, 0x0000'2023)
 #undef BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION
 
 #define BERBERIS_DEFINE_LOAD_INSTRUCTION(Name, Opcode)                                         \
-  template <typename Assembler>                                                                \
-  inline void AssemblerRiscV<Assembler>::Name(Register arg0, const Label& label) {             \
+  template <typename DerivedAssemblerType>                                                     \
+  inline void Assembler<DerivedAssemblerType>::Name(Register arg0, const Label& label) {       \
     CHECK_NE(arg0, x0);                                                                        \
     jumps_.push_back(Jump{&label, pc(), false});                                               \
     /* First issue auipc to load top 20 bits of difference between pc and target address */    \
@@ -1135,8 +1133,8 @@ BERBERIS_DEFINE_LOAD_INSTRUCTION(Lhu, 0x0000'5003)
 BERBERIS_DEFINE_LOAD_INSTRUCTION(Lw, 0x0000'2003)
 #undef BERBERIS_DEFINE_LOAD_INSTRUCTION
 
-template <typename Assembler>
-inline void AssemblerRiscV<Assembler>::Lla(Register arg0, const Label& label) {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Lla(Register arg0, const Label& label) {
   CHECK_NE(arg0, x0);
   jumps_.push_back(Jump{&label, pc(), false});
   // First issue auipc to load top 20 bits of difference between pc and target address
@@ -1145,11 +1143,12 @@ inline void AssemblerRiscV<Assembler>::Lla(Register arg0, const Label& label) {
   EmitITypeInstruction<uint32_t{0x0000'0013}>(arg0, arg0, IImmediate{0});
 }
 
-#define BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Name, Opcode)                                     \
-  template <typename Assembler>                                                                   \
-  inline void AssemblerRiscV<Assembler>::Name(Register arg0, Register arg1, const Label& label) { \
-    jumps_.push_back(Jump{&label, pc(), false});                                                  \
-    EmitBTypeInstruction<uint32_t{Opcode}>(arg0, arg1, BImmediate{0});                            \
+#define BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Name, Opcode)          \
+  template <typename DerivedAssemblerType>                             \
+  inline void Assembler<DerivedAssemblerType>::Name(                   \
+      Register arg0, Register arg1, const Label& label) {              \
+    jumps_.push_back(Jump{&label, pc(), false});                       \
+    EmitBTypeInstruction<uint32_t{Opcode}>(arg0, arg1, BImmediate{0}); \
   }
 BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Beq, 0x0000'0063)
 BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bge, 0x0000'5063)
@@ -1159,14 +1158,14 @@ BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bltu, 0x0000'6063)
 BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bne, 0x0000'1063)
 #undef BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION
 
-template <typename Assembler>
-inline void AssemblerRiscV<Assembler>::Jal(Register argument0, const Label& label) {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jal(Register argument0, const Label& label) {
   jumps_.push_back(Jump{&label, pc(), false});
   EmitInstruction<0x0000'006f, 0x0000'007f>(Rd(argument0));
 }
 
-template <typename Assembler>
-inline void AssemblerRiscV<Assembler>::ResolveJumps() {
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
   for (const auto& jump : jumps_) {
     const Label* label = jump.label;
     uint32_t pc = jump.pc;
@@ -1219,6 +1218,8 @@ inline void AssemblerRiscV<Assembler>::ResolveJumps() {
     }
   }
 }
+
+}  // namespace riscv
 
 }  // namespace berberis
 
