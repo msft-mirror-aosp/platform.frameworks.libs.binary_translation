@@ -17,6 +17,6 @@
 #ifndef BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_
 #define BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_
 
-#include "berberis/intrinsics/all_to_x86_common/intrinsics_bindings.h"
+#include "berberis/intrinsics/all_to_x86_32_or_x86_64/intrinsics_bindings.h"
 
 #endif  // BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_
