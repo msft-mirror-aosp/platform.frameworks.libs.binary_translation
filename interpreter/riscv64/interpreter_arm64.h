@@ -68,8 +68,22 @@ class Interpreter {
              bool pr,
              bool /*po*/,
              bool /*pi*/) {
-    UNUSED(sw, sr, pw, pr);
-    Undefined();
+    bool read_fence = sr | pr;
+    bool write_fence = sw | pw;
+    // "ish" is for inner shareable access, which is normally needed by userspace programs.
+    if (read_fence) {
+      if (write_fence) {
+        // This is equivalent to "fence rw,rw".
+        asm volatile("dmb ish" ::: "memory");
+      } else {
+        // "ishld" is equivalent to "fence r,rw", which is stronger than what we need here
+        // ("fence r,r"). However, it is the closet option that ARM offers.
+        asm volatile("dmb ishld" ::: "memory");
+      }
+    } else if (write_fence) {
+      // "st" is equivalent to "fence w,w".
+      asm volatile("dmb ishst" ::: "memory");
+    }
     return;
   }
 
@@ -158,21 +172,30 @@ class Interpreter {
   }
 
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
-    UNUSED(opcode, arg, imm);
-    Undefined();
-    return {};
+    switch (opcode) {
+      case Decoder::OpImmOpcode::kAddi:
+        return arg + int64_t{imm};
+      case Decoder::OpImmOpcode::kSlti:
+        return bit_cast<int64_t>(arg) < int64_t{imm} ? 1 : 0;
+      case Decoder::OpImmOpcode::kSltiu:
+        return arg < bit_cast<uint64_t>(int64_t{imm}) ? 1 : 0;
+      case Decoder::OpImmOpcode::kXori:
+        return arg ^ int64_t { imm };
+      case Decoder::OpImmOpcode::kOri:
+        return arg | int64_t{imm};
+      case Decoder::OpImmOpcode::kAndi:
+        return arg & int64_t{imm};
+      default:
+        Undefined();
+        return {};
+    }
   }
 
-  Register Lui(int32_t imm) {
-    UNUSED(imm);
-    Undefined();
-    return {};
-  }
+  Register Lui(int32_t imm) { return int64_t{imm}; }
 
   Register Auipc(int32_t imm) {
-    UNUSED(imm);
-    Undefined();
-    return {};
+    uint64_t pc = state_->cpu.insn_addr;
+    return pc + int64_t{imm};
   }
 
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
@@ -206,9 +229,8 @@ class Interpreter {
   }
 
   Register Rori(Register arg, int8_t shamt) {
-    UNUSED(arg, shamt);
-    Undefined();
-    return {};
+    CheckShamtIsValid(shamt);
+    return (((uint64_t(arg) >> shamt)) | (uint64_t(arg) << (64 - shamt)));
   }
 
   Register Roriw(Register arg, int8_t shamt) {
