@@ -27,7 +27,7 @@ namespace berberis::rv32e {
 
 class Assembler : public ::berberis::rv32::Assembler {
  public:
-  using BaseAssembler = AssemblerRiscV<berberis::rv32::Assembler>;
+  using BaseAssembler = riscv::Assembler<::berberis::rv32::Assembler>;
   using FinalAssembler = berberis::rv32::Assembler;
 
   explicit Assembler(MachineCode* code) : berberis::rv32::Assembler(code) {}

@@ -48,6 +48,27 @@ class Riscv64ToArm64InterpreterTest : public ::testing::Test {
     }
   }
 
+  void TestOpImm(uint32_t insn_bytes,
+                 std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
+    for (auto [arg1, imm, expected_result] : args) {
+      CHECK_LE(imm, 63);
+      uint32_t insn_bytes_with_immediate = insn_bytes | imm << 20;
+      SetXReg<2>(state_.cpu, arg1);
+      RunInstruction(insn_bytes_with_immediate);
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  void TestAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
+    RunInstruction(insn_bytes);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + ToGuestAddr(&insn_bytes));
+  }
+
+  void TestLui(uint32_t insn_bytes, uint64_t expected_result) {
+    RunInstruction(insn_bytes);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+  }
+
   void TestBranch(uint32_t insn_bytes,
                   std::initializer_list<std::tuple<uint64_t, uint64_t, int8_t>> args) {
     auto code_start = ToGuestAddr(&insn_bytes);
@@ -144,6 +165,46 @@ TEST_F(Riscv64ToArm64InterpreterTest, OpInstructions) {
   TestOp(0x403160b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fffd}});
   // Xnor
   TestOp(0x403140b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fff9}});
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, OpImmInstructions) {
+  // Addi
+  TestOpImm(0x00010093, {{19, 23, 42}});
+  // Slti
+  TestOpImm(0x00012093,
+            {
+                {19, 23, 1},
+                {23, 19, 0},
+                {~0ULL, 0, 1},
+            });
+  // Sltiu
+  TestOpImm(0x00013093,
+            {
+                {19, 23, 1},
+                {23, 19, 0},
+                {~0ULL, 0, 0},
+            });
+  // Xori
+  TestOpImm(0x00014093, {{0b0101, 0b0011, 0b0110}});
+  // Ori
+  TestOpImm(0x00016093, {{0b0101, 0b0011, 0b0111}});
+  // Andi
+  TestOpImm(0x00017093, {{0b0101, 0b0011, 0b0001}});
+  // Slli
+  TestOpImm(0x00011093, {{0b1010, 3, 0b1010'000}});
+  // Srli
+  TestOpImm(0x00015093, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
+  // Srai
+  TestOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
+  // Rori
+  TestOpImm(0x60015093, {{0xf000'0000'0000'000fULL, 4, 0xff00'0000'0000'0000ULL}});
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, UpperImmInstructions) {
+  // Auipc
+  TestAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
+  // Lui
+  TestLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
 }
 
 TEST_F(Riscv64ToArm64InterpreterTest, TestBranchInstructions) {
@@ -254,6 +315,17 @@ TEST_F(Riscv64ToArm64InterpreterTest, StoreInstructions) {
   TestStore(0x0020a423, kDataToStore & 0xffff'ffffULL);
   // Sd
   TestStore(0x0020b423, kDataToStore);
+}
+
+// Corresponding to interpreter_test.cc
+
+TEST_F(Riscv64ToArm64InterpreterTest, FenceInstructions) {
+  // Fence
+  RunInstruction(0x0ff0000f);
+  // FenceTso
+  RunInstruction(0x8330000f);
+
+  // FenceI explicitly not supported.
 }
 
 }  // namespace
