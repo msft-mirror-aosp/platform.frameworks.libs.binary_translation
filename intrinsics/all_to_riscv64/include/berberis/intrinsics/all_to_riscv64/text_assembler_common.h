@@ -23,7 +23,7 @@
 #include <deque>
 #include <string>
 
-#include "berberis/assembler/common_riscv.h"
+#include "berberis/assembler/riscv.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
