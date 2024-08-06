@@ -24,7 +24,7 @@
 #include <cerrno>
 #include <cstring>
 
-#include "berberis/kernel_api/tracing.h"
+#include "berberis/base/tracing.h"
 
 namespace berberis {
 
@@ -68,11 +68,11 @@ int PtraceForGuest(int int_request, pid_t pid, void* addr, void* data) {
     case PTRACE_POKETEXT:
       return ptrace(request, pid, addr, data);
     case PTRACE_GETSIGINFO:
-      KAPI_TRACE("not implemented: ptrace(PTRACE_GETSIGINFO, ...)");
+      TRACE("not implemented: ptrace(PTRACE_GETSIGINFO, ...)");
       errno = EPERM;
       return -1;
     case PTRACE_GETREGSET:
-      KAPI_TRACE("not implemented: ptrace(PTRACE_GETREGSET, ...)");
+      TRACE("not implemented: ptrace(PTRACE_GETREGSET, ...)");
       if (data) {
         // Even in case of error, kernel sets iov_len to amount of data written.
         auto iov = reinterpret_cast<iovec*>(data);
@@ -83,11 +83,11 @@ int PtraceForGuest(int int_request, pid_t pid, void* addr, void* data) {
       }
       return -1;
     case PTRACE_SETREGSET:
-      KAPI_TRACE("not implemented: ptrace(PTRACE_SETREGSET, ...)");
+      TRACE("not implemented: ptrace(PTRACE_SETREGSET, ...)");
       errno = EINVAL;
       return -1;
     default:
-      KAPI_TRACE("not implemented: ptrace(0x%x, ...)", request);
+      TRACE("not implemented: ptrace(0x%x, ...)", request);
       errno = EPERM;
       return -1;
   }
