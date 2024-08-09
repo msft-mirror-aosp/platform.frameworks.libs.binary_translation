@@ -16,6 +16,7 @@
 
 #include "berberis/interpreter/riscv64/interpreter.h"
 
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 
@@ -23,10 +24,19 @@
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/runtime_primitives/memory_region_reservation.h"
 
 #include "../faulty_memory_accesses.h"
 
 namespace berberis {
+
+inline constexpr std::memory_order AqRlToStdMemoryOrder(bool aq, bool rl) {
+  if (aq) {
+    return rl ? std::memory_order_acq_rel : std::memory_order_acquire;
+  } else {
+    return rl ? std::memory_order_release : std::memory_order_relaxed;
+  }
+}
 
 class Interpreter {
  public:
@@ -89,16 +99,25 @@ class Interpreter {
 
   template <typename IntType, bool aq, bool rl>
   Register Lr(int64_t addr) {
-    UNUSED(addr);
-    Undefined();
-    return {};
+    // TODO(b/358214671): use more efficient way for MemoryRegionReservation.
+    static_assert(std::is_integral_v<IntType>, "Lr: IntType must be integral");
+    static_assert(std::is_signed_v<IntType>, "Lr: IntType must be signed");
+    CHECK(!exception_raised_);
+    // Address must be aligned on size of IntType.
+    CHECK((addr % sizeof(IntType)) == 0ULL);
+    return MemoryRegionReservation::Load<IntType>(&state_->cpu, addr, AqRlToStdMemoryOrder(aq, rl));
   }
 
   template <typename IntType, bool aq, bool rl>
   Register Sc(int64_t addr, IntType val) {
-    UNUSED(addr, val);
-    Undefined();
-    return {};
+    // TODO(b/358214671): use more efficient way for MemoryRegionReservation.
+    static_assert(std::is_integral_v<IntType>, "Sc: IntType must be integral");
+    static_assert(std::is_signed_v<IntType>, "Sc: IntType must be signed");
+    CHECK(!exception_raised_);
+    // Address must be aligned on size of IntType.
+    CHECK((addr % sizeof(IntType)) == 0ULL);
+    return static_cast<Register>(MemoryRegionReservation::Store<IntType>(
+        &state_->cpu, addr, val, AqRlToStdMemoryOrder(aq, rl)));
   }
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
