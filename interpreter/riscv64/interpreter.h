@@ -47,17 +47,9 @@ namespace berberis {
 
 inline constexpr std::memory_order AqRlToStdMemoryOrder(bool aq, bool rl) {
   if (aq) {
-    if (rl) {
-      return std::memory_order_acq_rel;
-    } else {
-      return std::memory_order_acquire;
-    }
+    return rl ? std::memory_order_acq_rel : std::memory_order_acquire;
   } else {
-    if (rl) {
-      return std::memory_order_release;
-    } else {
-      return std::memory_order_relaxed;
-    }
+    return rl ? std::memory_order_release : std::memory_order_relaxed;
   }
 }
 
