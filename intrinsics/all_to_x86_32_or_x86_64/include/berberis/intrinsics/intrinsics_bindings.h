@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_KERNEL_API_TRACING_H_
-#define BERBERIS_KERNEL_API_TRACING_H_
+#ifndef BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_
+#define BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_
 
-#include "berberis/base/tracing.h"
+#include "berberis/intrinsics/all_to_x86_32_or_x86_64/intrinsics_bindings.h"
 
-#define KAPI_TRACE(...) TRACE(__VA_ARGS__)
-
-#endif  // BERBERIS_KERNEL_API_TRACING_H_
+#endif  // BERBERIS_INTRINSICS_INTRINSICS_BINDINGS_H_

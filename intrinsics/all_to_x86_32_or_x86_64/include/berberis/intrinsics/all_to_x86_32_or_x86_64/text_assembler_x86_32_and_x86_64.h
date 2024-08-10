@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
-#define BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
+#ifndef BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_TEXT_ASSEMBLER_COMMON_H_
+#define BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_TEXT_ASSEMBLER_COMMON_H_
 
 #include <array>
 #include <cstdint>
@@ -26,8 +26,7 @@
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
-#include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
-#include "berberis/intrinsics/common_to_x86/intrinsics_bindings.h"
+#include "berberis/intrinsics/all_to_x86_32_or_x86_64/intrinsics_bindings.h"
 
 namespace berberis {
 
@@ -35,10 +34,12 @@ namespace constants_pool {
 
 int32_t GetOffset(int32_t address);
 
-}
+}  // namespace constants_pool
 
-template <typename Assembler>
-class TextAssemblerX86 {
+namespace x86_32_and_x86_64 {
+
+template <typename DerivedAssemblerType>
+class TextAssembler {
  public:
   // Condition class - 16 x86 conditions.
   enum class Condition {
@@ -176,9 +177,11 @@ class TextAssemblerX86 {
       std::string result{};
       if (op.base.arg_no_ == Register::kNoRegister and op.index.arg_no_ == Register::kNoRegister) {
         as->need_gpr_macroassembler_constants_ = true;
-        result = std::to_string(constants_pool::GetOffset(op.disp)) + " + " +
-                 ToGasArgument(
-                     typename Assembler::RegisterDefaultBit(as->gpr_macroassembler_constants), as);
+        result =
+            std::to_string(constants_pool::GetOffset(op.disp)) + " + " +
+            ToGasArgument(
+                typename DerivedAssemblerType::RegisterDefaultBit(as->gpr_macroassembler_constants),
+                as);
       } else if (op.base.arg_no_ == Register::kScratchPointer) {
         CHECK(op.index.arg_no_ == Register::kNoRegister);
         // Only support two pointers to scratch area for now.
@@ -191,10 +194,11 @@ class TextAssemblerX86 {
         }
       } else {
         if (op.base.arg_no_ != Register::kNoRegister) {
-          result = ToGasArgument(typename Assembler::RegisterDefaultBit(op.base), as);
+          result = ToGasArgument(typename DerivedAssemblerType::RegisterDefaultBit(op.base), as);
         }
         if (op.index.arg_no_ != Register::kNoRegister) {
-          result += ',' + ToGasArgument(typename Assembler::RegisterDefaultBit(op.index), as) +
+          result += ',' +
+                    ToGasArgument(typename DerivedAssemblerType::RegisterDefaultBit(op.index), as) +
                     ',' + std::to_string(1 << op.scale);
         }
         result = '(' + result + ')';
@@ -206,7 +210,7 @@ class TextAssemblerX86 {
     }
   };
 
-  TextAssemblerX86(int indent, FILE* out) : indent_(indent), out_(out) {}
+  TextAssembler(int indent, FILE* out) : indent_(indent), out_(out) {}
 
   // These start as Register::kNoRegister but can be changed if they are used as arguments to
   // something else.
@@ -329,7 +333,7 @@ class TextAssemblerX86 {
   // Translate CPU restrictions into string.
   template <typename CPUIDRestriction>
   static constexpr const char* kCPUIDRestrictionString =
-      Assembler::template CPUIDRestrictionToString<CPUIDRestriction>();
+      DerivedAssemblerType::template CPUIDRestrictionToString<CPUIDRestriction>();
 
 // Instructions.
 #include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
@@ -477,7 +481,11 @@ class TextAssemblerX86 {
  private:
   std::deque<Label> labels_allocated_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TextAssemblerX86);
+  TextAssembler() = delete;
+  TextAssembler(const TextAssembler&) = delete;
+  TextAssembler(TextAssembler&&) = delete;
+  void operator=(const TextAssembler&) = delete;
+  void operator=(TextAssembler&&) = delete;
 };
 
 template <typename Arg, typename MacroAssembler>
@@ -485,9 +493,11 @@ inline std::string ToGasArgument(const Arg& arg, MacroAssembler*) {
   return "$" + std::to_string(arg);
 }
 
-template <typename Assembler>
+template <typename DerivedAssemblerType>
 template <typename... Args>
-inline void TextAssemblerX86<Assembler>::Instruction(const char* name, Condition cond, const Args&... args) {
+inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
+                                                             Condition cond,
+                                                             const Args&... args) {
   char name_with_condition[8] = {};
   if (strcmp(name, "Cmovl") == 0 || strcmp(name, "Cmovq") == 0) {
     strcpy(name_with_condition, "Cmov");
@@ -550,9 +560,10 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, Condition
   Instruction(name_with_condition, args...);
 }
 
-template <typename Assembler>
+template <typename DerivedAssemblerType>
 template <typename... Args>
-inline void TextAssemblerX86<Assembler>::Instruction(const char* name, const Args&... args) {
+inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
+                                                             const Args&... args) {
   for (auto it : std::array<std::tuple<const char*, const char*>, 18>{
            {// Note: SSE doesn't include simple register-to-register move instruction.
             // You are supposed to use one of half-dozen variants depending on what you
@@ -598,6 +609,8 @@ inline void TextAssemblerX86<Assembler>::Instruction(const char* name, const Arg
   fprintf(out_, "\\n\"\n");
 }
 
+}  // namespace x86_32_and_x86_64
+
 }  // namespace berberis
 
-#endif  // BERBERIS_INTRINSICS_COMMON_TO_X86_TEXT_ASSEMBLER_COMMON_H_
+#endif  // BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_TEXT_ASSEMBLER_COMMON_H_
