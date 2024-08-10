@@ -31,7 +31,7 @@
 #include "berberis/intrinsics/guest_cpu_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
-#include "berberis/intrinsics/riscv64/vector_intrinsics.h"
+#include "berberis/intrinsics/riscv64_to_all/vector_intrinsics.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
@@ -47,17 +47,9 @@ namespace berberis {
 
 inline constexpr std::memory_order AqRlToStdMemoryOrder(bool aq, bool rl) {
   if (aq) {
-    if (rl) {
-      return std::memory_order_acq_rel;
-    } else {
-      return std::memory_order_acquire;
-    }
+    return rl ? std::memory_order_acq_rel : std::memory_order_acquire;
   } else {
-    if (rl) {
-      return std::memory_order_release;
-    } else {
-      return std::memory_order_relaxed;
-    }
+    return rl ? std::memory_order_release : std::memory_order_relaxed;
   }
 }
 

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_RISCV64_VECTOR_INTRINSICS_H_
-#define BERBERIS_INTRINSICS_RISCV64_VECTOR_INTRINSICS_H_
+#ifndef BERBERIS_INTRINSICS_RISCV64_TO_ALL_VECTOR_INTRINSICS_H_
+#define BERBERIS_INTRINSICS_RISCV64_TO_ALL_VECTOR_INTRINSICS_H_
 
 #include <algorithm>
 #include <climits>  // CHAR_BIT
@@ -434,7 +434,8 @@ template <typename ElementType, TailProcessing vta, InactiveProcessing vma, type
 template <typename ElementType, typename... ParameterType>
 inline constexpr bool kIsAllowedArgumentForVector =
     ((std::is_same_v<ParameterType, SIMD128Register> ||
-      std::is_same_v<ParameterType, ElementType>)&&...);
+      std::is_same_v<ParameterType, ElementType>) &&
+     ...);
 
 // TODO(b/260725458): Pass lambda as template argument after C++20 would become available.
 template <typename ElementType, typename Lambda, typename... ParameterType>
@@ -1324,4 +1325,4 @@ DEFINE_2OP_1CSR_NARROW_ARITHMETIC_INTRINSIC_WX(
 
 }  // namespace berberis::intrinsics
 
-#endif  // BERBERIS_INTRINSICS_RISCV64_VECTOR_INTRINSICS_H_
+#endif  // BERBERIS_INTRINSICS_RISCV64_TO_ALL_VECTOR_INTRINSICS_H_

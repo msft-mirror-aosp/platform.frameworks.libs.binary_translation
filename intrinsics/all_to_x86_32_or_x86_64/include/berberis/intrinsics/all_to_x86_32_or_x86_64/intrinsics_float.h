@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef COMMON_TO_X86_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
-#define COMMON_TO_X86_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#ifndef ALL_TO_X86_32_OR_x86_64_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#define ALL_TO_X86_32_OR_x86_64_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
 
 #include <cmath>
 
@@ -34,7 +34,7 @@ namespace berberis::intrinsics {
     return result;                                                                      \
   }                                                                                     \
                                                                                         \
-  inline Float32& operator assignment_name(Float32& v1, const Float32& v2) {            \
+  inline Float32& operator assignment_name(Float32 & v1, const Float32 & v2) {          \
     asm(#guest_name "ss %2,%0" : "=x"(v1.value_) : "0"(v1.value_), "x"(v2.value_));     \
     return v1;                                                                          \
   }                                                                                     \
@@ -45,7 +45,7 @@ namespace berberis::intrinsics {
     return result;                                                                      \
   }                                                                                     \
                                                                                         \
-  inline Float64& operator assignment_name(Float64& v1, const Float64& v2) {            \
+  inline Float64& operator assignment_name(Float64 & v1, const Float64 & v2) {          \
     asm(#guest_name "sd %2,%0" : "=x"(v1.value_) : "0"(v1.value_), "x"(v2.value_));     \
     return v1;                                                                          \
   }
@@ -296,4 +296,4 @@ inline Float64 MulAdd(const Float64& v1, const Float64& v2, const Float64& v3) {
 
 }  // namespace berberis::intrinsics
 
-#endif  // COMMON_TO_X86_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
+#endif  // ALL_TO_X86_32_OR_x86_64_BERBERIS_INTRINSICS_INTRINSICS_FLOAT_H_
