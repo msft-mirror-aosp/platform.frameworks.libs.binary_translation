@@ -24,7 +24,10 @@
 #include <tuple>
 #include <utility>
 
-#include "berberis/intrinsics/intrinsics_float.h"
+// Don't include arch-dependent parts because macro-assembler doesn't depend on implementation of
+// Float32/Float64 types but can be compiled for different architecture (soong's host architecture,
+// not device architecture AKA berberis' host architecture).
+#include "berberis/intrinsics/common/intrinsics_float.h"
 #include "berberis/intrinsics/macro_assembler_constants_pool.h"
 
 namespace berberis {
