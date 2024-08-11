@@ -131,6 +131,6 @@ template <typename ElementType,
 
 // Include host-agnostic code.
 
-#include "berberis/intrinsics/riscv64/vector_intrinsics.h"
+#include "berberis/intrinsics/riscv64_to_all/vector_intrinsics.h"
 
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_VECTOR_INTRINSICS_H_

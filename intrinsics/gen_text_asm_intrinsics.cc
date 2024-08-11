@@ -625,7 +625,7 @@ int main(int argc, char* argv[]) {
 
 #include "berberis/base/config.h"
 #include "berberis/runtime_primitives/platform.h"
-#include "%3$s/intrinsics/%1$s/intrinsics.h"
+#include "%3$s/intrinsics/%1$s_to_all/intrinsics.h"
 #include "%3$s/intrinsics/vector_intrinsics.h"
 
 namespace berberis::constants_pool {
