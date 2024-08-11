@@ -25,6 +25,7 @@
 #include "berberis/backend/x86_64/machine_ir_builder.h"
 #include "berberis/base/bit_util.h"
 #include "berberis/base/dependent_false.h"
+#include "berberis/intrinsics/simd_register.h"
 
 #include "simd_register.h"
 
