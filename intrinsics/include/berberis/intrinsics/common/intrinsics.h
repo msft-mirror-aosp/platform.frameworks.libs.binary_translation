@@ -20,14 +20,16 @@
 #include <cstdint>
 
 #include "berberis/base/dependent_false.h"
+#if !defined(__aarch64__)
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64/ProcessNans
+#endif
 
 namespace berberis {
 
 class SIMD128Register;
 
 namespace intrinsics {
-
+#if !defined(__aarch64__)
 enum EnumFromTemplateType {
   kInt8T,
   kUInt8T,
@@ -73,7 +75,7 @@ constexpr EnumFromTemplateType TypeToEnumFromTemplateType() {
 
 template <typename Type>
 constexpr EnumFromTemplateType kEnumFromTemplateType = TypeToEnumFromTemplateType<Type>();
-
+#endif
 // A solution for the inability to call generic implementation from specialization.
 // Declaration:
 //   template <typename Type,
