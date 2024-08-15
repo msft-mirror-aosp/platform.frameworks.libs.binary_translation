@@ -312,9 +312,9 @@ class Decoder {
     kVfmsacvv = 0b101110,
     kVfnmsacvv = 0b101111,
     kVfwaddvv = 0b110000,
-    kVfwredusumvv = 0b110001,
+    kVfwredusumvs = 0b110001,
     kVfwsubvv = 0b110010,
-    kVfwredosumvv = 0b110011,
+    kVfwredosumvs = 0b110011,
     kVfwaddwv = 0b110100,
     kVfwsubwv = 0b110110,
     kVfwmulvv = 0b111000,
@@ -393,8 +393,8 @@ class Decoder {
     kVnsrawv = 0b101101,
     kVnclipuwv = 0b101110,
     kVnclipwv = 0b101111,
-    kVwredsumuvv = 0b110000,
-    kVwredsumvv = 0b110001,
+    kVwredsumuvs = 0b110000,
+    kVwredsumvs = 0b110001,
   };
 
   enum class VOpIVxOpcode : uint8_t {
@@ -562,6 +562,7 @@ class Decoder {
   enum class VFUnary1Opcode : uint8_t {
     kVfsqrtv = 0b00000,
     kVfrsqrt7v = 0b00100,
+    kVfclassv = 0b10000,
   };
 
   enum class VRXUnary0Opcode : uint8_t {
@@ -589,6 +590,7 @@ class Decoder {
     kVsextvf4m = 0b00101,
     kVzextvf2m = 0b00110,
     kVsextvf2m = 0b00111,
+    kVbrev8v = 0b01000,
   };
 
   // Load/Store instruction include 3bit “width” field while all other floating-point instructions

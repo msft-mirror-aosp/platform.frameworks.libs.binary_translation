@@ -34,7 +34,17 @@ constexpr T AlignDownPageSize(T x) {
 
 template <typename T>
 constexpr T AlignUpPageSize(T x) {
-  return AlignUp(x, kPageSize);
+  static_assert(!std::is_signed_v<T>);
+  T result = AlignUp(x, kPageSize);
+  CHECK_GE(result, x);
+  return result;
+}
+
+template <typename T>
+constexpr bool AlignUpPageSizeOverflow(T x, T* result) {
+  static_assert(!std::is_signed_v<T>);
+  *result = AlignUp(x, kPageSize);
+  return *result < x;
 }
 
 template <typename T>
