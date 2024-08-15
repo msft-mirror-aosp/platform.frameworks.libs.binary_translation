@@ -17,8 +17,6 @@
 #ifndef BERBERIS_INTRINSICS_COMMON_TO_RISCV_INTRINSICS_BINDINGS_H_
 #define BERBERIS_INTRINSICS_COMMON_TO_RISCV_INTRINSICS_BINDINGS_H_
 
-#include <xmmintrin.h>
-
 #include <cstdint>
 
 #include "berberis/assembler/riscv.h"
