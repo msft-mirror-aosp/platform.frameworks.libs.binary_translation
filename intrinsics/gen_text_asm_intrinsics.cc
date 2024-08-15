@@ -15,7 +15,6 @@
  */
 
 #include <stdio.h>
-#include <xmmintrin.h>
 
 #include <algorithm>
 #include <iterator>
@@ -620,8 +619,6 @@ int main(int argc, char* argv[]) {
 
 #ifndef %2$s_%3$s_INTRINSICS_INTRINSICS_H_
 #define %2$s_%3$s_INTRINSICS_INTRINSICS_H_
-
-#include <xmmintrin.h>
 
 #include "berberis/base/config.h"
 #include "berberis/runtime_primitives/platform.h"
