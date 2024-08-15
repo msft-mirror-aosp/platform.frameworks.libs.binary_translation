@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "faulty_memory_accesses.h"
+#include "../faulty_memory_accesses.h"
 
 #include <cstdint>
 #include <utility>

@@ -21,8 +21,12 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 
-#include "faulty_memory_accesses.h"
+#include "../faulty_memory_accesses.h"
+#if defined(__x86_64__)
 #include "interpreter.h"
+#elif defined(__aarch64__)
+#include "interpreter_arm64.h"
+#endif
 
 namespace berberis {
 

@@ -27,72 +27,72 @@ TEST(CallingConventions_x86_64, Smoke) {
   ArgLocation loc;
 
   loc = conv.GetNextIntArgLoc(1, 1);
-  EXPECT_EQ(kArgLocationInt, loc.kind);
-  EXPECT_EQ(0u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationInt);
+  EXPECT_EQ(loc.offset, 0u);
 
   loc = conv.GetNextIntArgLoc(16, 16);
-  EXPECT_EQ(kArgLocationInt, loc.kind);
-  EXPECT_EQ(1u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationInt);
+  EXPECT_EQ(loc.offset, 1u);
 
   loc = conv.GetNextIntArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationInt, loc.kind);
-  EXPECT_EQ(3u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationInt);
+  EXPECT_EQ(loc.offset, 3u);
 
   loc = conv.GetNextIntArgLoc(16, 16);
-  EXPECT_EQ(kArgLocationInt, loc.kind);
-  EXPECT_EQ(4u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationInt);
+  EXPECT_EQ(loc.offset, 4u);
 
   loc = conv.GetNextIntArgLoc(1, 1);
-  EXPECT_EQ(kArgLocationStack, loc.kind);
-  EXPECT_EQ(0u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationStack);
+  EXPECT_EQ(loc.offset, 0u);
 
   loc = conv.GetNextIntArgLoc(1, 1);
-  EXPECT_EQ(kArgLocationStack, loc.kind);
-  EXPECT_EQ(8u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationStack);
+  EXPECT_EQ(loc.offset, 8u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(0u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 0u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(1u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 1u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(2u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 2u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(3u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 3u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(4u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 4u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(5u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 5u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(6u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 6u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(7u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 7u);
 
   loc = conv.GetNextFpArgLoc(8, 8);
-  EXPECT_EQ(kArgLocationStack, loc.kind);
-  EXPECT_EQ(16u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationStack);
+  EXPECT_EQ(loc.offset, 16u);
 
   loc = conv.GetIntResLoc(1);
-  EXPECT_EQ(kArgLocationIntOut, loc.kind);
-  EXPECT_EQ(0u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationIntOut);
+  EXPECT_EQ(loc.offset, 0u);
 
   loc = conv.GetFpResLoc(8);
-  EXPECT_EQ(kArgLocationSimd, loc.kind);
-  EXPECT_EQ(0u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationSimd);
+  EXPECT_EQ(loc.offset, 0u);
 }
 
 TEST(CallingConventions_x86_64, LastIntRegUsed) {
@@ -105,18 +105,18 @@ TEST(CallingConventions_x86_64, LastIntRegUsed) {
   conv.GetNextIntArgLoc(4, 4);
   conv.GetNextIntArgLoc(4, 4);
   loc = conv.GetNextIntArgLoc(4, 4);
-  EXPECT_EQ(kArgLocationInt, loc.kind);
-  EXPECT_EQ(4u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationInt);
+  EXPECT_EQ(loc.offset, 4u);
 
   // Add param that doesn't fit in the last reg.
   loc = conv.GetNextIntArgLoc(16, 16);
-  EXPECT_EQ(kArgLocationStack, loc.kind);
-  EXPECT_EQ(0u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationStack);
+  EXPECT_EQ(loc.offset, 0u);
 
   // Add param that fits in the last reg.
   loc = conv.GetNextIntArgLoc(4, 4);
-  EXPECT_EQ(kArgLocationInt, loc.kind);
-  EXPECT_EQ(5u, loc.offset);
+  EXPECT_EQ(loc.kind, kArgLocationInt);
+  EXPECT_EQ(loc.offset, 5u);
 }
 
 }  // namespace
