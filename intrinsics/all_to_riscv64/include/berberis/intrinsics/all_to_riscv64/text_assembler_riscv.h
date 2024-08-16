@@ -23,13 +23,19 @@
 #include <deque>
 #include <string>
 
-#include "berberis/assembler/common_riscv.h"
+#include "berberis/assembler/riscv.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
-#include "berberis/intrinsics/common_to_riscv64/intrinsics_bindings.h"
+#include "berberis/intrinsics/all_to_riscv64/intrinsics_bindings.h"
 
 namespace berberis {
+
+namespace constants_pool {
+
+int32_t GetOffset(int32_t address);
+
+}
 
 namespace riscv {
 
@@ -69,16 +75,8 @@ inline std::string ToGasArgument(Rounding rm, MacroAssembler*) {
   }
 }
 
-}  // namespace riscv
-
-namespace constants_pool {
-
-int32_t GetOffset(int32_t address);
-
-}
-
-template <typename Assembler>
-class TextAssemblerRiscV {
+template <typename DerivedAssemblerType>
+class TextAssembler {
  public:
   using Condition = riscv::Condition;
   using Csr = riscv::Csr;
@@ -182,7 +180,7 @@ class TextAssemblerRiscV {
   using SImmediate = riscv::SImmediate;
   using UImmediate = riscv::UImmediate;
 
-  TextAssemblerRiscV(int indent, FILE* out) : indent_(indent), out_(out) {}
+  TextAssembler(int indent, FILE* out) : indent_(indent), out_(out) {}
 
   // Verify CPU vendor and SSE restrictions.
   template <typename CPUIDRestriction>
@@ -191,7 +189,7 @@ class TextAssemblerRiscV {
   // Translate CPU restrictions into string.
   template <typename CPUIDRestriction>
   static constexpr const char* kCPUIDRestrictionString =
-      Assembler::template CPUIDRestrictionToString<CPUIDRestriction>();
+      DerivedAssemblerType::template CPUIDRestrictionToString<CPUIDRestriction>();
 
   Register gpr_a{};
   Register gpr_c{};
@@ -301,11 +299,11 @@ class TextAssemblerRiscV {
  private:
   std::deque<Label> labels_allocated_;
 
-  TextAssemblerRiscV() = delete;
-  TextAssemblerRiscV(const TextAssemblerRiscV&) = delete;
-  TextAssemblerRiscV(TextAssemblerRiscV&&) = delete;
-  void operator=(const TextAssemblerRiscV&) = delete;
-  void operator=(TextAssemblerRiscV&&) = delete;
+  TextAssembler() = delete;
+  TextAssembler(const TextAssembler&) = delete;
+  TextAssembler(TextAssembler&&) = delete;
+  void operator=(const TextAssembler&) = delete;
+  void operator=(TextAssembler&&) = delete;
 };
 
 template <typename Arg, typename MacroAssembler>
@@ -313,11 +311,11 @@ inline std::string ToGasArgument(const Arg& arg, MacroAssembler*) {
   return "$" + std::to_string(arg);
 }
 
-template <typename Assembler>
+template <typename DerivedAssemblerType>
 template <typename... Args>
-inline void TextAssemblerRiscV<Assembler>::Instruction(const char* name,
-                                                       Condition cond,
-                                                       const Args&... args) {
+inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
+                                                             Condition cond,
+                                                             const Args&... args) {
   char name_with_condition[8] = {};
   CHECK_EQ(strcmp(name, "Bcc"), 0);
 
@@ -346,14 +344,17 @@ inline void TextAssemblerRiscV<Assembler>::Instruction(const char* name,
   Instruction(name_with_condition, args...);
 }
 
-template <typename Assembler>
+template <typename DerivedAssemblerType>
 template <typename... Args>
-inline void TextAssemblerRiscV<Assembler>::Instruction(const char* name, const Args&... args) {
+inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
+                                                             const Args&... args) {
   int name_length = strlen(name);
   fprintf(out_, "%*s\"%.*s ", indent_ + 2, "", name_length, name);
   EmitString(ToGasArgument(args, this)...);
   fprintf(out_, "\\n\"\n");
 }
+
+}  // namespace riscv
 
 }  // namespace berberis
 
