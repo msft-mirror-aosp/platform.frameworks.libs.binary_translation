@@ -59,7 +59,7 @@ class WrappedFloatType {
   WrappedFloatType& operator=(WrappedFloatType&& other) noexcept = default;
   ~WrappedFloatType() = default;
   template <typename IntType,
-            typename = std::enable_if_t<std::is_integral_v<BaseType> &&
+            typename = std::enable_if_t<std::is_integral_v<IntType> &&
                                         sizeof(BaseType) == sizeof(IntType)>>
   [[nodiscard]] constexpr operator Raw<IntType>() const {
     // Can't use bit_cast here because of IA32 ABI!
