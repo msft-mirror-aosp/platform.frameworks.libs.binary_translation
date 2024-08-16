@@ -21,16 +21,18 @@
 
 #include <type_traits>  // std::is_same
 
-#include "berberis/assembler/common_x86.h"
-#include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
+#include "berberis/assembler/x86_32_and_x86_64.h"
 
 namespace berberis {
 
 namespace x86_32 {
 
-class Assembler : public AssemblerX86<Assembler> {
+class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
  public:
-  explicit Assembler(MachineCode* code) : AssemblerX86(code) {}
+  using BaseAssembler = x86_32_and_x86_64::Assembler<Assembler>;
+  using FinalAssembler = Assembler;
+
+  explicit Assembler(MachineCode* code) : BaseAssembler(code) {}
 
   static constexpr Register no_register{0x80};
   static constexpr Register eax{0};
@@ -61,26 +63,26 @@ class Assembler : public AssemblerX86<Assembler> {
 #include "berberis/assembler/gen_assembler_x86_32-inl.h"  // NOLINT generated file!
 
   // Unhide Decl(Mem) hidden by Decl(Reg).
-  using AssemblerX86::Decl;
+  using BaseAssembler::Decl;
 
   // Unhide Decw(Mem) hidden by Decw(Reg).
-  using AssemblerX86::Decw;
+  using BaseAssembler::Decw;
 
   // Unhide Incl(Mem) hidden by Incl(Reg).
-  using AssemblerX86::Incl;
+  using BaseAssembler::Incl;
 
   // Unhide Incw(Mem) hidden by Incw(Reg).
-  using AssemblerX86::Incw;
+  using BaseAssembler::Incw;
 
   // Unhide Movb(Reg, Reg) hidden by special versions below.
-  using AssemblerX86::Movb;
+  using BaseAssembler::Movb;
 
   // Movb in 32-bit mode has certain optimizations not available in x86-64 mode
   void Movb(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
       EmitInstruction<0xA0>(src.disp);
     } else {
-      AssemblerX86::Movb(dest, src);
+      BaseAssembler::Movb(dest, src);
     }
   }
 
@@ -88,19 +90,19 @@ class Assembler : public AssemblerX86<Assembler> {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
       EmitInstruction<0xA2>(dest.disp);
     } else {
-      AssemblerX86::Movb(dest, src);
+      BaseAssembler::Movb(dest, src);
     }
   }
 
   // Unhide Movw(Reg, Reg) hidden by special versions below.
-  using AssemblerX86::Movw;
+  using BaseAssembler::Movw;
 
   // Movw in 32-bit mode has certain optimizations not available in x86-64 mode
   void Movw(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
       EmitInstruction<0x66, 0xA1>(src.disp);
     } else {
-      AssemblerX86::Movw(dest, src);
+      BaseAssembler::Movw(dest, src);
     }
   }
 
@@ -108,19 +110,19 @@ class Assembler : public AssemblerX86<Assembler> {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
       EmitInstruction<0x66, 0xA3>(dest.disp);
     } else {
-      AssemblerX86::Movw(dest, src);
+      BaseAssembler::Movw(dest, src);
     }
   }
 
   // Unhide Movl(Reg, Reg) hidden by special versions below.
-  using AssemblerX86::Movl;
+  using BaseAssembler::Movl;
 
   // Movl in 32-bit mode has certain optimizations not available in x86-64 mode
   void Movl(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
       EmitInstruction<0xA1>(src.disp);
     } else {
-      AssemblerX86::Movl(dest, src);
+      BaseAssembler::Movl(dest, src);
     }
   }
 
@@ -128,24 +130,24 @@ class Assembler : public AssemblerX86<Assembler> {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
       EmitInstruction<0xA3>(dest.disp);
     } else {
-      AssemblerX86::Movl(dest, src);
+      BaseAssembler::Movl(dest, src);
     }
   }
 
   // Unhide Vmov*(Mem, Reg) hidden by Vmov*(Reg, Reg).
-  using AssemblerX86::Vmovapd;
-  using AssemblerX86::Vmovaps;
-  using AssemblerX86::Vmovdqa;
-  using AssemblerX86::Vmovdqu;
-  using AssemblerX86::Vmovsd;
-  using AssemblerX86::Vmovss;
+  using BaseAssembler::Vmovapd;
+  using BaseAssembler::Vmovaps;
+  using BaseAssembler::Vmovdqa;
+  using BaseAssembler::Vmovdqu;
+  using BaseAssembler::Vmovsd;
+  using BaseAssembler::Vmovss;
 
   // TODO(b/127356868): decide what to do with these functions when cross-arch assembler is used.
 
 #ifdef __i386__
 
   // Unside Call(Reg), hidden by special version below.
-  using AssemblerX86::Call;
+  using BaseAssembler::Call;
 
   void Call(const void* target) {
     Emit8(0xe8);
@@ -156,7 +158,7 @@ class Assembler : public AssemblerX86<Assembler> {
   }
 
   // Unside Jcc(Label), hidden by special version below.
-  using AssemblerX86::Jcc;
+  using BaseAssembler::Jcc;
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
@@ -179,7 +181,7 @@ class Assembler : public AssemblerX86<Assembler> {
   }
 
   // Unside Jmp(Reg), hidden by special version below.
-  using AssemblerX86::Jmp;
+  using BaseAssembler::Jmp;
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
@@ -196,7 +198,12 @@ class Assembler : public AssemblerX86<Assembler> {
 #endif
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Assembler);
+  Assembler() = delete;
+  Assembler(const Assembler&) = delete;
+  Assembler(Assembler&&) = delete;
+  void operator=(const Assembler&) = delete;
+  void operator=(Assembler&&) = delete;
+  using DerivedAssemblerType = Assembler;
 
   static Register Accumulator() { return eax; }
   static bool IsAccumulator(Register reg) { return reg == eax; }
@@ -296,7 +303,7 @@ class Assembler : public AssemblerX86<Assembler> {
   template <size_t kImmediatesSize>
   void EmitRipOp(int num_, const Label& label);
 
-  friend AssemblerX86<Assembler>;
+  friend BaseAssembler;
 };
 
 // This function looks big, but when we are emitting Operand with fixed registers

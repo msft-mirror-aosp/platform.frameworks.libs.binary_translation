@@ -27,8 +27,11 @@ namespace berberis {
 
 namespace rv32i {
 
-class Assembler : public berberis::rv32::Assembler {
+class Assembler : public ::berberis::rv32::Assembler {
  public:
+  using BaseAssembler = riscv::Assembler<::berberis::rv32::Assembler>;
+  using FinalAssembler = ::berberis::rv32::Assembler;
+
   explicit Assembler(MachineCode* code) : berberis::rv32::Assembler(code) {}
 
   static constexpr Register ra{1};

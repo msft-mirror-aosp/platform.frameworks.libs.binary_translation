@@ -18,9 +18,9 @@ package {
 }
 
 python_binary_host {
-    name: "gen_asm_x86",
-    main: "gen_asm_x86.py",
-    srcs: ["gen_asm_x86.py"],
+    name: "gen_asm",
+    main: "gen_asm.py",
+    srcs: ["gen_asm.py"],
     libs: ["asm_defs_lib"],
 }
 
@@ -29,7 +29,7 @@ python_binary_host {
     main: "gen_asm_tests_x86.py",
     srcs: [
         "gen_asm_tests_x86.py",
-        "gen_asm_x86.py",
+        "gen_asm.py",
     ],
     libs: ["asm_defs_lib"],
 }
@@ -78,8 +78,8 @@ genrule {
         "berberis/assembler/gen_assembler_rv32-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_riscv32"],
-    tools: ["gen_asm_x86"],
-    cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
 }
 
 genrule {
@@ -89,37 +89,37 @@ genrule {
         "berberis/assembler/gen_assembler_rv64-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_riscv64"],
-    tools: ["gen_asm_x86"],
-    cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
 }
 
 genrule {
     name: "libberberis_assembler_gen_public_headers_x86_32",
     out: [
-        "berberis/assembler/gen_assembler_common_x86-inl.h",
+        "berberis/assembler/gen_assembler_x86_32_and_x86_64-inl.h",
         "berberis/assembler/gen_assembler_x86_32-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_32"],
-    tools: ["gen_asm_x86"],
-    cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
 }
 
 genrule {
     name: "libberberis_assembler_gen_public_headers_x86_64",
     out: [
-        "berberis/assembler/gen_assembler_common_x86-inl.h",
+        "berberis/assembler/gen_assembler_x86_32_and_x86_64-inl.h",
         "berberis/assembler/gen_assembler_x86_64-inl.h",
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_64"],
-    tools: ["gen_asm_x86"],
-    cmd: "$(location gen_asm_x86) --binary-assembler $(out) $(in)",
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
 }
 
 cc_library_headers {
     name: "libberberis_assembler_headers",
     defaults: [
         "berberis_riscv64_device_defaults",
-        "berberis_defaults",
+        "berberis_all_hosts_defaults",
     ],
     host_supported: true,
     header_libs: ["libberberis_base_headers"],
@@ -141,7 +141,10 @@ cc_library_headers {
 
 cc_library_static {
     name: "libberberis_assembler",
-    defaults: ["berberis_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_defaults",
+    ],
     host_supported: true,
     srcs: [
         "machine_code.cc",

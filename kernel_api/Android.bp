@@ -30,6 +30,7 @@ cc_library_headers {
 cc_library_static {
     name: "libberberis_kernel_api_common",
     defaults: [
+        "berberis_riscv64_device_defaults",
         "berberis_guest_agnostic_defaults",
     ],
     host_supported: true,
@@ -67,7 +68,6 @@ cc_library_static {
         "riscv64/open_emulation.cc",
         "riscv64/syscall_emulation_arch.cc",
         "riscv64/syscall_emulation.cc",
-        "riscv64/tracing.cc",
     ],
     local_include_dirs: ["riscv64"],
     header_libs: [

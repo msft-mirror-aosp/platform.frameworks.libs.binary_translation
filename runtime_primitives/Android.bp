@@ -21,7 +21,7 @@ cc_library_headers {
     name: "libberberis_runtime_primitives_headers",
     defaults: [
         "berberis_riscv64_device_defaults",
-        "berberis_defaults",
+        "berberis_all_hosts_defaults",
     ],
     host_supported: true,
     export_include_dirs: ["include"],
@@ -41,7 +41,7 @@ cc_library_static {
     name: "libberberis_runtime_primitives",
     defaults: [
         "berberis_riscv64_device_defaults",
-        "berberis_defaults",
+        "berberis_all_hosts_defaults",
     ],
     host_supported: true,
     srcs: [
@@ -77,7 +77,7 @@ filegroup {
 
 cc_defaults {
     name: "berberis_memory_region_reservation_defaults",
-    defaults: ["berberis_defaults"],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     srcs: [":berberis_memory_region_reservation_srcs"],
     header_libs: [
