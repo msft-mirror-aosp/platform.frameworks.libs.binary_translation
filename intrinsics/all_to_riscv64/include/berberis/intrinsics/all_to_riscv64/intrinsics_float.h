@@ -146,15 +146,118 @@ inline Float64 Negative(const Float64& v) {
   return result;
 }
 
-inline Float32 FPRound(const Float32& value, uint32_t /*round_control*/) {
-  LOG_ALWAYS_FATAL("Unimplemented for riscv!");
-  return value;
+// Since the '_value' attribute of wrapped float types (Float32/64) has private visibility, the
+// chosen workaround was to pass float/double to helper method. This works fine since this code will
+// only be run on riscv64 hardware, thus avoiding the issues with IA32 ABI.
+
+#define ROUND_FLOAT(rounding_type, method_name, float_type, float_suffix, int_suffix)      \
+                                                                                           \
+  inline float_type method_name(float_type value) {                                        \
+    uint64_t tmp0;                                                                         \
+    float_type tmp1, tmp2 = 1 / std::numeric_limits<float_type>::epsilon();                \
+    asm("fabs." #float_suffix                                                              \
+        "  %[tmp1], %[value]\n"                                                            \
+        "flt." #float_suffix                                                               \
+        "   %[tmp0], %[tmp1], %[tmp2]\n"                                                   \
+        "beqz    %[tmp0], 0f\n"                                                            \
+        "fcvt." #int_suffix "." #float_suffix "        %[tmp0], %[value], " #rounding_type \
+        "\n"                                                                               \
+        "fcvt." #float_suffix "." #int_suffix "        %[tmp2], %[tmp0], " #rounding_type  \
+        "\n"                                                                               \
+        "fsgnj." #float_suffix                                                             \
+        " %[value], %[tmp2], %[value]\n"                                                   \
+        "0:\n"                                                                             \
+        : [tmp0] "=r"(tmp0), [value] "=f"(value), [tmp1] "=f"(tmp1), [tmp2] "=f"(tmp2)     \
+        : "[tmp0]"(tmp0), "[value]"(value), "[tmp1]"(tmp1), "[tmp2]"(tmp2));               \
+    return value;                                                                          \
+  }
+
+ROUND_FLOAT(rdn, FRoundDown, float, s, w)
+ROUND_FLOAT(rup, FRoundUp, float, s, w)
+ROUND_FLOAT(dyn, FRoundHost, float, s, w)
+ROUND_FLOAT(rtz, FRoundZero, float, s, w)
+ROUND_FLOAT(rne, FRoundNearest, float, s, w)
+
+ROUND_FLOAT(rdn, FRoundDown, double, d, l)
+ROUND_FLOAT(rup, FRoundUp, double, d, l)
+ROUND_FLOAT(dyn, FRoundHost, double, d, l)
+ROUND_FLOAT(rtz, FRoundZero, double, d, l)
+ROUND_FLOAT(rne, FRoundNearest, double, d, l)
+
+inline Float32 FPRound(const Float32& value, uint32_t round_control) {
+  Float32 result;
+  switch (round_control) {
+    case FE_HOSTROUND:
+      result.value_ = FRoundHost(value.value_);
+      break;
+    case FE_TONEAREST:
+      result.value_ = FRoundNearest(value.value_);
+      break;
+    case FE_DOWNWARD:
+      result.value_ = FRoundDown(value.value_);
+      break;
+    case FE_UPWARD:
+      result.value_ = FRoundUp(value.value_);
+      break;
+    case FE_TOWARDZERO:
+      result.value_ = FRoundZero(value.value_);
+      break;
+    case FE_TIESAWAY:
+      // TODO(b/146437763): Might fail if value doesn't have a floating part.
+      if (value == FPRound(value, FE_DOWNWARD) + Float32(0.5)) {
+        return value > Float32(0.0) ? FPRound(value, FE_UPWARD) : FPRound(value, FE_DOWNWARD);
+      }
+
+      // Any other case can be handled by to-nearest rounding.
+      return FPRound(value, FE_TONEAREST);
+    default:
+      FATAL("Unknown round_control in FPRound!");
+      __builtin_unreachable();
+  }
+  return result;
 }
 
-inline Float64 FPRound(const Float64& value, uint32_t /*round_control*/) {
-  LOG_ALWAYS_FATAL("Unimplemented for riscv!");
-  return value;
+inline Float64 FPRound(const Float64& value, uint32_t round_control) {
+  Float64 result;
+  switch (round_control) {
+    case FE_HOSTROUND:
+      result.value_ = FRoundHost(value.value_);
+      break;
+    case FE_TONEAREST:
+      result.value_ = FRoundNearest(value.value_);
+      break;
+    case FE_DOWNWARD:
+      result.value_ = FRoundDown(value.value_);
+      break;
+    case FE_UPWARD:
+      result.value_ = FRoundUp(value.value_);
+      break;
+    case FE_TOWARDZERO:
+      result.value_ = FRoundZero(value.value_);
+      break;
+    case FE_TIESAWAY:
+      // Since riscv64 does not support this rounding mode exactly, we must manually handle the
+      // tie-aways (from (-)x.5)
+      // TODO(b/364539415): Make Float32 and Float64 versions consistent
+      if (value == FPRound(value, FE_DOWNWARD)) {
+        // Value is already an integer and can be returned as-is. Checking this first avoids
+        // dealing with numbers too large to be able to have a fractional part.
+        return value;
+      } else if (value == FPRound(value, FE_DOWNWARD) + Float64(0.5)) {
+        // Fraction part is exactly 1/2, in which case we need to tie-away
+        return value > Float64(0.0) ? FPRound(value, FE_UPWARD) : FPRound(value, FE_DOWNWARD);
+      }
+
+      // Any other case can be handled by to-nearest rounding.
+      return FPRound(value, FE_TONEAREST);
+    default:
+      FATAL("Unknown round_control in FPRound!");
+      __builtin_unreachable();
+  }
+  return result;
 }
+
+#undef ROUND_FLOAT
 
 }  // namespace berberis::intrinsics
 
