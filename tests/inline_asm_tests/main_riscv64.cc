@@ -726,7 +726,7 @@ void TestWideningVectorInstruction(ExecInsnFunc exec_insn,
       expected_result_int64);
 }
 
-template <typename... ExpectedResultType>
+template <TestVectorInstructionMode kTestVectorInstructionMode, typename... ExpectedResultType>
 void TestVectorReductionInstruction(
     ExecInsnFunc exec_insn,
     ExecInsnFunc exec_masked_insn,
@@ -737,66 +737,76 @@ void TestVectorReductionInstruction(
   // of the possible vlmul, i.e. expected_result_vd0_int8[n] = vd[0], int8, no mask, vlmul=n.
   //
   // As vlmul=4 is reserved, expected_result_vd0_*[4] is ignored.
-  auto Verify = [&source](ExecInsnFunc exec_insn,
-                          uint8_t vsew,
-                          uint8_t vlmul,
-                          const auto& expected_result) {
-    for (uint8_t vta = 0; vta < 2; ++vta) {
-      for (uint8_t vma = 0; vma < 2; ++vma) {
-        uint64_t vtype = (vma << 7) | (vta << 6) | (vsew << 3) | vlmul;
-        uint64_t vlmax = 0;
-        asm("vsetvl %0, zero, %1" : "=r"(vlmax) : "r"(vtype));
-        if (vlmax == 0) {
-          continue;
+  auto Verify =
+      [&source](ExecInsnFunc exec_insn, uint8_t vsew, uint8_t vlmul, const auto& expected_result) {
+        for (uint8_t vta = 0; vta < 2; ++vta) {
+          for (uint8_t vma = 0; vma < 2; ++vma) {
+            uint64_t vtype = (vma << 7) | (vta << 6) | (vsew << 3) | vlmul;
+            uint64_t vlmax = 0;
+            asm("vsetvl %0, zero, %1" : "=r"(vlmax) : "r"(vtype));
+            if (vlmax == 0) {
+              continue;
+            }
+
+            SIMD128 result[8];
+            // Set undisturbed result vector registers.
+            for (size_t index = 0; index < 8; ++index) {
+              result[index] = kUndisturbedResult;
+            }
+
+            // Exectations for reductions are for swapped source arguments.
+            SIMD128 two_sources[16]{};
+            memcpy(&two_sources[0], &source[8], sizeof(two_sources[0]) * 8);
+            memcpy(&two_sources[8], &source[0], sizeof(two_sources[0]) * 8);
+
+            RunTwoVectorArgsOneRes(exec_insn, &two_sources[0], &result[0], vtype, vlmax);
+
+            // Reduction instructions are unique in that they produce a scalar
+            // output to a single vector register as opposed to a register group.
+            // This allows us to take some short-cuts when validating:
+            //
+            // - The mask setting is only useful during computation, as the body
+            // of the destination is always only element 0, which will always be
+            // written to, regardless of mask setting.
+            // - The tail is guaranteed to be 1..VLEN/SEW, so the vlmul setting
+            // does not affect the elements that the tail policy applies to in the
+            // destination register.
+
+            // Verify that the destination register holds the reduction in the
+            // first element and the tail policy applies to the remaining.
+            SIMD128 expected_result_register = vta ? kAgnosticResult : kUndisturbedResult;
+            size_t result_bits = 8 << vsew;
+            if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening) {
+              result_bits *= 2;
+            }
+            expected_result_register = (expected_result_register >> result_bits) << result_bits;
+            expected_result_register |= SIMD128{expected_result};
+            EXPECT_EQ(result[0], expected_result_register) << " vtype=" << vtype;
+
+            // Verify all non-destination registers are undisturbed.
+            for (size_t index = 1; index < 8; ++index) {
+              EXPECT_EQ(result[index], kUndisturbedResult)
+                  << " index=" << index << " vtype=" << vtype;
+            }
+          }
         }
+      };
 
-        SIMD128 result[8];
-        // Set undisturbed result vector registers.
-        for (size_t index = 0; index < 8; ++index) {
-          result[index] = kUndisturbedResult;
-        }
-
-        // Exectations for reductions are for swapped source arguments.
-        SIMD128 two_sources[16]{};
-        memcpy(&two_sources[0], &source[8], sizeof(two_sources[0]) * 8);
-        memcpy(&two_sources[8], &source[0], sizeof(two_sources[0]) * 8);
-
-        RunTwoVectorArgsOneRes(exec_insn, &two_sources[0], &result[0], vtype, vlmax);
-
-        // Reduction instructions are unique in that they produce a scalar
-        // output to a single vector register as opposed to a register group.
-        // This allows us to take some short-cuts when validating:
-        //
-        // - The mask setting is only useful during computation, as the body
-        // of the destination is always only element 0, which will always be
-        // written to, regardless of mask setting.
-        // - The tail is guaranteed to be 1..VLEN/SEW, so the vlmul setting
-        // does not affect the elements that the tail policy applies to in the
-        // destination register.
-
-        // Verify that the destination register holds the reduction in the
-        // first element and the tail policy applies to the remaining.
-        SIMD128 expected_result_register = vta ? kAgnosticResult : kUndisturbedResult;
-        size_t vsew_bits = 8 << vsew;
-        expected_result_register = (expected_result_register >> vsew_bits) << vsew_bits;
-        expected_result_register |= SIMD128{expected_result};
-        EXPECT_EQ(result[0], expected_result_register) << " vtype=" << vtype;
-
-        // Verify all non-destination registers are undisturbed.
-        for (size_t index = 1; index < 8; ++index) {
-          EXPECT_EQ(result[index], kUndisturbedResult) << " vtype=" << vtype;
-        }
-      }
+  auto GetVsew = [](size_t result_size) -> uint8_t {
+    size_t sew = result_size;
+    if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening) {
+      sew /= 2;
     }
+    return BitUtilLog2(sew);
   };
 
   for (int vlmul = 0; vlmul < 8; vlmul++) {
     ((Verify(exec_insn,
-             BitUtilLog2(sizeof(ExpectedResultType)),
+             GetVsew(sizeof(ExpectedResultType)),
              vlmul,
              std::get<0>(expected_result)[vlmul]),
       Verify(exec_masked_insn,
-             BitUtilLog2(sizeof(ExpectedResultType)),
+             GetVsew(sizeof(ExpectedResultType)),
              vlmul,
              std::get<1>(expected_result)[vlmul])),
      ...);
@@ -810,7 +820,7 @@ void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
                                     const uint32_t (&expected_result_vd0_with_mask_int32)[8],
                                     const uint64_t (&expected_result_vd0_with_mask_int64)[8],
                                     const SIMD128 (&source)[16]) {
-  TestVectorReductionInstruction(
+  TestVectorReductionInstruction<TestVectorInstructionMode::kDefault>(
       exec_insn,
       exec_masked_insn,
       source,
@@ -831,12 +841,48 @@ void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
                                     const uint32_t (&expected_result_vd0_with_mask_int32)[8],
                                     const uint64_t (&expected_result_vd0_with_mask_int64)[8],
                                     const SIMD128 (&source)[16]) {
-  TestVectorReductionInstruction(
+  TestVectorReductionInstruction<TestVectorInstructionMode::kDefault>(
       exec_insn,
       exec_masked_insn,
       source,
       std::tuple<const uint8_t(&)[8], const uint8_t(&)[8]>{expected_result_vd0_int8,
                                                            expected_result_vd0_with_mask_int8},
+      std::tuple<const uint16_t(&)[8], const uint16_t(&)[8]>{expected_result_vd0_int16,
+                                                             expected_result_vd0_with_mask_int16},
+      std::tuple<const uint32_t(&)[8], const uint32_t(&)[8]>{expected_result_vd0_int32,
+                                                             expected_result_vd0_with_mask_int32},
+      std::tuple<const uint64_t(&)[8], const uint64_t(&)[8]>{expected_result_vd0_int64,
+                                                             expected_result_vd0_with_mask_int64});
+}
+
+void TestWideningVectorReductionInstruction(
+    ExecInsnFunc exec_insn,
+    ExecInsnFunc exec_masked_insn,
+    const uint64_t (&expected_result_vd0_int64)[8],
+    const uint64_t (&expected_result_vd0_with_mask_int64)[8],
+    const SIMD128 (&source)[16]) {
+  TestVectorReductionInstruction<TestVectorInstructionMode::kWidening>(
+      exec_insn,
+      exec_masked_insn,
+      source,
+      std::tuple<const uint64_t(&)[8], const uint64_t(&)[8]>{expected_result_vd0_int64,
+                                                             expected_result_vd0_with_mask_int64});
+}
+
+void TestWideningVectorReductionInstruction(
+    ExecInsnFunc exec_insn,
+    ExecInsnFunc exec_masked_insn,
+    const uint16_t (&expected_result_vd0_int16)[8],
+    const uint32_t (&expected_result_vd0_int32)[8],
+    const uint64_t (&expected_result_vd0_int64)[8],
+    const uint16_t (&expected_result_vd0_with_mask_int16)[8],
+    const uint32_t (&expected_result_vd0_with_mask_int32)[8],
+    const uint64_t (&expected_result_vd0_with_mask_int64)[8],
+    const SIMD128 (&source)[16]) {
+  TestVectorReductionInstruction<TestVectorInstructionMode::kWidening>(
+      exec_insn,
+      exec_masked_insn,
+      source,
       std::tuple<const uint16_t(&)[8], const uint16_t(&)[8]>{expected_result_vd0_int16,
                                                              expected_result_vd0_with_mask_int16},
       std::tuple<const uint32_t(&)[8], const uint32_t(&)[8]>{expected_result_vd0_int32,
@@ -1218,10 +1264,8 @@ void TestVectorPermutationInstruction(
                             (expected_inactive[index] & ~mask[index] & ~skip_mask[index] &
                              kFractionMaskInt8[3]) |
                             ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3]));
-            } else if (index == 3 && vlmul == 2 && vta) {
-              EXPECT_EQ(result[index], kAgnosticResult);
             } else if (index == 3 && vlmul == 2) {
-              EXPECT_EQ(result[index], kUndisturbedResult);
+              EXPECT_EQ(result[index], vta ? kAgnosticResult : kUndisturbedResult);
             } else {
               EXPECT_EQ(result[index],
                         (expected_result[index] & (mask[index] | skip_mask[index])) |
@@ -1229,7 +1273,6 @@ void TestVectorPermutationInstruction(
             }
           }
         } else {
-          SIMD128 v8 = result[0];
           SIMD128 affected_part{expected_result[0] &
                                 ((mask[0] & kFractionMaskInt8[vlmul - 4]) | skip_mask[0])};
           SIMD128 masked_part{expected_inactive[0] & ~mask[0] & ~skip_mask[0] &
@@ -1237,7 +1280,10 @@ void TestVectorPermutationInstruction(
           SIMD128 tail_part{(vta ? kAgnosticResult : kUndisturbedResult) &
                             ~kFractionMaskInt8[vlmul - 4]};
 
-          EXPECT_EQ(v8, affected_part | masked_part | tail_part);
+          EXPECT_EQ(result[0], affected_part | masked_part | tail_part)
+              << "vlmul=" << uint32_t{vlmul} << " vsew=" << uint32_t{vsew}
+              << " vma=" << uint32_t{vma} << " vl=" << vl << " vstart=" << vstart
+              << " affected_part=" << affected_part;
         }
       }
     }
@@ -1333,22 +1379,22 @@ void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
               exec_insn, &source[0], &result[0], nullptr, nullptr, scalar_src, vstart, vtype, vl);
 
           SIMD128 expected_result_in_register(expected_result);
-          if (vma == 0) {
-            expected_result_in_register =
-                (expected_result_in_register & mask) | (kUndisturbedResult & ~mask);
-          } else {
-            expected_result_in_register |= ~mask;
-          }
+          expected_result_in_register = (expected_result_in_register & mask) |
+                                        ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask);
           // Mask registers are always processing tail like vta is set.
           if (vlmax != 128) {
-            expected_result_in_register |= MakeBitmaskFromVl(vl);
+            const SIMD128 vl_mask = MakeBitmaskFromVl(vl);
+            expected_result_in_register =
+                (kAgnosticResult & vl_mask) | (expected_result_in_register & ~vl_mask);
           }
           if (vlmul == 2) {
             const SIMD128 start_mask = MakeBitmaskFromVl(vstart);
             expected_result_in_register =
                 (kUndisturbedResult & ~start_mask) | (expected_result_in_register & start_mask);
           }
-          EXPECT_EQ(result[0], expected_result_in_register);
+          EXPECT_EQ(result[0], expected_result_in_register)
+              << "vlmul=" << uint32_t{vlmul} << " vsew=" << uint32_t{vsew}
+              << " vma=" << uint32_t{vma} << " vl=" << vl << " vstart=" << vstart;
         }
       }
     }
@@ -1455,6 +1501,104 @@ TEST(InlineAsmTestRiscv64, TestVredsum) {
       kVectorCalculationsSource);
 }
 
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vwredsumu, vwredsumu.vs)
+
+TEST(InlineAsmTestRiscv64, TestVwredsumu) {
+  TestWideningVectorReductionInstruction(
+      ExecVwredsumu,
+      ExecMaskedVwredsumu,
+      // expected_result_vd0_int16
+      {0x85f2, 0x8ce4, 0xa0c8, 0xc090, /* unused */ 0, 0x8192, 0x822c, 0x8379},
+      // expected_result_vd0_int32
+      {0x8307'0172,
+       0x830c'82e4,
+       0x831a'88c8,
+       0x8322'a090,
+       /* unused */ 0,
+       0x8303'1300,
+       0x8303'a904,
+       0x8304'e119},
+      // expected_result_vd0_int64
+      {0x8706'8506'cb44'b932,
+       0x8706'8509'9407'71e4,
+       0x8706'8510'a70e'64c8,
+       0x8706'8514'd312'5090,
+       /* unused */ 0,
+       /* unused */ 0,
+       0x8706'8505'1907'1300,
+       0x8706'8505'b713'ad09},
+      // expected_result_vd0_with_mask_int16
+      {0x8427, 0x88f8, 0x948e, 0xab1b, /* unused */ 0, 0x8100, 0x819a, 0x82d2},
+      // expected_result_vd0_with_mask_int32
+      {0x8305'5f45,
+       0x8308'c22f,
+       0x8311'99d0,
+       0x8316'98bf,
+       /* unused */ 0,
+       0x8303'1300,
+       0x8303'1300,
+       0x8304'4b15},
+      // expected_result_vd0_with_mask_int64
+      {0x8706'8506'2d38'1f29,
+       0x8706'8507'99a1'838a,
+       0x8706'850c'1989'ef5c,
+       0x8706'850e'9cf4'4aa1,
+       /* unused */ 0,
+       /* unused */ 0,
+       0x8706'8505'1907'1300,
+       0x8706'8505'1907'1300},
+      kVectorCalculationsSource);
+}
+
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vwredsum, vwredsum.vs)
+
+TEST(InlineAsmTestRiscv64, TestVwredsum) {
+  TestWideningVectorReductionInstruction(
+      ExecVwredsum,
+      ExecMaskedVwredsum,
+      // expected_result_vd0_int16
+      {0x7df2, 0x7ce4, 0x80c8, 0x8090, /* unused */ 0, 0x8092, 0x802c, 0x7f79},
+      // expected_result_vd0_int32
+      {0x82ff'0172,
+       0x82fc'82e4,
+       0x82fa'88c8,
+       0x8302'a090,
+       /* unused */ 0,
+       0x8302'1300,
+       0x8301'a904,
+       0x8300'e119},
+      // expected_result_vd0_int64
+      {0x8706'8502'cb44'b932,
+       0x8706'8501'9407'71e4,
+       0x8706'8500'a70e'64c8,
+       0x8706'8504'd312'5090,
+       /* unused */ 0,
+       /* unused */ 0,
+       0x8706'8504'1907'1300,
+       0x8706'8503'b713'ad09},
+      // expected_result_vd0_with_mask_int16
+      {0x7f27, 0x7df8, 0x818e, 0x811b, /* unused */ 0, 0x8100, 0x809a, 0x7fd2},
+      // expected_result_vd0_with_mask_int32
+      {0x8300'5f45,
+       0x82fe'c22f,
+       0x82fd'99d0,
+       0x8302'98bf,
+       /* unused */ 0,
+       0x8302'1300,
+       0x8302'1300,
+       0x8301'4b15},
+      // expected_result_vd0_with_mask_int64
+      {0x8706'8503'2d38'1f29,
+       0x8706'8502'99a1'838a,
+       0x8706'8502'1989'ef5c,
+       0x8706'8504'9cf4'4aa1,
+       /* unused */ 0,
+       /* unused */ 0,
+       0x8706'8504'1907'1300,
+       0x8706'8504'1907'1300},
+      kVectorCalculationsSource);
+}
+
 DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vfredosum, vfredosum.vs)
 
 TEST(InlineAsmTestRiscv64, TestVfredosum) {
@@ -1543,6 +1687,62 @@ TEST(InlineAsmTestRiscv64, TestVfredusum) {
                                   /* unused */ 0,
                                   0x9e0c'9a09'9604'9200},
                                  kVectorCalculationsSource);
+}
+
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vfwredusum, vfwredusum.vs)
+
+// We currently don't support half-precision (16-bit) floats, so only check 32-bit to 64-bit
+// widening.
+TEST(InlineAsmTestRiscv64, TestVfwredusum) {
+  TestWideningVectorReductionInstruction(ExecVfwredusum,
+                                         ExecMaskedVfwredusum,
+                                         // expected_result_vd0_int64
+                                         {0xbbc1'9351'b253'9156,
+                                          0xbfc5'9759'b65b'955e,
+                                          0xc7cd'9f69'be6b'9d6e,
+                                          0x47cd'7f89'9e8b'7d8d,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbbc1'9351'b240'0000},
+                                         // expected_result_vd0_with_mask_int64
+                                         {0xbac0'9253'9155'9042,
+                                          0xbfc5'9745'2017'9547,
+                                          0xc7cd'9f69'be6b'9d4f,
+                                          0x47cd'7f50'81d3'7d6f,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbac0'9240'0000'0000},
+                                         kVectorCalculationsSource);
+}
+
+DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vfwredosum, vfwredosum.vs)
+
+// We currently don't support half-precision (16-bit) floats, so only check 32-bit to 64-bit
+// widening.
+TEST(InlineAsmTestRiscv64, TestVfwredosum) {
+  TestWideningVectorReductionInstruction(ExecVfwredosum,
+                                         ExecMaskedVfwredosum,
+                                         // expected_result_vd0_int64
+                                         {0xbbc1'9351'b253'9156,
+                                          0xbfc5'9759'b65b'955e,
+                                          0xc7cd'9f69'be6b'9d6e,
+                                          0x47cd'7f89'9e8b'7d8d,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbbc1'9351'b240'0000},
+                                         // expected_result_vd0_with_mask_int64
+                                         {0xbac0'9253'9155'9042,
+                                          0xbfc5'9745'2017'9547,
+                                          0xc7cd'9f69'be6b'9d4f,
+                                          0x47cd'7f50'81d3'7d6f,
+                                          /* unused */ 0,
+                                          /* unused */ 0,
+                                          0xbac0'9240'0000'0000,
+                                          0xbac0'9240'0000'0000},
+                                         kVectorCalculationsSource);
 }
 
 DEFINE_TWO_ARG_ONE_RES_FUNCTION(Vredand, vredand.vs)
@@ -9185,6 +9385,7 @@ TEST(InlineAsmTestRiscv64, TestVslide1up) {
        {0xdedc'dad8'd6d4'd2d1, 0xeeec'eae9'e6e4'e2e0}},
       kVectorCalculationsSourceLegacy);
 }
+
 [[gnu::naked]] void ExecVsllvv() {
   asm("vsll.vv  v8, v16, v24\n\t"
       "ret\n\t");
@@ -10770,6 +10971,7 @@ TEST(InlineAsmTestRiscv64, TestVmulhsu) {
                         kVectorCalculationsSourceLegacy);
 }
 
+// TODO(b/301577077): Add vi tests with non-zero shift.
 [[gnu::naked]] void ExecVslidedownvi() {
   asm("vslidedown.vi  v8, v24, 0\n\t"
       "ret\n\t");
@@ -11237,7 +11439,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11245,7 +11447,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-      {{0x0604, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+      {{0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
@@ -11277,7 +11479,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{17, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11318,7 +11520,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{2, 4, 6, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{2, 4, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11326,7 +11528,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-      {{0x0604, 0x0a09, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
+      {{0x0604, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
@@ -11334,7 +11536,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
-      {{0x0e0c'0a09, 0x0000'0000, 0x0000'0000, 0x0000'0000},
+      {{0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
@@ -11358,7 +11560,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{17, 18, 20, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11399,7 +11601,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{2, 4, 6, 9, 10, 12, 14, 17, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{2, 4, 6, 9, 10, 12, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -11407,7 +11609,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-      {{0x0604, 0x0a09, 0x0e0c, 0x1211, 0x0000, 0x0000, 0x0000, 0x0000},
+      {{0x0604, 0x0a09, 0x0e0c, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
@@ -11415,7 +11617,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
        {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}},
-      {{0x0e0c'0a09, 0x1614'1211, 0x0000'0000, 0x0000'0000},
+      {{0x0e0c'0a09, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
@@ -11423,7 +11625,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000},
        {0x0000'0000, 0x0000'0000, 0x0000'0000, 0x0000'0000}},
-      {{0x1e1c'1a18'1614'1211, 0x0000'0000'0000'0000},
+      {{0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
        {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
        {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
        {0x0000'0000'0000'0000, 0x0000'0000'0000'0000},
@@ -11439,7 +11641,7 @@ TEST(InlineAsmTestRiscv64, TestVslidedown) {
   TestVectorPermutationInstruction(
       ExecVslidedownvx,
       ExecMaskedVslidedownvx,
-      {{17, 18, 20, 22, 24, 26, 28, 30, 0, 0, 0, 0, 0, 0, 0, 0},
+      {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
