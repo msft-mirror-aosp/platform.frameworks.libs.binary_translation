@@ -26,13 +26,13 @@
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/macros.h"
+#include "berberis/base/tracing.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/kernel_api/exec_emulation.h"
 #include "berberis/kernel_api/fcntl_emulation.h"
 #include "berberis/kernel_api/open_emulation.h"
 #include "berberis/kernel_api/sys_prctl_emulation.h"
 #include "berberis/kernel_api/sys_ptrace_emulation.h"
-#include "berberis/kernel_api/tracing.h"
 #include "berberis/kernel_api/unistd_emulation.h"
 
 namespace berberis {
@@ -41,7 +41,7 @@ void ConvertHostStatToGuestArch(const struct stat& host_stat, GuestAddr guest_st
 
 inline long RunGuestSyscall___NR_clone3(long arg_1, long arg_2) {
   UNUSED(arg_1, arg_2);
-  KAPI_TRACE("unimplemented syscall __NR_clone3");
+  TRACE("unimplemented syscall __NR_clone3");
   errno = ENOSYS;
   return -1;
 }
@@ -59,7 +59,7 @@ inline long RunGuestSyscall___NR_execve(long arg_1, long arg_2, long arg_3) {
 
 inline long RunGuestSyscall___NR_faccessat(long arg_1, long arg_2, long arg_3) {
   // TODO(b/128614662): translate!
-  KAPI_TRACE("unimplemented syscall __NR_faccessat, running host syscall as is");
+  TRACE("unimplemented syscall __NR_faccessat, running host syscall as is");
   return syscall(__NR_faccessat, arg_1, arg_2, arg_3);
 }
 
@@ -72,8 +72,12 @@ inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
   struct stat host_stat;
   long result;
   if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
-    KAPI_TRACE("Emulating fstat for /proc/self/maps");
-    result = syscall(__NR_stat, "/proc/self/maps", &host_stat);
+    TRACE("Emulating fstat for /proc/self/maps");
+#if defined(__LP64__)
+    result = syscall(__NR_newfstatat, AT_FDCWD, "/proc/self/maps", &host_stat, 0);
+#else
+    result = syscall(__NR_fstatat64, AT_FDCWD, "/proc/self/maps", &host_stat, 0);
+#endif
   } else {
     result = syscall(__NR_fstat, arg_1, &host_stat);
   }
@@ -85,7 +89,7 @@ inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
 
 inline long RunGuestSyscall___NR_fstatfs(long arg_1, long arg_2) {
   if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
-    KAPI_TRACE("Emulating fstatfs for /proc/self/maps");
+    TRACE("Emulating fstatfs for /proc/self/maps");
     // arg_2 (struct statfs*) has kernel expected layout, which is different from
     // what libc may expect. E.g. this happens for 32-bit bionic where the library call
     // expects struct statfs64. Thus ensure we invoke syscall, not library call.
@@ -124,7 +128,7 @@ inline long RunGuestSyscall___NR_readlinkat(long arg_1, long arg_2, long arg_3, 
 }
 
 inline long RunGuestSyscall___NR_rt_sigreturn(long) {
-  KAPI_TRACE("unsupported syscall __NR_rt_sigaction");
+  TRACE("unsupported syscall __NR_rt_sigaction");
   errno = ENOSYS;
   return -1;
 }
@@ -148,7 +152,7 @@ long RunUnknownGuestSyscall(long guest_nr,
                             long arg_5,
                             long arg_6) {
   UNUSED(arg_1, arg_2, arg_3, arg_4, arg_5, arg_6);
-  KAPI_TRACE("unknown syscall %ld", guest_nr);
+  TRACE("unknown syscall %ld", guest_nr);
   errno = ENOSYS;
   return -1;
 }

@@ -31,7 +31,7 @@
 #include "berberis/intrinsics/guest_cpu_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
 #include "berberis/intrinsics/intrinsics_float.h"
-#include "berberis/intrinsics/riscv64/vector_intrinsics.h"
+#include "berberis/intrinsics/riscv64_to_all/vector_intrinsics.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
@@ -39,24 +39,17 @@
 #include "berberis/runtime_primitives/memory_region_reservation.h"
 #include "berberis/runtime_primitives/recovery_code.h"
 
-#include "faulty_memory_accesses.h"
 #include "regs.h"
+
+#include "../faulty_memory_accesses.h"
 
 namespace berberis {
 
 inline constexpr std::memory_order AqRlToStdMemoryOrder(bool aq, bool rl) {
   if (aq) {
-    if (rl) {
-      return std::memory_order_acq_rel;
-    } else {
-      return std::memory_order_acquire;
-    }
+    return rl ? std::memory_order_acq_rel : std::memory_order_acquire;
   } else {
-    if (rl) {
-      return std::memory_order_release;
-    } else {
-      return std::memory_order_relaxed;
-    }
+    return rl ? std::memory_order_release : std::memory_order_relaxed;
   }
 }
 
@@ -71,7 +64,9 @@ class Interpreter {
   using CsrName = berberis::CsrName;
   using Decoder = Decoder<SemanticsPlayer<Interpreter>>;
   using Register = uint64_t;
+  static constexpr Register no_register = 0;
   using FpRegister = uint64_t;
+  static constexpr FpRegister no_fp_register = 0;
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
@@ -1476,6 +1471,15 @@ class Interpreter {
   void OpVector(const Decoder::VOpFVvArgs& args) {
     using SignedType = Wrapping<std::make_signed_t<typename TypeTraits<ElementType>::Int>>;
     using UnsignedType = Wrapping<std::make_unsigned_t<typename TypeTraits<ElementType>::Int>>;
+    // Floating point IEEE 754 value -0.0 includes 1 top bit set and the other bits not set:
+    // https://en.wikipedia.org/wiki/Signed_zero#Representations This is the exact same
+    // representation minimum negative integer have in two's complement representation:
+    // https://en.wikipedia.org/wiki/Two%27s_complement#Most_negative_number
+    // Note: we pass filler elements as integers because `Float32`/`Float64` couldn't be template
+    // parameters.
+    constexpr SignedType kNegativeZero{std::numeric_limits<typename SignedType::BaseType>::min()};
+    // Floating point IEEE 754 value +0.0 includes only zero bits, same as integer zero.
+    constexpr SignedType kPositiveZero{};
     // We currently don't support Float16 operations, but conversion routines that deal with
     // double-width floats use these encodings to produce regular Float32 types.
     if constexpr (sizeof(ElementType) <= sizeof(Float32)) {
@@ -1562,6 +1566,27 @@ class Interpreter {
                                  vta,
                                  vma,
                                  kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfwredusumvs:
+          // 14.3. Vector Single-Width Floating-Point Reduction Instructions:
+          // The additive identity is +0.0 when rounding down or -0.0 for all other rounding
+          // modes.
+          if (GetCsr<kFrm>() != FPFlags::RDN) {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType, WideType<ElementType>>,
+                              ElementType,
+                              WideType<ElementType>,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, Vec<kNegativeZero>{args.src1}, args.src2);
+          } else {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType, WideType<ElementType>>,
+                              ElementType,
+                              WideType<ElementType>,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, Vec<kPositiveZero>{args.src1}, args.src2);
+          }
         case Decoder::VOpFVvOpcode::kVfwsubvv:
           return OpVectorWidenvv<intrinsics::Vfwsubvv<ElementType>,
                                  ElementType,
@@ -1569,6 +1594,27 @@ class Interpreter {
                                  vta,
                                  vma,
                                  kFrm>(args.dst, args.src1, args.src2);
+        case Decoder::VOpFVvOpcode::kVfwredosumvs:
+          // 14.3. Vector Single-Width Floating-Point Reduction Instructions:
+          // The additive identity is +0.0 when rounding down or -0.0 for all other rounding
+          // modes.
+          if (GetCsr<kFrm>() != FPFlags::RDN) {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType, WideType<ElementType>>,
+                              ElementType,
+                              WideType<ElementType>,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, Vec<kNegativeZero>{args.src1}, args.src2);
+          } else {
+            return OpVectorvs<intrinsics::Vfredosumvs<ElementType, WideType<ElementType>>,
+                              ElementType,
+                              WideType<ElementType>,
+                              vlmul,
+                              vta,
+                              vma,
+                              kFrm>(args.dst, Vec<kPositiveZero>{args.src1}, args.src2);
+          }
         case Decoder::VOpFVvOpcode::kVfwmulvv:
           return OpVectorWidenvv<intrinsics::Vfwmulvv<ElementType>,
                                  ElementType,
@@ -1703,15 +1749,6 @@ class Interpreter {
     // If our ElementType is Float16 then “straight” operations are unsupported and we whouldn't try
     // instantiate any functions since this would lead to compilke-time error.
     if constexpr (sizeof(ElementType) >= sizeof(Float32)) {
-      // Floating point IEEE 754 value -0.0 includes 1 top bit set and the other bits not set:
-      // https://en.wikipedia.org/wiki/Signed_zero#Representations This is the exact same
-      // representation minimum negative integer have in two's complement representation:
-      // https://en.wikipedia.org/wiki/Two%27s_complement#Most_negative_number
-      // Note: we pass filler elements as integers because `Float32`/`Float64` couldn't be template
-      // parameters.
-      constexpr SignedType kNegativeZero{std::numeric_limits<typename SignedType::BaseType>::min()};
-      // Floating point IEEE 754 value +0.0 includes only zero bits, same as integer zero.
-      constexpr SignedType kPositiveZero{};
       // Keep cases sorted in opcode order to match RISC-V V manual.
       switch (args.opcode) {
         case Decoder::VOpFVvOpcode::kVfredusumvs:
@@ -1992,6 +2029,12 @@ class Interpreter {
       case Decoder::VOpIViOpcode::kVrgathervi:
         return OpVectorGather<ElementType, vlmul, vta, vma>(
             args.dst, args.src, [&args](size_t /*index*/) { return ElementType{args.uimm}; });
+      case Decoder::VOpIViOpcode::kVadcvi:
+        return OpVectorvxm<intrinsics::Vadcvx<SignedType>,
+                           SignedType,
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma>(args.dst, args.src, SignedType{args.imm});
       case Decoder::VOpIViOpcode::kVmseqvi:
         return OpVectorToMaskvx<intrinsics::Vseqvx<SignedType>, SignedType, vlmul, vma>(
             args.dst, args.src, SignedType{args.imm});
@@ -2147,6 +2190,18 @@ class Interpreter {
         return OpVectorGather<ElementType, vlmul, vta, vma>(
             args.dst, args.src1, [&indexes](size_t index) { return indexes[index]; });
       }
+      case Decoder::VOpIVvOpcode::kVadcvv:
+        return OpVectorvvm<intrinsics::Vadcvv<SignedType>,
+                           SignedType,
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma>(args.dst, args.src1, args.src2);
+      case Decoder::VOpIVvOpcode::kVsbcvv:
+        return OpVectorvvm<intrinsics::Vsbcvv<SignedType>,
+                           SignedType,
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma>(args.dst, args.src1, args.src2);
       case Decoder::VOpIVvOpcode::kVmseqvv:
         return OpVectorToMaskvv<intrinsics::Vseqvv<ElementType>, ElementType, vlmul, vma>(
             args.dst, args.src1, args.src2);
@@ -2309,6 +2364,18 @@ class Interpreter {
             args.dst, args.src1, [&arg2](size_t /*index*/) {
               return MaybeTruncateTo<ElementType>(arg2);
             });
+      case Decoder::VOpIVxOpcode::kVadcvx:
+        return OpVectorvxm<intrinsics::Vadcvx<ElementType>,
+                           ElementType,
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma>(args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
+      case Decoder::VOpIVxOpcode::kVsbcvx:
+        return OpVectorvxm<intrinsics::Vsbcvx<ElementType>,
+                           ElementType,
+                           NumberOfRegistersInvolved(vlmul),
+                           vta,
+                           vma>(args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
       case Decoder::VOpIVxOpcode::kVmseqvx:
         return OpVectorToMaskvx<intrinsics::Vseqvx<ElementType>, ElementType, vlmul, vma>(
             args.dst, args.src1, MaybeTruncateTo<ElementType>(arg2));
@@ -2592,6 +2659,10 @@ class Interpreter {
                                       vta,
                                       vma>(args.dst, args.src1);
             }
+            break;
+          case Decoder::VXUnary0Opcode::kVbrev8v:
+            return OpVectorv<intrinsics::Vbrev8v<ElementType>, ElementType, vlmul, vta, vma>(
+                args.dst, args.src1);
             break;
           default:
             return Undefined();
@@ -3637,6 +3708,95 @@ class Interpreter {
 
   template <auto Intrinsic,
             typename ElementType,
+            size_t kRegistersInvolved,
+            TailProcessing vta,
+            auto vma,
+            CsrName... kExtraCsrs>
+  void OpVectorvxm(uint8_t dst, uint8_t src1, ElementType arg2) {
+    // All args must be aligned at kRegistersInvolved amount. We'll merge them
+    // together and then do a combined check for all of them at once.
+    if (!IsAligned<kRegistersInvolved>(dst | src1)) {
+      return Undefined();
+    }
+
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return Undefined();
+    }
+
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      SIMD128Register arg1{state_->cpu.v[src1 + index]};
+      SIMD128Register arg3{};
+      if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+        if constexpr (vma == InactiveProcessing::kUndisturbed) {
+          arg3 = std::get<0>(
+              intrinsics::GetMaskVectorArgument<ElementType, vta, vma>(state_->cpu.v[0], index));
+        }
+      }
+
+      SIMD128Register result(state_->cpu.v[dst + index]);
+      result = VectorMasking<ElementType, vta, intrinsics::NoInactiveProcessing{}>(
+          result,
+          std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()..., arg1, arg2, arg3)),
+          vstart,
+          vl,
+          index,
+          intrinsics::NoInactiveProcessing{});
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
+            size_t kRegistersInvolved,
+            TailProcessing vta,
+            auto vma,
+            CsrName... kExtraCsrs>
+  void OpVectorvvm(uint8_t dst, uint8_t src1, uint8_t src2) {
+    // All args must be aligned at kRegistersInvolved amount. We'll merge them
+    // together and then do a combined check for all of them at once.
+    if (!IsAligned<kRegistersInvolved>(dst | src1 | src2)) {
+      return Undefined();
+    }
+
+    size_t vstart = GetCsr<CsrName::kVstart>();
+    size_t vl = GetCsr<CsrName::kVl>();
+    SetCsr<CsrName::kVstart>(0);
+    // When vstart >= vl, there are no body elements, and no elements are updated in any destination
+    // vector register group, including that no tail elements are updated with agnostic values.
+    if (vstart >= vl) [[unlikely]] {
+      return Undefined();
+    }
+
+    for (size_t index = 0; index < kRegistersInvolved; ++index) {
+      SIMD128Register arg1{state_->cpu.v[src1 + index]};
+      SIMD128Register arg2{state_->cpu.v[src2 + index]};
+      SIMD128Register arg3{};
+      if constexpr (!std::is_same_v<decltype(vma), intrinsics::NoInactiveProcessing>) {
+        if constexpr (vma == InactiveProcessing::kUndisturbed) {
+          arg3 = std::get<0>(
+              intrinsics::GetMaskVectorArgument<ElementType, vta, vma>(state_->cpu.v[0], index));
+        }
+      }
+
+      SIMD128Register result(state_->cpu.v[dst + index]);
+      result = VectorMasking<ElementType, vta, intrinsics::NoInactiveProcessing{}>(
+          result,
+          std::get<0>(Intrinsic(GetCsr<kExtraCsrs>()..., arg1, arg2, arg3)),
+          vstart,
+          vl,
+          index,
+          intrinsics::NoInactiveProcessing{});
+      state_->cpu.v[dst + index] = result.Get<__uint128_t>();
+    }
+  }
+
+  template <auto Intrinsic,
+            typename ElementType,
             VectorRegisterGroupMultiplier vlmul,
             TailProcessing vta,
             auto vma,
@@ -3997,11 +4157,18 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul, TailProcessing vta, auto vma>
   void OpVectorslidedown(uint8_t dst, uint8_t src, Register offset) {
-    return OpVectorslidedown<ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(
-        dst, src, offset);
+    return OpVectorslidedown<ElementType,
+                             NumberOfRegistersInvolved(vlmul),
+                             GetVlmax<ElementType, vlmul>(),
+                             vta,
+                             vma>(dst, src, offset);
   }
 
-  template <typename ElementType, size_t kRegistersInvolved, TailProcessing vta, auto vma>
+  template <typename ElementType,
+            size_t kRegistersInvolved,
+            size_t kVlmax,
+            TailProcessing vta,
+            auto vma>
   void OpVectorslidedown(uint8_t dst, uint8_t src, Register offset) {
     constexpr size_t kElementsPerRegister = 16 / sizeof(ElementType);
     if (!IsAligned<kRegistersInvolved>(dst | src)) {
@@ -4021,21 +4188,21 @@ class Interpreter {
       SIMD128Register result(state_->cpu.v[dst + index]);
 
       size_t first_arg_disp = index + offset / kElementsPerRegister;
-      SIMD128Register arg1 = (first_arg_disp >= kRegistersInvolved)
-                                 ? SIMD128Register{0}
-                                 : state_->cpu.v[src + first_arg_disp];
-      SIMD128Register arg2 = (first_arg_disp + 1 >= kRegistersInvolved)
-                                 ? SIMD128Register{0}
-                                 : state_->cpu.v[src + first_arg_disp + 1];
+      SIMD128Register arg1 = state_->cpu.v[src + first_arg_disp];
+      SIMD128Register arg2 = state_->cpu.v[src + first_arg_disp + 1];
+      SIMD128Register tunnel_shift_result;
+      // Elements coming from above vlmax are zeroes.
+      if (offset >= kVlmax) {
+        tunnel_shift_result = SIMD128Register{0};
+      } else {
+        tunnel_shift_result = std::get<0>(
+            intrinsics::VectorSlideDown<ElementType>(offset % kElementsPerRegister, arg1, arg2));
+        tunnel_shift_result =
+            VectorZeroFill<ElementType>(tunnel_shift_result, kVlmax - offset, kVlmax, index);
+      }
 
-      result =
-          VectorMasking<ElementType, vta, vma>(result,
-                                               std::get<0>(intrinsics::VectorSlideDown<ElementType>(
-                                                   offset % kElementsPerRegister, arg1, arg2)),
-                                               vstart,
-                                               vl,
-                                               index,
-                                               mask);
+      result = VectorMasking<ElementType, vta, vma>(
+          result, tunnel_shift_result, vstart, vl, index, mask);
       state_->cpu.v[dst + index] = result.Get<__uint128_t>();
     }
   }
@@ -4077,7 +4244,11 @@ class Interpreter {
     }
 
     // Slide all the elements by one.
-    OpVectorslidedown<ElementType, NumberOfRegistersInvolved(vlmul), vta, vma>(dst, src, 1);
+    OpVectorslidedown<ElementType,
+                      NumberOfRegistersInvolved(vlmul),
+                      GetVlmax<ElementType, vlmul>(),
+                      vta,
+                      vma>(dst, src, 1);
     if (exception_raised_) {
       return;
     }
@@ -4385,6 +4556,14 @@ class Interpreter {
         vstart - index * (sizeof(SIMD128Register) / sizeof(ElementType)),
         vl - index * (sizeof(SIMD128Register) / sizeof(ElementType)),
         std::get<0>(intrinsics::MaskForRegisterInSequence<ElementType>(mask, index))));
+  }
+
+  template <typename ElementType>
+  SIMD128Register VectorZeroFill(SIMD128Register src, size_t start, size_t end, size_t index) {
+    return VectorMasking<ElementType,
+                         TailProcessing::kUndisturbed,
+                         intrinsics::NoInactiveProcessing{}>(
+        src, SIMD128Register{0}, start, end, index, intrinsics::NoInactiveProcessing{});
   }
 
   template <template <auto> typename ProcessType,
