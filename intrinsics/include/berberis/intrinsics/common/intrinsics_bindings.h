@@ -17,8 +17,6 @@
 #ifndef BERBERIS_INTRINSICS_COMMON_INTRINSICS_BINDINGS_H_
 #define BERBERIS_INTRINSICS_COMMON_INTRINSICS_BINDINGS_H_
 
-#include <xmmintrin.h>
-
 #include <cstdint>
 
 #include "berberis/base/dependent_false.h"
