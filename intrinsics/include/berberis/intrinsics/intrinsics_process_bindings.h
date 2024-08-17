@@ -17,8 +17,6 @@
 #ifndef BERBERIS_INTRINSICS_INTRINSICS_PROCESS_BINDINGS_H_
 #define BERBERIS_INTRINSICS_INTRINSICS_PROCESS_BINDINGS_H_
 
-#include <xmmintrin.h>
-
 #include <cstdint>
 
 #include "berberis/intrinsics/intrinsics_args.h"
