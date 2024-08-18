@@ -17,10 +17,6 @@
 #ifndef BERBERIS_INTRINSICS_TYPE_TRAITS_H_
 #define BERBERIS_INTRINSICS_TYPE_TRAITS_H_
 
-#if defined(__i386__) || defined(__x86_64__)
-#include <xmmintrin.h>
-#endif
-
 #include <cstdint>
 
 #include "berberis/intrinsics/common/intrinsics_float.h"
@@ -60,7 +56,7 @@ struct TypeTraits<uint32_t> {
 template <>
 struct TypeTraits<uint64_t> {
   using Narrow = uint32_t;
-#if defined(__x86_64__)
+#if defined(__LP64__)
   using Wide = __uint128_t;
 #endif
   using Float = intrinsics::Float64;
@@ -95,7 +91,7 @@ struct TypeTraits<int32_t> {
 template <>
 struct TypeTraits<int64_t> {
   using Narrow = int32_t;
-#if defined(__x86_64__)
+#if defined(__LP64__)
   using Wide = __int128_t;
 #endif
   using Float = intrinsics::Float64;
@@ -137,7 +133,7 @@ struct TypeTraits<intrinsics::Float64> {
   using Int = int64_t;
   using Raw = double;
   using Narrow = intrinsics::Float32;
-#if defined(__x86_64__)
+#if defined(__LP64__)
   static_assert(sizeof(long double) > sizeof(intrinsics::Float64));
   using Wide = long double;
 #endif
@@ -158,7 +154,7 @@ template <>
 struct TypeTraits<double> {
   using Int = int64_t;
   using Wrapped = intrinsics::Float64;
-#if defined(__x86_64__)
+#if defined(__LP64__)
   static_assert(sizeof(long double) > sizeof(intrinsics::Float64));
   using Wide = long double;
 #endif
@@ -169,13 +165,13 @@ struct TypeTraits<double> {
 
 template <>
 struct TypeTraits<SIMD128Register> {
-#if defined(__i386__) || defined(__x86_64__)
-  using Raw = __m128;
+#if defined(__GNUC__)
+  using Raw = Float32x4;
 #endif
   static constexpr char kName[] = "SIMD128Register";
 };
 
-#if defined(__x86_64__)
+#if defined(__LP64__)
 
 template <>
 struct TypeTraits<long double> {
@@ -199,15 +195,11 @@ struct TypeTraits<__uint128_t> {
 
 #endif
 
-#if defined(__i386__) || defined(__x86_64__)
-
 template <>
-struct TypeTraits<__m128> {
+struct TypeTraits<Float32x4> {
   static constexpr int kBits = 128;
   static constexpr char kName[] = "__m128";
 };
-
-#endif
 
 }  // namespace berberis
 
