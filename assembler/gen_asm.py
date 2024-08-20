@@ -214,7 +214,7 @@ def _gen_instruction_args(insn, arch):
       continue
     if (_get_arg_type_name(arg, insn.get('type', None)) == 'Register'
         and 'x86' in arch):
-      yield 'typename Assembler::%s(arg%d)' % (
+      yield 'typename DerivedAssemblerType::%s(arg%d)' % (
           _ARGUMENT_FORMATS_TO_SIZES[arg['class']], arg_count)
     else:
       yield 'arg%d' % arg_count
@@ -281,7 +281,7 @@ def _gen_emit_shortcut_accumulator_imm8(f, insn, insns):
                           maybe_8bit_imm_args):
       continue
     print('  if (IsInRange<int8_t>(arg0)) {', file=f)
-    print(('    return %s(Assembler::Accumulator(), '
+    print(('    return %s(DerivedAssemblerType::Accumulator(), '
                  'static_cast<int8_t>(arg0));') % (
                      maybe_imm8_insn['asm'],), file=f)
     print('  }', file=f)
@@ -321,7 +321,7 @@ def _gen_emit_shortcut_accumulator(f, insn, insns):
       continue
     # Now call that version if register is an Accumulator.
     arg_count = len(_get_params(insn).split(','))
-    print('  if (Assembler::IsAccumulator(arg0)) {', file=f)
+    print('  if (DerivedAssemblerType::IsAccumulator(arg0)) {', file=f)
     print('  return %s(%s);' % (
       maybe_accumulator_insn['asm'],
       ', '.join('arg%d' % n for n in range(1, arg_count))), file=f)

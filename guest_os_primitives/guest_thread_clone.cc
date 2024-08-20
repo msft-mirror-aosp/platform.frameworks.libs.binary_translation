@@ -53,6 +53,28 @@ struct GuestThreadCloneInfo {
   sem_t sem;
 };
 
+void SemPostOrDie(sem_t* sem) {
+  int error = sem_post(sem);
+  // sem_post works in two stages: it increments semaphore's value, and then calls FUTEX_WAKE.
+  // If FUTEX_WAIT sporadically returns inside sem_wait between sem_post stages then sem_wait
+  // may observe the updated value and successfully finish. If semaphore is destroyed upon
+  // sem_wait return (like in CloneGuestThread), sem_post's call to FUTEX_WAKE will fail with
+  // EINVAL.
+  // Note that sem_destroy itself may do nothing (bionic and glibc are like that), the actual
+  // destruction happens because we free up memory (e.g. stack frame) where sem_t is stored.
+  // More details at https://sourceware.org/bugzilla/show_bug.cgi?id=12674
+#if defined(__GLIBC__) && ((__GLIBC__ < 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ < 21)))
+  // GLibc before 2.21 may return EINVAL in the above situation. We ignore it since we cannot do
+  // anything about it, and it doesn't really break anything: we just acknowledge the fact that the
+  // semaphore can be destoyed already.
+  LOG_ALWAYS_FATAL_IF(error != 0 && error != EINVAL, "sem_post returned error=%s", strerror(errno));
+#else
+  // Bionic and recent GLibc ignore the error code returned
+  // from FUTEX_WAKE. So, they never return EINVAL.
+  LOG_ALWAYS_FATAL_IF(error != 0, "sem_post returned error=%s", strerror(errno));
+#endif
+}
+
 int RunClonedGuestThread(void* arg) {
   GuestThreadCloneInfo* info = static_cast<GuestThreadCloneInfo*>(arg);
   GuestThread* thread = info->thread;
@@ -72,8 +94,7 @@ int RunClonedGuestThread(void* arg) {
   // - search for child in thread table
   // - send child a signal
   // - dispose info
-  int error = sem_post(&info->sem);
-  LOG_ALWAYS_FATAL_IF(error != 0, "sem_post returned error=%s", strerror(errno));
+  SemPostOrDie(&info->sem);
   // TODO(b/77574158): Ensure caller has a chance to handle the notification.
   sched_yield();
 
