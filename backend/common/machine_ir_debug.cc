@@ -19,6 +19,7 @@
 #include <string>
 
 #include "berberis/base/stringprintf.h"
+#include "berberis/guest_state/guest_addr.h"
 
 namespace berberis {
 
@@ -78,6 +79,14 @@ std::string MachineBasicBlock::GetDebugString() const {
     out += GetMachineRegDebugString(live_out()[i]);
   }
   out += "]\n";
+
+  if (guest_addr() != kNullGuestAddr) {
+    // Profile counter may exist only if guest-addr is set, so we print them together.
+    out += StringPrintf("    [GuestAddr=%p ProfCounter=", ToHostAddr<void>(guest_addr()));
+    out += profile_counter().has_value() ? StringPrintf("%" PRIu32 "]", profile_counter().value())
+                                         : "unknown]";
+    out += "\n";
+  }
 
   for (const auto* edge : in_edges()) {
     out += StringPrintf("    MachineEdge %d -> %d [\n", edge->src()->id(), edge->dst()->id());
