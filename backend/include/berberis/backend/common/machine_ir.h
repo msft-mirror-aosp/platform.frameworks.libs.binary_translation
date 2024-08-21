@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "berberis/backend/code_emitter.h"
@@ -315,6 +316,8 @@ class MachineBasicBlock {
  public:
   MachineBasicBlock(Arena* arena, uint32_t id)
       : id_(id),
+        guest_addr_(kNullGuestAddr),
+        profile_counter_(0),
         insn_list_(arena),
         in_edges_(arena),
         out_edges_(arena),
@@ -323,6 +326,12 @@ class MachineBasicBlock {
         is_recovery_(false) {}
 
   [[nodiscard]] uint32_t id() const { return id_; }
+
+  [[nodiscard]] GuestAddr guest_addr() const { return guest_addr_; }
+  void set_guest_addr(GuestAddr addr) { guest_addr_ = addr; }
+
+  [[nodiscard]] std::optional<uint32_t> profile_counter() const { return profile_counter_; }
+  void set_profile_counter(uint32_t counter) { profile_counter_ = counter; }
 
   [[nodiscard]] const MachineInsnList& insn_list() const { return insn_list_; }
   [[nodiscard]] MachineInsnList& insn_list() { return insn_list_; }
@@ -347,6 +356,8 @@ class MachineBasicBlock {
 
  private:
   const uint32_t id_;
+  GuestAddr guest_addr_;
+  std::optional<uint32_t> profile_counter_;
   MachineInsnList insn_list_;
   MachineEdgeVector in_edges_;
   MachineEdgeVector out_edges_;
