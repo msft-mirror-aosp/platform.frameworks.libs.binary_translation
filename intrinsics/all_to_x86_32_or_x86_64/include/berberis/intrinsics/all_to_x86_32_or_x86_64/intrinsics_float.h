@@ -132,27 +132,6 @@ inline bool operator!=(const Float64& v1, const Float64& v2) {
 // It's NOT safe to use ANY functions which return float or double.  That's because IA32 ABI uses
 // x87 stack to pass arguments (and does that even with -mfpmath=sse) and NaN float and
 // double values would be corrupted if pushed on it.
-//
-// It's safe to use builtins here if that file is compiled with -mfpmath=sse (clang does not have
-// such flag but uses SSE whenever possible, GCC needs both -msse2 and -mfpmath=sse) since builtins
-// DON'T use an official calling conventions but are instead embedded in the function - even if all
-// optimizations are disabled.
-
-inline Float32 CopySignBit(const Float32& v1, const Float32& v2) {
-  return Float32(__builtin_copysignf(v1.value_, v2.value_));
-}
-
-inline Float64 CopySignBit(const Float64& v1, const Float64& v2) {
-  return Float64(__builtin_copysign(v1.value_, v2.value_));
-}
-
-inline Float32 Absolute(const Float32& v) {
-  return Float32(__builtin_fabsf(v.value_));
-}
-
-inline Float64 Absolute(const Float64& v) {
-  return Float64(__builtin_fabs(v.value_));
-}
 
 inline Float32 Negative(const Float32& v) {
   // TODO(b/120563432): Simple -v.value_ doesn't work after a clang update.
@@ -168,24 +147,6 @@ inline Float64 Negative(const Float64& v) {
   uint64_t sign_bit = 0x8000000000000000ULL;
   asm("pxor %2, %0" : "=x"(result.value_) : "0"(v.value_), "x"(sign_bit));
   return result;
-}
-
-inline FPInfo FPClassify(const Float32& v) {
-  return static_cast<FPInfo>(__builtin_fpclassify(static_cast<int>(FPInfo::kNaN),
-                                                  static_cast<int>(FPInfo::kInfinite),
-                                                  static_cast<int>(FPInfo::kNormal),
-                                                  static_cast<int>(FPInfo::kSubnormal),
-                                                  static_cast<int>(FPInfo::kZero),
-                                                  v.value_));
-}
-
-inline FPInfo FPClassify(const Float64& v) {
-  return static_cast<FPInfo>(__builtin_fpclassify(static_cast<int>(FPInfo::kNaN),
-                                                  static_cast<int>(FPInfo::kInfinite),
-                                                  static_cast<int>(FPInfo::kNormal),
-                                                  static_cast<int>(FPInfo::kSubnormal),
-                                                  static_cast<int>(FPInfo::kZero),
-                                                  v.value_));
 }
 
 inline Float32 FPRound(const Float32& value, uint32_t round_control) {
@@ -259,39 +220,6 @@ inline Float64 FPRound(const Float64& value, uint32_t round_control) {
       result.value_ = 0.;
   }
   return result;
-}
-
-inline int IsNan(const Float32& v) {
-  return __builtin_isnan(v.value_);
-}
-
-inline int IsNan(const Float64& v) {
-  return __builtin_isnan(v.value_);
-}
-
-inline int SignBit(const Float32& v) {
-  return __builtin_signbitf(v.value_);
-}
-
-inline int SignBit(const Float64& v) {
-  return __builtin_signbit(v.value_);
-}
-
-inline Float32 Sqrt(const Float32& v) {
-  return Float32(__builtin_sqrtf(v.value_));
-}
-
-inline Float64 Sqrt(const Float64& v) {
-  return Float64(__builtin_sqrt(v.value_));
-}
-
-// x*y + z
-inline Float32 MulAdd(const Float32& v1, const Float32& v2, const Float32& v3) {
-  return Float32(fmaf(v1.value_, v2.value_, v3.value_));
-}
-
-inline Float64 MulAdd(const Float64& v1, const Float64& v2, const Float64& v3) {
-  return Float64(fma(v1.value_, v2.value_, v3.value_));
 }
 
 }  // namespace berberis::intrinsics
