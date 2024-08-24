@@ -146,6 +146,10 @@ class Decoder {
 
   enum class OpSingleInputOpcode : uint16_t {
     kZexth = 0b0000'100'100,
+    kZextb,
+    kZextw,
+    kSextb,
+    kSexth,
   };
 
   enum class OpFpGpRegisterTargetNoRoundingOpcode : uint8_t {
@@ -1142,6 +1146,34 @@ class Decoder {
     uint8_t low_imm = GetBits<2, 5>();
     uint8_t high_imm = GetBits<12, 1>();
     uint8_t imm = (high_imm << 5) + low_imm;
+    uint8_t zc_high_opcode_bits = GetBits<10, 3>();
+    uint16_t zc_opcode{static_cast<uint16_t>(low_imm | (zc_high_opcode_bits << 5))};
+
+    std::optional<OpSingleInputOpcode> si_opcode;
+    switch (zc_opcode) {
+      case 0b111'11'010:
+        si_opcode = OpSingleInputOpcode::kZexth;
+        break;
+      case 0b111'11'000:
+        si_opcode = OpSingleInputOpcode::kZextb;
+        break;
+      case 0b111'11'100:
+        si_opcode = OpSingleInputOpcode::kZextw;
+        break;
+      case 0b111'11'001:
+        si_opcode = OpSingleInputOpcode::kSextb;
+        break;
+      case 0b111'11'011:
+        si_opcode = OpSingleInputOpcode::kSexth;
+        break;
+      default:
+        break;
+    }
+    if (si_opcode.has_value()) {
+      const OpSingleInputArgs args = {.opcode = si_opcode.value(), .dst = r, .src = r};
+      return insn_consumer_->OpSingleInput(args);
+    }
+
     switch (GetBits<10, 2>()) {
       case 0b00: {
         const ShiftImmArgs args = {
