@@ -302,6 +302,11 @@ cc_library_headers {
                 "all_to_x86_32_or_x86_64/include",
             ],
         },
+        riscv64: {
+            export_include_dirs: [
+                "all_to_riscv64/include",
+            ],
+        },
     },
 }
 
