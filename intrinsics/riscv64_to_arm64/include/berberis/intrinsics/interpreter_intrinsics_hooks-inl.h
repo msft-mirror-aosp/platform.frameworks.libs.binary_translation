@@ -441,7 +441,8 @@ std::tuple<Register, Register> Vtestvli(Register arg0, Register arg1, uint16_t a
   return {};
 }
 
-Register Zexth(Register arg0) const {
+template <typename Type0>
+Register Zext(Register arg0) const {
   UNUSED(arg0);
   return {};
 }
