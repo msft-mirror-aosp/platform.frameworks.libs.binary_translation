@@ -24,44 +24,44 @@ Register Adduw(Register arg0, Register arg1) const {
 
 template <typename Type0, bool kBool1, bool kBool2>
 Register AmoAdd(Register arg0, Register arg1) const {
-  UNUSED(arg0, arg1);
-  return {};
+  return IntegerToGPRReg(std::get<0>(intrinsics::AmoAdd<Type0, kBool1, kBool2>(
+      GPRRegToInteger<int64_t>(arg0), GPRRegToInteger<Type0>(arg1))));
 }
 
 template <typename Type0, bool kBool1, bool kBool2>
 Register AmoAnd(Register arg0, Register arg1) const {
-  UNUSED(arg0, arg1);
-  return {};
+  return IntegerToGPRReg(std::get<0>(intrinsics::AmoAnd<Type0, kBool1, kBool2>(
+      GPRRegToInteger<int64_t>(arg0), GPRRegToInteger<Type0>(arg1))));
 }
 
 template <typename Type0, bool kBool1, bool kBool2>
 Register AmoMax(Register arg0, Register arg1) const {
-  UNUSED(arg0, arg1);
-  return {};
+  return IntegerToGPRReg(std::get<0>(intrinsics::AmoMax<Type0, kBool1, kBool2>(
+      GPRRegToInteger<int64_t>(arg0), GPRRegToInteger<Type0>(arg1))));
 }
 
 template <typename Type0, bool kBool1, bool kBool2>
 Register AmoMin(Register arg0, Register arg1) const {
-  UNUSED(arg0, arg1);
-  return {};
+  return IntegerToGPRReg(std::get<0>(intrinsics::AmoMin<Type0, kBool1, kBool2>(
+      GPRRegToInteger<int64_t>(arg0), GPRRegToInteger<Type0>(arg1))));
 }
 
 template <typename Type0, bool kBool1, bool kBool2>
 Register AmoOr(Register arg0, Register arg1) const {
-  UNUSED(arg0, arg1);
-  return {};
+  return IntegerToGPRReg(std::get<0>(intrinsics::AmoOr<Type0, kBool1, kBool2>(
+      GPRRegToInteger<int64_t>(arg0), GPRRegToInteger<Type0>(arg1))));
 }
 
 template <typename Type0, bool kBool1, bool kBool2>
 Register AmoSwap(Register arg0, Register arg1) const {
-  UNUSED(arg0, arg1);
-  return {};
+  return IntegerToGPRReg(std::get<0>(intrinsics::AmoSwap<Type0, kBool1, kBool2>(
+      GPRRegToInteger<int64_t>(arg0), GPRRegToInteger<Type0>(arg1))));
 }
 
 template <typename Type0, bool kBool1, bool kBool2>
 Register AmoXor(Register arg0, Register arg1) const {
-  UNUSED(arg0, arg1);
-  return {};
+  return IntegerToGPRReg(std::get<0>(intrinsics::AmoXor<Type0, kBool1, kBool2>(
+      GPRRegToInteger<int64_t>(arg0), GPRRegToInteger<Type0>(arg1))));
 }
 
 Register Bclr(Register arg0, Register arg1) const {
@@ -441,7 +441,8 @@ std::tuple<Register, Register> Vtestvli(Register arg0, Register arg1, uint16_t a
   return {};
 }
 
-Register Zexth(Register arg0) const {
+template <typename Type0>
+Register Zext(Register arg0) const {
   UNUSED(arg0);
   return {};
 }
