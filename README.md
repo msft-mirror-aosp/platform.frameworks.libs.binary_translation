@@ -4,6 +4,8 @@ Dynamic binary translator to run Android apps with riscv64 native code on x86_64
 
 Supported extensions include Zb* (bit manipulation) and most of Zv (vector). Some less commonly used vector instructions are not yet implemented, but Android CTS and some Android apps run with the current set of implemented instructions.
 
+Public mailing list: berberis-discuss@googlegroups.com
+
 ## Getting Started
 
 Note: Googlers, read go/berberis and go/berberis-start first.
