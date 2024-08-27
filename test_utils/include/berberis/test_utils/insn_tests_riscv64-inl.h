@@ -191,6 +191,15 @@ class TESTSUITE : public ::testing::Test {
     }
   }
 
+  void TestCMiscAluSingleInput(uint16_t insn_bytes,
+                               std::initializer_list<std::tuple<uint64_t, uint64_t>> args) {
+    for (auto [arg1, expected_result] : args) {
+      SetXReg<8>(state_.cpu, arg1);
+      RunInstruction<2>(insn_bytes);
+      EXPECT_EQ(GetXReg<8>(state_.cpu), expected_result);
+    }
+  }
+
   void TestCMiscAluImm(uint16_t insn_bytes, uint64_t value, uint64_t expected_result) {
     SetXReg<9>(state_.cpu, value);
     RunInstruction<2>(insn_bytes);
@@ -1047,6 +1056,19 @@ TEST_F(TESTSUITE, CMiscAluInstructions) {
   TestCMiscAlu(0x9c25, {{19, 23, 42}});
 }
 
+TEST_F(TESTSUITE, CBitManipInstructions) {
+  // c.zext.h
+  TestCMiscAluSingleInput(0x9c69, {{0xffff'ffff'ffff'fffe, 0xfffe}});
+  // c.zext.w
+  TestCMiscAluSingleInput(0x9c71, {{0xffff'ffff'ffff'fffe, 0xffff'fffe}});
+  // c.zext.b
+  TestCMiscAluSingleInput(0x9c61, {{0xffff'ffff'ffff'fffe, 0xfe}});
+  // c.sext.b
+  TestCMiscAluSingleInput(0x9c65, {{0b1111'1110, 0xffff'ffff'ffff'fffe}});
+  // c.sext.h
+  TestCMiscAluSingleInput(0x9c6d, {{0b1111'1111'1111'1110, 0xffff'ffff'ffff'fffe}});
+}
+
 TEST_F(TESTSUITE, CMiscAluImm) {
   union {
     uint8_t uimm;
@@ -1448,6 +1470,10 @@ TEST_F(TESTSUITE, Op32Instructions) {
           {0xffff'ffff'8000'0000, 0xffff'ffff'8000'0001, 0xffff'ffff'8000'0000}});
   // Zext.h
   TestOp(0x080140bb, {{0xffff'ffff'ffff'fffeULL, 0, 0xfffe}});
+  // Zext.b
+  TestOp(0x0ff17093, {{0xffff'ffff'ffff'fffeULL, 0, 0xfe}});
+  // Zext.w
+  TestOp(0x080100bb, {{0xffff'ffff'ffff'fffeULL, 0, 0xffff'fffe}});
   // Rorw
   TestOp(0x603150bb, {{0x0000'0000'f000'000fULL, 4, 0xffff'ffff'ff00'0000}});
   TestOp(0x603150bb, {{0x0000'0000'f000'0000ULL, 4, 0x0000'0000'0f00'0000}});
