@@ -1184,6 +1184,21 @@ def main(argv):
       pass
     return open(name, 'w')
 
+  # Temporary special case for riscv64 to arm64.
+  # TODO(b/362520361): generalize and combine with the below.
+  option = argv[1]
+  if option == 'arm64':
+    mode = argv[2]
+    out_files_end = 4
+    def_files_end = out_files_end
+    while argv[def_files_end].endswith('intrinsic_def.json'):
+      def_files_end += 1
+      if (def_files_end == len(argv)):
+        break
+    intrs = sorted(_load_intrs_def_files(argv[out_files_end:def_files_end]).items())
+    _gen_intrinsics_inl_h(open_out_file(argv[3]), intrs)
+    return 0
+
   mode = argv[1]
   if mode in ('--text_asm_intrinsics_bindings', '--public_headers'):
     out_files_end = 3 if mode == '--text_asm_intrinsics_bindings' else 7
