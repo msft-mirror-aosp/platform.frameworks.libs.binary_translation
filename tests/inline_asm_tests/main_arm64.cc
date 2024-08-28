@@ -4805,9 +4805,9 @@ TEST(Arm64InsnTest, Load2MultipleInt8x8) {
 }
 
 TEST(Arm64InsnTest, Load3MultipleInt8x8) {
-  static constexpr uint8_t mem[] = {0x32, 0x87, 0x67, 0x03, 0x80, 0x92, 0x52, 0x16,
-                                    0x79, 0x07, 0x57, 0x12, 0x04, 0x06, 0x12, 0x37,
-                                    0x59, 0x63, 0x27, 0x68, 0x56, 0x74, 0x84, 0x50};
+  static constexpr uint8_t mem[3 * 8] = {0x32, 0x87, 0x67, 0x03, 0x80, 0x92, 0x52, 0x16,
+                                         0x79, 0x07, 0x57, 0x12, 0x04, 0x06, 0x12, 0x37,
+                                         0x59, 0x63, 0x27, 0x68, 0x56, 0x74, 0x84, 0x50};
   __uint128_t res[3];
   asm("ld3 {v7.8b-v9.8b}, [%3]\n\t"
       "mov %0.16b, v7.16b\n\t"
@@ -4819,6 +4819,247 @@ TEST(Arm64InsnTest, Load3MultipleInt8x8) {
   ASSERT_EQ(res[0], MakeUInt128(0x7427370407520332ULL, 0U));
   ASSERT_EQ(res[1], MakeUInt128(0x8468590657168087ULL, 0U));
   ASSERT_EQ(res[2], MakeUInt128(0x5056631212799267ULL, 0U));
+}
+
+TEST(Arm64InsnTest, Store3MultipleInt8x8) {
+  static constexpr uint64_t arg[3] = {
+      0x7427370407520332ULL, 0x8468590657168087ULL, 0x5056631212799267ULL};
+  uint64_t res[3];
+  asm("mov v0.16b, %0.16b\n\t"
+      "mov v1.16b, %1.16b\n\t"
+      "mov v2.16b, %2.16b\n\t"
+      "st3 {v0.8b-v2.8b}, [%3]"
+      :
+      : "w"(arg[0]), "w"(arg[1]), "w"(arg[2]), "r"(res)
+      : "v0", "v1", "v2", "memory");
+  ASSERT_EQ(res[0], 0x1652928003678732ULL);
+  ASSERT_EQ(res[1], 0x3712060412570779ULL);
+  ASSERT_EQ(res[2], 0x5084745668276359ULL);
+}
+
+TEST(Arm64InsnTest, Load3MultipleInt8x16) {
+  static constexpr uint8_t mem[3 * 16] = {
+      0x69, 0x20, 0x35, 0x65, 0x63, 0x38, 0x44, 0x96, 0x25, 0x32, 0x83, 0x38,
+      0x52, 0x27, 0x99, 0x24, 0x59, 0x60, 0x97, 0x86, 0x59, 0x47, 0x23, 0x88,
+      0x91, 0x29, 0x63, 0x62, 0x59, 0x54, 0x32, 0x73, 0x45, 0x44, 0x37, 0x16,
+      0x33, 0x55, 0x77, 0x43, 0x29, 0x49, 0x99, 0x28, 0x81, 0x05, 0x57, 0x17};
+  __uint128_t res[3];
+  asm("ld3 {v7.16b-v9.16b}, [%3]\n\t"
+      "mov %0.16b, v7.16b\n\t"
+      "mov %1.16b, v8.16b\n\t"
+      "mov %2.16b, v9.16b"
+      : "=w"(res[0]), "=w"(res[1]), "=w"(res[2])
+      : "r"(mem)
+      : "v7", "v8", "v9", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x4797245232446569ULL, 0x599433344326291ULL));
+  ASSERT_EQ(res[1], MakeUInt128(0x2386592783966320ULL, 0x5728295537735929ULL));
+  ASSERT_EQ(res[2], MakeUInt128(0x8859609938253835ULL, 0x1781497716455463ULL));
+}
+
+TEST(Arm64InsnTest, Store3MultipleInt8x16) {
+  static constexpr __uint128_t arg[3] = {MakeUInt128(0x4797245232446569ULL, 0x599433344326291ULL),
+                                         MakeUInt128(0x2386592783966320ULL, 0x5728295537735929ULL),
+                                         MakeUInt128(0x8859609938253835ULL, 0x1781497716455463ULL)};
+  __uint128_t res[3];
+  asm("mov v0.16b, %0.16b\n\t"
+      "mov v1.16b, %1.16b\n\t"
+      "mov v2.16b, %2.16b\n\t"
+      "st3 {v0.16b-v2.16b}, [%3]"
+      :
+      : "w"(arg[0]), "w"(arg[1]), "w"(arg[2]), "r"(res)
+      : "v0", "v1", "v2", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x9644386365352069ULL, 0x2499275238833225ULL));
+  ASSERT_EQ(res[1], MakeUInt128(0x8823475986976059ULL, 0x7332545962632991ULL));
+  ASSERT_EQ(res[2], MakeUInt128(0x4377553316374445ULL, 0x1757058128994929ULL));
+}
+
+TEST(Arm64InsnTest, Load3MultipleInt16x4) {
+  static constexpr uint16_t mem[3 * 4] = {0x2069,
+                                          0x6535,
+                                          0x3863,
+                                          0x9644,
+                                          0x3225,
+                                          0x3883,
+                                          0x2752,
+                                          0x2499,
+                                          0x6059,
+                                          0x8697,
+                                          0x4759,
+                                          0x8823};
+  __uint128_t res[3];
+  asm("ld3 {v30.4h-v0.4h}, [%3]\n\t"
+      "mov %0.16b, v30.16b\n\t"
+      "mov %1.16b, v31.16b\n\t"
+      "mov %2.16b, v0.16b"
+      : "=w"(res[0]), "=w"(res[1]), "=w"(res[2])
+      : "r"(mem)
+      : "v30", "v31", "v0", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x8697275296442069ULL, 0));
+  ASSERT_EQ(res[1], MakeUInt128(0x4759249932256535ULL, 0));
+  ASSERT_EQ(res[2], MakeUInt128(0x8823605938833863ULL, 0));
+}
+
+TEST(Arm64InsnTest, Store3MultipleInt16x4) {
+  static constexpr uint64_t arg[3] = {
+      0x8697275296442069ULL, 0x4759249932256535ULL, 0x8823605938833863ULL};
+  uint64_t res[3];
+  asm("mov v0.16b, %0.16b\n\t"
+      "mov v1.16b, %1.16b\n\t"
+      "mov v2.16b, %2.16b\n\t"
+      "st3 {v0.4h-v2.4h}, [%3]"
+      :
+      : "w"(arg[0]), "w"(arg[1]), "w"(arg[2]), "r"(res)
+      : "v0", "v1", "v2", "memory");
+  ASSERT_EQ(res[0], 0x9644386365352069ULL);
+  ASSERT_EQ(res[1], 0x2499275238833225ULL);
+  ASSERT_EQ(res[2], 0x8823475986976059ULL);
+}
+
+TEST(Arm64InsnTest, Load3MultipleInt16x8) {
+  static constexpr uint16_t mem[3 * 8] = {0x2069, 0x6535, 0x3863, 0x9644, 0x3225, 0x3883,
+                                          0x2752, 0x2499, 0x6059, 0x8697, 0x4759, 0x8823,
+                                          0x2991, 0x6263, 0x5459, 0x7332, 0x4445, 0x1637,
+                                          0x5533, 0x4377, 0x4929, 0x2899, 0x0581, 0x1757};
+  __uint128_t res[3];
+  asm("ld3 {v30.8h-v0.8h}, [%3]\n\t"
+      "mov %0.16b, v30.16b\n\t"
+      "mov %1.16b, v31.16b\n\t"
+      "mov %2.16b, v0.16b"
+      : "=w"(res[0]), "=w"(res[1]), "=w"(res[2])
+      : "r"(mem)
+      : "v30", "v31", "v0", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x8697275296442069ULL, 0x2899553373322991ULL));
+  ASSERT_EQ(res[1], MakeUInt128(0x4759249932256535ULL, 0x581437744456263ULL));
+  ASSERT_EQ(res[2], MakeUInt128(0x8823605938833863ULL, 0x1757492916375459ULL));
+}
+
+TEST(Arm64InsnTest, Store3MultipleInt16x8) {
+  static constexpr __uint128_t arg[3] = {MakeUInt128(0x8697275296442069ULL, 0x2899553373322991ULL),
+                                         MakeUInt128(0x4759249932256535ULL, 0x581437744456263ULL),
+                                         MakeUInt128(0x8823605938833863ULL, 0x1757492916375459ULL)};
+  __uint128_t res[3];
+  asm("mov v0.16b, %0.16b\n\t"
+      "mov v1.16b, %1.16b\n\t"
+      "mov v2.16b, %2.16b\n\t"
+      "st3 {v0.8h-v2.8h}, [%3]"
+      :
+      : "w"(arg[0]), "w"(arg[1]), "w"(arg[2]), "r"(res)
+      : "v0", "v1", "v2", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x9644386365352069ULL, 0x2499275238833225ULL));
+  ASSERT_EQ(res[1], MakeUInt128(0x8823475986976059ULL, 0x7332545962632991ULL));
+  ASSERT_EQ(res[2], MakeUInt128(0x4377553316374445ULL, 0x1757058128994929ULL));
+}
+
+TEST(Arm64InsnTest, Load3MultipleInt32x2) {
+  static constexpr uint32_t mem[3 * 2] = {
+      0x65352069, 0x96443863, 0x38833225, 0x24992752, 0x86976059, 0x88234759};
+  __uint128_t res[3];
+  asm("ld3 {v30.2s-v0.2s}, [%3]\n\t"
+      "mov %0.16b, v30.16b\n\t"
+      "mov %1.16b, v31.16b\n\t"
+      "mov %2.16b, v0.16b"
+      : "=w"(res[0]), "=w"(res[1]), "=w"(res[2])
+      : "r"(mem)
+      : "v30", "v31", "v0", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x2499275265352069ULL, 0));
+  ASSERT_EQ(res[1], MakeUInt128(0x8697605996443863ULL, 0));
+  ASSERT_EQ(res[2], MakeUInt128(0x8823475938833225ULL, 0));
+}
+
+TEST(Arm64InsnTest, Store3MultipleInt32x2) {
+  static constexpr uint64_t arg[3] = {
+      0x2499275265352069ULL, 0x8697605996443863ULL, 0x8823475938833225ULL};
+  uint64_t res[3];
+  asm("mov v0.16b, %0.16b\n\t"
+      "mov v1.16b, %1.16b\n\t"
+      "mov v2.16b, %2.16b\n\t"
+      "st3 {v0.2s-v2.2s}, [%3]"
+      :
+      : "w"(arg[0]), "w"(arg[1]), "w"(arg[2]), "r"(res)
+      : "v0", "v1", "v2", "memory");
+  ASSERT_EQ(res[0], 0x9644386365352069ULL);
+  ASSERT_EQ(res[1], 0x2499275238833225ULL);
+  ASSERT_EQ(res[2], 0x8823475986976059ULL);
+}
+
+TEST(Arm64InsnTest, Load3MultipleInt32x4) {
+  static constexpr uint32_t mem[3 * 4] = {0x65352069,
+                                          0x96443863,
+                                          0x38833225,
+                                          0x24992752,
+                                          0x86976059,
+                                          0x88234759,
+                                          0x62632991,
+                                          0x73325459,
+                                          0x16374445,
+                                          0x43775533,
+                                          0x28994929,
+                                          0x17570581};
+  __uint128_t res[3];
+  asm("ld3 {v30.4s-v0.4s}, [%3]\n\t"
+      "mov %0.16b, v30.16b\n\t"
+      "mov %1.16b, v31.16b\n\t"
+      "mov %2.16b, v0.16b"
+      : "=w"(res[0]), "=w"(res[1]), "=w"(res[2])
+      : "r"(mem)
+      : "v30", "v31", "v0", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x2499275265352069ULL, 0x4377553362632991ULL));
+  ASSERT_EQ(res[1], MakeUInt128(0x8697605996443863ULL, 0x2899492973325459ULL));
+  ASSERT_EQ(res[2], MakeUInt128(0x8823475938833225ULL, 0x1757058116374445ULL));
+}
+
+TEST(Arm64InsnTest, Store3MultipleInt32x4) {
+  static constexpr __uint128_t arg[3] = {MakeUInt128(0x2499275265352069ULL, 0x4377553362632991ULL),
+                                         MakeUInt128(0x8697605996443863ULL, 0x2899492973325459ULL),
+                                         MakeUInt128(0x8823475938833225ULL, 0x1757058116374445ULL)};
+  __uint128_t res[3];
+  asm("mov v0.16b, %0.16b\n\t"
+      "mov v1.16b, %1.16b\n\t"
+      "mov v2.16b, %2.16b\n\t"
+      "st3 {v0.4s-v2.4s}, [%3]"
+      :
+      : "w"(arg[0]), "w"(arg[1]), "w"(arg[2]), "r"(res)
+      : "v0", "v1", "v2", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x9644386365352069ULL, 0x2499275238833225ULL));
+  ASSERT_EQ(res[1], MakeUInt128(0x8823475986976059ULL, 0x7332545962632991ULL));
+  ASSERT_EQ(res[2], MakeUInt128(0x4377553316374445ULL, 0x1757058128994929ULL));
+}
+
+TEST(Arm64InsnTest, Load3MultipleInt64x2) {
+  static constexpr uint64_t mem[3 * 2] = {0x9644386365352069,
+                                          0x2499275238833225,
+                                          0x8823475986976059,
+                                          0x7332545962632991,
+                                          0x4377553316374445,
+                                          0x1757058128994929};
+  __uint128_t res[3];
+  asm("ld3 {v30.2d-v0.2d}, [%3]\n\t"
+      "mov %0.16b, v30.16b\n\t"
+      "mov %1.16b, v31.16b\n\t"
+      "mov %2.16b, v0.16b"
+      : "=w"(res[0]), "=w"(res[1]), "=w"(res[2])
+      : "r"(mem)
+      : "v30", "v31", "v0", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x9644386365352069ULL, 0x7332545962632991ULL));
+  ASSERT_EQ(res[1], MakeUInt128(0x2499275238833225ULL, 0x4377553316374445ULL));
+  ASSERT_EQ(res[2], MakeUInt128(0x8823475986976059ULL, 0x1757058128994929ULL));
+}
+
+TEST(Arm64InsnTest, Store3MultipleInt64x2) {
+  static constexpr __uint128_t arg[3] = {MakeUInt128(0x9644386365352069ULL, 0x7332545962632991ULL),
+                                         MakeUInt128(0x2499275238833225ULL, 0x4377553316374445ULL),
+                                         MakeUInt128(0x8823475986976059ULL, 0x1757058128994929ULL)};
+  __uint128_t res[3];
+  asm("mov v0.16b, %0.16b\n\t"
+      "mov v1.16b, %1.16b\n\t"
+      "mov v2.16b, %2.16b\n\t"
+      "st3 {v0.2d-v2.2d}, [%3]"
+      :
+      : "w"(arg[0]), "w"(arg[1]), "w"(arg[2]), "r"(res)
+      : "v0", "v1", "v2", "memory");
+  ASSERT_EQ(res[0], MakeUInt128(0x9644386365352069ULL, 0x2499275238833225ULL));
+  ASSERT_EQ(res[1], MakeUInt128(0x8823475986976059ULL, 0x7332545962632991ULL));
+  ASSERT_EQ(res[2], MakeUInt128(0x4377553316374445ULL, 0x1757058128994929ULL));
 }
 
 TEST(Arm64InsnTest, Load4MultipleInt16x8) {
