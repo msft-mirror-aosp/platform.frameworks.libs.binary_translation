@@ -251,6 +251,11 @@ cc_test_host {
         "libberberis_runtime_primitives_unit_tests",
     ],
     arch: {
+        arm64: {
+            srcs: [
+                "base/raw_syscall_tests.cc",
+            ],
+        },
         x86: {
             srcs: [
                 "base/raw_syscall_tests.cc",
