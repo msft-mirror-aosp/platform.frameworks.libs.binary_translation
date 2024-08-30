@@ -135,7 +135,7 @@ int main(int argc, char* argv[], [[maybe_unused]] char* envp[]) {
   }
 #elif defined(__aarch64__)
   LoadedElfFile elf_file;
-  if (!TinyLoader::LoadFromFile(opts.guest_executable, &elf_file, &error_msg)) {
+  if (!TinyLoader::LoadFromFile(argv[optind], &elf_file, &error_msg)) {
     fprintf(stderr, "unable to start load file: %s\n", error_msg.c_str());
     return -1;
   }
