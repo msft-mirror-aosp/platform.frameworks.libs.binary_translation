@@ -25,6 +25,7 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/intrinsics/intrinsics.h"
+#include "berberis/kernel_api/run_guest_syscall.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
 
 #include "regs.h"
@@ -234,8 +235,9 @@ class Interpreter {
                  Register /* arg3 */,
                  Register /* arg4 */,
                  Register /* arg5 */) {
-    Undefined();
-    return {};
+    CHECK(!exception_raised_);
+    RunGuestSyscall(state_);
+    return state_->cpu.x[A0];
   }
 
   Register Slli(Register arg, int8_t imm) { return arg << imm; }
