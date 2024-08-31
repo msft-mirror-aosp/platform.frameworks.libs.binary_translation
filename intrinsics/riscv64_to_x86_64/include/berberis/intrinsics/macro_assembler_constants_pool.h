@@ -19,13 +19,14 @@
 
 #include <cinttypes>
 
+#include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/common/intrinsics_float.h"
 
 namespace berberis::constants_pool {
 
 // Vector constants, that is: constants are repeated to fill 128bit SIMD register.
 template <auto Value>
-extern const int32_t kVectorConst;
+inline constexpr int32_t kVectorConst = kImpossibleValueConst<Value>;
 template <>
 extern const int32_t kVectorConst<int8_t{-128}>;
 template <>
@@ -46,6 +47,8 @@ template <>
 extern const int32_t kVectorConst<int32_t{0x7fff'ffff}>;
 template <>
 extern const int32_t kVectorConst<int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}>;
+template <>
+extern const int32_t kVectorConst<int64_t{0x3ff0'0000'0000'0000}>;
 template <>
 extern const int32_t kVectorConst<int64_t{0x7ff0'0000'0000'0000}>;
 template <>
@@ -127,7 +130,7 @@ inline const int32_t& kVectorConst<int64_t{-1}> = kVectorConst<uint64_t{0xffff'f
 // 64 bit constants for use with arithmetic operations.
 // Used because only 32 bit immediates are supported on x86-64.
 template <auto Value>
-extern const int32_t kConst;
+inline constexpr int32_t kConst = kImpossibleValueConst<Value>;
 template <>
 extern const int32_t kConst<uint32_t{32}>;
 template <>
@@ -181,21 +184,21 @@ inline const int32_t& kConst<uint64_t{0xffff'ffff'ffff'ffff}> =
 // Constant suitable for NaN boxing of RISC-V 32bit float with PXor.
 // Note: technically we only need to Nan-box Float32 since we don't support Float16 yet.
 template <typename FloatType>
-extern const int32_t kNanBox;
+inline constexpr int32_t kNanBox = kImpossibleTypeConst<FloatType>;
 template <>
 inline const int32_t& kNanBox<intrinsics::Float32> = kVectorConst<uint64_t{0xffff'ffff'0000'0000}>;
 
 // Canonically Nan boxed canonical NaN.
 // Note: technically we only need to Nan-box Float32 since we don't support Float16 yet.
 template <typename FloatType>
-extern const int32_t kNanBoxedNans;
+inline constexpr int32_t kNanBoxedNans = kImpossibleTypeConst<FloatType>;
 template <>
 inline const int32_t& kNanBoxedNans<intrinsics::Float32> =
     kVectorConst<uint64_t{0xffff'ffff'7fc0'0000}>;
 
 // Canonical NaNs. Float32 and Float64 are supported.
 template <typename FloatType>
-extern const int32_t kCanonicalNans;
+inline constexpr int32_t kCanonicalNans = kImpossibleTypeConst<FloatType>;
 template <>
 inline const int32_t& kCanonicalNans<intrinsics::Float32> =
     kVectorConst<uint64_t{0x7fc0'0000'7fc0'0000}>;
@@ -205,7 +208,7 @@ inline const int32_t& kCanonicalNans<intrinsics::Float64> =
 
 // Helper constant for BsrToClz conversion. 63 for int32_t, 127 for int64_t.
 template <typename IntType>
-extern const int32_t kBsrToClz;
+inline constexpr int32_t kBsrToClz = kImpossibleTypeConst<IntType>;
 template <>
 inline const int32_t kBsrToClz<int32_t> = kConst<uint32_t{63}>;
 template <>
@@ -213,7 +216,7 @@ inline const int32_t kBsrToClz<int64_t> = kConst<uint64_t{127}>;
 
 // Helper constant for width of the type. 32 for int32_t, 64 for int64_t.
 template <typename IntType>
-extern const int32_t kWidthInBits;
+inline constexpr int32_t kWidthInBits = kImpossibleTypeConst<IntType>;
 template <>
 inline const int32_t kWidthInBits<int32_t> = kConst<uint32_t{32}>;
 template <>

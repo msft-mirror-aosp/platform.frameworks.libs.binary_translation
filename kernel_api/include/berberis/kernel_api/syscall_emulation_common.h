@@ -47,8 +47,16 @@ inline long RunGuestSyscall___NR_clone3(long arg_1, long arg_2) {
 }
 
 inline long RunGuestSyscall___NR_close(long arg_1) {
+  // TODO(b/346604197): Enable on arm64 once guest_os_primitives is ported.
+#ifdef __aarch64__
+  UNUSED(arg_1);
+  TRACE("unimplemented syscall __NR_close");
+  errno = ENOSYS;
+  return -1;
+#else
   CloseEmulatedProcSelfMapsFileDescriptor(arg_1);
   return syscall(__NR_close, arg_1);
+#endif
 }
 
 inline long RunGuestSyscall___NR_execve(long arg_1, long arg_2, long arg_3) {
@@ -64,6 +72,13 @@ inline long RunGuestSyscall___NR_faccessat(long arg_1, long arg_2, long arg_3) {
 }
 
 inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
+  // TODO(b/346604197): Enable on arm64 once guest_os_primitives is ported.
+#ifdef __aarch64__
+  UNUSED(arg_1, arg_2);
+  TRACE("unimplemented syscall __NR_fstat");
+  errno = ENOSYS;
+  return -1;
+#else
   // We are including this structure from library headers (sys/stat.h) and assume
   // that it matches kernel's layout.
   // TODO(b/232598137): Add a check for this. It seems like this is an issue for 32-bit
@@ -85,9 +100,17 @@ inline long RunGuestSyscall___NR_fstat(long arg_1, long arg_2) {
     ConvertHostStatToGuestArch(host_stat, bit_cast<GuestAddr>(arg_2));
   }
   return result;
+#endif
 }
 
 inline long RunGuestSyscall___NR_fstatfs(long arg_1, long arg_2) {
+  // TODO(b/346604197): Enable on arm64 once guest_os_primitives is ported.
+#ifdef __aarch64__
+  UNUSED(arg_1, arg_2);
+  TRACE("unimplemented syscall __NR_fstatfs");
+  errno = ENOSYS;
+  return -1;
+#else
   if (IsFileDescriptorEmulatedProcSelfMaps(arg_1)) {
     TRACE("Emulating fstatfs for /proc/self/maps");
     // arg_2 (struct statfs*) has kernel expected layout, which is different from
@@ -96,6 +119,7 @@ inline long RunGuestSyscall___NR_fstatfs(long arg_1, long arg_2) {
     return syscall(__NR_statfs, "/proc/self/maps", arg_2);
   }
   return syscall(__NR_fstatfs, arg_1, arg_2);
+#endif
 }
 
 inline long RunGuestSyscall___NR_fcntl(long arg_1, long arg_2, long arg_3) {
@@ -103,14 +127,30 @@ inline long RunGuestSyscall___NR_fcntl(long arg_1, long arg_2, long arg_3) {
 }
 
 inline long RunGuestSyscall___NR_openat(long arg_1, long arg_2, long arg_3, long arg_4) {
+  // TODO(b/346604197): Enable on arm64 once guest_os_primitives is ported.
+#ifdef __aarch64__
+  UNUSED(arg_1, arg_2, arg_3, arg_4);
+  TRACE("unimplemented syscall __NR_openat");
+  errno = ENOSYS;
+  return -1;
+#else
   return static_cast<long>(OpenatForGuest(static_cast<int>(arg_1),       // dirfd
                                           bit_cast<const char*>(arg_2),  // path
                                           static_cast<int>(arg_3),       // flags
                                           static_cast<mode_t>(arg_4)));  // mode
+#endif
 }
 
 inline long RunGuestSyscall___NR_prctl(long arg_1, long arg_2, long arg_3, long arg_4, long arg_5) {
+  // TODO(b/346604197): Enable on arm64 once guest_os_primitives is ported.
+#ifdef __aarch64__
+  UNUSED(arg_1, arg_2, arg_3, arg_4, arg_5);
+  TRACE("unimplemented syscall __NR_prctl");
+  errno = ENOSYS;
+  return -1;
+#else
   return PrctlForGuest(arg_1, arg_2, arg_3, arg_4, arg_5);
+#endif
 }
 
 inline long RunGuestSyscall___NR_ptrace(long arg_1, long arg_2, long arg_3, long arg_4) {
