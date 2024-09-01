@@ -73,6 +73,9 @@ class WrappedFloatType {
   explicit constexpr operator uint32_t() const { return value_; }
   explicit constexpr operator int64_t() const { return value_; }
   explicit constexpr operator uint64_t() const { return value_; }
+  explicit constexpr operator WrappedFloatType<_Float16>() const {
+    return WrappedFloatType<_Float16>(value_);
+  }
   explicit constexpr operator WrappedFloatType<float>() const {
     return WrappedFloatType<float>(value_);
   }
