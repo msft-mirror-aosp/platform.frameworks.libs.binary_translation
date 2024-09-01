@@ -26,14 +26,18 @@
 #include "berberis/base/macros.h"
 #include "berberis/base/scoped_errno.h"
 #include "berberis/base/tracing.h"
-#include "berberis/guest_os_primitives/scoped_pending_signals.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/instrument/syscall.h"
 #include "berberis/kernel_api/main_executable_real_path_emulation.h"
 #include "berberis/kernel_api/runtime_bridge.h"
 #include "berberis/kernel_api/syscall_emulation_common.h"
+
+// TODO(b/346604197): Enable on arm64 once these modules are ported.
+#ifdef __x86_64__
+#include "berberis/guest_os_primitives/scoped_pending_signals.h"
 #include "berberis/runtime_primitives/runtime_library.h"
+#endif
 
 #include "epoll_emulation.h"
 #include "guest_types.h"
@@ -86,10 +90,13 @@ long RunGuestSyscall___NR_execveat(long arg_1, long arg_2, long arg_3, long arg_
   return -1;
 }
 
+// sys_fadvise64 has a different entry-point symbol name between riscv64 and x86_64.
+#ifdef __x86_64__
 long RunGuestSyscall___NR_fadvise64(long arg_1, long arg_2, long arg_3, long arg_4) {
   // on 64-bit architectures, sys_fadvise64 and sys_fadvise64_64 are equal.
   return syscall(__NR_fadvise64, arg_1, arg_2, arg_3, arg_4);
 }
+#endif
 
 long RunGuestSyscall___NR_ioctl(long arg_1, long arg_2, long arg_3) {
   // TODO(b/128614662): translate!
@@ -133,6 +140,8 @@ long RunGuestSyscall___NR_riscv_hwprobe(long arg_1,
 }
 
 long RunGuestSyscall___NR_riscv_flush_icache(long arg_1, long arg_2, long arg_3) {
+// TODO(b/346604197): Enable on arm64 once runtime_primitives are ready.
+#ifdef __x86_64__
   static constexpr uint64_t kFlagsLocal = 1UL;
   static constexpr uint64_t kFlagsAll = kFlagsLocal;
 
@@ -149,20 +158,37 @@ long RunGuestSyscall___NR_riscv_flush_icache(long arg_1, long arg_2, long arg_3)
   TRACE("icache flush: [0x%lx, 0x%lx)", start, end);
   InvalidateGuestRange(start, end);
   return 0;
+#else
+  UNUSED(arg_1, arg_2, arg_3);
+  TRACE("unimplemented syscall __NR_riscv_flush_icache");
+  errno = ENOSYS;
+  return -1;
+#endif
 }
 
 // RunGuestSyscallImpl.
+#if defined(__aarch64__)
+#include "gen_syscall_emulation_riscv64_to_arm64-inl.h"
+#elif defined(__x86_64__)
 #include "gen_syscall_emulation_riscv64_to_x86_64-inl.h"
+#else
+#error "Unsupported host arch"
+#endif
 
 }  // namespace
 
 void RunGuestSyscall(ThreadState* state) {
+#ifdef __x86_64__
   // ATTENTION: run guest signal handlers instantly!
   // If signal arrives while in a syscall, syscall should immediately return with EINTR.
   // In this case pending signals are OK, as guest handlers will run on return from syscall.
   // BUT, if signal action has SA_RESTART, certain syscalls will restart instead of returning.
   // In this case, pending signals will never run...
   ScopedPendingSignalsDisabler scoped_pending_signals_disabler(state->thread);
+#else
+  // TODO(b/346604197): Enable on arm64 once guest_os_primitives is ported.
+  TRACE("ScopedPendingSignalsDisabler is not available on this arch");
+#endif
   ScopedErrno scoped_errno;
 
   long guest_nr = state->cpu.x[A7];
