@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,24 @@
  * limitations under the License.
  */
 
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
+  .globl berberis_RawSyscallImpl
+  .balign 16
 
-android_test {
-    name: "berberis_jni_tests",
-    srcs: ["src/com/berberis/jnitests/JniTests.java"],
-    static_libs: [
-        "androidx.test.ext.junit",
-        "androidx.test.rules",
-    ],
-    libs: ["android.test.runner.stubs"],
-    jni_libs: ["libberberis_jni_tests"],
-    sdk_version: "current",
-}
+berberis_RawSyscallImpl:
+  // The aapcs64 ABI passes the first RawSyscallImpl param (the syscall number) in x0.
+  // The arm64 syscall ABI passes the syscall number in x8.
+
+  // Move the syscall number up.
+  mov x8, x0
+
+  // Shift the arguments down.
+  mov x0, x1
+  mov x1, x2
+  mov x2, x3
+  mov x3, x4
+  mov x4, x5
+  mov x5, x6
+
+  svc #0
+
+  ret
