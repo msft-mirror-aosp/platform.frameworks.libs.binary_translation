@@ -24,47 +24,9 @@
 
 namespace berberis::intrinsics {
 
-template <typename Type0,
-          bool kBool1,
-          bool kBool2,
-          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
-std::tuple<Type0> AmoAdd(int64_t, Type0);
-// Atomic and, like __atomic_fetch_and. Three template arguments: type, aq, rl..
-template <typename Type0,
-          bool kBool1,
-          bool kBool2,
-          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
-std::tuple<Type0> AmoAnd(int64_t, Type0);
-// Atomic maximum, like __atomic_fetch_max. Three template arguments: type, aq, rl..
-template <typename Type0,
-          bool kBool1,
-          bool kBool2,
-          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
-std::tuple<Type0> AmoMax(int64_t, Type0);
-// Atomic minimum, like __atomic_fetch_min. Three template arguments: type, aq, rl..
-template <typename Type0,
-          bool kBool1,
-          bool kBool2,
-          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
-std::tuple<Type0> AmoMin(int64_t, Type0);
-// Atomic or, like __atomic_fetch_or. Three template arguments: type, aq, rl..
-template <typename Type0,
-          bool kBool1,
-          bool kBool2,
-          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
-std::tuple<Type0> AmoOr(int64_t, Type0);
-// Atomic exchange, like __atomic_exchange_n. Three template arguments: type, aq, rl..
-template <typename Type0,
-          bool kBool1,
-          bool kBool2,
-          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
-std::tuple<Type0> AmoSwap(int64_t, Type0);
-// Atomic exclusive or, like __atomic_fetch_xor. Three template arguments: type, aq, rl..
-template <typename Type0,
-          bool kBool1,
-          bool kBool2,
-          enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
-std::tuple<Type0> AmoXor(int64_t, Type0);
+using Float64 = double;
+
+#include "berberis/intrinsics/intrinsics-inl.h"  // NOLINT: generated file!
 
 }  // namespace berberis::intrinsics
 
