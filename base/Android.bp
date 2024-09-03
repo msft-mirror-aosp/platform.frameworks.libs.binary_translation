@@ -61,6 +61,7 @@ cc_library_static {
         "exec_region_anonymous.cc",
         "format_buffer.cc",
         "large_mmap.cc",
+        "maps_snapshot.cc",
         "mapped_file_fragment.cc",
         "memfd_backed_mmap.cc",
         "mmap_posix.cc",
@@ -68,6 +69,9 @@ cc_library_static {
         "tracing.cc",
     ],
     arch: {
+        arm64: {
+            srcs: ["raw_syscall_arm64.S"],
+        },
         x86: {
             srcs: ["raw_syscall_x86_32.S"],
         },
@@ -129,6 +133,7 @@ cc_test_library {
         "format_buffer_test.cc",
         "lock_free_stack_test.cc",
         "large_mmap_test.cc",
+        "maps_snapshot_test.cc",
         "memfd_backed_mmap_test.cc",
         "mmap_pool_test.cc",
         "pointer_and_counter_test.cc",

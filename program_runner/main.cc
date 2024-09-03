@@ -121,7 +121,7 @@ int main(int argc, char* argv[], [[maybe_unused]] char* envp[]) {
   }
 
   std::string error_msg;
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__riscv)
   if (!berberis::Run(
           // TODO(b/276787135): Make vdso and loader configurable via command line arguments.
           /* vdso_path */ nullptr,
@@ -135,7 +135,7 @@ int main(int argc, char* argv[], [[maybe_unused]] char* envp[]) {
   }
 #elif defined(__aarch64__)
   LoadedElfFile elf_file;
-  if (!TinyLoader::LoadFromFile(opts.guest_executable, &elf_file, &error_msg)) {
+  if (!TinyLoader::LoadFromFile(argv[optind], &elf_file, &error_msg)) {
     fprintf(stderr, "unable to start load file: %s\n", error_msg.c_str());
     return -1;
   }
@@ -149,6 +149,8 @@ int main(int argc, char* argv[], [[maybe_unused]] char* envp[]) {
   while (true) {
     InterpretInsn(&state);
   }
+#else
+#error Unsupported platform
 #endif
 
   return 0;
