@@ -17,8 +17,6 @@
 #ifndef BERBERIS_INTRINSICS_COMMON_INTRINSICS_BINDINGS_H_
 #define BERBERIS_INTRINSICS_COMMON_INTRINSICS_BINDINGS_H_
 
-#include <xmmintrin.h>
-
 #include <cstdint>
 
 #include "berberis/base/dependent_false.h"
@@ -146,6 +144,10 @@ class AsmCallInfo<kIntrinsicTemplateName,
   template <typename Callback, typename... Args>
   constexpr static void ProcessBindings(Callback&& callback, Args&&... args) {
     (callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...), ...);
+  }
+  template <typename Callback, typename... Args>
+  constexpr static bool VerifyBindings(Callback&& callback, Args&&... args) {
+    return (callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...) && ...);
   }
   template <typename Callback, typename... Args>
   constexpr static auto MakeTuplefromBindings(Callback&& callback, Args&&... args) {
