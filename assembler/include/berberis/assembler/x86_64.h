@@ -21,9 +21,8 @@
 
 #include <type_traits>  // std::is_same
 
-#include "berberis/assembler/common_x86.h"
+#include "berberis/assembler/x86_32_and_x86_64.h"
 #include "berberis/base/logging.h"
-#include "berberis/base/macros.h"  // DISALLOW_IMPLICIT_CONSTRUCTORS
 
 namespace berberis {
 
@@ -31,12 +30,12 @@ class MachindeCode;
 
 namespace x86_64 {
 
-class Assembler : public AssemblerX86<Assembler> {
+class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
  public:
-  using BaseAssembler = AssemblerX86<Assembler>;
+  using BaseAssembler = x86_32_and_x86_64::Assembler<Assembler>;
   using FinalAssembler = Assembler;
 
-  explicit Assembler(MachineCode* code) : AssemblerX86(code) {}
+  explicit Assembler(MachineCode* code) : BaseAssembler(code) {}
 
   static constexpr Register no_register{0x80};
   static constexpr Register rax{0};
@@ -89,31 +88,31 @@ class Assembler : public AssemblerX86<Assembler> {
   // the same.
 
   // Unhide Decl(Mem) hidden by Decl(Reg).
-  using AssemblerX86::Decl;
+  using BaseAssembler::Decl;
 
   // Unhide Decw(Mem) hidden by Decw(Reg).
-  using AssemblerX86::Decw;
+  using BaseAssembler::Decw;
 
   // Unhide Incl(Mem) hidden by Incl(Reg).
-  using AssemblerX86::Incl;
+  using BaseAssembler::Incl;
 
   // Unhide Incw(Mem) hidden by Incw(Reg).
-  using AssemblerX86::Incw;
+  using BaseAssembler::Incw;
 
   // Unhide Movq(Mem, XMMReg) and Movq(XMMReg, Mem) hidden by Movq(Reg, Imm) and many others.
-  using AssemblerX86::Movq;
+  using BaseAssembler::Movq;
 
   // Unhide Xchgl(Mem, Reg) hidden by modified version below.
-  using AssemblerX86::Xchgl;
+  using BaseAssembler::Xchgl;
 
   // Unhide Vmov*(Mem, Reg) hidden by Vmov*(Reg, Reg).
-  using AssemblerX86::Vmovapd;
-  using AssemblerX86::Vmovaps;
-  using AssemblerX86::Vmovdqa;
-  using AssemblerX86::Vmovdqu;
-  using AssemblerX86::Vmovq;
-  using AssemblerX86::Vmovsd;
-  using AssemblerX86::Vmovss;
+  using BaseAssembler::Vmovapd;
+  using BaseAssembler::Vmovaps;
+  using BaseAssembler::Vmovdqa;
+  using BaseAssembler::Vmovdqu;
+  using BaseAssembler::Vmovq;
+  using BaseAssembler::Vmovsd;
+  using BaseAssembler::Vmovss;
 
   void Xchgl(Register dest, Register src) {
     // In 32-bit mode "xchgl %eax, %eax" did nothing and was often reused as "nop".
@@ -125,7 +124,7 @@ class Assembler : public AssemblerX86<Assembler> {
     if (IsAccumulator(src) && IsAccumulator(dest)) {
       Emit16(0xc087);
     } else {
-      AssemblerX86::Xchgl(dest, src);
+      BaseAssembler::Xchgl(dest, src);
     }
   }
 
@@ -134,7 +133,7 @@ class Assembler : public AssemblerX86<Assembler> {
 #ifdef __amd64__
 
   // Unhide Call(Reg), hidden by special version below.
-  using AssemblerX86::Call;
+  using BaseAssembler::Call;
 
   void Call(const void* target) {
     // There are no call instruction with properties we need thus we emulate it.
@@ -150,7 +149,7 @@ class Assembler : public AssemblerX86<Assembler> {
   }
 
   // Unhide Jcc(Label), hidden by special version below.
-  using AssemblerX86::Jcc;
+  using BaseAssembler::Jcc;
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
@@ -178,7 +177,7 @@ class Assembler : public AssemblerX86<Assembler> {
   }
 
   // Unhide Jmp(Reg), hidden by special version below.
-  using AssemblerX86::Jmp;
+  using BaseAssembler::Jmp;
 
   // Make sure only type void* can be passed to function below, not Label* or any other type.
   template <typename T>
@@ -200,7 +199,12 @@ class Assembler : public AssemblerX86<Assembler> {
 #endif
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Assembler);
+  Assembler() = delete;
+  Assembler(const Assembler&) = delete;
+  Assembler(Assembler&&) = delete;
+  void operator=(const Assembler&) = delete;
+  void operator=(Assembler&&) = delete;
+  using DerivedAssemblerType = Assembler;
 
   static Register Accumulator() { return rax; }
   static bool IsAccumulator(Register reg) { return reg == rax; }
@@ -394,7 +398,7 @@ class Assembler : public AssemblerX86<Assembler> {
   template <size_t kImmediatesSize>
   void EmitRipOp(int num_, const Label& label);
 
-  friend AssemblerX86<Assembler>;
+  friend BaseAssembler;
 };
 
 // This function looks big, but when we are emitting Operand with fixed registers
