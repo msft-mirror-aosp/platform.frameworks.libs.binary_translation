@@ -153,6 +153,7 @@ genrule {
     name: "libberberis_intrinsics_gen_public_headers_riscv64_to_arm64",
     out: [
         "berberis/intrinsics/intrinsics-inl.h",
+        "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h",
     ],
     srcs: [
         ":libberberis_intrinsics_gen_inputs_riscv64_to_all",
