@@ -73,6 +73,9 @@ class WrappedFloatType {
   explicit constexpr operator uint32_t() const { return value_; }
   explicit constexpr operator int64_t() const { return value_; }
   explicit constexpr operator uint64_t() const { return value_; }
+  explicit constexpr operator WrappedFloatType<_Float16>() const {
+    return WrappedFloatType<_Float16>(value_);
+  }
   explicit constexpr operator WrappedFloatType<float>() const {
     return WrappedFloatType<float>(value_);
   }
@@ -129,6 +132,81 @@ using Float8 = WrappedFloatType<Float8PhonyType>;  // Ditto.
 using Float16 = WrappedFloatType<_Float16>;
 using Float32 = WrappedFloatType<float>;
 using Float64 = WrappedFloatType<double>;
+
+// It's NOT safe to use ANY functions which return raw float or double.  That's because IA32 ABI
+// uses x87 stack to pass arguments (even with -mfpmath=sse) which clobbers NaN values.
+//
+// Builtins do NOT use the official calling conventions but are instead embedded in the function -
+// even if all optimizations are disabled. Therefore, it's safe to use builtins here if on x86 host
+// this file is compiled with SSE enforced for FP calculations, which is always the case for us.
+// Clang uses SSE whenever possible by default. For GCC we need to specify -msse2 and -mfpmath=sse.
+
+inline Float32 CopySignBit(const Float32& v1, const Float32& v2) {
+  return Float32(__builtin_copysignf(v1.value_, v2.value_));
+}
+
+inline Float64 CopySignBit(const Float64& v1, const Float64& v2) {
+  return Float64(__builtin_copysign(v1.value_, v2.value_));
+}
+
+inline Float32 Absolute(const Float32& v) {
+  return Float32(__builtin_fabsf(v.value_));
+}
+
+inline Float64 Absolute(const Float64& v) {
+  return Float64(__builtin_fabs(v.value_));
+}
+
+inline FPInfo FPClassify(const Float32& v) {
+  return static_cast<FPInfo>(__builtin_fpclassify(static_cast<int>(FPInfo::kNaN),
+                                                  static_cast<int>(FPInfo::kInfinite),
+                                                  static_cast<int>(FPInfo::kNormal),
+                                                  static_cast<int>(FPInfo::kSubnormal),
+                                                  static_cast<int>(FPInfo::kZero),
+                                                  v.value_));
+}
+
+inline FPInfo FPClassify(const Float64& v) {
+  return static_cast<FPInfo>(__builtin_fpclassify(static_cast<int>(FPInfo::kNaN),
+                                                  static_cast<int>(FPInfo::kInfinite),
+                                                  static_cast<int>(FPInfo::kNormal),
+                                                  static_cast<int>(FPInfo::kSubnormal),
+                                                  static_cast<int>(FPInfo::kZero),
+                                                  v.value_));
+}
+
+inline int IsNan(const Float32& v) {
+  return __builtin_isnan(v.value_);
+}
+
+inline int IsNan(const Float64& v) {
+  return __builtin_isnan(v.value_);
+}
+
+inline int SignBit(const Float32& v) {
+  return __builtin_signbitf(v.value_);
+}
+
+inline int SignBit(const Float64& v) {
+  return __builtin_signbit(v.value_);
+}
+
+inline Float32 Sqrt(const Float32& v) {
+  return Float32(__builtin_sqrtf(v.value_));
+}
+
+inline Float64 Sqrt(const Float64& v) {
+  return Float64(__builtin_sqrt(v.value_));
+}
+
+// x*y + z
+inline Float32 MulAdd(const Float32& v1, const Float32& v2, const Float32& v3) {
+  return Float32(fmaf(v1.value_, v2.value_, v3.value_));
+}
+
+inline Float64 MulAdd(const Float64& v1, const Float64& v2, const Float64& v3) {
+  return Float64(fma(v1.value_, v2.value_, v3.value_));
+}
 
 }  // namespace intrinsics
 

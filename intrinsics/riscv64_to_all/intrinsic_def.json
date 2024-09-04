@@ -796,10 +796,11 @@
     "in": [ "uint8_t", "uint64_t", "uimm16" ],
     "out": [ "uint64_t", "uint64_t" ]
   },
-  "Zexth": {
-    "comment": "Zero-extend half word",
-    "class": "scalar",
-    "in": [ "int16_t" ],
-    "out": [ "int64_t" ]
+  "Zext": {
+    "comment": "Zero-extend to 64 bit",
+    "class": "template",
+    "variants": [ "uint8_t", "uint16_t", "uint32_t" ],
+    "in": [ "Type0" ],
+    "out": [ "uint64_t" ]
   }
 }
