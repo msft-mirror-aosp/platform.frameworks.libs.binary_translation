@@ -311,6 +311,15 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
 def _get_interpreter_hook_return_stmt(name, intr, desc=None):
   return 'return ' + _get_interpreter_hook_call_expr(name, intr, desc) + ';'
 
+def _get_unused(intr):
+  call_expr = 'UNUSED(%s);' % ', '.join('arg%d' % (num) for num, _ in enumerate(intr['in']))
+  return call_expr
+
+def _get_placeholder_return_stmt(intr, f):
+  print(INDENT + _get_unused(intr), file=f)
+  outs = intr['out']
+  if outs:
+    print(INDENT + 'return {};', file=f)
 
 def _get_semantics_player_hook_raw_vector_body(name, intr, get_return_stmt):
   outs = intr['out']
@@ -380,7 +389,7 @@ def _get_interpreter_hook_vector_body(name, intr):
       name, intr, _get_interpreter_hook_return_stmt)
 
 
-def _gen_interpreter_hook(f, name, intr):
+def _gen_interpreter_hook(f, name, intr, option):
   print('%s const {' % (_get_semantics_player_hook_proto(name, intr)), file=f)
 
   if _is_vector_class(intr):
@@ -396,7 +405,12 @@ def _gen_interpreter_hook(f, name, intr):
     lines = [INDENT + l for l in lines]
     print('\n'.join(lines), file=f)
   else:
-    print(INDENT + _get_interpreter_hook_return_stmt(name, intr), file=f)
+    # TODO(b/363057506): Add float support and clean up the logic here.
+    arm64_allowlist = ['AmoAdd', 'AmoAnd', 'AmoMax', 'AmoMin', 'AmoOr', 'AmoSwap', 'AmoXor']
+    if (option == 'arm64') and (name not in arm64_allowlist):
+      _get_placeholder_return_stmt(intr, f)
+    else:
+      print(INDENT + _get_interpreter_hook_return_stmt(name, intr), file=f)
 
   print('}\n', file=f)
 
@@ -675,10 +689,10 @@ def _gen_semantic_player_types(intrs):
       intr['sem-player-types'] = map
 
 
-def _gen_interpreter_intrinsics_hooks_impl_inl_h(f, intrs):
+def _gen_interpreter_intrinsics_hooks_impl_inl_h(f, intrs, option):
   print(AUTOGEN, file=f)
   for name, intr in intrs:
-    _gen_interpreter_hook(f, name, intr)
+    _gen_interpreter_hook(f, name, intr, option)
 
 
 def _gen_translator_intrinsics_hooks_impl_inl_h(f, intrs):
@@ -1189,7 +1203,7 @@ def main(argv):
   option = argv[1]
   if option == 'arm64':
     mode = argv[2]
-    out_files_end = 4
+    out_files_end = 5
     def_files_end = out_files_end
     while argv[def_files_end].endswith('intrinsic_def.json'):
       def_files_end += 1
@@ -1197,6 +1211,8 @@ def main(argv):
         break
     intrs = sorted(_load_intrs_def_files(argv[out_files_end:def_files_end]).items())
     _gen_intrinsics_inl_h(open_out_file(argv[3]), intrs)
+    _gen_semantic_player_types(intrs)
+    _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs, option)
     return 0
 
   mode = argv[1]
@@ -1219,7 +1235,7 @@ def main(argv):
       _gen_intrinsics_inl_h(open_out_file(argv[2]), intrs)
       _gen_process_bindings(open_out_file(argv[3]), expanded_intrs, archs)
       _gen_semantic_player_types(intrs)
-      _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs)
+      _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs, '')
       _gen_translator_intrinsics_hooks_impl_inl_h(
           open_out_file(argv[5]), intrs)
       _gen_mock_semantics_listener_intrinsics_hooks_impl_inl_h(
