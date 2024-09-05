@@ -335,6 +335,13 @@
         { "class": "GeneralReg", "usage": "use" },
         { "class": "Mem32", "usage": "def" }
       ]
+    },
+    {
+      "stems": [ "mv" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
     }
   ]
 }

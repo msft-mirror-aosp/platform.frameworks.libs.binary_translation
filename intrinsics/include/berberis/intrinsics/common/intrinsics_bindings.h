@@ -146,6 +146,10 @@ class AsmCallInfo<kIntrinsicTemplateName,
     (callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...), ...);
   }
   template <typename Callback, typename... Args>
+  constexpr static bool VerifyBindings(Callback&& callback, Args&&... args) {
+    return (callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...) && ...);
+  }
+  template <typename Callback, typename... Args>
   constexpr static auto MakeTuplefromBindings(Callback&& callback, Args&&... args) {
     return std::tuple_cat(callback(ArgTraits<BindingsTypes>(), std::forward<Args>(args)...)...);
   }

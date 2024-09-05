@@ -24,8 +24,26 @@ namespace berberis {
 template <typename T>
 inline constexpr bool kDependentTypeFalse = false;
 
-template <auto T>
+template <auto A>
 inline constexpr bool kDependentValueFalse = false;
+
+template <typename T>
+class ImpossibleTypeConst {
+  static_assert(false);
+  static constexpr bool kValue = false;
+};
+
+template <typename T>
+inline constexpr bool kImpossibleTypeConst = ImpossibleTypeConst<T>::kValue;
+
+template <auto A>
+class ImpossibleValueConst {
+  static_assert(false);
+  static constexpr bool kValue = false;
+};
+
+template <auto A>
+inline constexpr bool kImpossibleValueConst = ImpossibleValueConst<A>::kValue;
 
 }  // namespace berberis
 
