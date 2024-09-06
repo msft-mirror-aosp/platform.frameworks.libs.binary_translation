@@ -110,6 +110,13 @@ void ConvertHostFlock64ToGuestFlock(const struct flock64* host, Guest_flock* gue
 namespace berberis {
 
 int GuestFcntl(int fd, int cmd, long arg_3) {
+  // TODO(b/346604197): Enable on arm64 once guest_os_primitives is ported.
+#ifdef __aarch64__
+  UNUSED(fd, cmd, arg_3);
+  TRACE("unimplemented GuestFcntl");
+  errno = ENOSYS;
+  return -1;
+#else
   auto [processed, result] = GuestFcntlArch(fd, cmd, arg_3);
   if (processed) {
     return result;
@@ -173,6 +180,7 @@ int GuestFcntl(int fd, int cmd, long arg_3) {
       errno = ENOSYS;
       return -1;
   }
+#endif
 }
 
 }  // namespace berberis

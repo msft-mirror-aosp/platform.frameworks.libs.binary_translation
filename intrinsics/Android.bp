@@ -43,6 +43,11 @@ python_test_host {
     },
 }
 
+filegroup {
+    name: "libberberis_intrinsics_gen_inputs_riscv64_to_all",
+    srcs: ["riscv64_to_all/intrinsic_def.json"],
+}
+
 genrule {
     name: "libberberis_text_assembler_gen_headers_riscv64",
     out: [
@@ -77,11 +82,6 @@ genrule {
 }
 
 filegroup {
-    name: "libberberis_intrinsics_gen_inputs_riscv64_to_x86_64",
-    srcs: ["riscv64_to_x86_64/intrinsic_def.json"],
-}
-
-filegroup {
     name: "libberberis_machine_ir_intrinsic_binding_riscv64_to_x86_64",
     srcs: ["riscv64_to_x86_64/machine_ir_intrinsic_binding.json"],
 }
@@ -113,7 +113,7 @@ genrule {
     name: "libberberis_macro_assembler_gen_intrinsics_headers_riscv64_to_x86_64",
     out: ["text_asm_intrinsics_process_bindings-inl.h"],
     srcs: [
-        ":libberberis_intrinsics_gen_inputs_riscv64_to_x86_64",
+        ":libberberis_intrinsics_gen_inputs_riscv64_to_all",
         ":libberberis_machine_ir_intrinsic_binding_riscv64_to_x86_64",
         ":libberberis_macro_assembler_gen_inputs_riscv64_to_x86_64",
         ":libberberis_assembler_gen_inputs_x86_64",
@@ -132,7 +132,7 @@ genrule {
         "berberis/intrinsics/mock_semantics_listener_intrinsics_hooks-inl.h",
     ],
     srcs: [
-        ":libberberis_intrinsics_gen_inputs_riscv64_to_x86_64",
+        ":libberberis_intrinsics_gen_inputs_riscv64_to_all",
         ":libberberis_machine_ir_intrinsic_binding_riscv64_to_x86_64",
         ":libberberis_macro_assembler_gen_inputs_riscv64_to_x86_64",
         ":libberberis_assembler_gen_inputs_x86_64",
@@ -147,6 +147,19 @@ genrule {
     srcs: [":libberberis_macro_assembler_gen_inputs_riscv64_to_x86_64"],
     tools: ["gen_asm"],
     cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
+}
+
+genrule {
+    name: "libberberis_intrinsics_gen_public_headers_riscv64_to_arm64",
+    out: [
+        "berberis/intrinsics/intrinsics-inl.h",
+        "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h",
+    ],
+    srcs: [
+        ":libberberis_intrinsics_gen_inputs_riscv64_to_all",
+    ],
+    tools: ["gen_intrinsics"],
+    cmd: "$(location gen_intrinsics) arm64 --public_headers $(out) $(in)",
 }
 
 // Note: the following two genrules and this host binary are working together.
@@ -231,8 +244,21 @@ cc_defaults {
 }
 
 cc_library_headers {
+    name: "libberberis_intrinsics_riscv64_to_arm64_headers",
+    defaults: ["berberis_all_hosts_defaults"],
+    host_supported: true,
+    export_include_dirs: ["riscv64_to_arm64/include"],
+    enabled: false,
+    arch: {
+        arm64: {
+            enabled: true,
+        },
+    },
+}
+
+cc_library_headers {
     name: "libberberis_intrinsics_riscv64_headers",
-    defaults: ["berberis_defaults"],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     header_libs: [
         "libberberis_base_headers",
@@ -244,7 +270,16 @@ cc_library_headers {
         "libberberis_intrinsics_headers",
         "libberberis_runtime_primitives_headers", // for platform.h
     ],
+    export_include_dirs: [
+        "riscv64_to_all/include",
+    ],
     arch: {
+        arm64: {
+            header_libs: ["libberberis_intrinsics_riscv64_to_arm64_headers"],
+            export_header_lib_headers: ["libberberis_intrinsics_riscv64_to_arm64_headers"],
+            generated_headers: ["libberberis_intrinsics_gen_public_headers_riscv64_to_arm64"],
+            export_generated_headers: ["libberberis_intrinsics_gen_public_headers_riscv64_to_arm64"],
+        },
         x86_64: {
             generated_headers: [
                 "libberberis_intrinsics_gen_inline_headers_riscv64_to_x86_64",
@@ -255,7 +290,6 @@ cc_library_headers {
                 "libberberis_intrinsics_gen_public_headers_riscv64_to_x86_64",
             ],
             export_include_dirs: [
-                "riscv64_to_all/include",
                 "riscv64_to_x86_64/include",
             ],
         },
@@ -266,7 +300,7 @@ cc_library_headers {
     name: "libberberis_intrinsics_headers",
     defaults: [
         "berberis_riscv64_device_defaults",
-        "berberis_defaults",
+        "berberis_all_hosts_defaults",
     ],
     host_supported: true,
     export_include_dirs: ["include"],
@@ -281,6 +315,11 @@ cc_library_headers {
         x86_64: {
             export_include_dirs: [
                 "all_to_x86_32_or_x86_64/include",
+            ],
+        },
+        riscv64: {
+            export_include_dirs: [
+                "all_to_riscv64/include",
             ],
         },
     },
