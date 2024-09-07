@@ -185,22 +185,17 @@ ROUND_FLOAT(rtz, FRoundZero, double, d, l)
 ROUND_FLOAT(rne, FRoundNearest, double, d, l)
 
 inline Float32 FPRound(const Float32& value, uint32_t round_control) {
-  Float32 result;
   switch (round_control) {
     case FE_HOSTROUND:
-      result.value_ = FRoundHost(value.value_);
-      break;
+      return Float32(FRoundHost(value.value_));
     case FE_TONEAREST:
-      result.value_ = FRoundNearest(value.value_);
-      break;
+      return Float32(FRoundNearest(value.value_));
     case FE_DOWNWARD:
-      result.value_ = FRoundDown(value.value_);
-      break;
+      return Float32(FRoundDown(value.value_));
     case FE_UPWARD:
-      result.value_ = FRoundUp(value.value_);
-      break;
+      return Float32(FRoundUp(value.value_));
     case FE_TOWARDZERO:
-      result.value_ = FRoundZero(value.value_);
+      return Float32(FRoundZero(value.value_));
       break;
     case FE_TIESAWAY:
       // TODO(b/146437763): Might fail if value doesn't have a floating part.
@@ -212,29 +207,21 @@ inline Float32 FPRound(const Float32& value, uint32_t round_control) {
       return FPRound(value, FE_TONEAREST);
     default:
       FATAL("Unknown round_control in FPRound!");
-      __builtin_unreachable();
   }
-  return result;
 }
 
 inline Float64 FPRound(const Float64& value, uint32_t round_control) {
-  Float64 result;
   switch (round_control) {
     case FE_HOSTROUND:
-      result.value_ = FRoundHost(value.value_);
-      break;
+      return Float64(FRoundHost(value.value_));
     case FE_TONEAREST:
-      result.value_ = FRoundNearest(value.value_);
-      break;
+      return Float64(FRoundNearest(value.value_));
     case FE_DOWNWARD:
-      result.value_ = FRoundDown(value.value_);
-      break;
+      return Float64(FRoundDown(value.value_));
     case FE_UPWARD:
-      result.value_ = FRoundUp(value.value_);
-      break;
+      return Float64(FRoundUp(value.value_));
     case FE_TOWARDZERO:
-      result.value_ = FRoundZero(value.value_);
-      break;
+      return Float64(FRoundZero(value.value_));
     case FE_TIESAWAY:
       // Since riscv64 does not support this rounding mode exactly, we must manually handle the
       // tie-aways (from (-)x.5)
@@ -252,9 +239,7 @@ inline Float64 FPRound(const Float64& value, uint32_t round_control) {
       return FPRound(value, FE_TONEAREST);
     default:
       FATAL("Unknown round_control in FPRound!");
-      __builtin_unreachable();
   }
-  return result;
 }
 
 #undef ROUND_FLOAT
