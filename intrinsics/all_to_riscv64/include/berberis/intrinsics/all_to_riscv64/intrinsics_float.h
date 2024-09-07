@@ -196,7 +196,6 @@ inline Float32 FPRound(const Float32& value, uint32_t round_control) {
       return Float32(FRoundUp(value.value_));
     case FE_TOWARDZERO:
       return Float32(FRoundZero(value.value_));
-      break;
     case FE_TIESAWAY:
       // TODO(b/146437763): Might fail if value doesn't have a floating part.
       if (value == FPRound(value, FE_DOWNWARD) + Float32(0.5)) {
