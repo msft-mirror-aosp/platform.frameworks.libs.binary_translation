@@ -149,28 +149,6 @@ inline Float64 Negative(const Float64& v) {
   return result;
 }
 
-template <typename FloatType>
-inline WrappedFloatType<FloatType> FPRoundTiesAway(WrappedFloatType<FloatType> value) {
-  // Since x86 does not support this rounding mode exactly, we must manually handle the
-  // tie-aways (from ±x.5).
-  WrappedFloatType<FloatType> value_rounded_up = FPRound(value, FE_UPWARD);
-  // Check if value has fraction of exactly 0.5.
-  // Note that this check can produce spurious true and/or false results for numbers that are too
-  // large to have fraction parts. We don't care because for such numbers all three possible FPRound
-  // calls above and below produce the exact same result (which is the same as original value).
-  if (value == value_rounded_up - WrappedFloatType<FloatType>{0.5f}) {
-    if (SignBit(value)) {
-      // If value is negative then FE_TIESAWAY acts as FE_DOWNWARD.
-      return FPRound(value, FE_DOWNWARD);
-    } else {
-      // If value is negative then FE_TIESAWAY acts as FE_UPWARD.
-      return value_rounded_up;
-    }
-  }
-  // Otherwise FE_TIESAWAY acts as FE_TONEAREST.
-  return FPRound(value, FE_TONEAREST);
-}
-
 inline Float32 FPRound(const Float32& value, uint32_t round_control) {
   Float32 result;
   switch (round_control) {
@@ -190,7 +168,12 @@ inline Float32 FPRound(const Float32& value, uint32_t round_control) {
       asm("roundss $3,%1,%0" : "=x"(result.value_) : "x"(value.value_));
       break;
     case FE_TIESAWAY:
-      result = FPRoundTiesAway(value);
+      // TODO(b/146437763): Might fail if value doesn't have a floating part.
+      if (value == FPRound(value, FE_DOWNWARD) + Float32(0.5)) {
+        result = value > Float32(0.0) ? FPRound(value, FE_UPWARD) : FPRound(value, FE_DOWNWARD);
+      } else {
+        result = FPRound(value, FE_TONEAREST);
+      }
       break;
     default:
       LOG_ALWAYS_FATAL("Internal error: unknown round_control in FPRound!");
@@ -218,7 +201,19 @@ inline Float64 FPRound(const Float64& value, uint32_t round_control) {
       asm("roundsd $3,%1,%0" : "=x"(result.value_) : "x"(value.value_));
       break;
     case FE_TIESAWAY:
-      result = FPRoundTiesAway(value);
+      // Since x86 does not support this rounding mode exactly, we must manually handle the
+      // tie-aways (from (-)x.5)
+      if (value == FPRound(value, FE_DOWNWARD)) {
+        // Value is already an integer and can be returned as-is. Checking this first avoids dealing
+        // with numbers too large to be able to have a fractional part.
+        return value;
+      } else if (value == FPRound(value, FE_DOWNWARD) + Float64(0.5)) {
+        // Fraction part is exactly 1/2, in which case we need to tie-away
+        result = value > Float64(0.0) ? FPRound(value, FE_UPWARD) : FPRound(value, FE_DOWNWARD);
+      } else {
+        // Any other case can be handled by to-nearest rounding.
+        result = FPRound(value, FE_TONEAREST);
+      }
       break;
     default:
       LOG_ALWAYS_FATAL("Internal error: unknown round_control in FPRound!");
