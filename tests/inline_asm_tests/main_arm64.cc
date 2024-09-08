@@ -1632,6 +1632,22 @@ TEST(Arm64InsnTest, RoundToIntNearestTiesAwayFp64) {
   ASSERT_EQ(AsmFrinta(0xBFDFFFFFFFFFFFFF), MakeUInt128(0x8000000000000000U, 0U));
 
   // A number too large to have fractional precision, should not change upon rounding with tie-away
+  ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(0.5 / std::numeric_limits<double>::epsilon())),
+            MakeUInt128(bit_cast<uint64_t>(0.5 / std::numeric_limits<double>::epsilon()), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(-0.5 / std::numeric_limits<double>::epsilon())),
+            MakeUInt128(bit_cast<uint64_t>(-0.5 / std::numeric_limits<double>::epsilon()), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(0.75 / std::numeric_limits<double>::epsilon())),
+            MakeUInt128(bit_cast<uint64_t>(0.75 / std::numeric_limits<double>::epsilon()), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(-0.75 / std::numeric_limits<double>::epsilon())),
+            MakeUInt128(bit_cast<uint64_t>(-0.75 / std::numeric_limits<double>::epsilon()), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(1.0 / std::numeric_limits<double>::epsilon())),
+            MakeUInt128(bit_cast<uint64_t>(1.0 / std::numeric_limits<double>::epsilon()), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(-1.0 / std::numeric_limits<double>::epsilon())),
+            MakeUInt128(bit_cast<uint64_t>(-1.0 / std::numeric_limits<double>::epsilon()), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(2.0 / std::numeric_limits<double>::epsilon())),
+            MakeUInt128(bit_cast<uint64_t>(2.0 / std::numeric_limits<double>::epsilon()), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(-2.0 / std::numeric_limits<double>::epsilon())),
+            MakeUInt128(bit_cast<uint64_t>(-2.0 / std::numeric_limits<double>::epsilon()), 0U));
   ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(1.0e100)), MakeUInt128(bit_cast<uint64_t>(1.0e100), 0U));
   ASSERT_EQ(AsmFrinta(bit_cast<uint64_t>(-1.0e100)), MakeUInt128(bit_cast<uint64_t>(-1.0e100), 0U));
 }
@@ -1665,6 +1681,34 @@ TEST(Arm64InsnTest, RoundToIntNearestTiesAwayFp32) {
 
   // -0.49999997019767761 -> -0.0 (should not "tie away" since -0.4999... != -0.5)
   ASSERT_EQ(AsmFrinta(0xbeffffff), MakeUInt128(0x80000000U, 0U));
+
+  // A number too large to have fractional precision, should not change upon rounding with tie-away
+  ASSERT_EQ(
+      AsmFrinta(bit_cast<uint32_t>(float{0.5 / std::numeric_limits<float>::epsilon()})),
+      MakeUInt128(bit_cast<uint32_t>(float{0.5 / std::numeric_limits<float>::epsilon()}), 0U));
+  ASSERT_EQ(
+      AsmFrinta(bit_cast<uint32_t>(float{-0.5 / std::numeric_limits<float>::epsilon()})),
+      MakeUInt128(bit_cast<uint32_t>(float{-0.5 / std::numeric_limits<float>::epsilon()}), 0U));
+  ASSERT_EQ(
+      AsmFrinta(bit_cast<uint32_t>(float{0.75 / std::numeric_limits<float>::epsilon()})),
+      MakeUInt128(bit_cast<uint32_t>(float{0.75 / std::numeric_limits<float>::epsilon()}), 0U));
+  ASSERT_EQ(
+      AsmFrinta(bit_cast<uint32_t>(float{-0.75 / std::numeric_limits<float>::epsilon()})),
+      MakeUInt128(bit_cast<uint32_t>(float{-0.75 / std::numeric_limits<float>::epsilon()}), 0U));
+  ASSERT_EQ(
+      AsmFrinta(bit_cast<uint32_t>(float{1.0 / std::numeric_limits<float>::epsilon()})),
+      MakeUInt128(bit_cast<uint32_t>(float{1.0 / std::numeric_limits<float>::epsilon()}), 0U));
+  ASSERT_EQ(
+      AsmFrinta(bit_cast<uint32_t>(float{-1.0 / std::numeric_limits<float>::epsilon()})),
+      MakeUInt128(bit_cast<uint32_t>(float{-1.0 / std::numeric_limits<float>::epsilon()}), 0U));
+  ASSERT_EQ(
+      AsmFrinta(bit_cast<uint32_t>(float{2.0 / std::numeric_limits<float>::epsilon()})),
+      MakeUInt128(bit_cast<uint32_t>(float{2.0 / std::numeric_limits<float>::epsilon()}), 0U));
+  ASSERT_EQ(
+      AsmFrinta(bit_cast<uint32_t>(float{-2.0 / std::numeric_limits<float>::epsilon()})),
+      MakeUInt128(bit_cast<uint32_t>(float{-2.0 / std::numeric_limits<float>::epsilon()}), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint32_t>(1.0e38f)), MakeUInt128(bit_cast<uint32_t>(1.0e38f), 0U));
+  ASSERT_EQ(AsmFrinta(bit_cast<uint32_t>(-1.0e38f)), MakeUInt128(bit_cast<uint32_t>(-1.0e38f), 0U));
 }
 
 TEST(Arm64InsnTest, RoundToIntDownwardFp64) {
