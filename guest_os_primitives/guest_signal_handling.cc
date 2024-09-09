@@ -329,6 +329,10 @@ bool SetGuestSignalHandler(int signal,
                            const Guest_sigaction* act,
                            Guest_sigaction* old_act,
                            int* error) {
+#if defined(__riscv)
+  TRACE("ATTENTION: SetGuestSignalHandler is unimplemented - skipping it without raising an error");
+  return true;
+#else
   if (signal < 1 || signal > Guest__KERNEL__NSIG) {
     *error = EINVAL;
     return false;
@@ -342,6 +346,7 @@ bool SetGuestSignalHandler(int signal,
   std::lock_guard<std::mutex> lock(g_signal_actions_guard_mutex);
   GuestSignalAction& action = GetCurrentGuestThread()->GetSignalActionsTable()->at(signal - 1);
   return action.Change(signal, act, HandleHostSignal, old_act, error);
+#endif
 }
 
 }  // namespace berberis
