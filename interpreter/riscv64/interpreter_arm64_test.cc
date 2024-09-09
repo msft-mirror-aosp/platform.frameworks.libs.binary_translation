@@ -252,12 +252,34 @@ TEST_F(Riscv64ToArm64InterpreterTest, OpInstructions) {
   TestOp(0x23140b3, {{0x8000'0000'0000'0000, -1, 0x8000'0000'0000'0000}});
   // Divu
   TestOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
+  // Rem
+  TestOp(0x23160b3, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
+  TestOp(0x23160b3, {{0x9999'9999'9999'9999, 0, 0x9999'9999'9999'9999}});
+  // Remu
+  TestOp(0x23170b3, {{0x9999'9999'9999'9999, 0x3333, 0}});
+  TestOp(0x23170b3, {{0x9999'9999'9999'9999, 0, 0x9999'9999'9999'9999}});
   // Andn
   TestOp(0x403170b3, {{0b0101, 0b0011, 0b0100}});
   // Orn
   TestOp(0x403160b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fffd}});
   // Xnor
   TestOp(0x403140b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fff9}});
+  // Max
+  TestOp(0x0a3160b3, {{bit_cast<uint64_t>(int64_t{-5}), 4, 4}});
+  TestOp(0x0a3160b3,
+         {{bit_cast<uint64_t>(int64_t{-5}),
+           bit_cast<uint64_t>(int64_t{-10}),
+           bit_cast<uint64_t>(int64_t{-5})}});
+  // Maxu
+  TestOp(0x0a3170b3, {{50, 1, 50}});
+  // Min
+  TestOp(0x0a3140b3, {{bit_cast<uint64_t>(int64_t{-5}), 4, bit_cast<uint64_t>(int64_t{-5})}});
+  TestOp(0x0a3140b3,
+         {{bit_cast<uint64_t>(int64_t{-5}),
+           bit_cast<uint64_t>(int64_t{-10}),
+           bit_cast<uint64_t>(int64_t{-10})}});
+  // Minu
+  TestOp(0x0a3150b3, {{50, 1, 1}});
   // Bclr
   TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
   TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
@@ -304,6 +326,19 @@ TEST_F(Riscv64ToArm64InterpreterTest, OpImmInstructions) {
   TestOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
   // Rori
   TestOpImm(0x60015093, {{0xf000'0000'0000'000fULL, 4, 0xff00'0000'0000'0000ULL}});
+  // Bclri
+  TestOpImm(0x48011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOpImm(0x48011093, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
+  // Bexti
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 0, 0b0000'0000'0000'0001ULL}});
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 8, 0b0000'0000'0000'0001ULL}});
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 7, 0b0000'0000'0000'0000ULL}});
+  // Binvi
+  TestOpImm(0x68011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOpImm(0x68011093, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
+  // Bseti
+  TestOpImm(0x28011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0001ULL}});
+  TestOpImm(0x28011093, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
 
 TEST_F(Riscv64ToArm64InterpreterTest, UpperImmInstructions) {

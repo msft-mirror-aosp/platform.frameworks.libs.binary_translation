@@ -20,6 +20,7 @@
 #ifndef RISCV64_TO_ARM64_BERBERIS_INTRINSICS_H_
 #define RISCV64_TO_ARM64_BERBERIS_INTRINSICS_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <tuple>
 #include <type_traits>
@@ -30,7 +31,7 @@ namespace berberis {
 
 namespace intrinsics {
 
-uint64_t ShiftedOne(uint64_t shift_amount) {
+inline uint64_t ShiftedOne(uint64_t shift_amount) {
   return uint64_t{1} << (shift_amount % 64);
 }
 
@@ -56,7 +57,7 @@ inline std::tuple<uint64_t> Bset(uint64_t in1, uint64_t in2) {
 
 template <typename T, enum PreferredIntrinsicsImplementation>
 inline std::tuple<T> Div(T in1, T in2) {
-  static_assert(std::is_integral_v<T>, "T must be an integer type.");
+  static_assert(std::is_integral_v<T>);
 
   if (in2 == 0) {
     return ~T{0};
@@ -64,6 +65,30 @@ inline std::tuple<T> Div(T in1, T in2) {
     return {std::numeric_limits<T>::min()};
   }
   return {in1 / in2};
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<T> Max(T in1, T in2) {
+  static_assert(std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>);
+  return {std::max(in1, in2)};
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<T> Min(T in1, T in2) {
+  static_assert(std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>);
+  return {std::min(in1, in2)};
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<T> Rem(T in1, T in2) {
+  static_assert(std::is_integral_v<T>);
+
+  if (in2 == 0) {
+    return {in1};
+  } else if (std::is_signed_v<T> && in2 == -1 && in1 == std::numeric_limits<T>::min()) {
+    return {0};
+  }
+  return {in1 % in2};
 };
 
 }  // namespace intrinsics
