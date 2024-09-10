@@ -19,7 +19,10 @@ package {
 
 cc_library_headers {
     name: "libberberis_guest_abi_arm64_headers",
-    defaults: ["berberis_arm64_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_arm64_defaults",
+    ],
     host_supported: true,
     header_libs: [
         "libberberis_guest_abi_headers",
@@ -34,7 +37,10 @@ cc_library_headers {
 
 cc_library_static {
     name: "libberberis_guest_abi_arm64",
-    defaults: ["berberis_arm64_defaults"],
+    defaults: [
+        "berberis_riscv64_device_defaults",
+        "berberis_arm64_defaults",
+    ],
     host_supported: true,
     header_libs: ["libberberis_guest_abi_arm64_headers"],
     export_header_lib_headers: ["libberberis_guest_abi_arm64_headers"],

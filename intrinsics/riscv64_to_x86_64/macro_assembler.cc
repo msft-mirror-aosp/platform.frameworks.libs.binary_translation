@@ -20,6 +20,7 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/base/mmap.h"
 #include "berberis/base/struct_check.h"
+#include "berberis/intrinsics/simd_register.h"
 
 #include "berberis/intrinsics/macro_assembler.h"
 
@@ -133,7 +134,7 @@ struct MacroAssemblerConstants {
   // This may be true for hardware implementation, but in software vid.v may be implemented with a
   // simple precomputed table which implementation of viota.m is much more tricky and slow.
   // Here are precomputed values for Vid.v
-  alignas(16) __m128i kVid64Bit[8] = {
+  alignas(16) Int64x2 kVid64Bit[8] = {
       {0, 1},
       {2, 3},
       {4, 5},
@@ -143,7 +144,7 @@ struct MacroAssemblerConstants {
       {12, 13},
       {14, 15},
   };
-  alignas(16) __v4si kVid32Bit[8] = {
+  alignas(16) Int32x4 kVid32Bit[8] = {
       {0, 1, 2, 3},
       {4, 5, 6, 7},
       {8, 9, 10, 11},
@@ -153,7 +154,7 @@ struct MacroAssemblerConstants {
       {24, 25, 26, 27},
       {28, 29, 30, 31},
   };
-  alignas(16) __v8hi kVid16Bit[8] = {
+  alignas(16) Int16x8 kVid16Bit[8] = {
       {0, 1, 2, 3, 4, 5, 6, 7},
       {8, 9, 10, 11, 12, 13, 14, 15},
       {16, 17, 18, 19, 20, 21, 22, 23},
@@ -163,7 +164,7 @@ struct MacroAssemblerConstants {
       {48, 49, 50, 51, 52, 53, 54, 55},
       {56, 57, 58, 59, 60, 61, 62, 63},
   };
-  alignas(16) __v16qi kVid8Bit[8] = {
+  alignas(16) Int8x16 kVid8Bit[8] = {
       {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
       {16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
       {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},

@@ -19,7 +19,7 @@ import itertools
 import json
 import sys
 
-import gen_asm_x86
+import gen_asm
 
 
 # Enable to avoid cycles.  Only use one register combo for tests.
@@ -40,8 +40,8 @@ def main(argv):
     with open(arc_assembler_file_name, 'w') as arc_assembler_file:
       pass
     return 0
-  common_defs = gen_asm_x86._load_asm_defs(argv[3])
-  arch_defs = gen_asm_x86._load_asm_defs(argv[4])
+  _, common_defs = gen_asm._load_asm_defs(argv[3])
+  _, arch_defs = gen_asm._load_asm_defs(argv[4])
 
   fast_mode = globals()["fast_mode"]
   if len(argv) > 5 and argv[5] == '--fast':
@@ -151,7 +151,7 @@ sample_arc_arguments = {
              'Assembler::Condition::kBelow', 'Assembler::Condition::kAboveEqual',
              'Assembler::Condition::kEqual', 'Assembler::Condition::kNotEqual',
              'Assembler::Condition::kBelowEqual', 'Assembler::Condition::kAbove',
-             'Assembler::Condition::kNegative', 'Assembler::Condition::kPositive',
+             'Assembler::Condition::kNegative', 'Assembler::Condition::kPositiveOrZero',
              'Assembler::Condition::kParityEven', 'Assembler::Condition::kParityOdd',
              'Assembler::Condition::kLess', 'Assembler::Condition::kGreaterEqual',
              'Assembler::Condition::kLessEqual', 'Assembler::Condition::kGreater'),
@@ -249,7 +249,7 @@ def _update_arguments(x86_64):
             for index in sample_att_arguments[addr]
             for scale in ('', ',2', ',4', ',8')
             if index not in ('%ESP', '%RSP')]
-  for mem_arg in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+  for mem_arg in ('Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
                   'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                   'VecMem32', 'VecMem64', 'VecMem128'):
     sample_att_arguments[mem_arg] = tuple(addrs)
@@ -275,7 +275,7 @@ def _update_arguments(x86_64):
             for index in sample_arc_arguments[addr]
             for scale in ('One', 'Two', 'Four', 'Eight')
             if 'Assembler::esp' not in index and 'Assembler::rsp' not in index]
-  for mem_arg in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+  for mem_arg in ('Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
                   'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
                   'VecMem32', 'VecMem64', 'VecMem128'):
     sample_arc_arguments[mem_arg] = tuple(addrs)
@@ -391,8 +391,8 @@ def _gen_att_instruction_variants(
         else:
           insn_args = ('%E' + insn_args[0][2:],) + insn_args[1:]
     if insn_name[0:4] == 'LOCK':
-     # TODO(b/161986409): replace '\n' with ' ' when clang would be fixed.
-     fixed_name = '%s\n%s' % (insn_name[0:4], insn_name[4:])
+      # TODO(b/161986409): replace '\n' with ' ' when clang would be fixed.
+      fixed_name = '%s\n%s' % (insn_name[0:4], insn_name[4:])
     fixed_name = {
       # GNU disassembler accepts these instructions, but not Clang assembler.
       'FNDISI': '.byte 0xdb, 0xe1',

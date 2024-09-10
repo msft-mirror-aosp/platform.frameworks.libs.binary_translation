@@ -20,6 +20,7 @@
 #include <array>
 #include <cinttypes>
 
+#include "berberis/base/config.h"
 #include "berberis/base/logging.h"
 
 // Helpers for building message format, without incurring any function calls when the condition
@@ -60,6 +61,10 @@ class FmtSpec {
   }
 };
 
+constexpr auto&& ValueForFmtSpec(auto&& value) {
+  return std::forward<decltype(value)>(value);
+}
+
 }  // namespace berberis
 
 #define BERBERIS_VALUE_STR_IMPL(v) #v
@@ -73,6 +78,11 @@ class FmtSpec {
 
 #define UNREACHABLE() FATAL("This code is (supposed to be) unreachable.")
 
+#define FATAL_UNIMPL_INSN_IF_NOT_BRINGUP()           \
+  if (!berberis::config::kInstructionsBringupMode) { \
+    FATAL("Unimplemented instruction!");             \
+  }
+
 #ifdef CHECK
 #undef CHECK
 #endif
@@ -80,16 +90,26 @@ class FmtSpec {
 
 // TODO(b/232598137): fix multiple evaluation of v1 and v2!
 // TODO(b/232598137): change message from '1 == 0' to 'x == y (1 == 0)'!
-#define BERBERIS_CHECK_OP(op, v1, v2)                                                    \
-  LOG_ALWAYS_FATAL_IF(                                                                   \
-      !((v1)op(v2)), /* // NOLINT */                                                     \
-      []() {                                                                             \
-        constexpr static auto __fmt = berberis::FmtSpec::Fmt(                            \
-            BERBERIS_CHECK_PREFIX, " " #op " ", berberis::FmtSpec::kValue<decltype(v1)>, \
-            berberis::FmtSpec::kValue<decltype(v2)>);                                    \
-        return __fmt.data();                                                             \
-      }(),                                                                               \
-      v1, v2)
+#define BERBERIS_CHECK_OP(op, v1, v2)                                                         \
+  LOG_ALWAYS_FATAL_IF(                                                                        \
+      !((v1)op(v2)), /* // NOLINT */                                                          \
+      []() {                                                                                  \
+        using ::berberis::ValueForFmtSpec;                                                    \
+        constexpr static auto __fmt =                                                         \
+            berberis::FmtSpec::Fmt(BERBERIS_CHECK_PREFIX,                                     \
+                                   " " #op " ",                                               \
+                                   berberis::FmtSpec::kValue<decltype(ValueForFmtSpec(v1))>,  \
+                                   berberis::FmtSpec::kValue<decltype(ValueForFmtSpec(v2))>); \
+        return __fmt.data();                                                                  \
+      }(),                                                                                    \
+      ({                                                                                      \
+        using ::berberis::ValueForFmtSpec;                                                    \
+        ValueForFmtSpec(v1);                                                                  \
+      }),                                                                                     \
+      ({                                                                                      \
+        using ::berberis::ValueForFmtSpec;                                                    \
+        ValueForFmtSpec(v2);                                                                  \
+      }))
 
 #ifdef CHECK_EQ
 #undef CHECK_EQ

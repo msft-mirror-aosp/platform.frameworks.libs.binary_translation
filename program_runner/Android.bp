@@ -56,8 +56,9 @@ cc_defaults {
     ],
     static_libs: [
         "libberberis_base",
-        "libberberis_interpreter_riscv64",
         "libberberis_guest_state_riscv64",
+        "libberberis_interpreter_riscv64",
+        "libberberis_kernel_api_riscv64",
         "libberberis_tinyloader",
     ],
     shared_libs: [
@@ -71,20 +72,30 @@ cc_defaults {
     },
 }
 
+filegroup {
+    name: "berberis_binfmt_misc_srcs",
+    srcs: ["main_binfmt_misc.cc"],
+}
+
+filegroup {
+    name: "berberis_program_runner_main_srcs",
+    srcs: ["main.cc"],
+}
+
 cc_binary {
     name: "berberis_program_runner_binfmt_misc_riscv64",
     defaults: ["berberis_program_runner_defaults"],
-    srcs: ["main_binfmt_misc.cc"],
+    srcs: [":berberis_binfmt_misc_srcs"],
 }
 
 cc_binary {
     name: "berberis_program_runner_riscv64",
     defaults: ["berberis_program_runner_defaults"],
-    srcs: ["main.cc"],
+    srcs: [":berberis_program_runner_main_srcs"],
 }
 
 cc_binary {
     name: "berberis_program_runner_riscv64_to_arm64",
     defaults: ["berberis_program_runner_arm64_defaults"],
-    srcs: ["main.cc"],
+    srcs: [":berberis_program_runner_main_srcs"],
 }
