@@ -20,7 +20,6 @@ package {
 cc_library_headers {
     name: "libberberis_kernel_api_headers",
     defaults: [
-        "berberis_riscv64_device_defaults",
         "berberis_all_hosts_defaults",
         "berberis_guest_agnostic_defaults",
     ],
@@ -31,7 +30,6 @@ cc_library_headers {
 cc_library_static {
     name: "libberberis_kernel_api_common",
     defaults: [
-        "berberis_riscv64_device_defaults",
         "berberis_all_hosts_defaults",
         "berberis_guest_agnostic_defaults",
     ],
