@@ -24,6 +24,7 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
+#include "berberis/runtime_primitives/memory_region_reservation.h"
 
 namespace berberis {
 
@@ -31,6 +32,12 @@ namespace {
 
 class Riscv64ToArm64InterpreterTest : public ::testing::Test {
  public:
+  template <uint8_t kInsnSize = 4>
+  bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
+    InterpretInsn(state);
+    return state->cpu.insn_addr == stop_pc;
+  }
+
   template <uint8_t kInsnSize = 4>
   void RunInstruction(const uint32_t& insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
@@ -46,6 +53,27 @@ class Riscv64ToArm64InterpreterTest : public ::testing::Test {
       RunInstruction(insn_bytes);
       EXPECT_EQ(GetXReg<1>(state_.cpu), std::get<2>(arg));
     }
+  }
+
+  void TestOpImm(uint32_t insn_bytes,
+                 std::initializer_list<std::tuple<uint64_t, uint16_t, uint64_t>> args) {
+    for (auto [arg1, imm, expected_result] : args) {
+      CHECK_LE(imm, 63);
+      uint32_t insn_bytes_with_immediate = insn_bytes | imm << 20;
+      SetXReg<2>(state_.cpu, arg1);
+      RunInstruction(insn_bytes_with_immediate);
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    }
+  }
+
+  void TestAuipc(uint32_t insn_bytes, uint64_t expected_offset) {
+    RunInstruction(insn_bytes);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_offset + ToGuestAddr(&insn_bytes));
+  }
+
+  void TestLui(uint32_t insn_bytes, uint64_t expected_result) {
+    RunInstruction(insn_bytes);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
   }
 
   void TestBranch(uint32_t insn_bytes,
@@ -100,6 +128,85 @@ class Riscv64ToArm64InterpreterTest : public ::testing::Test {
     EXPECT_EQ(store_area_, expected_result);
   }
 
+  void TestAtomicLoad(uint32_t insn_bytes,
+                      const uint64_t* const data_to_load,
+                      uint64_t expected_result) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(data_to_load));
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(GetXReg<2>(state_.cpu), expected_result);
+    EXPECT_EQ(state_.cpu.reservation_address, ToGuestAddr(data_to_load));
+    // We always reserve the full 64-bit range of the reservation address.
+    EXPECT_EQ(state_.cpu.reservation_value, *data_to_load);
+  }
+
+  template <typename T>
+  void TestAtomicStore(uint32_t insn_bytes, T expected_result) {
+    store_area_ = ~uint64_t{0};
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    state_.cpu.reservation_address = ToGuestAddr(&store_area_);
+    state_.cpu.reservation_value = store_area_;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&store_area_), &state_.cpu);
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(static_cast<T>(store_area_), expected_result);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 0u);
+  }
+
+  void TestAtomicStoreNoLoadFailure(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
+  }
+
+  void TestAtomicStoreDifferentLoadFailure(uint32_t insn_bytes) {
+    state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
+    SetXReg<1>(state_.cpu, ToGuestAddr(&store_area_));
+    SetXReg<2>(state_.cpu, kDataToStore);
+    SetXReg<3>(state_.cpu, 0xdeadbeef);
+    state_.cpu.reservation_address = ToGuestAddr(&kDataToStore);
+    state_.cpu.reservation_value = 0;
+    MemoryRegionReservation::SetOwner(ToGuestAddr(&kDataToStore), &state_.cpu);
+    store_area_ = 0;
+    EXPECT_TRUE(RunOneInstruction(&state_, state_.cpu.insn_addr + 4));
+    EXPECT_EQ(store_area_, 0u);
+    EXPECT_EQ(GetXReg<3>(state_.cpu), 1u);
+  }
+
+  void TestAmo(uint32_t insn_bytes,
+               uint64_t arg1,
+               uint64_t arg2,
+               uint64_t expected_result,
+               uint64_t expected_memory) {
+    // Copy arg1 into store_area_
+    store_area_ = arg1;
+    SetXReg<2>(state_.cpu, ToGuestAddr(bit_cast<uint8_t*>(&store_area_)));
+    SetXReg<3>(state_.cpu, arg2);
+    RunInstruction(insn_bytes);
+    EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
+    EXPECT_EQ(store_area_, expected_memory);
+  }
+
+  void TestAmo(uint32_t insn_bytes32, uint32_t insn_bytes64, uint64_t expected_memory) {
+    TestAmo(insn_bytes32,
+            0xffff'eeee'dddd'ccccULL,
+            0xaaaa'bbbb'cccc'ddddULL,
+            0xffff'ffff'dddd'ccccULL,
+            0xffff'eeee'0000'0000 | uint32_t(expected_memory));
+    TestAmo(insn_bytes64,
+            0xffff'eeee'dddd'ccccULL,
+            0xaaaa'bbbb'cccc'ddddULL,
+            0xffff'eeee'dddd'ccccULL,
+            expected_memory);
+  }
+
  protected:
   static constexpr uint64_t kDataToLoad{0xffffeeeeddddccccULL};
   static constexpr uint64_t kDataToStore = kDataToLoad;
@@ -144,6 +251,46 @@ TEST_F(Riscv64ToArm64InterpreterTest, OpInstructions) {
   TestOp(0x403160b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fffd}});
   // Xnor
   TestOp(0x403140b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fff9}});
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, OpImmInstructions) {
+  // Addi
+  TestOpImm(0x00010093, {{19, 23, 42}});
+  // Slti
+  TestOpImm(0x00012093,
+            {
+                {19, 23, 1},
+                {23, 19, 0},
+                {~0ULL, 0, 1},
+            });
+  // Sltiu
+  TestOpImm(0x00013093,
+            {
+                {19, 23, 1},
+                {23, 19, 0},
+                {~0ULL, 0, 0},
+            });
+  // Xori
+  TestOpImm(0x00014093, {{0b0101, 0b0011, 0b0110}});
+  // Ori
+  TestOpImm(0x00016093, {{0b0101, 0b0011, 0b0111}});
+  // Andi
+  TestOpImm(0x00017093, {{0b0101, 0b0011, 0b0001}});
+  // Slli
+  TestOpImm(0x00011093, {{0b1010, 3, 0b1010'000}});
+  // Srli
+  TestOpImm(0x00015093, {{0xf000'0000'0000'0000ULL, 12, 0x000f'0000'0000'0000ULL}});
+  // Srai
+  TestOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
+  // Rori
+  TestOpImm(0x60015093, {{0xf000'0000'0000'000fULL, 4, 0xff00'0000'0000'0000ULL}});
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, UpperImmInstructions) {
+  // Auipc
+  TestAuipc(0xfedcb097, 0xffff'ffff'fedc'b000);
+  // Lui
+  TestLui(0xfedcb0b7, 0xffff'ffff'fedc'b000);
 }
 
 TEST_F(Riscv64ToArm64InterpreterTest, TestBranchInstructions) {
@@ -254,6 +401,99 @@ TEST_F(Riscv64ToArm64InterpreterTest, StoreInstructions) {
   TestStore(0x0020a423, kDataToStore & 0xffff'ffffULL);
   // Sd
   TestStore(0x0020b423, kDataToStore);
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, AtomicLoadInstructions) {
+  // Validate sign-extension of returned value.
+  const uint64_t kNegative32BitValue = 0x0000'0000'8000'0000ULL;
+  const uint64_t kSignExtendedNegative = 0xffff'ffff'8000'0000ULL;
+  const uint64_t kPositive32BitValue = 0xffff'ffff'0000'0000ULL;
+  const uint64_t kSignExtendedPositive = 0ULL;
+  static_assert(static_cast<int32_t>(kSignExtendedPositive) >= 0);
+  static_assert(static_cast<int32_t>(kSignExtendedNegative) < 0);
+
+  // Lrw - sign extends from 32 to 64.
+  TestAtomicLoad(0x1000a12f, &kPositive32BitValue, kSignExtendedPositive);
+  TestAtomicLoad(0x1000a12f, &kNegative32BitValue, kSignExtendedNegative);
+
+  // Lrd
+  TestAtomicLoad(0x1000b12f, &kDataToLoad, kDataToLoad);
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, AtomicStoreInstructions) {
+  // Scw
+  TestAtomicStore(0x1820a1af, static_cast<uint32_t>(kDataToStore));
+
+  // Scd
+  TestAtomicStore(0x1820b1af, kDataToStore);
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, AtomicStoreInstructionNoLoadFailure) {
+  // Scw
+  TestAtomicStoreNoLoadFailure(0x1820a1af);
+
+  // Scd
+  TestAtomicStoreNoLoadFailure(0x1820b1af);
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, AtomicStoreInstructionDifferentLoadFailure) {
+  // Scw
+  TestAtomicStoreDifferentLoadFailure(0x1820a1af);
+
+  // Scd
+  TestAtomicStoreDifferentLoadFailure(0x1820b1af);
+}
+
+TEST_F(Riscv64ToArm64InterpreterTest, AmoInstructions) {
+  // Verifying that all aq and rl combinations work for Amoswap, but only test relaxed one for most
+  // other instructions for brevity.
+
+  // AmoswaoW/AmoswaoD
+  TestAmo(0x083120af, 0x083130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWAq/AmoswapDAq
+  TestAmo(0x0c3120af, 0x0c3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWRl/AmoswapDRl
+  TestAmo(0x0a3120af, 0x0a3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoswapWAqrl/AmoswapDAqrl
+  TestAmo(0x0e3120af, 0x0e3130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmoaddW/AmoaddD
+  TestAmo(0x003120af, 0x003130af, 0xaaaa'aaaa'aaaa'aaa9);
+
+  // AmoxorW/AmoxorD
+  TestAmo(0x203120af, 0x203130af, 0x5555'5555'1111'1111);
+
+  // AmoandW/AmoandD
+  TestAmo(0x603120af, 0x603130af, 0xaaaa'aaaa'cccc'cccc);
+
+  // AmoorW/AmoorD
+  TestAmo(0x403120af, 0x403130af, 0xffff'ffff'dddd'dddd);
+
+  // AmominW/AmominD
+  TestAmo(0x803120af, 0x803130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmomaxW/AmomaxD
+  TestAmo(0xa03120af, 0xa03130af, 0xffff'eeee'dddd'ccccULL);
+
+  // AmominuW/AmominuD
+  TestAmo(0xc03120af, 0xc03130af, 0xaaaa'bbbb'cccc'ddddULL);
+
+  // AmomaxuW/AmomaxuD
+  TestAmo(0xe03120af, 0xe03130af, 0xffff'eeee'dddd'ccccULL);
+}
+
+// Corresponding to interpreter_test.cc
+
+TEST_F(Riscv64ToArm64InterpreterTest, FenceInstructions) {
+  // Fence
+  RunInstruction(0x0ff0000f);
+  // FenceTso
+  RunInstruction(0x8330000f);
+
+  // FenceI explicitly not supported.
 }
 
 }  // namespace

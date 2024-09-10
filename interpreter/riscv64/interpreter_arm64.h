@@ -16,6 +16,7 @@
 
 #include "berberis/interpreter/riscv64/interpreter.h"
 
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 
@@ -23,8 +24,23 @@
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/intrinsics/riscv64_to_all/intrinsics.h"
+#include "berberis/kernel_api/run_guest_syscall.h"
+#include "berberis/runtime_primitives/memory_region_reservation.h"
+
+#include "regs.h"
+
+#include "../faulty_memory_accesses.h"
 
 namespace berberis {
+
+inline constexpr std::memory_order AqRlToStdMemoryOrder(bool aq, bool rl) {
+  if (aq) {
+    return rl ? std::memory_order_acq_rel : std::memory_order_acquire;
+  } else {
+    return rl ? std::memory_order_release : std::memory_order_relaxed;
+  }
+}
 
 class Interpreter {
  public:
@@ -66,23 +82,46 @@ class Interpreter {
              bool pr,
              bool /*po*/,
              bool /*pi*/) {
-    UNUSED(sw, sr, pw, pr);
-    Undefined();
+    bool read_fence = sr | pr;
+    bool write_fence = sw | pw;
+    // "ish" is for inner shareable access, which is normally needed by userspace programs.
+    if (read_fence) {
+      if (write_fence) {
+        // This is equivalent to "fence rw,rw".
+        asm volatile("dmb ish" ::: "memory");
+      } else {
+        // "ishld" is equivalent to "fence r,rw", which is stronger than what we need here
+        // ("fence r,r"). However, it is the closet option that ARM offers.
+        asm volatile("dmb ishld" ::: "memory");
+      }
+    } else if (write_fence) {
+      // "st" is equivalent to "fence w,w".
+      asm volatile("dmb ishst" ::: "memory");
+    }
     return;
   }
 
   template <typename IntType, bool aq, bool rl>
   Register Lr(int64_t addr) {
-    UNUSED(addr);
-    Undefined();
-    return {};
+    // TODO(b/358214671): use more efficient way for MemoryRegionReservation.
+    static_assert(std::is_integral_v<IntType>, "Lr: IntType must be integral");
+    static_assert(std::is_signed_v<IntType>, "Lr: IntType must be signed");
+    CHECK(!exception_raised_);
+    // Address must be aligned on size of IntType.
+    CHECK((addr % sizeof(IntType)) == 0ULL);
+    return MemoryRegionReservation::Load<IntType>(&state_->cpu, addr, AqRlToStdMemoryOrder(aq, rl));
   }
 
   template <typename IntType, bool aq, bool rl>
   Register Sc(int64_t addr, IntType val) {
-    UNUSED(addr, val);
-    Undefined();
-    return {};
+    // TODO(b/358214671): use more efficient way for MemoryRegionReservation.
+    static_assert(std::is_integral_v<IntType>, "Sc: IntType must be integral");
+    static_assert(std::is_signed_v<IntType>, "Sc: IntType must be signed");
+    CHECK(!exception_raised_);
+    // Address must be aligned on size of IntType.
+    CHECK((addr % sizeof(IntType)) == 0ULL);
+    return static_cast<Register>(MemoryRegionReservation::Store<IntType>(
+        &state_->cpu, addr, val, AqRlToStdMemoryOrder(aq, rl)));
   }
 
   Register Op(Decoder::OpOpcode opcode, Register arg1, Register arg2) {
@@ -156,21 +195,30 @@ class Interpreter {
   }
 
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
-    UNUSED(opcode, arg, imm);
-    Undefined();
-    return {};
+    switch (opcode) {
+      case Decoder::OpImmOpcode::kAddi:
+        return arg + int64_t{imm};
+      case Decoder::OpImmOpcode::kSlti:
+        return bit_cast<int64_t>(arg) < int64_t{imm} ? 1 : 0;
+      case Decoder::OpImmOpcode::kSltiu:
+        return arg < bit_cast<uint64_t>(int64_t{imm}) ? 1 : 0;
+      case Decoder::OpImmOpcode::kXori:
+        return arg ^ int64_t { imm };
+      case Decoder::OpImmOpcode::kOri:
+        return arg | int64_t{imm};
+      case Decoder::OpImmOpcode::kAndi:
+        return arg & int64_t{imm};
+      default:
+        Undefined();
+        return {};
+    }
   }
 
-  Register Lui(int32_t imm) {
-    UNUSED(imm);
-    Undefined();
-    return {};
-  }
+  Register Lui(int32_t imm) { return int64_t{imm}; }
 
   Register Auipc(int32_t imm) {
-    UNUSED(imm);
-    Undefined();
-    return {};
+    uint64_t pc = state_->cpu.insn_addr;
+    return pc + int64_t{imm};
   }
 
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
@@ -187,8 +235,9 @@ class Interpreter {
                  Register /* arg3 */,
                  Register /* arg4 */,
                  Register /* arg5 */) {
-    Undefined();
-    return {};
+    CHECK(!exception_raised_);
+    RunGuestSyscall(state_);
+    return state_->cpu.x[A0];
   }
 
   Register Slli(Register arg, int8_t imm) { return arg << imm; }
@@ -204,9 +253,8 @@ class Interpreter {
   }
 
   Register Rori(Register arg, int8_t shamt) {
-    UNUSED(arg, shamt);
-    Undefined();
-    return {};
+    CheckShamtIsValid(shamt);
+    return (((uint64_t(arg) >> shamt)) | (uint64_t(arg) << (64 - shamt)));
   }
 
   Register Roriw(Register arg, int8_t shamt) {
@@ -510,17 +558,21 @@ class Interpreter {
  private:
   template <typename DataType>
   Register Load(const void* ptr) {
-    // TODO(b/346603273): update to use faulty load
     static_assert(std::is_integral_v<DataType>);
     CHECK(!exception_raised_);
-    return *static_cast<const DataType*>(ptr);
+    FaultyLoadResult result = FaultyLoad(ptr, sizeof(DataType));
+    if (result.is_fault) {
+      exception_raised_ = true;
+      return {};
+    }
+    return static_cast<DataType>(result.value);
   }
 
   template <typename DataType>
-  void Store(void* ptr, uint64_t data) const {
-    // TODO(b/346603273): update to use faulty store
-    auto* typed_ptr = static_cast<DataType*>(ptr);
-    *typed_ptr = DataType(data);
+  void Store(void* ptr, uint64_t data) {
+    static_assert(std::is_integral_v<DataType>);
+    CHECK(!exception_raised_);
+    exception_raised_ = FaultyStore(ptr, sizeof(DataType), data);
   }
 
   void CheckShamtIsValid(int8_t shamt) const {

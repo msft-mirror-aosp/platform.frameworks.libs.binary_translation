@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
+/*
+ * NOTE: Android supports both 4KiB and 16Kib page sizes.
+ *
+ * Use the larger page size (16384) for page alignment that
+ * works in both 4KiB and 16KiB devices.
+ */
 SECTIONS {
   . = SIZEOF_HEADERS;
   .text : {
     *(.text.*)
-    . = ALIGN(4096);
+    . = ALIGN(16384);
     exec_region_start = .;
     . += (512 * 1024);
-    . = ALIGN(4096);
+    . = ALIGN(16384);
     exec_region_end = .;
   }
   .plt : {
@@ -31,7 +37,7 @@ SECTIONS {
    * next PT_LOAD segment from mapping over .plt section removing
    * executable flag from .plt. See also http://b/254823538.
    */
-  . = ALIGN(4096);
+  . = ALIGN(16384);
   .fini_array : {
     *(.fini_array.*)
   }
@@ -51,5 +57,5 @@ SECTIONS {
    * GNU_RELRO segment from mprotecting writable flag away
    * from them. See also http://b/261807330.
    */
-  . = ALIGN(4096);
+  . = ALIGN(16384);
 }
