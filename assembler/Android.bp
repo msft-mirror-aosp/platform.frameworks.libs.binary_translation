@@ -117,10 +117,7 @@ genrule {
 
 cc_library_headers {
     name: "libberberis_assembler_headers",
-    defaults: [
-        "berberis_riscv64_device_defaults",
-        "berberis_all_hosts_defaults",
-    ],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     header_libs: ["libberberis_base_headers"],
     export_header_lib_headers: ["libberberis_base_headers"],
@@ -141,10 +138,7 @@ cc_library_headers {
 
 cc_library_static {
     name: "libberberis_assembler",
-    defaults: [
-        "berberis_riscv64_device_defaults",
-        "berberis_defaults",
-    ],
+    defaults: ["berberis_defaults"],
     host_supported: true,
     srcs: [
         "machine_code.cc",
