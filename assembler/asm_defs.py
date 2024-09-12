@@ -47,10 +47,10 @@ Each instruction is an object with following fields:
            and how it is treated by an instruction (used, defined,
            both used and defined)
   'asm' - which internal assembler's mnemonic is used
-  'opcodes' - optional flag for autogeneration: if opcode bytes are specified
-              then implementation would be automatically generated
-  'reg_to_rm' - optional flag to make RM field in ModRegRM byte destination
-                (most instructions with two registers use reg as destination)
+  'opcode' | 'opcodes' - optional flag for autogeneration:
+                         if opcode bytes are specified then implementation
+                         would be automatically generated
+  'type' - optional flag to specify extra information (encoded in the name).
   'mnemo' - how instruction shall be named in LIR dumps (ignored here)
 
 Memory operand for assembler instructions can be described as either opaque
@@ -73,10 +73,15 @@ argument's class.
 
 import copy
 import json
+import re
 
 
 def is_imm(arg_type):
-  return arg_type in ('Imm2', 'Imm8', 'Imm16', 'Imm32', 'Imm64')
+  return arg_type in (
+    'Imm2', 'Imm8', 'Imm16', 'Imm32', 'Imm64', # x86 immediates
+    'B-Imm', 'I-Imm', 'J-Imm', 'P-Imm', 'S-Imm', 'U-Imm', # Official RISC-V immediates
+    'Csr-Imm', 'Shift32-Imm', 'Shift64-Imm', # Extra RISC-V immediates
+  )
 
 
 def is_disp(arg_type):
@@ -84,9 +89,11 @@ def is_disp(arg_type):
 
 
 def is_mem_op(arg_type):
-  return arg_type in ('Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
-                      'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
-                      'VecMem32', 'VecMem64', 'VecMem128')
+  return arg_type in (
+    # Universal memory operands
+    'Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
+    # x86 memory operands
+    'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780', 'VecMem32', 'VecMem64', 'VecMem128')
 
 
 def is_cond(arg_type):
@@ -152,6 +159,11 @@ def get_mem_macro_name(insn, addr_mode = None):
   return macro_name
 
 
+def _get_cxx_name(name):
+  return ''.join(w if re.search('[A-Z]', w) else w.capitalize()
+                 for w in re.split('[-_. ]', name))
+
+
 def _expand_name(insn, stem, encoding = {}):
   # Make deep copy of the instruction to make sure consumers could treat them
   # as independent entities and add/remove marks freely.
@@ -159,7 +171,7 @@ def _expand_name(insn, stem, encoding = {}):
   # JSON never have "merged" objects thus having them in result violates
   # expectations.
   expanded_insn = copy.deepcopy(insn)
-  expanded_insn['asm'] = stem
+  expanded_insn['asm'] = _get_cxx_name(stem)
   expanded_insn['name'] = get_mem_macro_name(expanded_insn)
   expanded_insn['mnemo'] = stem.upper()
   expanded_insn.update(encoding)
@@ -172,7 +184,8 @@ def _expand_insn_by_encodings(insns):
     if insn.get('encodings'):
       assert all((f not in insn) for f in ['stems', 'name', 'asm', 'mnemo'])
       # If we have encoding then we must have at least opcodes
-      assert all('opcodes' in encoding for _, encoding in insn['encodings'].items())
+      assert all('opcode' in encoding or 'opcodes' in encoding
+                  for _, encoding in insn['encodings'].items())
       expanded_insns.extend([_expand_name(insn, stem, encoding)
                             for stem, encoding in insn['encodings'].items()])
     elif insn.get('stems'):
