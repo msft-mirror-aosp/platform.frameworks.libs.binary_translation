@@ -18,21 +18,14 @@
 
 #include <cstddef>
 #include <tuple>
-#include <utility>
 
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/kernel_api/exec_emulation.h"
 #include "berberis/kernel_api/fcntl_emulation.h"
 #include "berberis/kernel_api/sys_ptrace_emulation.h"
 
 #include "riscv64/guest_types.h"
 
 namespace berberis {
-
-std::pair<const char*, size_t> GetGuestPlatformVarPrefixWithSize() {
-  static constexpr char kGuestPlatformVarPrefix[] = "BERBERIS_GUEST_";
-  return {kGuestPlatformVarPrefix, sizeof(kGuestPlatformVarPrefix) - 1};
-}
 
 std::tuple<bool, int> GuestFcntlArch(int, int, long) {
   return {false, -1};

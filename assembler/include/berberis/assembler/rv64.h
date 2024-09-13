@@ -21,20 +21,23 @@
 
 #include <type_traits>  // std::is_same
 
-#include "berberis/assembler/common_riscv.h"
+#include "berberis/assembler/riscv.h"
 
 namespace berberis::rv64 {
 
-class Assembler : public AssemblerRiscV<Assembler> {
+class Assembler : public riscv::Assembler<Assembler> {
  public:
-  explicit Assembler(MachineCode* code) : AssemblerRiscV(code) {}
+  using BaseAssembler = riscv::Assembler<Assembler>;
+  using FinalAssembler = Assembler;
 
-  using ShiftImmediate = AssemblerRiscV<Assembler>::Shift64Immediate;
+  explicit Assembler(MachineCode* code) : BaseAssembler(code) {}
+
+  using ShiftImmediate = BaseAssembler::Shift64Immediate;
 
   // Don't use templates here to enable implicit conversions.
 #define BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(IntType)                                \
   static constexpr std::optional<ShiftImmediate> MakeShiftImmediate(IntType value) { \
-    return AssemblerRiscV<Assembler>::MakeShift64Immediate(value);                   \
+    return BaseAssembler::MakeShift64Immediate(value);                               \
   }
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(int8_t)
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(uint8_t)
@@ -46,7 +49,7 @@ class Assembler : public AssemblerRiscV<Assembler> {
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(uint64_t)
 #undef BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE
 
-  friend AssemblerRiscV<Assembler>;
+  friend BaseAssembler;
 
 // Instructions.
 #include "berberis/assembler/gen_assembler_rv64-inl.h"  // NOLINT generated file!
@@ -58,6 +61,30 @@ class Assembler : public AssemblerRiscV<Assembler> {
   void operator=(const Assembler&) = delete;
   void operator=(Assembler&&) = delete;
 };
+
+inline void Assembler::Ld(Register arg0, const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});
+  // The low 12 bite of difference will be encoded in the Ld instruction
+  EmitITypeInstruction<uint32_t{0x0000'3003}>(arg0, Operand<Register, IImmediate>{.base = arg0});
+}
+
+inline void Assembler::Lwu(Register arg0, const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});
+  // The low 12 bite of difference will be encoded in the Lwu instruction
+  EmitITypeInstruction<uint32_t{0x0000'6003}>(arg0, Operand<Register, IImmediate>{.base = arg0});
+}
+
+inline void Assembler::Sd(Register arg0, const Label& label, Register arg2) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg2, UImmediate{0});
+  // The low 12 bite of difference will be encoded in the Sd instruction
+  EmitSTypeInstruction<uint32_t{0x0000'3023}>(arg0, Operand<Register, SImmediate>{.base = arg2});
+}
 
 }  // namespace berberis::rv64
 

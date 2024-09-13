@@ -20,6 +20,7 @@
 #include <array>
 #include <cinttypes>
 
+#include "berberis/base/config.h"
 #include "berberis/base/logging.h"
 
 // Helpers for building message format, without incurring any function calls when the condition
@@ -76,6 +77,11 @@ constexpr auto&& ValueForFmtSpec(auto&& value) {
 #define FATAL(...) LOG_ALWAYS_FATAL(__VA_ARGS__)
 
 #define UNREACHABLE() FATAL("This code is (supposed to be) unreachable.")
+
+#define FATAL_UNIMPL_INSN_IF_NOT_BRINGUP()           \
+  if (!berberis::config::kInstructionsBringupMode) { \
+    FATAL("Unimplemented instruction!");             \
+  }
 
 #ifdef CHECK
 #undef CHECK

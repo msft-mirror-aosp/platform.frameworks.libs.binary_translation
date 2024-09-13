@@ -21,20 +21,23 @@
 
 #include <type_traits>  // std::is_same
 
-#include "berberis/assembler/common_riscv.h"
+#include "berberis/assembler/riscv.h"
 
 namespace berberis::rv32 {
 
-class Assembler : public AssemblerRiscV<Assembler> {
+class Assembler : public riscv::Assembler<Assembler> {
  public:
-  explicit Assembler(MachineCode* code) : AssemblerRiscV(code) {}
+  using BaseAssembler = riscv::Assembler<Assembler>;
+  using FinalAssembler = Assembler;
 
-  using ShiftImmediate = AssemblerRiscV<Assembler>::Shift32Immediate;
+  explicit Assembler(MachineCode* code) : BaseAssembler(code) {}
+
+  using ShiftImmediate = BaseAssembler::Shift32Immediate;
 
   // Don't use templates here to enable implicit conversions.
 #define BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(IntType)                                \
   static constexpr std::optional<ShiftImmediate> MakeShiftImmediate(IntType value) { \
-    return AssemblerRiscV<Assembler>::MakeShift32Immediate(value);                   \
+    return BaseAssembler::MakeShift32Immediate(value);                               \
   }
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(int8_t)
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(uint8_t)
@@ -46,7 +49,7 @@ class Assembler : public AssemblerRiscV<Assembler> {
   BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(uint64_t)
 #undef BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE
 
-  friend AssemblerRiscV<Assembler>;
+  friend BaseAssembler;
 
 // Instructions.
 #include "berberis/assembler/gen_assembler_rv32-inl.h"  // NOLINT generated file!
@@ -57,7 +60,7 @@ class Assembler : public AssemblerRiscV<Assembler> {
   Assembler(Assembler&&) = delete;
   void operator=(const Assembler&) = delete;
   void operator=(Assembler&&) = delete;
-  friend AssemblerRiscV<Assembler>;
+  friend BaseAssembler;
 };
 
 }  // namespace berberis::rv32

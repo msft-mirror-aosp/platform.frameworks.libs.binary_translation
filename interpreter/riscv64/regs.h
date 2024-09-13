@@ -21,7 +21,9 @@
 #include <cstring>
 
 #include "berberis/base/bit_util.h"
+#if !defined(__aarch64__)
 #include "berberis/intrinsics/intrinsics_float.h"
+#endif
 
 namespace berberis {
 
@@ -43,6 +45,7 @@ inline auto IntegerToGPRReg(IntegerType arg)
   }
 }
 
+#if !defined(__aarch64__)
 template <typename FloatType>
 inline FloatType FPRegToFloat(uint64_t arg);
 
@@ -71,6 +74,7 @@ template <>
 inline uint64_t FloatToFPReg<intrinsics::Float64>(intrinsics::Float64 arg) {
   return bit_cast<uint64_t>(arg);
 }
+#endif
 
 }  // namespace berberis
 

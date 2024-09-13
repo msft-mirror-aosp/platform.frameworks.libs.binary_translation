@@ -309,35 +309,35 @@
   {
     "name": "FeGetExceptions",
     "insn": "MacroFeGetExceptionsTranslate",
-    "usage": "translate-only",
+    "usage": "inline-only",
     "in": [],
     "out": [ 1 ]
   },
   {
     "name": "FeSetExceptions",
     "insn": "MacroFeSetExceptionsTranslate",
-    "usage": "translate-only",
+    "usage": "inline-only",
     "in": [ 0 ],
     "out": []
   },
   {
     "name": "FeSetExceptionsAndRound",
     "insn": "MacroFeSetExceptionsAndRoundTranslate",
-    "usage": "translate-only",
+    "usage": "inline-only",
     "in": [ 0, 3 ],
     "out": []
   },
   {
     "name": "FeSetExceptionsImm",
     "insn": "MacroFeSetExceptionsImmTranslate",
-    "usage": "translate-only",
+    "usage": "inline-only",
     "in": [ 1 ],
     "out": []
   },
   {
     "name": "FeSetExceptionsAndRoundImm",
     "insn": "MacroFeSetExceptionsAndRoundImmTranslate",
-    "usage": "translate-only",
+    "usage": "inline-only",
     "in": [ 1 ],
     "out": []
   },
@@ -350,14 +350,14 @@
   {
     "name": "FeSetRoundImm",
     "insn": "MacroFeSetRound",
-    "usage": "interpret-only",
+    "usage": "no-inline",
     "in": [ 3 ],
     "out": []
   },
   {
     "name": "FeSetRoundImm",
     "insn": "MacroFeSetRoundImmTranslate",
-    "usage": "translate-only",
+    "usage": "inline-only",
     "in": [ 2 ],
     "out": []
   },
@@ -741,8 +741,20 @@
     "out": [ 0 ]
   },
   {
-    "name": "Zexth",
+    "name": "Zext<uint8_t>",
+    "insn": "MovzxbqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Zext<uint16_t>",
     "insn": "MovzxwqRegReg",
+    "in": [ 1 ],
+    "out": [ 0 ]
+  },
+  {
+    "name": "Zext<uint32_t>",
+    "insn": "MovlRegReg",
     "in": [ 1 ],
     "out": [ 0 ]
   }
