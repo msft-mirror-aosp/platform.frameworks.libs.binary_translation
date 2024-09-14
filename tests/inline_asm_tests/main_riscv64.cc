@@ -24,6 +24,8 @@
 #include <tuple>
 #include <utility>
 
+namespace berberis {
+
 namespace {
 
 template <typename T>
@@ -31,65 +33,69 @@ constexpr T BitUtilLog2(T x) {
   return __builtin_ctz(x);
 }
 
-using uint8_16_t = std::tuple<uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t,
-                              uint8_t>;
-using uint16_8_t =
+using UInt8x16Tuple = std::tuple<uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t,
+                                 uint8_t>;
+using UInt16x8Tuple =
     std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t>;
-using uint32_4_t = std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>;
-using uint64_2_t = std::tuple<uint64_t, uint64_t>;
+using UInt32x4Tuple = std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>;
+using UInt64x2Tuple = std::tuple<uint64_t, uint64_t>;
 
 enum PrintModeEndianess { kLittleEndian, kBigEndian };
 
 // A wrapper around __uint128 which can be constructed from a pair of uint64_t literals.
-class SIMD128 {
+class SIMD128Register {
  public:
-  SIMD128(){};
+  SIMD128Register() {};
 
-  constexpr SIMD128(uint8_16_t u8) : uint8_{u8} {};
-  constexpr SIMD128(uint16_8_t u16) : uint16_{u16} {};
-  constexpr SIMD128(uint32_4_t u32) : uint32_{u32} {};
-  constexpr SIMD128(uint64_2_t u64) : uint64_{u64} {};
-  constexpr SIMD128(__int128_t i128) : i128_{i128} {};
-  constexpr SIMD128(uint8_t u128) : u128_{u128} {};
-  constexpr SIMD128(uint16_t u128) : u128_{u128} {};
-  constexpr SIMD128(uint32_t u128) : u128_{u128} {};
-  constexpr SIMD128(uint64_t u128) : u128_{u128} {};
-  constexpr SIMD128(__uint128_t u128) : u128_{u128} {};
+  constexpr SIMD128Register(UInt8x16Tuple u8) : uint8_{u8} {};
+  constexpr SIMD128Register(UInt16x8Tuple u16) : uint16_{u16} {};
+  constexpr SIMD128Register(UInt32x4Tuple u32) : uint32_{u32} {};
+  constexpr SIMD128Register(UInt64x2Tuple u64) : uint64_{u64} {};
+  constexpr SIMD128Register(__int128_t i128) : i128_{i128} {};
+  constexpr SIMD128Register(uint8_t u128) : u128_{u128} {};
+  constexpr SIMD128Register(uint16_t u128) : u128_{u128} {};
+  constexpr SIMD128Register(uint32_t u128) : u128_{u128} {};
+  constexpr SIMD128Register(uint64_t u128) : u128_{u128} {};
+  constexpr SIMD128Register(__uint128_t u128) : u128_{u128} {};
 
   [[nodiscard]] constexpr __uint128_t Get() const { return u128_; }
 
-  constexpr SIMD128& operator=(const SIMD128& other) {
+  constexpr SIMD128Register& operator=(const SIMD128Register& other) {
     u128_ = other.u128_;
     return *this;
   };
-  constexpr SIMD128& operator|=(const SIMD128& other) {
+  constexpr SIMD128Register& operator&=(const SIMD128Register& other) {
+    u128_ &= other.u128_;
+    return *this;
+  }
+  constexpr SIMD128Register& operator|=(const SIMD128Register& other) {
     u128_ |= other.u128_;
     return *this;
   }
 
-  constexpr bool operator==(const SIMD128& other) const { return u128_ == other.u128_; }
-  constexpr bool operator!=(const SIMD128& other) const { return u128_ != other.u128_; }
-  constexpr SIMD128 operator>>(size_t shift_amount) const { return u128_ >> shift_amount; }
-  constexpr SIMD128 operator<<(size_t shift_amount) const { return u128_ << shift_amount; }
-  constexpr SIMD128 operator&(SIMD128 other) const { return u128_ & other.u128_; }
-  constexpr SIMD128 operator|(SIMD128 other) const { return u128_ | other.u128_; }
-  constexpr SIMD128 operator^(SIMD128 other) const { return u128_ ^ other.u128_; }
-  constexpr SIMD128 operator~() const { return ~u128_; }
-  friend std::ostream& operator<<(std::ostream& os, const SIMD128& simd);
+  constexpr bool operator==(const SIMD128Register& other) const { return u128_ == other.u128_; }
+  constexpr bool operator!=(const SIMD128Register& other) const { return u128_ != other.u128_; }
+  constexpr SIMD128Register operator>>(size_t shift_amount) const { return u128_ >> shift_amount; }
+  constexpr SIMD128Register operator<<(size_t shift_amount) const { return u128_ << shift_amount; }
+  constexpr SIMD128Register operator&(SIMD128Register other) const { return u128_ & other.u128_; }
+  constexpr SIMD128Register operator|(SIMD128Register other) const { return u128_ | other.u128_; }
+  constexpr SIMD128Register operator^(SIMD128Register other) const { return u128_ ^ other.u128_; }
+  constexpr SIMD128Register operator~() const { return ~u128_; }
+  friend std::ostream& operator<<(std::ostream& os, const SIMD128Register& simd);
 
   template <size_t N>
   std::ostream& Print(std::ostream& os) const {
@@ -124,26 +130,26 @@ class SIMD128 {
  private:
   union {
 #ifdef __GNUC__
-    [[gnu::may_alias]] uint8_16_t uint8_;
-    [[gnu::may_alias]] uint16_8_t uint16_;
-    [[gnu::may_alias]] uint32_4_t uint32_;
-    [[gnu::may_alias]] uint64_2_t uint64_;
+    [[gnu::may_alias]] UInt8x16Tuple uint8_;
+    [[gnu::may_alias]] UInt16x8Tuple uint16_;
+    [[gnu::may_alias]] UInt32x4Tuple uint32_;
+    [[gnu::may_alias]] UInt64x2Tuple uint64_;
     [[gnu::may_alias]] __int128_t i128_;
     [[gnu::may_alias]] __uint128_t u128_;
 #endif
   };
 
-  // Support for BIG_ENDIAN or LITTLE_ENDIAN printing of SIMD128 values. Change this value
+  // Support for BIG_ENDIAN or LITTLE_ENDIAN printing of SIMD128Register values. Change this value
   // if you want to see failure results in LITTLE_ENDIAN.
   static constexpr const PrintModeEndianess kSimd128PrintMode = kBigEndian;
 };
 
 // Helps produce easy to read output on failed tests.
-std::ostream& operator<<(std::ostream& os, const SIMD128& simd) {
+std::ostream& operator<<(std::ostream& os, const SIMD128Register& simd) {
   return simd.PrintEach(os, std::make_index_sequence<8>());
 }
 
-constexpr SIMD128 kVectorCalculationsSourceLegacy[16] = {
+const SIMD128Register kVectorCalculationsSourceLegacy[16] = {
     {{0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908}},
     {{0x9716'9514'9312'9110, 0x9f1e'9d1c'9b1a'9918}},
     {{0xa726'a524'a322'a120, 0xaf2e'ad2c'ab2a'a928}},
@@ -163,7 +169,7 @@ constexpr SIMD128 kVectorCalculationsSourceLegacy[16] = {
     {{0xeeec'eae9'e6e4'e2e0, 0xfefc'faf8'f6f4'f2f1}},
 };
 
-constexpr SIMD128 kVectorCalculationsSource[16] = {
+const SIMD128Register kVectorCalculationsSource[16] = {
     {{0x8706'8504'8302'8100, 0x8f0e'8d0c'8b0a'8908}},
     {{0x9716'9514'9312'9110, 0x9f1e'9d1c'9b1a'9918}},
     {{0xa726'a524'a322'a120, 0xaf2e'ad2c'ab2a'a928}},
@@ -183,7 +189,7 @@ constexpr SIMD128 kVectorCalculationsSource[16] = {
     {{0x7eec'7ae9'76e4'72e0, 0x6efc'6af8'66f4'62f1}},
 };
 
-constexpr SIMD128 kVectorComparisonSource[16] = {
+const SIMD128Register kVectorComparisonSource[16] = {
     {{0xf005'f005'f005'f005, 0xffff'ffff'4040'4040}},
     {{0xffff'ffff'40b4'40b4, 0xffff'ffff'40b4'0000}},
     {{0x4016'4016'4016'4016, 0x4016'8000'0000'0000}},
@@ -213,9 +219,9 @@ inline constexpr uint64_t ROD = 0b11;
 }  // namespace VXRMFlags
 
 // Easily recognizable bit pattern for target register.
-constexpr SIMD128 kUndisturbedResult{{0x5555'5555'5555'5555, 0x5555'5555'5555'5555}};
+const SIMD128Register kUndisturbedResult{{0x5555'5555'5555'5555, 0x5555'5555'5555'5555}};
 
-SIMD128 GetAgnosticResult() {
+SIMD128Register GetAgnosticResult() {
   static const bool kRvvAgnosticIsUndisturbed = getenv("RVV_AGNOSTIC_IS_UNDISTURBED") != nullptr;
   if (kRvvAgnosticIsUndisturbed) {
     return kUndisturbedResult;
@@ -223,12 +229,12 @@ SIMD128 GetAgnosticResult() {
   return {{~uint64_t{0U}, ~uint64_t{0U}}};
 }
 
-const SIMD128 kAgnosticResult = GetAgnosticResult();
+const SIMD128Register kAgnosticResult = GetAgnosticResult();
 
 // Mask in form suitable for storing in v0 and use in v0.t form.
-static constexpr SIMD128 kMask{{0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5}};
+const SIMD128Register kMask{{0xd5ad'd6b5'ad6b'b5ad, 0x6af7'57bb'deed'7bb5}};
 // Mask used with vsew = 0 (8bit) elements.
-static constexpr SIMD128 kMaskInt8[8] = {
+const SIMD128Register kMaskInt8[8] = {
     {{255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255}},
     {{255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255}},
     {{255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 255, 0, 255, 0, 255, 255}},
@@ -239,7 +245,7 @@ static constexpr SIMD128 kMaskInt8[8] = {
     {{255, 255, 255, 0, 255, 255, 255, 255, 0, 255, 0, 255, 0, 255, 255, 0}},
 };
 // Mask used with vsew = 1 (16bit) elements.
-static constexpr SIMD128 kMaskInt16[8] = {
+const SIMD128Register kMaskInt16[8] = {
     {{0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff}},
     {{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0x0000, 0xffff}},
     {{0xffff, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff, 0x0000}},
@@ -250,7 +256,7 @@ static constexpr SIMD128 kMaskInt16[8] = {
     {{0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0x0000, 0xffff, 0xffff}},
 };
 // Mask used with vsew = 2 (32bit) elements.
-static constexpr SIMD128 kMaskInt32[8] = {
+const SIMD128Register kMaskInt32[8] = {
     {{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0xffff'ffff}},
     {{0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff}},
     {{0xffff'ffff, 0x0000'0000, 0xffff'ffff, 0x0000'0000}},
@@ -261,7 +267,7 @@ static constexpr SIMD128 kMaskInt32[8] = {
     {{0x0000'0000, 0xffff'ffff, 0x0000'0000, 0xffff'ffff}},
 };
 // Mask used with vsew = 3 (64bit) elements.
-static constexpr SIMD128 kMaskInt64[8] = {
+const SIMD128Register kMaskInt64[8] = {
     {{0xffff'ffff'ffff'ffff, 0x0000'0000'0000'0000}},
     {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
     {{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff}},
@@ -272,7 +278,7 @@ static constexpr SIMD128 kMaskInt64[8] = {
     {{0x0000'0000'0000'0000, 0xffff'ffff'ffff'ffff}},
 };
 // To verify operations without masking.
-static constexpr SIMD128 kNoMask[8] = {
+const SIMD128Register kNoMask[8] = {
     {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
     {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
     {{0xffff'ffff'ffff'ffff, 0xffff'ffff'ffff'ffff}},
@@ -284,7 +290,7 @@ static constexpr SIMD128 kNoMask[8] = {
 };
 
 // Half of sub-register lmul.
-static constexpr SIMD128 kFractionMaskInt8[5] = {
+const SIMD128Register kFractionMaskInt8[5] = {
     {{255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},                // Half of 1/8 reg = 1/16
     {{255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},              // Half of 1/4 reg = 1/8
     {{255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},          // Half of 1/2 reg = 1/4
@@ -292,7 +298,7 @@ static constexpr SIMD128 kFractionMaskInt8[5] = {
     {{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}},  // Full reg
 };
 
-SIMD128 MakeBitmaskFromVl(size_t vl) {
+SIMD128Register MakeBitmaskFromVl(size_t vl) {
   if (vl == 128) {
     return {__uint128_t(0)};
   } else {
@@ -327,8 +333,8 @@ auto MaskForElemIfMasked() {
 using ExecInsnFunc = void (*)();
 
 void RunTwoVectorArgsOneRes(ExecInsnFunc exec_insn,
-                            const SIMD128* src,
-                            SIMD128* res,
+                            const SIMD128Register* src,
+                            SIMD128Register* res,
                             uint64_t vtype,
                             uint64_t vlmax) {
   uint64_t vstart, vl;
@@ -400,8 +406,8 @@ void RunTwoVectorArgsOneRes(ExecInsnFunc exec_insn,
 // scalar and float will be filled from scalar_src, and will use t0 and ft0,
 // respectively.
 void RunCommonVectorFunc(ExecInsnFunc exec_insn,
-                         const SIMD128* src,
-                         SIMD128* res,
+                         const SIMD128Register* src,
+                         SIMD128Register* res,
                          uint64_t* scalar_int_res,
                          uint64_t* scalar_float_res,
                          uint64_t scalar_src,
@@ -497,8 +503,8 @@ template <TestVectorInstructionKind kTestVectorInstructionKind,
           size_t... kResultsCount>
 void TestVectorInstructionInternal(ExecInsnFunc exec_insn,
                                    ExecInsnFunc exec_masked_insn,
-                                   const SIMD128 dst_result,
-                                   const SIMD128 (&source)[16],
+                                   const SIMD128Register dst_result,
+                                   const SIMD128Register (&source)[16],
                                    const ExpectedResultType (&... expected_result)[kResultsCount]) {
   auto Verify = [&source, dst_result](ExecInsnFunc exec_insn,
                                       uint8_t vsew,
@@ -557,7 +563,7 @@ void TestVectorInstructionInternal(ExecInsnFunc exec_insn,
             vl = vlmax;
           }
 
-          SIMD128 result[8];
+          SIMD128Register result[8];
           // Set expected_result vector registers into 0b01010101… pattern.
           // Set undisturbed result vector registers.
           std::fill_n(result, 8, dst_result);
@@ -566,7 +572,7 @@ void TestVectorInstructionInternal(ExecInsnFunc exec_insn,
               exec_insn, &source[0], &result[0], nullptr, nullptr, scalar_src, vstart, vtype, vl);
 
           // Values for inactive elements (i.e. corresponding mask bit is 0).
-          SIMD128 expected_inactive[8];
+          SIMD128Register expected_inactive[8];
           if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kVMerge) {
             // vs2 is the start of the source vector register group.
             // Note: copy_n input/output args are backwards compared to fill_n below.
@@ -581,11 +587,13 @@ void TestVectorInstructionInternal(ExecInsnFunc exec_insn,
               if (index == 0 && emul == 2) {
                 EXPECT_EQ(result[index],
                           ((dst_result & kFractionMaskInt8[3]) |
-                           (SIMD128{expected_result[index]} & mask[index] & ~kFractionMaskInt8[3]) |
+                           (SIMD128Register{expected_result[index]} & mask[index] &
+                            ~kFractionMaskInt8[3]) |
                            (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3])));
               } else if (index == 2 && emul == 2) {
                 EXPECT_EQ(result[index],
-                          ((SIMD128{expected_result[index]} & mask[index] & kFractionMaskInt8[3]) |
+                          ((SIMD128Register{expected_result[index]} & mask[index] &
+                            kFractionMaskInt8[3]) |
                            (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
                            ((vta ? kAgnosticResult : dst_result) & ~kFractionMaskInt8[3])));
               } else if (index == 3 && emul == 2 && vta) {
@@ -594,15 +602,16 @@ void TestVectorInstructionInternal(ExecInsnFunc exec_insn,
                 EXPECT_EQ(result[index], dst_result);
               } else {
                 EXPECT_EQ(result[index],
-                          ((SIMD128{expected_result[index]} & mask[index]) |
+                          ((SIMD128Register{expected_result[index]} & mask[index]) |
                            ((expected_inactive[index] & ~mask[index]))));
               }
             }
           } else {
-            EXPECT_EQ(result[0],
-                      ((SIMD128{expected_result[0]} & mask[0] & kFractionMaskInt8[emul - 4]) |
-                       (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[emul - 4]) |
-                       ((vta ? kAgnosticResult : dst_result) & ~kFractionMaskInt8[emul - 4])));
+            EXPECT_EQ(
+                result[0],
+                ((SIMD128Register{expected_result[0]} & mask[0] & kFractionMaskInt8[emul - 4]) |
+                 (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[emul - 4]) |
+                 ((vta ? kAgnosticResult : dst_result) & ~kFractionMaskInt8[emul - 4])));
           }
         }
       }
@@ -628,7 +637,7 @@ template <TestVectorInstructionKind kTestVectorInstructionKind,
           size_t... kResultsCount>
 void TestVectorInstruction(ExecInsnFunc exec_insn,
                            ExecInsnFunc exec_masked_insn,
-                           const SIMD128 (&source)[16],
+                           const SIMD128Register (&source)[16],
                            const ExpectedResultType (&... expected_result)[kResultsCount]) {
   TestVectorInstructionInternal<kTestVectorInstructionKind, kTestVectorInstructionMode>(
       exec_insn, exec_masked_insn, kUndisturbedResult, source, expected_result...);
@@ -636,11 +645,11 @@ void TestVectorInstruction(ExecInsnFunc exec_insn,
 
 void TestVectorInstruction(ExecInsnFunc exec_insn,
                            ExecInsnFunc exec_masked_insn,
-                           const uint8_16_t (&expected_result_int8)[8],
-                           const uint16_8_t (&expected_result_int16)[8],
-                           const uint32_4_t (&expected_result_int32)[8],
-                           const uint64_2_t (&expected_result_int64)[8],
-                           const SIMD128 (&source)[16]) {
+                           const UInt8x16Tuple (&expected_result_int8)[8],
+                           const UInt16x8Tuple (&expected_result_int16)[8],
+                           const UInt32x4Tuple (&expected_result_int32)[8],
+                           const UInt64x2Tuple (&expected_result_int64)[8],
+                           const SIMD128Register (&source)[16]) {
   TestVectorInstruction<TestVectorInstructionKind::kInteger, TestVectorInstructionMode::kDefault>(
       exec_insn,
       exec_masked_insn,
@@ -653,19 +662,19 @@ void TestVectorInstruction(ExecInsnFunc exec_insn,
 
 void TestVectorFloatInstruction(ExecInsnFunc exec_insn,
                                 ExecInsnFunc exec_masked_insn,
-                                const uint32_4_t (&expected_result_int32)[8],
-                                const uint64_2_t (&expected_result_int64)[8],
-                                const SIMD128 (&source)[16]) {
+                                const UInt32x4Tuple (&expected_result_int32)[8],
+                                const UInt64x2Tuple (&expected_result_int64)[8],
+                                const SIMD128Register (&source)[16]) {
   TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kDefault>(
       exec_insn, exec_masked_insn, source, expected_result_int32, expected_result_int64);
 }
 
 void TestNarrowingVectorInstruction(ExecInsnFunc exec_insn,
                                     ExecInsnFunc exec_masked_insn,
-                                    const uint8_16_t (&expected_result_int8)[4],
-                                    const uint16_8_t (&expected_result_int16)[4],
-                                    const uint32_4_t (&expected_result_int32)[4],
-                                    const SIMD128 (&source)[16]) {
+                                    const UInt8x16Tuple (&expected_result_int8)[4],
+                                    const UInt16x8Tuple (&expected_result_int16)[4],
+                                    const UInt32x4Tuple (&expected_result_int32)[4],
+                                    const SIMD128Register (&source)[16]) {
   TestVectorInstruction<TestVectorInstructionKind::kInteger, TestVectorInstructionMode::kNarrowing>(
       exec_insn,
       exec_masked_insn,
@@ -677,26 +686,26 @@ void TestNarrowingVectorInstruction(ExecInsnFunc exec_insn,
 
 void TestNarrowingVectorFloatInstruction(ExecInsnFunc exec_insn,
                                          ExecInsnFunc exec_masked_insn,
-                                         const uint32_4_t (&expected_result_int32)[4],
-                                         const SIMD128 (&source)[16]) {
+                                         const UInt32x4Tuple (&expected_result_int32)[4],
+                                         const SIMD128Register (&source)[16]) {
   TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kNarrowing>(
       exec_insn, exec_masked_insn, source, expected_result_int32);
 }
 
 void TestNarrowingVectorFloatInstruction(ExecInsnFunc exec_insn,
                                          ExecInsnFunc exec_masked_insn,
-                                         const uint16_8_t (&expected_result_int16)[4],
-                                         const uint32_4_t (&expected_result_int32)[4],
-                                         const SIMD128 (&source)[16]) {
+                                         const UInt16x8Tuple (&expected_result_int16)[4],
+                                         const UInt32x4Tuple (&expected_result_int32)[4],
+                                         const SIMD128Register (&source)[16]) {
   TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kNarrowing>(
       exec_insn, exec_masked_insn, source, expected_result_int16, expected_result_int32);
 }
 
 void TestWideningVectorFloatInstruction(ExecInsnFunc exec_insn,
                                         ExecInsnFunc exec_masked_insn,
-                                        const uint64_2_t (&expected_result_int64)[8],
-                                        const SIMD128 (&source)[16],
-                                        SIMD128 dst_result = kUndisturbedResult) {
+                                        const UInt64x2Tuple (&expected_result_int64)[8],
+                                        const SIMD128Register (&source)[16],
+                                        SIMD128Register dst_result = kUndisturbedResult) {
   TestVectorInstructionInternal<TestVectorInstructionKind::kFloat,
                                 TestVectorInstructionMode::kWidening>(
       exec_insn, exec_masked_insn, dst_result, source, expected_result_int64);
@@ -704,19 +713,19 @@ void TestWideningVectorFloatInstruction(ExecInsnFunc exec_insn,
 
 void TestWideningVectorFloatInstruction(ExecInsnFunc exec_insn,
                                         ExecInsnFunc exec_masked_insn,
-                                        const uint32_4_t (&expected_result_int32)[8],
-                                        const uint64_2_t (&expected_result_int64)[8],
-                                        const SIMD128 (&source)[16]) {
+                                        const UInt32x4Tuple (&expected_result_int32)[8],
+                                        const UInt64x2Tuple (&expected_result_int64)[8],
+                                        const SIMD128Register (&source)[16]) {
   TestVectorInstruction<TestVectorInstructionKind::kFloat, TestVectorInstructionMode::kWidening>(
       exec_insn, exec_masked_insn, source, expected_result_int32, expected_result_int64);
 }
 
 void TestWideningVectorInstruction(ExecInsnFunc exec_insn,
                                    ExecInsnFunc exec_masked_insn,
-                                   const uint16_8_t (&expected_result_int16)[8],
-                                   const uint32_4_t (&expected_result_int32)[8],
-                                   const uint64_2_t (&expected_result_int64)[8],
-                                   const SIMD128 (&source)[16]) {
+                                   const UInt16x8Tuple (&expected_result_int16)[8],
+                                   const UInt32x4Tuple (&expected_result_int32)[8],
+                                   const UInt64x2Tuple (&expected_result_int64)[8],
+                                   const SIMD128Register (&source)[16]) {
   TestVectorInstruction<TestVectorInstructionKind::kInteger, TestVectorInstructionMode::kWidening>(
       exec_insn,
       exec_masked_insn,
@@ -730,7 +739,7 @@ template <TestVectorInstructionMode kTestVectorInstructionMode, typename... Expe
 void TestVectorReductionInstruction(
     ExecInsnFunc exec_insn,
     ExecInsnFunc exec_masked_insn,
-    const SIMD128 (&source)[16],
+    const SIMD128Register (&source)[16],
     std::tuple<const ExpectedResultType (&)[8],
                const ExpectedResultType (&)[8]>... expected_result) {
   // Each expected_result input to this function is the vd[0] value of the reduction, for each
@@ -748,14 +757,14 @@ void TestVectorReductionInstruction(
               continue;
             }
 
-            SIMD128 result[8];
+            SIMD128Register result[8];
             // Set undisturbed result vector registers.
             for (size_t index = 0; index < 8; ++index) {
               result[index] = kUndisturbedResult;
             }
 
             // Exectations for reductions are for swapped source arguments.
-            SIMD128 two_sources[16]{};
+            SIMD128Register two_sources[16]{};
             memcpy(&two_sources[0], &source[8], sizeof(two_sources[0]) * 8);
             memcpy(&two_sources[8], &source[0], sizeof(two_sources[0]) * 8);
 
@@ -774,13 +783,13 @@ void TestVectorReductionInstruction(
 
             // Verify that the destination register holds the reduction in the
             // first element and the tail policy applies to the remaining.
-            SIMD128 expected_result_register = vta ? kAgnosticResult : kUndisturbedResult;
+            SIMD128Register expected_result_register = vta ? kAgnosticResult : kUndisturbedResult;
             size_t result_bits = 8 << vsew;
             if constexpr (kTestVectorInstructionMode == TestVectorInstructionMode::kWidening) {
               result_bits *= 2;
             }
-            expected_result_register = (expected_result_register >> result_bits) << result_bits;
-            expected_result_register |= SIMD128{expected_result};
+            expected_result_register &= ~SIMD128Register{(__int128_t{1} << result_bits) - 1};
+            expected_result_register |= SIMD128Register{expected_result};
             EXPECT_EQ(result[0], expected_result_register) << " vtype=" << vtype;
 
             // Verify all non-destination registers are undisturbed.
@@ -819,7 +828,7 @@ void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
                                     const uint64_t (&expected_result_vd0_int64)[8],
                                     const uint32_t (&expected_result_vd0_with_mask_int32)[8],
                                     const uint64_t (&expected_result_vd0_with_mask_int64)[8],
-                                    const SIMD128 (&source)[16]) {
+                                    const SIMD128Register (&source)[16]) {
   TestVectorReductionInstruction<TestVectorInstructionMode::kDefault>(
       exec_insn,
       exec_masked_insn,
@@ -840,7 +849,7 @@ void TestVectorReductionInstruction(ExecInsnFunc exec_insn,
                                     const uint16_t (&expected_result_vd0_with_mask_int16)[8],
                                     const uint32_t (&expected_result_vd0_with_mask_int32)[8],
                                     const uint64_t (&expected_result_vd0_with_mask_int64)[8],
-                                    const SIMD128 (&source)[16]) {
+                                    const SIMD128Register (&source)[16]) {
   TestVectorReductionInstruction<TestVectorInstructionMode::kDefault>(
       exec_insn,
       exec_masked_insn,
@@ -860,7 +869,7 @@ void TestWideningVectorReductionInstruction(
     ExecInsnFunc exec_masked_insn,
     const uint64_t (&expected_result_vd0_int64)[8],
     const uint64_t (&expected_result_vd0_with_mask_int64)[8],
-    const SIMD128 (&source)[16]) {
+    const SIMD128Register (&source)[16]) {
   TestVectorReductionInstruction<TestVectorInstructionMode::kWidening>(
       exec_insn,
       exec_masked_insn,
@@ -878,7 +887,7 @@ void TestWideningVectorReductionInstruction(
     const uint16_t (&expected_result_vd0_with_mask_int16)[8],
     const uint32_t (&expected_result_vd0_with_mask_int32)[8],
     const uint64_t (&expected_result_vd0_with_mask_int64)[8],
-    const SIMD128 (&source)[16]) {
+    const SIMD128Register (&source)[16]) {
   TestVectorReductionInstruction<TestVectorInstructionMode::kWidening>(
       exec_insn,
       exec_masked_insn,
@@ -893,7 +902,7 @@ void TestWideningVectorReductionInstruction(
 
 template <bool kIsMasked, typename... ExpectedResultType, size_t... kResultsCount>
 void TestVectorIota(ExecInsnFunc exec_insn,
-                    const SIMD128 (&source)[16],
+                    const SIMD128Register (&source)[16],
                     const ExpectedResultType (&... expected_result)[kResultsCount]) {
   auto Verify = [&source](ExecInsnFunc exec_insn,
                           uint8_t vsew,
@@ -920,7 +929,7 @@ void TestVectorIota(ExecInsnFunc exec_insn,
               vlin = vl;
             }
 
-            SIMD128 result[8];
+            SIMD128Register result[8];
             // Set expected_result vector registers into 0b01010101… pattern.
             // Set undisturbed result vector registers.
             std::fill_n(result, 8, kUndisturbedResult);
@@ -928,7 +937,7 @@ void TestVectorIota(ExecInsnFunc exec_insn,
             RunCommonVectorFunc(
                 exec_insn, &source[0], &result[0], nullptr, nullptr, 0, 0, vtype, vlin);
 
-            SIMD128 expected_inactive[8];
+            SIMD128Register expected_inactive[8];
             std::fill_n(expected_inactive, 8, (vma ? kAgnosticResult : kUndisturbedResult));
 
             // vl of 0 should never change dst registers
@@ -942,7 +951,7 @@ void TestVectorIota(ExecInsnFunc exec_insn,
                   if (index == 2 && vlmul == 2) {
                     EXPECT_EQ(
                         result[index],
-                        ((SIMD128{expected_result[index]} & elem_mask[index] &
+                        ((SIMD128Register{expected_result[index]} & elem_mask[index] &
                           kFractionMaskInt8[3]) |
                          (expected_inactive[index] & ~elem_mask[index] & kFractionMaskInt8[3]) |
                          ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3])));
@@ -950,7 +959,7 @@ void TestVectorIota(ExecInsnFunc exec_insn,
                     EXPECT_EQ(result[index], vta ? kAgnosticResult : kUndisturbedResult);
                   } else {
                     EXPECT_EQ(result[index],
-                              ((SIMD128{expected_result[index]} & elem_mask[index]) |
+                              ((SIMD128Register{expected_result[index]} & elem_mask[index]) |
                                (expected_inactive[index] & ~elem_mask[index])));
                   }
                 }
@@ -959,7 +968,8 @@ void TestVectorIota(ExecInsnFunc exec_insn,
               // vlmul >= 4 only uses 1 register
               EXPECT_EQ(
                   result[0],
-                  ((SIMD128{expected_result[0]} & elem_mask[0] & kFractionMaskInt8[vlmul - 4]) |
+                  ((SIMD128Register{expected_result[0]} & elem_mask[0] &
+                    kFractionMaskInt8[vlmul - 4]) |
                    (expected_inactive[0] & ~elem_mask[0] & kFractionMaskInt8[vlmul - 4]) |
                    ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[vlmul - 4])));
             }
@@ -978,11 +988,11 @@ void TestVectorIota(ExecInsnFunc exec_insn,
 
 template <bool kIsMasked>
 void TestVectorIota(ExecInsnFunc exec_insn,
-                    const uint8_16_t (&expected_result_int8)[8],
-                    const uint16_8_t (&expected_result_int16)[8],
-                    const uint32_4_t (&expected_result_int32)[8],
-                    const uint64_2_t (&expected_result_int64)[8],
-                    const SIMD128 (&source)[16]) {
+                    const UInt8x16Tuple (&expected_result_int8)[8],
+                    const UInt16x8Tuple (&expected_result_int16)[8],
+                    const UInt32x4Tuple (&expected_result_int32)[8],
+                    const UInt64x2Tuple (&expected_result_int64)[8],
+                    const SIMD128Register (&source)[16]) {
   TestVectorIota<kIsMasked>(exec_insn,
                             source,
                             expected_result_int8,
@@ -993,10 +1003,10 @@ void TestVectorIota(ExecInsnFunc exec_insn,
 
 void TestExtendingVectorInstruction(ExecInsnFunc exec_insn,
                                     ExecInsnFunc exec_masked_insn,
-                                    const uint16_8_t (&expected_result_int16)[8],
-                                    const uint32_4_t (&expected_result_int32)[8],
-                                    const uint64_2_t (&expected_result_int64)[8],
-                                    const SIMD128 (&source)[16],
+                                    const UInt16x8Tuple (&expected_result_int16)[8],
+                                    const UInt32x4Tuple (&expected_result_int32)[8],
+                                    const UInt64x2Tuple (&expected_result_int64)[8],
+                                    const SIMD128Register (&source)[16],
                                     const uint8_t factor) {
   auto Verify = [&source, &factor](ExecInsnFunc exec_insn,
                                    uint8_t vsew,
@@ -1033,7 +1043,7 @@ void TestExtendingVectorInstruction(ExecInsnFunc exec_insn,
             vl = vlmax;
           }
 
-          SIMD128 result[8];
+          SIMD128Register result[8];
           // Set expected_result vector registers into 0b01010101… pattern.
           // Set undisturbed result vector registers.
           std::fill_n(result, 8, kUndisturbedResult);
@@ -1043,22 +1053,22 @@ void TestExtendingVectorInstruction(ExecInsnFunc exec_insn,
 
           // Values for inactive elements (i.e. corresponding mask bit is 0).
           const size_t n = std::size(source) * 2;
-          SIMD128 expected_inactive[n];
+          SIMD128Register expected_inactive[n];
           // For most instructions, follow basic inactive processing rules based on vma flag.
           std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
 
           if (vlmul < 4) {
             for (size_t index = 0; index < 1 << vlmul; ++index) {
               if (index == 0 && vlmul == 2) {
-                EXPECT_EQ(
-                    result[index],
-                    (kUndisturbedResult & kFractionMaskInt8[3]) |
-                        (SIMD128{expected_result[index]} & mask[index] & ~kFractionMaskInt8[3]) |
-                        (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3]));
+                EXPECT_EQ(result[index],
+                          (kUndisturbedResult & kFractionMaskInt8[3]) |
+                              (SIMD128Register{expected_result[index]} & mask[index] &
+                               ~kFractionMaskInt8[3]) |
+                              (expected_inactive[index] & ~mask[index] & ~kFractionMaskInt8[3]));
               } else if (index == 2 && vlmul == 2) {
                 EXPECT_EQ(
                     result[index],
-                    (SIMD128{expected_result[index]} & mask[index] & kFractionMaskInt8[3]) |
+                    (SIMD128Register{expected_result[index]} & mask[index] & kFractionMaskInt8[3]) |
                         (expected_inactive[index] & ~mask[index] & kFractionMaskInt8[3]) |
                         ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[3]));
               } else if (index == 3 && vlmul == 2 && vta) {
@@ -1067,14 +1077,14 @@ void TestExtendingVectorInstruction(ExecInsnFunc exec_insn,
                 EXPECT_EQ(result[index], kUndisturbedResult);
               } else {
                 EXPECT_EQ(result[index],
-                          (SIMD128{expected_result[index]} & mask[index]) |
+                          (SIMD128Register{expected_result[index]} & mask[index]) |
                               (expected_inactive[index] & ~mask[index]));
               }
             }
           } else {
             EXPECT_EQ(
                 result[0],
-                (SIMD128{expected_result[0]} & mask[0] & kFractionMaskInt8[vlmul - 4]) |
+                (SIMD128Register{expected_result[0]} & mask[0] & kFractionMaskInt8[vlmul - 4]) |
                     (expected_inactive[0] & ~mask[0] & kFractionMaskInt8[vlmul - 4]) |
                     ((vta ? kAgnosticResult : kUndisturbedResult) & ~kFractionMaskInt8[vlmul - 4]));
           }
@@ -1113,7 +1123,7 @@ template <TestVectorInstructionKind kTestVectorInstructionKind,
 void TestVectorPermutationInstruction(
     ExecInsnFunc exec_insn,
     ExecInsnFunc exec_masked_insn,
-    const SIMD128 (&source)[16],
+    const SIMD128Register (&source)[16],
     uint8_t vlmul,
     uint64_t skip,
     bool ignore_vma_for_last,
@@ -1151,7 +1161,7 @@ void TestVectorPermutationInstruction(
     }
     // Values for which the mask is not applied due to being before the offset when doing
     // vslideup.
-    SIMD128 skip_mask[num_regs];
+    SIMD128Register skip_mask[num_regs];
     int64_t toskip = skip;
     for (size_t index = 0; index < num_regs && toskip > 0; ++index) {
       size_t skip_bits = toskip * kElementSize * 8;
@@ -1184,7 +1194,7 @@ void TestVectorPermutationInstruction(
           vl = vlmax;
         }
 
-        SIMD128 result[8];
+        SIMD128Register result[8];
         // Set expected_result vector registers into 0b01010101… pattern.
         // Set undisturbed result vector registers.
         std::fill_n(result, 8, kUndisturbedResult);
@@ -1195,7 +1205,7 @@ void TestVectorPermutationInstruction(
 
         const size_t n = std::size(source);
         // Values for inactive elements (i.e. corresponding mask bit is 0).
-        SIMD128 expected_inactive[n];
+        SIMD128Register expected_inactive[n];
         // For most instructions, follow basic inactive processing rules based on vma flag.
         std::fill_n(expected_inactive, n, (vma ? kAgnosticResult : kUndisturbedResult));
 
@@ -1210,9 +1220,9 @@ void TestVectorPermutationInstruction(
               (expected_inactive[last_reg] & ~mask_for_vl) | (kUndisturbedResult & mask_for_vl);
         }
 
-        SIMD128 expected_result[std::size(expected_result_raw)];
+        SIMD128Register expected_result[std::size(expected_result_raw)];
         for (size_t index = 0; index < std::size(expected_result_raw); ++index) {
-          expected_result[index] = SIMD128{expected_result_raw[index]};
+          expected_result[index] = SIMD128Register{expected_result_raw[index]};
         }
 
         if (vlmul == 2 && last_elem_is_reg1) {
@@ -1273,12 +1283,12 @@ void TestVectorPermutationInstruction(
             }
           }
         } else {
-          SIMD128 affected_part{expected_result[0] &
-                                ((mask[0] & kFractionMaskInt8[vlmul - 4]) | skip_mask[0])};
-          SIMD128 masked_part{expected_inactive[0] & ~mask[0] & ~skip_mask[0] &
-                              kFractionMaskInt8[vlmul - 4]};
-          SIMD128 tail_part{(vta ? kAgnosticResult : kUndisturbedResult) &
-                            ~kFractionMaskInt8[vlmul - 4]};
+          SIMD128Register affected_part{expected_result[0] &
+                                        ((mask[0] & kFractionMaskInt8[vlmul - 4]) | skip_mask[0])};
+          SIMD128Register masked_part{expected_inactive[0] & ~mask[0] & ~skip_mask[0] &
+                                      kFractionMaskInt8[vlmul - 4]};
+          SIMD128Register tail_part{(vta ? kAgnosticResult : kUndisturbedResult) &
+                                    ~kFractionMaskInt8[vlmul - 4]};
 
           EXPECT_EQ(result[0], affected_part | masked_part | tail_part)
               << "vlmul=" << uint32_t{vlmul} << " vsew=" << uint32_t{vsew}
@@ -1304,11 +1314,11 @@ void TestVectorPermutationInstruction(
 
 void TestVectorPermutationInstruction(ExecInsnFunc exec_insn,
                                       ExecInsnFunc exec_masked_insn,
-                                      const uint8_16_t (&expected_result_int8)[8],
-                                      const uint16_8_t (&expected_result_int16)[8],
-                                      const uint32_4_t (&expected_result_int32)[8],
-                                      const uint64_2_t (&expected_result_int64)[8],
-                                      const SIMD128 (&source)[16],
+                                      const UInt8x16Tuple (&expected_result_int8)[8],
+                                      const UInt16x8Tuple (&expected_result_int16)[8],
+                                      const UInt32x4Tuple (&expected_result_int32)[8],
+                                      const UInt64x2Tuple (&expected_result_int64)[8],
+                                      const SIMD128Register (&source)[16],
                                       uint8_t vlmul,
                                       uint64_t regt0 = 0x0,
                                       uint64_t skip = 0,
@@ -1331,7 +1341,7 @@ void TestVectorPermutationInstruction(ExecInsnFunc exec_insn,
 template <typename... ExpectedResultType>
 void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
                                      ExecInsnFunc exec_masked_insn,
-                                     const SIMD128 (&source)[16],
+                                     const SIMD128Register (&source)[16],
                                      const ExpectedResultType(&... expected_result)) {
   auto Verify = [&source](
                     ExecInsnFunc exec_insn, uint8_t vsew, const auto& expected_result, auto mask) {
@@ -1370,7 +1380,7 @@ void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
             vl = vlmax;
           }
 
-          SIMD128 result[8];
+          SIMD128Register result[8];
           // Set expected_result vector registers into 0b01010101… pattern.
           // Set undisturbed result vector registers.
           std::fill_n(result, 8, kUndisturbedResult);
@@ -1378,17 +1388,17 @@ void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
           RunCommonVectorFunc(
               exec_insn, &source[0], &result[0], nullptr, nullptr, scalar_src, vstart, vtype, vl);
 
-          SIMD128 expected_result_in_register(expected_result);
+          SIMD128Register expected_result_in_register(expected_result);
           expected_result_in_register = (expected_result_in_register & mask) |
                                         ((vma ? kAgnosticResult : kUndisturbedResult) & ~mask);
           // Mask registers are always processing tail like vta is set.
           if (vlmax != 128) {
-            const SIMD128 vl_mask = MakeBitmaskFromVl(vl);
+            const SIMD128Register vl_mask = MakeBitmaskFromVl(vl);
             expected_result_in_register =
                 (kAgnosticResult & vl_mask) | (expected_result_in_register & ~vl_mask);
           }
           if (vlmul == 2) {
-            const SIMD128 start_mask = MakeBitmaskFromVl(vstart);
+            const SIMD128Register start_mask = MakeBitmaskFromVl(vstart);
             expected_result_in_register =
                 (kUndisturbedResult & ~start_mask) | (expected_result_in_register & start_mask);
           }
@@ -1415,18 +1425,18 @@ void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
                                      ExecInsnFunc exec_masked_insn,
                                      const uint32_t expected_result_int32,
                                      const uint16_t expected_result_int64,
-                                     const SIMD128 (&source)[16]) {
+                                     const SIMD128Register (&source)[16]) {
   TestVectorMaskTargetInstruction(
       exec_insn, exec_masked_insn, source, expected_result_int32, expected_result_int64);
 }
 
 void TestVectorMaskTargetInstruction(ExecInsnFunc exec_insn,
                                      ExecInsnFunc exec_masked_insn,
-                                     const uint8_16_t expected_result_int8,
+                                     const UInt8x16Tuple expected_result_int8,
                                      const uint64_t expected_result_int16,
                                      const uint32_t expected_result_int32,
                                      const uint16_t expected_result_int64,
-                                     const SIMD128 (&source)[16]) {
+                                     const SIMD128Register (&source)[16]) {
   TestVectorMaskTargetInstruction(exec_insn,
                                   exec_masked_insn,
                                   source,
@@ -4361,8 +4371,6 @@ TEST(InlineAsmTestRiscv64, TestVmfeq) {
   TestVectorMaskTargetInstruction(
       ExecVmfeqvf, ExecMaskedVmfeqvf, 0x0000'0040, 0x0020, kVectorComparisonSource);
 }
-
-}  // namespace
 
 [[gnu::naked]] void ExecVaadduvv() {
   asm("vaaddu.vv  v8, v16, v24\n\t"
@@ -12384,3 +12392,7 @@ TEST(InlineAsmTestRiscv64, TestVslideup) {
       /*regx1=*/8,
       /*skip=*/8);
 }
+
+}  // namespace
+
+}  // namespace berberis
