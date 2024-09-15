@@ -283,11 +283,9 @@ cc_library_headers {
 
 cc_library_headers {
     name: "libberberis_intrinsics_headers",
-    defaults: [
-        "berberis_riscv64_device_defaults",
-        "berberis_all_hosts_defaults",
-    ],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
+    native_bridge_supported: true,
     export_include_dirs: ["include"],
     header_libs: ["libberberis_base_headers"],
     export_header_lib_headers: ["libberberis_base_headers"],
