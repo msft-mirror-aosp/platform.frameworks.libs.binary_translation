@@ -1219,6 +1219,11 @@ inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
   }
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Mv(Register dest, Register src) {
+  Addi(dest, src, 0);
+}
+
 }  // namespace riscv
 
 }  // namespace berberis
