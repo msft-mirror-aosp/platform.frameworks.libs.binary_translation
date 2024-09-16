@@ -78,9 +78,9 @@ constexpr auto&& ValueForFmtSpec(auto&& value) {
 
 #define UNREACHABLE() FATAL("This code is (supposed to be) unreachable.")
 
-#define FATAL_UNIMPL_INSN_IF_NOT_BRINGUP()           \
-  if (!berberis::config::kInstructionsBringupMode) { \
-    FATAL("Unimplemented instruction!");             \
+#define FATAL_UNIMPL_INSN_IF_NOT_BRINGUP()            \
+  if (!berberis::config::kInstructionsBringupMode) {  \
+    FATAL("Unimplemented instruction: %s", __func__); \
   }
 
 #ifdef CHECK
