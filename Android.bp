@@ -46,7 +46,10 @@ cc_defaults {
             enabled: false,
         },
         riscv64: {
-            enabled: false,
+            // TODO(b/123294366): disconnect guest arch from host arch!
+            cflags: [
+                "-DBERBERIS_GUEST_LP64=1",
+            ],
         },
         x86_64: {
             // TODO(b/123294366): disconnect guest arch from host arch!
@@ -86,18 +89,6 @@ cc_defaults {
             // TODO(b/123294366): disconnect guest arch from host arch!
             cflags: [
                 "-DNATIVE_BRIDGE_GUEST_ARCH_RISCV64",
-                "-DBERBERIS_GUEST_LP64=1",
-            ],
-        },
-    },
-}
-
-cc_defaults {
-    name: "berberis_riscv64_device_defaults",
-    arch: {
-        riscv64: {
-            enabled: true,
-            cflags: [
                 "-DBERBERIS_GUEST_LP64=1",
             ],
         },
