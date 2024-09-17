@@ -33,9 +33,13 @@ namespace berberis {
 
 namespace constants_pool {
 
-int32_t GetOffset(int32_t address);
+extern const intptr_t kBerberisMacroAssemblerConstantsRelocated;
 
+inline intptr_t GetOffset(intptr_t address) {
+  return address - constants_pool::kBerberisMacroAssemblerConstantsRelocated;
 }
+
+}  // namespace constants_pool
 
 namespace riscv {
 
