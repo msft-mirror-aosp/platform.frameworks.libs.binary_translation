@@ -1224,6 +1224,32 @@ inline void Assembler<DerivedAssemblerType>::Mv(Register dest, Register src) {
   Addi(dest, src, 0);
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Li(Register dest, int32_t imm32) {
+  // If the value fits into 12bit I-Immediate type, load using addi.
+  if (-2048 <= imm32 && imm32 <= 2047) {
+    Addi(dest, Assembler::zero, static_cast<IImmediate>(imm32));
+  } else {
+    // Otherwise we need to use 2 instructions: lui to load top 20 bits and addi for bottom 12 bits,
+    // however since the I-Immediate is signed, we could not just split the number into 2 parts: for
+    // example loading 4095 should result in loading 1 in upper 20 bits (lui 0x1) and then
+    // subtracting 1 (addi dest, dest, -1).
+    // Perform calculations on unsigned type to avoid undefined behavior.
+    uint32_t uimm = static_cast<uint32_t>(imm32);
+    // Since bottom 12bits are loaded via a 12-bit signed immediate, we need to add the sign bit to
+    // the top part.
+    int32_t top = (uimm + ((uimm & (1U << 11)) << 1)) & 0xffff'f000;
+    // Sign extends the bottom 12 bits.
+    struct {
+      int32_t data : 12;
+    } bottom = {imm32};
+    Lui(dest, static_cast<UImmediate>(top));
+    if (bottom.data) {
+      Addi(dest, dest, static_cast<IImmediate>(bottom.data));
+    }
+  }
+}
+
 }  // namespace riscv
 
 }  // namespace berberis

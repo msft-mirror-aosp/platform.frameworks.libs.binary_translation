@@ -19,7 +19,7 @@
     {
       "encodings": {
         "auipc": { "opcode": "0000_0017", "type": "U-Type" },
-        "lui": { "opcode": "0000_0017", "type": "U-Type" }
+        "lui": { "opcode": "0000_0037", "type": "U-Type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
@@ -341,6 +341,13 @@
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "li" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Imm32", "usage": "use" }
       ]
     }
   ]
