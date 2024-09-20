@@ -308,6 +308,7 @@ phony_rule_defaults {
         "berberis_host_tests",
         "berberis_ndk_program_tests",
         "berberis_ndk_program_tests.native_bridge",
+        "berberis_perf_tests_static.native_bridge",
         "dwarf_reader",
         "libberberis_emulated_libcamera2ndk_api_checker",
         "nogrod_unit_tests",
