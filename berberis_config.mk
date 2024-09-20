@@ -15,17 +15,15 @@
 #
 
 # This file defines:
-#   BERBERIS_PRODUCT_PACKAGES - list of main product packages
+#   BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 - list of main product packages for riscv64 to
+#                                                 x86_64 translation.
 #
 
 include frameworks/libs/native_bridge_support/native_bridge_support.mk
 
-# Note: Keep in sync with `berberis_all_deps_defaults` in Android.bp.
-BERBERIS_PRODUCT_PACKAGES := \
-    libberberis_exec_region
-
 # Note: Keep in sync with `berberis_all_riscv64_to_x86_64_defaults` in Android.bp.
 BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64 := \
+    libberberis_exec_region \
     libberberis_proxy_libEGL \
     libberberis_proxy_libGLESv1_CM \
     libberberis_proxy_libGLESv2 \
