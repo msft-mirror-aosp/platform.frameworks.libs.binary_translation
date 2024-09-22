@@ -14,16 +14,9 @@
 # limitations under the License.
 #
 
-# This file defines:
-#   BERBERIS_PRODUCT_PACKAGES - list of main product packages
-#   BERBERIS_DEV_PRODUCT_PACKAGES - list of development packages
-#
-
 include frameworks/libs/binary_translation/berberis_config.mk
 
-PRODUCT_PACKAGES += \
-    $(BERBERIS_PRODUCT_PACKAGES) \
-    $(BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64)
+PRODUCT_PACKAGES += $(BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64)
 
 # ATTENTION: we are overriding
 # PRODUCT_SYSTEM_PROPERTIES += ro.dalvik.vm.native.bridge?=0
