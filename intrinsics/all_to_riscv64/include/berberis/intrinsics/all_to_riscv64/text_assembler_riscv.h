@@ -33,9 +33,13 @@ namespace berberis {
 
 namespace constants_pool {
 
-int32_t GetOffset(int32_t address);
+extern const intptr_t kBerberisMacroAssemblerConstantsRelocated;
 
+inline intptr_t GetOffset(intptr_t address) {
+  return address - constants_pool::kBerberisMacroAssemblerConstantsRelocated;
 }
+
+}  // namespace constants_pool
 
 namespace riscv {
 
@@ -110,9 +114,14 @@ class TextAssembler {
     static constexpr int kStackPointer = -2;
     // Used in Operand to deal with references to scratch area.
     static constexpr int kScratchPointer = -3;
+    static constexpr int kZeroRegister = -4;
 
     template <typename MacroAssembler>
     friend const std::string ToGasArgument(const Register& reg, MacroAssembler*) {
+      if (reg.arg_no_ == kZeroRegister) {
+        return "zero";
+      }
+
       return '%' + std::to_string(reg.arg_no());
     }
 
@@ -199,7 +208,6 @@ class TextAssembler {
   Register gpr_s{Register::kStackPointer};
   // Used in Operand as pseudo-register to temporary operand.
   Register gpr_scratch{Register::kScratchPointer};
-
   // Intrinsics which use these constants receive it via additional parameter - and
   // we need to know if it's needed or not.
   Register gpr_macroassembler_constants{};
@@ -208,6 +216,8 @@ class TextAssembler {
   Register gpr_macroassembler_scratch{};
   bool need_gpr_macroassembler_scratch() const { return need_gpr_macroassembler_scratch_; }
   Register gpr_macroassembler_scratch2{};
+
+  Register zero{Register::kZeroRegister};
 
   void Bind(Label* label) {
     CHECK_EQ(label->bound, false);
@@ -288,8 +298,8 @@ class TextAssembler {
 
   template <typename... Args>
   void EmitString(const std::string& s, const Args&... args) {
+    fprintf(out_, "%s, ", s.c_str());
     EmitString(args...);
-    fprintf(out_, ", %s", s.c_str());
   }
 
  protected:
