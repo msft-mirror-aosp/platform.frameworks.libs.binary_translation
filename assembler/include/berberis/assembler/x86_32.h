@@ -139,6 +139,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   using BaseAssembler::Vmovaps;
   using BaseAssembler::Vmovdqa;
   using BaseAssembler::Vmovdqu;
+  using BaseAssembler::Vmovq;
   using BaseAssembler::Vmovsd;
   using BaseAssembler::Vmovss;
 
