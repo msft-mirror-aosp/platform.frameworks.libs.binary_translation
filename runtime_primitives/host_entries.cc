@@ -16,11 +16,10 @@
 
 #include "berberis/runtime_primitives/runtime_library.h"
 
-#include "berberis/runtime_primitives/code_pool.h"
-
 #if defined(__x86_64__)
 #include "berberis/assembler/machine_code.h"
 #include "berberis/assembler/x86_64.h"
+#include "berberis/runtime_primitives/code_pool.h"
 #endif
 
 namespace berberis {
@@ -35,22 +34,23 @@ HostCode kEntryInvalidating;
 HostCode kEntryWrapping;
 
 namespace {
-#if defined(__x86_64__)
 // This function installs a trampoline in the CodePool address space.
 // This needed to ensure that all entries in the translation cache
 // are always pointing to the memory allocated via CodePool.
 HostCode InstallEntryTrampoline(HostCode target_function_ptr) {
+#if defined(__x86_64__)
   MachineCode mc;
   x86_64::Assembler as(&mc);
   as.Jmp(target_function_ptr);
   as.Finalize();
   return GetDefaultCodePoolInstance()->Add(&mc);
-}
+#else
+  return target_function_ptr;
 #endif
+}
 }  // namespace
 
 void InitHostEntries() {
-#if defined(__x86_64__)
   kEntryInterpret = InstallEntryTrampoline(AsHostCode(berberis_entry_Interpret));
   kEntryExitGeneratedCode = InstallEntryTrampoline(AsHostCode(berberis_entry_ExitGeneratedCode));
   kEntryStop = InstallEntryTrampoline(AsHostCode(berberis_entry_Stop));
@@ -59,16 +59,6 @@ void InitHostEntries() {
   kEntryTranslating = InstallEntryTrampoline(AsHostCode(berberis_entry_Translating));
   kEntryInvalidating = InstallEntryTrampoline(AsHostCode(berberis_entry_Invalidating));
   kEntryWrapping = InstallEntryTrampoline(AsHostCode(berberis_entry_Wrapping));
-#else
-  kEntryInterpret = AsHostCode(berberis_entry_Interpret);
-  kEntryExitGeneratedCode = AsHostCode(berberis_entry_ExitGeneratedCode);
-  kEntryStop = AsHostCode(berberis_entry_Stop);
-  kEntryNoExec = AsHostCode(berberis_entry_NoExec);
-  kEntryNotTranslated = AsHostCode(berberis_entry_NotTranslated);
-  kEntryTranslating = AsHostCode(berberis_entry_Translating);
-  kEntryInvalidating = AsHostCode(berberis_entry_Invalidating);
-  kEntryWrapping = AsHostCode(berberis_entry_Wrapping);
-#endif
 }
 
 }  // namespace berberis
