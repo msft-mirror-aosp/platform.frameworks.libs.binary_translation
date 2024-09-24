@@ -44,6 +44,11 @@ using CodeEmitter = berberis::rv64::Assembler;
 
 namespace berberis {
 
+enum class CPUArch {
+  kX86_64,
+  kRiscv64,
+};
+
 int Callee() {
   return 239;
 }
@@ -52,10 +57,19 @@ float FloatFunc(float f1, float f2) {
   return f1 - f2;
 }
 
+inline bool IsInstructionEqual(std::string code_str1,
+                               std::string code_str2,
+                               uint32_t insn,
+                               uint32_t insn_size) {
+  return code_str1.compare(
+             insn * (insn_size + 1), insn_size, code_str2, insn * (insn_size + 1), insn_size) == 0;
+}
+
 template <typename ParcelInt>
 inline bool CompareCode(const ParcelInt* code_template_begin,
                         const ParcelInt* code_template_end,
-                        const MachineCode& code) {
+                        const MachineCode& code,
+                        CPUArch arch) {
   if ((code_template_end - code_template_begin) * sizeof(ParcelInt) != code.install_size()) {
     ALOGE("Code size mismatch: %zd != %u",
           (code_template_end - code_template_begin) * static_cast<unsigned>(sizeof(ParcelInt)),
@@ -68,9 +82,34 @@ inline bool CompareCode(const ParcelInt* code_template_begin,
     MachineCode code2;
     code2.AddSequence(code_template_begin, code_template_end - code_template_begin);
     std::string code_str1, code_str2;
-    code.AsString(&code_str1);
-    code2.AsString(&code_str2);
-    ALOGE("assembler generated\n%s\nshall be\n%s", code_str1.c_str(), code_str2.c_str());
+    uint32_t insn_size = 0;
+    switch (arch) {
+      case CPUArch::kRiscv64:
+        insn_size = 8;
+        code.AsString(&code_str1, InstructionSize::FourBytes);
+        code2.AsString(&code_str2, InstructionSize::FourBytes);
+        break;
+      case CPUArch::kX86_64:
+        insn_size = 2;
+        code.AsString(&code_str1, InstructionSize::OneByte);
+        code2.AsString(&code_str2, InstructionSize::OneByte);
+        break;
+    }
+    CHECK_EQ(code_str1.size() % (insn_size + 1), 0);
+    CHECK_EQ(code_str2.size() % (insn_size + 1), 0);
+    uint32_t number_of_instructions = code_str1.size() / (insn_size + 1);
+    // Skip identical part.
+    uint32_t insn = 0;
+    while (insn < number_of_instructions &&
+           IsInstructionEqual(code_str1, code_str2, insn, insn_size)) {
+      insn++;
+    }
+    for (uint32_t i = insn; i < insn + 20 && i < number_of_instructions; i++) {
+      ALOGE("Assembler generated: %s, should be %s\n",
+            code_str1.substr(i * (insn_size + 1), insn_size).c_str(),
+            code_str2.substr(i * (insn_size + 1), insn_size).c_str());
+    }
+
     return false;
   }
   return true;
@@ -249,7 +288,7 @@ bool AssemblerTest() {
   };                    // end:
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kRiscv64);
 }
 
 }  // namespace rv32
@@ -417,7 +456,7 @@ bool AssemblerTest() {
   };                    // end:
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kRiscv64);
 }
 
 }  // namespace rv64
@@ -460,7 +499,7 @@ bool AssemblerTest() {
   };
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kX86_64);
 }
 
 }  // namespace x86_32
@@ -494,7 +533,7 @@ bool AssemblerTest() {
   };
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kX86_64);
 }
 
 }  // namespace x86_64
@@ -799,7 +838,7 @@ bool CondTest1() {
   ScopedExecRegion exec(&code);
 
   std::string code_str;
-  code.AsString(&code_str);
+  code.AsString(&code_str, InstructionSize::OneByte);
   using TestFunc = uint32_t(int, int);
   auto target_func = exec.get<TestFunc>();
   uint32_t result;
@@ -1182,7 +1221,8 @@ bool ExhaustiveTest() {
 #endif
   as.Finalize();
 
-  return CompareCode(berberis_gnu_as_output_start, berberis_gnu_as_output_end, code);
+  return CompareCode(
+      berberis_gnu_as_output_start, berberis_gnu_as_output_end, code, CPUArch::kX86_64);
 }
 
 bool MixedAssembler() {
@@ -1214,7 +1254,7 @@ bool MixedAssembler() {
   };
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kX86_64);
 }
 #endif
 
