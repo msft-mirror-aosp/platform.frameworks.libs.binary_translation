@@ -266,7 +266,7 @@
       ]
     },
     {
-      "stems": [ "lb", "lbu", "lh", "lhu", "lla", "lw" ],
+      "stems": [ "lb", "lbu", "lh", "lhu", "la", "lw" ],
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "Label" }
