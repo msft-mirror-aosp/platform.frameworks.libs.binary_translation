@@ -353,6 +353,12 @@
     {
       "stems": [ "ret" ],
       "args": []
+    },
+    {
+      "stems": [ "call", "tail" ],
+      "args": [
+        { "class": "Label" }
+      ]
     }
   ]
 }
