@@ -36,6 +36,7 @@ bool IsAddressGuestExecutable(GuestAddr pc) {
 
 bool InitBerberisUnsafe() {
   InitLargeMmap();
+  InitHostEntries();
   Tracing::Init();
   InitGuestThreadManager();
   InitGuestFunctionWrapper(&IsAddressGuestExecutable);
