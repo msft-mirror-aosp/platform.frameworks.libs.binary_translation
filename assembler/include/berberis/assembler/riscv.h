@@ -762,6 +762,53 @@ class Assembler : public AssemblerBase {
   static constexpr FpRegister ft10{30};
   static constexpr FpRegister ft11{31};
 
+  class VRegister {
+   public:
+    constexpr bool operator==(const VRegister& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const VRegister& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(VRegister value) { return value.num_; }
+    friend class Assembler<DerivedAssemblerType>;
+
+   private:
+    explicit constexpr VRegister(uint8_t num) : num_(num) {}
+    uint8_t num_;
+  };
+
+  static constexpr VRegister no_v_register{0x80};
+  static constexpr VRegister v0{0};
+  static constexpr VRegister v1{1};
+  static constexpr VRegister v2{2};
+  static constexpr VRegister v3{3};
+  static constexpr VRegister v4{4};
+  static constexpr VRegister v5{5};
+  static constexpr VRegister v6{6};
+  static constexpr VRegister v7{7};
+  static constexpr VRegister v8{8};
+  static constexpr VRegister v9{9};
+  static constexpr VRegister v10{10};
+  static constexpr VRegister v11{11};
+  static constexpr VRegister v12{12};
+  static constexpr VRegister v13{13};
+  static constexpr VRegister v14{14};
+  static constexpr VRegister v15{15};
+  static constexpr VRegister v16{16};
+  static constexpr VRegister v17{17};
+  static constexpr VRegister v18{18};
+  static constexpr VRegister v19{19};
+  static constexpr VRegister v20{20};
+  static constexpr VRegister v21{21};
+  static constexpr VRegister v22{22};
+  static constexpr VRegister v23{23};
+  static constexpr VRegister v24{24};
+  static constexpr VRegister v25{25};
+  static constexpr VRegister v26{26};
+  static constexpr VRegister v27{27};
+  static constexpr VRegister v28{28};
+  static constexpr VRegister v29{29};
+  static constexpr VRegister v30{30};
+  static constexpr VRegister v31{31};
+
   template <typename RegisterType, typename ImmediateType>
   struct Operand {
     RegisterType base{0};
