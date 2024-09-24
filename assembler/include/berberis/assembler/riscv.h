@@ -1193,7 +1193,7 @@ inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
                   int32_t data : 12;
                 } bottom = {offset};
                 *AddrAs<int32_t>(pc) |= UImmediate{top}.EncodedValue();
-                *AddrAs<int32_t>(pc + 4) |= (*AddrAs<int32_t>(pc + 4) & 32)
+                *AddrAs<int32_t>(pc + 4) |= ((*AddrAs<int32_t>(pc + 4) & 96) == 32)
                                                 ? SImmediate{bottom.data}.EncodedValue()
                                                 : IImmediate{bottom.data}.EncodedValue();
                 return true;
@@ -1253,6 +1253,24 @@ inline void Assembler<DerivedAssemblerType>::Li(Register dest, int32_t imm32) {
 template <typename DerivedAssemblerType>
 inline void Assembler<DerivedAssemblerType>::Ret() {
   Jalr(Assembler::x0, Assembler::x1, static_cast<IImmediate>(0));
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(Assembler::x6, UImmediate{0});
+  // The low 12 bite of difference will be added with jalr instruction
+  EmitITypeInstruction<uint32_t{0x0000'0067}>(Assembler::x1, Assembler::x6, IImmediate{0});
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Tail(const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(Assembler::x6, UImmediate{0});
+  // The low 12 bite of difference will be added with jalr instruction
+  EmitITypeInstruction<uint32_t{0x0000'0067}>(Assembler::x0, Assembler::x6, IImmediate{0});
 }
 
 }  // namespace riscv

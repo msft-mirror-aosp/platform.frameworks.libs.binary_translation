@@ -350,9 +350,11 @@ bool AssemblerTest() {
   assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
   assembler.Li(Assembler::x10, static_cast<int64_t>(0xaaaa'0aa0'aaa0'0aaa));
   assembler.Ret();
+  assembler.Call(data_end);
+  assembler.Tail(data_end);
   // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
   // immediate.
-  for (size_t index = 114; index < 1200; ++index) {
+  for (size_t index = 122; index < 1200; ++index) {
     assembler.TwoByte(uint16_t{0});
   }
   assembler.Ld(Assembler::x1, data_begin);
@@ -420,7 +422,11 @@ bool AssemblerTest() {
     0x1513, 0x00c5,     //        slli a0, a0, 0xc
     0x0513, 0xaaa5,     //        addi a0,a0,-1366
     0x8067, 0x0000,     //        ret
-    [ 114 ... 1199 ] = 0,//        padding
+    0x1317, 0x0000,     //        auipc x6, 0x1
+    0x00e7, 0x8943,     //        jalr x1, x6, -1900
+    0x1317, 0x0000,     //        auipc x6, 0x1
+    0x0067, 0x88c3,     //        jalr x0, x6, -1908
+    [ 122 ... 1199 ] = 0,//        padding
     0xf097, 0xffff,     //        auipc   x1, -4096
     0xb083, 0x6a00,     //        ld      x1, 1696(x1)
     0xf117, 0xffff,     //        auipc   x2, -4096
