@@ -95,7 +95,7 @@ bool AssemblerTest() {
   assembler.Sb(Assembler::x14, data_end, Assembler::x15);
   assembler.Sh(Assembler::x16, data_end, Assembler::x17);
   assembler.Sw(Assembler::x18, data_end, Assembler::x19);
-  assembler.Lla(Assembler::x20, data_end);
+  assembler.La(Assembler::x20, data_end);
   assembler.Bcc(Assembler::Condition::kEqual, Assembler::x1, Assembler::x2, label);
   assembler.Bcc(Assembler::Condition::kNotEqual, Assembler::x3, Assembler::x4, label);
   assembler.Bcc(Assembler::Condition::kLess, Assembler::x5, Assembler::x6, label);
@@ -149,7 +149,7 @@ bool AssemblerTest() {
   assembler.Sb(Assembler::x14, data_begin, Assembler::x15);
   assembler.Sh(Assembler::x16, data_begin, Assembler::x17);
   assembler.Sw(Assembler::x18, data_begin, Assembler::x19);
-  assembler.Lla(Assembler::x20, data_begin);
+  assembler.La(Assembler::x20, data_begin);
   assembler.Bind(&data_end);
   assembler.Finalize();
 
