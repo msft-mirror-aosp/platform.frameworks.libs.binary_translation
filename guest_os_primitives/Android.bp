@@ -153,8 +153,14 @@ cc_library_static {
         "libberberis_guest_os_primitives_common_arch_defaults",
     ],
     host_supported: true,
+    arch: {
+        x86_64: {
+            srcs: [
+                "riscv64/gen_syscall_numbers_x86_64.cc",
+            ],
+        },
+    },
     srcs: [
-        "riscv64/gen_syscall_numbers.cc",
         "riscv64/guest_setjmp.cc",
         "riscv64/guest_signal.cc",
     ],
