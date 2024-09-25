@@ -105,9 +105,16 @@
       ]
     },
     {
-      "stems": [ "beq", "bge", "bgeu", "blt", "bltu", "bne" ],
+      "stems": [ "beq", "bge", "bgeu", "blt", "bltu", "bne", "bgt", "bgtu", "ble", "bleu" ],
       "args": [
         { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Label" }
+      ]
+    },
+    {
+      "stems": [ "beqz", "bnez", "blez", "bgez", "bltz", "bgtz" ],
+      "args": [
         { "class": "GeneralReg", "usage": "use" },
         { "class": "Label" }
       ]

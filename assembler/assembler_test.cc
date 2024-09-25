@@ -313,9 +313,19 @@ bool AssemblerTest() {
   assembler.Ret();
   assembler.Call(data_end);
   assembler.Tail(data_end);
+  assembler.Bgt(Assembler::x4, Assembler::x0, data_end);
+  assembler.Bgtu(Assembler::x2, Assembler::x20, data_end);
+  assembler.Ble(Assembler::x1, Assembler::x30, data_end);
+  assembler.Bleu(Assembler::x8, Assembler::x16, data_end);
+  assembler.Beqz(Assembler::x5, data_end);
+  assembler.Bnez(Assembler::x4, data_end);
+  assembler.Blez(Assembler::x2, data_end);
+  assembler.Bgez(Assembler::x3, data_end);
+  assembler.Bltz(Assembler::x9, data_end);
+  assembler.Bgtz(Assembler::x12, data_end);
   // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
   // immediate.
-  for (size_t index = 122; index < 1200; ++index) {
+  for (size_t index = 142; index < 1200; ++index) {
     assembler.TwoByte(uint16_t{0});
   }
   assembler.Ld(Assembler::x1, data_begin);
@@ -387,7 +397,17 @@ bool AssemblerTest() {
     0x00e7, 0x8943,     //        jalr x1, x6, -1900
     0x1317, 0x0000,     //        auipc x6, 0x1
     0x0067, 0x88c3,     //        jalr x0, x6, -1908
-    [ 122 ... 1199 ] = 0,//        padding
+    0x42e3, 0x0840,     //        blt x0, x4, 0x884
+    0x60e3, 0x082a,     //        bltu x20, x2, 0x880
+    0x5ee3, 0x061f,     //        bge x30, x1, 0x87c
+    0x7ce3, 0x0688,     //        bgeu x16, x8, 0x878
+    0x8ae3, 0x0602,     //        beq x5, 0x874
+    0x18e3, 0x0602,     //        bne x4, 0x870
+    0x56e3, 0x0620,     //        ble x2, 0x86c
+    0xd4e3, 0x0601,     //        bge x3, 0x868
+    0xc2e3, 0x0604,     //        blt x9, 0x864
+    0x40e3, 0x06c0,     //        bgt x12, 0x860
+    [ 142 ... 1199 ] = 0,//        padding
     0xf097, 0xffff,     //        auipc   x1, -4096
     0xb083, 0x6a00,     //        ld      x1, 1696(x1)
     0xf117, 0xffff,     //        auipc   x2, -4096
