@@ -22,7 +22,8 @@
 #include <mutex>
 #include <string>
 
-#include "berberis/base/logging.h"
+#include "berberis/base/checks.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/base/tracing.h"
 #include "berberis/proxy_loader/proxy_library_builder.h"
 
@@ -63,16 +64,15 @@ void InterceptGuestSymbol(GuestAddr addr,
                           const char* library_name,
                           const char* name,
                           const char* proxy_prefix) {
-  static std::mutex g_guard_mutex;
-  std::lock_guard<std::mutex> guard(g_guard_mutex);
+  static auto* g_mutex = NewForever<std::mutex>();
+  std::lock_guard<std::mutex> guard(*g_mutex);
 
   using Libraries = std::map<std::string, ProxyLibraryBuilder>;
-  static Libraries g_libraries;
+  static auto* g_libraries = NewForever<Libraries>();
 
-  auto res = g_libraries.insert({library_name, {}});
+  auto res = g_libraries->insert({library_name, {}});
   if (res.second && !LoadProxyLibrary(&res.first->second, library_name, proxy_prefix)) {
-    LOG_ALWAYS_FATAL(
-        "Unable to load library \"%s\" (upon using symbol \"%s\")", library_name, name);
+    FATAL("Unable to load library \"%s\" (upon using symbol \"%s\")", library_name, name);
   }
 
   res.first->second.InterceptSymbol(addr, name);
