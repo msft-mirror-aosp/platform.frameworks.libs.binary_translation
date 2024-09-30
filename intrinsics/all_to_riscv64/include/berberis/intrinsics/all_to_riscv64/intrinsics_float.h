@@ -197,19 +197,17 @@ inline Float32 FPRound(const Float32& value, uint32_t round_control) {
           : "f"(result.value_));
       break;
     case FE_TIESAWAY:
-      // Convert positive value to integer with rounding down.
+      // Convert positive value to integer with rounding up.
       asm("fcvt.w.s %0, %1, rup" : "=r"(compare_result) : "f"(positive_value.value_));
-      // Subtract ½ from the rounded avlue and compare to the previously calculated positive value.
+      // Subtract .5 from the rounded avlue and compare to the previously calculated positive value.
       // Note: here we don't have to deal with infinities, NaNs, values that are too large, etc,
       // since they are all handled above before we reach that line.
-      //  But coding that in C++ gives compiler opportunity to use Zfa, if it's enabled.
+      // But coding that in C++ gives compiler opportunity to use Zfa, if it's enabled.
       if (positive_value.value_ ==
           static_cast<float>(static_cast<float>(static_cast<int32_t>(compare_result)) - 0.5f)) {
         // If they are equal then we already have the final result (but without correct sign bit).
         // Thankfully RISC-V includes operation that can be used to pick sign from original value.
-        asm("fsgnj.s %0, %1, %2"
-            : "=f"(result.value_)
-            : "f"(positive_value.value_), "f"(result.value_));
+        result.value_ = static_cast<float>(static_cast<int32_t>(compare_result));
       } else {
         // Otherwise we may now use conversion to nearest.
         asm("fcvt.w.s %1, %2, rne\n"
@@ -221,6 +219,8 @@ inline Float32 FPRound(const Float32& value, uint32_t round_control) {
     default:
       FATAL("Unknown round_control in FPRound!");
   }
+  // Pick sign from original value. This is needed for -0 corner cases and ties away.
+  asm("fsgnj.s %0, %1, %2" : "=f"(result.value_) : "f"(result.value_), "f"(value.value_));
   return result;
 }
 
@@ -275,18 +275,16 @@ inline Float64 FPRound(const Float64& value, uint32_t round_control) {
           : "f"(result.value_));
       break;
     case FE_TIESAWAY:
-      // Convert positive value to integer with rounding down.
+      // Convert positive value to integer with rounding up.
       asm("fcvt.l.d %0, %1, rup" : "=r"(compare_result) : "f"(positive_value.value_));
-      // Subtract ½ from the rounded avlue and compare to the previously calculated positive value.
+      // Subtract .5 from the rounded value and compare to the previously calculated positive value.
       // Note: here we don't have to deal with infinities, NaNs, values that are too large, etc,
       // since they are all handled above before we reach that line.
-      //  But coding that in C++ gives compiler opportunity to use Zfa, if it's enabled.
+      // But coding that in C++ gives compiler opportunity to use Zfa, if it's enabled.
       if (positive_value.value_ == static_cast<double>(compare_result) - 0.5) {
         // If they are equal then we already have the final result (but without correct sign bit).
         // Thankfully RISC-V includes operation that can be used to pick sign from original value.
-        asm("fsgnj.d %0, %1, %2"
-            : "=f"(result.value_)
-            : "f"(positive_value.value_), "f"(result.value_));
+        result.value_ = static_cast<double>(compare_result);
       } else {
         // Otherwise we may now use conversion to nearest.
         asm("fcvt.l.d %1, %2, rne\n"
@@ -298,6 +296,8 @@ inline Float64 FPRound(const Float64& value, uint32_t round_control) {
     default:
       FATAL("Unknown round_control in FPRound!");
   }
+  // Pick sign from original value. This is needed for -0 corner cases and ties away.
+  asm("fsgnj.d %0, %1, %2" : "=f"(result.value_) : "f"(result.value_), "f"(value.value_));
   return result;
 }
 

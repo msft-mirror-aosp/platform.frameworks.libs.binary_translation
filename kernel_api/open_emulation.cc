@@ -31,6 +31,7 @@
 #include "berberis/base/arena_vector.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/fd.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_state/guest_addr.h"
@@ -45,8 +46,8 @@ class EmulatedFileDescriptors {
   explicit EmulatedFileDescriptors() : fds_(&arena_) {}
 
   static EmulatedFileDescriptors* GetInstance() {
-    static EmulatedFileDescriptors g_emulated_proc_self_maps_fds;
-    return &g_emulated_proc_self_maps_fds;
+    static auto* g_emulated_proc_self_maps_fds = NewForever<EmulatedFileDescriptors>();
+    return g_emulated_proc_self_maps_fds;
   }
 
   // Not copyable or movable.
