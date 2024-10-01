@@ -41,17 +41,16 @@ class Riscv64ToArm64InterpreterTest : public ::testing::Test {
   template <uint8_t kInsnSize = 4>
   void RunInstruction(const uint32_t& insn_bytes) {
     state_.cpu.insn_addr = ToGuestAddr(&insn_bytes);
-    InterpretInsn(&state_);
+    EXPECT_TRUE(RunOneInstruction<kInsnSize>(&state_, state_.cpu.insn_addr + kInsnSize));
   }
 
   void TestOp(uint32_t insn_bytes,
-              // The tuple is [arg1, arg2, expected_result].
               std::initializer_list<std::tuple<uint64_t, uint64_t, uint64_t>> args) {
-    for (auto arg : args) {
-      SetXReg<2>(state_.cpu, std::get<0>(arg));
-      SetXReg<3>(state_.cpu, std::get<1>(arg));
+    for (auto [arg1, arg2, expected_result] : args) {
+      SetXReg<2>(state_.cpu, arg1);
+      SetXReg<3>(state_.cpu, arg2);
       RunInstruction(insn_bytes);
-      EXPECT_EQ(GetXReg<1>(state_.cpu), std::get<2>(arg));
+      EXPECT_EQ(GetXReg<1>(state_.cpu), expected_result);
     }
   }
 
@@ -245,12 +244,33 @@ TEST_F(Riscv64ToArm64InterpreterTest, OpInstructions) {
              {23, 19, 0},
              {~0ULL, 0, 0},
          });
+  // Div
+  TestOp(0x23140b3, {{0x9999'9999'9999'9999, 0x3333, 0xfffd'fffd'fffd'fffe}});
+  TestOp(0x23140b3, {{42, 2, 21}});
+  TestOp(0x23140b3, {{42, 0, -1}});
+  TestOp(0x23140b3, {{-2147483648, -1, 2147483648}});
+  TestOp(0x23140b3, {{0x8000'0000'0000'0000, -1, 0x8000'0000'0000'0000}});
+  // Divu
+  TestOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
   // Andn
   TestOp(0x403170b3, {{0b0101, 0b0011, 0b0100}});
   // Orn
   TestOp(0x403160b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fffd}});
   // Xnor
   TestOp(0x403140b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fff9}});
+  // Bclr
+  TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
+  // Bext
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 0, 0b0000'0000'0000'0001ULL}});
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 8, 0b0000'0000'0000'0001ULL}});
+  TestOp(0x483150b3, {{0b1000'0001'0000'0001ULL, 7, 0b0000'0000'0000'0000ULL}});
+  // Binv
+  TestOp(0x683110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOp(0x683110b3, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
+  // Bset
+  TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0001ULL}});
+  TestOp(0x283110b3, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
 
 TEST_F(Riscv64ToArm64InterpreterTest, OpImmInstructions) {
