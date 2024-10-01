@@ -21,6 +21,7 @@
 #include <mutex>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/base/large_mmap.h"
 #include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
@@ -63,8 +64,8 @@ bool DoIntervalsIntersect(const void* start,
 }  // namespace
 
 GuestMapShadow* GuestMapShadow::GetInstance() {
-  static GuestMapShadow g_map_shadow;
-  return &g_map_shadow;
+  static auto* g_map_shadow = NewForever<GuestMapShadow>();
+  return g_map_shadow;
 }
 
 bool GuestMapShadow::IsExecAddr(GuestAddr addr) const {
