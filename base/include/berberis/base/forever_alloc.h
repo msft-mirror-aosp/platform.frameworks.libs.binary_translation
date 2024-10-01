@@ -97,6 +97,11 @@ inline void* AllocateForever(size_t size, size_t align) {
   return g_forever_allocator.Allocate(size, align);
 }
 
+template <typename Type>
+inline Type* NewForever() {
+  return new (AllocateForever(sizeof(Type), alignof(Type))) Type();
+}
+
 }  // namespace berberis
 
 #endif  // BERBERIS_BASE_FOREVER_ALLOC_H_

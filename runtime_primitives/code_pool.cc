@@ -20,6 +20,7 @@
 #include <mutex>
 
 #include "berberis/base/exec_region_anonymous.h"
+#include "berberis/base/forever_alloc.h"
 
 #if defined(__BIONIC__)
 #include "berberis/base/exec_region_elf_backed.h"
@@ -60,8 +61,8 @@ CodePool<ExecRegionAnonymousFactory>* GetFunctionWrapperCodePoolInstance() {
 #endif
 
 DataPool* DataPool::GetInstance() {
-  static DataPool g_data_pool;
-  return &g_data_pool;
+  static auto* g_data_pool = NewForever<DataPool>();
+  return g_data_pool;
 }
 
 }  // namespace berberis
