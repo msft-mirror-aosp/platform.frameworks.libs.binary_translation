@@ -1193,7 +1193,7 @@ inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
                   int32_t data : 12;
                 } bottom = {offset};
                 *AddrAs<int32_t>(pc) |= UImmediate{top}.EncodedValue();
-                *AddrAs<int32_t>(pc + 4) |= (*AddrAs<int32_t>(pc + 4) & 32)
+                *AddrAs<int32_t>(pc + 4) |= ((*AddrAs<int32_t>(pc + 4) & 96) == 32)
                                                 ? SImmediate{bottom.data}.EncodedValue()
                                                 : IImmediate{bottom.data}.EncodedValue();
                 return true;
@@ -1224,8 +1224,111 @@ inline void Assembler<DerivedAssemblerType>::Mv(Register dest, Register src) {
   Addi(dest, src, 0);
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Li(Register dest, int32_t imm32) {
+  // If the value fits into 12bit I-Immediate type, load using addi.
+  if (-2048 <= imm32 && imm32 <= 2047) {
+    Addi(dest, Assembler::zero, static_cast<IImmediate>(imm32));
+  } else {
+    // Otherwise we need to use 2 instructions: lui to load top 20 bits and addi for bottom 12 bits,
+    // however since the I-Immediate is signed, we could not just split the number into 2 parts: for
+    // example loading 4095 should result in loading 1 in upper 20 bits (lui 0x1) and then
+    // subtracting 1 (addi dest, dest, -1).
+    // Perform calculations on unsigned type to avoid undefined behavior.
+    uint32_t uimm = static_cast<uint32_t>(imm32);
+    // Since bottom 12bits are loaded via a 12-bit signed immediate, we need to add the sign bit to
+    // the top part.
+    int32_t top = (uimm + ((uimm & (1U << 11)) << 1)) & 0xffff'f000;
+    // Sign extends the bottom 12 bits.
+    struct {
+      int32_t data : 12;
+    } bottom = {imm32};
+    Lui(dest, static_cast<UImmediate>(top));
+    if (bottom.data) {
+      Addi(dest, dest, static_cast<IImmediate>(bottom.data));
+    }
+  }
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Ret() {
+  Jalr(Assembler::x0, Assembler::x1, static_cast<IImmediate>(0));
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(Assembler::x6, UImmediate{0});
+  // The low 12 bite of difference will be added with jalr instruction
+  EmitITypeInstruction<uint32_t{0x0000'0067}>(Assembler::x1, Assembler::x6, IImmediate{0});
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Tail(const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(Assembler::x6, UImmediate{0});
+  // The low 12 bite of difference will be added with jalr instruction
+  EmitITypeInstruction<uint32_t{0x0000'0067}>(Assembler::x0, Assembler::x6, IImmediate{0});
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgt(Register arg0, Register arg1, const Label& label) {
+  Blt(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgtu(Register arg0,
+                                                  Register arg1,
+                                                  const Label& label) {
+  Bltu(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Ble(Register arg0, Register arg1, const Label& label) {
+  Bge(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bleu(Register arg0,
+                                                  Register arg1,
+                                                  const Label& label) {
+  Bgeu(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Beqz(Register arg0, const Label& label) {
+  Beq(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bnez(Register arg0, const Label& label) {
+  Bne(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Blez(Register arg0, const Label& label) {
+  Ble(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgez(Register arg0, const Label& label) {
+  Bge(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bltz(Register arg0, const Label& label) {
+  Blt(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgtz(Register arg0, const Label& label) {
+  Bgt(arg0, zero, label);
+}
+
 }  // namespace riscv
 
 }  // namespace berberis
 
-#endif  // BERBERIS_ASSEMBLER_COMMON_X86_H_
+#endif  // BERBERIS_ASSEMBLER_COMMON_RISCV_H_
