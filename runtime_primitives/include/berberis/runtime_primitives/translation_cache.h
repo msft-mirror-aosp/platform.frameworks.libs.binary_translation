@@ -46,7 +46,7 @@ struct GuestCodeEntry {
 
   enum class Kind {
     kInterpreted,
-    kLightTranslated,
+    kLiteTranslated,
     kHeavyOptimized,
     kGuestWrapped,
     kHostWrapped,
