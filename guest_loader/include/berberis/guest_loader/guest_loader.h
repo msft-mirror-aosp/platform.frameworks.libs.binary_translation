@@ -104,7 +104,7 @@ class GuestLoader {
                               char* envp[],
                               std::string* error_msg);
 
-  // If GetInstance() called before Initialize() it will return nullptr
+  // It's only valid to call this after CreateInstance is finished.
   static GuestLoader* GetInstance();
 
   uintptr_t DlUnwindFindExidx(uintptr_t pc, int* pcount);
