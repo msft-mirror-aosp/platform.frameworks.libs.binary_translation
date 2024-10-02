@@ -192,7 +192,7 @@ extern "C" {
   asm("unimp");
 }
 
-[[gnu::naked]] [[gnu::noinline]] void berberis_entry_HandleLightCounterThresholdReached() {
+[[gnu::naked]] [[gnu::noinline]] void berberis_entry_HandleLiteCounterThresholdReached() {
   asm("unimp");
 }
 

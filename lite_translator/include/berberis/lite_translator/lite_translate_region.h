@@ -34,7 +34,7 @@ struct LiteTranslateParams {
   uint32_t* counter_location = nullptr;
   uint32_t counter_threshold = config::kGearSwitchThreshold;
   HostCode counter_threshold_callback =
-      AsHostCode(berberis::berberis_entry_HandleLightCounterThresholdReached);
+      AsHostCode(berberis::berberis_entry_HandleLiteCounterThresholdReached);
 };
 
 bool LiteTranslateRange(GuestAddr start_pc,
