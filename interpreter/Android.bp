@@ -102,6 +102,7 @@ cc_test {
         "libberberis_interpreter_riscv64",
         "libberberis_kernel_api_riscv64",
         "liblog",
+        "libberberis_intrinsics_riscv64",
     ],
     srcs: [
         "riscv64/faulty_memory_accesses_test.cc",
