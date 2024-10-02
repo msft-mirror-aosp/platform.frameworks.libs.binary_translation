@@ -406,7 +406,8 @@ def _gen_interpreter_hook(f, name, intr, option):
     print('\n'.join(lines), file=f)
   else:
     # TODO(b/363057506): Add float support and clean up the logic here.
-    arm64_allowlist = ['AmoAdd', 'AmoAnd', 'AmoMax', 'AmoMin', 'AmoOr', 'AmoSwap', 'AmoXor']
+    arm64_allowlist = ['AmoAdd', 'AmoAnd', 'AmoMax', 'AmoMin', 'AmoOr', 'AmoSwap', 'AmoXor', 'Bclr',
+                       'Bext', 'Binv', 'Bset', 'Div']
     if (option == 'arm64') and (name not in arm64_allowlist):
       _get_placeholder_return_stmt(intr, f)
     else:
