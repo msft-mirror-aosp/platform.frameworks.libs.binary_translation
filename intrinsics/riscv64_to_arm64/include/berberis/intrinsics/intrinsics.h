@@ -20,6 +20,7 @@
 #ifndef RISCV64_TO_ARM64_BERBERIS_INTRINSICS_H_
 #define RISCV64_TO_ARM64_BERBERIS_INTRINSICS_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <tuple>
 #include <type_traits>
@@ -30,7 +31,7 @@ namespace berberis {
 
 namespace intrinsics {
 
-uint64_t ShiftedOne(uint64_t shift_amount) {
+inline uint64_t ShiftedOne(uint64_t shift_amount) {
   return uint64_t{1} << (shift_amount % 64);
 }
 
@@ -56,7 +57,7 @@ inline std::tuple<uint64_t> Bset(uint64_t in1, uint64_t in2) {
 
 template <typename T, enum PreferredIntrinsicsImplementation>
 inline std::tuple<T> Div(T in1, T in2) {
-  static_assert(std::is_integral_v<T>, "T must be an integer type.");
+  static_assert(std::is_integral_v<T>);
 
   if (in2 == 0) {
     return ~T{0};
@@ -64,6 +65,97 @@ inline std::tuple<T> Div(T in1, T in2) {
     return {std::numeric_limits<T>::min()};
   }
   return {in1 / in2};
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<T> Max(T in1, T in2) {
+  static_assert(std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>);
+  return {std::max(in1, in2)};
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<T> Min(T in1, T in2) {
+  static_assert(std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>);
+  return {std::min(in1, in2)};
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<T> Rem(T in1, T in2) {
+  static_assert(std::is_integral_v<T>);
+
+  if (in2 == 0) {
+    return {in1};
+  } else if (std::is_signed_v<T> && in2 == -1 && in1 == std::numeric_limits<T>::min()) {
+    return {0};
+  }
+  return {in1 % in2};
+};
+
+inline std::tuple<uint64_t> Rev8(uint64_t in1) {
+  return {__builtin_bswap64(in1)};
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<T> Rol(T in1, int8_t in2) {
+  static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t>);
+  // We need unsigned shifts, so that shifted-in bits are filled with zeroes.
+  if (std::is_same_v<T, int32_t>) {
+    return {(static_cast<uint32_t>(in1) << (in2 % 32)) |
+            (static_cast<uint32_t>(in1) >> (32 - (in2 % 32)))};
+  } else {
+    return {(static_cast<uint64_t>(in1) << (in2 % 64)) |
+            (static_cast<uint64_t>(in1) >> (64 - (in2 % 64)))};
+  }
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<T> Ror(T in1, int8_t in2) {
+  static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t>);
+  // We need unsigned shifts, so that shifted-in bits are filled with zeroes.
+  if (std::is_same_v<T, int32_t>) {
+    return {(static_cast<uint32_t>(in1) >> (in2 % 32)) |
+            (static_cast<uint32_t>(in1) << (32 - (in2 % 32)))};
+  } else {
+    return {(static_cast<uint64_t>(in1) >> (in2 % 64)) |
+            (static_cast<uint64_t>(in1) << (64 - (in2 % 64)))};
+  }
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<int64_t> Sext(T in1) {
+  static_assert(std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t>);
+  return {static_cast<int64_t>(in1)};
+};
+
+inline std::tuple<uint64_t> Sh1add(uint64_t in1, uint64_t in2) {
+  return {uint64_t{in1} * 2 + in2};
+};
+
+inline std::tuple<uint64_t> Sh1adduw(uint32_t in1, uint64_t in2) {
+  return Sh1add(uint64_t{in1}, in2);
+};
+
+inline std::tuple<uint64_t> Sh2add(uint64_t in1, uint64_t in2) {
+  return {uint64_t{in1} * 4 + in2};
+};
+
+inline std::tuple<uint64_t> Sh2adduw(uint32_t in1, uint64_t in2) {
+  return Sh2add(uint64_t{in1}, in2);
+};
+
+inline std::tuple<uint64_t> Sh3add(uint64_t in1, uint64_t in2) {
+  return {uint64_t{in1} * 8 + in2};
+};
+
+inline std::tuple<uint64_t> Sh3adduw(uint32_t in1, uint64_t in2) {
+  return Sh3add(uint64_t{in1}, in2);
+};
+
+template <typename T, enum PreferredIntrinsicsImplementation>
+inline std::tuple<uint64_t> Zext(T in1) {
+  static_assert(std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t> ||
+                std::is_same_v<T, uint8_t>);
+  return {static_cast<uint64_t>(in1)};
 };
 
 }  // namespace intrinsics
