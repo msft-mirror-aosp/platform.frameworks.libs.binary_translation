@@ -83,8 +83,9 @@ void MacroAssembler<Assembler>::MacroDiv(Register src) {
   Bind(done);
 }
 
-// Divisor comes in "src", dividend comes in gpr_a, remainder is returned in gpr_d.
-// gpr_a and FLAGS are clobbered by that macroinstruction.
+// Divisor comes in "src", dividend comes in gpr_a.
+// For 16/32/64-bit: remainder is returned in gpr_d. gpr_a and FLAGS are clobbered.
+// For 8-bit: remainder is returned in gpr_a. FLAGS are clobbered.
 template <typename Assembler>
 template <typename IntType>
 void MacroAssembler<Assembler>::MacroRem(Register src) {
@@ -142,10 +143,8 @@ void MacroAssembler<Assembler>::MacroRem(Register src) {
   Jmp(*done);
 
   Bind(zero);
-  if constexpr (std::is_same_v<IntType, uint8_t> || std::is_same_v<IntType, int8_t>) {
-    Mov<int8_t>(gpr_a, src);
-  } else {
-    Mov<IntType>(gpr_d, src);
+  if constexpr (!std::is_same_v<IntType, uint8_t> && !std::is_same_v<IntType, int8_t>) {
+    Mov<IntType>(gpr_d, gpr_a);
   }
   Jmp(*done);
 
