@@ -252,12 +252,48 @@ TEST_F(Riscv64ToArm64InterpreterTest, OpInstructions) {
   TestOp(0x23140b3, {{0x8000'0000'0000'0000, -1, 0x8000'0000'0000'0000}});
   // Divu
   TestOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
+  TestOp(0x23150b3, {{42, 2, 21}});
+  TestOp(0x23150b3, {{42, 0, 0xffff'ffff'ffff'ffffULL}});
+  // Rem
+  TestOp(0x23160b3, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
+  TestOp(0x23160b3, {{0x9999'9999'9999'9999, 0, 0x9999'9999'9999'9999}});
+  // Remu
+  TestOp(0x23170b3, {{0x9999'9999'9999'9999, 0x3333, 0}});
+  TestOp(0x23170b3, {{0x9999'9999'9999'9999, 0, 0x9999'9999'9999'9999}});
   // Andn
   TestOp(0x403170b3, {{0b0101, 0b0011, 0b0100}});
   // Orn
   TestOp(0x403160b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fffd}});
   // Xnor
   TestOp(0x403140b3, {{0b0101, 0b0011, 0xffff'ffff'ffff'fff9}});
+  // Max
+  TestOp(0x0a3160b3, {{bit_cast<uint64_t>(int64_t{-5}), 4, 4}});
+  TestOp(0x0a3160b3,
+         {{bit_cast<uint64_t>(int64_t{-5}),
+           bit_cast<uint64_t>(int64_t{-10}),
+           bit_cast<uint64_t>(int64_t{-5})}});
+  // Maxu
+  TestOp(0x0a3170b3, {{50, 1, 50}});
+  // Min
+  TestOp(0x0a3140b3, {{bit_cast<uint64_t>(int64_t{-5}), 4, bit_cast<uint64_t>(int64_t{-5})}});
+  TestOp(0x0a3140b3,
+         {{bit_cast<uint64_t>(int64_t{-5}),
+           bit_cast<uint64_t>(int64_t{-10}),
+           bit_cast<uint64_t>(int64_t{-10})}});
+  // Minu
+  TestOp(0x0a3150b3, {{50, 1, 1}});
+  // Ror
+  TestOp(0x603150b3, {{0xf000'0000'0000'000fULL, 4, 0xff00'0000'0000'0000ULL}});
+  TestOp(0x603150b3, {{0xf000'0000'0000'000fULL, 8, 0x0ff0'0000'0000'0000ULL}});
+  // // Rol
+  TestOp(0x603110b3, {{0xff00'0000'0000'0000ULL, 4, 0xf000'0000'0000'000fULL}});
+  TestOp(0x603110b3, {{0x000f'ff00'0000'000fULL, 8, 0x0fff'0000'0000'0f00ULL}});
+  // Sh1add
+  TestOp(0x203120b3, {{0x0008'0000'0000'0001, 0x1001'0001'0000'0000ULL, 0x1011'0001'0000'0002ULL}});
+  // Sh2add
+  TestOp(0x203140b3, {{0x0008'0000'0000'0001, 0x0001'0001'0000'0000ULL, 0x0021'0001'0000'0004ULL}});
+  // Sh3add
+  TestOp(0x203160b3, {{0x0008'0000'0000'0001, 0x1001'0011'0000'0000ULL, 0x1041'0011'0000'0008ULL}});
   // Bclr
   TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
   TestOp(0x483110b3, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
@@ -304,6 +340,30 @@ TEST_F(Riscv64ToArm64InterpreterTest, OpImmInstructions) {
   TestOpImm(0x40015093, {{0xf000'0000'0000'0000ULL, 12, 0xffff'0000'0000'0000ULL}});
   // Rori
   TestOpImm(0x60015093, {{0xf000'0000'0000'000fULL, 4, 0xff00'0000'0000'0000ULL}});
+  // Rev8
+  TestOpImm(0x6b815093, {{0x0000'0000'0000'000fULL, 0, 0x0f00'0000'0000'0000ULL}});
+  TestOpImm(0x6b815093, {{0xf000'0000'0000'0000ULL, 0, 0x0000'0000'0000'00f0ULL}});
+  TestOpImm(0x6b815093, {{0x00f0'0000'0000'0000ULL, 0, 0x0000'0000'0000'f000ULL}});
+  TestOpImm(0x6b815093, {{0x0000'000f'0000'0000ULL, 0, 0x0000'0000'0f00'0000ULL}});
+
+  // Sext.b
+  TestOpImm(0x60411093, {{0b1111'1110, 0, 0xffff'ffff'ffff'fffe}});  // -2
+  // Sext.h
+  TestOpImm(0x60511093, {{0b1111'1110, 0, 0xfe}});
+  TestOpImm(0x60511093, {{0b1111'1111'1111'1110, 0, 0xffff'ffff'ffff'fffe}});
+  // Bclri
+  TestOpImm(0x48011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOpImm(0x48011093, {{0b1000'0001'0000'0001ULL, 8, 0b1000'0000'0000'0001ULL}});
+  // Bexti
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 0, 0b0000'0000'0000'0001ULL}});
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 8, 0b0000'0000'0000'0001ULL}});
+  TestOpImm(0x48015093, {{0b1000'0001'0000'0001ULL, 7, 0b0000'0000'0000'0000ULL}});
+  // Binvi
+  TestOpImm(0x68011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0000ULL}});
+  TestOpImm(0x68011093, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
+  // Bseti
+  TestOpImm(0x28011093, {{0b1000'0001'0000'0001ULL, 0, 0b1000'0001'0000'0001ULL}});
+  TestOpImm(0x28011093, {{0b1000'0001'0000'0001ULL, 1, 0b1000'0001'0000'0011ULL}});
 }
 
 TEST_F(Riscv64ToArm64InterpreterTest, UpperImmInstructions) {
