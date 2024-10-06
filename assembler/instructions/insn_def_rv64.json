@@ -95,6 +95,13 @@
       ]
     },
     {
+      "stems": [ "li" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Imm64", "usage": "use" }
+      ]
+    },
+    {
       "encodings": {
         "slli": { "opcode": "0000_1013", "type": "I-type" },
         "srai": { "opcode": "4000_5013", "type": "I-type" },

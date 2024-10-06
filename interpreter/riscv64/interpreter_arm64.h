@@ -24,7 +24,7 @@
 #include "berberis/decoder/riscv64/decoder.h"
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/intrinsics/riscv64_to_all/intrinsics.h"
+#include "berberis/intrinsics/intrinsics.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
 
