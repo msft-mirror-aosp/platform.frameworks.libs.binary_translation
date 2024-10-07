@@ -36,11 +36,18 @@
 using CodeEmitter = berberis::x86_32::Assembler;
 #elif defined(__amd64__)
 using CodeEmitter = berberis::x86_64::Assembler;
+#elif defined(__riscv)
+using CodeEmitter = berberis::rv64::Assembler;
 #else
 #error "Unsupported platform"
 #endif
 
 namespace berberis {
+
+enum class CPUArch {
+  kX86_64,
+  kRiscv64,
+};
 
 int Callee() {
   return 239;
@@ -50,10 +57,19 @@ float FloatFunc(float f1, float f2) {
   return f1 - f2;
 }
 
+inline bool IsInstructionEqual(std::string code_str1,
+                               std::string code_str2,
+                               uint32_t insn,
+                               uint32_t insn_size) {
+  return code_str1.compare(
+             insn * (insn_size + 1), insn_size, code_str2, insn * (insn_size + 1), insn_size) == 0;
+}
+
 template <typename ParcelInt>
 inline bool CompareCode(const ParcelInt* code_template_begin,
                         const ParcelInt* code_template_end,
-                        const MachineCode& code) {
+                        const MachineCode& code,
+                        CPUArch arch) {
   if ((code_template_end - code_template_begin) * sizeof(ParcelInt) != code.install_size()) {
     ALOGE("Code size mismatch: %zd != %u",
           (code_template_end - code_template_begin) * static_cast<unsigned>(sizeof(ParcelInt)),
@@ -66,9 +82,34 @@ inline bool CompareCode(const ParcelInt* code_template_begin,
     MachineCode code2;
     code2.AddSequence(code_template_begin, code_template_end - code_template_begin);
     std::string code_str1, code_str2;
-    code.AsString(&code_str1);
-    code2.AsString(&code_str2);
-    ALOGE("assembler generated\n%s\nshall be\n%s", code_str1.c_str(), code_str2.c_str());
+    uint32_t insn_size = 0;
+    switch (arch) {
+      case CPUArch::kRiscv64:
+        insn_size = 8;
+        code.AsString(&code_str1, InstructionSize::FourBytes);
+        code2.AsString(&code_str2, InstructionSize::FourBytes);
+        break;
+      case CPUArch::kX86_64:
+        insn_size = 2;
+        code.AsString(&code_str1, InstructionSize::OneByte);
+        code2.AsString(&code_str2, InstructionSize::OneByte);
+        break;
+    }
+    CHECK_EQ(code_str1.size() % (insn_size + 1), 0);
+    CHECK_EQ(code_str2.size() % (insn_size + 1), 0);
+    uint32_t number_of_instructions = code_str1.size() / (insn_size + 1);
+    // Skip identical part.
+    uint32_t insn = 0;
+    while (insn < number_of_instructions &&
+           IsInstructionEqual(code_str1, code_str2, insn, insn_size)) {
+      insn++;
+    }
+    for (uint32_t i = insn; i < insn + 20 && i < number_of_instructions; i++) {
+      ALOGE("Assembler generated: %s, should be %s\n",
+            code_str1.substr(i * (insn_size + 1), insn_size).c_str(),
+            code_str2.substr(i * (insn_size + 1), insn_size).c_str());
+    }
+
     return false;
   }
   return true;
@@ -95,7 +136,7 @@ bool AssemblerTest() {
   assembler.Sb(Assembler::x14, data_end, Assembler::x15);
   assembler.Sh(Assembler::x16, data_end, Assembler::x17);
   assembler.Sw(Assembler::x18, data_end, Assembler::x19);
-  assembler.Lla(Assembler::x20, data_end);
+  assembler.La(Assembler::x20, data_end);
   assembler.Bcc(Assembler::Condition::kEqual, Assembler::x1, Assembler::x2, label);
   assembler.Bcc(Assembler::Condition::kNotEqual, Assembler::x3, Assembler::x4, label);
   assembler.Bcc(Assembler::Condition::kLess, Assembler::x5, Assembler::x6, label);
@@ -132,9 +173,10 @@ bool AssemblerTest() {
   assembler.PrefetchI({.base = Assembler::x1, .disp = 32});
   assembler.PrefetchR({.base = Assembler::x2, .disp = 64});
   assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
+  assembler.Li(Assembler::x15, static_cast<int32_t>(0xaf));
   // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
   // immediate.
-  for (size_t index = 120; index < 1200; ++index) {
+  for (size_t index = 122; index < 1200; ++index) {
     assembler.TwoByte(uint16_t{0});
   }
   assembler.Fld(Assembler::f1, data_begin, Assembler::x2);
@@ -149,7 +191,7 @@ bool AssemblerTest() {
   assembler.Sb(Assembler::x14, data_begin, Assembler::x15);
   assembler.Sh(Assembler::x16, data_begin, Assembler::x17);
   assembler.Sw(Assembler::x18, data_begin, Assembler::x19);
-  assembler.Lla(Assembler::x20, data_begin);
+  assembler.La(Assembler::x20, data_begin);
   assembler.Bind(&data_end);
   assembler.Finalize();
 
@@ -215,7 +257,8 @@ bool AssemblerTest() {
     0xe013, 0x0200,     //        prefetch.i 32(x1)
     0x6013, 0x0411,     //        prefetch.r 64(x2)
     0xe013, 0x0631,     //        prefetch.w 96(x3)
-    [ 120 ... 1199 ] = 0,//       padding
+    0x0793, 0x0af0,     //        addi x15, x15, 0xaf
+    [ 122 ... 1199 ] = 0,//       padding
     0xf117, 0xffff,     //        auipc   x2, -4096
     0x3087, 0x6a01,     //        fld     f1,1696(x2)
     0xf217, 0xffff,     //        auipc   x4, -4096
@@ -245,7 +288,7 @@ bool AssemblerTest() {
   };                    // end:
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kRiscv64);
 }
 
 }  // namespace rv32
@@ -305,9 +348,23 @@ bool AssemblerTest() {
   assembler.PrefetchI({.base = Assembler::x1, .disp = 32});
   assembler.PrefetchR({.base = Assembler::x2, .disp = 64});
   assembler.PrefetchW({.base = Assembler::x3, .disp = 96});
+  assembler.Li(Assembler::x10, static_cast<int64_t>(0xaaaa'0aa0'aaa0'0aaa));
+  assembler.Ret();
+  assembler.Call(data_end);
+  assembler.Tail(data_end);
+  assembler.Bgt(Assembler::x4, Assembler::x0, data_end);
+  assembler.Bgtu(Assembler::x2, Assembler::x20, data_end);
+  assembler.Ble(Assembler::x1, Assembler::x30, data_end);
+  assembler.Bleu(Assembler::x8, Assembler::x16, data_end);
+  assembler.Beqz(Assembler::x5, data_end);
+  assembler.Bnez(Assembler::x4, data_end);
+  assembler.Blez(Assembler::x2, data_end);
+  assembler.Bgez(Assembler::x3, data_end);
+  assembler.Bltz(Assembler::x9, data_end);
+  assembler.Bgtz(Assembler::x12, data_end);
   // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
   // immediate.
-  for (size_t index = 96; index < 1200; ++index) {
+  for (size_t index = 142; index < 1200; ++index) {
     assembler.TwoByte(uint16_t{0});
   }
   assembler.Ld(Assembler::x1, data_begin);
@@ -366,7 +423,30 @@ bool AssemblerTest() {
     0xe013, 0x0200,     //        prefetch.i 32(x1)
     0x6013, 0x0411,     //        prefetch.r 64(x2)
     0xe013, 0x0631,     //        prefetch.w 96(x3)
-    [ 96 ... 1199 ] = 0,//        padding
+    0x5537,0xfd55,      //        lui a0, 0xfd555
+    0x0513, 0x0555,     //        addi a0, a0, 85
+    0x1513, 0x00d5,     //        slli a0, a0, 0xd
+    0x0513, 0x0ab5,     //        addi a0, a0, 171
+    0x1513, 0x00c5,     //        slli a0, a0, 0xc
+    0x0513, 0xa015,     //        addi a0, a0, -1535
+    0x1513, 0x00c5,     //        slli a0, a0, 0xc
+    0x0513, 0xaaa5,     //        addi a0,a0,-1366
+    0x8067, 0x0000,     //        ret
+    0x1317, 0x0000,     //        auipc x6, 0x1
+    0x00e7, 0x8943,     //        jalr x1, x6, -1900
+    0x1317, 0x0000,     //        auipc x6, 0x1
+    0x0067, 0x88c3,     //        jalr x0, x6, -1908
+    0x42e3, 0x0840,     //        blt x0, x4, 0x884
+    0x60e3, 0x082a,     //        bltu x20, x2, 0x880
+    0x5ee3, 0x061f,     //        bge x30, x1, 0x87c
+    0x7ce3, 0x0688,     //        bgeu x16, x8, 0x878
+    0x8ae3, 0x0602,     //        beq x5, 0x874
+    0x18e3, 0x0602,     //        bne x4, 0x870
+    0x56e3, 0x0620,     //        ble x2, 0x86c
+    0xd4e3, 0x0601,     //        bge x3, 0x868
+    0xc2e3, 0x0604,     //        blt x9, 0x864
+    0x40e3, 0x06c0,     //        bgt x12, 0x860
+    [ 142 ... 1199 ] = 0,//        padding
     0xf097, 0xffff,     //        auipc   x1, -4096
     0xb083, 0x6a00,     //        ld      x1, 1696(x1)
     0xf117, 0xffff,     //        auipc   x2, -4096
@@ -376,7 +456,7 @@ bool AssemblerTest() {
   };                    // end:
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kRiscv64);
 }
 
 }  // namespace rv64
@@ -419,7 +499,7 @@ bool AssemblerTest() {
   };
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kX86_64);
 }
 
 }  // namespace x86_32
@@ -453,7 +533,7 @@ bool AssemblerTest() {
   };
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kX86_64);
 }
 
 }  // namespace x86_64
@@ -758,7 +838,7 @@ bool CondTest1() {
   ScopedExecRegion exec(&code);
 
   std::string code_str;
-  code.AsString(&code_str);
+  code.AsString(&code_str, InstructionSize::OneByte);
   using TestFunc = uint32_t(int, int);
   auto target_func = exec.get<TestFunc>();
   uint32_t result;
@@ -1141,7 +1221,8 @@ bool ExhaustiveTest() {
 #endif
   as.Finalize();
 
-  return CompareCode(berberis_gnu_as_output_start, berberis_gnu_as_output_end, code);
+  return CompareCode(
+      berberis_gnu_as_output_start, berberis_gnu_as_output_end, code, CPUArch::kX86_64);
 }
 
 bool MixedAssembler() {
@@ -1173,7 +1254,7 @@ bool MixedAssembler() {
   };
   // clang-format on
 
-  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code);
+  return CompareCode(std::begin(kCodeTemplate), std::end(kCodeTemplate), code, CPUArch::kX86_64);
 }
 #endif
 
@@ -1211,6 +1292,10 @@ TEST(Assembler, AssemblerTest) {
   EXPECT_TRUE(berberis::x86_64::ReadGlobalTest());
   EXPECT_TRUE(berberis::x86_64::MemShiftTest());
 #endif
+  // Currently we don't support these tests for riscv.
+  // TODO(b/352784623): Implement for riscv.
+#if defined(__i386__) || defined(__x86_64__)
   EXPECT_TRUE(berberis::ExhaustiveTest());
   EXPECT_TRUE(berberis::MixedAssembler());
+#endif
 }

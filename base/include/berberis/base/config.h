@@ -59,6 +59,8 @@ inline constexpr uint32_t kScratchAreaSize = 32;
 inline constexpr uint32_t kScratchAreaAlign = 16;
 // Scratch area slot size if more than one scratch is needed.
 inline constexpr uint32_t kScratchAreaSlotSize = 8;
+// Flag for testing mode of unimplemented instructions.
+inline constexpr bool kInstructionsBringupMode = false;
 
 }  // namespace berberis::config
 

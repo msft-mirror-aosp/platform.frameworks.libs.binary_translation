@@ -132,27 +132,6 @@ inline bool operator!=(const Float64& v1, const Float64& v2) {
 // It's NOT safe to use ANY functions which return float or double.  That's because IA32 ABI uses
 // x87 stack to pass arguments (and does that even with -mfpmath=sse) and NaN float and
 // double values would be corrupted if pushed on it.
-//
-// It's safe to use builtins here if that file is compiled with -mfpmath=sse (clang does not have
-// such flag but uses SSE whenever possible, GCC needs both -msse2 and -mfpmath=sse) since builtins
-// DON'T use an official calling conventions but are instead embedded in the function - even if all
-// optimizations are disabled.
-
-inline Float32 CopySignBit(const Float32& v1, const Float32& v2) {
-  return Float32(__builtin_copysignf(v1.value_, v2.value_));
-}
-
-inline Float64 CopySignBit(const Float64& v1, const Float64& v2) {
-  return Float64(__builtin_copysign(v1.value_, v2.value_));
-}
-
-inline Float32 Absolute(const Float32& v) {
-  return Float32(__builtin_fabsf(v.value_));
-}
-
-inline Float64 Absolute(const Float64& v) {
-  return Float64(__builtin_fabs(v.value_));
-}
 
 inline Float32 Negative(const Float32& v) {
   // TODO(b/120563432): Simple -v.value_ doesn't work after a clang update.
@@ -170,22 +149,26 @@ inline Float64 Negative(const Float64& v) {
   return result;
 }
 
-inline FPInfo FPClassify(const Float32& v) {
-  return static_cast<FPInfo>(__builtin_fpclassify(static_cast<int>(FPInfo::kNaN),
-                                                  static_cast<int>(FPInfo::kInfinite),
-                                                  static_cast<int>(FPInfo::kNormal),
-                                                  static_cast<int>(FPInfo::kSubnormal),
-                                                  static_cast<int>(FPInfo::kZero),
-                                                  v.value_));
-}
-
-inline FPInfo FPClassify(const Float64& v) {
-  return static_cast<FPInfo>(__builtin_fpclassify(static_cast<int>(FPInfo::kNaN),
-                                                  static_cast<int>(FPInfo::kInfinite),
-                                                  static_cast<int>(FPInfo::kNormal),
-                                                  static_cast<int>(FPInfo::kSubnormal),
-                                                  static_cast<int>(FPInfo::kZero),
-                                                  v.value_));
+template <typename FloatType>
+inline WrappedFloatType<FloatType> FPRoundTiesAway(WrappedFloatType<FloatType> value) {
+  // Since x86 does not support this rounding mode exactly, we must manually handle the
+  // tie-aways (from ±x.5).
+  WrappedFloatType<FloatType> value_rounded_up = FPRound(value, FE_UPWARD);
+  // Check if value has fraction of exactly 0.5.
+  // Note that this check can produce spurious true and/or false results for numbers that are too
+  // large to have fraction parts. We don't care because for such numbers all three possible FPRound
+  // calls above and below produce the exact same result (which is the same as original value).
+  if (value == value_rounded_up - WrappedFloatType<FloatType>{0.5f}) {
+    if (SignBit(value)) {
+      // If value is negative then FE_TIESAWAY acts as FE_DOWNWARD.
+      return FPRound(value, FE_DOWNWARD);
+    } else {
+      // If value is negative then FE_TIESAWAY acts as FE_UPWARD.
+      return value_rounded_up;
+    }
+  }
+  // Otherwise FE_TIESAWAY acts as FE_TONEAREST.
+  return FPRound(value, FE_TONEAREST);
 }
 
 inline Float32 FPRound(const Float32& value, uint32_t round_control) {
@@ -207,12 +190,7 @@ inline Float32 FPRound(const Float32& value, uint32_t round_control) {
       asm("roundss $3,%1,%0" : "=x"(result.value_) : "x"(value.value_));
       break;
     case FE_TIESAWAY:
-      // TODO(b/146437763): Might fail if value doesn't have a floating part.
-      if (value == FPRound(value, FE_DOWNWARD) + Float32(0.5)) {
-        result = value > Float32(0.0) ? FPRound(value, FE_UPWARD) : FPRound(value, FE_DOWNWARD);
-      } else {
-        result = FPRound(value, FE_TONEAREST);
-      }
+      result = FPRoundTiesAway(value);
       break;
     default:
       LOG_ALWAYS_FATAL("Internal error: unknown round_control in FPRound!");
@@ -240,58 +218,13 @@ inline Float64 FPRound(const Float64& value, uint32_t round_control) {
       asm("roundsd $3,%1,%0" : "=x"(result.value_) : "x"(value.value_));
       break;
     case FE_TIESAWAY:
-      // Since x86 does not support this rounding mode exactly, we must manually handle the
-      // tie-aways (from (-)x.5)
-      if (value == FPRound(value, FE_DOWNWARD)) {
-        // Value is already an integer and can be returned as-is. Checking this first avoids dealing
-        // with numbers too large to be able to have a fractional part.
-        return value;
-      } else if (value == FPRound(value, FE_DOWNWARD) + Float64(0.5)) {
-        // Fraction part is exactly 1/2, in which case we need to tie-away
-        result = value > Float64(0.0) ? FPRound(value, FE_UPWARD) : FPRound(value, FE_DOWNWARD);
-      } else {
-        // Any other case can be handled by to-nearest rounding.
-        result = FPRound(value, FE_TONEAREST);
-      }
+      result = FPRoundTiesAway(value);
       break;
     default:
       LOG_ALWAYS_FATAL("Internal error: unknown round_control in FPRound!");
       result.value_ = 0.;
   }
   return result;
-}
-
-inline int IsNan(const Float32& v) {
-  return __builtin_isnan(v.value_);
-}
-
-inline int IsNan(const Float64& v) {
-  return __builtin_isnan(v.value_);
-}
-
-inline int SignBit(const Float32& v) {
-  return __builtin_signbitf(v.value_);
-}
-
-inline int SignBit(const Float64& v) {
-  return __builtin_signbit(v.value_);
-}
-
-inline Float32 Sqrt(const Float32& v) {
-  return Float32(__builtin_sqrtf(v.value_));
-}
-
-inline Float64 Sqrt(const Float64& v) {
-  return Float64(__builtin_sqrt(v.value_));
-}
-
-// x*y + z
-inline Float32 MulAdd(const Float32& v1, const Float32& v2, const Float32& v3) {
-  return Float32(fmaf(v1.value_, v2.value_, v3.value_));
-}
-
-inline Float64 MulAdd(const Float64& v1, const Float64& v2, const Float64& v3) {
-  return Float64(fma(v1.value_, v2.value_, v3.value_));
 }
 
 }  // namespace berberis::intrinsics
