@@ -1374,6 +1374,26 @@ inline void Assembler<DerivedAssemblerType>::Bgtz(Register arg0, const Label& la
   Bgt(arg0, zero, label);
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Seqz(Register arg0, Register arg1) {
+  Sltiu(arg0, arg1, static_cast<IImmediate>(1));
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Snez(Register arg0, Register arg1) {
+  Sltu(arg0, zero, arg1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Sltz(Register arg0, Register arg1) {
+  Slt(arg0, arg1, zero);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Sgtz(Register arg0, Register arg1) {
+  Slt(arg0, zero, arg1);
+}
+
 }  // namespace riscv
 
 }  // namespace berberis
