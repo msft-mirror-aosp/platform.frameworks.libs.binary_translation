@@ -140,6 +140,13 @@
       ]
     },
     {
+      "name": "AL",
+      "size": 1,
+      "regs": [
+        "RAX"
+      ]
+    },
+    {
       "name": "RBX",
       "size": 8,
       "regs": [

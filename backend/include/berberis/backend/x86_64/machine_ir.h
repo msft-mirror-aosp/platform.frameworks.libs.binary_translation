@@ -117,6 +117,7 @@ class MachineInsnX86_64 : public MachineInsn {
  public:
   static constexpr const auto kEAX = x86_64::kEAX;
   static constexpr const auto kRAX = x86_64::kRAX;
+  static constexpr const auto kAL = x86_64::kAL;
   static constexpr const auto kCL = x86_64::kCL;
   static constexpr const auto kECX = x86_64::kECX;
   static constexpr const auto kRCX = x86_64::kRCX;
