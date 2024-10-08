@@ -45,7 +45,7 @@ namespace {
 // Syntax sugar.
 GuestCodeEntry::Kind kSpecialHandler = GuestCodeEntry::Kind::kSpecialHandler;
 GuestCodeEntry::Kind kInterpreted = GuestCodeEntry::Kind::kInterpreted;
-GuestCodeEntry::Kind kLightTranslated = GuestCodeEntry::Kind::kLightTranslated;
+GuestCodeEntry::Kind kLiteTranslated = GuestCodeEntry::Kind::kLiteTranslated;
 GuestCodeEntry::Kind kHeavyOptimized = GuestCodeEntry::Kind::kHeavyOptimized;
 
 enum class TranslationMode {
@@ -137,7 +137,7 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAn
   size_t size = stop_pc - pc;
 
   if (success) {
-    return {true, InstallTranslated(&machine_code, pc, size, "lite"), size, kLightTranslated};
+    return {true, InstallTranslated(&machine_code, pc, size, "lite"), size, kLiteTranslated};
   }
 
   if (size == 0) {
@@ -152,7 +152,7 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAn
   return {true,
           InstallTranslated(&another_machine_code, pc, size, "lite_range"),
           size,
-          kLightTranslated};
+          kLiteTranslated};
 }
 
 // Exported for testing only.
