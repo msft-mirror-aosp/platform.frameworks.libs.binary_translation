@@ -25,6 +25,7 @@
 
 #include "berberis/base/checks.h"
 #include "berberis/base/config_globals.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/base/tracing.h"
 #include "berberis/guest_os_primitives/guest_signal.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
@@ -65,16 +66,18 @@ bool IsPendingSignalWithoutRecoveryCodeFatal(siginfo_t* info) {
   }
 }
 
-GuestSignalActionsTable g_signal_actions;
 // Technically guest threads may work with different signal action tables, so it's possible to
 // optimize by using different mutexes. But it's rather an exotic corner case, so we keep it simple.
-std::mutex g_signal_actions_guard_mutex;
+std::mutex* GetSignalActionsGuardMutex() {
+  static auto* g_mutex = NewForever<std::mutex>();
+  return g_mutex;
+}
 
 const Guest_sigaction* FindSignalHandler(const GuestSignalActionsTable& signal_actions,
                                          int signal) {
   CHECK_GT(signal, 0);
   CHECK_LE(signal, Guest__KERNEL__NSIG);
-  std::lock_guard<std::mutex> lock(g_signal_actions_guard_mutex);
+  std::lock_guard<std::mutex> lock(*GetSignalActionsGuardMutex());
   return &signal_actions.at(signal - 1).GetClaimedGuestAction();
 }
 
@@ -180,14 +183,15 @@ bool IsReservedSignal(int signal) {
 }  // namespace
 
 void GuestThread::SetDefaultSignalActionsTable() {
+  static auto* g_signal_actions = NewForever<GuestSignalActionsTable>();
   // We need to initialize shared_ptr, but we don't want to attempt to delete the default
   // signal actions when guest thread terminates. Hence we specify a void deleter.
-  signal_actions_ = std::shared_ptr<GuestSignalActionsTable>(&g_signal_actions, [](auto) {});
+  signal_actions_ = std::shared_ptr<GuestSignalActionsTable>(g_signal_actions, [](auto) {});
 }
 
 void GuestThread::CloneSignalActionsTableFrom(GuestSignalActionsTable* from_table) {
   // Need lock to make sure from_table isn't changed concurrently.
-  std::lock_guard<std::mutex> lock(g_signal_actions_guard_mutex);
+  std::lock_guard<std::mutex> lock(*GetSignalActionsGuardMutex());
   signal_actions_ = std::make_shared<GuestSignalActionsTable>(*from_table);
 }
 
@@ -339,7 +343,7 @@ bool SetGuestSignalHandler(int signal,
     act = nullptr;
   }
 
-  std::lock_guard<std::mutex> lock(g_signal_actions_guard_mutex);
+  std::lock_guard<std::mutex> lock(*GetSignalActionsGuardMutex());
   GuestSignalAction& action = GetCurrentGuestThread()->GetSignalActionsTable()->at(signal - 1);
   return action.Change(signal, act, HandleHostSignal, old_act, error);
 }

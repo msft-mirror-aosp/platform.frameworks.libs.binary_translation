@@ -27,6 +27,8 @@ namespace berberis {
 
 class GuestThreadMap {
  public:
+  static GuestThreadMap* GetInstance();
+
   void ResetThreadTable(pid_t tid, GuestThread* thread);
   void InsertThread(pid_t tid, GuestThread* thread);
   GuestThread* RemoveThread(pid_t tid);
@@ -42,6 +44,12 @@ class GuestThreadMap {
   }
 
  private:
+  GuestThreadMap() = default;
+  GuestThreadMap(const GuestThreadMap&) = delete;
+  GuestThreadMap& operator=(const GuestThreadMap&) = delete;
+
+  friend GuestThreadMap* NewForever<GuestThreadMap>();
+
   ForeverMap<pid_t, GuestThread*> map_;
   std::mutex mutex_;
 };
