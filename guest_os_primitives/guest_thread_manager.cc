@@ -33,9 +33,6 @@ namespace berberis {
 // Manages thread local storage (TLS) for the current thread's GuestThread instance.
 pthread_key_t g_guest_thread_key;
 
-// Tracks GuestThread instances across all threads.
-GuestThreadMap g_guest_thread_map_;
-
 namespace {
 
 void GuestThreadDtor(void* /* arg */) {
@@ -59,7 +56,7 @@ GuestThread* GetCurrentGuestThread() {
 }
 
 void ResetCurrentGuestThreadAfterFork(GuestThread* thread) {
-  g_guest_thread_map_.ResetThreadTable(GettidSyscall(), thread);
+  GuestThreadMap::GetInstance()->ResetThreadTable(GettidSyscall(), thread);
 #if defined(__BIONIC__)
   // Force (host) bionic to update cached tid if necessary
   // 1. Bionic `clone` implementation resets cached `tid` before syscall
@@ -83,7 +80,7 @@ bool GetGuestThreadAttr(pid_t tid,
                         size_t* stack_size,
                         size_t* guard_size,
                         int* error) {
-  GuestThread* thread = g_guest_thread_map_.FindThread(tid);
+  GuestThread* thread = GuestThreadMap::GetInstance()->FindThread(tid);
   if (thread) {
     thread->GetAttr(stack_base, stack_size, guard_size);
     return true;
@@ -99,7 +96,7 @@ void ExitCurrentThread(int status) {
   ScopedSignalBlocker signal_blocker;
 
   // Remove thread from global table.
-  GuestThread* thread = g_guest_thread_map_.RemoveThread(tid);
+  GuestThread* thread = GuestThreadMap::GetInstance()->RemoveThread(tid);
   if (kInstrumentGuestThread) {
     OnRemoveGuestThread(tid, thread);
   }
@@ -120,7 +117,7 @@ void FlushGuestCodeCache() {
   // TODO(b/28081995): at the moment we don't wait for acknowledgment. This
   // might cause subtle guest logic failures.
   pid_t current_tid = GettidSyscall();
-  g_guest_thread_map_.ForEachThread([current_tid](pid_t tid, GuestThread* thread) {
+  GuestThreadMap::GetInstance()->ForEachThread([current_tid](pid_t tid, GuestThread* thread) {
     // ATTENTION: we probably don't want to force current thread to dispatcher
     // and to wait for it to acknowledge :) Assume caller of this function
     // (syscall emulation or trampoline) will force re-read from translation
@@ -155,7 +152,7 @@ GuestThread* AttachCurrentThread(bool register_dtor, bool* attached) {
   ScopedSignalBlocker signal_blocker;
 
   pid_t tid = GettidSyscall();
-  GuestThread* thread = g_guest_thread_map_.FindThread(tid);
+  GuestThread* thread = GuestThreadMap::GetInstance()->FindThread(tid);
   if (thread) {
     // Thread was already attached.
     *attached = false;
@@ -195,7 +192,7 @@ void InsertCurrentThread(GuestThread* thread, bool register_dtor) {
   // Thread should not be already in the table!
   // If signal came after we checked tls cache or table but before we blocked signals, it should
   // have attached AND detached the thread!
-  g_guest_thread_map_.InsertThread(tid, thread);
+  GuestThreadMap::GetInstance()->InsertThread(tid, thread);
   if (register_dtor) {
     CHECK_EQ(0, pthread_setspecific(g_guest_thread_key, thread));
   }
@@ -214,7 +211,7 @@ void DetachCurrentThread() {
   ScopedSignalBlocker signal_blocker;
 
   // Remove thread from global table.
-  GuestThread* thread = g_guest_thread_map_.RemoveThread(tid);
+  GuestThread* thread = GuestThreadMap::GetInstance()->RemoveThread(tid);
   if (kInstrumentGuestThread) {
     OnRemoveGuestThread(tid, thread);
   }
