@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "translator_riscv64.h"
+#include "translator_x86_64.h"
 #include "berberis/runtime/translator.h"
 
 #include <cstdint>

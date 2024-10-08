@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
-#define BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
+#ifndef BERBERIS_RUNTIME_RISCV64_TRANSLATOR_X86_64_H_
+#define BERBERIS_RUNTIME_RISCV64_TRANSLATOR_X86_64_H_
 
 #include <cstddef>
 #include <tuple>
@@ -34,4 +34,4 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> HeavyOptimizeRegio
 
 }  // namespace berberis
 
-#endif  // BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
+#endif  // BERBERIS_RUNTIME_RISCV64_TRANSLATOR_X86_64_H_
