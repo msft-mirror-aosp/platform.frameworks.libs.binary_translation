@@ -16,10 +16,13 @@
 
 #include "berberis/jni/jni_trampolines.h"
 
+#include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include <jni.h>  // NOLINT [build/include_order]
 
+#include "berberis/base/checks.h"
 #include "berberis/base/logging.h"
 #include "berberis/guest_abi/function_wrappers.h"
 #include "berberis/guest_abi/guest_arguments.h"
@@ -111,10 +114,10 @@ HostCode WrapGuestJNIFunction(GuestAddr pc,
                               const char* shorty,
                               const char* name,
                               bool has_jnienv_and_jobject) {
-  const int kMaxSignatureSize = 128;
-  char signature[kMaxSignatureSize];
+  const size_t size = strlen(shorty);
+  char signature[size + /* env, clazz and trailing zero */ 3];
   ConvertDalvikShortyToWrapperSignature(
-      signature, kMaxSignatureSize, shorty, has_jnienv_and_jobject);
+      signature, sizeof(signature), shorty, has_jnienv_and_jobject);
   auto guest_runner = has_jnienv_and_jobject ? RunGuestJNIFunction : RunGuestCall;
   return WrapGuestFunctionImpl(pc, signature, guest_runner, name);
 }
@@ -164,7 +167,7 @@ std::vector<jvalue> ConvertVAList(JNIEnv* env, jmethodID methodID, GuestVAListPa
         arg.l = params.GetParam<jobject>();
         break;
       default:
-        LOG_ALWAYS_FATAL("Failed to convert Dalvik char '%c'", c);
+        FATAL("Failed to convert Dalvik char '%c'", c);
         break;
     }
   }
