@@ -1250,6 +1250,11 @@ inline void Assembler<DerivedAssemblerType>::Li(Register dest, int32_t imm32) {
   }
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Ret() {
+  Jalr(Assembler::x0, Assembler::x1, static_cast<IImmediate>(0));
+}
+
 }  // namespace riscv
 
 }  // namespace berberis
