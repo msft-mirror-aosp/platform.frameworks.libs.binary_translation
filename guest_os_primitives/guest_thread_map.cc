@@ -18,11 +18,17 @@
 #include <mutex>
 
 #include "berberis/base/checks.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/guest_os_primitives/guest_thread.h"
 
 #include "guest_thread_map.h"
 
 namespace berberis {
+
+GuestThreadMap* GuestThreadMap::GetInstance() {
+  static auto* g_guest_thread_map = NewForever<GuestThreadMap>();
+  return g_guest_thread_map;
+}
 
 void GuestThreadMap::ResetThreadTable(pid_t tid, GuestThread* thread) {
   std::lock_guard<std::mutex> lock(mutex_);
