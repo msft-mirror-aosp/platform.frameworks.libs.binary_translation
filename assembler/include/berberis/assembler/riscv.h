@@ -1273,8 +1273,62 @@ inline void Assembler<DerivedAssemblerType>::Tail(const Label& label) {
   EmitITypeInstruction<uint32_t{0x0000'0067}>(Assembler::x0, Assembler::x6, IImmediate{0});
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgt(Register arg0, Register arg1, const Label& label) {
+  Blt(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgtu(Register arg0,
+                                                  Register arg1,
+                                                  const Label& label) {
+  Bltu(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Ble(Register arg0, Register arg1, const Label& label) {
+  Bge(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bleu(Register arg0,
+                                                  Register arg1,
+                                                  const Label& label) {
+  Bgeu(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Beqz(Register arg0, const Label& label) {
+  Beq(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bnez(Register arg0, const Label& label) {
+  Bne(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Blez(Register arg0, const Label& label) {
+  Ble(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgez(Register arg0, const Label& label) {
+  Bge(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bltz(Register arg0, const Label& label) {
+  Blt(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgtz(Register arg0, const Label& label) {
+  Bgt(arg0, zero, label);
+}
+
 }  // namespace riscv
 
 }  // namespace berberis
 
-#endif  // BERBERIS_ASSEMBLER_COMMON_X86_H_
+#endif  // BERBERIS_ASSEMBLER_COMMON_RISCV_H_
