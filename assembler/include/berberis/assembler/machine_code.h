@@ -31,6 +31,13 @@
 
 namespace berberis {
 
+enum class InstructionSize {
+  // x86 assembly has 1 byte instructions.
+  OneByte,
+  // riscv and arm64 assembly have 4 bytes instructions.
+  FourBytes,
+};
+
 enum class RelocationType {
   // Convert absolute address to PC-relative displacement.
   // Ensure displacement fits in 32-bit value.
@@ -81,7 +88,7 @@ class MachineCode {
 
   void AddU8(uint8_t v) { code_.push_back(v); }
 
-  void AsString(std::string* result) const;
+  void AsString(std::string* result, InstructionSize insn_size) const;
 
   void AddRelocation(uint32_t dst, RelocationType type, uint32_t pc, intptr_t data) {
     relocations_.push_back(Relocation{dst, type, pc, data});
@@ -101,7 +108,7 @@ class MachineCode {
   }
 
   // Print generated code to stderr.
-  void DumpCode() const;
+  void DumpCode(InstructionSize insn_size) const;
 
  private:
   struct Relocation {
