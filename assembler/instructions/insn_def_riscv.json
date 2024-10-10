@@ -366,6 +366,13 @@
       "args": [
         { "class": "Label" }
       ]
+    },
+    {
+      "stems": [ "seqz", "snez", "sltz", "sgtz" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
     }
   ]
 }
