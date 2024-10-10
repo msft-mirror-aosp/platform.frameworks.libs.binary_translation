@@ -28,7 +28,7 @@
 namespace berberis {
 
 MapsSnapshot* MapsSnapshot::GetInstance() {
-  static auto* g_maps_snapshot = NewForever<MapsSnapshot>();
+  static auto* g_maps_snapshot = PrivateNewForever<MapsSnapshot>::Alloc();
   return g_maps_snapshot;
 }
 
