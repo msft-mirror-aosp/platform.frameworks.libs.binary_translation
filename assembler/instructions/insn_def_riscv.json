@@ -254,12 +254,24 @@
       ]
     },
     {
+      "stems": [ "j", "jal" ],
+      "args": [
+        { "class": "J-Imm" }
+      ]
+    },
+    {
       "encodings": {
         "jalr": { "opcode": "0000_0067", "type": "I-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "Mem", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "jalr", "jr" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "use" }
       ]
     },
     {
