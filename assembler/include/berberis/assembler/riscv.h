@@ -1414,6 +1414,11 @@ inline void Assembler<DerivedAssemblerType>::Jalr(Register arg0) {
   Jalr(x1, arg0, 0);
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::ZextW(Register arg0, Register arg1) {
+  AddUW(arg0, arg1, zero);
+}
+
 }  // namespace riscv
 
 }  // namespace berberis
