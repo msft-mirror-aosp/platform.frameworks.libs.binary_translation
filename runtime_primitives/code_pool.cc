@@ -45,14 +45,14 @@ void ResetAllExecRegions() {
 }
 
 CodePool<ExecRegionAnonymousFactory>* GetDefaultCodePoolInstance() {
-  static CodePool<ExecRegionAnonymousFactory> g_code_pool;
-  return &g_code_pool;
+  static auto* g_code_pool = NewForever<CodePool<ExecRegionAnonymousFactory>>();
+  return g_code_pool;
 }
 
 #if defined(__BIONIC__)
 CodePool<ExecRegionElfBackedFactory>* GetFunctionWrapperCodePoolInstance() {
-  static CodePool<ExecRegionElfBackedFactory> g_code_pool;
-  return &g_code_pool;
+  static auto* g_code_pool = NewForever<CodePool<ExecRegionElfBackedFactory>>();
+  return g_code_pool;
 }
 #else
 CodePool<ExecRegionAnonymousFactory>* GetFunctionWrapperCodePoolInstance() {

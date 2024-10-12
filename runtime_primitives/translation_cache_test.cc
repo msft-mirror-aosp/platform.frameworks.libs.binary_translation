@@ -302,10 +302,10 @@ TEST(TranslationCacheTest, LockForGearUpTranslation) {
   ASSERT_TRUE(entry);
   ASSERT_EQ(entry->kind, GuestCodeEntry::Kind::kSpecialHandler);
 
-  // Cannot lock if kind is not kLightTranslated.
+  // Cannot lock if kind is not kLiteTranslated.
   ASSERT_FALSE(tc.LockForGearUpTranslation(pc));
 
-  entry->kind = GuestCodeEntry::Kind::kLightTranslated;
+  entry->kind = GuestCodeEntry::Kind::kLiteTranslated;
 
   entry = tc.LockForGearUpTranslation(pc);
   ASSERT_TRUE(entry);

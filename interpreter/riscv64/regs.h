@@ -45,7 +45,6 @@ inline auto IntegerToGPRReg(IntegerType arg)
   }
 }
 
-#if !defined(__aarch64__)
 template <typename FloatType>
 inline FloatType FPRegToFloat(uint64_t arg);
 
@@ -74,7 +73,6 @@ template <>
 inline uint64_t FloatToFPReg<intrinsics::Float64>(intrinsics::Float64 arg) {
   return bit_cast<uint64_t>(arg);
 }
-#endif
 
 }  // namespace berberis
 
