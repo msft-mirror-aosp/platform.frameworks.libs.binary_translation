@@ -409,7 +409,7 @@ def _gen_interpreter_hook(f, name, intr, option):
     arm64_allowlist = ['AmoAdd', 'AmoAnd', 'AmoMax', 'AmoMin', 'AmoOr', 'AmoSwap', 'AmoXor', 'Bclr',
                        'Bclri', 'Bext', 'Bexti', 'Binv', 'Binvi', 'Bset', 'Bseti', 'Div', 'Max',
                        'Min', 'Rem', 'Rev8', 'Rol', 'Ror', 'Sext', 'Sh1add', 'Sh1adduw', 'Sh2add',
-                       'Sh2adduw', 'Sh3add', 'Sh3adduw', 'Zext']
+                       'Sh2adduw', 'Sh3add', 'Sh3adduw', 'Zext', 'UnboxNan']
     if (option == 'arm64') and (name not in arm64_allowlist):
       _get_placeholder_return_stmt(intr, f)
     else:
