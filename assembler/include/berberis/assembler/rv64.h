@@ -34,8 +34,6 @@ class Assembler : public riscv::Assembler<Assembler> {
   explicit Assembler(MachineCode* code) : BaseAssembler(code) {}
 
   using ShiftImmediate = BaseAssembler::Shift64Immediate;
-  // Need to unhide 32bit immediate version.
-  using BaseAssembler::Li;
 
   // Don't use templates here to enable implicit conversions.
 #define BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(IntType)                                \
@@ -63,6 +61,7 @@ class Assembler : public riscv::Assembler<Assembler> {
   Assembler(Assembler&&) = delete;
   void operator=(const Assembler&) = delete;
   void operator=(Assembler&&) = delete;
+  void Li32(Register dest, int32_t imm32);
 };
 
 inline void Assembler::Ld(Register arg0, const Label& label) {
@@ -73,10 +72,15 @@ inline void Assembler::Ld(Register arg0, const Label& label) {
   EmitITypeInstruction<uint32_t{0x0000'3003}>(arg0, Operand<Register, IImmediate>{.base = arg0});
 }
 
+// It's needed to unhide 32bit immediate version.
+inline void Assembler::Li32(Register dest, int32_t imm32) {
+  BaseAssembler::Li(dest, imm32);
+};
+
 inline void Assembler::Li(Register dest, int64_t imm64) {
   int32_t imm32 = static_cast<int32_t>(imm64);
   if (static_cast<int64_t>(imm32) == imm64) {
-    Li(dest, imm32);
+    Li32(dest, imm32);
   } else {
     // Perform calculations on unsigned type to avoid undefined behavior.
     uint64_t uimm = static_cast<uint64_t>(imm64);
