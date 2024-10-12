@@ -254,12 +254,24 @@
       ]
     },
     {
+      "stems": [ "j", "jal" ],
+      "args": [
+        { "class": "J-Imm" }
+      ]
+    },
+    {
       "encodings": {
         "jalr": { "opcode": "0000_0067", "type": "I-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "Mem", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "jalr", "jr" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "use" }
       ]
     },
     {
@@ -365,6 +377,30 @@
       "stems": [ "call", "tail" ],
       "args": [
         { "class": "Label" }
+      ]
+    },
+    {
+      "stems": [ "seqz", "snez", "sltz", "sgtz" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "AddUW": { "opcode": "0800_003b", "type": "R-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "ZextW" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" }
       ]
     }
   ]
