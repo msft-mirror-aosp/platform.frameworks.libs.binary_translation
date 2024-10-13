@@ -21,41 +21,66 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "berberis/base/forever_alloc.h"
+
 namespace berberis {
 
 namespace {
 
-std::mutex g_guest_loader_mtx;
-std::condition_variable g_guest_loader_cv;
-bool g_guest_loader_initialized = false;
+class AppProcess {
+ public:
+  static AppProcess* GetInstance() {
+    static auto* g_app_process = NewForever<AppProcess>();
+    return g_app_process;
+  }
+
+  void PostInit() {
+    {
+      std::lock_guard<std::mutex> guard(mutex_);
+      initialized_ = true;
+    }
+    cv_.notify_all();
+
+    // Expect this call to occur on the main guest thread, after app
+    // initialization is done. Force exit since keeping the thread in the
+    // background might confuse an app that expects to be single-threaded.
+    // Specifically, this scenario happens when guest code is executed in
+    // app-zygote before forking children (b/146904103).
+    //
+    // Other threads may use main thread's stack to access argc/argv/auxvals.
+    // We ensure that stack is retained after pthread_exit() by disallowing
+    // stack unmap in main guest thread when starting an executable.
+    //
+    // Note that we cannot just let the thread exit from main(), which would
+    // exit the whole process, not just this thread.
+    pthread_exit(nullptr);
+  }
+
+  void WaitForPostInit() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    cv_.wait(lock, [this] { return initialized_; });
+  }
+
+ private:
+  AppProcess() = default;
+  AppProcess(const AppProcess&) = delete;
+  AppProcess& operator=(const AppProcess&) = delete;
+
+  friend AppProcess* NewForever<AppProcess>();
+
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  bool initialized_ = false;
+};
 
 }  // namespace
 
 void AppProcessPostInit() {
-  {
-    std::lock_guard<std::mutex> guard(g_guest_loader_mtx);
-    g_guest_loader_initialized = true;
-  }
-  g_guest_loader_cv.notify_all();
-
-  // Expect this call to occur on the main guest thread, after app
-  // initialization is done. Force exit since keeping the thread in the
-  // background might confuse an app that expects to be single-threaded.
-  // Specifically, this scenario happens when guest code is executed in
-  // app-zygote before forking children (b/146904103).
-  //
-  // Other threads may use main thread's stack to access argc/argv/auxvals.
-  // We ensure that stack is retained after pthread_exit() by disallowing
-  // stack unmap in main guest thread when starting an executable.
-  //
-  // Note that we cannot just let the thread exit from main(), which would
-  // exit the whole process, not just this thread.
-  pthread_exit(nullptr);
+  AppProcess::GetInstance()->PostInit();
 }
 
 void WaitForAppProcess() {
-  std::unique_lock<std::mutex> lock(g_guest_loader_mtx);
-  g_guest_loader_cv.wait(lock, [] { return g_guest_loader_initialized; });
+  AppProcess::GetInstance()->WaitForPostInit();
 }
 
 }  // namespace berberis

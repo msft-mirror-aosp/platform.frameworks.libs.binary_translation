@@ -1374,6 +1374,51 @@ inline void Assembler<DerivedAssemblerType>::Bgtz(Register arg0, const Label& la
   Bgt(arg0, zero, label);
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Seqz(Register arg0, Register arg1) {
+  Sltiu(arg0, arg1, static_cast<IImmediate>(1));
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Snez(Register arg0, Register arg1) {
+  Sltu(arg0, zero, arg1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Sltz(Register arg0, Register arg1) {
+  Slt(arg0, arg1, zero);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Sgtz(Register arg0, Register arg1) {
+  Slt(arg0, zero, arg1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::J(JImmediate arg0) {
+  Jal(zero, arg0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jal(JImmediate arg0) {
+  Jal(x1, arg0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jr(Register arg0) {
+  Jalr(zero, arg0, 0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jalr(Register arg0) {
+  Jalr(x1, arg0, 0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::ZextW(Register arg0, Register arg1) {
+  AddUW(arg0, arg1, zero);
+}
+
 }  // namespace riscv
 
 }  // namespace berberis

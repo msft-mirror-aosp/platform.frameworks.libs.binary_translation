@@ -102,6 +102,20 @@ inline Type* NewForever() {
   return new (AllocateForever(sizeof(Type), alignof(Type))) Type();
 }
 
+// NewForever that can only be used by an instance of Type.
+template <typename Type>
+class PrivateNewForever {
+ private:
+  // No instances of this helper class are allowed.
+  PrivateNewForever() = delete;
+  // To make Type() accessible here Type must declare PrivateNewForever<Type> as a friend.
+  static Type* Alloc() {
+    // Note: we cannot simply call NewForever<Type> here since it's not a friend of Type.
+    return new (AllocateForever(sizeof(Type), alignof(Type))) Type();
+  }
+  friend Type;
+};
+
 }  // namespace berberis
 
 #endif  // BERBERIS_BASE_FOREVER_ALLOC_H_
