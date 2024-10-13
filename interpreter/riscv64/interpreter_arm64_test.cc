@@ -252,6 +252,8 @@ TEST_F(Riscv64ToArm64InterpreterTest, OpInstructions) {
   TestOp(0x23140b3, {{0x8000'0000'0000'0000, -1, 0x8000'0000'0000'0000}});
   // Divu
   TestOp(0x23150b3, {{0x9999'9999'9999'9999, 0x3333, 0x0003'0003'0003'0003}});
+  TestOp(0x23150b3, {{42, 2, 21}});
+  TestOp(0x23150b3, {{42, 0, 0xffff'ffff'ffff'ffffULL}});
   // Rem
   TestOp(0x23160b3, {{0x9999'9999'9999'9999, 0x3333, 0xffff'ffff'ffff'ffff}});
   TestOp(0x23160b3, {{0x9999'9999'9999'9999, 0, 0x9999'9999'9999'9999}});
