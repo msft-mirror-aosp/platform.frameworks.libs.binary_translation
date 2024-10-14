@@ -141,6 +141,13 @@
         { "class": "Label" },
         { "class": "GeneralReg", "usage": "def" }
       ]
+    },
+    {
+      "stems": [ "SextW" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
     }
   ]
 }
