@@ -25,6 +25,7 @@
 #include "berberis/decoder/riscv64/semantics_player.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/intrinsics/intrinsics.h"
+#include "berberis/intrinsics/simd_register.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
 
@@ -50,8 +51,8 @@ class Interpreter {
   static constexpr Register no_register = 0;
   using FpRegister = uint64_t;
   static constexpr FpRegister no_fp_register = 0;
-  using Float32 = float;
-  using Float64 = double;
+  using Float32 = intrinsics::Float32;
+  using Float64 = intrinsics::Float64;
 
   explicit Interpreter(ThreadState* state)
       : state_(state), branch_taken_(false), exception_raised_(false) {}
@@ -400,28 +401,193 @@ class Interpreter {
 
   template <typename ElementType, VectorRegisterGroupMultiplier vlmul>
   static constexpr size_t GetVlmax() {
-    return 0;
+    constexpr size_t kElementsCount = sizeof(SIMD128Register) / sizeof(ElementType);
+    switch (vlmul) {
+      case VectorRegisterGroupMultiplier::k1register:
+        return kElementsCount;
+      case VectorRegisterGroupMultiplier::k2registers:
+        return 2 * kElementsCount;
+      case VectorRegisterGroupMultiplier::k4registers:
+        return 4 * kElementsCount;
+      case VectorRegisterGroupMultiplier::k8registers:
+        return 8 * kElementsCount;
+      case VectorRegisterGroupMultiplier::kEigthOfRegister:
+        return kElementsCount / 8;
+      case VectorRegisterGroupMultiplier::kQuarterOfRegister:
+        return kElementsCount / 4;
+      case VectorRegisterGroupMultiplier::kHalfOfRegister:
+        return kElementsCount / 2;
+      default:
+        return 0;
+    }
   }
 
   template <typename VOpArgs, typename... ExtraArgs>
-  void OpVector(const VOpArgs& args, [[maybe_unused]] ExtraArgs... extra_args) {
-    UNUSED(args);
-    Undefined();
+  void OpVector(const VOpArgs& args, ExtraArgs... extra_args) {
+    // Note: whole register instructions are not dependent on vtype and are supposed to work even
+    // if vill is set!  Handle them before processing other instructions.
+    // Note: other tupes of loads and store are not special and would be processed as usual.
+    // TODO(khim): Handle vstart properly.
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadUnitStrideArgs>) {
+      if (args.opcode == Decoder::VLUmOpOpcode::kVlXreXX) {
+        if (!IsPowerOf2(args.nf + 1)) {
+          return Undefined();
+        }
+        if ((args.dst & args.nf) != 0) {
+          return Undefined();
+        }
+        auto [src] = std::tuple{extra_args...};
+        __uint128_t* ptr = bit_cast<__uint128_t*>(src);
+        for (size_t index = 0; index <= args.nf; index++) {
+          state_->cpu.v[args.dst + index] = ptr[index];
+        }
+        return;
+      }
+    }
+
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VStoreUnitStrideArgs>) {
+      if (args.opcode == Decoder::VSUmOpOpcode::kVsX) {
+        if (args.width != Decoder::MemoryDataOperandType::k8bit) {
+          return Undefined();
+        }
+        if (!IsPowerOf2(args.nf + 1)) {
+          return Undefined();
+        }
+        if ((args.data & args.nf) != 0) {
+          return Undefined();
+        }
+        auto [src] = std::tuple{extra_args...};
+        __uint128_t* ptr = bit_cast<__uint128_t*>(src);
+        for (size_t index = 0; index <= args.nf; index++) {
+          ptr[index] = state_->cpu.v[args.data + index];
+        }
+        return;
+      }
+    }
+
+    // RISC-V V extensions are using 8bit “opcode extension” vtype Csr to make sure 32bit encoding
+    // would be usable.
+    //
+    // Great care is made to ensure that vector code wouldn't need to change vtype Csr often (e.g.
+    // there are special mask instructions which allow one to manipulate on masks without the need
+    // to change the CPU mode.
+    //
+    // Currently we don't have support for multiple CPU mode in Berberis thus we can only handle
+    // these instrtuctions in the interpreter.
+    //
+    // TODO(b/300690740): develop and implement strategy which would allow us to support vector
+    // intrinsics not just in the interpreter. Move code from this function to semantics player.
+    Register vtype = GetCsr<CsrName::kVtype>();
+    if (static_cast<std::make_signed_t<Register>>(vtype) < 0) {
+      return Undefined();
+    }
+    if constexpr (std::is_same_v<VOpArgs, Decoder::VLoadIndexedArgs> ||
+                  std::is_same_v<VOpArgs, Decoder::VLoadStrideArgs> ||
+                  std::is_same_v<VOpArgs, Decoder::VLoadUnitStrideArgs> ||
+                  std::is_same_v<VOpArgs, Decoder::VStoreIndexedArgs> ||
+                  std::is_same_v<VOpArgs, Decoder::VStoreStrideArgs> ||
+                  std::is_same_v<VOpArgs, Decoder::VStoreUnitStrideArgs>) {
+      switch (args.width) {
+        case Decoder::MemoryDataOperandType::k8bit:
+          return OpVector<UInt8>(args, vtype, extra_args...);
+        case Decoder::MemoryDataOperandType::k16bit:
+          return OpVector<UInt16>(args, vtype, extra_args...);
+        case Decoder::MemoryDataOperandType::k32bit:
+          return OpVector<UInt32>(args, vtype, extra_args...);
+        case Decoder::MemoryDataOperandType::k64bit:
+          return OpVector<UInt64>(args, vtype, extra_args...);
+        default:
+          return Undefined();
+      }
+    } else {
+      VectorRegisterGroupMultiplier vlmul = static_cast<VectorRegisterGroupMultiplier>(vtype & 0x7);
+      if constexpr (std::is_same_v<VOpArgs, Decoder::VOpFVfArgs> ||
+                    std::is_same_v<VOpArgs, Decoder::VOpFVvArgs>) {
+        switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
+          case VectorSelectElementWidth::k16bit:
+            if constexpr (sizeof...(extra_args) == 0) {
+              return OpVector<intrinsics::Float16>(args, vlmul, vtype);
+            } else {
+              return Undefined();
+            }
+          case VectorSelectElementWidth::k32bit:
+            return OpVector<Float32>(
+                args,
+                vlmul,
+                vtype,
+                std::get<0>(intrinsics::UnboxNan<Float32>(bit_cast<Float64>(extra_args)))...);
+          case VectorSelectElementWidth::k64bit:
+            // Note: if arguments are 64bit floats then we don't need to do any unboxing.
+            return OpVector<Float64>(args, vlmul, vtype, bit_cast<Float64>(extra_args)...);
+          default:
+            return Undefined();
+        }
+      } else {
+        switch (static_cast<VectorSelectElementWidth>((vtype >> 3) & 0b111)) {
+          case VectorSelectElementWidth::k8bit:
+            return OpVector<UInt8>(args, vlmul, vtype, extra_args...);
+          case VectorSelectElementWidth::k16bit:
+            return OpVector<UInt16>(args, vlmul, vtype, extra_args...);
+          case VectorSelectElementWidth::k32bit:
+            return OpVector<UInt32>(args, vlmul, vtype, extra_args...);
+          case VectorSelectElementWidth::k64bit:
+            return OpVector<UInt64>(args, vlmul, vtype, extra_args...);
+          default:
+            return Undefined();
+        }
+      }
+    }
   }
 
   template <typename ElementType, typename VOpArgs, typename... ExtraArgs>
-  void OpVector(const VOpArgs& args, Register vtype, [[maybe_unused]] ExtraArgs... extra_args) {
-    UNUSED(args, vtype);
-    Undefined();
+  void OpVector(const VOpArgs& args, Register vtype, ExtraArgs... extra_args) {
+    auto vemul = Decoder::SignExtend<3>(vtype & 0b111);
+    vemul -= ((vtype >> 3) & 0b111);  // Divide by SEW.
+    vemul +=
+        static_cast<std::underlying_type_t<decltype(args.width)>>(args.width);  // Multiply by EEW.
+    if (vemul < -3 || vemul > 3) [[unlikely]] {
+      return Undefined();
+    }
+    // Note: whole register loads and stores treat args.nf differently, but they are processed
+    // separately above anyway, because they also ignore vtype and all the information in it!
+    // For other loads and stores affected number of registers (EMUL * NF) should be 8 or less.
+    if ((vemul > 0) && ((args.nf + 1) * (1 << vemul) > 8)) {
+      return Undefined();
+    }
+    return OpVector<ElementType>(
+        args, static_cast<VectorRegisterGroupMultiplier>(vemul & 0b111), vtype, extra_args...);
   }
 
   template <typename ElementType, typename VOpArgs, typename... ExtraArgs>
   void OpVector(const VOpArgs& args,
                 VectorRegisterGroupMultiplier vlmul,
                 Register vtype,
-                [[maybe_unused]] ExtraArgs... extra_args) {
-    UNUSED(args, vlmul, vtype);
-    Undefined();
+                ExtraArgs... extra_args) {
+    switch (vlmul) {
+      case VectorRegisterGroupMultiplier::k1register:
+        return OpVector<ElementType, VectorRegisterGroupMultiplier::k1register>(
+            args, vtype, extra_args...);
+      case VectorRegisterGroupMultiplier::k2registers:
+        return OpVector<ElementType, VectorRegisterGroupMultiplier::k2registers>(
+            args, vtype, extra_args...);
+      case VectorRegisterGroupMultiplier::k4registers:
+        return OpVector<ElementType, VectorRegisterGroupMultiplier::k4registers>(
+            args, vtype, extra_args...);
+      case VectorRegisterGroupMultiplier::k8registers:
+        return OpVector<ElementType, VectorRegisterGroupMultiplier::k8registers>(
+            args, vtype, extra_args...);
+      case VectorRegisterGroupMultiplier::kEigthOfRegister:
+        return OpVector<ElementType, VectorRegisterGroupMultiplier::kEigthOfRegister>(
+            args, vtype, extra_args...);
+      case VectorRegisterGroupMultiplier::kQuarterOfRegister:
+        return OpVector<ElementType, VectorRegisterGroupMultiplier::kQuarterOfRegister>(
+            args, vtype, extra_args...);
+      case VectorRegisterGroupMultiplier::kHalfOfRegister:
+        return OpVector<ElementType, VectorRegisterGroupMultiplier::kHalfOfRegister>(
+            args, vtype, extra_args...);
+      default:
+        return Undefined();
+    }
   }
 
   template <typename ElementType,

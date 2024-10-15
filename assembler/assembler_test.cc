@@ -178,9 +178,15 @@ bool AssemblerTest() {
   assembler.Snez(Assembler::x2, Assembler::x9);
   assembler.Sltz(Assembler::x30, Assembler::x1);
   assembler.Sgtz(Assembler::x25, Assembler::x16);
+  assembler.J(0x42);
+  assembler.Jal(-0x26);
+  assembler.Jr(Assembler::x19);
+  assembler.Jalr(Assembler::x7);
+  assembler.AddUW(Assembler::x14, Assembler::x22, Assembler::x29);
+  assembler.ZextW(Assembler::x13, Assembler::x21);
   // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
   // immediate.
-  for (size_t index = 130; index < 1200; ++index) {
+  for (size_t index = 142; index < 1200; ++index) {
     assembler.TwoByte(uint16_t{0});
   }
   assembler.Fld(Assembler::f1, data_begin, Assembler::x2);
@@ -266,7 +272,13 @@ bool AssemblerTest() {
     0x3133, 0x0090,     //        sltu x2, x0, x9
     0xaf33, 0x0000,     //        slt x30, x1, x0
     0x2cb3, 0x0100,     //        slt x25, x0, x16
-    [ 130 ... 1199 ] = 0,//       padding
+    0x006f, 0x0420,     //        jal zero, 0x42
+    0xf0ef, 0xfdbf,     //        jal x1, -0x26
+    0x8067, 0x0009,     //        jalr zero, x19, 0
+    0x80e7, 0x0003,     //        jalr x1, x7, 0
+    0x073b, 0x09db,     //        add.uw x14, x22, x29
+    0x86bb, 0x080a,     //        add.uw x13, x21, zero
+    [ 142 ... 1199 ] = 0,//       padding
     0xf117, 0xffff,     //        auipc   x2, -4096
     0x3087, 0x6a01,     //        fld     f1,1696(x2)
     0xf217, 0xffff,     //        auipc   x4, -4096

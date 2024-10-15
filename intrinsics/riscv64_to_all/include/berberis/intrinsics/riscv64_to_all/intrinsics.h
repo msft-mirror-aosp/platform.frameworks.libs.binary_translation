@@ -28,13 +28,11 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64/ProcessNans
 #include "berberis/intrinsics/type_traits.h"
+#else
+#include "berberis/intrinsics/common/intrinsics_float.h"
 #endif
 
 namespace berberis::intrinsics {
-
-#if defined(__aarch64__)
-using Float64 = double;
-#endif
 
 #include "berberis/intrinsics/intrinsics-inl.h"  // NOLINT: generated file!
 
