@@ -390,6 +390,7 @@ bool AssemblerTest() {
   assembler.SextW(Assembler::x15, Assembler::x12);
   assembler.AddUW(Assembler::x14, Assembler::x22, Assembler::x29);
   assembler.ZextW(Assembler::x13, Assembler::x21);
+  assembler.Sh3add(Assembler::x13, Assembler::x9, Assembler::x10);
   assembler.Finalize();
 
   // clang-format off
@@ -475,6 +476,7 @@ bool AssemblerTest() {
     0x079b, 0x0006,     //        addi.w x15, x12, 0
     0x073b, 0x09db,     //        add.uw x14, x22, x29
     0x86bb, 0x080a,     //        add.uw x13, x21, zero
+    0xe6b3, 0x20a4,     //        sh3add x13, x9, x10
   };                    // end:
   // clang-format on
 
