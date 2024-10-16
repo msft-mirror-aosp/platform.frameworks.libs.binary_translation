@@ -106,7 +106,8 @@
       "encodings": {
         "slli": { "opcode": "0000_1013", "type": "I-type" },
         "srai": { "opcode": "4000_5013", "type": "I-type" },
-        "srli": { "opcode": "0000_5013", "type": "I-type" }
+        "srli": { "opcode": "0000_5013", "type": "I-type" },
+        "bexti": { "opcode": "4800_5013", "type": "I-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },

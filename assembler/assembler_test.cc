@@ -201,6 +201,7 @@ bool AssemblerTest() {
   assembler.Sw(Assembler::x18, data_begin, Assembler::x19);
   assembler.La(Assembler::x20, data_begin);
   assembler.Bind(&data_end);
+  assembler.Bexti(Assembler::x16, Assembler::x1, 20);
   assembler.Finalize();
 
   // clang-format off
@@ -301,6 +302,7 @@ bool AssemblerTest() {
     0xa423, 0x6529,     //        sw      x18,1608(x19)
     0xfa17, 0xffff,     //        auipc   x20, -4096
     0x0a13, 0x640a,     //        addi    x20,x20,1600
+    0xd813, 0x4940,     //        bexti    x16,x1,20
   };                    // end:
   // clang-format on
 
@@ -391,6 +393,7 @@ bool AssemblerTest() {
   assembler.AddUW(Assembler::x14, Assembler::x22, Assembler::x29);
   assembler.ZextW(Assembler::x13, Assembler::x21);
   assembler.Sh3add(Assembler::x13, Assembler::x9, Assembler::x10);
+  assembler.Bexti(Assembler::x16, Assembler::x1, 53);
   assembler.Finalize();
 
   // clang-format off
@@ -477,6 +480,7 @@ bool AssemblerTest() {
     0x073b, 0x09db,     //        add.uw x14, x22, x29
     0x86bb, 0x080a,     //        add.uw x13, x21, zero
     0xe6b3, 0x20a4,     //        sh3add x13, x9, x10
+    0xd813, 0x4b50,     //        bexti x16, x1, 53
   };                    // end:
   // clang-format on
 
