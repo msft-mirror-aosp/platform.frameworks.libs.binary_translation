@@ -72,6 +72,14 @@ enum class Condition {
   kAboveEqual = 7,
   kAlways = 8,
   kNever = 9,
+  kNegative = 10,
+  kNotSign = 11,
+  kOverflow = 12,
+  kNoOverflow = 13,
+  kAbove = 14,
+  kBelowEqual = 15,
+  kGreater = 16,
+  kLessEqual = 17,
 
   // aka...
   kCarry = kBelow,
