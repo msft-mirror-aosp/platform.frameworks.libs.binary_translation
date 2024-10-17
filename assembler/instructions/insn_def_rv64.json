@@ -25,7 +25,8 @@
         "remuw": { "opcode": "0200_703b", "type": "R-type" },
         "remw": { "opcode": "0200_603b", "type": "R-type" },
         "sllw": { "opcode": "0000_103b", "type": "R-type" },
-        "subw": { "opcode": "4000_003b", "type": "R-type" }
+        "subw": { "opcode": "4000_003b", "type": "R-type" },
+        "AddUW": { "opcode": "0800_003b", "type": "R-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
@@ -143,7 +144,7 @@
       ]
     },
     {
-      "stems": [ "SextW" ],
+      "stems": [ "SextW", "ZextW" ],
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }

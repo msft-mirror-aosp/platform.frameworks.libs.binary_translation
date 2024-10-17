@@ -385,23 +385,6 @@
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }
       ]
-    },
-    {
-      "encodings": {
-        "AddUW": { "opcode": "0800_003b", "type": "R-type" }
-      },
-      "args": [
-        { "class": "GeneralReg", "usage": "def" },
-        { "class": "GeneralReg", "usage": "use" },
-        { "class": "GeneralReg", "usage": "use" }
-      ]
-    },
-    {
-      "stems": [ "ZextW" ],
-      "args": [
-        { "class": "GeneralReg", "usage": "def" },
-        { "class": "GeneralReg", "usage": "use" }
-      ]
     }
   ]
 }

@@ -182,11 +182,9 @@ bool AssemblerTest() {
   assembler.Jal(-0x26);
   assembler.Jr(Assembler::x19);
   assembler.Jalr(Assembler::x7);
-  assembler.AddUW(Assembler::x14, Assembler::x22, Assembler::x29);
-  assembler.ZextW(Assembler::x13, Assembler::x21);
   // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
   // immediate.
-  for (size_t index = 142; index < 1200; ++index) {
+  for (size_t index = 138; index < 1200; ++index) {
     assembler.TwoByte(uint16_t{0});
   }
   assembler.Fld(Assembler::f1, data_begin, Assembler::x2);
@@ -276,9 +274,7 @@ bool AssemblerTest() {
     0xf0ef, 0xfdbf,     //        jal x1, -0x26
     0x8067, 0x0009,     //        jalr zero, x19, 0
     0x80e7, 0x0003,     //        jalr x1, x7, 0
-    0x073b, 0x09db,     //        add.uw x14, x22, x29
-    0x86bb, 0x080a,     //        add.uw x13, x21, zero
-    [ 142 ... 1199 ] = 0,//       padding
+    [ 138 ... 1199 ] = 0,//       padding
     0xf117, 0xffff,     //        auipc   x2, -4096
     0x3087, 0x6a01,     //        fld     f1,1696(x2)
     0xf217, 0xffff,     //        auipc   x4, -4096
@@ -392,6 +388,8 @@ bool AssemblerTest() {
   assembler.Sd(Assembler::x3, data_begin, Assembler::x4);
   assembler.Bind(&data_end);
   assembler.SextW(Assembler::x15, Assembler::x12);
+  assembler.AddUW(Assembler::x14, Assembler::x22, Assembler::x29);
+  assembler.ZextW(Assembler::x13, Assembler::x21);
   assembler.Finalize();
 
   // clang-format off
@@ -475,6 +473,8 @@ bool AssemblerTest() {
     0xf217, 0xffff,     //        auipc   x4, -4096
     0x3823, 0x6832,     //        sd      x3, 1680(x4)
     0x079b, 0x0006,     //        addi.w x15, x12, 0
+    0x073b, 0x09db,     //        add.uw x14, x22, x29
+    0x86bb, 0x080a,     //        add.uw x13, x21, zero
   };                    // end:
   // clang-format on
 
