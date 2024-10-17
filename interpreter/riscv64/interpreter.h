@@ -233,7 +233,11 @@ class Interpreter {
   }
 
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
-#if !defined(__aarch64__)
+#if defined(__aarch64__)
+    UNUSED(opcode, arg1, arg2);
+    Undefined();
+    return {};
+#else
     switch (opcode) {
       case Decoder::Op32Opcode::kAddw:
         return Widen(TruncateTo<Int32>(arg1) + TruncateTo<Int32>(arg2));
@@ -251,10 +255,6 @@ class Interpreter {
         Undefined();
         return {};
     }
-#else
-    UNUSED(opcode, arg1, arg2);
-    Undefined();
-    return {};
 #endif
   }
 
@@ -283,7 +283,11 @@ class Interpreter {
 
   template <typename DataType>
   FpRegister LoadFp(Register arg, int16_t offset) {
-#if !defined(__aarch64__)
+#if defined(__aarch64__)
+    UNUSED(arg, offset);
+    Undefined();
+    return {};
+#else
     static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
     CHECK(!exception_raised_);
     DataType* ptr = ToHostAddr<DataType>(arg + offset);
@@ -293,10 +297,6 @@ class Interpreter {
       return {};
     }
     return result.value;
-#else
-    UNUSED(arg, offset);
-    Undefined();
-    return {};
 #endif
   }
 
@@ -328,7 +328,11 @@ class Interpreter {
   }
 
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
-#if !defined(__aarch64__)
+#if defined(__aarch64__)
+    UNUSED(opcode, arg, imm);
+    Undefined();
+    return {};
+#else
     switch (opcode) {
       case Decoder::OpImm32Opcode::kAddiw:
         return int32_t(arg) + int32_t{imm};
@@ -336,10 +340,6 @@ class Interpreter {
         Undefined();
         return {};
     }
-#else
-    UNUSED(opcode, arg, imm);
-    Undefined();
-    return {};
 #endif
   }
 
@@ -363,7 +363,11 @@ class Interpreter {
   Register Srai(Register arg, int8_t imm) { return bit_cast<int64_t>(arg) >> imm; }
 
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
-#if !defined(__aarch64__)
+#if defined(__aarch64__)
+    UNUSED(opcode, arg, imm);
+    Undefined();
+    return {};
+#else
     switch (opcode) {
       case Decoder::ShiftImm32Opcode::kSlliw:
         return int32_t(arg) << int32_t{imm};
@@ -375,10 +379,6 @@ class Interpreter {
         Undefined();
         return {};
     }
-#else
-    UNUSED(opcode, arg, imm);
-    Undefined();
-    return {};
 #endif
   }
 
@@ -388,13 +388,13 @@ class Interpreter {
   }
 
   Register Roriw(Register arg, int8_t shamt) {
-#if !defined(__aarch64__)
-    CheckShamt32IsValid(shamt);
-    return int32_t(((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
-#else
+#if defined(__aarch64__)
     UNUSED(arg, shamt);
     Undefined();
     return {};
+#else
+    CheckShamt32IsValid(shamt);
+    return int32_t(((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
 #endif
   }
 
@@ -423,14 +423,14 @@ class Interpreter {
 
   template <typename DataType>
   void StoreFp(Register arg, int16_t offset, FpRegister data) {
-#if !defined(__aarch64__)
+#if defined(__aarch64__)
+    UNUSED(arg, offset, data);
+    Undefined();
+#else
     static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
     CHECK(!exception_raised_);
     DataType* ptr = ToHostAddr<DataType>(arg + offset);
     exception_raised_ = FaultyStore(ptr, sizeof(DataType), data);
-#else
-    UNUSED(arg, offset, data);
-    Undefined();
 #endif
   }
 
@@ -803,14 +803,10 @@ class Interpreter {
           }
       }
     } else {
-#if defined(__aarch64__)
-      return Undefined();
-#else
       if ((vtype >> 6) & 1) {
         return OpVector<ElementType, vlmul, TailProcessing::kAgnostic, vma>(args, extra_args...);
       }
       return OpVector<ElementType, vlmul, TailProcessing::kUndisturbed, vma>(args, extra_args...);
-#endif
     }
   }
 
