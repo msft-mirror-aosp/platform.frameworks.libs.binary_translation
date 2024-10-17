@@ -30,14 +30,17 @@
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/intrinsics/guest_cpu_flags.h"  // ToHostRoundingMode
 #include "berberis/intrinsics/intrinsics.h"
-#include "berberis/intrinsics/intrinsics_float.h"
 #include "berberis/intrinsics/riscv64_to_all/vector_intrinsics.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 #include "berberis/kernel_api/run_guest_syscall.h"
-#include "berberis/runtime_primitives/interpret_helpers.h"
 #include "berberis/runtime_primitives/memory_region_reservation.h"
+
+#if !defined(__aarch64__)
+#include "berberis/intrinsics/intrinsics_float.h"
+#include "berberis/runtime_primitives/interpret_helpers.h"
 #include "berberis/runtime_primitives/recovery_code.h"
+#endif
 
 #include "regs.h"
 
@@ -93,6 +96,36 @@ class Interpreter {
     return UpdateCsr(static_cast<Decoder::CsrOpcode>(opcode), imm, csr);
   }
 
+#if defined(__aarch64__)
+  void Fence(Decoder::FenceOpcode /*opcode*/,
+             Register /*src*/,
+             bool sw,
+             bool sr,
+             bool /*so*/,
+             bool /*si*/,
+             bool pw,
+             bool pr,
+             bool /*po*/,
+             bool /*pi*/) {
+    bool read_fence = sr | pr;
+    bool write_fence = sw | pw;
+    // "ish" is for inner shareable access, which is normally needed by userspace programs.
+    if (read_fence) {
+      if (write_fence) {
+        // This is equivalent to "fence rw,rw".
+        asm volatile("dmb ish" ::: "memory");
+      } else {
+        // "ishld" is equivalent to "fence r,rw", which is stronger than what we need here
+        // ("fence r,r"). However, it is the closet option that ARM offers.
+        asm volatile("dmb ishld" ::: "memory");
+      }
+    } else if (write_fence) {
+      // "st" is equivalent to "fence w,w".
+      asm volatile("dmb ishst" ::: "memory");
+    }
+    return;
+  }
+#else
   // Note: we prefer not to use C11/C++ atomic_thread_fence or even gcc/clang builtin
   // __atomic_thread_fence because all these function rely on the fact that compiler never uses
   // non-temporal loads and stores and only issue “mfence” when sequentially consistent ordering is
@@ -132,6 +165,7 @@ class Interpreter {
     }
     return;
   }
+#endif
 
   template <typename IntType, bool aq, bool rl>
   Register Lr(int64_t addr) {
@@ -176,6 +210,7 @@ class Interpreter {
         return Int64(arg1) < Int64(arg2) ? 1 : 0;
       case Decoder::OpOpcode::kSltu:
         return UInt64(arg1) < UInt64(arg2) ? 1 : 0;
+#if !defined(__aarch64__)
       case Decoder::OpOpcode::kMul:
         return Int64(arg1) * Int64(arg2);
       case Decoder::OpOpcode::kMulh:
@@ -184,6 +219,7 @@ class Interpreter {
         return NarrowTopHalf(Widen(Int64(arg1)) * BitCastToSigned(Widen(UInt64(arg2))));
       case Decoder::OpOpcode::kMulhu:
         return NarrowTopHalf(Widen(UInt64(arg1)) * Widen(UInt64(arg2)));
+#endif
       case Decoder::OpOpcode::kAndn:
         return Int64(arg1) & (~Int64(arg2));
       case Decoder::OpOpcode::kOrn:
@@ -197,6 +233,7 @@ class Interpreter {
   }
 
   Register Op32(Decoder::Op32Opcode opcode, Register arg1, Register arg2) {
+#if !defined(__aarch64__)
     switch (opcode) {
       case Decoder::Op32Opcode::kAddw:
         return Widen(TruncateTo<Int32>(arg1) + TruncateTo<Int32>(arg2));
@@ -214,6 +251,11 @@ class Interpreter {
         Undefined();
         return {};
     }
+#else
+    UNUSED(opcode, arg1, arg2);
+    Undefined();
+    return {};
+#endif
   }
 
   Register Load(Decoder::LoadOperandType operand_type, Register arg, int16_t offset) {
@@ -241,6 +283,7 @@ class Interpreter {
 
   template <typename DataType>
   FpRegister LoadFp(Register arg, int16_t offset) {
+#if !defined(__aarch64__)
     static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
     CHECK(!exception_raised_);
     DataType* ptr = ToHostAddr<DataType>(arg + offset);
@@ -250,6 +293,11 @@ class Interpreter {
       return {};
     }
     return result.value;
+#else
+    UNUSED(arg, offset);
+    Undefined();
+    return {};
+#endif
   }
 
   Register OpImm(Decoder::OpImmOpcode opcode, Register arg, int16_t imm) {
@@ -280,6 +328,7 @@ class Interpreter {
   }
 
   Register OpImm32(Decoder::OpImm32Opcode opcode, Register arg, int16_t imm) {
+#if !defined(__aarch64__)
     switch (opcode) {
       case Decoder::OpImm32Opcode::kAddiw:
         return int32_t(arg) + int32_t{imm};
@@ -287,6 +336,11 @@ class Interpreter {
         Undefined();
         return {};
     }
+#else
+    UNUSED(opcode, arg, imm);
+    Undefined();
+    return {};
+#endif
   }
 
   // TODO(b/232598137): rework ecall to not take parameters explicitly.
@@ -309,6 +363,7 @@ class Interpreter {
   Register Srai(Register arg, int8_t imm) { return bit_cast<int64_t>(arg) >> imm; }
 
   Register ShiftImm32(Decoder::ShiftImm32Opcode opcode, Register arg, uint16_t imm) {
+#if !defined(__aarch64__)
     switch (opcode) {
       case Decoder::ShiftImm32Opcode::kSlliw:
         return int32_t(arg) << int32_t{imm};
@@ -320,6 +375,11 @@ class Interpreter {
         Undefined();
         return {};
     }
+#else
+    UNUSED(opcode, arg, imm);
+    Undefined();
+    return {};
+#endif
   }
 
   Register Rori(Register arg, int8_t shamt) {
@@ -328,8 +388,14 @@ class Interpreter {
   }
 
   Register Roriw(Register arg, int8_t shamt) {
+#if !defined(__aarch64__)
     CheckShamt32IsValid(shamt);
     return int32_t(((uint32_t(arg) >> shamt)) | (uint32_t(arg) << (32 - shamt)));
+#else
+    UNUSED(arg, shamt);
+    Undefined();
+    return {};
+#endif
   }
 
   void Store(Decoder::MemoryDataOperandType operand_type,
@@ -357,10 +423,15 @@ class Interpreter {
 
   template <typename DataType>
   void StoreFp(Register arg, int16_t offset, FpRegister data) {
+#if !defined(__aarch64__)
     static_assert(std::is_same_v<DataType, Float32> || std::is_same_v<DataType, Float64>);
     CHECK(!exception_raised_);
     DataType* ptr = ToHostAddr<DataType>(arg + offset);
     exception_raised_ = FaultyStore(ptr, sizeof(DataType), data);
+#else
+    UNUSED(arg, offset, data);
+    Undefined();
+#endif
   }
 
   void CompareAndBranch(Decoder::BranchOpcode opcode,
@@ -732,10 +803,14 @@ class Interpreter {
           }
       }
     } else {
+#if defined(__aarch64__)
+      return Undefined();
+#else
       if ((vtype >> 6) & 1) {
         return OpVector<ElementType, vlmul, TailProcessing::kAgnostic, vma>(args, extra_args...);
       }
       return OpVector<ElementType, vlmul, TailProcessing::kUndisturbed, vma>(args, extra_args...);
+#endif
     }
   }
 
@@ -4294,11 +4369,15 @@ class Interpreter {
   void Nop() {}
 
   void Undefined() {
+#if defined(__aarch64__)
+    abort();
+#else
     UndefinedInsn(GetInsnAddr());
     // If there is a guest handler registered for SIGILL we'll delay its processing until the next
     // sync point (likely the main dispatching loop) due to enabled pending signals. Thus we must
     // ensure that insn_addr isn't automatically advanced in FinalizeInsn.
     exception_raised_ = true;
+#endif
   }
 
   //
@@ -4342,17 +4421,30 @@ class Interpreter {
   // Various helper methods.
   //
 
+#if defined(__aarch64__)
+  template <CsrName kName>
+  [[nodiscard]] Register GetCsr() {
+    Undefined();
+    return {};
+  }
+#else
   template <CsrName kName>
   [[nodiscard]] Register GetCsr() const {
     return state_->cpu.*CsrFieldAddr<kName>;
   }
+#endif
 
   template <CsrName kName>
   void SetCsr(Register arg) {
+#if defined(__aarch64__)
+    UNUSED(arg);
+    Undefined();
+#else
     if (exception_raised_) {
       return;
     }
     state_->cpu.*CsrFieldAddr<kName> = arg & kCsrMask<kName>;
+#endif
   }
 
   [[nodiscard]] uint64_t GetImm(uint64_t imm) const { return imm; }
@@ -4620,6 +4712,7 @@ class Interpreter {
   bool exception_raised_;
 };
 
+#if !defined(__aarch64__)
 template <>
 [[nodiscard]] Interpreter::Register inline Interpreter::GetCsr<CsrName::kCycle>() const {
   return CPUClockCount();
@@ -4687,19 +4780,33 @@ void inline Interpreter::SetCsr<CsrName::kVxsat>(Register arg) {
       (state_->cpu.*CsrFieldAddr<CsrName::kVcsr> & 0b11) | ((arg & 0b1) << 2);
 }
 
+#endif
+
 template <>
 [[nodiscard]] Interpreter::FpRegister inline Interpreter::GetFRegAndUnboxNan<Interpreter::Float32>(
     uint8_t reg) {
+#if defined(__aarch64__)
+  UNUSED(reg);
+  Interpreter::Undefined();
+  return {};
+#else
   CheckFpRegIsValid(reg);
   FpRegister value = state_->cpu.f[reg];
   return UnboxNan<Float32>(value);
+#endif
 }
 
 template <>
 [[nodiscard]] Interpreter::FpRegister inline Interpreter::GetFRegAndUnboxNan<Interpreter::Float64>(
     uint8_t reg) {
+#if defined(__aarch64__)
+  UNUSED(reg);
+  Interpreter::Undefined();
+  return {};
+#else
   CheckFpRegIsValid(reg);
   return state_->cpu.f[reg];
+#endif
 }
 
 template <>
