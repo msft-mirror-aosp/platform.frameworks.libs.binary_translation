@@ -53,8 +53,10 @@ struct ThreadState {
   void* thread_state_storage;
 };
 
-constexpr unsigned kNumGuestRegs = std::size(CPUState{}.x);
+inline constexpr unsigned kNumGuestRegs = std::size(CPUState{}.x);
+inline constexpr unsigned kNumGuestSimdRegs = std::size(CPUState{}.v);
 
+inline constexpr unsigned kGuestCacheLineSize = 64;
 }  // namespace berberis
 
 #endif  // BERBERIS_GUEST_STATE_GUEST_STATE_ARCH_H_
