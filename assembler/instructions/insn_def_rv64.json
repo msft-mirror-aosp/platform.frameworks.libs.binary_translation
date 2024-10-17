@@ -26,7 +26,8 @@
         "remw": { "opcode": "0200_603b", "type": "R-type" },
         "sllw": { "opcode": "0000_103b", "type": "R-type" },
         "subw": { "opcode": "4000_003b", "type": "R-type" },
-        "AddUW": { "opcode": "0800_003b", "type": "R-type" }
+        "AddUW": { "opcode": "0800_003b", "type": "R-type" },
+        "rorw": { "opcode": "6000_503b", "type": "R-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
@@ -107,7 +108,8 @@
         "slli": { "opcode": "0000_1013", "type": "I-type" },
         "srai": { "opcode": "4000_5013", "type": "I-type" },
         "srli": { "opcode": "0000_5013", "type": "I-type" },
-        "bexti": { "opcode": "4800_5013", "type": "I-type" }
+        "bexti": { "opcode": "4800_5013", "type": "I-type" },
+        "rori": { "opcode": "6000_5013", "type": "I-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
@@ -119,7 +121,8 @@
       "encodings": {
         "slliw": { "opcode": "0000_101b", "type": "I-type" },
         "sraiw": { "opcode": "4000_501b", "type": "I-type" },
-        "srliw": { "opcode": "0000_501b", "type": "I-type" }
+        "srliw": { "opcode": "0000_501b", "type": "I-type" },
+        "roriw": { "opcode": "6000_501b", "type": "I-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },

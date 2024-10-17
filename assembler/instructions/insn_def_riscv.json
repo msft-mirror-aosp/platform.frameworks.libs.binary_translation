@@ -48,7 +48,8 @@
         "srlw": { "opcode": "0000_503b", "type": "R-type" },
         "sub": { "opcode": "4000_0033", "type": "R-type" },
         "xor": { "opcode": "0000_4033", "type": "R-type" },
-        "sh3add": { "opcode": "2000_6033", "type": "R-type" }
+        "sh3add": { "opcode": "2000_6033", "type": "R-type"},
+        "ror": { "opcode": "6000_5033", "type": "R-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
