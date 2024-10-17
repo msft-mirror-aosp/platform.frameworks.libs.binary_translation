@@ -202,6 +202,7 @@ bool AssemblerTest() {
   assembler.La(Assembler::x20, data_begin);
   assembler.Bind(&data_end);
   assembler.Bexti(Assembler::x16, Assembler::x1, 20);
+  assembler.Rori(Assembler::x5, Assembler::x3, 5);
   assembler.Finalize();
 
   // clang-format off
@@ -303,6 +304,7 @@ bool AssemblerTest() {
     0xfa17, 0xffff,     //        auipc   x20, -4096
     0x0a13, 0x640a,     //        addi    x20,x20,1600
     0xd813, 0x4940,     //        bexti    x16,x1,20
+    0xd293, 0x6051,     //        rori    x5, x3, 5
   };                    // end:
   // clang-format on
 
@@ -394,6 +396,10 @@ bool AssemblerTest() {
   assembler.ZextW(Assembler::x13, Assembler::x21);
   assembler.Sh3add(Assembler::x13, Assembler::x9, Assembler::x10);
   assembler.Bexti(Assembler::x16, Assembler::x1, 53);
+  assembler.Rori(Assembler::x22, Assembler::x30, 43);
+  assembler.Roriw(Assembler::x29, Assembler::x2, 30);
+  assembler.Ror(Assembler::x14, Assembler::x1, Assembler::x10);
+  assembler.Rorw(Assembler::x25, Assembler::x5, Assembler::x4);
   assembler.Finalize();
 
   // clang-format off
@@ -481,6 +487,10 @@ bool AssemblerTest() {
     0x86bb, 0x080a,     //        add.uw x13, x21, zero
     0xe6b3, 0x20a4,     //        sh3add x13, x9, x10
     0xd813, 0x4b50,     //        bexti x16, x1, 53
+    0x5b13, 0x62bf,     //        rori x22, x30, 43
+    0x5e9b, 0x61e1,     //        roriw x29, x2, 30
+    0xd733, 0x60a0,     //        ror x14, x1, x10
+    0xdcbb, 0x6042,     //        rorw x25, x5, x4
   };                    // end:
   // clang-format on
 
