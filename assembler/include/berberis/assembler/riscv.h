@@ -1069,6 +1069,11 @@ class Assembler : public AssemblerBase {
   }
 
   template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
+  void EmitRTypeInstruction(ArgumentsType0&& argument0, ArgumentsType1&& argument1) {
+    return EmitInstruction<kOpcode, 0xfff0'707f>(Rd(argument0), Rs1(argument1));
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
   void EmitRTypeInstruction(ArgumentsType0&& argument0,
                             ArgumentsType1&& argument1,
                             Rounding argument2) {
