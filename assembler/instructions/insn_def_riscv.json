@@ -19,7 +19,7 @@
     {
       "encodings": {
         "auipc": { "opcode": "0000_0017", "type": "U-Type" },
-        "lui": { "opcode": "0000_0017", "type": "U-Type" }
+        "lui": { "opcode": "0000_0037", "type": "U-Type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
@@ -105,9 +105,16 @@
       ]
     },
     {
-      "stems": [ "beq", "bge", "bgeu", "blt", "bltu", "bne" ],
+      "stems": [ "beq", "bge", "bgeu", "blt", "bltu", "bne", "bgt", "bgtu", "ble", "bleu" ],
       "args": [
         { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Label" }
+      ]
+    },
+    {
+      "stems": [ "beqz", "bnez", "blez", "bgez", "bltz", "bgtz" ],
+      "args": [
         { "class": "GeneralReg", "usage": "use" },
         { "class": "Label" }
       ]
@@ -247,12 +254,24 @@
       ]
     },
     {
+      "stems": [ "j", "jal" ],
+      "args": [
+        { "class": "J-Imm" }
+      ]
+    },
+    {
       "encodings": {
         "jalr": { "opcode": "0000_0067", "type": "I-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "Mem", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "jalr", "jr" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "use" }
       ]
     },
     {
@@ -266,7 +285,7 @@
       ]
     },
     {
-      "stems": [ "lb", "lbu", "lh", "lhu", "lla", "lw" ],
+      "stems": [ "lb", "lbu", "lh", "lhu", "la", "lw" ],
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "Label" }
@@ -338,6 +357,47 @@
     },
     {
       "stems": [ "mv" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "li" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Imm32", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "ret" ],
+      "args": []
+    },
+    {
+      "stems": [ "call", "tail" ],
+      "args": [
+        { "class": "Label" }
+      ]
+    },
+    {
+      "stems": [ "seqz", "snez", "sltz", "sgtz" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "AddUW": { "opcode": "0800_003b", "type": "R-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "ZextW" ],
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }

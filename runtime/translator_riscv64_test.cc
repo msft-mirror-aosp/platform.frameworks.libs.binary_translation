@@ -38,7 +38,7 @@ TEST(TranslatorRiscv64, LiteTranslateSupportedRegion) {
   EXPECT_NE(host_code_piece.code, nullptr);
   EXPECT_GT(host_code_piece.size, 0U);
   EXPECT_EQ(guest_size, 8U);
-  EXPECT_EQ(kind, GuestCodeEntry::Kind::kLightTranslated);
+  EXPECT_EQ(kind, GuestCodeEntry::Kind::kLiteTranslated);
 }
 
 TEST(TranslatorRiscv64, LiteTranslateUnsupportedRegion) {
@@ -65,7 +65,7 @@ TEST(TranslatorRiscv64, LiteTranslatePartiallySupportedRegion) {
   EXPECT_NE(host_code_piece.code, nullptr);
   EXPECT_GT(host_code_piece.size, 0U);
   EXPECT_EQ(guest_size, 4U);
-  EXPECT_EQ(kind, GuestCodeEntry::Kind::kLightTranslated);
+  EXPECT_EQ(kind, GuestCodeEntry::Kind::kLiteTranslated);
 }
 
 TEST(TranslatorRiscv64, HeavyOptimizeSupportedRegion) {
