@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-#if defined(__aarch64__)
-#include "berberis/intrinsics/guest_cpu_flags.h"
-
-#include "berberis/intrinsics/riscv64_to_all/vector_intrinsics.h"
-#else
 #include "berberis/intrinsics/vector_intrinsics.h"
-#endif
 
 #include <cstdint>
 #include <tuple>

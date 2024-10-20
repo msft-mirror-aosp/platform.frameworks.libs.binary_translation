@@ -29,6 +29,7 @@
 #include "berberis/intrinsics/intrinsics.h"        // PreferredIntrinsicsImplementation
 #if defined(__aarch64__)
 #include "berberis/intrinsics/common/intrinsics_float.h"
+#include "berberis/intrinsics/vector_intrinsics.h"
 #else
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64
 #endif
@@ -136,7 +137,7 @@ template <typename ElementType>
   return {result};
 }
 
-#ifndef __x86_64__
+#if !defined(__x86_64__) && !defined(__aarch64__)
 template <typename ElementType>
 [[nodiscard]] inline std::tuple<SIMD128Register> BitMaskToSimdMask(size_t mask) {
   return {BitMaskToSimdMaskForTests<ElementType>(mask)};
@@ -438,7 +439,6 @@ template <typename ElementType, TailProcessing vta, InactiveProcessing vma, type
                                               mask);
 }
 
-#if !defined(__aarch64__)
 template <typename ElementType, typename... ParameterType>
 inline constexpr bool kIsAllowedArgumentForVector =
     ((std::is_same_v<ParameterType, SIMD128Register> ||
@@ -557,7 +557,6 @@ SIMD128Register VectorExtend(SIMD128Register src) {
   }
   return result;
 }
-#endif
 
 template <typename ElementType,
           enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
@@ -749,7 +748,6 @@ inline std::tuple<SIMD128Register> Vfcvtv(int8_t rm, int8_t frm, SIMD128Register
   return result;
 }
 
-#if !defined(__aarch64__)
 // With wide intrinsics multiplication we may do sign-extension or zero-extension, but some
 // intrinsics need mix: Signed * Unsigned. We narrow down value and then extend it again.
 // Compiler is smart enough to eliminate dead code.
@@ -758,7 +756,6 @@ std::tuple<ElementType> WideMultiplySignedUnsigned(ElementType arg1, ElementType
   return BitCastToUnsigned(Widen(BitCastToSigned(Narrow(arg1)))) *
          Widen(BitCastToUnsigned(Narrow(arg2)));
 }
-#endif
 
 #define DEFINE_ARITHMETIC_PARAMETERS_OR_ARGUMENTS(...) __VA_ARGS__
 #define DEFINE_ARITHMETIC_INTRINSIC(Name, arithmetic, parameters, capture, arguments)             \
