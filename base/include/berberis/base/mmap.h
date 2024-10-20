@@ -52,6 +52,10 @@ constexpr bool IsAlignedPageSize(T x) {
   return IsAligned(x, kPageSize);
 }
 
+enum MmapBerberisFlags {
+  kMmapBerberis32Bit = 1,
+};
+
 struct MmapImplArgs {
   void* addr = nullptr;
   size_t size = 0;
@@ -59,6 +63,7 @@ struct MmapImplArgs {
   int flags = MAP_PRIVATE | MAP_ANONYMOUS;
   int fd = -1;
   off_t offset = 0;
+  int berberis_flags = 0;
 };
 
 void* MmapImpl(MmapImplArgs args);

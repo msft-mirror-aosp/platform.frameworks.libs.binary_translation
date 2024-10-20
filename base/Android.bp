@@ -127,6 +127,7 @@ cc_test_library {
         "maps_snapshot_test.cc",
         "memfd_backed_mmap_test.cc",
         "mmap_pool_test.cc",
+        "mmap_test.cc",
         "pointer_and_counter_test.cc",
     ],
     header_libs: ["libberberis_base_headers"],
