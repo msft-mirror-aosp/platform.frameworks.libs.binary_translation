@@ -39,10 +39,10 @@ namespace berberis::intrinsics {
 }  // namespace berberis::intrinsics
 
 #include "berberis/intrinsics/intrinsics_atomics_impl.h"
-#if !defined(__aarch64__)
 #include "berberis/intrinsics/intrinsics_bitmanip_impl.h"
+#if !defined(__aarch64__)
 #include "berberis/intrinsics/intrinsics_fixed_point_impl.h"
-#include "berberis/intrinsics/intrinsics_floating_point_impl.h"
 #endif
+#include "berberis/intrinsics/intrinsics_floating_point_impl.h"
 
 #endif  // BERBERIS_INTRINSICS_RISCV64_TO_ALL_INTRINSICS_H_
