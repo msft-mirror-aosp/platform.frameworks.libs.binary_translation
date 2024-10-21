@@ -391,6 +391,7 @@ bool AssemblerTest() {
   assembler.Lwu(Assembler::x2, data_begin);
   assembler.Sd(Assembler::x3, data_begin, Assembler::x4);
   assembler.Bind(&data_end);
+  assembler.SextW(Assembler::x15, Assembler::x12);
   assembler.Finalize();
 
   // clang-format off
@@ -473,6 +474,7 @@ bool AssemblerTest() {
     0x6103, 0x6981,     //        lwu     x2, 1688(x2)
     0xf217, 0xffff,     //        auipc   x4, -4096
     0x3823, 0x6832,     //        sd      x3, 1680(x4)
+    0x079b, 0x0006,     //        addi.w x15, x12, 0
   };                    // end:
   // clang-format on
 
