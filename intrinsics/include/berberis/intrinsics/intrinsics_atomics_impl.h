@@ -64,7 +64,6 @@ std::tuple<IntType> AmoAdd(int64_t arg1, IntType arg2) {
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
 std::tuple<IntType> AmoAnd(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoAnd: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "AmoAnd: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
   return {__atomic_fetch_and(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
@@ -86,7 +85,6 @@ std::tuple<IntType> AmoMin(int64_t arg1, IntType arg2) {
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
 std::tuple<IntType> AmoOr(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoOr: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "AmoOr: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
   return {__atomic_fetch_or(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
@@ -102,7 +100,6 @@ std::tuple<IntType> AmoSwap(int64_t arg1, IntType arg2) {
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
 std::tuple<IntType> AmoXor(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoXor: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "AmoXor: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
   return {__atomic_fetch_xor(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
