@@ -165,7 +165,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   template <typename T>
   auto Jcc(Condition cc, T* target) -> void = delete;
 
-  void Jcc(Condition cc, const void* target) {
+  void Jcc(Condition cc, uintptr_t target) {
     if (cc == Condition::kAlways) {
       Jmp(target);
       return;
@@ -177,9 +177,10 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit8(0x80 | static_cast<uint8_t>(cc));
     Emit32(0xcccccccc);
     // Set last 4 bytes to displacement from current pc to 'target'.
-    AddRelocation(
-        pc() - 4, RelocationType::RelocAbsToDisp32, pc(), reinterpret_cast<intptr_t>(target));
+    AddRelocation(pc() - 4, RelocationType::RelocAbsToDisp32, pc(), bit_cast<intptr_t>(target));
   }
+
+  void Jcc(Condition cc, const void* target) { Jcc(cc, bit_cast<uintptr_t>(target)); }
 
   // Unside Jmp(Reg), hidden by special version below.
   using BaseAssembler::Jmp;
