@@ -148,7 +148,7 @@
       ]
     },
     {
-      "stems": [ "SextW", "ZextW" ],
+      "stems": [ "SextW", "ZextW", "negw" ],
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }
