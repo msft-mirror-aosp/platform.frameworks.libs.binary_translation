@@ -403,6 +403,8 @@ bool AssemblerTest() {
   assembler.Not(Assembler::x10, Assembler::x4);
   assembler.Neg(Assembler::x11, Assembler::x3);
   assembler.Negw(Assembler::x12, Assembler::x2);
+  assembler.SextB(Assembler::x22, Assembler::x7);
+  assembler.SextH(Assembler::x23, Assembler::x8);
   assembler.Finalize();
 
   // clang-format off
@@ -497,6 +499,8 @@ bool AssemblerTest() {
     0x4513, 0xfff2,     //        xori x10, x4, -1
     0x05b3, 0x4030,     //        sub x11, zero, x3
     0x063b, 0x4020,     //        subw x12, zero, x2
+    0x9b13, 0x6043,     //        sext.b x22, x7
+    0x1b93, 0x6054,     //        sext.h x23, x8
   };                    // end:
   // clang-format on
 
