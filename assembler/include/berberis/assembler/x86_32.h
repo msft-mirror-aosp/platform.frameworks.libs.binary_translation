@@ -145,7 +145,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
 
   // TODO(b/127356868): decide what to do with these functions when cross-arch assembler is used.
 
-#ifdef __i386__
+#if defined(__i386__)
 
   // Unside Call(Reg), hidden by special version below.
   using BaseAssembler::Call;
@@ -188,15 +188,16 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   template <typename T>
   auto Jmp(T* target) -> void = delete;
 
-  void Jmp(const void* target) {
+  void Jmp(uintptr_t target) {
     Emit8(0xe9);
     Emit32(0xcccccccc);
     // Set last 4 bytes to displacement from current pc to 'target'.
-    AddRelocation(
-        pc() - 4, RelocationType::RelocAbsToDisp32, pc(), reinterpret_cast<intptr_t>(target));
+    AddRelocation(pc() - 4, RelocationType::RelocAbsToDisp32, pc(), bit_cast<intptr_t>(target));
   }
 
-#endif
+  void Jmp(const void* target) { Jmp(bit_cast<uintptr_t>(target)); }
+
+#endif  // defined(__i386__)
 
  private:
   Assembler() = delete;
