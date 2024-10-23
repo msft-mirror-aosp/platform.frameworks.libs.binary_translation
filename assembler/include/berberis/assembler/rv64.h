@@ -126,6 +126,10 @@ inline void Assembler::ZextW(Register arg0, Register arg1) {
   AddUW(arg0, arg1, zero);
 }
 
+inline void Assembler::Negw(Register arg0, Register arg1) {
+  Subw(arg0, zero, arg1);
+}
+
 }  // namespace berberis::rv64
 
 #endif  // BERBERIS_ASSEMBLER_RV64_H_

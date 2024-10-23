@@ -274,7 +274,7 @@ class Assembler : public AssemblerBase {
 #include "berberis/assembler/gen_assembler_x86_32_and_x86_64-inl.h"  // NOLINT generated file
 
   // Flow control.
-  void Jmp(int32_t offset) {
+  void JmpRel(int32_t offset) {
     CHECK_GE(offset, INT32_MIN + 2);
     int32_t short_offset = offset - 2;
     if (IsInRange<int8_t>(short_offset)) {
@@ -295,7 +295,7 @@ class Assembler : public AssemblerBase {
 
   void Jcc(Condition cc, int32_t offset) {
     if (cc == Condition::kAlways) {
-      Jmp(offset);
+      JmpRel(offset);
       return;
     }
     if (cc == Condition::kNever) {
@@ -866,7 +866,7 @@ inline void Assembler<DerivedAssemblerType>::Jmp(const Label& label) {
   // Then jmp by label will be of fixed size (5 bytes)
   if (label.IsBound()) {
     int32_t offset = label.position() - pc();
-    Jmp(offset);
+    JmpRel(offset);
   } else {
     Emit8(0xe9);
     Emit32(0xfffffffc);
