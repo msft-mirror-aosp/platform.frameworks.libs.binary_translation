@@ -400,6 +400,11 @@ bool AssemblerTest() {
   assembler.Roriw(Assembler::x29, Assembler::x2, 30);
   assembler.Ror(Assembler::x14, Assembler::x1, Assembler::x10);
   assembler.Rorw(Assembler::x25, Assembler::x5, Assembler::x4);
+  assembler.Not(Assembler::x10, Assembler::x4);
+  assembler.Neg(Assembler::x11, Assembler::x3);
+  assembler.Negw(Assembler::x12, Assembler::x2);
+  assembler.SextB(Assembler::x22, Assembler::x7);
+  assembler.SextH(Assembler::x23, Assembler::x8);
   assembler.Finalize();
 
   // clang-format off
@@ -491,6 +496,11 @@ bool AssemblerTest() {
     0x5e9b, 0x61e1,     //        roriw x29, x2, 30
     0xd733, 0x60a0,     //        ror x14, x1, x10
     0xdcbb, 0x6042,     //        rorw x25, x5, x4
+    0x4513, 0xfff2,     //        xori x10, x4, -1
+    0x05b3, 0x4030,     //        sub x11, zero, x3
+    0x063b, 0x4020,     //        subw x12, zero, x2
+    0x9b13, 0x6043,     //        sext.b x22, x7
+    0x1b93, 0x6054,     //        sext.h x23, x8
   };                    // end:
   // clang-format on
 
