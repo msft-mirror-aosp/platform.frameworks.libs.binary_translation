@@ -155,7 +155,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   template <typename T>
   auto Jcc(Condition cc, T* target) -> void = delete;
 
-  void Jcc(Condition cc, const void* target) {
+  void Jcc(Condition cc, uintptr_t target) {
     if (cc == Condition::kAlways) {
       Jmp(target);
       return;
@@ -175,6 +175,8 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit64(0x0000000025ff'0e70 | static_cast<int8_t>(ToReverseCond(cc)));
     Emit64(bit_cast<int64_t>(target));
   }
+
+  void Jcc(Condition cc, const void* target) { Jcc(cc, bit_cast<uintptr_t>(target)); }
 
   // Unhide Jmp(Reg), hidden by special version below.
   using BaseAssembler::Jmp;
