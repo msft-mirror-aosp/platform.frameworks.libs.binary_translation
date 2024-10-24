@@ -17,14 +17,20 @@
 #ifndef BERBERIS_INTRINSICS_RISCV64_TO_ALL_INTRINSICS_H_
 #define BERBERIS_INTRINSICS_RISCV64_TO_ALL_INTRINSICS_H_
 
+#include <cstdint>
 #include <limits>
 #include <tuple>
 #include <type_traits>
 
-#include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/common/intrinsics.h"
+
+#if !defined(__aarch64__)
+#include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64/ProcessNans
 #include "berberis/intrinsics/type_traits.h"
+#else
+#include "berberis/intrinsics/common/intrinsics_float.h"
+#endif
 
 namespace berberis::intrinsics {
 
@@ -34,7 +40,9 @@ namespace berberis::intrinsics {
 
 #include "berberis/intrinsics/intrinsics_atomics_impl.h"
 #include "berberis/intrinsics/intrinsics_bitmanip_impl.h"
+#if !defined(__aarch64__)
 #include "berberis/intrinsics/intrinsics_fixed_point_impl.h"
+#endif
 #include "berberis/intrinsics/intrinsics_floating_point_impl.h"
 
 #endif  // BERBERIS_INTRINSICS_RISCV64_TO_ALL_INTRINSICS_H_

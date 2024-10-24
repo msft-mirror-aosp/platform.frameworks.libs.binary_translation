@@ -21,6 +21,7 @@
 #include <mutex>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/base/large_mmap.h"
 #include "berberis/base/logging.h"
 #include "berberis/base/mmap.h"
@@ -36,8 +37,10 @@ constexpr size_t kGuestPageSizeLog2 = 12;
 #if defined(BERBERIS_GUEST_LP64)
 // On LP64 the address space is limited to 48 bits
 constexpr size_t kGuestAddressSizeLog2 = 48;
+constexpr size_t kMaxGuestAddress{0xffff'ffff'ffff};
 #else
 constexpr size_t kGuestAddressSizeLog2 = sizeof(GuestAddr) * CHAR_BIT;
+constexpr size_t kMaxGuestAddress{0xffff'ffff};
 #endif
 constexpr size_t kGuestPageSize = 1 << kGuestPageSizeLog2;  // 4096
 constexpr size_t kShadowSize = 1UL << (kGuestAddressSizeLog2 - kGuestPageSizeLog2 - 3);
@@ -61,18 +64,28 @@ bool DoIntervalsIntersect(const void* start,
 }  // namespace
 
 GuestMapShadow* GuestMapShadow::GetInstance() {
-  static GuestMapShadow g_map_shadow;
-  return &g_map_shadow;
+  static auto* g_map_shadow = NewForever<GuestMapShadow>();
+  return g_map_shadow;
 }
 
 bool GuestMapShadow::IsExecAddr(GuestAddr addr) const {
-  uint32_t page = addr >> kGuestPageSizeLog2;
+  if (addr > kMaxGuestAddress) {
+    // Addresses outside the supported range are always non-executable.
+    // In practice we may end up here when parsing kernel addresses
+    // from /proc/self/maps.
+    return false;
+  }
+  uintptr_t page = addr >> kGuestPageSizeLog2;
   return shadow_[page >> 3] & (1 << (page & 7));
 }
 
 // Returns true if value changed.
 bool GuestMapShadow::SetExecAddr(GuestAddr addr, int set) {
-  uint32_t page = addr >> kGuestPageSizeLog2;
+  if (addr > kMaxGuestAddress) {
+    // See IsExecAddr for explanation.
+    return false;
+  }
+  uintptr_t page = addr >> kGuestPageSizeLog2;
   uint8_t mask = 1 << (page & 7);
   int old = shadow_[page >> 3] & mask;
   if (set) {

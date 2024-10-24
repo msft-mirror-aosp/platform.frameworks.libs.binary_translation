@@ -34,8 +34,8 @@ class GuestMapShadowTest : public ::testing::Test {
   }
 };
 
-constexpr GuestAddr kGuestAddr = GuestAddr{0x7f018000};
-constexpr size_t kGuestRegionSize = GuestAddr{0x00020000};
+constexpr GuestAddr kGuestAddr{0x7f018000};
+constexpr size_t kGuestRegionSize{0x00020000};
 
 TEST_F(GuestMapShadowTest, smoke) {
   auto shadow = std::make_unique<GuestMapShadow>();
@@ -136,6 +136,26 @@ TEST_F(GuestMapShadowTest, ProtectedMappings) {
   EXPECT_FALSE(shadow->IntersectsWithProtectedMapping(kEnd, kAnotherStart));
   EXPECT_FALSE(shadow->IntersectsWithProtectedMapping(kAnotherEnd, kAnotherEnd + kGuestRegionSize));
 }
+
+#if defined(BERBERIS_GUEST_LP64)
+
+TEST_F(GuestMapShadowTest, 64BitAddress) {
+  auto shadow = std::make_unique<GuestMapShadow>();
+  // We only really allow up to 48 bit addresses.
+  constexpr uint64_t k64BitAddr{0x0000'7fff'dddd'ccccULL};
+
+  ASSERT_EQ(kBitUnset, shadow->GetExecutable(k64BitAddr, kGuestRegionSize));
+
+  shadow->SetExecutable(k64BitAddr, kGuestRegionSize);
+
+  ASSERT_EQ(kBitSet, shadow->GetExecutable(k64BitAddr, kGuestRegionSize));
+  // The address with 4 upper bits truncated doesn't map to
+  // the same entry as the full address (b/369950324).
+  constexpr uint64_t kTruncated64BitAddr{k64BitAddr & ~(uint64_t{0xf} << 44)};
+  ASSERT_EQ(kBitUnset, shadow->GetExecutable(kTruncated64BitAddr, kGuestRegionSize));
+}
+
+#endif
 
 }  // namespace
 

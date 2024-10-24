@@ -17,8 +17,9 @@
 #ifndef BERBERIS_INTRINSICS_SIMD_REGISTER_H_
 #define BERBERIS_INTRINSICS_SIMD_REGISTER_H_
 
-#include <stdint.h>
-#include <string.h>
+#include <cstdint>
+#include <cstring>
+#include <tuple>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/common/intrinsics_float.h"
@@ -44,16 +45,24 @@ constexpr T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index) = delete
 [[nodiscard]] constexpr SIMD128Register operator~(SIMD128Register lhs);
 
 #if defined(__GNUC__)
-using Int8x16 = char __attribute__((__vector_size__(16)));
-using UInt8x16 = unsigned char __attribute__((__vector_size__(16)));
-using Int16x8 = short __attribute__((__vector_size__(16)));
-using UInt16x8 = unsigned short __attribute__((__vector_size__(16)));
-using Int32x4 = int __attribute__((__vector_size__(16)));
-using UInt32x4 = unsigned int __attribute__((__vector_size__(16)));
-using UInt64x2 = unsigned long long __attribute__((__vector_size__(16)));
-using Float64x2 = double __attribute__((__vector_size__(16)));
-using Int64x2 = long long __attribute__((__vector_size__(16), __aligned__(16)));
-using Float32x4 = float __attribute__((__vector_size__(16), __aligned__(16)));
+using Int8x16 = char __attribute__((__vector_size__(16), may_alias));
+using UInt8x16 = unsigned char __attribute__((__vector_size__(16), may_alias));
+using Int16x8 = short __attribute__((__vector_size__(16), may_alias));
+using UInt16x8 = unsigned short __attribute__((__vector_size__(16), may_alias));
+using Int32x4 = int __attribute__((__vector_size__(16), may_alias));
+using UInt32x4 = unsigned int __attribute__((__vector_size__(16), may_alias));
+using UInt64x2 = unsigned long long __attribute__((__vector_size__(16), may_alias));
+using Float64x2 = double __attribute__((__vector_size__(16), may_alias));
+using Int64x2 = long long __attribute__((__vector_size__(16), __aligned__(16), may_alias));
+using Float32x4 = float __attribute__((__vector_size__(16), __aligned__(16), may_alias));
+
+using UInt8x16Tuple =
+    std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t,
+               uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t>;
+using UInt16x8Tuple =
+    std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t>;
+using UInt32x4Tuple = std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>;
+using UInt64x2Tuple = std::tuple<uint64_t, uint64_t>;
 #endif
 
 class SIMD128Register {
@@ -67,21 +76,34 @@ class SIMD128Register {
   SIMD128Register() = default;
   SIMD128Register(const SIMD128Register&) = default;
   SIMD128Register(SIMD128Register&&) = default;
-#define SIMD_ARRAY_CONSTRUCTOR(Type, member, kSize)                \
-  constexpr SIMD128Register(const Type(&elem)[kSize]) : member{} { \
-    for (size_t index = 0; index < kSize; ++index) {               \
-      Set(elem[index], index);                                     \
-    }                                                              \
-  }
-  SIMD_ARRAY_CONSTRUCTOR(int8_t, int8, 16)
-  SIMD_ARRAY_CONSTRUCTOR(uint8_t, uint8, 16)
-  SIMD_ARRAY_CONSTRUCTOR(int16_t, int16, 8)
-  SIMD_ARRAY_CONSTRUCTOR(uint16_t, uint16, 8)
-  SIMD_ARRAY_CONSTRUCTOR(int32_t, int32, 4)
-  SIMD_ARRAY_CONSTRUCTOR(uint32_t, uint32, 4)
-  SIMD_ARRAY_CONSTRUCTOR(int64_t, int64, 2)
-  SIMD_ARRAY_CONSTRUCTOR(uint64_t, uint64, 2)
-#undef SIMD_ARRAY_CONSTRUCTOR
+
+  SIMD128Register(UInt8x16Tuple uint8x16_tuple) noexcept
+      : uint8{[&uint8x16_tuple] {
+          auto [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15] =
+              uint8x16_tuple;
+          uint8_t result[16] = {
+              x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15};
+          return std::bit_cast<Int8x16>(result);
+        }()} {}
+  SIMD128Register(UInt16x8Tuple uint16x8_tuple) noexcept
+      : uint8{[&uint16x8_tuple] {
+          auto [x0, x1, x2, x3, x4, x5, x6, x7] = uint16x8_tuple;
+          uint16_t result[8] = {x0, x1, x2, x3, x4, x5, x6, x7};
+          return std::bit_cast<Int16x8>(result);
+        }()} {}
+  SIMD128Register(UInt32x4Tuple uint32x4_tuple) noexcept
+      : uint8{[&uint32x4_tuple] {
+          auto [x0, x1, x2, x3] = uint32x4_tuple;
+          uint32_t result[4] = {x0, x1, x2, x3};
+          return std::bit_cast<Int32x4>(result);
+        }()} {}
+  SIMD128Register(UInt64x2Tuple uint64x2_tuple) noexcept
+      : uint8{[&uint64x2_tuple] {
+          auto [x0, x1] = uint64x2_tuple;
+          uint64_t result[2] = {x0, x1};
+          return std::bit_cast<Int64x2>(result);
+        }()} {}
+
   SIMD128Register& operator=(const SIMD128Register&) = default;
   SIMD128Register& operator=(SIMD128Register&&) = default;
   // Note that all other constructos are not constexpr because they not compatible with notion of
@@ -241,11 +263,7 @@ class SIMD128Register {
 
 static_assert(sizeof(SIMD128Register) == 16, "Unexpected size of SIMD128Register");
 
-#if defined(__i386__)
-static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
-#elif defined(__x86_64__)
-static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
-#elif defined(__riscv)
+#if defined(__i386__) || defined(__x86_64__) || defined(__riscv) || defined(__aarch64__)
 static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
 #else
 #error Unsupported architecture
