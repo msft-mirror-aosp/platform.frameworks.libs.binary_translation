@@ -182,11 +182,9 @@ bool AssemblerTest() {
   assembler.Jal(-0x26);
   assembler.Jr(Assembler::x19);
   assembler.Jalr(Assembler::x7);
-  assembler.AddUW(Assembler::x14, Assembler::x22, Assembler::x29);
-  assembler.ZextW(Assembler::x13, Assembler::x21);
   // Move target position for more than 2048 bytes down to ensure auipc would use non-zero
   // immediate.
-  for (size_t index = 142; index < 1200; ++index) {
+  for (size_t index = 138; index < 1200; ++index) {
     assembler.TwoByte(uint16_t{0});
   }
   assembler.Fld(Assembler::f1, data_begin, Assembler::x2);
@@ -203,6 +201,8 @@ bool AssemblerTest() {
   assembler.Sw(Assembler::x18, data_begin, Assembler::x19);
   assembler.La(Assembler::x20, data_begin);
   assembler.Bind(&data_end);
+  assembler.Bexti(Assembler::x16, Assembler::x1, 20);
+  assembler.Rori(Assembler::x5, Assembler::x3, 5);
   assembler.Finalize();
 
   // clang-format off
@@ -276,9 +276,7 @@ bool AssemblerTest() {
     0xf0ef, 0xfdbf,     //        jal x1, -0x26
     0x8067, 0x0009,     //        jalr zero, x19, 0
     0x80e7, 0x0003,     //        jalr x1, x7, 0
-    0x073b, 0x09db,     //        add.uw x14, x22, x29
-    0x86bb, 0x080a,     //        add.uw x13, x21, zero
-    [ 142 ... 1199 ] = 0,//       padding
+    [ 138 ... 1199 ] = 0,//       padding
     0xf117, 0xffff,     //        auipc   x2, -4096
     0x3087, 0x6a01,     //        fld     f1,1696(x2)
     0xf217, 0xffff,     //        auipc   x4, -4096
@@ -305,6 +303,8 @@ bool AssemblerTest() {
     0xa423, 0x6529,     //        sw      x18,1608(x19)
     0xfa17, 0xffff,     //        auipc   x20, -4096
     0x0a13, 0x640a,     //        addi    x20,x20,1600
+    0xd813, 0x4940,     //        bexti    x16,x1,20
+    0xd293, 0x6051,     //        rori    x5, x3, 5
   };                    // end:
   // clang-format on
 
@@ -391,6 +391,20 @@ bool AssemblerTest() {
   assembler.Lwu(Assembler::x2, data_begin);
   assembler.Sd(Assembler::x3, data_begin, Assembler::x4);
   assembler.Bind(&data_end);
+  assembler.SextW(Assembler::x15, Assembler::x12);
+  assembler.AddUW(Assembler::x14, Assembler::x22, Assembler::x29);
+  assembler.ZextW(Assembler::x13, Assembler::x21);
+  assembler.Sh3add(Assembler::x13, Assembler::x9, Assembler::x10);
+  assembler.Bexti(Assembler::x16, Assembler::x1, 53);
+  assembler.Rori(Assembler::x22, Assembler::x30, 43);
+  assembler.Roriw(Assembler::x29, Assembler::x2, 30);
+  assembler.Ror(Assembler::x14, Assembler::x1, Assembler::x10);
+  assembler.Rorw(Assembler::x25, Assembler::x5, Assembler::x4);
+  assembler.Not(Assembler::x10, Assembler::x4);
+  assembler.Neg(Assembler::x11, Assembler::x3);
+  assembler.Negw(Assembler::x12, Assembler::x2);
+  assembler.SextB(Assembler::x22, Assembler::x7);
+  assembler.SextH(Assembler::x23, Assembler::x8);
   assembler.Finalize();
 
   // clang-format off
@@ -473,6 +487,20 @@ bool AssemblerTest() {
     0x6103, 0x6981,     //        lwu     x2, 1688(x2)
     0xf217, 0xffff,     //        auipc   x4, -4096
     0x3823, 0x6832,     //        sd      x3, 1680(x4)
+    0x079b, 0x0006,     //        addi.w x15, x12, 0
+    0x073b, 0x09db,     //        add.uw x14, x22, x29
+    0x86bb, 0x080a,     //        add.uw x13, x21, zero
+    0xe6b3, 0x20a4,     //        sh3add x13, x9, x10
+    0xd813, 0x4b50,     //        bexti x16, x1, 53
+    0x5b13, 0x62bf,     //        rori x22, x30, 43
+    0x5e9b, 0x61e1,     //        roriw x29, x2, 30
+    0xd733, 0x60a0,     //        ror x14, x1, x10
+    0xdcbb, 0x6042,     //        rorw x25, x5, x4
+    0x4513, 0xfff2,     //        xori x10, x4, -1
+    0x05b3, 0x4030,     //        sub x11, zero, x3
+    0x063b, 0x4020,     //        subw x12, zero, x2
+    0x9b13, 0x6043,     //        sext.b x22, x7
+    0x1b93, 0x6054,     //        sext.h x23, x8
   };                    // end:
   // clang-format on
 
