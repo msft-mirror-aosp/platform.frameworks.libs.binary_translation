@@ -358,7 +358,7 @@
       ]
     },
     {
-      "stems": [ "mv" ],
+      "stems": [ "mv", "not", "neg" ],
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }
