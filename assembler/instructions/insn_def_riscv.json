@@ -387,6 +387,16 @@
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }
       ]
+    },
+    {
+      "encodings": {
+        "sext.b": { "opcode": "6040_1013", "type": "R-type"},
+        "sext.h": { "opcode": "6050_1013", "type": "R-type"}
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
     }
   ]
 }
