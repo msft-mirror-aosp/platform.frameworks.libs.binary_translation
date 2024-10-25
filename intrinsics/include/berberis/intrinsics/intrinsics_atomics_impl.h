@@ -21,6 +21,7 @@
 #include <type_traits>
 
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/intrinsics/common/intrinsics.h"
 
 namespace berberis::intrinsics {
 
