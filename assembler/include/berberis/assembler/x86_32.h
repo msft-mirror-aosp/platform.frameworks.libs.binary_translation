@@ -161,11 +161,15 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   // Unside Jcc(Label), hidden by special version below.
   using BaseAssembler::Jcc;
 
-  // Make sure only type void* can be passed to function below, not Label* or any other type.
+  // Make sure only type void* can be passed to function below, not Label* or any other pointer.
   template <typename T>
   auto Jcc(Condition cc, T* target) -> void = delete;
 
-  void Jcc(Condition cc, const void* target) {
+  template <typename T>
+  auto Jcc(Condition cc, T target)
+      -> std::enable_if_t<std::is_integral_v<T> && sizeof(uintptr_t) < sizeof(T)> = delete;
+
+  void Jcc(Condition cc, uintptr_t target) {
     if (cc == Condition::kAlways) {
       Jmp(target);
       return;
@@ -177,16 +181,21 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit8(0x80 | static_cast<uint8_t>(cc));
     Emit32(0xcccccccc);
     // Set last 4 bytes to displacement from current pc to 'target'.
-    AddRelocation(
-        pc() - 4, RelocationType::RelocAbsToDisp32, pc(), reinterpret_cast<intptr_t>(target));
+    AddRelocation(pc() - 4, RelocationType::RelocAbsToDisp32, pc(), bit_cast<intptr_t>(target));
   }
+
+  void Jcc(Condition cc, const void* target) { Jcc(cc, bit_cast<uintptr_t>(target)); }
 
   // Unside Jmp(Reg), hidden by special version below.
   using BaseAssembler::Jmp;
 
-  // Make sure only type void* can be passed to function below, not Label* or any other type.
+  // Make sure only type void* can be passed to function below, not Label* or any other pointer.
   template <typename T>
   auto Jmp(T* target) -> void = delete;
+
+  template <typename T>
+  auto Jmp(T target)
+      -> std::enable_if_t<std::is_integral_v<T> && sizeof(uintptr_t) < sizeof(T)> = delete;
 
   void Jmp(uintptr_t target) {
     Emit8(0xe9);
