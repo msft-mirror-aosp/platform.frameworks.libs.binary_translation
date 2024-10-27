@@ -155,7 +155,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   template <typename T>
   auto Jcc(Condition cc, T* target) -> void = delete;
 
-  void Jcc(Condition cc, const void* target) {
+  void Jcc(Condition cc, uintptr_t target) {
     if (cc == Condition::kAlways) {
       Jmp(target);
       return;
@@ -176,6 +176,8 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit64(bit_cast<int64_t>(target));
   }
 
+  void Jcc(Condition cc, const void* target) { Jcc(cc, bit_cast<uintptr_t>(target)); }
+
   // Unhide Jmp(Reg), hidden by special version below.
   using BaseAssembler::Jmp;
 
@@ -183,7 +185,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   template <typename T>
   auto Jmp(T* target) -> void = delete;
 
-  void Jmp(const void* target) {
+  void Jmp(uintptr_t target) {
     // There are no jump instruction with properties we need thus we emulate it.
     // This is what the following code looks like when decoded with objdump (if
     // target address is 0x123456789abcdef0):
@@ -195,6 +197,8 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit32(0x00000000);
     Emit64(bit_cast<int64_t>(target));
   }
+
+  void Jmp(const void* target) { Jmp(bit_cast<uintptr_t>(target)); }
 
 #endif
 

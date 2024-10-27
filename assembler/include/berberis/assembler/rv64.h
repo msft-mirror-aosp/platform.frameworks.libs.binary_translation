@@ -118,6 +118,14 @@ inline void Assembler::Sd(Register arg0, const Label& label, Register arg2) {
   EmitSTypeInstruction<uint32_t{0x0000'3023}>(arg0, Operand<Register, SImmediate>{.base = arg2});
 }
 
+inline void Assembler::SextW(Register arg0, Register arg1) {
+  Addiw(arg0, arg1, 0);
+}
+
+inline void Assembler::ZextW(Register arg0, Register arg1) {
+  AddUW(arg0, arg1, zero);
+}
+
 }  // namespace berberis::rv64
 
 #endif  // BERBERIS_ASSEMBLER_RV64_H_

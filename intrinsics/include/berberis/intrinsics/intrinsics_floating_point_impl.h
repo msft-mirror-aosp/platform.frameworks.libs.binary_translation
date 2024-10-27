@@ -24,11 +24,16 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/intrinsics/guest_cpu_flags.h"
 #include "berberis/intrinsics/intrinsics.h"
+#if defined(__aarch64__)
+#include "berberis/intrinsics/common/intrinsics_float.h"
+#else
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64/ProcessNans
+#endif
 #include "berberis/intrinsics/type_traits.h"
 
 namespace berberis::intrinsics {
 
+#if !defined(__aarch64__)
 template <typename FloatType,
           enum PreferredIntrinsicsImplementation kPreferredIntrinsicsImplementation>
 std::tuple<FloatType> FAdd(int8_t rm, int8_t frm, FloatType arg1, FloatType arg2) {
@@ -273,6 +278,7 @@ std::tuple<FloatType> FNMSub(int8_t rm,
       arg2,
       arg3);
 }
+#endif
 
 template <typename FloatType>
 FloatType CanonicalizeNanTuple(std::tuple<FloatType> arg) {
@@ -321,6 +327,7 @@ FloatType RSqrtEstimate(FloatType op) {
   }
 }
 
+#if !defined(__aarch64__)
 template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FNMSubHostRounding(FloatType arg1, FloatType arg2, FloatType arg3) {
   return {intrinsics::MulAdd(intrinsics::Negative(arg1), arg2, intrinsics::Negative(arg3))};
@@ -382,6 +389,7 @@ template <typename FloatType, enum PreferredIntrinsicsImplementation>
 std::tuple<FloatType> FSubHostRounding(FloatType arg1, FloatType arg2) {
   return {arg1 - arg2};
 }
+#endif
 
 }  // namespace berberis::intrinsics
 
