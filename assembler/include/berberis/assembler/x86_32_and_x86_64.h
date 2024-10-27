@@ -293,7 +293,7 @@ class Assembler : public AssemblerBase {
     Emit32(offset - 5);
   }
 
-  void Jcc(Condition cc, int32_t offset) {
+  void JccRel(Condition cc, int32_t offset) {
     if (cc == Condition::kAlways) {
       JmpRel(offset);
       return;
@@ -852,7 +852,7 @@ inline void Assembler<DerivedAssemblerType>::Jcc(Condition cc, const Label& labe
   // Then jcc by label will be of fixed size (5 bytes)
   if (label.IsBound()) {
     int32_t offset = label.position() - pc();
-    Jcc(cc, offset);
+    JccRel(cc, offset);
   } else {
     Emit16(0x800f | (static_cast<uint8_t>(cc) << 8));
     Emit32(0xfffffffc);
