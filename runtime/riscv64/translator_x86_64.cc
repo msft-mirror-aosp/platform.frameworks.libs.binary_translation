@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include "translator_riscv64.h"
+#include "translator_x86_64.h"
 #include "berberis/runtime/translator.h"
+#include "translator.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -31,12 +32,9 @@
 #include "berberis/heavy_optimizer/riscv64/heavy_optimize_region.h"
 #include "berberis/interpreter/riscv64/interpreter.h"
 #include "berberis/lite_translator/lite_translate_region.h"
-#include "berberis/runtime_primitives/code_pool.h"
 #include "berberis/runtime_primitives/host_code.h"
-#include "berberis/runtime_primitives/profiler_interface.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 #include "berberis/runtime_primitives/translation_cache.h"
-#include "berberis/runtime_primitives/virtual_guest_call_frame.h"
 
 namespace berberis {
 
@@ -86,44 +84,15 @@ void UpdateTranslationMode() {
   LOG_ALWAYS_FATAL("Unrecognized translation mode '%s'", config_mode);
 }
 
-// Use aligned address of this variable as the default stop address for guest execution.
-// It should never coincide with any guest address or address of a wrapped host symbol.
-// Unwinder might examine nearby insns.
-alignas(4) uint32_t g_native_bridge_call_guest[] = {
-    // <native_bridge_call_guest>:
-    0xd503201f,  // nop
-    0xd503201f,  // nop  <--
-    0xd503201f,  // nop
-};
-
 enum class TranslationGear {
   kFirst,
   kSecond,
 };
 
-uint8_t GetRiscv64InsnSize(GuestAddr pc) {
-  constexpr uint16_t kInsnLenMask = uint16_t{0b11};
-  if ((*ToHostAddr<uint16_t>(pc) & kInsnLenMask) != kInsnLenMask) {
-    return 2;
-  }
-  return 4;
-}
-
 }  // namespace
 
-HostCodePiece InstallTranslated(MachineCode* machine_code,
-                                GuestAddr pc,
-                                size_t size,
-                                const char* prefix) {
-  HostCode host_code = GetDefaultCodePoolInstance()->Add(machine_code);
-  ProfilerLogGeneratedCode(host_code, machine_code->install_size(), pc, size, prefix);
-  return {host_code, machine_code->install_size()};
-}
-
-void InitTranslator() {
+void InitTranslatorArch() {
   UpdateTranslationMode();
-  InitVirtualGuestCallFrameReturnAddress(ToGuestAddr(g_native_bridge_call_guest + 1));
-  InitInterpreter();
 }
 
 // Exported for testing only.
@@ -190,20 +159,8 @@ void TranslateRegion(GuestAddr pc) {
   }
 
   GuestMapShadow* guest_map_shadow = GuestMapShadow::GetInstance();
-
-  // First check if the instruction would be in executable memory if it is compressed.  This
-  // prevents dereferencing unknown memory to determine the size of the instruction.
-  constexpr uint8_t kMinimumInsnSize = 2;
-  if (!guest_map_shadow->IsExecutable(pc, kMinimumInsnSize)) {
-    cache->SetTranslatedAndUnlock(pc, entry, kMinimumInsnSize, kSpecialHandler, {kEntryNoExec, 0});
-    return;
-  }
-
-  // Now check the rest of the instruction based on its size.  It is now safe to dereference the
-  // memory at pc because at least two bytes are within known executable memory.
-  uint8_t first_insn_size = GetRiscv64InsnSize(pc);
-  if (first_insn_size > kMinimumInsnSize &&
-      !guest_map_shadow->IsExecutable(pc + kMinimumInsnSize, first_insn_size - kMinimumInsnSize)) {
+  auto [is_executable, first_insn_size] = IsPcExecutable(pc, guest_map_shadow);
+  if (!is_executable) {
     cache->SetTranslatedAndUnlock(pc, entry, first_insn_size, kSpecialHandler, {kEntryNoExec, 0});
     return;
   }
