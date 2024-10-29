@@ -1069,6 +1069,11 @@ class Assembler : public AssemblerBase {
   }
 
   template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
+  void EmitRTypeInstruction(ArgumentsType0&& argument0, ArgumentsType1&& argument1) {
+    return EmitInstruction<kOpcode, 0xfff0'707f>(Rd(argument0), Rs1(argument1));
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
   void EmitRTypeInstruction(ArgumentsType0&& argument0,
                             ArgumentsType1&& argument1,
                             Rounding argument2) {
@@ -1412,6 +1417,16 @@ inline void Assembler<DerivedAssemblerType>::Jr(Register arg0) {
 template <typename DerivedAssemblerType>
 inline void Assembler<DerivedAssemblerType>::Jalr(Register arg0) {
   Jalr(x1, arg0, 0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Not(Register arg0, Register arg1) {
+  Xori(arg0, arg1, -1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Neg(Register arg0, Register arg1) {
+  Sub(arg0, zero, arg1);
 }
 
 }  // namespace riscv

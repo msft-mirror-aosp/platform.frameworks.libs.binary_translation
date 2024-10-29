@@ -19,7 +19,7 @@ package {
 
 cc_library_headers {
     name: "libberberis_guest_abi_riscv64_headers",
-    defaults: ["berberis_defaults_64"],
+    defaults: ["berberis_all_hosts_defaults_64"],
     host_supported: true,
     export_include_dirs: ["include"],
     header_libs: [
@@ -34,7 +34,7 @@ cc_library_headers {
 
 cc_library_static {
     name: "libberberis_guest_abi_riscv64",
-    defaults: ["berberis_defaults_64"],
+    defaults: ["berberis_all_hosts_defaults_64"],
     host_supported: true,
     srcs: [
         "guest_call.cc",
