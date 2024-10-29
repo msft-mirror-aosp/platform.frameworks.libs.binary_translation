@@ -81,28 +81,31 @@ const Guest_sigaction* FindSignalHandler(const GuestSignalActionsTable& signal_a
   return &signal_actions.at(signal - 1).GetClaimedGuestAction();
 }
 
+uintptr_t GetHostRegIP(const ucontext_t* ucontext) {
 #if defined(__i386__)
-constexpr size_t kHostRegIP = REG_EIP;
+  return ucontext->uc_mcontext.gregs[REG_EIP];
 #elif defined(__x86_64__)
-constexpr size_t kHostRegIP = REG_RIP;
+  return ucontext->uc_mcontext.gregs[REG_RIP];
 #elif defined(__riscv)
-constexpr size_t kHostRegIP = REG_PC;
+  return ucontext->uc_mcontext.__gregs[REG_PC];
+#elif defined(__aarch64__)
+  return ucontext->uc_mcontext.pc;
 #else
 #error "Unknown host arch"
-#endif
-uintptr_t GetHostRegIP(const ucontext_t* ucontext) {
-#if defined(__riscv)
-  return ucontext->uc_mcontext.__gregs[kHostRegIP];
-#else
-  return ucontext->uc_mcontext.gregs[kHostRegIP];
 #endif
 }
 
 void SetHostRegIP(ucontext* ucontext, uintptr_t addr) {
-#if defined(__riscv)
-  ucontext->uc_mcontext.__gregs[kHostRegIP] = addr;
+#if defined(__i386__)
+  ucontext->uc_mcontext.gregs[REG_EIP] = addr;
+#elif defined(__x86_64__)
+  ucontext->uc_mcontext.gregs[REG_RIP] = addr;
+#elif defined(__riscv)
+  ucontext->uc_mcontext.__gregs[REG_PC] = addr;
+#elif defined(__aarch64__)
+  ucontext->uc_mcontext.pc = addr;
 #else
-  ucontext->uc_mcontext.gregs[kHostRegIP] = addr;
+#error "Unknown host arch"
 #endif
 }
 
