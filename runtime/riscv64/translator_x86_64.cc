@@ -51,8 +51,8 @@ enum class TranslationMode {
   kLiteTranslateOrFallbackToInterpret,
   kHeavyOptimizeOrFallbackToInterpret,
   kHeavyOptimizeOrFallbackToLiteTranslator,
-  kLightTranslateThenHeavyOptimize,
-  kTwoGear = kLightTranslateThenHeavyOptimize,
+  kLiteTranslateThenHeavyOptimize,
+  kTwoGear = kLiteTranslateThenHeavyOptimize,
   kNumModes
 };
 
@@ -259,7 +259,7 @@ extern "C" __attribute__((used, __visibility__("hidden"))) const void* berberis_
 }
 
 extern "C" __attribute__((used, __visibility__("hidden"))) void
-berberis_HandleLightCounterThresholdReached(ThreadState* state) {
+berberis_HandleLiteCounterThresholdReached(ThreadState* state) {
   CHECK(g_translation_mode == TranslationMode::kTwoGear);
   TranslateRegion<TranslationGear::kSecond>(state->cpu.insn_addr);
 }
