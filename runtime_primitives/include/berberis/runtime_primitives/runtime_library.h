@@ -30,7 +30,7 @@ void berberis_entry_Interpret();
 void berberis_entry_ExitGeneratedCode();
 void berberis_entry_Stop();
 void berberis_entry_NoExec();
-void berberis_entry_HandleLightCounterThresholdReached();
+void berberis_entry_HandleLiteCounterThresholdReached();
 
 // TODO(b/232598137): use status variable instead?
 void berberis_entry_NotTranslated();
@@ -45,15 +45,17 @@ __attribute__((__visibility__("hidden"))) void berberis_HandleNoExec(ThreadState
 
 }  // extern "C"
 
-// Inline const since we cannot use constexpr because of reinterpret_cast.
-inline const auto kEntryInterpret = AsHostCode(berberis_entry_Interpret);
-inline const auto kEntryExitGeneratedCode = AsHostCode(berberis_entry_ExitGeneratedCode);
-inline const auto kEntryStop = AsHostCode(berberis_entry_Stop);
-inline const auto kEntryNoExec = AsHostCode(berberis_entry_NoExec);
-inline const auto kEntryNotTranslated = AsHostCode(berberis_entry_NotTranslated);
-inline const auto kEntryTranslating = AsHostCode(berberis_entry_Translating);
-inline const auto kEntryInvalidating = AsHostCode(berberis_entry_Invalidating);
-inline const auto kEntryWrapping = AsHostCode(berberis_entry_Wrapping);
+// These constants are initialized by InitHostEntries()
+extern HostCode kEntryInterpret;
+extern HostCode kEntryExitGeneratedCode;
+extern HostCode kEntryStop;
+extern HostCode kEntryNoExec;
+extern HostCode kEntryNotTranslated;
+extern HostCode kEntryTranslating;
+extern HostCode kEntryInvalidating;
+extern HostCode kEntryWrapping;
+
+void InitHostEntries();
 
 void InvalidateGuestRange(GuestAddr start, GuestAddr end);
 
