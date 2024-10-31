@@ -20,11 +20,23 @@
 #include "berberis/guest_state/guest_state.h"
 
 extern "C" void berberis_HandleNotTranslated(berberis::ThreadState* state);
+extern "C" void berberis_GetDispatchAddress(berberis::ThreadState* state);
+extern "C" void berberis_HandleInterpret(berberis::ThreadState* state);
 
-// We define a helper method in order to bring berberis_HandleNotTranslated into the PLT.
+// Helpers ensure that the functions below are available in PLT.
 __attribute__((used, __visibility__("hidden"))) extern "C" void helper_NotTranslated(
     berberis::ThreadState* state) {
   berberis_HandleNotTranslated(state);
+}
+
+__attribute__((used, __visibility__("hidden"))) extern "C" void helper_GetDispatchAddress(
+    berberis::ThreadState* state) {
+  berberis_GetDispatchAddress(state);
+}
+
+__attribute__((used, __visibility__("hidden"))) extern "C" void helper_HandleInterpret(
+    berberis::ThreadState* state) {
+  berberis_HandleInterpret(state);
 }
 
 // Perform all the steps needed to exit generated code except return, which is
@@ -46,6 +58,7 @@ __attribute__((used, __visibility__("hidden"))) extern "C" void helper_NotTransl
       "mv a0, fp\n"                                                     \
                                                                         \
       /* Epilogue */                                                    \
+      "ld ra, 96(sp)\n"                                                 \
       "ld fp, 88(sp)\n"                                                 \
       "ld s1, 80(sp)\n"                                                 \
       "ld s2, 72(sp)\n"                                                 \
@@ -58,7 +71,7 @@ __attribute__((used, __visibility__("hidden"))) extern "C" void helper_NotTransl
       "ld s9, 16(sp)\n"                                                 \
       "ld s10, 8(sp)\n"                                                 \
       "ld s11, 0(sp)\n"                                                 \
-      "addi sp, sp, 96\n"                                               \
+      "addi sp, sp, 112\n"                                              \
                                                                         \
       EXIT_INSN                                                         \
       ::[InsnAddr] "I"(offsetof(berberis::ThreadState, cpu.insn_addr)), \
@@ -82,26 +95,11 @@ extern "C" {
   //
   // We are saving all general purpose callee saved registers.
   // TODO(b/352784623): Save fp registers when we start using them.
-  //
-  // Stack:
-  //  0: saved s11       <- stack after prologue
-  //  8: saved s10
-  // 16: saved s9
-  // 24: saved s8
-  // 32: saved s7
-  // 40: saved s6
-  // 48: saved s5
-  // 56: saved s4
-  // 64: saved s3
-  // 72: saved s2
-  // 80: saved s1
-  // 88: saved fp(s0)
-  // 96: <- stack at call insn - aligned on 16
 
   // clang-format off
   asm(
     // Prologue
-      "addi sp, sp, -96\n"
+      "addi sp, sp, -112\n"
       "sd s11, 0(sp)\n"
       "sd s10, 8(sp)\n"
       "sd s9, 16(sp)\n"
@@ -114,6 +112,7 @@ extern "C" {
       "sd s2, 72(sp)\n"
       "sd s1, 80(sp)\n"
       "sd fp, 88(sp)\n"
+      "sd ra, 96(sp)\n"
 
       // Set state pointer.
       "mv fp, a0\n"  // kStateRegister, kOmitFramePointer
@@ -133,7 +132,35 @@ extern "C" {
 }
 
 [[gnu::naked]] [[gnu::noinline]] void berberis_entry_Interpret() {
-  asm("unimp");
+  // clang-format off
+  asm(
+    //Sync insn_addr.
+      "sd s11, %[InsnAddr](fp)\n"
+      // Set kOutsideGeneratedCode residence.
+      "li t0, %[OutsideGeneratedCode]\n"
+      "sb t0, %[Residence](fp)\n"
+
+      // fp holds the pointer to state which is the argument to the call.
+      "mv a0, fp\n"
+      "call berberis_HandleInterpret@plt\n"
+
+      // a0 may be clobbered by the call abobe, so init it again.
+      "mv a0, fp\n"
+      "call berberis_GetDispatchAddress@plt\n"
+      "mv t1, a0\n"
+
+      // Set insn_addr.
+      "ld s11, %[InsnAddr](fp)\n"
+      // Set kInsideGeneratedCode residence.
+      "li t0, %[InsideGeneratedCode]\n"
+      "sb t0, %[Residence](fp)\n"
+
+      "jr t1\n"
+      ::[InsnAddr] "I"(offsetof(berberis::ThreadState, cpu.insn_addr)),
+  [Residence] "I"(offsetof(berberis::ThreadState, residence)),
+  [OutsideGeneratedCode] "I"(berberis::kOutsideGeneratedCode),
+  [InsideGeneratedCode] "I"(berberis::kInsideGeneratedCode));
+  // clang-format on
 }
 
 [[gnu::naked]] [[gnu::noinline]] void berberis_entry_ExitGeneratedCode() {
@@ -165,7 +192,7 @@ extern "C" {
   asm("unimp");
 }
 
-[[gnu::naked]] [[gnu::noinline]] void berberis_entry_HandleLightCounterThresholdReached() {
+[[gnu::naked]] [[gnu::noinline]] void berberis_entry_HandleLiteCounterThresholdReached() {
   asm("unimp");
 }
 
