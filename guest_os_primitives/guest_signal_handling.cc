@@ -336,6 +336,10 @@ bool SetGuestSignalHandler(int signal,
                            const Guest_sigaction* act,
                            Guest_sigaction* old_act,
                            int* error) {
+#if defined(__riscv)
+  TRACE("ATTENTION: SetGuestSignalHandler is unimplemented - skipping it without raising an error");
+  return true;
+#endif
   if (signal < 1 || signal > Guest__KERNEL__NSIG) {
     *error = EINVAL;
     return false;

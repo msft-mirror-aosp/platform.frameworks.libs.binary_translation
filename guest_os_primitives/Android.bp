@@ -86,6 +86,11 @@ filegroup {
     srcs: ["unmap_and_exit_x86_64.S"],
 }
 
+filegroup {
+    name: "libberberis_guest_os_primitives_common_riscv64_srcs",
+    srcs: ["unmap_and_exit_riscv64.cc"],
+}
+
 // Common sources to be shared across arch-specific libraries.
 cc_defaults {
     name: "libberberis_guest_os_primitives_common_defaults",
@@ -101,6 +106,9 @@ cc_defaults {
         },
         x86_64: {
             srcs: [":libberberis_guest_os_primitives_common_x86_64_srcs"],
+        },
+        riscv64: {
+            srcs: [":libberberis_guest_os_primitives_common_riscv64_srcs"],
         },
     },
     header_libs: [
