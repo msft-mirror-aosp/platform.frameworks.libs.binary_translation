@@ -42,6 +42,7 @@ class Assembler : public ::berberis::rv64::Assembler {
   static constexpr Register t1{6};
   static constexpr Register t2{7};
   static constexpr Register s0{8};
+  static constexpr Register fp{8};
   static constexpr Register s1{9};
   static constexpr Register a0{10};
   static constexpr Register a1{11};

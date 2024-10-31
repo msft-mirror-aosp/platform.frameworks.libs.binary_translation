@@ -23,8 +23,8 @@
 
 namespace berberis {
 
-template <class T>
-using ArenaVector = std::vector<T, ArenaAllocator<T> >;
+template <class Type>
+using ArenaVector = std::vector<Type, ArenaAllocator<Type> >;
 
 }  // namespace berberis
 
