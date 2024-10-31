@@ -40,6 +40,13 @@ namespace berberis {
     __asm__("mv %0, tp" : "=r"(__val)); \
     __val;                              \
   })
+#elif defined(__aarch64__)
+#define GetTls()                                \
+  ({                                            \
+    void** __val;                               \
+    __asm__("mrs %0, tpidr_el0" : "=r"(__val)); \
+    __val;                                      \
+  })
 #else
 #error unsupported architecture
 #endif

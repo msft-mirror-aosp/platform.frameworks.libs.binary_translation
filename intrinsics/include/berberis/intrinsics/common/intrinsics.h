@@ -20,10 +20,7 @@
 #include <cstdint>
 
 #include "berberis/base/dependent_false.h"
-
-#if !defined(__aarch64__)
 #include "berberis/intrinsics/common/intrinsics_float.h"  // Float32/Float64
-#endif
 
 namespace berberis {
 

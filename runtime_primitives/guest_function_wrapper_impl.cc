@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "berberis/assembler/machine_code.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/base/forever_map.h"
 #include "berberis/base/logging.h"
 #include "berberis/code_gen_lib/gen_wrapper.h"
@@ -56,8 +57,8 @@ namespace {
 class WrapperCache {
  public:
   static WrapperCache* GetInstance() {
-    static WrapperCache g_wrapper_cache;
-    return &g_wrapper_cache;
+    static auto* g_wrapper_cache = NewForever<WrapperCache>();
+    return g_wrapper_cache;
   }
 
   HostCode Find(GuestAddr pc, const char* signature, HostCode guest_runner) const {
@@ -100,6 +101,8 @@ class WrapperCache {
 
   WrapperMap map_;
   mutable std::mutex mutex_;
+
+  friend WrapperCache* NewForever<WrapperCache>();
 };
 
 IsAddressGuestExecutableFunc g_is_address_guest_executable_func = nullptr;

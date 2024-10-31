@@ -34,6 +34,7 @@ class TableOfTables {
  public:
   explicit TableOfTables(T default_value) : default_value_(default_value) {
     static_assert(sizeof(T) == sizeof(uintptr_t));
+    CHECK_NE(default_value, T{0});
     default_table_ = static_cast<decltype(default_table_)>(CreateMemfdBackedMapOrDie(
         GetOrAllocDefaultMemfdUnsafe(), kChildTableBytes, kMemfdRegionSize));
 
