@@ -28,30 +28,30 @@ namespace berberis {
 // TODO(b/117224636): This is a workaround for slow zero-initialized ArenaVector.
 // Alternatively, we could zero-initialize memory when Arena allocates memory, eliminating
 // the need to zero-initialize memory in every data structure allocated from Arena.
-template <typename T>
+template <typename Type>
 class ArenaZeroedArray {
  public:
   ArenaZeroedArray(size_t size, Arena* arena)
-      : size_(size), array_(NewArrayInArena<T>(arena, size)) {
-    memset(array_, 0, sizeof(T) * size);
+      : size_(size), array_(NewArrayInArena<Type>(arena, size)) {
+    memset(array_, 0, sizeof(Type) * size);
   }
 
-  const T& operator[](size_t i) const { return array_[i]; }
-  T& operator[](size_t i) { return array_[i]; }
+  const Type& operator[](size_t i) const { return array_[i]; }
+  Type& operator[](size_t i) { return array_[i]; }
 
-  const T& at(size_t i) const {
+  const Type& at(size_t i) const {
     CHECK_LT(i, size_);
     return array_[i];
   }
 
-  T& at(size_t i) {
+  Type& at(size_t i) {
     CHECK_LT(i, size_);
     return array_[i];
   }
 
  private:
   size_t size_;
-  T* array_;
+  Type* array_;
 };
 
 }  // namespace berberis

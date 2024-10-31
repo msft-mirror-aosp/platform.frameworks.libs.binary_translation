@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
-#define BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
+#ifndef BERBERIS_RUNTIME_RISCV64_TRANSLATOR_H_
+#define BERBERIS_RUNTIME_RISCV64_TRANSLATOR_H_
 
-#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <tuple>
 
+#include "berberis/assembler/machine_code.h"
+#include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_state/guest_addr.h"
-#include "berberis/lite_translator/lite_translate_region.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
 
-std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAndInstallRegion(
-    GuestAddr pc,
-    const LiteTranslateParams& params = LiteTranslateParams());
-std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> HeavyOptimizeRegion(GuestAddr pc);
+HostCodePiece InstallTranslated(MachineCode* machine_code,
+                                GuestAddr pc,
+                                size_t size,
+                                const char* prefix);
+std::tuple<bool, uint8_t> IsPcExecutable(GuestAddr pc, GuestMapShadow* guest_map_shadow);
+
+void InitTranslatorArch();
 
 }  // namespace berberis
 
-#endif  // BERBERIS_RUNTIME_TRANSLATOR_RISCV64_H_
+#endif  // BERBERIS_RUNTIME_RISCV64_TRANSLATOR_H_

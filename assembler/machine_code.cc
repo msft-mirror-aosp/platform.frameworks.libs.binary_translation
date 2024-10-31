@@ -43,11 +43,27 @@ inline char print_halfbyte(uint8_t b) {
   return b < 0xa ? b + '0' : (b - 0xa) + 'a';
 }
 
-void MachineCode::AsString(std::string* result) const {
-  for (uint8_t insn : code_) {
-    *result += print_halfbyte(insn >> 4);
-    *result += print_halfbyte(insn & 0xf);
-    *result += ' ';
+inline std::string print_byte(uint8_t b) {
+  std::string byte_str = "";
+  byte_str += print_halfbyte(b >> 4);
+  byte_str += print_halfbyte(b & 0xf);
+  return byte_str;
+}
+
+void MachineCode::AsString(std::string* result, InstructionSize insn_size) const {
+  if (insn_size == InstructionSize::OneByte) {
+    for (uint8_t insn : code_) {
+      *result += print_byte(insn);
+      *result += ' ';
+    }
+  } else {
+    for (uint32_t i = 0; i + 3 < code_.size(); i += 4) {
+      *result += print_byte(code_[i + 3]);
+      *result += print_byte(code_[i + 2]);
+      *result += print_byte(code_[i + 1]);
+      *result += print_byte(code_[i]);
+      *result += ' ';
+    }
   }
 }
 
@@ -73,9 +89,9 @@ void MachineCode::PerformRelocations(const uint8_t* code, RecoveryMap* recovery_
   }
 }
 
-void MachineCode::DumpCode() const {
+void MachineCode::DumpCode(InstructionSize insn_size) const {
   std::string code_str;
-  AsString(&code_str);
+  AsString(&code_str, insn_size);
   ALOGE("%s\n", code_str.c_str());
 }
 

@@ -64,6 +64,8 @@ class AL {
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'a';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kAL;
 };
 
 class AX {
