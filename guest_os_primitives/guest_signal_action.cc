@@ -65,6 +65,8 @@ void ConvertHostSigactionToGuest(const HostStructSigaction* host_sa, Guest_sigac
       }
 #elif defined(__riscv)
       LOG_ALWAYS_FATAL("Unimplemented for riscv64");
+#elif defined(__aarch64__)
+      LOG_ALWAYS_FATAL("Unimplemented for arm64");
 #else
 #error "Unknown host arch"
 #endif

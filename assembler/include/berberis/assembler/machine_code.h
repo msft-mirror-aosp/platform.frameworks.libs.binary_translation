@@ -29,7 +29,18 @@
 #include "berberis/base/forever_map.h"
 #include "berberis/base/macros.h"  // DISALLOW_COPY_AND_ASSIGN
 
+#if defined(__riscv)
+#include <sys/cachectl.h>
+#endif
+
 namespace berberis {
+
+enum class InstructionSize {
+  // x86 assembly has 1 byte instructions.
+  OneByte,
+  // riscv and arm64 assembly have 4 bytes instructions.
+  FourBytes,
+};
 
 enum class RelocationType {
   // Convert absolute address to PC-relative displacement.
@@ -81,7 +92,7 @@ class MachineCode {
 
   void AddU8(uint8_t v) { code_.push_back(v); }
 
-  void AsString(std::string* result) const;
+  void AsString(std::string* result, InstructionSize insn_size) const;
 
   void AddRelocation(uint32_t dst, RelocationType type, uint32_t pc, intptr_t data) {
     relocations_.push_back(Relocation{dst, type, pc, data});
@@ -92,6 +103,9 @@ class MachineCode {
   void Install(ExecRegionType* exec, const uint8_t* code, RecoveryMap* recovery_map) {
     PerformRelocations(code, recovery_map);
     exec->Write(code, AddrAs<uint8_t>(0), code_.size());
+#if defined(__riscv)
+    __riscv_flush_icache((void*)code, (void*)(code + code_.size()), 0);
+#endif
   }
 
   // Install to writable memory.
@@ -101,7 +115,7 @@ class MachineCode {
   }
 
   // Print generated code to stderr.
-  void DumpCode() const;
+  void DumpCode(InstructionSize insn_size) const;
 
  private:
   struct Relocation {
