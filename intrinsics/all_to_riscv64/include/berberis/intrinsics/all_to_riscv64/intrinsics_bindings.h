@@ -39,6 +39,16 @@ class CsrImm {
   static constexpr bool kIsImmediate = true;
 };
 
+class GeneralReg {
+ public:
+  using Type = uint64_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr bool kIsImplicitReg = false;
+  static constexpr char kAsRegister = 'r';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kGeneralReg;
+};
+
 class IImm {
  public:
   using Type = riscv::IImmediate;
