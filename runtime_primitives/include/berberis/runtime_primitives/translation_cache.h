@@ -129,7 +129,7 @@ class TranslationCache {
   // is no entry for the given PC.
   [[nodiscard]] GuestCodeEntry* AddAndLockForTranslation(GuestAddr pc, uint32_t counter_threshold);
 
-  // Locks entry for the given PC for translation if it's currently in LightTranslated state.
+  // Locks entry for the given PC for translation if it's currently in LiteTranslated state.
   // If successful returns the locked entry, otherwise returns nullptr.
   [[nodiscard]] GuestCodeEntry* LockForGearUpTranslation(GuestAddr pc);
 

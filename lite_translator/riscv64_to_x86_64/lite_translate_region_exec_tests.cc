@@ -125,7 +125,7 @@ TEST_F(Riscv64LiteTranslateRegionTest, GracefulFailure) {
 jmp_buf g_jmp_buf;
 
 extern "C" __attribute__((used, __visibility__("hidden"))) void
-LightTranslateRegionTest_HandleThresholdReached() {
+LiteTranslateRegionTest_HandleThresholdReached() {
   // We are in generated code, so the easiest way to recover without using
   // runtime library internals is to longjmp.
   longjmp(g_jmp_buf, 1);
@@ -135,7 +135,7 @@ LightTranslateRegionTest_HandleThresholdReached() {
 // need this proxy to normal C++ ABI function. Stack in generated code is
 // aligned properly for calls.
 __attribute__((naked)) void CounterThresholdReached() {
-  asm(R"(call LightTranslateRegionTest_HandleThresholdReached)");
+  asm(R"(call LiteTranslateRegionTest_HandleThresholdReached)");
 }
 
 TEST_F(Riscv64LiteTranslateRegionTest, ProfileCounter) {
