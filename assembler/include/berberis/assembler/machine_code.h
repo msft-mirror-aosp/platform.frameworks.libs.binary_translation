@@ -29,6 +29,10 @@
 #include "berberis/base/forever_map.h"
 #include "berberis/base/macros.h"  // DISALLOW_COPY_AND_ASSIGN
 
+#if defined(__riscv)
+#include <sys/cachectl.h>
+#endif
+
 namespace berberis {
 
 enum class InstructionSize {
@@ -99,6 +103,9 @@ class MachineCode {
   void Install(ExecRegionType* exec, const uint8_t* code, RecoveryMap* recovery_map) {
     PerformRelocations(code, recovery_map);
     exec->Write(code, AddrAs<uint8_t>(0), code_.size());
+#if defined(__riscv)
+    __riscv_flush_icache((void*)code, (void*)(code + code_.size()), 0);
+#endif
   }
 
   // Install to writable memory.
