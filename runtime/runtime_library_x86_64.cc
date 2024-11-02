@@ -230,16 +230,16 @@ extern "C" [[gnu::naked]] [[gnu::noinline]] void berberis_entry_Interpret() {
   END_GENERATED_CODE("ret");
 }
 
-[[gnu::naked]] [[gnu::noinline]] void berberis_entry_HandleLightCounterThresholdReached() {
-  // void berberis_HandleLightCounterThresholdReached(ProcessState*);
-  // Perform a sibling call to berberis_HandleLightCounterThresholdReached. The
+[[gnu::naked]] [[gnu::noinline]] void berberis_entry_HandleLiteCounterThresholdReached() {
+  // void berberis_HandleLiteCounterThresholdReached(ProcessState*);
+  // Perform a sibling call to berberis_HandleLiteCounterThresholdReached. The
   // only parameter is state which is saved in %rdi by END_GENERATED_CODE. We
   // could call the function here instead of jumping to it, but it would be more
   // work to do so because we would have to align the stack and issue the "ret"
   // instruction after the call.
-  // TODO(b/232598137): Remove state from HandleLightCounterThresholdReached
+  // TODO(b/232598137): Remove state from HandleLiteThresholdReached
   // parameters. Get it from the guest thread instead.
-  END_GENERATED_CODE("jmp berberis_HandleLightCounterThresholdReached");
+  END_GENERATED_CODE("jmp berberis_HandleLiteCounterThresholdReached");
 }
 
 }  // extern "C"
