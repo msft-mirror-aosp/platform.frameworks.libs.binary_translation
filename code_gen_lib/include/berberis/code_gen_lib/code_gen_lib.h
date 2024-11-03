@@ -21,15 +21,16 @@
 
 #if defined(__i386__)
 #include "berberis/assembler/x86_32.h"
-#endif
-
-#if defined(__x86_64__)
+#elif defined(__x86_64__)
 #include "berberis/assembler/x86_64.h"
+#elif defined(__riscv)
+#include "berberis/assembler/rv64i.h"
 #endif
 
 namespace berberis {
 
 #if defined(__i386__)
+
 namespace x86_32 {
 
 void EmitAllocStackFrame(Assembler* as, uint32_t frame_size);
@@ -39,15 +40,18 @@ void EmitJump(Assembler* as, GuestAddr target);
 void EmitIndirectJump(Assembler* as, Assembler::Register target);
 
 }  // namespace x86_32
-#endif
 
-#if defined(__x86_64__)
+#elif defined(__x86_64__)
 void EmitSyscall(x86_64::Assembler* as, GuestAddr pc);
 void EmitDirectDispatch(x86_64::Assembler* as, GuestAddr pc, bool check_pending_signals);
 void EmitIndirectDispatch(x86_64::Assembler* as, x86_64::Assembler::Register target);
 void EmitExitGeneratedCode(x86_64::Assembler* as, x86_64::Assembler::Register target);
 void EmitAllocStackFrame(x86_64::Assembler* as, uint32_t frame_size);
 void EmitFreeStackFrame(x86_64::Assembler* as, uint32_t frame_size);
+#elif defined(__riscv)
+void EmitDirectDispatch(rv64i::Assembler* as, GuestAddr pc, bool check_pending_signals);
+void EmitIndirectDispatch(rv64i::Assembler* as, rv64i::Assembler::Register target);
+void EmitExitGeneratedCode(rv64i::Assembler* as, rv64i::Assembler::Register target);
 #endif
 
 }  // namespace berberis
