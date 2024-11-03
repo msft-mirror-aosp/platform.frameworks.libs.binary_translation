@@ -151,9 +151,13 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   // Unhide Jcc(Label), hidden by special version below.
   using BaseAssembler::Jcc;
 
-  // Make sure only type void* can be passed to function below, not Label* or any other type.
+  // Make sure only type void* can be passed to function below, not Label* or any other pointer.
   template <typename T>
   auto Jcc(Condition cc, T* target) -> void = delete;
+
+  template <typename T>
+  auto Jcc(Condition cc, T target)
+      -> std::enable_if_t<std::is_integral_v<T> && sizeof(uintptr_t) < sizeof(T)> = delete;
 
   void Jcc(Condition cc, uintptr_t target) {
     if (cc == Condition::kAlways) {
@@ -181,9 +185,13 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   // Unhide Jmp(Reg), hidden by special version below.
   using BaseAssembler::Jmp;
 
-  // Make sure only type void* can be passed to function below, not Label* or any other type.
+  // Make sure only type void* can be passed to function below, not Label* or any other pointer.
   template <typename T>
   auto Jmp(T* target) -> void = delete;
+
+  template <typename T>
+  auto Jmp(T target)
+      -> std::enable_if_t<std::is_integral_v<T> && sizeof(uintptr_t) < sizeof(T)> = delete;
 
   void Jmp(uintptr_t target) {
     // There are no jump instruction with properties we need thus we emulate it.

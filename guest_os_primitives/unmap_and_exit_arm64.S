@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_RUNTIME_TRANSLATOR_H_
-#define BERBERIS_RUNTIME_TRANSLATOR_H_
+#include <linux/unistd.h>
 
-namespace berberis {
+    .globl berberis_UnmapAndExit
+    .balign 16
 
-void InitTranslator();
+berberis_UnmapAndExit:
 
-}  // namespace berberis
+    mov x8, #__NR_munmap
+    svc #0
 
-#endif  // BERBERIS_RUNTIME_TRANSLATOR_H_
+    mov x0, x2
+
+    mov x8, #__NR_exit
+    svc #0
+
+    ret
