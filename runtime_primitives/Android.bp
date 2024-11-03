@@ -96,7 +96,7 @@ cc_defaults {
 cc_library_static {
     name: "libberberis_runtime_primitives_riscv64",
     defaults: [
-        "berberis_defaults_64",
+        "berberis_all_hosts_defaults_64",
         "berberis_memory_region_reservation_defaults",
     ],
     host_supported: true,
