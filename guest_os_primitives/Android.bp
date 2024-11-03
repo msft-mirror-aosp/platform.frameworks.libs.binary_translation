@@ -19,7 +19,7 @@ package {
 
 cc_library_headers {
     name: "libberberis_guest_os_primitives_headers",
-    defaults: ["berberis_defaults"],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     export_include_dirs: ["include"],
     header_libs: [
@@ -38,14 +38,14 @@ cc_library_headers {
 // Don't depend on these headers in other modules.
 cc_library_headers {
     name: "_libberberis_guest_os_primitives_private_headers",
-    defaults: ["berberis_defaults"],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     export_include_dirs: ["."],
 }
 
 cc_library_headers {
     name: "libberberis_guest_os_primitives_riscv64_headers",
-    defaults: ["berberis_defaults"],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     export_include_dirs: ["riscv64/include"],
     header_libs: [
@@ -72,6 +72,11 @@ filegroup {
 }
 
 filegroup {
+    name: "libberberis_guest_os_primitives_common_arm64_srcs",
+    srcs: ["unmap_and_exit_arm64.S"],
+}
+
+filegroup {
     name: "libberberis_guest_os_primitives_common_x86_32_srcs",
     srcs: ["unmap_and_exit_x86_32.S"],
 }
@@ -81,18 +86,29 @@ filegroup {
     srcs: ["unmap_and_exit_x86_64.S"],
 }
 
+filegroup {
+    name: "libberberis_guest_os_primitives_common_riscv64_srcs",
+    srcs: ["unmap_and_exit_riscv64.cc"],
+}
+
 // Common sources to be shared across arch-specific libraries.
 cc_defaults {
     name: "libberberis_guest_os_primitives_common_defaults",
-    defaults: ["berberis_defaults"],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     srcs: [":libberberis_guest_os_primitives_common_srcs"],
     arch: {
+        arm64: {
+            srcs: [":libberberis_guest_os_primitives_common_arm64_srcs"],
+        },
         x86: {
             srcs: [":libberberis_guest_os_primitives_common_x86_32_srcs"],
         },
         x86_64: {
             srcs: [":libberberis_guest_os_primitives_common_x86_64_srcs"],
+        },
+        riscv64: {
+            srcs: [":libberberis_guest_os_primitives_common_riscv64_srcs"],
         },
     },
     header_libs: [
@@ -126,7 +142,7 @@ filegroup {
 // libberberis_guest_os_primitives_common_arch_defaults.
 cc_library_headers {
     name: "_libberberis_guest_os_primitives_local_headers",
-    defaults: ["berberis_defaults"],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     export_include_dirs: ["."],
 }
@@ -148,13 +164,24 @@ cc_defaults {
 cc_library_static {
     name: "libberberis_guest_os_primitives_riscv64",
     defaults: [
-        "berberis_defaults_64",
+        "berberis_all_hosts_defaults_64",
         "libberberis_guest_os_primitives_common_defaults",
         "libberberis_guest_os_primitives_common_arch_defaults",
     ],
     host_supported: true,
+    arch: {
+        arm64: {
+            srcs: [
+                "riscv64/gen_syscall_numbers_arm64.cc",
+            ],
+        },
+        x86_64: {
+            srcs: [
+                "riscv64/gen_syscall_numbers_x86_64.cc",
+            ],
+        },
+    },
     srcs: [
-        "riscv64/gen_syscall_numbers.cc",
         "riscv64/guest_setjmp.cc",
         "riscv64/guest_signal.cc",
     ],
