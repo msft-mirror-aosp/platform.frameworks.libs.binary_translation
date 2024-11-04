@@ -2927,6 +2927,24 @@
       ]
     },
     {
+      "encodings": {
+        "Xchgb": { "opcode": "86" }
+      },
+      "args": [
+        { "class": "GeneralReg8", "usage": "use_def" },
+        { "class": "Mem8", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Xchgw": { "opcodes": [ "66", "87" ] }
+      },
+      "args": [
+        { "class": "GeneralReg16", "usage": "use_def" },
+        { "class": "Mem16", "usage": "use_def" }
+      ]
+    },
+    {
       "stems": [ "Xchgl" ],
       "args": [
         { "class": "GeneralReg32", "usage": "use_def" },
