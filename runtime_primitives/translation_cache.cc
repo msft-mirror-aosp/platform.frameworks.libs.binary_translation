@@ -73,9 +73,9 @@ GuestCodeEntry* TranslationCache::LockForGearUpTranslation(GuestAddr pc) {
     return nullptr;
   }
 
-  // This method should be called for light-translated region, but we cannot
+  // This method should be called for lite-translated region, but we cannot
   // guarantee they stay as such before we lock the mutex.
-  if (entry->kind != GuestCodeEntry::Kind::kLightTranslated) {
+  if (entry->kind != GuestCodeEntry::Kind::kLiteTranslated) {
     return nullptr;
   }
 

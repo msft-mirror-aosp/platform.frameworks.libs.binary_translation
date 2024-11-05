@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_ARENA_LIST_H_
-#define BERBERIS_BASE_ARENA_LIST_H_
+#include <linux/unistd.h>
 
-#include <list>
+    .globl berberis_UnmapAndExit
+    .balign 16
 
-#include "berberis/base/arena_alloc.h"
+berberis_UnmapAndExit:
 
-namespace berberis {
+    mov x8, #__NR_munmap
+    svc #0
 
-template <class Type>
-using ArenaList = std::list<Type, ArenaAllocator<Type> >;
+    mov x0, x2
 
-}  // namespace berberis
+    mov x8, #__NR_exit
+    svc #0
 
-#endif  // BERBERIS_BASE_ARENA_LIST_H_
+    ret

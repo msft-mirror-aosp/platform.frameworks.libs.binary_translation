@@ -34,8 +34,6 @@ class Assembler : public riscv::Assembler<Assembler> {
   explicit Assembler(MachineCode* code) : BaseAssembler(code) {}
 
   using ShiftImmediate = BaseAssembler::Shift64Immediate;
-  // Need to unhide 32bit immediate version.
-  using BaseAssembler::Li;
 
   // Don't use templates here to enable implicit conversions.
 #define BERBERIS_DEFINE_MAKE_SHIFT_IMMEDIATE(IntType)                                \
@@ -63,6 +61,7 @@ class Assembler : public riscv::Assembler<Assembler> {
   Assembler(Assembler&&) = delete;
   void operator=(const Assembler&) = delete;
   void operator=(Assembler&&) = delete;
+  void Li32(Register dest, int32_t imm32);
 };
 
 inline void Assembler::Ld(Register arg0, const Label& label) {
@@ -73,10 +72,15 @@ inline void Assembler::Ld(Register arg0, const Label& label) {
   EmitITypeInstruction<uint32_t{0x0000'3003}>(arg0, Operand<Register, IImmediate>{.base = arg0});
 }
 
+// It's needed to unhide 32bit immediate version.
+inline void Assembler::Li32(Register dest, int32_t imm32) {
+  BaseAssembler::Li(dest, imm32);
+};
+
 inline void Assembler::Li(Register dest, int64_t imm64) {
   int32_t imm32 = static_cast<int32_t>(imm64);
   if (static_cast<int64_t>(imm32) == imm64) {
-    Li(dest, imm32);
+    Li32(dest, imm32);
   } else {
     // Perform calculations on unsigned type to avoid undefined behavior.
     uint64_t uimm = static_cast<uint64_t>(imm64);
@@ -112,6 +116,18 @@ inline void Assembler::Sd(Register arg0, const Label& label, Register arg2) {
   EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg2, UImmediate{0});
   // The low 12 bite of difference will be encoded in the Sd instruction
   EmitSTypeInstruction<uint32_t{0x0000'3023}>(arg0, Operand<Register, SImmediate>{.base = arg2});
+}
+
+inline void Assembler::SextW(Register arg0, Register arg1) {
+  Addiw(arg0, arg1, 0);
+}
+
+inline void Assembler::ZextW(Register arg0, Register arg1) {
+  AddUW(arg0, arg1, zero);
+}
+
+inline void Assembler::Negw(Register arg0, Register arg1) {
+  Subw(arg0, zero, arg1);
 }
 
 }  // namespace berberis::rv64

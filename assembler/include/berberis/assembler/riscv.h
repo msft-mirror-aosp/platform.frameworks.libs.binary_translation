@@ -1069,6 +1069,11 @@ class Assembler : public AssemblerBase {
   }
 
   template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
+  void EmitRTypeInstruction(ArgumentsType0&& argument0, ArgumentsType1&& argument1) {
+    return EmitInstruction<kOpcode, 0xfff0'707f>(Rd(argument0), Rs1(argument1));
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
   void EmitRTypeInstruction(ArgumentsType0&& argument0,
                             ArgumentsType1&& argument1,
                             Rounding argument2) {
@@ -1372,6 +1377,56 @@ inline void Assembler<DerivedAssemblerType>::Bltz(Register arg0, const Label& la
 template <typename DerivedAssemblerType>
 inline void Assembler<DerivedAssemblerType>::Bgtz(Register arg0, const Label& label) {
   Bgt(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Seqz(Register arg0, Register arg1) {
+  Sltiu(arg0, arg1, static_cast<IImmediate>(1));
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Snez(Register arg0, Register arg1) {
+  Sltu(arg0, zero, arg1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Sltz(Register arg0, Register arg1) {
+  Slt(arg0, arg1, zero);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Sgtz(Register arg0, Register arg1) {
+  Slt(arg0, zero, arg1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::J(JImmediate arg0) {
+  Jal(zero, arg0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jal(JImmediate arg0) {
+  Jal(x1, arg0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jr(Register arg0) {
+  Jalr(zero, arg0, 0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jalr(Register arg0) {
+  Jalr(x1, arg0, 0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Not(Register arg0, Register arg1) {
+  Xori(arg0, arg1, -1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Neg(Register arg0, Register arg1) {
+  Sub(arg0, zero, arg1);
 }
 
 }  // namespace riscv
