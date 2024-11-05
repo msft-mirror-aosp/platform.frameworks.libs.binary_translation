@@ -77,7 +77,7 @@ class WrapperCache {
     std::pair<WrapperMap::iterator, bool> res = map_.insert(
         std::make_pair(std::make_tuple(pc, std::string(signature), guest_runner), nullptr));
     if (res.second) {
-      res.first->second = GetFunctionWrapperCodePoolInstance()->Add(mc);
+      res.first->second = AsHostCode(GetFunctionWrapperCodePoolInstance()->Add(mc));
     }
     return res.first->second;
   }
