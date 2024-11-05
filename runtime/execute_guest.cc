@@ -59,7 +59,7 @@ void ExecuteGuest(ThreadState* state) {
     }
 
     // ATTENTION: this should be the only place to run translated code!
-    berberis_RunGeneratedCode(state, code);
+    berberis_RunGeneratedCode(state, AsHostCode(code));
   }
 }
 

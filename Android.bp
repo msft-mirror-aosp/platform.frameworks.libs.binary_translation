@@ -193,7 +193,7 @@ cc_library_shared {
                 "libberberis_guest_os_primitives_riscv64",
                 // Android debuggerd reference symbols from get_cpu_state.
                 "libberberis_guest_state_riscv64",
-                "libberberis_runtime_riscv64_to_x86_64",
+                "libberberis_runtime_riscv64",
             ],
             export_static_lib_headers: [
                 "libberberis_guest_loader_riscv64",
@@ -271,7 +271,7 @@ cc_test_host {
                 "libberberis_macro_assembler_riscv64_to_x86_64",
                 "libberberis_intrinsics_riscv64",
                 "libberberis_runtime",
-                "libberberis_runtime_riscv64_to_x86_64",
+                "libberberis_runtime_riscv64",
                 "libberberis_runtime_primitives_riscv64",
                 "libberberis_code_gen_lib_riscv64",
             ],
@@ -300,21 +300,15 @@ cc_test_host {
     },
 }
 
-// The following are the dependencies of `berberis_all` for `arm_to_x86`
-// Note: When the variables `BERBERIS_PRODUCT_PACKAGES` and
-//      `BERBERIS_DEV_PRODUCT_PACKAGES`, in `berberis_config.mk` are modified,
-//      please also change the `berberis_deps_defaults`.
 phony_rule_defaults {
-    name: "berberis_deps_defaults",
+    name: "berberis_all_deps_defaults",
     phony_deps: [
-        // BERBERIS_PRODUCT_PACKAGES
-        "libberberis_exec_region",
-        // BERBERIS_DEV_PRODUCT_PACKAGES
         "berberis_hello_world.native_bridge",
         "berberis_hello_world_static.native_bridge",
         "berberis_host_tests",
         "berberis_ndk_program_tests",
         "berberis_ndk_program_tests.native_bridge",
+        "berberis_perf_tests_static.native_bridge",
         "dwarf_reader",
         "libberberis_emulated_libcamera2ndk_api_checker",
         "nogrod_unit_tests",
@@ -322,16 +316,13 @@ phony_rule_defaults {
     ],
 }
 
-// Note: When the variables `BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64` and
-//      `BERBERIS_DEV_PRODUCT_PACKAGES_RISCV64_TO_X86_64` in
-//      `berberis_config.mk` and the variables `NATIVE_BRIDGE_PRODUCT_PACKAGES`,
-//      `NATIVE_BRIDGE_ORIG_GUEST_LIBS`, `NATIVE_BRIDGE_MODIFIED_GUEST_LIBS`
-//      in `frameworks/libs/native_bridge_support/native_bridge_support.mk` are
-//      modified, please also change the `berberis_riscv64_to_x86_64_defaults`.
+// Note: Keep in sync with variables from `berberis_config.mk` and
+// `frameworks/libs/native_bridge_support/native_bridge_support.mk` indicated below.
 phony_rule_defaults {
-    name: "berberis_riscv64_to_x86_64_defaults",
+    name: "berberis_all_riscv64_to_x86_64_defaults",
     phony_deps: [
         // BERBERIS_PRODUCT_PACKAGES_RISCV64_TO_X86_64
+        "libberberis_exec_region",
         "libberberis_proxy_libEGL",
         "libberberis_proxy_libGLESv1_CM",
         "libberberis_proxy_libGLESv2",
@@ -396,7 +387,7 @@ phony_rule_defaults {
         "libnative_bridge_guest_libOpenSLES.native_bridge",
         "libnative_bridge_guest_libvulkan.native_bridge",
         "libnative_bridge_guest_libwebviewchromium_plat_support.native_bridge",
-        // BERBERIS_DEV_PRODUCT_PACKAGES_RISCV64_TO_X86_64
+        // Everything else.
         "berberis_guest_loader_riscv64_tests",
     ],
 }
@@ -426,8 +417,8 @@ berberis_phony_rule {
         translation_arch: {
             riscv64_to_x86_64: {
                 defaults: [
-                    "berberis_deps_defaults",
-                    "berberis_riscv64_to_x86_64_defaults",
+                    "berberis_all_deps_defaults",
+                    "berberis_all_riscv64_to_x86_64_defaults",
                 ],
                 enabled: true,
             },

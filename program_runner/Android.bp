@@ -60,6 +60,7 @@ cc_defaults {
         "libberberis_interpreter_riscv64",
         "libberberis_kernel_api_riscv64",
         "libberberis_tinyloader",
+        "libberberis_intrinsics_riscv64",
     ],
     shared_libs: [
         "libbase",

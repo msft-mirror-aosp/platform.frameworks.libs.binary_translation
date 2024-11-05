@@ -42,6 +42,7 @@ cc_library_static {
         "code_pool.cc",
         "crash_reporter.cc",
         "guest_function_wrapper_impl.cc",
+        "host_entries.cc",
         "host_function_wrapper_impl.cc",
         "known_guest_function_wrapper.cc",
         "platform.cc",
@@ -95,7 +96,7 @@ cc_defaults {
 cc_library_static {
     name: "libberberis_runtime_primitives_riscv64",
     defaults: [
-        "berberis_defaults_64",
+        "berberis_all_hosts_defaults_64",
         "berberis_memory_region_reservation_defaults",
     ],
     host_supported: true,

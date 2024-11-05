@@ -222,15 +222,12 @@ template <typename T>
   // We couldn't use C++20 std::countr_zero yet ( http://b/318678905 ) for __uint128_t .
   // Switch to std::popcount when/if that bug would be fixed.
   static_assert(!std::is_signed_v<T>);
-#if defined(__x86_64__)
-  if constexpr (sizeof(T) == sizeof(unsigned __int128)) {
+  if constexpr (sizeof(T) == 16) {
     if (static_cast<uint64_t>(x) == 0) {
       return __builtin_ctzll(x >> 64) + 64;
     }
     return __builtin_ctzll(x);
-  } else
-#endif
-      if constexpr (sizeof(T) == sizeof(uint64_t)) {
+  } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
     return __builtin_ctzll(x);
   } else if constexpr (sizeof(T) == sizeof(uint32_t)) {
     return __builtin_ctz(x);
@@ -259,12 +256,9 @@ template <typename T>
   // We couldn't use C++20 std::popcount yet ( http://b/318678905 ) for __uint128_t .
   // Switch to std::popcount when/if that bug would be fixed.
   static_assert(!std::is_signed_v<T>);
-#if defined(__x86_64__)
-  if constexpr (sizeof(T) == sizeof(unsigned __int128)) {
+  if constexpr (sizeof(T) == 16) {
     return __builtin_popcountll(x) + __builtin_popcountll(x >> 64);
-  } else
-#endif
-      if constexpr (sizeof(T) == sizeof(uint64_t)) {
+  } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
     return __builtin_popcountll(x);
   } else if constexpr (sizeof(T) == sizeof(uint32_t)) {
     return __builtin_popcount(x);

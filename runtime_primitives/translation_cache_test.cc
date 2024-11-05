@@ -120,7 +120,7 @@ TEST(TranslationCacheTest, AddAndLockForWrapping) {
   ASSERT_FALSE(tc.AddAndLockForWrapping(pc + 64));
 }
 
-HostCode kHostCodeStub = AsHostCode(0xdeadbeef);
+HostCodeAddr kHostCodeStub = AsHostCodeAddr(AsHostCode(0xdeadbeef));
 
 void TestWrappingWorker(TranslationCache* tc, GuestAddr pc) {
   while (true) {
@@ -220,7 +220,7 @@ TEST(TranslationCacheTest, InvalidateNotTranslated) {
 
 TEST(TranslationCacheTest, InvalidateTranslated) {
   constexpr GuestAddr pc = 0x12345678;
-  const auto host_code = AsHostCode(0xdeadbeef);
+  const auto host_code = AsHostCodeAddr(AsHostCode(0xdeadbeef));
 
   TranslationCache tc;
 
@@ -239,7 +239,7 @@ TEST(TranslationCacheTest, InvalidateTranslated) {
 
 TEST(TranslationCacheTest, InvalidateTranslating) {
   constexpr GuestAddr pc = 0x12345678;
-  const auto host_code = AsHostCode(0xdeadbeef);
+  const auto host_code = AsHostCodeAddr(AsHostCode(0xdeadbeef));
 
   TranslationCache tc;
 
@@ -260,7 +260,7 @@ TEST(TranslationCacheTest, InvalidateTranslating) {
 
 TEST(TranslationCacheTest, InvalidateTranslatingOutOfRange) {
   constexpr GuestAddr pc = 0x12345678;
-  const auto host_code = AsHostCode(0xdeadbeef);
+  const auto host_code = AsHostCodeAddr(AsHostCode(0xdeadbeef));
 
   TranslationCache tc;
 
@@ -278,7 +278,7 @@ TEST(TranslationCacheTest, InvalidateTranslatingOutOfRange) {
   ASSERT_EQ(kEntryNotTranslated, tc.GetHostCodePtr(pc)->load());
 }
 
-bool Translate(TranslationCache* tc, GuestAddr pc, uint32_t size, HostCode host_code) {
+bool Translate(TranslationCache* tc, GuestAddr pc, uint32_t size, HostCodeAddr host_code) {
   GuestCodeEntry* entry = tc->AddAndLockForTranslation(pc, 0);
   if (!entry) {
     return false;
@@ -290,7 +290,7 @@ bool Translate(TranslationCache* tc, GuestAddr pc, uint32_t size, HostCode host_
 
 TEST(TranslationCacheTest, LockForGearUpTranslation) {
   constexpr GuestAddr pc = 0x12345678;
-  const auto host_code = AsHostCode(0xdeadbeef);
+  const auto host_code = AsHostCodeAddr(AsHostCode(0xdeadbeef));
 
   TranslationCache tc;
 
@@ -302,10 +302,10 @@ TEST(TranslationCacheTest, LockForGearUpTranslation) {
   ASSERT_TRUE(entry);
   ASSERT_EQ(entry->kind, GuestCodeEntry::Kind::kSpecialHandler);
 
-  // Cannot lock if kind is not kLightTranslated.
+  // Cannot lock if kind is not kLiteTranslated.
   ASSERT_FALSE(tc.LockForGearUpTranslation(pc));
 
-  entry->kind = GuestCodeEntry::Kind::kLightTranslated;
+  entry->kind = GuestCodeEntry::Kind::kLiteTranslated;
 
   entry = tc.LockForGearUpTranslation(pc);
   ASSERT_TRUE(entry);
@@ -323,7 +323,7 @@ TEST(TranslationCacheTest, LockForGearUpTranslation) {
 
 TEST(TranslationCacheTest, InvalidateRange) {
   constexpr GuestAddr pc = 0x12345678;
-  const auto host_code = AsHostCode(0xdeadbeef);
+  const auto host_code = AsHostCodeAddr(AsHostCode(0xdeadbeef));
 
   TranslationCache tc;
 
@@ -342,7 +342,7 @@ TEST(TranslationCacheTest, InvalidateRange) {
   ASSERT_EQ(host_code, tc.GetHostCodePtr(pc + 2)->load());
 }
 
-bool Wrap(TranslationCache* tc, GuestAddr pc, HostCode host_code) {
+bool Wrap(TranslationCache* tc, GuestAddr pc, HostCodeAddr host_code) {
   GuestCodeEntry* entry = tc->AddAndLockForWrapping(pc);
   if (!entry) {
     return false;
