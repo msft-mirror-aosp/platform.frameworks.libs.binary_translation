@@ -22,7 +22,8 @@
 
 namespace berberis {
 
-int CreateAndFillMemfd(const char* name, size_t memfd_file_size, uintptr_t value);
+template <typename T>
+int CreateAndFillMemfd(const char* name, size_t memfd_file_size, T value);
 
 void* CreateMemfdBackedMapOrDie(int memfd, size_t map_size, size_t memfd_file_size);
 
