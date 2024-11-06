@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_MEMFD_BACKED_MMAP_H_
-#define BERBERIS_BASE_MEMFD_BACKED_MMAP_H_
+#include <linux/unistd.h>
 
-#include <cstddef>  // size_t
-#include <cstdint>  // uintptr_t
+#include <cstddef>
 
-namespace berberis {
-
-template <typename T>
-int CreateAndFillMemfd(const char* name, size_t memfd_file_size, T value);
-
-void* CreateMemfdBackedMapOrDie(int memfd, size_t map_size, size_t memfd_file_size);
-
-}  // namespace berberis
-
-#endif  // BERBERIS_BASE_MEMFD_BACKED_MMAP_H_
+extern "C" [[gnu::naked]] [[gnu::noinline]] void berberis_UnmapAndExit(void* /*ptr*/,
+                                                                       size_t /*size*/,
+                                                                       int /*status*/) {
+  asm("li a7, %0\n"
+      "ecall\n"
+      "mv a0, a1\n"
+      "li a7, %1\n"
+      "ecall\n"
+      "ret\n"
+      :
+      : "i"(__NR_munmap), "i"(__NR_exit));
+}
