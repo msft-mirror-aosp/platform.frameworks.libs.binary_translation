@@ -86,7 +86,7 @@ TEST(CodePool, Smoke) {
     constexpr std::string_view kCode = "test1";
     machine_code.AddSequence(kCode.data(), kCode.size());
     auto host_code = code_pool.Add(&machine_code);
-    ASSERT_EQ(host_code, first_exec_region_memory_exec);
+    ASSERT_EQ(host_code, AsHostCodeAddr(first_exec_region_memory_exec));
     EXPECT_EQ(std::string_view{reinterpret_cast<const char*>(first_exec_region_memory_write)},
               kCode);
   }
@@ -98,7 +98,7 @@ TEST(CodePool, Smoke) {
     constexpr std::string_view kCode = "test2";
     machine_code.AddSequence(kCode.data(), kCode.size());
     auto host_code = code_pool.Add(&machine_code);
-    ASSERT_EQ(host_code, second_exec_region_memory_exec);
+    ASSERT_EQ(host_code, AsHostCodeAddr(second_exec_region_memory_exec));
     EXPECT_EQ(std::string_view{reinterpret_cast<const char*>(second_exec_region_memory_write)},
               kCode);
   }
