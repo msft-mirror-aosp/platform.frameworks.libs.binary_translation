@@ -18,10 +18,24 @@
 
 #include <cstdint>
 
+#include "berberis/base/bit_util.h"
+
 namespace berberis {
 
 // Pointer to host executable machine code.
 using HostCode = const void*;
+// Type used in translation cache and for host_entries
+using HostCodeAddr = uintptr_t;
+
+constexpr HostCodeAddr kNullHostCodeAddr = 0;
+
+inline HostCodeAddr AsHostCodeAddr(HostCode host_code) {
+  return bit_cast<HostCodeAddr>(host_code);
+}
+
+inline HostCode AsHostCode(HostCodeAddr host_code_addr) {
+  return bit_cast<HostCode>(host_code_addr);
+}
 
 template <typename T>
 inline HostCode AsHostCode(T ptr) {
@@ -67,7 +81,7 @@ inline AsFuncPtrAdaptor AsFuncPtr(HostCode ptr) {
 }
 
 struct HostCodePiece {
-  HostCode code;
+  HostCodeAddr code;
   uint32_t size;
 };
 

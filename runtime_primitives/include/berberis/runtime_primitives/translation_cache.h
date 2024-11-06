@@ -34,7 +34,7 @@ namespace berberis {
 // ATTENTION: associated guest pc and host code pointer never change!
 // TODO(b/232598137): consider making TranslationCache-internal!
 struct GuestCodeEntry {
-  std::atomic<HostCode>* const host_code;
+  std::atomic<HostCodeAddr>* const host_code;
 
   // Fields below are protected by TranslationCache mutex.
 
@@ -163,11 +163,11 @@ class TranslationCache {
   // Invalidate region of entries.
   void InvalidateGuestRange(GuestAddr start, GuestAddr end);
 
-  [[nodiscard]] const std::atomic<std::atomic<HostCode>*>* main_table_ptr() const {
+  [[nodiscard]] const std::atomic<std::atomic<HostCodeAddr>*>* main_table_ptr() const {
     return address_map_.main_table();
   }
 
-  [[nodiscard]] const std::atomic<HostCode>* GetHostCodePtr(GuestAddr pc) {
+  [[nodiscard]] const std::atomic<HostCodeAddr>* GetHostCodePtr(GuestAddr pc) {
     return address_map_.GetPointer(pc);
   }
 
@@ -183,13 +183,13 @@ class TranslationCache {
  private:
   [[nodiscard]] GuestCodeEntry* LookupGuestCodeEntryUnsafe(GuestAddr pc);
   [[nodiscard]] const GuestCodeEntry* LookupGuestCodeEntryUnsafe(GuestAddr pc) const;
-  [[nodiscard]] std::atomic<HostCode>* GetHostCodePtrWritable(GuestAddr pc) {
+  [[nodiscard]] std::atomic<HostCodeAddr>* GetHostCodePtrWritable(GuestAddr pc) {
     return address_map_.GetPointer(pc);
   }
 
   // Add call record for an address, reuse if already here.
   [[nodiscard]] GuestCodeEntry* AddUnsafe(GuestAddr pc,
-                                          std::atomic<HostCode>* host_code_ptr,
+                                          std::atomic<HostCodeAddr>* host_code_ptr,
                                           HostCodePiece host_code_piece,
                                           uint32_t guest_size,
                                           GuestCodeEntry::Kind kind,
@@ -209,7 +209,7 @@ class TranslationCache {
   ForeverMap<GuestAddr, GuestCodeEntry> guest_entries_;
 
   // Maps guest code addresses to the host address of the translated code.
-  TableOfTables<GuestAddr, HostCode> address_map_{kEntryNotTranslated};
+  TableOfTables<GuestAddr, HostCodeAddr> address_map_{kEntryNotTranslated};
 
   // The size of the largest entry.
   // Wrapped entries do not update it, so if we only have wrapped the size
