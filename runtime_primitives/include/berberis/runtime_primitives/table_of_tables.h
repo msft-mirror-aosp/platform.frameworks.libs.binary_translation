@@ -33,13 +33,12 @@ template <typename Key, typename T>
 class TableOfTables {
  public:
   explicit TableOfTables(T default_value) : default_value_(default_value) {
-    static_assert(sizeof(T) == sizeof(uintptr_t));
+    static_assert(sizeof(T) == sizeof(uintptr_t) || sizeof(T) == sizeof(uint32_t));
     CHECK_NE(default_value, T{0});
     default_table_ = static_cast<decltype(default_table_)>(CreateMemfdBackedMapOrDie(
         GetOrAllocDefaultMemfdUnsafe(), kChildTableBytes, kMemfdRegionSize));
 
-    int main_memfd =
-        CreateAndFillMemfd("main", kMemfdRegionSize, reinterpret_cast<uintptr_t>(default_table_));
+    int main_memfd = CreateAndFillMemfd("main", kMemfdRegionSize, default_table_);
     main_table_ = static_cast<decltype(main_table_)>(
         CreateMemfdBackedMapOrDie(main_memfd, kTableSize * sizeof(T*), kMemfdRegionSize));
     close(main_memfd);
@@ -109,8 +108,7 @@ class TableOfTables {
 
   int GetOrAllocDefaultMemfdUnsafe() {
     if (default_memfd_ == -1) {
-      default_memfd_ = CreateAndFillMemfd(
-          "child", kMemfdRegionSize, reinterpret_cast<uintptr_t>(default_value_));
+      default_memfd_ = CreateAndFillMemfd("child", kMemfdRegionSize, default_value_);
     }
     return default_memfd_;
   }
