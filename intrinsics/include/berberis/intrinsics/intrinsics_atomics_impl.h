@@ -58,7 +58,6 @@ inline constexpr int AqRlToMemoryOrder(bool aq, bool rl) {
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
 std::tuple<IntType> AmoAdd(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoAdd: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "AmoAdd: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
   return {__atomic_fetch_add(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
