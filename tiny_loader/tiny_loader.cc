@@ -24,6 +24,9 @@
 #include <sys/user.h>
 #include <unistd.h>
 
+#include <cstddef>
+#include <tuple>
+
 #include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/mapped_file_fragment.h"
@@ -125,6 +128,8 @@ size_t phdr_table_get_load_size(const ElfPhdr* phdr_table, size_t phdr_count,
 class TinyElfLoader {
  public:
   explicit TinyElfLoader(const char* name);
+
+  std::tuple<bool, size_t> CalculateLoadSize(const char* path);
 
   bool LoadFromFile(const char* path,
                     size_t align,
@@ -640,6 +645,33 @@ std::tuple<bool, int, size_t> TinyElfLoader::OpenFile(const char* path) {
   return {true, fd, file_stat.st_size};
 }
 
+std::tuple<bool, size_t> TinyElfLoader::CalculateLoadSize(const char* path) {
+  auto [is_opened, fd, file_size] = OpenFile(path);
+  if (!is_opened) {
+    return {false, 0};
+  }
+
+  berberis::ScopedFd scoped_fd(fd);
+
+  ElfEhdr header;
+  const ElfPhdr* phdr_table = nullptr;
+  size_t phdr_num = 0;
+
+  if (!ReadElfHeader(fd, &header) ||
+      !ReadProgramHeadersFromFile(&header, fd, file_size, &phdr_table, &phdr_num)) {
+    return {false, 0};
+  }
+
+  ElfAddr min_vaddr;
+  size_t size = phdr_table_get_load_size(phdr_table, phdr_num, &min_vaddr);
+  if (size == 0) {
+    set_error_msg(&error_msg_, "\"%s\" has no loadable segments", name_);
+    return {false, 0};
+  }
+
+  return {true, size};
+}
+
 bool TinyElfLoader::LoadFromFile(const char* path,
                                  size_t align,
                                  TinyLoader::mmap64_fn_t mmap64_fn,
@@ -708,4 +740,18 @@ bool TinyLoader::LoadFromMemory(const char* path, void* address, size_t size,
   }
 
   return true;
+}
+
+size_t TinyLoader::CalculateLoadSize(const char* path, std::string* error_msg) {
+  TinyElfLoader loader(path);
+  auto [success, size] = loader.CalculateLoadSize(path);
+  if (success) {
+    return size;
+  }
+
+  if (error_msg != nullptr) {
+    *error_msg = loader.error_msg();
+  }
+
+  return 0;
 }
