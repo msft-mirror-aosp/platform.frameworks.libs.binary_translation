@@ -29,6 +29,7 @@
 #include "berberis/base/mapped_file_fragment.h"
 #include "berberis/base/page_size.h"
 #include "berberis/base/prctl_helpers.h"
+#include "berberis/base/scoped_fd.h"
 #include "berberis/base/stringprintf.h"
 
 #define MAYBE_MAP_FLAG(x, from, to) (((x) & (from)) ? (to) : 0)
@@ -656,13 +657,14 @@ bool TinyElfLoader::LoadFromFile(const char* path,
     return false;
   }
 
+  berberis::ScopedFd scoped_fd(fd);
+
   did_load_ = ReadElfHeader(fd, &header) &&
               ReadProgramHeadersFromFile(&header, fd, file_size, &phdr_table, &phdr_num) &&
               LoadSegments(fd, file_size, header.e_type, phdr_table, phdr_num, align, mmap64_fn,
                            munmap_fn, &load_addr, &load_size) &&
               Parse(load_addr, load_size, loaded_elf_file);
 
-  close(fd);
   return did_load_;
 }
 
