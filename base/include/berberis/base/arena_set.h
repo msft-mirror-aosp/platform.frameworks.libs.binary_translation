@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_ARENA_LIST_H_
-#define BERBERIS_BASE_ARENA_LIST_H_
+#ifndef BERBERIS_BASE_ARENA_SET_H_
+#define BERBERIS_BASE_ARENA_SET_H_
 
-#include <list>
+#include <set>
 
 #include "berberis/base/arena_alloc.h"
 
 namespace berberis {
 
-template <class Type>
-using ArenaList = std::list<Type, ArenaAllocator<Type> >;
+template <typename Type, typename Compare = std::less<Type> >
+using ArenaSet = std::set<Type, Compare, ArenaAllocator<Type> >;
 
 }  // namespace berberis
 
-#endif  // BERBERIS_BASE_ARENA_LIST_H_
+#endif  // BERBERIS_BASE_ARENA_SET_H_
