@@ -154,7 +154,7 @@ void TranslationCache::SetWrappedAndUnlock(GuestAddr pc,
                                            HostCodePiece code) {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  auto* current = entry->host_code->load();
+  auto current = entry->host_code->load();
 
   // Might have been invalidated while wrapping.
   if (current == kEntryInvalidating) {
@@ -187,7 +187,7 @@ bool TranslationCache::IsHostFunctionWrapped(GuestAddr pc) const {
 }
 
 GuestCodeEntry* TranslationCache::AddUnsafe(GuestAddr pc,
-                                            std::atomic<HostCode>* host_code_ptr,
+                                            std::atomic<HostCodeAddr>* host_code_ptr,
                                             HostCodePiece host_code_piece,
                                             uint32_t guest_size,
                                             GuestCodeEntry::Kind kind,
@@ -232,12 +232,12 @@ const GuestCodeEntry* TranslationCache::LookupGuestCodeEntryUnsafe(GuestAddr pc)
 
 GuestAddr TranslationCache::SlowLookupGuestCodeEntryPCByHostPC(HostCode pc) {
   std::lock_guard<std::mutex> lock(mutex_);
+  const auto pc_addr = AsHostCodeAddr(pc);
 
   for (auto& it : guest_entries_) {
     auto* entry = &it.second;
     auto host_code = entry->host_code->load();
-    if (host_code <= pc &&
-        pc < AsHostCode(reinterpret_cast<uintptr_t>(host_code) + entry->host_size)) {
+    if (host_code <= pc_addr && pc_addr < host_code + entry->host_size) {
       return it.first;
     }
   }
@@ -287,7 +287,7 @@ void TranslationCache::InvalidateGuestRange(GuestAddr start, GuestAddr end) {
       break;
     }
 
-    HostCode current = entry->host_code->load();
+    HostCodeAddr current = entry->host_code->load();
 
     if (current == kEntryInvalidating) {
       // Translating but invalidated entry is handled in SetTranslatedAndUnlock.
