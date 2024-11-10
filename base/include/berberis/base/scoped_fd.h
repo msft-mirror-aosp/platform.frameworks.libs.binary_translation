@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,34 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_MEMFD_BACKED_MMAP_H_
-#define BERBERIS_BASE_MEMFD_BACKED_MMAP_H_
+#ifndef BERBERIS_BASE_SCOPED_FD_H
+#define BERBERIS_BASE_SCOPED_FD_H
 
-#include <cstddef>  // size_t
-#include <cstdint>  // uintptr_t
+#include <unistd.h>
 
 namespace berberis {
 
-template <typename T>
-int CreateAndFillMemfd(const char* name, size_t memfd_file_size, T value);
+class ScopedFd {
+ public:
+  ScopedFd(int fd) : fd_{fd} {}
+  ScopedFd(const ScopedFd&) = delete;
+  ScopedFd(ScopedFd&&) = delete;
+  ScopedFd& operator=(const ScopedFd&) = delete;
+  ScopedFd& operator=(ScopedFd&&) = delete;
+  ~ScopedFd() { reset(-1); }
 
-void* CreateMemfdBackedMapOrDie(int memfd, size_t map_size, size_t memfd_file_size);
+ private:
+  void reset(int fd) {
+    if (fd_ != -1) {
+      close(fd_);
+    }
+
+    fd_ = fd;
+  }
+
+  int fd_;
+};
 
 }  // namespace berberis
 
-#endif  // BERBERIS_BASE_MEMFD_BACKED_MMAP_H_
+#endif  // BERBERIS_BASE_SCOPED_FD_H

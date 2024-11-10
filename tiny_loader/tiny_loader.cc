@@ -29,6 +29,7 @@
 #include "berberis/base/mapped_file_fragment.h"
 #include "berberis/base/page_size.h"
 #include "berberis/base/prctl_helpers.h"
+#include "berberis/base/scoped_fd.h"
 #include "berberis/base/stringprintf.h"
 
 #define MAYBE_MAP_FLAG(x, from, to) (((x) & (from)) ? (to) : 0)
@@ -125,14 +126,19 @@ class TinyElfLoader {
  public:
   explicit TinyElfLoader(const char* name);
 
-  bool LoadFromFile(int fd, off64_t file_size, size_t align, TinyLoader::mmap64_fn_t mmap64_fn,
-                    TinyLoader::munmap_fn_t munmap_fn, LoadedElfFile* loaded_elf_file);
+  bool LoadFromFile(const char* path,
+                    size_t align,
+                    TinyLoader::mmap64_fn_t mmap64_fn,
+                    TinyLoader::munmap_fn_t munmap_fn,
+                    LoadedElfFile* loaded_elf_file);
 
   bool LoadFromMemory(void* load_addr, size_t load_size, LoadedElfFile* loaded_elf_file);
 
   const std::string& error_msg() const { return error_msg_; }
 
  private:
+  // Returns success, fd and file_size.
+  std::tuple<bool, int, size_t> OpenFile(const char* path);
   bool CheckElfHeader(const ElfEhdr* header);
   bool ReadElfHeader(int fd, ElfEhdr* header);
   bool ReadProgramHeadersFromFile(const ElfEhdr* header, int fd, off64_t file_size,
@@ -615,7 +621,27 @@ bool TinyElfLoader::Parse(void* load_ptr, size_t load_size, LoadedElfFile* loade
   return true;
 }
 
-bool TinyElfLoader::LoadFromFile(int fd, off64_t file_size, size_t align,
+// Returns success, fd and file_size.
+std::tuple<bool, int, size_t> TinyElfLoader::OpenFile(const char* path) {
+  int fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_CLOEXEC));
+  if (fd == -1) {
+    set_error_msg(&error_msg_, "unable to open the file \"%s\": %s", path, strerror(errno));
+    return {false, -1, 0};
+  }
+
+  struct stat file_stat;
+  if (TEMP_FAILURE_RETRY(fstat(fd, &file_stat)) != 0) {
+    set_error_msg(
+        &error_msg_, "unable to stat file for the library \"%s\": %s", path, strerror(errno));
+    close(fd);
+    return {false, -1, 0};
+  }
+
+  return {true, fd, file_stat.st_size};
+}
+
+bool TinyElfLoader::LoadFromFile(const char* path,
+                                 size_t align,
                                  TinyLoader::mmap64_fn_t mmap64_fn,
                                  TinyLoader::munmap_fn_t munmap_fn,
                                  LoadedElfFile* loaded_elf_file) {
@@ -625,6 +651,13 @@ bool TinyElfLoader::LoadFromFile(int fd, off64_t file_size, size_t align,
   ElfEhdr header;
   const ElfPhdr* phdr_table = nullptr;
   size_t phdr_num = 0;
+
+  auto [is_opened, fd, file_size] = OpenFile(path);
+  if (!is_opened) {
+    return false;
+  }
+
+  berberis::ScopedFd scoped_fd(fd);
 
   did_load_ = ReadElfHeader(fd, &header) &&
               ReadProgramHeadersFromFile(&header, fd, file_size, &phdr_table, &phdr_num) &&
@@ -644,35 +677,22 @@ bool TinyElfLoader::LoadFromMemory(void* load_addr, size_t load_size,
 
 }  // namespace
 
-bool TinyLoader::LoadFromFile(const char* path, size_t align, TinyLoader::mmap64_fn_t mmap64_fn,
-                              TinyLoader::munmap_fn_t munmap_fn, LoadedElfFile* loaded_elf_file,
+bool TinyLoader::LoadFromFile(const char* path,
+                              size_t align,
+                              TinyLoader::mmap64_fn_t mmap64_fn,
+                              TinyLoader::munmap_fn_t munmap_fn,
+                              LoadedElfFile* loaded_elf_file,
                               std::string* error_msg) {
-  int fd = TEMP_FAILURE_RETRY(open(path, O_RDONLY | O_CLOEXEC));
-  if (fd == -1) {
-    set_error_msg(error_msg, "unable to open the file \"%s\": %s", path, strerror(errno));
-    return false;
-  }
-
-  struct stat file_stat;
-  if (TEMP_FAILURE_RETRY(fstat(fd, &file_stat)) != 0) {
-    set_error_msg(error_msg, "unable to stat file for the library \"%s\": %s", path,
-                  strerror(errno));
-    close(fd);
-    return false;
-  }
-
   TinyElfLoader loader(path);
 
-  if (!loader.LoadFromFile(fd, file_stat.st_size, align, mmap64_fn, munmap_fn, loaded_elf_file)) {
+  if (!loader.LoadFromFile(path, align, mmap64_fn, munmap_fn, loaded_elf_file)) {
     if (error_msg != nullptr) {
       *error_msg = loader.error_msg();
     }
 
-    close(fd);
     return false;
   }
 
-  close(fd);
   return true;
 }
 

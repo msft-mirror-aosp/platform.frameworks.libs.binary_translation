@@ -108,7 +108,7 @@ TEST(CodeGenLib, GenTrampolineAdaptorResidence) {
   ScopedExecRegion generated_code_exec(&generated_code);
 
   AddToTranslationCache(ToGuestAddr(&g_ret_insn),
-                        {generated_code_exec.get(), generated_code.install_size()});
+                        {generated_code_exec.GetHostCodeAddr(), generated_code.install_size()});
 
   g_state.cpu.insn_addr = 0;
   SetLinkRegister(g_state.cpu, ToGuestAddr(&g_ret_insn));
