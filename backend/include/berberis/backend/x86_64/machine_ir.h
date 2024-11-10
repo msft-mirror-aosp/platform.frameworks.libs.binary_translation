@@ -43,7 +43,12 @@ enum MachineOpcode : int {
   kMachineOpPseudoJump,
   kMachineOpPseudoReadFlags,
   kMachineOpPseudoWriteFlags,
+// Some frontends may need additional opcodes currently.
+// Ideally we may want to separate froentend and backend, but for now only include
+// berberis/backend/x86_64/machine_opcode_guest-inl.h if it exists.
+#if __has_include("berberis/backend/x86_64/machine_opcode_guest-inl.h")
 #include "berberis/backend/x86_64/machine_opcode_guest-inl.h"
+#endif  // __has_include("berberis/backend/x86_64/machine_opcode_guest-inl.h")
 #include "machine_opcode_x86_64-inl.h"  // NOLINT generated file!
 };
 

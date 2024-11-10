@@ -30,7 +30,7 @@ void berberis_entry_Interpret();
 void berberis_entry_ExitGeneratedCode();
 void berberis_entry_Stop();
 void berberis_entry_NoExec();
-void berberis_entry_HandleLightCounterThresholdReached();
+void berberis_entry_HandleLiteCounterThresholdReached();
 
 // TODO(b/232598137): use status variable instead?
 void berberis_entry_NotTranslated();
@@ -46,14 +46,14 @@ __attribute__((__visibility__("hidden"))) void berberis_HandleNoExec(ThreadState
 }  // extern "C"
 
 // These constants are initialized by InitHostEntries()
-extern HostCode kEntryInterpret;
-extern HostCode kEntryExitGeneratedCode;
-extern HostCode kEntryStop;
-extern HostCode kEntryNoExec;
-extern HostCode kEntryNotTranslated;
-extern HostCode kEntryTranslating;
-extern HostCode kEntryInvalidating;
-extern HostCode kEntryWrapping;
+extern HostCodeAddr kEntryInterpret;
+extern HostCodeAddr kEntryExitGeneratedCode;
+extern HostCodeAddr kEntryStop;
+extern HostCodeAddr kEntryNoExec;
+extern HostCodeAddr kEntryNotTranslated;
+extern HostCodeAddr kEntryTranslating;
+extern HostCodeAddr kEntryInvalidating;
+extern HostCodeAddr kEntryWrapping;
 
 void InitHostEntries();
 

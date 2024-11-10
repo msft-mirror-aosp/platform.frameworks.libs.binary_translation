@@ -24,20 +24,20 @@
 
 namespace berberis {
 
-HostCode kEntryInterpret;
-HostCode kEntryExitGeneratedCode;
-HostCode kEntryStop;
-HostCode kEntryNoExec;
-HostCode kEntryNotTranslated;
-HostCode kEntryTranslating;
-HostCode kEntryInvalidating;
-HostCode kEntryWrapping;
+HostCodeAddr kEntryInterpret;
+HostCodeAddr kEntryExitGeneratedCode;
+HostCodeAddr kEntryStop;
+HostCodeAddr kEntryNoExec;
+HostCodeAddr kEntryNotTranslated;
+HostCodeAddr kEntryTranslating;
+HostCodeAddr kEntryInvalidating;
+HostCodeAddr kEntryWrapping;
 
 namespace {
 // This function installs a trampoline in the CodePool address space.
 // This needed to ensure that all entries in the translation cache
 // are always pointing to the memory allocated via CodePool.
-HostCode InstallEntryTrampoline(HostCode target_function_ptr) {
+HostCodeAddr InstallEntryTrampoline(HostCode target_function_ptr) {
 #if defined(__x86_64__)
   MachineCode mc;
   x86_64::Assembler as(&mc);
@@ -45,7 +45,7 @@ HostCode InstallEntryTrampoline(HostCode target_function_ptr) {
   as.Finalize();
   return GetDefaultCodePoolInstance()->Add(&mc);
 #else
-  return target_function_ptr;
+  return AsHostCodeAddr(target_function_ptr);
 #endif
 }
 }  // namespace
