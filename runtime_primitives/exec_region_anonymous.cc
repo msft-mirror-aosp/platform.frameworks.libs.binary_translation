@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "berberis/base/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 
 #include <sys/mman.h>
 
