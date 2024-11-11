@@ -16,7 +16,7 @@
 
 #include "gtest/gtest.h"
 
-#include "berberis/base/exec_region_elf_backed.h"
+#include "berberis/runtime_primitives/exec_region_elf_backed.h"
 
 #include <dlfcn.h>
 
