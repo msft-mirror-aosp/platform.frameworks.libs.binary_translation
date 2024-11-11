@@ -23,11 +23,11 @@
 #include "berberis/assembler/machine_code.h"
 #include "berberis/base/arena_alloc.h"
 #include "berberis/base/exec_region.h"
-#include "berberis/base/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 #include "berberis/runtime_primitives/host_code.h"
 
 #if defined(__BIONIC__)
-#include "berberis/base/exec_region_elf_backed.h"
+#include "berberis/runtime_primitives/exec_region_elf_backed.h"
 #endif
 
 namespace berberis {
