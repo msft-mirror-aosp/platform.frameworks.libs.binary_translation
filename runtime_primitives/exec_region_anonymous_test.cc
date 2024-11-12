@@ -18,7 +18,7 @@
 
 #include <utility>
 
-#include "berberis/base/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 
 namespace berberis {
 
