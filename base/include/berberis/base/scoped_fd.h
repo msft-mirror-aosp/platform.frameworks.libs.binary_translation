@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,34 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
-#define BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
+#ifndef BERBERIS_BASE_SCOPED_FD_H
+#define BERBERIS_BASE_SCOPED_FD_H
 
-#include <cstddef>
-#include <cstdint>
-
-#include "exec_region.h"
+#include <unistd.h>
 
 namespace berberis {
 
-class ExecRegionAnonymousFactory {
+class ScopedFd {
  public:
-  // Size of anonymous executable code region.
-  static constexpr uint32_t kExecRegionSize = 4 * 1024 * 1024;
+  ScopedFd(int fd) : fd_{fd} {}
+  ScopedFd(const ScopedFd&) = delete;
+  ScopedFd(ScopedFd&&) = delete;
+  ScopedFd& operator=(const ScopedFd&) = delete;
+  ScopedFd& operator=(ScopedFd&&) = delete;
+  ~ScopedFd() { reset(-1); }
 
-  static ExecRegion Create(size_t size);
+ private:
+  void reset(int fd) {
+    if (fd_ != -1) {
+      close(fd_);
+    }
+
+    fd_ = fd;
+  }
+
+  int fd_;
 };
 
 }  // namespace berberis
 
-#endif  // BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
+#endif  // BERBERIS_BASE_SCOPED_FD_H
