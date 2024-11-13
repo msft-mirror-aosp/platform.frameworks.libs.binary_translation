@@ -57,6 +57,7 @@ uint8_t* AllocExecutableRegion() {
       .size = MockExecRegionFactory::kExecRegionSize,
       .prot = PROT_NONE,
       .flags = MAP_PRIVATE | MAP_ANONYMOUS,
+      .berberis_flags = kMmapBerberis32Bit,
   }));
 }
 

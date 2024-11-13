@@ -19,15 +19,28 @@
 #include <cstdint>
 
 #include "berberis/base/bit_util.h"
+#include "berberis/base/checks.h"
 
 namespace berberis {
 
 // Pointer to host executable machine code.
 using HostCode = const void*;
-// Type used in translation cache and for host_entries
-using HostCodeAddr = uintptr_t;
 
-constexpr HostCodeAddr kNullHostCodeAddr = 0;
+// Type used in translation cache and for host_entries
+#if defined(__x86_64__)
+using HostCodeAddr = uint32_t;
+
+inline HostCodeAddr AsHostCodeAddr(HostCode host_code) {
+  CHECK(IsInRange<HostCodeAddr>(bit_cast<uintptr_t>(host_code)));
+  return static_cast<HostCodeAddr>(bit_cast<uintptr_t>(host_code));
+}
+
+inline HostCode AsHostCode(HostCodeAddr host_code_addr) {
+  return bit_cast<HostCode>(uintptr_t{host_code_addr});
+}
+#else
+// TODO(b/363611588): use uint32_t for other 64bit backends (arm64/riscv64)
+using HostCodeAddr = uintptr_t;
 
 inline HostCodeAddr AsHostCodeAddr(HostCode host_code) {
   return bit_cast<HostCodeAddr>(host_code);
@@ -36,6 +49,9 @@ inline HostCodeAddr AsHostCodeAddr(HostCode host_code) {
 inline HostCode AsHostCode(HostCodeAddr host_code_addr) {
   return bit_cast<HostCode>(host_code_addr);
 }
+#endif  // defined(__x86_64__)
+
+constexpr HostCodeAddr kNullHostCodeAddr = 0;
 
 template <typename T>
 inline HostCode AsHostCode(T ptr) {
