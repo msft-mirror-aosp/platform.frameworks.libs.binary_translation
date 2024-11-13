@@ -14,17 +14,34 @@
  * limitations under the License.
  */
 
-#include "berberis/base/exec_region_elf_backed.h"
+#ifndef BERBERIS_BASE_SCOPED_FD_H
+#define BERBERIS_BASE_SCOPED_FD_H
 
-#include "berberis/base/exec_region_anonymous.h"
+#include <unistd.h>
 
 namespace berberis {
 
-// For static executables we cannot use dlopen_ext.
-// Use anonymous factory instead. Please do not use
-// this outside of static tests.
-ExecRegion ExecRegionElfBackedFactory::Create(size_t size) {
-  return ExecRegionAnonymousFactory::Create(size);
-}
+class ScopedFd {
+ public:
+  ScopedFd(int fd) : fd_{fd} {}
+  ScopedFd(const ScopedFd&) = delete;
+  ScopedFd(ScopedFd&&) = delete;
+  ScopedFd& operator=(const ScopedFd&) = delete;
+  ScopedFd& operator=(ScopedFd&&) = delete;
+  ~ScopedFd() { reset(-1); }
+
+ private:
+  void reset(int fd) {
+    if (fd_ != -1) {
+      close(fd_);
+    }
+
+    fd_ = fd;
+  }
+
+  int fd_;
+};
 
 }  // namespace berberis
+
+#endif  // BERBERIS_BASE_SCOPED_FD_H

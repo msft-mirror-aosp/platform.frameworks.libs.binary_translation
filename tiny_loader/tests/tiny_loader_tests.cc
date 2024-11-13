@@ -18,6 +18,8 @@
 
 #include "berberis/tiny_loader/tiny_loader.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include <sys/user.h>
@@ -33,6 +35,7 @@ const constexpr char* kTestLibInvalidElfClassName = "libtinytest_invalid_elf_cla
 const constexpr char* kTestLibGnuName = "libtinytest.so";
 const constexpr char* kTestLibSysvName = "libtinytest_sysv.so";
 const constexpr char* kTestExecutableName = "tiny_static_executable";
+constexpr size_t kTestLibGnuLoadSize = 0x3000;
 
 #if defined(__LP64__)
 constexpr uintptr_t kStaticExecutableEntryPoint = 0x1ce00;
@@ -130,6 +133,14 @@ TEST(tiny_loader, library_gnu_hash) {
 
 TEST(tiny_loader, library_sysv_hash) {
   TestLoadLibrary(kTestLibSysvName);
+}
+
+TEST(tiny_loader, CalculateLoadSize) {
+  std::string error_msg;
+  std::string elf_filepath;
+  ASSERT_TRUE(GetTestElfFilepath(kTestLibGnuName, &elf_filepath, &error_msg)) << error_msg;
+  size_t size = TinyLoader::CalculateLoadSize(elf_filepath.c_str(), &error_msg);
+  EXPECT_EQ(size, kTestLibGnuLoadSize);
 }
 
 TEST(tiny_loader, library_invalid_elf_class) {

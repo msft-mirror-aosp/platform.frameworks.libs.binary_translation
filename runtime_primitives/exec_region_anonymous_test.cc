@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2015 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,32 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
-#define BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
+#include "gtest/gtest.h"
 
-#include <cstddef>
-#include <cstdint>
+#include <utility>
 
-#include "exec_region.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 
 namespace berberis {
 
-class ExecRegionAnonymousFactory {
- public:
-  // Size of anonymous executable code region.
-  static constexpr uint32_t kExecRegionSize = 4 * 1024 * 1024;
+namespace {
 
-  static ExecRegion Create(size_t size);
-};
+TEST(ExecRegionAnonymous, Smoke) {
+  const char buf[] = "deadbeef";
+
+  ExecRegion exec = ExecRegionAnonymousFactory::Create(sizeof(buf));
+  const uint8_t* code = exec.begin();
+  ASSERT_NE(nullptr, code);
+
+  exec.Write(code, buf, sizeof(buf));
+  ASSERT_EQ('f', code[7]);
+
+  exec.Detach();
+  ASSERT_EQ('f', code[7]);
+
+  exec.Free();
+}
+
+}  // namespace
 
 }  // namespace berberis
-
-#endif  // BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_

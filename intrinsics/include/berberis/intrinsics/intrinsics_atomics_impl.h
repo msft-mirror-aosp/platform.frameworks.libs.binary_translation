@@ -58,7 +58,6 @@ inline constexpr int AqRlToMemoryOrder(bool aq, bool rl) {
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
 std::tuple<IntType> AmoAdd(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoAdd: IntType must be integral");
-  static_assert(std::is_signed_v<IntType>, "AmoAdd: IntType must be signed");
   auto ptr = ToHostAddr<IntType>(arg1);
   return {__atomic_fetch_add(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
@@ -70,18 +69,36 @@ std::tuple<IntType> AmoAnd(int64_t arg1, IntType arg2) {
   return {__atomic_fetch_and(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
-template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
-std::tuple<IntType> AmoMax(int64_t arg1, IntType arg2) {
+template <typename IntType,
+          typename RetType,
+          bool aq,
+          bool rl,
+          enum PreferredIntrinsicsImplementation>
+std::tuple<RetType> AmoMax(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoMax: IntType must be integral");
   auto ptr = ToHostAddr<IntType>(arg1);
   return {__atomic_fetch_max(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
 }
 
-template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
-std::tuple<IntType> AmoMin(int64_t arg1, IntType arg2) {
+template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation preferred_impl>
+std::tuple<IntType> AmoMax(int64_t arg1, IntType arg2) {
+  return AmoMax<IntType, IntType, aq, rl, preferred_impl>(arg1, arg2);
+}
+
+template <typename IntType,
+          typename RetType,
+          bool aq,
+          bool rl,
+          enum PreferredIntrinsicsImplementation>
+std::tuple<RetType> AmoMin(int64_t arg1, IntType arg2) {
   static_assert(std::is_integral_v<IntType>, "AmoMin: IntType must be integral");
   auto ptr = ToHostAddr<IntType>(arg1);
   return {__atomic_fetch_min(ptr, arg2, AqRlToMemoryOrder(aq, rl))};
+}
+
+template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation preferred_impl>
+std::tuple<IntType> AmoMin(int64_t arg1, IntType arg2) {
+  return AmoMin<IntType, IntType, aq, rl, preferred_impl>(arg1, arg2);
 }
 
 template <typename IntType, bool aq, bool rl, enum PreferredIntrinsicsImplementation>
