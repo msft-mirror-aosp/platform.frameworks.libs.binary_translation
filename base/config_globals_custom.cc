@@ -43,6 +43,8 @@ std::string ToString(ConfigFlag flag) {
       return "enable-disjoint-regions-translation";
     case kLocalExperiment:
       return "local-experiment";
+    case kPlatformCustomCPUCapability:
+      return "platform-custom-cpu-capability";
     case kNumConfigFlags:
       break;
   }

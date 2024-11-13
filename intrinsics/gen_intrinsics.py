@@ -908,7 +908,8 @@ _KNOWN_FEATURES_KEYS = {
   'AVX': '017',
   'AVX2': '018',
   'FMA': '019',
-  'FMA4': '020'
+  'FMA4': '020',
+  'CustomCapability': '021'
 }
 
 
