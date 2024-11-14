@@ -171,6 +171,7 @@ cc_library_static {
     header_libs: [
         "libberberis_base_headers",
         "libberberis_runtime_primitives_headers",
+        "libberberis_tinyloader_headers",
     ],
 }
 

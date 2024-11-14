@@ -29,9 +29,19 @@ ExecRegion ExecRegionAnonymousFactory::Create(size_t size) {
   auto fd = CreateMemfdOrDie("exec");
   FtruncateOrDie(fd, static_cast<off64_t>(size));
 
+#if defined(__x86_64__)
+  constexpr int kBerberisFlags = kMmapBerberis32Bit;
+#else
+  // TODO(b/363611588): enable for other backends (arm64/riscv64)
+  constexpr int kBerberisFlags = 0;
+#endif  // defined(__x86_64__)
+
   ExecRegion result{
-      static_cast<uint8_t*>(MmapImplOrDie(
-          {.size = size, .prot = PROT_READ | PROT_EXEC, .flags = MAP_SHARED, .fd = fd})),
+      static_cast<uint8_t*>(MmapImplOrDie({.size = size,
+                                           .prot = PROT_READ | PROT_EXEC,
+                                           .flags = MAP_SHARED,
+                                           .fd = fd,
+                                           .berberis_flags = kBerberisFlags})),
       static_cast<uint8_t*>(MmapImplOrDie(
           {.size = size, .prot = PROT_READ | PROT_WRITE, .flags = MAP_SHARED, .fd = fd})),
       size};
