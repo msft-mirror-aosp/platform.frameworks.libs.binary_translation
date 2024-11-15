@@ -45,6 +45,8 @@ std::string ToString(ConfigFlag flag) {
       return "invert-carry";
     case kLocalExperiment:
       return "local-experiment";
+    case kPlatformCustomCPUCapability:
+      return "platform-custom-cpu-capability";
     case kNumConfigFlags:
       break;
   }
