@@ -15,6 +15,7 @@
  */
 
 #include "berberis/runtime_primitives/platform.h"
+#include "berberis/base/config_globals.h"
 
 #if defined(__i386__) || defined(__x86_64__)
 #include <cpuid.h>
@@ -68,6 +69,7 @@ auto Init() {
   platform_capabilities.kHasBMI2 = ebx & bit_BMI2;
   platform_capabilities.kHasPDEP = ebx & bit_BMI2 && use_pdep_if_present;
   platform_capabilities.kHasSHA = ebx & bit_SHA;
+  platform_capabilities.kHasCustomCapability = IsConfigFlagSet(kPlatformCustomCPUCapability);
   return platform_capabilities;
 }
 #endif
