@@ -258,6 +258,7 @@ class TextAssembler {
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
   bool need_sse4_2 = false;
+  bool has_custom_capability = false;
 
   void Bind(Label* label) {
     CHECK_EQ(label->bound, false);
@@ -379,6 +380,9 @@ class TextAssembler {
       return "host_platform::kHasSSE4_2";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
       return "host_platform::kHasSSSE3";
+    } else if constexpr (std::is_same_v<CPUIDRestriction,
+                                        intrinsics::bindings::HasCustomCapability>) {
+      return "host_platform::kHasCustomCapability";
     } else {
       static_assert(kDependentTypeFalse<CPUIDRestriction>);
     }
@@ -469,6 +473,8 @@ class TextAssembler {
     need_sse4_2 = true;
     SetRequiredFeatureSSE4_1();
   }
+
+  void SetHasCustomCapability() { has_custom_capability = true; }
 
   template <typename... Args>
   void Instruction(const char* name, Condition cond, const Args&... args);
