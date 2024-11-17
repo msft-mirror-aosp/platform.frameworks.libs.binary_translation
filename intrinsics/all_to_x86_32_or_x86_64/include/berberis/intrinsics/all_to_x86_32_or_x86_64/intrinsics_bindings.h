@@ -315,6 +315,7 @@ class HasSSSE3;
 class HasTBM;
 class HasVAES;
 class HasX87;
+class HasCustomCapability;
 class IsAuthenticAMD;
 
 }  // namespace berberis::intrinsics::bindings

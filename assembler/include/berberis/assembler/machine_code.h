@@ -25,7 +25,6 @@
 
 #include "berberis/base/arena_alloc.h"
 #include "berberis/base/arena_vector.h"
-#include "berberis/base/exec_region_anonymous.h"
 #include "berberis/base/forever_map.h"
 #include "berberis/base/macros.h"  // DISALLOW_COPY_AND_ASSIGN
 
