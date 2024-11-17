@@ -23,11 +23,11 @@
 #include "berberis/assembler/machine_code.h"
 #include "berberis/base/arena_alloc.h"
 #include "berberis/base/exec_region.h"
-#include "berberis/base/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 #include "berberis/runtime_primitives/host_code.h"
 
 #if defined(__BIONIC__)
-#include "berberis/base/exec_region_elf_backed.h"
+#include "berberis/runtime_primitives/exec_region_elf_backed.h"
 #endif
 
 namespace berberis {
@@ -50,10 +50,12 @@ class CodePool {
 
     uint32_t size = code->install_size();
 
-    // This is the start of a generated code region which is always a branch
-    // target. Align on 16-bytes as recommended by Intel.
-    // TODO(b/232598137) Extract this into host specified behavior.
-    current_address_ = AlignUp(current_address_, 16);
+    // Align region start on 64-byte cache line to facilite more stable instruction fetch
+    // performance on benchmarks. Region start is always a branch target, so this also ensures
+    // 16-bytes alignment for branch targets recommended by Intel.
+    // TODO(b/200327919): Try only doing this for heavy-optimized code to avoid extra gaps between
+    // lite-translated regions.
+    current_address_ = AlignUp(current_address_, 64);
 
     if (exec_.end() < current_address_ + size) {
       ResetExecRegion(size);

@@ -133,7 +133,8 @@ void EmitDirectDispatch(x86_64::Assembler* as, GuestAddr pc, bool check_pending_
   CHECK_EQ(pc & 0xffff000000000000, 0);
   as->Movq(as->rcx,
            reinterpret_cast<uint64_t>(TranslationCache::GetInstance()->GetHostCodePtr(pc)));
-  as->Jmpq({.base = as->rcx});
+  as->Movl(as->rcx, {.base = as->rcx});
+  as->Jmp(as->rcx);
 }
 
 void EmitExitGeneratedCode(x86_64::Assembler* as, x86_64::Assembler::Register target) {
@@ -171,7 +172,7 @@ void EmitIndirectDispatch(x86_64::Assembler* as, x86_64::Assembler::Register tar
 
   as->Movq(as->rax, target);
   as->Andq(as->rax, 0xffffff);
-  as->Movq(as->rcx, {.base = as->rcx, .index = as->rax, .scale = x86_64::Assembler::kTimesEight});
+  as->Movl(as->rcx, {.base = as->rcx, .index = as->rax, .scale = x86_64::Assembler::kTimesFour});
 
   // insn_addr is passed between regions in rax.
   as->Movq(as->rax, target);
