@@ -14,30 +14,32 @@
  * limitations under the License.
  */
 
-#include "berberis/base/exec_region_anonymous.h"
+#include "gtest/gtest.h"
 
-#include <sys/mman.h>
+#include <utility>
 
-#include "berberis/base/fd.h"
-#include "berberis/base/mmap.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 
 namespace berberis {
 
-ExecRegion ExecRegionAnonymousFactory::Create(size_t size) {
-  size = AlignUpPageSize(size);
+namespace {
 
-  auto fd = CreateMemfdOrDie("exec");
-  FtruncateOrDie(fd, static_cast<off64_t>(size));
+TEST(ExecRegionAnonymous, Smoke) {
+  const char buf[] = "deadbeef";
 
-  ExecRegion result{
-      static_cast<uint8_t*>(MmapImplOrDie(
-          {.size = size, .prot = PROT_READ | PROT_EXEC, .flags = MAP_SHARED, .fd = fd})),
-      static_cast<uint8_t*>(MmapImplOrDie(
-          {.size = size, .prot = PROT_READ | PROT_WRITE, .flags = MAP_SHARED, .fd = fd})),
-      size};
+  ExecRegion exec = ExecRegionAnonymousFactory::Create(sizeof(buf));
+  const uint8_t* code = exec.begin();
+  ASSERT_NE(nullptr, code);
 
-  CloseUnsafe(fd);
-  return result;
+  exec.Write(code, buf, sizeof(buf));
+  ASSERT_EQ('f', code[7]);
+
+  exec.Detach();
+  ASSERT_EQ('f', code[7]);
+
+  exec.Free();
 }
+
+}  // namespace
 
 }  // namespace berberis

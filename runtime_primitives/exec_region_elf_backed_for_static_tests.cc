@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
-#define BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
-
-#include <cstddef>
-#include <cstdint>
-
-#include "exec_region.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/exec_region_elf_backed.h"
 
 namespace berberis {
 
-class ExecRegionAnonymousFactory {
- public:
-  // Size of anonymous executable code region.
-  static constexpr uint32_t kExecRegionSize = 4 * 1024 * 1024;
-
-  static ExecRegion Create(size_t size);
-};
+// For static executables we cannot use dlopen_ext.
+// Use anonymous factory instead. Please do not use
+// this outside of static tests.
+ExecRegion ExecRegionElfBackedFactory::Create(size_t size) {
+  return ExecRegionAnonymousFactory::Create(size);
+}
 
 }  // namespace berberis
-
-#endif  // BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
