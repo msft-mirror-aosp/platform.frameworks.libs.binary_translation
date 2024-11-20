@@ -104,6 +104,8 @@ class VecSize(object):
 
 _VECTOR_SIZES = {'X64': VecSize(64, 1), 'X128': VecSize(128, 2)}
 
+_ROUNDING_MODES = ['FE_TONEAREST', 'FE_DOWNWARD', 'FE_UPWARD', 'FE_TOWARDZERO', 'FE_TIESAWAY']
+
 
 def _is_imm_type(arg_type):
   return 'imm' in arg_type
@@ -137,6 +139,8 @@ def _get_c_type(arg_type):
     return _get_imm_c_type(arg_type)
   if arg_type == 'vec':
     return 'SIMD128Register'
+  if arg_type in _ROUNDING_MODES:
+    return 'int'
   raise Exception('Type %s not supported' % (arg_type))
 
 
@@ -198,6 +202,7 @@ def _get_template_arguments(
     new_template = ', '.join(
       (["bool kPreciseNaNOperationsHandling"] if precise_nans else []) +
       ['bool kBool%s' % get_counter() if param.strip() in ('true', 'false') else
+       'uint32_t kInt%s' % get_counter() if param.strip() in _ROUNDING_MODES else
        'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
        'int kInt%s' % get_counter()
        for param in variant.split(',')] + extra)
@@ -645,6 +650,7 @@ def _get_template_spec_arguments(variants):
       return counter
     new_spec = [
       'kBool%s' % get_counter() if param.strip() in ('true', 'false') else
+      'kInt%s' % get_counter() if param.strip() in _ROUNDING_MODES else
       'Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
       'kInt%s' % get_counter()
       for param in variant.split(',')]
