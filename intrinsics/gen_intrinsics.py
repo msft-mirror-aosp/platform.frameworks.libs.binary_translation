@@ -179,11 +179,14 @@ def _gen_template_intr_decl(f, name, intr):
   comment = intr.get('comment')
   if comment:
     print('// %s.' % (comment), file=f)
-  print('template <%s>' % _get_template_arguments(intr.get('variants')), file=f)
+  print('template <%s>' % _get_template_arguments(
+      intr.get('variants'), intr.get('precise_nans', False)), file=f)
   print('%s %s(%s);' % (retval, name, ', '.join(params)), file=f)
 
 
-def _get_template_arguments(variants,
+def _get_template_arguments(
+    variants,
+    precise_nans = False,
     extra = ['enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible']):
   template = None
   for variant in variants:
@@ -192,11 +195,12 @@ def _get_template_arguments(variants,
       nonlocal counter
       counter += 1
       return counter
-    new_template = ', '.join([
-      'bool kBool%s' % get_counter() if param.strip() in ('true', 'false') else
-      'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
-      'int kInt%s' % get_counter()
-      for param in variant.split(',')] + extra)
+    new_template = ', '.join(
+      (["bool kPreciseNaNOperationsHandling"] if precise_nans else []) +
+      ['bool kBool%s' % get_counter() if param.strip() in ('true', 'false') else
+       'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
+       'int kInt%s' % get_counter()
+       for param in variant.split(',')] + extra)
     assert template is None or template == new_template
     template = new_template
   return template
@@ -253,7 +257,7 @@ def _get_semantics_player_hook_proto(name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
   if intr.get('class') == 'template':
     return 'template<%s>\n%s %s(%s)' % (
-      _get_template_arguments(intr.get('variants'), []), result, name, args)
+      _get_template_arguments(intr.get('variants'), False, []), result, name, args)
   return '%s %s(%s)' % (result, name, args)
 
 
@@ -458,9 +462,14 @@ def _gen_mock_semantics_listener_hook(f, name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
   if intr.get('class') == 'template':
     print('template<%s>\n%s %s(%s) {\n  return %s(%s);\n}' % (
-      _get_template_arguments(intr.get('variants'), []), result, name, args, name, ', '.join([
-      'intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
-      for arg in _get_template_spec_arguments(intr.get('variants'))] +
+      _get_template_arguments(intr.get('variants'), False, []),
+      result,
+      name,
+      args,
+      name,
+      ', '.join([
+        'intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
+        for arg in _get_template_spec_arguments(intr.get('variants'))] +
       [('arg%d' % n) for n, _ in enumerate(intr['in'])])), file=f)
     args = ', '.join([
       '%s %s' % (
@@ -908,7 +917,8 @@ _KNOWN_FEATURES_KEYS = {
   'AVX': '017',
   'AVX2': '018',
   'FMA': '019',
-  'FMA4': '020'
+  'FMA4': '020',
+  'CustomCapability': '021'
 }
 
 

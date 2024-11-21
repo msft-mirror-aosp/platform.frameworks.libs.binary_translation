@@ -41,10 +41,10 @@ std::string ToString(ConfigFlag flag) {
       return "disable-reg-map";
     case kEnableDisjointRegionsTranslation:
       return "enable-disjoint-regions-translation";
-    case kInvertCarry:
-      return "invert-carry";
     case kLocalExperiment:
       return "local-experiment";
+    case kPlatformCustomCPUCapability:
+      return "platform-custom-cpu-capability";
     case kNumConfigFlags:
       break;
   }

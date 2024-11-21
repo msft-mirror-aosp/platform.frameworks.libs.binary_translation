@@ -54,10 +54,11 @@ enum ConfigFlag {
   kEnableDisjointRegionsTranslation,
   kVerboseTranslation,
   kAccurateSigsegv,
-  kInvertCarry,
   // A convenience flag with no specific implied feature. Use it to conduct local experiments
   // without recompilation and without the need to add a new flag.
   kLocalExperiment,
+  // A convenience flag which enables a custom platform capability.
+  kPlatformCustomCPUCapability,
   kNumConfigFlags
 };
 
