@@ -22,7 +22,7 @@
 
 #include <cstdio>
 
-#include "scoped_sigaction.h"
+#include "berberis/ndk_program_tests/scoped_sigaction.h"
 
 namespace {
 
