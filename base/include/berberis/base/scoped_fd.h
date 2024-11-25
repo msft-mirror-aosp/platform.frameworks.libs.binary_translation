@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,34 @@
  * limitations under the License.
  */
 
-#include "gtest/gtest.h"
+#ifndef BERBERIS_BASE_SCOPED_FD_H
+#define BERBERIS_BASE_SCOPED_FD_H
 
-#include <utility>
-
-#include "berberis/base/exec_region_anonymous.h"
+#include <unistd.h>
 
 namespace berberis {
 
-namespace {
+class ScopedFd {
+ public:
+  ScopedFd(int fd) : fd_{fd} {}
+  ScopedFd(const ScopedFd&) = delete;
+  ScopedFd(ScopedFd&&) = delete;
+  ScopedFd& operator=(const ScopedFd&) = delete;
+  ScopedFd& operator=(ScopedFd&&) = delete;
+  ~ScopedFd() { reset(-1); }
 
-TEST(ExecRegionAnonymous, Smoke) {
-  const char buf[] = "deadbeef";
+ private:
+  void reset(int fd) {
+    if (fd_ != -1) {
+      close(fd_);
+    }
 
-  ExecRegion exec = ExecRegionAnonymousFactory::Create(sizeof(buf));
-  const uint8_t* code = exec.begin();
-  ASSERT_NE(nullptr, code);
+    fd_ = fd;
+  }
 
-  exec.Write(code, buf, sizeof(buf));
-  ASSERT_EQ('f', code[7]);
-
-  exec.Detach();
-  ASSERT_EQ('f', code[7]);
-
-  exec.Free();
-}
-
-}  // namespace
+  int fd_;
+};
 
 }  // namespace berberis
+
+#endif  // BERBERIS_BASE_SCOPED_FD_H
