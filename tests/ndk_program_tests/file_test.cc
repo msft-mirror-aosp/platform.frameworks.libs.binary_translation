@@ -29,7 +29,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "file.h"  // NOLINT
+#include "berberis/ndk_program_tests/file.h"
 
 //------------------------------------------------------------------------------
 // Test simple file IO
