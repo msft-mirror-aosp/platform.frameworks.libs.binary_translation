@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_ARENA_LIST_H_
-#define BERBERIS_BASE_ARENA_LIST_H_
+#ifndef BERBERIS_BASE_EXEC_REGION_ELF_BACKED_H_
+#define BERBERIS_BASE_EXEC_REGION_ELF_BACKED_H_
 
-#include <list>
+#include <cstddef>
+#include <cstdint>
 
-#include "berberis/base/arena_alloc.h"
+#include "berberis/base/exec_region.h"
 
 namespace berberis {
 
-template <class Type>
-using ArenaList = std::list<Type, ArenaAllocator<Type> >;
+class ExecRegionElfBackedFactory {
+ public:
+  // Size of elf-backed executable code region.
+  static constexpr uint32_t kExecRegionSize = 512 * 1024;
+
+  // The size is ignored here since it is property of the elf-file
+  // It is only used to check that it does not exceed kExecRegionSize
+  static ExecRegion Create(size_t size);
+};
 
 }  // namespace berberis
 
-#endif  // BERBERIS_BASE_ARENA_LIST_H_
+#endif  // BERBERIS_BASE_EXEC_REGION_ELF_BACKED_H_

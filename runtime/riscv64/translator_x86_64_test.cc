@@ -19,13 +19,13 @@
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/translation_cache.h"
 
-#include "translator_riscv64.h"
+#include "translator_x86_64.h"
 
 namespace berberis {
 
 namespace {
 
-TEST(TranslatorRiscv64, LiteTranslateSupportedRegion) {
+TEST(TranslatorRiscv64ToX86_64, LiteTranslateSupportedRegion) {
   static const uint32_t code[] = {
       0x002081b3,  // add x3, x1, x2
       0x008000ef,  // jal x1, 8
@@ -35,13 +35,13 @@ TEST(TranslatorRiscv64, LiteTranslateSupportedRegion) {
       TryLiteTranslateAndInstallRegion(ToGuestAddr(code));
 
   EXPECT_TRUE(success);
-  EXPECT_NE(host_code_piece.code, nullptr);
+  EXPECT_NE(host_code_piece.code, kNullHostCodeAddr);
   EXPECT_GT(host_code_piece.size, 0U);
   EXPECT_EQ(guest_size, 8U);
   EXPECT_EQ(kind, GuestCodeEntry::Kind::kLiteTranslated);
 }
 
-TEST(TranslatorRiscv64, LiteTranslateUnsupportedRegion) {
+TEST(TranslatorRiscv64ToX86_64, LiteTranslateUnsupportedRegion) {
   static const uint32_t code[] = {
       0x00000073,  // ecall #0x0
   };
@@ -52,7 +52,7 @@ TEST(TranslatorRiscv64, LiteTranslateUnsupportedRegion) {
   EXPECT_FALSE(success);
 }
 
-TEST(TranslatorRiscv64, LiteTranslatePartiallySupportedRegion) {
+TEST(TranslatorRiscv64ToX86_64, LiteTranslatePartiallySupportedRegion) {
   static const uint32_t code[] = {
       0x002081b3,  // add x3, x1, x2
       0x00000073,  // ecall #0x0
@@ -62,13 +62,13 @@ TEST(TranslatorRiscv64, LiteTranslatePartiallySupportedRegion) {
       TryLiteTranslateAndInstallRegion(ToGuestAddr(code));
 
   EXPECT_TRUE(success);
-  EXPECT_NE(host_code_piece.code, nullptr);
+  EXPECT_NE(host_code_piece.code, kNullHostCodeAddr);
   EXPECT_GT(host_code_piece.size, 0U);
   EXPECT_EQ(guest_size, 4U);
   EXPECT_EQ(kind, GuestCodeEntry::Kind::kLiteTranslated);
 }
 
-TEST(TranslatorRiscv64, HeavyOptimizeSupportedRegion) {
+TEST(TranslatorRiscv64ToX86_64, HeavyOptimizeSupportedRegion) {
   static const uint32_t code[] = {
       0x008000ef,  // jal x1, 8
   };
@@ -82,7 +82,7 @@ TEST(TranslatorRiscv64, HeavyOptimizeSupportedRegion) {
   EXPECT_EQ(kind, GuestCodeEntry::Kind::kHeavyOptimized);
 }
 
-TEST(TranslatorRiscv64, HeavyOptimizeUnsupportedRegion) {
+TEST(TranslatorRiscv64ToX86_64, HeavyOptimizeUnsupportedRegion) {
   static const uint32_t code[] = {
       0x0000100f,  // fence.i
   };

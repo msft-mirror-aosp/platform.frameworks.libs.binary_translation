@@ -14,29 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_ANDROID_API_JNI_JNI_TRAMPOLINES_H_
-#define BERBERIS_ANDROID_API_JNI_JNI_TRAMPOLINES_H_
+#ifndef BERBERIS_RUNTIME_RISCV64_TRANSLATOR_X86_64_H_
+#define BERBERIS_RUNTIME_RISCV64_TRANSLATOR_X86_64_H_
 
-#include <jni.h>
+#include <cstddef>
+#include <tuple>
 
-#include "berberis/guest_abi/guest_type.h"
 #include "berberis/guest_state/guest_addr.h"
+#include "berberis/lite_translator/lite_translate_region.h"
 #include "berberis/runtime_primitives/host_code.h"
+#include "berberis/runtime_primitives/translation_cache.h"
 
 namespace berberis {
 
-HostCode WrapGuestJNIFunction(GuestAddr pc,
-                              const char* shorty,
-                              const char* name,
-                              bool has_jnienv_and_jobject);
-HostCode WrapGuestJNIOnLoad(GuestAddr pc);
-
-GuestType<JNIEnv*> ToGuestJNIEnv(JNIEnv* host_jni_env);
-JNIEnv* ToHostJNIEnv(GuestType<JNIEnv*> guest_jni_env);
-
-GuestType<JavaVM*> ToGuestJavaVM(JavaVM* host_java_vm);
-JavaVM* ToHostJavaVM(GuestType<JavaVM*> guest_java_vm);
+std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAndInstallRegion(
+    GuestAddr pc,
+    const LiteTranslateParams& params = LiteTranslateParams());
+std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> HeavyOptimizeRegion(GuestAddr pc);
 
 }  // namespace berberis
 
-#endif  // BERBERIS_ANDROID_API_JNI_JNI_TRAMPOLINES_H_
+#endif  // BERBERIS_RUNTIME_RISCV64_TRANSLATOR_X86_64_H_

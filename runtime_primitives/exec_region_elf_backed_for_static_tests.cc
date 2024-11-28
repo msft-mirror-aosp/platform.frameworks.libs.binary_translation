@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_ARENA_LIST_H_
-#define BERBERIS_BASE_ARENA_LIST_H_
-
-#include <list>
-
-#include "berberis/base/arena_alloc.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/exec_region_elf_backed.h"
 
 namespace berberis {
 
-template <class Type>
-using ArenaList = std::list<Type, ArenaAllocator<Type> >;
+// For static executables we cannot use dlopen_ext.
+// Use anonymous factory instead. Please do not use
+// this outside of static tests.
+ExecRegion ExecRegionElfBackedFactory::Create(size_t size) {
+  return ExecRegionAnonymousFactory::Create(size);
+}
 
 }  // namespace berberis
-
-#endif  // BERBERIS_BASE_ARENA_LIST_H_
