@@ -3512,6 +3512,22 @@ TEST(Arm64InsnTest, MulSubF32IndexedElem) {
   ASSERT_EQ(AsmFmls(arg1, arg2, arg3), bit_cast<uint32_t>(4.0f));
 }
 
+TEST(Arm64InsnTest, MulSubF32x4IndexedElem) {
+  constexpr auto AsmFmls = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmls %0.4s, %1.4s, %2.s[2]");
+  __uint128_t arg1 = MakeF32x4(1.0f, 2.0f, 4.0f, 3.0f);
+  __uint128_t arg2 = MakeF32x4(3.0f, 1.0f, 2.0f, 4.0f);
+  __uint128_t arg3 = MakeF32x4(2.0f, 3.0f, 1.0f, 2.0f);
+  ASSERT_EQ(AsmFmls(arg1, arg2, arg3), MakeF32x4(0.0f, -1.0f, -7.0f, -4.0f));
+}
+
+TEST(Arm64InsnTest, MulSubF64x2) {
+  constexpr auto AsmFmls = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmls %0.2d, %1.2d, %2.2d");
+  __uint128_t arg1 = MakeF64x2(1.0f, 2.0f);
+  __uint128_t arg2 = MakeF64x2(3.0f, 1.0f);
+  __uint128_t arg3 = MakeF64x2(2.0f, 3.0f);
+  ASSERT_EQ(AsmFmls(arg1, arg2, arg3), MakeF64x2(-1.0f, 1.0f));
+}
+
 TEST(Arm64InsnTest, MulSubF64IndexedElem) {
   constexpr auto AsmFmls = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmls %d0, %d1, %2.d[1]");
   __uint128_t arg1 = MakeF64x2(2.0, 5.0);
@@ -3519,14 +3535,6 @@ TEST(Arm64InsnTest, MulSubF64IndexedElem) {
   __uint128_t arg3 = MakeF64x2(6.0, 7.0f);
   // 6 - (2 * 1)
   ASSERT_EQ(AsmFmls(arg1, arg2, arg3), bit_cast<uint64_t>(4.0));
-}
-
-TEST(Arm64InsnTest, MulSubF32x4IndexedElem) {
-  constexpr auto AsmFmls = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmls %0.4s, %1.4s, %2.s[2]");
-  __uint128_t arg1 = MakeF32x4(1.0f, 2.0f, 4.0f, 3.0f);
-  __uint128_t arg2 = MakeF32x4(3.0f, 1.0f, 2.0f, 4.0f);
-  __uint128_t arg3 = MakeF32x4(2.0f, 3.0f, 1.0f, 2.0f);
-  ASSERT_EQ(AsmFmls(arg1, arg2, arg3), MakeF32x4(0.0f, -1.0f, -7.0f, -4.0f));
 }
 
 TEST(Arm64InsnTest, CompareEqualF32) {
