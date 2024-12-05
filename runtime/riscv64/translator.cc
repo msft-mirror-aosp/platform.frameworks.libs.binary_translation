@@ -61,8 +61,8 @@ HostCodePiece InstallTranslated(MachineCode* machine_code,
                                 GuestAddr pc,
                                 size_t size,
                                 const char* prefix) {
-  HostCode host_code = GetDefaultCodePoolInstance()->Add(machine_code);
-  ProfilerLogGeneratedCode(host_code, machine_code->install_size(), pc, size, prefix);
+  HostCodeAddr host_code = GetDefaultCodePoolInstance()->Add(machine_code);
+  ProfilerLogGeneratedCode(AsHostCode(host_code), machine_code->install_size(), pc, size, prefix);
   return {host_code, machine_code->install_size()};
 }
 

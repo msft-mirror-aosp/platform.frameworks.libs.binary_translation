@@ -20,7 +20,8 @@
 
 #include "berberis/assembler/machine_code.h"
 #include "berberis/base/bit_util.h"
-#include "berberis/base/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/host_code.h"
 
 namespace berberis {
 
@@ -47,6 +48,8 @@ class ScopedExecRegion {
   const T* get() const {
     return bit_cast<const T*>(exec_.begin());
   }
+
+  HostCodeAddr GetHostCodeAddr() const { return AsHostCodeAddr(AsHostCode(exec_.begin())); }
 
   [[nodiscard]] const RecoveryMap& recovery_map() const { return recovery_map_; }
 
