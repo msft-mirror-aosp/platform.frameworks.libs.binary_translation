@@ -758,6 +758,17 @@
       ]
     },
     {
+      "encodings": {
+        "Xaddq": { "opcodes": [ "0F", "C1" ], "type": "reg_to_rm"  },
+        "Lock Xaddq": { "opcodes": [ "F0", "0F", "C1" ], "type": "reg_to_rm"  }
+      },
+      "args": [
+        { "class": "Mem64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "use_def" }
+      ]
+    },
+    {
       "stems": [ "Xchgq" ],
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },

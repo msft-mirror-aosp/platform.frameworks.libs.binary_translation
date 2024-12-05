@@ -40,6 +40,7 @@ template <>
 struct TypeTraits<uint16_t> {
   using Wide = uint32_t;
   using Narrow = uint8_t;
+  using Float = intrinsics::Float16;
   static constexpr int kBits = 16;
   static constexpr char kName[] = "uint16_t";
 };
@@ -75,6 +76,7 @@ template <>
 struct TypeTraits<int16_t> {
   using Wide = int32_t;
   using Narrow = int8_t;
+  using Float = intrinsics::Float16;
   static constexpr int kBits = 16;
   static constexpr char kName[] = "int16_t";
 };
