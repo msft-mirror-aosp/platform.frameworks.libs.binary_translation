@@ -19,6 +19,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <atomic>
+#include <type_traits>
+
 #include "berberis/base/fd.h"
 #include "berberis/base/large_mmap.h"
 #include "berberis/base/logging.h"
@@ -27,7 +30,10 @@
 namespace berberis {
 
 // Creates memfd region of memfd_file_size bytes filled with value.
-int CreateAndFillMemfd(const char* name, size_t memfd_file_size, uintptr_t value) {
+template <typename T>
+int CreateAndFillMemfd(const char* name, size_t memfd_file_size, T value) {
+  static_assert(std::is_integral_v<T> || std::is_pointer_v<T>,
+                "T must be an integral or pointer type");
   const size_t kPageSize = sysconf(_SC_PAGE_SIZE);
   CHECK_EQ(memfd_file_size % sizeof(value), 0);
   CHECK_EQ(memfd_file_size % kPageSize, 0);
@@ -35,7 +41,7 @@ int CreateAndFillMemfd(const char* name, size_t memfd_file_size, uintptr_t value
   // Use intermediate map to fully initialize file content. It lets compiler
   // optimize the loop below and limits WriteFully to fd to one call. Running
   // the Memfd.uintptr_t test on this showed 4x performance improvement.
-  uintptr_t* memfd_file_content = static_cast<uintptr_t*>(MmapOrDie(memfd_file_size));
+  T* memfd_file_content = static_cast<T*>(MmapOrDie(memfd_file_size));
 
   for (size_t i = 0; i < memfd_file_size / sizeof(value); ++i) {
     memfd_file_content[i] = value;
@@ -49,6 +55,20 @@ int CreateAndFillMemfd(const char* name, size_t memfd_file_size, uintptr_t value
 
   return memfd;
 }
+
+template int CreateAndFillMemfd<uintptr_t>(const char* name,
+                                           size_t memfd_file_size,
+                                           uintptr_t value);
+template int CreateAndFillMemfd<std::atomic<uintptr_t>*>(const char* name,
+                                                         size_t memfd_file_size,
+                                                         std::atomic<uintptr_t>* value);
+
+#if defined(__LP64__)
+template int CreateAndFillMemfd<uint32_t>(const char* name, size_t memfd_file_size, uint32_t value);
+template int CreateAndFillMemfd<std::atomic<uint32_t>*>(const char* name,
+                                                        size_t memfd_file_size,
+                                                        std::atomic<uint32_t>* value);
+#endif
 
 // Allocates a region of map_size bytes and backs it in chunks with memfd region
 // of memfd_file_size bytes.

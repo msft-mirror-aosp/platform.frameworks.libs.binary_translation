@@ -115,13 +115,13 @@ extern "C" {
       "ldp x23, x22, [sp, 112]\n"                                       \
       "ldp x21, x20, [sp, 128]\n"                                       \
       "ldp x19, lr, [sp, 144]\n"                                        \
-      "add sp, %[CalleeSavedFrameSize]\n"                               \
+      "add sp, sp, %[CalleeSavedFrameSize]\n"                               \
                                                                         \
       EXIT_INSN                                                         \
       ::[InsnAddr] "p"(offsetof(berberis::ThreadState, cpu.insn_addr)), \
       [Residence] "p"(offsetof(berberis::ThreadState, residence)),      \
       [OutsideGeneratedCode] "M"(berberis::kOutsideGeneratedCode),      \
-      [CalleeSavedFrameSize] "J"(kCalleeSavedFrameSize))
+      [CalleeSavedFrameSize] "I"(kCalleeSavedFrameSize))
 // clang-format on
 
 [[gnu::naked]] [[gnu::noinline]] void berberis_RunGeneratedCode(ThreadState* state, HostCode code) {
@@ -133,7 +133,7 @@ extern "C" {
   // clang-format off
   asm(
     // Prologue
-    "sub sp, %[CalleeSavedFrameSize]\n"
+    "sub sp, sp, %[CalleeSavedFrameSize]\n"
     "stp x19, lr, [sp, 144]\n"
     "stp x21, x20, [sp, 128]\n"
     "stp x23, x22, [sp, 112]\n"
@@ -159,7 +159,7 @@ extern "C" {
     ::[InsnAddr] "p"(offsetof(ThreadState, cpu.insn_addr)),
     [Residence] "p"(offsetof(ThreadState, residence)),
     [InsideGeneratedCode] "M"(kInsideGeneratedCode),
-    [CalleeSavedFrameSize] "J"(kCalleeSavedFrameSize));
+    [CalleeSavedFrameSize] "I"(kCalleeSavedFrameSize));
   // clang-format on
 }
 
@@ -191,7 +191,7 @@ extern "C" {
     ::[InsnAddr] "p"(offsetof(berberis::ThreadState, cpu.insn_addr)),
     [Residence] "p"(offsetof(berberis::ThreadState, residence)),
     [OutsideGeneratedCode] "M"(berberis::kOutsideGeneratedCode),
-    [InsideGeneratedCode] "J"(berberis::kInsideGeneratedCode));
+    [InsideGeneratedCode] "M"(berberis::kInsideGeneratedCode));
   // clang-format on
 }
 

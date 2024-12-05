@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,14 @@
  * limitations under the License.
  */
 
-#include "gtest/gtest.h"
+#ifndef BERBERIS_CODE_GEN_LIB_CODE_GEN_LIB_ARCH_H_
+#define BERBERIS_CODE_GEN_LIB_CODE_GEN_LIB_ARCH_H_
 
-#include <utility>
-
-#include "berberis/base/exec_region_anonymous.h"
+#include "berberis/guest_state/guest_state.h"
 
 namespace berberis {
 
-namespace {
-
-TEST(ExecRegionAnonymous, Smoke) {
-  const char buf[] = "deadbeef";
-
-  ExecRegion exec = ExecRegionAnonymousFactory::Create(sizeof(buf));
-  const uint8_t* code = exec.begin();
-  ASSERT_NE(nullptr, code);
-
-  exec.Write(code, buf, sizeof(buf));
-  ASSERT_EQ('f', code[7]);
-
-  exec.Detach();
-  ASSERT_EQ('f', code[7]);
-
-  exec.Free();
-}
-
-}  // namespace
+inline constexpr size_t kReturnAddressRegisterOffset = offsetof(ThreadState, cpu.x[RA]);
 
 }  // namespace berberis
+#endif  // BERBERIS_CODE_GEN_LIB_CODE_GEN_LIB_ARCH_H_

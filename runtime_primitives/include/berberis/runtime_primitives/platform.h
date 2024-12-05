@@ -53,6 +53,7 @@ extern const struct PlatformCapabilities {
   bool kHasSSE4a;
   bool kHasSSE4_1;
   bool kHasSSE4_2;
+  bool kHasCustomCapability;
 } kPlatformCapabilities;
 // These are "runtime constants": they can not be determined at compile
 // time but each particular CPU has them set to true or false and that
@@ -75,6 +76,7 @@ inline const bool& kHasSSSE3 = kPlatformCapabilities.kHasSSSE3;
 inline const bool& kHasSSE4a = kPlatformCapabilities.kHasSSE4a;
 inline const bool& kHasSSE4_1 = kPlatformCapabilities.kHasSSE4_1;
 inline const bool& kHasSSE4_2 = kPlatformCapabilities.kHasSSE4_2;
+inline const bool& kHasCustomCapability = kPlatformCapabilities.kHasCustomCapability;
 #endif
 
 }  // namespace berberis::host_platform

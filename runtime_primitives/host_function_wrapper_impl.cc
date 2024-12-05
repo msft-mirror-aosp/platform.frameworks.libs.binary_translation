@@ -17,12 +17,12 @@
 #include "berberis/runtime_primitives/host_function_wrapper_impl.h"
 
 #include "berberis/assembler/machine_code.h"
-#include "berberis/base/exec_region_anonymous.h"
 #include "berberis/base/tracing.h"
 #include "berberis/code_gen_lib/gen_adaptor.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/checks.h"
 #include "berberis/runtime_primitives/code_pool.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/translation_cache.h"
 
