@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include "berberis/base/exec_region_elf_backed.h"
+#include "berberis/runtime_primitives/exec_region_elf_backed.h"
+#include "berberis/tiny_loader/tiny_loader.h"
 
 #include <android/dlext.h>
 #include <dlfcn.h>
@@ -40,7 +41,21 @@ namespace berberis {
 ExecRegion ExecRegionElfBackedFactory::Create(size_t size) {
   size = AlignUpPageSize(size);
 
-  android_dlextinfo dlextinfo{.flags = ANDROID_DLEXT_FORCE_LOAD};
+  // Since we cannot force android loader to map library in lower 2G memory we will need
+  // to reserve the space first and then direct the loader to load the library at that address.
+  size_t load_size = TinyLoader::CalculateLoadSize(kExecRegionLibraryPath, nullptr);
+  CHECK_NE(load_size, 0);
+
+  void* load_addr = MmapImplOrDie({.addr = nullptr,
+                                   .size = load_size,
+                                   .prot = PROT_NONE,
+                                   .flags = MAP_ANONYMOUS | MAP_PRIVATE,
+                                   .berberis_flags = kMmapBerberis32Bit});
+
+  android_dlextinfo dlextinfo{.flags = ANDROID_DLEXT_FORCE_LOAD | ANDROID_DLEXT_RESERVED_ADDRESS,
+                              .reserved_addr = load_addr,
+                              .reserved_size = load_size};
+
   void* handle = android_dlopen_ext(kExecRegionLibraryPath, RTLD_NOW, &dlextinfo);
   if (handle == nullptr) {
     FATAL("Couldn't load \"%s\": %s", kExecRegionLibraryPath, dlerror());

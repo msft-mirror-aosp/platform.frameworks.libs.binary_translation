@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@
 
 #include "berberis/assembler/machine_code.h"
 #include "berberis/assembler/x86_64.h"
-#include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/config.h"
 #include "berberis/calling_conventions/calling_conventions_x86_64.h"
+#include "berberis/code_gen_lib/code_gen_lib_arch.h"
 #include "berberis/code_gen_lib/gen_adaptor.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
@@ -88,9 +88,9 @@ void GenTrampolineAdaptor(MachineCode* mc,
     }
   }
 
-  // j ra
+  // jump to guest return address
   // Prefer rdx, since rax/rcx will result in extra moves inside EmitIndirectDispatch.
-  as.Movq(as.rdx, {.base = as.rbp, .disp = offsetof(ThreadState, cpu.x[RA])});
+  as.Movq(as.rdx, {.base = as.rbp, .disp = kReturnAddressRegisterOffset});
   // We are returning to generated code.
   as.Movq({.base = as.rbp, .disp = offsetof(ThreadState, residence)}, kInsideGeneratedCode);
   EmitIndirectDispatch(&as, as.rdx);
@@ -130,10 +130,11 @@ void EmitDirectDispatch(x86_64::Assembler* as, GuestAddr pc, bool check_pending_
     EmitCheckSignalsAndMaybeReturn(as);
   }
 
-  CHECK_EQ(pc & 0xffff000000000000, 0);
+  CHECK_EQ(pc & 0xffff'0000'0000'0000, 0);
   as->Movq(as->rcx,
            reinterpret_cast<uint64_t>(TranslationCache::GetInstance()->GetHostCodePtr(pc)));
-  as->Jmpq({.base = as->rcx});
+  as->Movl(as->rcx, {.base = as->rcx});
+  as->Jmp(as->rcx);
 }
 
 void EmitExitGeneratedCode(x86_64::Assembler* as, x86_64::Assembler::Register target) {
@@ -147,36 +148,41 @@ void EmitExitGeneratedCode(x86_64::Assembler* as, x86_64::Assembler::Register ta
 
 void EmitIndirectDispatch(x86_64::Assembler* as, x86_64::Assembler::Register target) {
   // insn_addr is passed between regions in rax.
-  as->Movq(as->rax, target);
+  if (target != as->rax) {
+    as->Movq(as->rax, target);
+  }
 
   if (!config::kLinkJumpsBetweenRegions) {
     as->Jmp(kEntryExitGeneratedCode);
     return;
   }
 
-  // rax and rcx are used as scratches.
-  if (target == as->rax || target == as->rcx) {
-    as->Movq(as->rdx, target);
-    target = as->rdx;
-  }
-
   EmitCheckSignalsAndMaybeReturn(as);
 
   auto main_table_ptr = TranslationCache::GetInstance()->main_table_ptr();
 
-  as->Shrq(as->rax, int8_t{24});
-  as->Andl(as->rax, 0xffffff);
-  as->Movq(as->rcx, reinterpret_cast<uint64_t>(main_table_ptr));
-  as->Movq(as->rcx, {.base = as->rcx, .index = as->rax, .scale = x86_64::Assembler::kTimesEight});
+  // Rax holds insn_addr. We use target and/or rcx/rdx for scratches.
+  x86_64::Assembler::Register scratch1 = target;
+  x86_64::Assembler::Register scratch2 = as->rcx;
+  if (target == as->rax) {
+    as->Movq(as->rdx, target);
+    scratch1 = as->rdx;
+  } else if (target == as->rcx) {
+    scratch1 = as->rcx;
+    scratch2 = as->rdx;
+  }
+  // scratch1 always holds insn_addr at this point.
+  as->Shrq(scratch1, int8_t{24});
+  as->Andl(scratch1, 0xff'ffff);
+  as->Movq(scratch2, reinterpret_cast<uint64_t>(main_table_ptr));
+  as->Movq(scratch2,
+           {.base = scratch2, .index = scratch1, .scale = x86_64::Assembler::kTimesEight});
 
-  as->Movq(as->rax, target);
-  as->Andq(as->rax, 0xffffff);
-  as->Movq(as->rcx, {.base = as->rcx, .index = as->rax, .scale = x86_64::Assembler::kTimesEight});
+  as->Movq(scratch1, as->rax);
+  as->Andl(scratch1, 0xff'ffff);
+  as->Movl(scratch2, {.base = scratch2, .index = scratch1, .scale = x86_64::Assembler::kTimesFour});
 
-  // insn_addr is passed between regions in rax.
-  as->Movq(as->rax, target);
-
-  as->Jmp(as->rcx);
+  as->Jmp(scratch2);
 }
 
 void EmitAllocStackFrame(x86_64::Assembler* as, uint32_t frame_size) {
