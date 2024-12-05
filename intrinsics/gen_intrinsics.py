@@ -1122,7 +1122,11 @@ def _add_asm_insn(intrs, arch_intr, insn):
   assert 'feature' not in insn or insn['feature'] == arch_intr['feature']
   assert 'nan' not in insn or insn['nan'] == arch_intr['nan']
   assert 'usage' not in insn or insn['usage'] == arch_intr['usage']
-  assert len(intrs[name]['in']) == len(arch_intr['in'])
+  # Some intrinsics have extra inputs which can be ignored. e,g fpcr could be
+  # ignored when not needed for precise emulation of NaNs.
+  # Therefore we check that number inputs to (macro) instruction is less than
+  # or equal to number of inputs to number of inputs to intrinsic.
+  assert len(intrs[name]['in']) >= len(arch_intr['in'])
   assert len(intrs[name]['out']) == len(arch_intr['out'])
 
   if 'variants' in arch_intr:
