@@ -17,13 +17,9 @@
 #ifndef BERBERIS_RUNTIME_TRANSLATOR_H_
 #define BERBERIS_RUNTIME_TRANSLATOR_H_
 
-#include "berberis/guest_state/guest_addr.h"
-
 namespace berberis {
 
 void InitTranslator();
-
-void TranslateRegionAtFirstGear(GuestAddr pc);
 
 }  // namespace berberis
 

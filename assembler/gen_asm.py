@@ -25,6 +25,8 @@ import sys
 
 INDENT = '  '
 
+ROUNDING_MODES = ['FE_TONEAREST', 'FE_DOWNWARD', 'FE_UPWARD', 'FE_TOWARDZERO', 'FE_TIESAWAY']
+
 _imm_types = {
     # x86 immediates
     'Imm2': 'int8_t',
@@ -108,6 +110,7 @@ def _get_template_name(insn):
   if '<' not in name:
     return None, name
   return 'template <%s>' % ', '.join(
+      'int' if param.strip() in ROUNDING_MODES else
       'bool' if param.strip() in ('true', 'false') else
       'typename' if re.search('[_a-zA-Z]', param) else 'int'
       for param in name.split('<',1)[1][:-1].split(',')), name.split('<')[0]

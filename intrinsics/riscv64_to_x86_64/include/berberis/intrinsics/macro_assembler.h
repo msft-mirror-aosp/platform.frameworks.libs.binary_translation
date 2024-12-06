@@ -44,7 +44,7 @@ class MacroAssembler : public Assembler {
   }
 
 #define DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
-#include "berberis/intrinsics/macro_assembler-inl.h"
+#include "berberis/intrinsics/all_to_x86_32_or_x86_64/macro_assembler-inl.h"
 
   void PNot(XMMRegister result) {
     Pandn(result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});

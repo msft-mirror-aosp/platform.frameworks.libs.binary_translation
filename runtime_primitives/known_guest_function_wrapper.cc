@@ -20,6 +20,7 @@
 #include <mutex>
 #include <string>
 
+#include "berberis/base/forever_alloc.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/host_code.h"
 
@@ -27,23 +28,46 @@ namespace berberis {
 
 namespace {
 
-std::map<std::string, HostCode (*)(GuestAddr)> g_function_wrappers;
-std::mutex g_guard_mutex;
+class GuestFunctionWrapper {
+ public:
+  static GuestFunctionWrapper* GetInstance() {
+    static auto* g_wrapper = NewForever<GuestFunctionWrapper>();
+    return g_wrapper;
+  }
+
+  void RegisterKnown(const char* name, HostCode (*wrapper)(GuestAddr)) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    wrappers_.insert({name, wrapper});
+  }
+
+  HostCode WrapKnown(GuestAddr guest_addr, const char* name) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    auto wrapper = wrappers_.find(name);
+    if (wrapper == end(wrappers_)) {
+      return nullptr;
+    }
+    return wrapper->second(guest_addr);
+  }
+
+ private:
+  GuestFunctionWrapper() = default;
+  GuestFunctionWrapper(const GuestFunctionWrapper&) = delete;
+  GuestFunctionWrapper& operator=(const GuestFunctionWrapper&) = delete;
+
+  friend GuestFunctionWrapper* NewForever<GuestFunctionWrapper>();
+
+  std::map<std::string, HostCode (*)(GuestAddr)> wrappers_;
+  std::mutex mutex_;
+};
 
 }  // namespace
 
 void RegisterKnownGuestFunctionWrapper(const char* name, HostCode (*wrapper)(GuestAddr)) {
-  std::lock_guard<std::mutex> guard(g_guard_mutex);
-  g_function_wrappers.insert({name, wrapper});
+  GuestFunctionWrapper::GetInstance()->RegisterKnown(name, wrapper);
 }
 
 HostCode WrapKnownGuestFunction(GuestAddr guest_addr, const char* name) {
-  std::lock_guard<std::mutex> guard(g_guard_mutex);
-  auto wrapper = g_function_wrappers.find(name);
-  if (wrapper == end(g_function_wrappers)) {
-    return nullptr;
-  }
-  return wrapper->second(guest_addr);
+  return GuestFunctionWrapper::GetInstance()->WrapKnown(guest_addr, name);
 }
 
 };  // namespace berberis

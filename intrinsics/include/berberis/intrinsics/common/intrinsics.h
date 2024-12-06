@@ -20,10 +20,7 @@
 #include <cstdint>
 
 #include "berberis/base/dependent_false.h"
-
-#if !defined(__aarch64__)
-#include "berberis/intrinsics/common/intrinsics_float.h"  // Float32/Float64
-#endif
+#include "berberis/intrinsics/common/intrinsics_float.h"  // Float16/Float32/Float64
 
 namespace berberis {
 
@@ -40,6 +37,7 @@ enum EnumFromTemplateType {
   kUInt32T,
   kInt64T,
   kUInt64T,
+  kFloat16,
   kFloat32,
   kFloat64,
   kSIMD128Register,
@@ -63,6 +61,8 @@ constexpr EnumFromTemplateType TypeToEnumFromTemplateType() {
     return EnumFromTemplateType::kUInt64T;
   } else if constexpr (std::is_same_v<uint64_t, std::decay_t<Type>>) {
     return EnumFromTemplateType::kUInt64T;
+  } else if constexpr (std::is_same_v<Float16, std::decay_t<Type>>) {
+    return EnumFromTemplateType::kFloat16;
   } else if constexpr (std::is_same_v<Float32, std::decay_t<Type>>) {
     return EnumFromTemplateType::kFloat32;
   } else if constexpr (std::is_same_v<Float64, std::decay_t<Type>>) {

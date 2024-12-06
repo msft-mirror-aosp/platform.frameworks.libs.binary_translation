@@ -21,6 +21,7 @@
 #include <mutex>  // std::lock_guard, std::mutex
 
 #include "berberis/base/checks.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/runtime_library.h"
@@ -28,8 +29,8 @@
 namespace berberis {
 
 TranslationCache* TranslationCache::GetInstance() {
-  static TranslationCache g_translation_cache;
-  return &g_translation_cache;
+  static auto* g_translation_cache = NewForever<TranslationCache>();
+  return g_translation_cache;
 }
 
 GuestCodeEntry* TranslationCache::AddAndLockForTranslation(GuestAddr pc,
@@ -72,9 +73,9 @@ GuestCodeEntry* TranslationCache::LockForGearUpTranslation(GuestAddr pc) {
     return nullptr;
   }
 
-  // This method should be called for light-translated region, but we cannot
+  // This method should be called for lite-translated region, but we cannot
   // guarantee they stay as such before we lock the mutex.
-  if (entry->kind != GuestCodeEntry::Kind::kLightTranslated) {
+  if (entry->kind != GuestCodeEntry::Kind::kLiteTranslated) {
     return nullptr;
   }
 
@@ -153,7 +154,7 @@ void TranslationCache::SetWrappedAndUnlock(GuestAddr pc,
                                            HostCodePiece code) {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  auto* current = entry->host_code->load();
+  auto current = entry->host_code->load();
 
   // Might have been invalidated while wrapping.
   if (current == kEntryInvalidating) {
@@ -186,7 +187,7 @@ bool TranslationCache::IsHostFunctionWrapped(GuestAddr pc) const {
 }
 
 GuestCodeEntry* TranslationCache::AddUnsafe(GuestAddr pc,
-                                            std::atomic<HostCode>* host_code_ptr,
+                                            std::atomic<HostCodeAddr>* host_code_ptr,
                                             HostCodePiece host_code_piece,
                                             uint32_t guest_size,
                                             GuestCodeEntry::Kind kind,
@@ -231,12 +232,12 @@ const GuestCodeEntry* TranslationCache::LookupGuestCodeEntryUnsafe(GuestAddr pc)
 
 GuestAddr TranslationCache::SlowLookupGuestCodeEntryPCByHostPC(HostCode pc) {
   std::lock_guard<std::mutex> lock(mutex_);
+  const auto pc_addr = AsHostCodeAddr(pc);
 
   for (auto& it : guest_entries_) {
     auto* entry = &it.second;
     auto host_code = entry->host_code->load();
-    if (host_code <= pc &&
-        pc < AsHostCode(reinterpret_cast<uintptr_t>(host_code) + entry->host_size)) {
+    if (host_code <= pc_addr && pc_addr < host_code + entry->host_size) {
       return it.first;
     }
   }
@@ -286,7 +287,7 @@ void TranslationCache::InvalidateGuestRange(GuestAddr start, GuestAddr end) {
       break;
     }
 
-    HostCode current = entry->host_code->load();
+    HostCodeAddr current = entry->host_code->load();
 
     if (current == kEntryInvalidating) {
       // Translating but invalidated entry is handled in SetTranslatedAndUnlock.

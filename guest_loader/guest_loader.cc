@@ -17,11 +17,11 @@
 #include "berberis/guest_loader/guest_loader.h"
 
 #include <algorithm>   // std::generate
+#include <atomic>
 #include <climits>     // CHAR_BIT
 #include <cstdint>
 #include <cstdlib>
 #include <functional>  // std::ref
-#include <mutex>
 #include <random>
 #include <thread>
 
@@ -251,21 +251,21 @@ bool InitializeLinker(LinkerCallbacks* linker_callbacks,
          InitializeLinkerCallbacksArch(linker_callbacks, linker_elf_file, error_msg);
 }
 
-std::mutex g_guest_loader_instance_mtx;
-GuestLoader* g_guest_loader_instance;
+std::atomic<GuestLoader*> g_guest_loader_instance;
 
 }  // namespace
 
 GuestLoader::GuestLoader() = default;
 
-GuestLoader::~GuestLoader() = default;
+GuestLoader::~GuestLoader() {
+  delete g_guest_loader_instance.load();
+};
 
 GuestLoader* GuestLoader::CreateInstance(const char* main_executable_path,
                                          const char* vdso_path,
                                          const char* loader_path,
                                          std::string* error_msg) {
-  std::lock_guard<std::mutex> lock(g_guest_loader_instance_mtx);
-  CHECK(g_guest_loader_instance == nullptr);
+  CHECK_EQ(g_guest_loader_instance.load(), nullptr);
 
   TRACE(
       "GuestLoader::CreateInstance(main_executable_path=\"%s\", "
@@ -337,13 +337,12 @@ GuestLoader* GuestLoader::CreateInstance(const char* main_executable_path,
   }
 
   g_guest_loader_instance = instance.release();
-  return g_guest_loader_instance;
+  return g_guest_loader_instance.load();
 }
 
 GuestLoader* GuestLoader::GetInstance() {
-  std::lock_guard<std::mutex> lock(g_guest_loader_instance_mtx);
-  CHECK(g_guest_loader_instance != nullptr);
-  return g_guest_loader_instance;
+  CHECK_NE(g_guest_loader_instance.load(), nullptr);
+  return g_guest_loader_instance.load();
 }
 
 void GuestLoader::StartGuestMainThread() {

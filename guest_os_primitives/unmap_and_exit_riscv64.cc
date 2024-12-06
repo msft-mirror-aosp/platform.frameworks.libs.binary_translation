@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,19 @@
  * limitations under the License.
  */
 
-#include "gtest/gtest.h"
+#include <linux/unistd.h>
 
-#include <utility>
+#include <cstddef>
 
-#include "berberis/base/exec_region_anonymous.h"
-
-namespace berberis {
-
-namespace {
-
-TEST(ExecRegionAnonymous, Smoke) {
-  const char buf[] = "deadbeef";
-
-  ExecRegion exec = ExecRegionAnonymousFactory::Create(sizeof(buf));
-  const uint8_t* code = exec.begin();
-  ASSERT_NE(nullptr, code);
-
-  exec.Write(code, buf, sizeof(buf));
-  ASSERT_EQ('f', code[7]);
-
-  exec.Detach();
-  ASSERT_EQ('f', code[7]);
-
-  exec.Free();
+extern "C" [[gnu::naked]] [[gnu::noinline]] void berberis_UnmapAndExit(void* /*ptr*/,
+                                                                       size_t /*size*/,
+                                                                       int /*status*/) {
+  asm("li a7, %0\n"
+      "ecall\n"
+      "mv a0, a1\n"
+      "li a7, %1\n"
+      "ecall\n"
+      "ret\n"
+      :
+      : "i"(__NR_munmap), "i"(__NR_exit));
 }
-
-}  // namespace
-
-}  // namespace berberis

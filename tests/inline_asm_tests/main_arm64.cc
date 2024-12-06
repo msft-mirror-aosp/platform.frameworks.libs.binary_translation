@@ -3440,6 +3440,14 @@ TEST(Arm64InsnTest, MulAddF64IndexedElem) {
   ASSERT_EQ(AsmFmla(arg1, arg2, arg3), bit_cast<uint64_t>(16.0));
 }
 
+TEST(Arm64InsnTest, MulAddF64x2) {
+  constexpr auto AsmFmla = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmla %0.2d, %1.2d, %2.2d");
+  __uint128_t arg1 = MakeF64x2(1.0f, 2.0f);
+  __uint128_t arg2 = MakeF64x2(3.0f, 1.0f);
+  __uint128_t arg3 = MakeF64x2(2.0f, 3.0f);
+  ASSERT_EQ(AsmFmla(arg1, arg2, arg3), MakeF64x2(5.0f, 5.0f));
+}
+
 TEST(Arm64InsnTest, MulAddF32x4IndexedElem) {
   constexpr auto AsmFmla = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmla %0.4s, %1.4s, %2.s[2]");
   __uint128_t arg1 = MakeF32x4(1.0f, 2.0f, 4.0f, 3.0f);
@@ -3504,6 +3512,22 @@ TEST(Arm64InsnTest, MulSubF32IndexedElem) {
   ASSERT_EQ(AsmFmls(arg1, arg2, arg3), bit_cast<uint32_t>(4.0f));
 }
 
+TEST(Arm64InsnTest, MulSubF32x4IndexedElem) {
+  constexpr auto AsmFmls = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmls %0.4s, %1.4s, %2.s[2]");
+  __uint128_t arg1 = MakeF32x4(1.0f, 2.0f, 4.0f, 3.0f);
+  __uint128_t arg2 = MakeF32x4(3.0f, 1.0f, 2.0f, 4.0f);
+  __uint128_t arg3 = MakeF32x4(2.0f, 3.0f, 1.0f, 2.0f);
+  ASSERT_EQ(AsmFmls(arg1, arg2, arg3), MakeF32x4(0.0f, -1.0f, -7.0f, -4.0f));
+}
+
+TEST(Arm64InsnTest, MulSubF64x2) {
+  constexpr auto AsmFmls = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmls %0.2d, %1.2d, %2.2d");
+  __uint128_t arg1 = MakeF64x2(1.0f, 2.0f);
+  __uint128_t arg2 = MakeF64x2(3.0f, 1.0f);
+  __uint128_t arg3 = MakeF64x2(2.0f, 3.0f);
+  ASSERT_EQ(AsmFmls(arg1, arg2, arg3), MakeF64x2(-1.0f, 1.0f));
+}
+
 TEST(Arm64InsnTest, MulSubF64IndexedElem) {
   constexpr auto AsmFmls = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmls %d0, %d1, %2.d[1]");
   __uint128_t arg1 = MakeF64x2(2.0, 5.0);
@@ -3511,14 +3535,6 @@ TEST(Arm64InsnTest, MulSubF64IndexedElem) {
   __uint128_t arg3 = MakeF64x2(6.0, 7.0f);
   // 6 - (2 * 1)
   ASSERT_EQ(AsmFmls(arg1, arg2, arg3), bit_cast<uint64_t>(4.0));
-}
-
-TEST(Arm64InsnTest, MulSubF32x4IndexedElem) {
-  constexpr auto AsmFmls = ASM_INSN_WRAP_FUNC_W_RES_WW0_ARG("fmls %0.4s, %1.4s, %2.s[2]");
-  __uint128_t arg1 = MakeF32x4(1.0f, 2.0f, 4.0f, 3.0f);
-  __uint128_t arg2 = MakeF32x4(3.0f, 1.0f, 2.0f, 4.0f);
-  __uint128_t arg3 = MakeF32x4(2.0f, 3.0f, 1.0f, 2.0f);
-  ASSERT_EQ(AsmFmls(arg1, arg2, arg3), MakeF32x4(0.0f, -1.0f, -7.0f, -4.0f));
 }
 
 TEST(Arm64InsnTest, CompareEqualF32) {
@@ -4179,6 +4195,20 @@ TEST(Arm64InsnTest, SubInt64x2) {
   __uint128_t arg2 = MakeUInt128(0x7818577805321712ULL, 0x2680661300192787ULL);
   __uint128_t res = AsmSub(arg1, arg2);
   ASSERT_EQ(res, MakeUInt128(0xf05ab9e150f64c76ULL, 0xfcd31262935bf1d0ULL));
+}
+
+TEST(Arm64InsnTest, SubInt32x4) {
+  __uint128_t op1 = MakeUInt128(0x0000000A00000005ULL, 0x0000000C00000C45ULL);
+  __uint128_t op2 = MakeUInt128(0x0000000500000003ULL, 0x0000000200000C45ULL);
+  __uint128_t rd = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("sub %0.4s, %1.4s, %2.4s")(op1, op2);
+  ASSERT_EQ(rd, MakeUInt128(0x0000000500000002ULL, 0x00000000A00000000ULL));
+}
+
+TEST(Arm64InsnTest, SubInt32x2) {
+  __uint128_t op1 = MakeUInt128(0x0000000000000005ULL, 0x0000000000000C45ULL);
+  __uint128_t op2 = MakeUInt128(0x0000000000000003ULL, 0x0000000000000C45ULL);
+  __uint128_t rd = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("sub %0.2s, %1.2s, %2.2s")(op1, op2);
+  ASSERT_EQ(rd, MakeUInt128(0x0000000000000002ULL, 0x00000000000000000ULL));
 }
 
 TEST(Arm64InsnTest, SubInt16x4) {
@@ -8937,8 +8967,22 @@ TEST(Arm64InsnTest, UnsignedDivide64) {
     asm("udiv %0, %1, %2" : "=r"(result) : "r"(num), "r"(den));
     return result;
   };
-  ASSERT_EQ(udiv64(0x8'0000'0000ULL, 2ULL), 0x4'0000'0000ULL) << "Division is 64-bit.";
-  ASSERT_EQ(udiv64(123ULL, 0ULL), 0ULL) << "Div by 0 results in 0.";
+  ASSERT_EQ(udiv64(0x8'0000'0000ULL, 2ULL), 0x4'0000'0000ULL) << "Division should be 64-bit.";
+  ASSERT_EQ(udiv64(123ULL, 0ULL), 0ULL) << "Div by 0 should result in 0.";
+}
+
+TEST(Arm64InsnTest, SignedDivide64) {
+  auto div64 = [](int64_t num, int64_t den) {
+    int64_t result;
+    asm("sdiv %0, %1, %2" : "=r"(result) : "r"(num), "r"(den));
+    return result;
+  };
+  ASSERT_EQ(div64(67802402LL, -1LL), -67802402LL)
+      << "Division by -1 should flip sign if dividend is not numeric_limits::min.";
+  ASSERT_EQ(div64(-531675317891LL, -1LL), 531675317891LL)
+      << "Division by -1 should flip sign if dividend is not numeric_limits::min.";
+  ASSERT_EQ(div64(std::numeric_limits<int64_t>::min(), -1LL), std::numeric_limits<int64_t>::min())
+      << "Div of numeric_limits::min by -1 should result in numeric_limits::min.";
 }
 
 TEST(Arm64InsnTest, AesEncode) {

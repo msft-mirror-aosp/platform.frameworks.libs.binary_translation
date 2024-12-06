@@ -264,6 +264,9 @@ cc_library_headers {
         arm64: {
             generated_headers: ["libberberis_intrinsics_gen_public_headers_riscv64_to_arm64"],
             export_generated_headers: ["libberberis_intrinsics_gen_public_headers_riscv64_to_arm64"],
+            export_include_dirs: [
+                "riscv64_to_arm64/include",
+            ],
         },
         x86_64: {
             generated_headers: [
@@ -283,10 +286,7 @@ cc_library_headers {
 
 cc_library_headers {
     name: "libberberis_intrinsics_headers",
-    defaults: [
-        "berberis_riscv64_device_defaults",
-        "berberis_all_hosts_defaults",
-    ],
+    defaults: ["berberis_all_hosts_defaults"],
     host_supported: true,
     native_bridge_supported: true,
     export_include_dirs: ["include"],
@@ -388,7 +388,7 @@ cc_library_static {
 
 cc_library_static {
     name: "libberberis_intrinsics_riscv64",
-    defaults: ["berberis_defaults_64"],
+    defaults: ["berberis_all_hosts_defaults_64"],
     host_supported: true,
     srcs: [
         "riscv64_to_all/intrinsics.cc",

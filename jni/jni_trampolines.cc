@@ -16,17 +16,26 @@
 
 #include "berberis/jni/jni_trampolines.h"
 
+#include <cstdint>
+#include <cstring>
+#include <deque>
+#include <map>
+#include <mutex>
 #include <vector>
 
 #include <jni.h>  // NOLINT [build/include_order]
 
+#include "berberis/base/checks.h"
 #include "berberis/base/logging.h"
+#include "berberis/base/tracing.h"
 #include "berberis/guest_abi/function_wrappers.h"
 #include "berberis/guest_abi/guest_arguments.h"
 #include "berberis/guest_abi/guest_params.h"
+#include "berberis/guest_abi/guest_type.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state.h"
 #include "berberis/native_bridge/jmethod_shorty.h"
+#include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/runtime_library.h"
 
 #include "guest_jni_trampolines.h"
@@ -111,10 +120,10 @@ HostCode WrapGuestJNIFunction(GuestAddr pc,
                               const char* shorty,
                               const char* name,
                               bool has_jnienv_and_jobject) {
-  const int kMaxSignatureSize = 128;
-  char signature[kMaxSignatureSize];
+  const size_t size = strlen(shorty);
+  char signature[size + /* env, clazz and trailing zero */ 3];
   ConvertDalvikShortyToWrapperSignature(
-      signature, kMaxSignatureSize, shorty, has_jnienv_and_jobject);
+      signature, sizeof(signature), shorty, has_jnienv_and_jobject);
   auto guest_runner = has_jnienv_and_jobject ? RunGuestJNIFunction : RunGuestCall;
   return WrapGuestFunctionImpl(pc, signature, guest_runner, name);
 }
@@ -164,7 +173,7 @@ std::vector<jvalue> ConvertVAList(JNIEnv* env, jmethodID methodID, GuestVAListPa
         arg.l = params.GetParam<jobject>();
         break;
       default:
-        LOG_ALWAYS_FATAL("Failed to convert Dalvik char '%c'", c);
+        FATAL("Failed to convert Dalvik char '%c'", c);
         break;
     }
   }
@@ -218,6 +227,25 @@ struct KnownMethodTrampoline {
 
 #include "jni_trampolines-inl.h"  // NOLINT(build/include)
 
+// According to our observations there is only one instance of JavaVM
+// and there are 1 or sometimes more instances of JNIEnv per thread created
+// by Java Runtime (JNIEnv instances are not shared between different threads).
+//
+// This is why we store one global mapping for JavaVM for the app.
+// And multiple mappings of JNIEnv per thread. There is often only one JNIEnv
+// per thread, but we have seen examples where 2 instances where created.
+//
+// It is likely that the new JNIEnv instance for the thread supersedes the
+// previous one but the code below does not make this assumption.
+std::mutex g_java_vm_guard_mutex;
+
+JavaVM g_guest_java_vm;
+JavaVM* g_host_java_vm;
+
+thread_local std::deque<JNIEnv> g_guest_jni_envs;
+thread_local std::map<GuestType<JNIEnv*>, JNIEnv*> g_guest_to_host_jni_env;
+thread_local std::map<JNIEnv*, GuestType<JNIEnv*>> g_host_to_guest_jni_env;
+
 void DoJavaVMTrampoline_DestroyJavaVM(HostCode /* callee */, ProcessState* state) {
   using PFN_callee = decltype(std::declval<JavaVM>().functions->DestroyJavaVM);
   auto [arg_vm] = GuestParamsValues<PFN_callee>(state);
@@ -263,7 +291,7 @@ void DoJavaVMTrampoline_GetEnv(HostCode /* callee */, ProcessState* state) {
   auto&& [ret] = GuestReturnReference<PFN_callee>(state);
   ret = (arg_java_vm->functions)->GetEnv(arg_java_vm, &env, arg_version);
 
-  GuestType<JNIEnv*> guest_jni_env = ToGuestJNIEnv(env);
+  GuestType<JNIEnv*> guest_jni_env = ToGuestJNIEnv(static_cast<JNIEnv*>(env));
   memcpy(arg_env_ptr, &guest_jni_env, sizeof(guest_jni_env));
 
   LOG_JNI("= jint(%d)", ret);
@@ -310,7 +338,7 @@ std::atomic<uint32_t> g_java_vm_wrapped = {0};
 
 }  // namespace
 
-GuestType<JNIEnv*> ToGuestJNIEnv(void* host_jni_env) {
+GuestType<JNIEnv*> ToGuestJNIEnv(JNIEnv* host_jni_env) {
   if (!host_jni_env) {
     return 0;
   }
@@ -325,24 +353,73 @@ GuestType<JNIEnv*> ToGuestJNIEnv(void* host_jni_env) {
     WrapJNIEnv(host_jni_env);
     std::atomic_store_explicit(&g_jni_env_wrapped, 1U, std::memory_order_release);
   }
-  return static_cast<JNIEnv*>(host_jni_env);
+
+  auto it = g_host_to_guest_jni_env.find(host_jni_env);
+  if (it != g_host_to_guest_jni_env.end()) {
+    return it->second;
+  }
+
+  g_guest_jni_envs.emplace_back(*host_jni_env);
+  JNIEnv* guest_jni_env = &g_guest_jni_envs.back();
+  auto [unused_it1, host_to_guest_inserted] =
+      g_host_to_guest_jni_env.try_emplace(host_jni_env, guest_jni_env);
+  CHECK(host_to_guest_inserted);
+
+  auto [unused_it2, guest_to_host_inserted] =
+      g_guest_to_host_jni_env.try_emplace(guest_jni_env, host_jni_env);
+  CHECK(guest_to_host_inserted);
+
+  return guest_jni_env;
 }
 
 JNIEnv* ToHostJNIEnv(GuestType<JNIEnv*> guest_jni_env) {
-  return static_cast<JNIEnv*>(guest_jni_env);
+  auto it = g_guest_to_host_jni_env.find(guest_jni_env);
+
+  if (it == g_guest_to_host_jni_env.end()) {
+    ALOGE("Unexpected guest JNIEnv: %p (it was never passed to guest), passing to host 'as is'",
+          ToHostAddr(guest_jni_env));
+    TRACE("Unexpected guest JNIEnv: %p (it was never passed to guest), passing to host 'as is'",
+          ToHostAddr(guest_jni_env));
+    return ToHostAddr(guest_jni_env);
+  }
+
+  return it->second;
 }
 
-GuestType<JavaVM*> ToGuestJavaVM(void* host_java_vm) {
+GuestType<JavaVM*> ToGuestJavaVM(JavaVM* host_java_vm) {
   CHECK(host_java_vm);
   if (std::atomic_load_explicit(&g_java_vm_wrapped, std::memory_order_acquire) == 0U) {
     WrapJavaVM(host_java_vm);
     std::atomic_store_explicit(&g_java_vm_wrapped, 1U, std::memory_order_release);
   }
-  return static_cast<JavaVM*>(host_java_vm);
+
+  std::lock_guard<std::mutex> lock(g_java_vm_guard_mutex);
+  if (g_host_java_vm == nullptr) {
+    g_guest_java_vm = *host_java_vm;
+    g_host_java_vm = host_java_vm;
+  }
+
+  if (g_host_java_vm != host_java_vm) {
+    TRACE("Warning: Unexpected host JavaVM: %p (expecting %p), passing as is",
+          host_java_vm,
+          g_host_java_vm);
+    return host_java_vm;
+  }
+
+  return &g_guest_java_vm;
 }
 
 JavaVM* ToHostJavaVM(GuestType<JavaVM*> guest_java_vm) {
-  return static_cast<JavaVM*>(guest_java_vm);
+  std::lock_guard<std::mutex> lock(g_java_vm_guard_mutex);
+  if (ToHostAddr(guest_java_vm) == &g_guest_java_vm) {
+    return g_host_java_vm;
+  }
+
+  TRACE("Warning: Unexpected guest JavaVM: %p (expecting %p), passing as is",
+        ToHostAddr(guest_java_vm),
+        &g_guest_java_vm);
+
+  return ToHostAddr(guest_java_vm);
 }
 
 }  // namespace berberis

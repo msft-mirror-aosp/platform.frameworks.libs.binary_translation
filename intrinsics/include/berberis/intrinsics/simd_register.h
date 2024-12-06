@@ -263,11 +263,7 @@ class SIMD128Register {
 
 static_assert(sizeof(SIMD128Register) == 16, "Unexpected size of SIMD128Register");
 
-#if defined(__i386__)
-static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
-#elif defined(__x86_64__)
-static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
-#elif defined(__riscv)
+#if defined(__i386__) || defined(__x86_64__) || defined(__riscv) || defined(__aarch64__)
 static_assert(alignof(SIMD128Register) == 16, "Unexpected align of SIMD128Register");
 #else
 #error Unsupported architecture

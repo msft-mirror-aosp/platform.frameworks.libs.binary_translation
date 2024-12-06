@@ -23,8 +23,9 @@
 
 namespace berberis {
 
-template <typename K, typename T, typename C = std::less<K> >
-using ArenaMap = std::map<K, T, C, ArenaAllocator<std::pair<const K, T> > >;
+template <typename KeyType, typename ValueType, typename Compare = std::less<KeyType> >
+using ArenaMap =
+    std::map<KeyType, ValueType, Compare, ArenaAllocator<std::pair<const KeyType, ValueType> > >;
 
 }  // namespace berberis
 

@@ -32,7 +32,19 @@ namespace berberis {
 
 namespace constants_pool {
 
-int32_t GetOffset(int32_t address);
+// Note: kBerberisMacroAssemblerConstantsRelocated is the same as original,
+// unrelocated version in 32-bit world.  But in 64-bit world it's copy on the first 2GiB.
+//
+// Our builder could be built as 64-bit binary thus we must not mix them.
+//
+// Note: we have CHECK_*_LAYOUT tests in macro_assembler_common_x86.cc to make sure
+// offsets produced by 64-bit builder are usable in 32-bit libberberis.so
+
+extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
+
+inline int32_t GetOffset(int32_t address) {
+  return address - constants_pool::kBerberisMacroAssemblerConstantsRelocated;
+}
 
 }  // namespace constants_pool
 
@@ -246,6 +258,7 @@ class TextAssembler {
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
   bool need_sse4_2 = false;
+  bool has_custom_capability = false;
 
   void Bind(Label* label) {
     CHECK_EQ(label->bound, false);
@@ -367,6 +380,9 @@ class TextAssembler {
       return "host_platform::kHasSSE4_2";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
       return "host_platform::kHasSSSE3";
+    } else if constexpr (std::is_same_v<CPUIDRestriction,
+                                        intrinsics::bindings::HasCustomCapability>) {
+      return "host_platform::kHasCustomCapability";
     } else {
       static_assert(kDependentTypeFalse<CPUIDRestriction>);
     }
@@ -457,6 +473,8 @@ class TextAssembler {
     need_sse4_2 = true;
     SetRequiredFeatureSSE4_1();
   }
+
+  void SetHasCustomCapability() { has_custom_capability = true; }
 
   template <typename... Args>
   void Instruction(const char* name, Condition cond, const Args&... args);
@@ -564,12 +582,16 @@ template <typename DerivedAssemblerType>
 template <typename... Args>
 inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
                                                              const Args&... args) {
-  for (auto it : std::array<std::tuple<const char*, const char*>, 18>{
+  for (auto it : std::array<std::tuple<const char*, const char*>, 22>{
            {// Note: SSE doesn't include simple register-to-register move instruction.
             // You are supposed to use one of half-dozen variants depending on what you
             // are doing.
             //
             // Pseudoinstructions with embedded "lock" prefix.
+            {"Lock Xaddb", "Lock; Xaddb"},
+            {"Lock Xaddw", "Lock; Xaddw"},
+            {"Lock Xaddl", "Lock; Xaddl"},
+            {"Lock Xaddq", "Lock; Xaddq"},
             {"LockCmpXchg8b", "Lock; CmppXchg8b"},
             {"LockCmpXchg16b", "Lock; CmppXchg16b"},
             {"LockCmpXchgb", "Lock; CmppXchgb"},
