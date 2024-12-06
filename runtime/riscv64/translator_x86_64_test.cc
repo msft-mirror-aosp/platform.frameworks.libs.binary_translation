@@ -35,7 +35,7 @@ TEST(TranslatorRiscv64ToX86_64, LiteTranslateSupportedRegion) {
       TryLiteTranslateAndInstallRegion(ToGuestAddr(code));
 
   EXPECT_TRUE(success);
-  EXPECT_NE(host_code_piece.code, nullptr);
+  EXPECT_NE(host_code_piece.code, kNullHostCodeAddr);
   EXPECT_GT(host_code_piece.size, 0U);
   EXPECT_EQ(guest_size, 8U);
   EXPECT_EQ(kind, GuestCodeEntry::Kind::kLiteTranslated);
@@ -62,7 +62,7 @@ TEST(TranslatorRiscv64ToX86_64, LiteTranslatePartiallySupportedRegion) {
       TryLiteTranslateAndInstallRegion(ToGuestAddr(code));
 
   EXPECT_TRUE(success);
-  EXPECT_NE(host_code_piece.code, nullptr);
+  EXPECT_NE(host_code_piece.code, kNullHostCodeAddr);
   EXPECT_GT(host_code_piece.size, 0U);
   EXPECT_EQ(guest_size, 4U);
   EXPECT_EQ(kind, GuestCodeEntry::Kind::kLiteTranslated);

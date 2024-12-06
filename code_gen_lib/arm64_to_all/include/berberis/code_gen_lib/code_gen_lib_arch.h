@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-#include "berberis/base/exec_region_elf_backed.h"
+#ifndef BERBERIS_CODE_GEN_LIB_CODE_GEN_LIB_ARCH_H_
+#define BERBERIS_CODE_GEN_LIB_CODE_GEN_LIB_ARCH_H_
 
-#include "berberis/base/exec_region_anonymous.h"
+#include "berberis/guest_state/guest_state.h"
 
 namespace berberis {
 
-// For static executables we cannot use dlopen_ext.
-// Use anonymous factory instead. Please do not use
-// this outside of static tests.
-ExecRegion ExecRegionElfBackedFactory::Create(size_t size) {
-  return ExecRegionAnonymousFactory::Create(size);
-}
+inline constexpr size_t kReturnAddressRegisterOffset = offsetof(ThreadState, cpu.x[30]);
 
 }  // namespace berberis
+#endif  // BERBERIS_CODE_GEN_LIB_CODE_GEN_LIB_ARCH_H_
