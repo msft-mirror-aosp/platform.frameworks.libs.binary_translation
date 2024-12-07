@@ -3051,6 +3051,39 @@
     },
     {
       "encodings": {
+        "Xaddb": { "opcodes": [ "0F", "C0" ], "type": "reg_to_rm" },
+        "Lock Xaddb": { "opcodes": [ "F0", "0F", "C0" ], "type": "reg_to_rm" }
+      },
+      "args": [
+        { "class": "Mem8", "usage": "use_def" },
+        { "class": "GeneralReg8", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Xaddw": { "opcodes": [ "66", "0F", "C1" ], "type": "reg_to_rm" },
+        "Lock Xaddw": { "opcodes": [ "F0", "66", "0F", "C1" ], "type": "reg_to_rm" }
+      },
+      "args": [
+        { "class": "Mem16", "usage": "use_def" },
+        { "class": "GeneralReg16", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Xaddl": { "opcodes": [ "0F", "C1" ], "type": "reg_to_rm" },
+        "Lock Xaddl": { "opcodes": [ "F0", "0F", "C1" ], "type": "reg_to_rm" }
+      },
+      "args": [
+        { "class": "Mem32", "usage": "use_def" },
+        { "class": "GeneralReg32", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
         "Xchgb": { "opcode": "86" }
       },
       "args": [
