@@ -612,12 +612,16 @@ template <typename DerivedAssemblerType>
 template <typename... Args>
 inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
                                                              const Args&... args) {
-  for (auto it : std::array<std::tuple<const char*, const char*>, 18>{
+  for (auto it : std::array<std::tuple<const char*, const char*>, 22>{
            {// Note: SSE doesn't include simple register-to-register move instruction.
             // You are supposed to use one of half-dozen variants depending on what you
             // are doing.
             //
             // Pseudoinstructions with embedded "lock" prefix.
+            {"Lock Xaddb", "Lock; Xaddb"},
+            {"Lock Xaddw", "Lock; Xaddw"},
+            {"Lock Xaddl", "Lock; Xaddl"},
+            {"Lock Xaddq", "Lock; Xaddq"},
             {"LockCmpXchg8b", "Lock; CmppXchg8b"},
             {"LockCmpXchg16b", "Lock; CmppXchg16b"},
             {"LockCmpXchgb", "Lock; CmppXchgb"},
