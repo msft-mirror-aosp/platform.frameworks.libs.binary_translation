@@ -29,23 +29,23 @@
     },
     {
       "encodings": {
-        "Adcq": { "opcodes": [ "81", "2" ] },
-        "Sbbq": { "opcodes": [ "81", "3" ] }
-      },
-      "args": [
-        { "class": "GeneralReg64/Mem64", "usage": "use_def" },
-        { "class": "Imm32" },
-        { "class": "FLAGS", "usage": "use_def" }
-      ]
-    },
-    {
-      "encodings": {
         "Adcq": { "opcode": "11", "type": "reg_to_rm" },
         "Sbbq": { "opcode": "19", "type": "reg_to_rm" }
       },
       "args": [
         { "class": "GeneralReg64/Mem64", "usage": "use_def" },
         { "class": "GeneralReg64", "usage": "use" },
+        { "class": "FLAGS", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Adcq": { "opcodes": [ "81", "2" ] },
+        "Sbbq": { "opcodes": [ "81", "3" ] }
+      },
+      "args": [
+        { "class": "GeneralReg64/Mem64", "usage": "use_def" },
+        { "class": "Imm32" },
         { "class": "FLAGS", "usage": "use_def" }
       ]
     },
@@ -509,6 +509,17 @@
     },
     {
       "encodings": {
+        "Lock Xaddq": { "opcodes": [ "F0", "0F", "C1" ], "type": "reg_to_rm" },
+        "Xaddq": { "opcodes": [ "0F", "C1" ], "type": "reg_to_rm" }
+      },
+      "args": [
+        { "class": "Mem64", "usage": "use_def" },
+        { "class": "GeneralReg64", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
         "Movq": { "opcodes": [ "66", "0F", "7E" ], "type": "reg_to_rm" },
         "Vmovq": { "feature": "AVX", "opcodes": [ "C4", "01", "81", "7E" ], "type": "reg_to_rm" }
       },
@@ -536,20 +547,20 @@
     },
     {
       "encodings": {
-        "Movq": { "opcode": "89", "type": "reg_to_rm" }
-      },
-      "args": [
-        { "class": "GeneralReg64/Mem64", "usage": "def" },
-        { "class": "GeneralReg64", "usage": "use" }
-      ]
-    },
-    {
-      "encodings": {
         "Movq": { "opcode": "8B" }
       },
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
         { "class": "Mem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Movq": { "opcode": "89", "type": "reg_to_rm" }
+      },
+      "args": [
+        { "class": "GeneralReg64/Mem64", "usage": "def" },
+        { "class": "GeneralReg64", "usage": "use" }
       ]
     },
     {
@@ -755,17 +766,6 @@
         { "class": "VecReg128", "usage": "use" },
         { "class": "GeneralReg64", "usage": "use" },
         { "class": "Imm8" }
-      ]
-    },
-    {
-      "encodings": {
-        "Xaddq": { "opcodes": [ "0F", "C1" ], "type": "reg_to_rm"  },
-        "Lock Xaddq": { "opcodes": [ "F0", "0F", "C1" ], "type": "reg_to_rm"  }
-      },
-      "args": [
-        { "class": "Mem64", "usage": "use_def" },
-        { "class": "GeneralReg64", "usage": "use_def" },
-        { "class": "FLAGS", "usage": "use_def" }
       ]
     },
     {
