@@ -58,8 +58,6 @@ def _get_arg_type_name(arg, insn_type):
     return 'FpRegister'
   if asm_defs.is_xreg(cls):
     return 'XMMRegister'
-  if asm_defs.is_yreg(cls):
-    return 'YMMRegister'
   if asm_defs.is_imm(cls):
     return _imm_types[cls]
   if asm_defs.is_disp(cls):
@@ -386,9 +384,7 @@ _ARGUMENT_FORMATS_TO_SIZES = {
   'VecMem32': 'VectorMemory32Bit',
   'VecMem64': 'VectorMemory64Bit',
   'VecMem128': 'VectorMemory128Bit',
-  'VecMem256': 'VectorMemory256Bit',
-  'VecReg128' : 'VectorRegister128Bit',
-  'VecReg256' : 'VectorRegister256Bit'
+  'VecReg128' : 'VectorRegister128Bit'
 }
 
 

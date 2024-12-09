@@ -153,41 +153,20 @@ class TextAssembler {
     int arg_no_;
   };
 
-  template <int bits>
-  class SIMDRegister {
+  class XMMRegister {
    public:
-    friend class SIMDRegister<384 - bits>;
-    constexpr SIMDRegister(int arg_no) : arg_no_(arg_no) {}
+    constexpr XMMRegister(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
 
-    constexpr bool operator==(const SIMDRegister& other) const {
-      return arg_no() == other.arg_no();
-    }
-    constexpr bool operator!=(const SIMDRegister& other) const {
-      return arg_no() != other.arg_no();
-    }
-
-    constexpr auto To128Bit() const {
-      return std::enable_if_t<bits != 128, SIMDRegister<256>>{arg_no_};
-    }
-    constexpr auto To256Bit() const {
-      return std::enable_if_t<bits != 256, SIMDRegister<256>>{arg_no_};
-    }
+    constexpr bool operator==(const XMMRegister& other) const { return arg_no() == other.arg_no(); }
+    constexpr bool operator!=(const XMMRegister& other) const { return arg_no() != other.arg_no(); }
 
     template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const SIMDRegister& reg, MacroAssembler*) {
-      if constexpr (bits == 128) {
-        return "%x" + std::to_string(reg.arg_no());
-      } else if constexpr (bits == 256) {
-        return "%t" + std::to_string(reg.arg_no());
-      } else if constexpr (bits == 512) {
-        return "%g" + std::to_string(reg.arg_no());
-      } else {
-        static_assert(kDependentValueFalse<bits>);
-      }
+    friend const std::string ToGasArgument(const XMMRegister& reg, MacroAssembler*) {
+      return '%' + std::to_string(reg.arg_no());
     }
 
    private:
@@ -198,9 +177,6 @@ class TextAssembler {
     static constexpr int kNoRegister = -1;
     int arg_no_;
   };
-
-  using XMMRegister = SIMDRegister<128>;
-  using YMMRegister = SIMDRegister<256>;
 
   struct Operand {
     Register base = Register{Register::kNoRegister};
@@ -272,7 +248,6 @@ class TextAssembler {
   Register gpr_macroassembler_scratch2{Register::kNoRegister};
 
   bool need_avx = false;
-  bool need_avx2 = false;
   bool need_bmi = false;
   bool need_bmi2 = false;
   bool need_fma = false;
@@ -450,11 +425,6 @@ class TextAssembler {
   void SetRequiredFeatureAVX() {
     need_avx = true;
     SetRequiredFeatureSSE4_2();
-  }
-
-  void SetRequiredFeatureAVX2() {
-    need_avx2 = true;
-    SetRequiredFeatureAVX();
   }
 
   void SetRequiredFeatureBMI() {

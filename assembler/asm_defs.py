@@ -93,8 +93,7 @@ def is_mem_op(arg_type):
     # Universal memory operands
     'Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
     # x86 memory operands
-    'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
-    'VecMem32', 'VecMem64', 'VecMem128', 'VecMem256')
+    'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780', 'VecMem32', 'VecMem64', 'VecMem128')
 
 
 def is_cond(arg_type):
@@ -133,10 +132,6 @@ def is_xreg(arg_type):
                       'FpReg32', 'FpReg64')
 
 
-def is_yreg(arg_type):
-  return arg_type in ('YmmReg','VecReg256')
-
-
 # Operands of this type are NOT passed to assembler
 def is_implicit_reg(arg_type):
   return arg_type in ('RAX', 'EAX', 'AX', 'AL',
@@ -168,8 +163,6 @@ def get_mem_macro_name(insn, addr_mode = None):
       macro_name += 'FReg'
     elif is_xreg(clazz):
       macro_name += 'XReg'
-    elif is_yreg(clazz):
-      macro_name += 'YReg'
     elif is_imm(clazz):
       macro_name += 'Imm'
     elif is_mem_op(clazz):

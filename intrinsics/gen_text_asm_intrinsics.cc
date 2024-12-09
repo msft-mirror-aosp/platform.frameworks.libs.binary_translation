@@ -87,8 +87,7 @@ void GenerateFunctionHeader(FILE* out, int indent) {
   }
   std::vector<std::string> ins;
   for (const char* type_name : AsmCallInfo::InputArgumentsTypeNames) {
-    ins.push_back("[[maybe_unused]] " + std::string(type_name) + " in" +
-                  std::to_string(ins.size()));
+    ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
   }
   GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
   fprintf(out,
