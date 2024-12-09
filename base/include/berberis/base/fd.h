@@ -27,16 +27,6 @@
 #include "berberis/base/logging.h"
 #include "berberis/base/raw_syscall.h"
 
-// glibc in prebuilts does not have memfd_create
-#if defined(__linux__) && !defined(__NR_memfd_create)
-#if defined(__x86_64__)
-#define __NR_memfd_create 319
-#elif defined(__i386__)
-#define __NR_memfd_create 356
-#endif  // defined(__i386__)
-#define MFD_CLOEXEC 0x0001U
-#endif  // defined(__linux__) && !defined(__NR_memfd_create)
-
 namespace berberis {
 
 inline int CreateMemfdOrDie(const char* name) {
