@@ -198,92 +198,6 @@
       "mnemo": "MACRO_UDIV64"
     },
     {
-      "name": "RemInt8",
-      "args": [
-        { "class": "GeneralReg8", "usage": "use" },
-        { "class": "AX", "usage": "use_def" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroRem<int8_t>",
-      "mnemo": "MACRO_REM8"
-    },
-    {
-      "name": "RemInt16",
-      "args": [
-        { "class": "GeneralReg16", "usage": "use" },
-        { "class": "AX", "usage": "use_def" },
-        { "class": "DX", "usage": "def_early_clobber" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroRem<int16_t>",
-      "mnemo": "MACRO_REM16"
-    },
-    {
-      "name": "RemInt32",
-      "args": [
-        { "class": "GeneralReg32", "usage": "use" },
-        { "class": "EAX", "usage": "use_def" },
-        { "class": "EDX", "usage": "def_early_clobber" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroRem<int32_t>",
-      "mnemo": "MACRO_REM32"
-    },
-    {
-      "name": "RemInt64",
-      "args": [
-        { "class": "GeneralReg64", "usage": "use" },
-        { "class": "EAX", "usage": "use_def" },
-        { "class": "EDX", "usage": "def_early_clobber" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroRem<int64_t>",
-      "mnemo": "MACRO_REM64"
-    },
-    {
-      "name": "RemUInt8",
-      "args": [
-        { "class": "GeneralReg8", "usage": "use" },
-        { "class": "AX", "usage": "use_def" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroRem<uint8_t>",
-      "mnemo": "MACRO_UREM8"
-    },
-    {
-      "name": "RemUInt16",
-      "args": [
-        { "class": "GeneralReg16", "usage": "use" },
-        { "class": "AX", "usage": "use_def" },
-        { "class": "DX", "usage": "def_early_clobber" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroRem<uint16_t>",
-      "mnemo": "MACRO_UREM16"
-    },
-    {
-      "name": "RemUInt32",
-      "args": [
-        { "class": "GeneralReg32", "usage": "use" },
-        { "class": "EAX", "usage": "use_def" },
-        { "class": "EDX", "usage": "def_early_clobber" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroRem<uint32_t>",
-      "mnemo": "MACRO_UREM32"
-    },
-    {
-      "name": "RemUInt64",
-      "args": [
-        { "class": "GeneralReg64", "usage": "use" },
-        { "class": "EAX", "usage": "use_def" },
-        { "class": "EDX", "usage": "def_early_clobber" },
-        { "class": "FLAGS", "usage": "def" }
-      ],
-      "asm": "MacroRem<uint64_t>",
-      "mnemo": "MACRO_UREM64"
-    },
-    {
       "name": "MacroFCvtFloat32ToInt32",
       "args": [
         { "class": "GeneralReg64", "usage": "def" },
@@ -318,48 +232,6 @@
       ],
       "asm": "MacroFCvtFloatToInteger<int64_t, intrinsics::Float64>",
       "mnemo": "MACRO_FCvtFloatToInteger"
-    },
-    {
-      "name": "MacroFeqFloat32",
-      "args": [
-        { "class": "GeneralReg64", "usage": "def" },
-        { "class": "FpReg32", "usage": "use_def" },
-        { "class": "FpReg32", "usage": "use" }
-      ],
-      "asm": "MacroFeq<intrinsics::Float32>",
-      "mnemo": "MACRO_FEQ_F32"
-    },
-    {
-      "name": "MacroFeqFloat32AVX",
-      "args": [
-        { "class": "GeneralReg64", "usage": "def" },
-        { "class": "FpReg32", "usage": "use" },
-        { "class": "FpReg32", "usage": "use" },
-        { "class": "FpReg32", "usage": "def" }
-      ],
-      "asm": "MacroFeqAVX<intrinsics::Float32>",
-      "mnemo": "MACRO_FEQ_F32"
-    },
-    {
-      "name": "MacroFeqFloat64",
-      "args": [
-        { "class": "GeneralReg64", "usage": "def" },
-        { "class": "FpReg64", "usage": "use_def" },
-        { "class": "FpReg64", "usage": "use" }
-      ],
-      "asm": "MacroFeq<intrinsics::Float64>",
-      "mnemo": "MACRO_FEQ_F64"
-    },
-    {
-      "name": "MacroFeqFloat64AVX",
-      "args": [
-        { "class": "GeneralReg64", "usage": "def" },
-        { "class": "FpReg64", "usage": "use" },
-        { "class": "FpReg64", "usage": "use" },
-        { "class": "FpReg64", "usage": "def" }
-      ],
-      "asm": "MacroFeqAVX<intrinsics::Float64>",
-      "mnemo": "MACRO_FEQ_F64"
     },
     {
       "name": "MacroFeGetExceptionsTranslate",
@@ -429,6 +301,48 @@
       ],
       "asm": "MacroFeSetRoundImmTranslate",
       "mnemo": "MACRO_FE_SET_ROUND"
+    },
+    {
+      "name": "MacroFeqFloat32",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use_def" },
+        { "class": "FpReg32", "usage": "use" }
+      ],
+      "asm": "MacroFeq<intrinsics::Float32>",
+      "mnemo": "MACRO_FEQ_F32"
+    },
+    {
+      "name": "MacroFeqFloat32AVX",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg32", "usage": "use" },
+        { "class": "FpReg32", "usage": "use" },
+        { "class": "FpReg32", "usage": "def" }
+      ],
+      "asm": "MacroFeqAVX<intrinsics::Float32>",
+      "mnemo": "MACRO_FEQ_F32"
+    },
+    {
+      "name": "MacroFeqFloat64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use_def" },
+        { "class": "FpReg64", "usage": "use" }
+      ],
+      "asm": "MacroFeq<intrinsics::Float64>",
+      "mnemo": "MACRO_FEQ_F64"
+    },
+    {
+      "name": "MacroFeqFloat64AVX",
+      "args": [
+        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FpReg64", "usage": "use" },
+        { "class": "FpReg64", "usage": "def" }
+      ],
+      "asm": "MacroFeqAVX<intrinsics::Float64>",
+      "mnemo": "MACRO_FEQ_F64"
     },
     {
       "name": "MacroFleFloat32",
@@ -611,6 +525,92 @@
       ],
       "asm": "MacroOrcbAVX",
       "mnemo": "MACRO_ORCB"
+    },
+    {
+      "name": "RemInt8",
+      "args": [
+        { "class": "GeneralReg8", "usage": "use" },
+        { "class": "AX", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroRem<int8_t>",
+      "mnemo": "MACRO_REM8"
+    },
+    {
+      "name": "RemInt16",
+      "args": [
+        { "class": "GeneralReg16", "usage": "use" },
+        { "class": "AX", "usage": "use_def" },
+        { "class": "DX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroRem<int16_t>",
+      "mnemo": "MACRO_REM16"
+    },
+    {
+      "name": "RemInt32",
+      "args": [
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroRem<int32_t>",
+      "mnemo": "MACRO_REM32"
+    },
+    {
+      "name": "RemInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroRem<int64_t>",
+      "mnemo": "MACRO_REM64"
+    },
+    {
+      "name": "RemUInt8",
+      "args": [
+        { "class": "GeneralReg8", "usage": "use" },
+        { "class": "AX", "usage": "use_def" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroRem<uint8_t>",
+      "mnemo": "MACRO_UREM8"
+    },
+    {
+      "name": "RemUInt16",
+      "args": [
+        { "class": "GeneralReg16", "usage": "use" },
+        { "class": "AX", "usage": "use_def" },
+        { "class": "DX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroRem<uint16_t>",
+      "mnemo": "MACRO_UREM16"
+    },
+    {
+      "name": "RemUInt32",
+      "args": [
+        { "class": "GeneralReg32", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroRem<uint32_t>",
+      "mnemo": "MACRO_UREM32"
+    },
+    {
+      "name": "RemUInt64",
+      "args": [
+        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "EAX", "usage": "use_def" },
+        { "class": "EDX", "usage": "def_early_clobber" },
+        { "class": "FLAGS", "usage": "def" }
+      ],
+      "asm": "MacroRem<uint64_t>",
+      "mnemo": "MACRO_UREM64"
     },
     {
       "name": "Sh1add",
