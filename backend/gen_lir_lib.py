@@ -60,6 +60,7 @@ import sys
 def _is_reg(arg_type):
   return (asm_defs.is_greg(arg_type) or
           asm_defs.is_xreg(arg_type) or
+          asm_defs.is_yreg(arg_type) or
           asm_defs.is_implicit_reg(arg_type))
 
 
@@ -89,6 +90,8 @@ def _make_reg_operand(r, usage, kind):
      op.asm_arg = 'GetGReg(RegAt(%d))' % (r)
    elif asm_defs.is_xreg(kind):
      op.asm_arg = 'GetXReg(RegAt(%d))' % (r)
+   elif asm_defs.is_yreg(kind):
+     op.asm_arg = 'GetYReg(RegAt(%d))' % (r)
    elif asm_defs.is_implicit_reg(kind):
      op.asm_arg = None
    else:
@@ -238,7 +241,7 @@ def _get_insn_debug_operands(insn):
   for arg in insn.get('args'):
     kind = arg.get('class')
     if _is_reg(kind):
-      if asm_defs.is_greg(kind) or asm_defs.is_xreg(kind):
+      if asm_defs.is_greg(kind) or asm_defs.is_xreg(kind) or asm_defs.is_yreg(kind):
         res.append('GetRegOperandDebugString(this, %d)' % (r))
       elif asm_defs.is_implicit_reg(kind):
         res.append('GetImplicitRegOperandDebugString(this, %d)' % (r))
