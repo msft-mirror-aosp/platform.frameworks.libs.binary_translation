@@ -383,6 +383,7 @@ _ARGUMENT_FORMATS_TO_SIZES = {
   'MemX8780': 'MemoryX8780Bit',
   'RegX87': 'X87Register',
   'XmmReg' : 'VectorRegister128Bit',
+  'YmmReg' : 'VectorRegister256Bit',
   'VecMem32': 'VectorMemory32Bit',
   'VecMem64': 'VectorMemory64Bit',
   'VecMem128': 'VectorMemory128Bit',
