@@ -793,6 +793,21 @@ class Assembler : public AssemblerBase {
             typename ArgumentsType0,
             typename ArgumentsType1,
             typename ArgumentsType2,
+            typename... ArgumentsTypes>
+  void EmitVexRegToRmInstruction(ArgumentsType0&& argument0,
+                                 ArgumentsType1&& argument1,
+                                 ArgumentsType2&& argument2,
+                                 ArgumentsTypes&&... arguments) {
+    return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType1>(argument2),
+                                        std::forward<ArgumentsType0>(argument0),
+                                        std::forward<ArgumentsType2>(argument1),
+                                        std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <uint8_t... kOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
             typename ArgumentsType3,
             typename... ArgumentsTypes>
   void EmitVexRmImmToRegInstruction(ArgumentsType0&& argument0,
