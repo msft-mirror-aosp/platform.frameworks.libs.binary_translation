@@ -172,6 +172,7 @@ DEFINE_EXPAND_INSTRUCTION(Register dest, Register src)
   }
 DEFINE_INT_INSTRUCTION(CmpXchg, CmpXchg, , kIntType, (Operand dest, Register src), (dest, src))
 DEFINE_INT_INSTRUCTION(CmpXchg, CmpXchg, , kIntType, (Register dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(LockXadd, LockXadd, , kIntType, (Operand dest, Register src), (dest, src))
 DEFINE_INT_INSTRUCTION(LockCmpXchg,
                        LockCmpXchg,
                        ,
