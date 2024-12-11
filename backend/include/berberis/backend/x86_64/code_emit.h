@@ -28,6 +28,7 @@ namespace berberis::x86_64 {
 
 Assembler::Register GetGReg(MachineReg r);
 Assembler::XMMRegister GetXReg(MachineReg r);
+Assembler::YMMRegister GetYReg(MachineReg r);
 Assembler::ScaleFactor ToScaleFactor(MachineMemOperandScale scale);
 
 }  // namespace berberis::x86_64
