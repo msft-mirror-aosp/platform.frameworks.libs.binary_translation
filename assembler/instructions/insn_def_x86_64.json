@@ -750,6 +750,14 @@
       ]
     },
     {
+      "stems": [ "Vmovapd", "Vmovaps", "Vmovdqa", "Vmovdqu" ],
+      "feature": "AVX",
+      "args": [
+        { "class": "YmmReg", "usage": "def" },
+        { "class": "YmmReg", "usage": "use" }
+      ]
+    },
+    {
       "stems": [ "Vmovsd", "Vmovss" ],
       "args": [
         { "class": "XmmReg", "usage": "def" },

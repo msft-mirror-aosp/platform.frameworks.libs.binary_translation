@@ -53,6 +53,16 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   static constexpr XMMRegister xmm6{6};
   static constexpr XMMRegister xmm7{7};
 
+  static constexpr YMMRegister no_ymm_register{0x80};
+  static constexpr YMMRegister ymm0{0};
+  static constexpr YMMRegister ymm1{1};
+  static constexpr YMMRegister ymm2{2};
+  static constexpr YMMRegister ymm3{3};
+  static constexpr YMMRegister ymm4{4};
+  static constexpr YMMRegister ymm5{5};
+  static constexpr YMMRegister ymm6{6};
+  static constexpr YMMRegister ymm7{7};
+
   // Macroassembler uses these names to support both x86-32 and x86-64 modes.
   static constexpr Register gpr_a{0};
   static constexpr Register gpr_c{1};
