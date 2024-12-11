@@ -328,19 +328,19 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
     using CPUIDRestriction = AsmCallInfo::CPUIDRestriction;
     if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX>) {
       if (!host_platform::kHasAVX) {
-        return false;
+        return {};
       }
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>) {
       if (!host_platform::kHasBMI) {
-        return false;
+        return {};
       }
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>) {
       if (!host_platform::kHasLZCNT) {
-        return false;
+        return {};
       }
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>) {
       if (!host_platform::kHasPOPCNT) {
-        return false;
+        return {};
       }
     } else if constexpr (std::is_same_v<CPUIDRestriction,
                                         intrinsics::bindings::NoCPUIDRestriction>) {
