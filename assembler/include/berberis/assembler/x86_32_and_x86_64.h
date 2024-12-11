@@ -169,7 +169,7 @@ class Assembler : public AssemblerBase {
   static constexpr X87Register st6{6};
   static constexpr X87Register st7{7};
 
-  template <int bits>
+  template <int kBits>
   class SIMDRegister {
    public:
     constexpr bool operator==(const SIMDRegister& reg) const { return num_ == reg.num_; }
@@ -179,13 +179,13 @@ class Assembler : public AssemblerBase {
     friend class Assembler<DerivedAssemblerType>;
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
-    friend class SIMDRegister<384 - bits>;
+    friend class SIMDRegister<384 - kBits>;
 
     constexpr auto To128Bit() const {
-      return std::enable_if_t<bits != 128, SIMDRegister<256>>{num_};
+      return std::enable_if_t<kBits != 128, SIMDRegister<128>>{num_};
     }
     constexpr auto To256Bit() const {
-      return std::enable_if_t<bits != 256, SIMDRegister<256>>{num_};
+      return std::enable_if_t<kBits != 256, SIMDRegister<256>>{num_};
     }
 
    private:

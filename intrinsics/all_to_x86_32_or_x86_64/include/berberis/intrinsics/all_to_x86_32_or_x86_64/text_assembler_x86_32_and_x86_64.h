@@ -153,10 +153,10 @@ class TextAssembler {
     int arg_no_;
   };
 
-  template <int bits>
+  template <int kBits>
   class SIMDRegister {
    public:
-    friend class SIMDRegister<384 - bits>;
+    friend class SIMDRegister<384 - kBits>;
     constexpr SIMDRegister(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
@@ -171,22 +171,22 @@ class TextAssembler {
     }
 
     constexpr auto To128Bit() const {
-      return std::enable_if_t<bits != 128, SIMDRegister<256>>{arg_no_};
+      return std::enable_if_t<kBits != 128, SIMDRegister<128>>{arg_no_};
     }
     constexpr auto To256Bit() const {
-      return std::enable_if_t<bits != 256, SIMDRegister<256>>{arg_no_};
+      return std::enable_if_t<kBits != 256, SIMDRegister<256>>{arg_no_};
     }
 
     template <typename MacroAssembler>
     friend const std::string ToGasArgument(const SIMDRegister& reg, MacroAssembler*) {
-      if constexpr (bits == 128) {
+      if constexpr (kBits == 128) {
         return "%x" + std::to_string(reg.arg_no());
-      } else if constexpr (bits == 256) {
+      } else if constexpr (kBits == 256) {
         return "%t" + std::to_string(reg.arg_no());
-      } else if constexpr (bits == 512) {
+      } else if constexpr (kBits == 512) {
         return "%g" + std::to_string(reg.arg_no());
       } else {
-        static_assert(kDependentValueFalse<bits>);
+        static_assert(kDependentValueFalse<kBits>);
       }
     }
 
