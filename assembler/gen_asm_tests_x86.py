@@ -219,6 +219,9 @@ MNEMO_TO_ASM = {
     'MOVZXBQ': 'MOVZBQ',
     'MOVZXWL': 'MOVZWL',
     'MOVZXWQ': 'MOVZWQ',
+}
+
+MNEMO_TO_ASM_MEM = {
     'VCVTPD2DQ': 'VCVTPD2DQX',
     'VCVTPD2PS': 'VCVTPD2PSX',
     'VCVTTPD2DQ': 'VCVTTPD2DQX'
@@ -316,6 +319,8 @@ def _gen_att_instruction_variants(
     file, arc_name, insn_name, insn_args, fast_mode):
   if insn_name in MNEMO_TO_ASM:
     insn_name = MNEMO_TO_ASM[insn_name]
+  if insn_name in MNEMO_TO_ASM_MEM and 'VecMem128' in str(insn_args):
+    insn_name = MNEMO_TO_ASM_MEM[insn_name]
   insn_sample_args = []
   label_present = False
   if arc_name.endswith('ByOne'):
