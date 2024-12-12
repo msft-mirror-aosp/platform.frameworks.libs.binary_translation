@@ -16,8 +16,9 @@
 
 #include "gtest/gtest.h"
 
+#include <fcntl.h>  // open
 #include <sys/mman.h>
-#include <unistd.h>  // sysconf(_SC_PAGESIZE)
+#include <unistd.h>  // close, sysconf(_SC_PAGESIZE)
 
 #include <cinttypes>
 #include <cstdint>
@@ -104,6 +105,26 @@ TEST(ProcSelfMaps, ExecutableFromMprotect) {
   ASSERT_FALSE(IsExecutable(mapping + 2 * kPageSize, kPageSize));
 
   ASSERT_EQ(munmap(mapping, 3 * kPageSize), 0);
+}
+
+TEST(ProcSelfMaps, ExecutableFromFileBackedMmap) {
+  const size_t kPageSize = sysconf(_SC_PAGESIZE);
+  int fd = open("/dev/zero", O_RDONLY);
+  uint8_t* mapping =
+      reinterpret_cast<uint8_t*>(mmap(0, 3 * kPageSize, PROT_READ, MAP_PRIVATE, fd, 0));
+  ASSERT_NE(mapping, nullptr);
+
+  ASSERT_FALSE(IsExecutable(mapping, 3 * kPageSize));
+
+  ASSERT_EQ(0, mprotect(mapping + kPageSize, kPageSize, PROT_READ | PROT_EXEC));
+
+  // File-backed mappings shouldn't merge with the adjacent mappings and must match exactly.
+  ASSERT_FALSE(IsExecutable<kExactMapping>(mapping, kPageSize));
+  ASSERT_TRUE(IsExecutable<kExactMapping>(mapping + kPageSize, kPageSize));
+  ASSERT_FALSE(IsExecutable<kExactMapping>(mapping + 2 * kPageSize, kPageSize));
+
+  ASSERT_EQ(munmap(mapping, 3 * kPageSize), 0);
+  close(fd);
 }
 
 }  // namespace
