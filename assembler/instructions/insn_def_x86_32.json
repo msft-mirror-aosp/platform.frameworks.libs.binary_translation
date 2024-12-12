@@ -74,15 +74,7 @@
     {
       "encodings": {
         "Vmovapd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "28" ] },
-        "Vmovaps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "28" ] }
-      },
-      "args": [
-        { "class": "XmmReg", "usage": "def" },
-        { "class": "XmmReg", "usage": "use" }
-      ]
-    },
-    {
-      "encodings": {
+        "Vmovaps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "28" ] },
         "Vmovdqa": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "6F" ] },
         "Vmovdqu": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "6F" ] }
       },
@@ -93,13 +85,34 @@
     },
     {
       "encodings": {
-        "Vmovsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "10" ], "type": "vex_rm_to_reg" },
+        "Vmovapd": { "feature": "AVX", "opcodes": [ "C4", "01", "05", "28" ] },
+        "Vmovaps": { "feature": "AVX", "opcodes": [ "C4", "01", "04", "28" ] },
+        "Vmovdqa": { "feature": "AVX", "opcodes": [ "C4", "01", "05", "6F" ] },
+        "Vmovdqu": { "feature": "AVX", "opcodes": [ "C4", "01", "06", "6F" ] }
+      },
+      "args": [
+        { "class": "YmmReg", "usage": "def" },
+        { "class": "YmmReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vmovsd": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "10" ], "type": "vex_rm_to_reg" }
+      },
+      "args": [
+        { "class": "XmmReg", "usage": "def" },
+        { "class": "XmmReg", "usage": "use" },
+        { "class": "FpReg64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Vmovss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "10" ], "type": "vex_rm_to_reg" }
       },
       "args": [
         { "class": "XmmReg", "usage": "def" },
         { "class": "XmmReg", "usage": "use" },
-        { "class": "XmmReg", "usage": "use" }
+        { "class": "FpReg32", "usage": "use" }
       ]
     }
   ]
