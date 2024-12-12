@@ -874,13 +874,34 @@
         "Vcvtdq2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "E6" ] },
         "Vcvtdq2ps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5B" ] },
         "Vcvtpd2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "E6" ] },
-        "Vcvtpd2dqx": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "E6" ] },
+        "Vcvtpd2dqx": {
+          "comment": [
+            "Suffix “x” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "03", "E6" ]
+        },
         "Vcvtpd2ps": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5A" ] },
-        "Vcvtpd2psx": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5A" ] },
+        "Vcvtpd2psx": {
+          "comment": [
+            "Suffix “x” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "01", "5A" ]
+        },
         "Vcvtps2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5B" ] },
         "Vcvtps2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5A" ] },
         "Vcvttpd2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E6" ] },
-        "Vcvttpd2dqx": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E6" ] },
+        "Vcvttpd2dqx": {
+          "comment": [
+            "Suffix “x” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "01", "E6" ]
+        },
         "Vcvttps2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "5B" ] }
       },
       "args": [
@@ -2707,6 +2728,62 @@
     },
     {
       "encodings": {
+        "Vbroadcastf128": { "feature": "AVX", "opcodes": [ "C4", "02", "05", "1a" ] },
+        "Vbroadcasti128": { "feature": "AVX2", "opcodes": [ "C4", "02", "05", "5a" ] }
+      },
+      "args": [
+        { "class": "VecReg256", "usage": "def" },
+        { "class": "VecMem128", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vbroadcastsd": { "feature": "AVX2", "opcodes": [ "C4", "02", "05", "19" ] },
+        "Vbroadcastss": { "feature": "AVX2", "opcodes": [ "C4", "02", "05", "18" ] }
+      },
+      "args": [
+        { "class": "VecReg256", "usage": "def" },
+        { "class": "XmmReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vbroadcastsd": { "feature": "AVX", "opcodes": [ "C4", "02", "05", "19" ] }
+      },
+      "args": [
+        { "class": "VecReg256", "usage": "def" },
+        { "class": "VecMem64", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vbroadcastss": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "18" ] }
+      },
+      "args": [
+        { "class": "VecReg128", "usage": "def" },
+        { "class": "VecMem32", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vbroadcastss": { "feature": "AVX2", "opcodes": [ "C4", "02", "01", "18" ] }
+      },
+      "args": [
+        { "class": "VecReg128", "usage": "def" },
+        { "class": "XmmReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vbroadcastss": { "feature": "AVX", "opcodes": [ "C4", "02", "05", "18" ] }
+      },
+      "args": [
+        { "class": "VecReg256", "usage": "def" },
+        { "class": "VecMem32", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Vcvtdq2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "06", "E6" ] },
         "Vcvtps2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "04", "5A" ] }
       },
@@ -2739,9 +2816,30 @@
     },
     {
       "encodings": {
-        "Vcvtpd2dqy": { "feature": "AVX", "opcodes": [ "C4", "01", "07", "E6" ] },
-        "Vcvtpd2psy": { "feature": "AVX", "opcodes": [ "C4", "01", "05", "5A" ] },
-        "Vcvttpd2dqy": { "feature": "AVX", "opcodes": [ "C4", "01", "05", "E6" ] }
+        "Vcvtpd2dqy": {
+          "comment": [
+            "Suffix “y” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "07", "E6" ]
+        },
+        "Vcvtpd2psy": {
+          "comment": [
+            "Suffix “y” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "05", "5A" ]
+        },
+        "Vcvttpd2dqy": {
+          "comment": [
+            "Suffix “y” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "05", "E6" ]
+        }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },
@@ -2786,6 +2884,17 @@
         { "class": "FpReg64", "usage": "def" },
         { "class": "XmmReg", "usage": "use" },
         { "class": "FpReg32/VecMem32", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vextractf128": { "feature": "AVX", "opcodes": [ "C4", "03", "05", "19" ], "type": "reg_to_rm" },
+        "Vextracti128": { "feature": "AVX2", "opcodes": [ "C4", "03", "05", "39" ], "type": "reg_to_rm" }
+      },
+      "args": [
+        { "class": "VecReg128/VecMem128", "usage": "def" },
+        { "class": "VecReg256", "usage": "use" },
+        { "class": "Imm8" }
       ]
     },
     {
@@ -3062,6 +3171,62 @@
         { "class": "XmmReg", "usage": "use" },
         { "class": "XmmReg", "usage": "use" },
         { "class": "XmmReg/VecMem32", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vinsertf128": { "feature": "AVX", "opcodes": [ "C4", "03", "05", "18" ], "type": "vex_rm_to_reg" },
+        "Vinserti128": { "feature": "AVX2", "opcodes": [ "C4", "03", "05", "38" ], "type": "vex_rm_to_reg" }
+      },
+      "args": [
+        { "class": "VecReg256", "usage": "def" },
+        { "class": "VecReg256", "usage": "use" },
+        { "class": "VecReg128/VecMem128", "usage": "use" },
+        { "class": "Imm8" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vmaskmovpd": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "2F" ], "type": "vex_reg_to_rm" },
+        "Vmaskmovps": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "2E" ], "type": "vex_reg_to_rm" }
+      },
+      "args": [
+        { "class": "VecMem128", "usage": "def" },
+        { "class": "VecReg128", "usage": "use" },
+        { "class": "VecReg128", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vmaskmovpd": { "feature": "AVX", "opcodes": [ "C4", "02", "05", "2F" ], "type": "vex_reg_to_rm" },
+        "Vmaskmovps": { "feature": "AVX", "opcodes": [ "C4", "02", "05", "2E" ], "type": "vex_reg_to_rm" }
+      },
+      "args": [
+        { "class": "VecMem256", "usage": "def" },
+        { "class": "VecReg256", "usage": "use" },
+        { "class": "VecReg256", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vmaskmovpd": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "2D" ] },
+        "Vmaskmovps": { "feature": "AVX", "opcodes": [ "C4", "02", "01", "2C" ] }
+      },
+      "args": [
+        { "class": "VecReg128", "usage": "def" },
+        { "class": "VecReg128", "usage": "use" },
+        { "class": "VecMem128", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vmaskmovpd": { "feature": "AVX", "opcodes": [ "C4", "02", "05", "2D" ] },
+        "Vmaskmovps": { "feature": "AVX", "opcodes": [ "C4", "02", "05", "2C" ] }
+      },
+      "args": [
+        { "class": "VecReg256", "usage": "def" },
+        { "class": "VecReg256", "usage": "use" },
+        { "class": "VecMem256", "usage": "use" }
       ]
     },
     {
