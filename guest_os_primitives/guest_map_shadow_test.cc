@@ -32,12 +32,21 @@ class GuestMapShadowTest : public ::testing::Test {
     ::testing::Test::SetUp();
     InitLargeMmap();
   }
+
+  template <bool kExpectedExec, size_t kExpectedSize>
+  void ExpectExecRegionSize(GuestAddr start, size_t test_size) {
+    auto [is_exec, size] = shadow_.GetExecutableRegionSize(start, test_size);
+    EXPECT_EQ(is_exec, kExpectedExec);
+    EXPECT_EQ(size, kExpectedSize);
+  }
+
+  GuestMapShadow shadow_;
 };
 
 constexpr GuestAddr kGuestAddr{0x7f018000};
 constexpr size_t kGuestRegionSize{0x00020000};
 
-TEST_F(GuestMapShadowTest, smoke) {
+TEST_F(GuestMapShadowTest, Basic) {
   auto shadow = std::make_unique<GuestMapShadow>();
 
   ASSERT_EQ(kBitUnset, shadow->GetExecutable(kGuestAddr, kGuestRegionSize));
@@ -65,7 +74,7 @@ TEST_F(GuestMapShadowTest, smoke) {
   ASSERT_TRUE(!shadow->IsExecutable(kGuestAddr, kGuestRegionSize));
 }
 
-TEST_F(GuestMapShadowTest, remap) {
+TEST_F(GuestMapShadowTest, Remap) {
   constexpr GuestAddr kRemapAddr = 0x00107000;
   constexpr size_t kRemapRegionSize1 = kGuestRegionSize / 2;
   constexpr size_t kRemapRegionSize2 = kGuestRegionSize * 2;
@@ -156,6 +165,21 @@ TEST_F(GuestMapShadowTest, 64BitAddress) {
 }
 
 #endif
+
+TEST_F(GuestMapShadowTest, GetExecutableRegionSize) {
+  shadow_.SetExecutable(kGuestAddr, kGuestRegionSize);
+
+  ExpectExecRegionSize<false, kGuestRegionSize>(kGuestAddr - kGuestRegionSize, kGuestRegionSize);
+  ExpectExecRegionSize<true, kGuestRegionSize>(kGuestAddr, kGuestRegionSize);
+  ExpectExecRegionSize<false, kGuestRegionSize>(kGuestAddr + kGuestRegionSize, kGuestRegionSize);
+
+  // Cases where region size is shorter than the tested size.
+  ExpectExecRegionSize<false, kGuestRegionSize / 2>(kGuestAddr - kGuestRegionSize / 2,
+                                                    kGuestRegionSize);
+  ExpectExecRegionSize<true, kGuestRegionSize / 2>(kGuestAddr + kGuestRegionSize / 2,
+                                                   kGuestRegionSize);
+  ExpectExecRegionSize<true, kGuestRegionSize>(kGuestAddr, kGuestRegionSize * 2);
+}
 
 }  // namespace
 
