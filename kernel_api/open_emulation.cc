@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -141,27 +142,45 @@ int OpenatProcSelfMapsForGuest(int dirfd, int flags, mode_t mode) {
     uintptr_t start;
     uintptr_t end;
     int prot_offset;
-    if (sscanf(lines.at(i).c_str(), "%" SCNxPTR "-%" SCNxPTR " %n", &start, &end, &prot_offset) !=
-        2) {
-      if (!lines[i].empty()) {
-        TRACE("Cannot parse " PROC_SELF_MAPS " line : %s", lines.at(i).c_str());
+    auto& cur_line = lines.at(i);
+    if (sscanf(cur_line.c_str(), "%" SCNxPTR "-%" SCNxPTR " %n", &start, &end, &prot_offset) != 2) {
+      if (!cur_line.empty()) {
+        TRACE("Cannot parse " PROC_SELF_MAPS " line : %s", cur_line.c_str());
       }
-      guest_maps.append(lines.at(i) + "\n");
+      guest_maps.append(cur_line + "\n");
       continue;
     }
-    BitValue exec_status = maps_shadow->GetExecutable(GuestAddr(start), end - start);
-    if (exec_status == kBitMixed) {
-      // When we strip guest executable bit from host mappings the kernel may merge r-- and r-x
-      // mappings, resulting in kBitMixed executability state. We are avoiding such merging by
-      // SetVmaAnonName in MmapForGuest/MprotectForGuest. This isn't strictly guaranteed to work, so
-      // issue a warning if it doesn't, or if we got kBitMixed for another reason to investigate.
-      // TODO(b/322873334): Instead split such host mapping into several guest mappings.
-      TRACE("Unexpected " PROC_SELF_MAPS " mapping with mixed guest executability");
+    // Split the line into guest exec / no-exec chunks.
+    uintptr_t original_start = start;
+    while (start < end) {
+      auto [is_exec, region_size] =
+          maps_shadow->GetExecutableRegionSize(GuestAddr(start), end - start);
+      // prot_offset points to "rwxp", so offset of "x" is 2 symbols away.
+      cur_line.at(prot_offset + 2) = is_exec ? 'x' : '-';
+      if ((start == original_start) && ((start + region_size) >= end)) {
+        // Most often we should be able to just take the whole host line.
+        guest_maps.append(cur_line);
+        guest_maps.append("\n");
+        break;
+      }
+      // We cannot print into cur_line in place since we don't want the terminating null. Also the
+      // new range can theoretically be longer than the old one. E.g. if "a000-ba000" (len=10) is
+      // split into "a000-aa000" (len=10) and "aa000-ba000" (len=11).
+      // At max, for 64-bit pointers, we need 16(ptr)+1(-)+16(ptr)+1(\0)=34 symbols buffer,
+      // so 64-bytes should be more than enough.
+      char addr_range_buf[64];
+      int chars_num = snprintf(addr_range_buf,
+                               sizeof(addr_range_buf),
+                               "%" PRIxPTR "-%" PRIxPTR,
+                               start,
+                               start + region_size);
+      CHECK_LT(static_cast<size_t>(chars_num), sizeof(addr_range_buf));
+      guest_maps.append(addr_range_buf);
+      // Append the rest of the line starting from protections and including the front space.
+      guest_maps.append(cur_line.data() + prot_offset - 1);
+      guest_maps.append("\n");
+      start += region_size;
     }
-    // prot_offset points to "rwxp", so offset of "x" is 2 symbols away.
-    lines.at(i).at(prot_offset + 2) = (exec_status == kBitSet) ? 'x' : '-';
-
-    guest_maps.append(lines.at(i) + "\n");
   }
 
   // Normally /proc/self/maps doesn't have newline at the end.
