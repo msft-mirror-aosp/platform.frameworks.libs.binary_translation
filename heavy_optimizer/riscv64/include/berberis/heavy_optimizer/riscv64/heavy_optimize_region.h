@@ -34,9 +34,7 @@ struct HeavyOptimizeParams {
   // of room for optimzations within this range. Thus this limitation has very little to no impact
   // on the generated code quality.
   size_t max_number_of_instructions = 200;
-  // This effectively makes translating code at max guest address impossible, but we
-  // assume that it's not practically significant.
-  GuestAddr end_pc = std::numeric_limits<GuestAddr>::max();
+  GuestAddr end_pc = GetGuestAddrRangeEnd();
 };
 
 std::tuple<GuestAddr, bool, size_t> HeavyOptimizeRegion(

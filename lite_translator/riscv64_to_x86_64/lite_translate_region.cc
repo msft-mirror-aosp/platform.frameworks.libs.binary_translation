@@ -73,7 +73,7 @@ std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
     GenIncrementProfileCounter(translator.as(), params);
   }
 
-  while (translator.GetInsnAddr() != end_pc && !translator.is_region_end_reached()) {
+  while (translator.GetInsnAddr() < end_pc && !translator.is_region_end_reached()) {
     uint8_t insn_size = decoder.Decode(ToHostAddr<const uint16_t>(translator.GetInsnAddr()));
     if (!translator.success()) {
       return {false, translator.GetInsnAddr()};
