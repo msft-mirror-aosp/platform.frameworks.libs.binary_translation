@@ -44,12 +44,14 @@ class Riscv64LiteTranslateRegionTest : public ::testing::Test {
     Reset(code);
     GuestAddr code_end = ToGuestAddr(bit_cast<char*>(&code[0]) + sizeof(code));
     MachineCode machine_code;
-    bool success = LiteTranslateRange(state_.cpu.insn_addr,
-                                      code_end,
-                                      &machine_code,
-                                      LiteTranslateParams{.allow_dispatch = false});
+    auto [success, stop_pc] = TryLiteTranslateRegion(state_.cpu.insn_addr,
+                                                     &machine_code,
+                                                     LiteTranslateParams{
+                                                         .end_pc = code_end,
+                                                         .allow_dispatch = false,
+                                                     });
 
-    if (!success) {
+    if (!success || (stop_pc > code_end)) {
       return false;
     }
 
@@ -116,10 +118,14 @@ TEST_F(Riscv64LiteTranslateRegionTest, GracefulFailure) {
       0x00000073,  // ecall #0x0
   };
   MachineCode machine_code;
-  EXPECT_FALSE(LiteTranslateRange(ToGuestAddr(code),
-                                  ToGuestAddr(code) + 8,
-                                  &machine_code,
-                                  LiteTranslateParams{.allow_dispatch = false}));
+  auto [success, stop_pc] = TryLiteTranslateRegion(ToGuestAddr(code),
+                                                   &machine_code,
+                                                   LiteTranslateParams{
+                                                       .end_pc = ToGuestAddr(code) + 8,
+                                                       .allow_dispatch = false,
+                                                   });
+  EXPECT_FALSE(success);
+  EXPECT_EQ(stop_pc, ToGuestAddr(code) + 4);
 }
 
 jmp_buf g_jmp_buf;
@@ -150,17 +156,18 @@ TEST_F(Riscv64LiteTranslateRegionTest, ProfileCounter) {
   MachineCode machine_code;
   uint32_t counter;
   constexpr uint32_t kCounterThreshold = 42;
-  bool success = LiteTranslateRange(
+  auto [success, stop_pc] = TryLiteTranslateRegion(
       ToGuestAddr(code),
-      code_end,
       &machine_code,
       {
+          .end_pc = code_end,
           .enable_self_profiling = true,
           .counter_location = &counter,
           .counter_threshold = kCounterThreshold,
           .counter_threshold_callback = reinterpret_cast<const void*>(CounterThresholdReached),
       });
   ASSERT_TRUE(success);
+  ASSERT_EQ(stop_pc, code_end);
 
   ScopedExecRegion exec(&machine_code);
 
