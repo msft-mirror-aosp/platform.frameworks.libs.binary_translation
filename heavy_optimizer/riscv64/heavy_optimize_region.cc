@@ -44,7 +44,7 @@ std::tuple<GuestAddr, bool, size_t> HeavyOptimizeRegion(GuestAddr pc,
   size_t number_of_instructions = 0;
 
   while (number_of_instructions != params.max_number_of_instructions &&
-         !frontend.IsRegionEndReached()) {
+         frontend.GetInsnAddr() < params.end_pc && !frontend.IsRegionEndReached()) {
     frontend.StartInsn();
     auto size = decoder.Decode(ToHostAddr<uint16_t>(frontend.GetInsnAddr()));
     if (!frontend.success()) {
