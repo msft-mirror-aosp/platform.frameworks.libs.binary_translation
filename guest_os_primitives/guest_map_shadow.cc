@@ -18,7 +18,9 @@
 
 #include <sys/mman.h>
 #include <climits>  // CHAR_BIT
+#include <cstddef>
 #include <mutex>
+#include <tuple>
 
 #include "berberis/base/bit_util.h"
 #include "berberis/base/forever_alloc.h"
@@ -124,17 +126,24 @@ GuestMapShadow::~GuestMapShadow() {
   MunmapOrDie(shadow_, kShadowSize);
 }
 
-BitValue GuestMapShadow::GetExecutable(GuestAddr start, size_t size) const {
+std::tuple<bool, size_t> GuestMapShadow::GetExecutableRegionSize(GuestAddr start,
+                                                                 size_t scan_size) const {
   GuestAddr pc = AlignDownGuestPageSize(start);
-  GuestAddr end = AlignUpGuestPageSize(start + size);
+  GuestAddr scan_end_pc = AlignUpGuestPageSize(start + scan_size);
 
   bool is_exec = IsExecAddr(pc);
-  pc += kGuestPageSize;
-  while (pc < end) {
+  for (pc += kGuestPageSize; pc < scan_end_pc; pc += kGuestPageSize) {
     if (is_exec != IsExecAddr(pc)) {
-      return kBitMixed;
+      break;
     }
-    pc += kGuestPageSize;
+  }
+  return {is_exec, pc - start};
+}
+
+BitValue GuestMapShadow::GetExecutable(GuestAddr start, size_t scan_size) const {
+  auto [is_exec, region_size] = GetExecutableRegionSize(start, scan_size);
+  if (region_size < scan_size) {
+    return kBitMixed;
   }
   return is_exec ? kBitSet : kBitUnset;
 }
