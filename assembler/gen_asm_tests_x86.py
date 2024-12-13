@@ -101,7 +101,9 @@ sample_att_arguments_x86_32 = {
     'GeneralReg32': ('%ECX', '%EDX', '%EBX', '%ESP',
                      '%EBP', '%ESI', '%EDI', '%EAX'),
     'VecReg128': tuple('%%XMM%d' % N for N in (0, 4, 7)),
+    'VecReg256': tuple('%%YMM%d' % N for N in (0, 4, 7)),
     'XmmReg': tuple('%%XMM%d' % N for N in (0, 4, 7)),
+    'YmmReg': tuple('%%YMM%d' % N for N in (0, 4, 7)),
     'FpReg32': tuple('%%XMM%d' % N for N in range(8)),
     'FpReg64': tuple('%%XMM%d' % N for N in range(8)),
     'Label': ('0b', '1b', '2f'),
@@ -130,7 +132,9 @@ sample_att_arguments_x86_64 = {
                      '%R9', '%R10', '%R11', '%R12',
                      '%R13', '%R14', '%R15', '%RAX',),
     'VecReg128': tuple('%%XMM%d' % N for N in range(0, 16, 5)),
+    'VecReg256': tuple('%%YMM%d' % N for N in range(0, 16, 5)),
     'XmmReg': tuple('%%XMM%d' % N for N in range(0, 16, 5)),
+    'YmmReg': tuple('%%YMM%d' % N for N in range(0, 16, 5)),
     'FpReg32': tuple('%%XMM%d' % N for N in range(16)),
     'FpReg64': tuple('%%XMM%d' % N for N in range(16)),
     'Label': ('0b', '1b', '2f'),
@@ -183,7 +187,9 @@ sample_arc_arguments_x86_32 = {
     'GeneralReg16': gp_registers_32,
     'GeneralReg32': gp_registers_32,
     'VecReg128': tuple('Assembler::xmm%d' % N for N in (0, 4, 7)),
+    'VecReg256': tuple('Assembler::xmm%d.To256Bit()' % N for N in (0, 4, 7)),
     'XmmReg': tuple('Assembler::xmm%d' % N for N in (0, 4, 7)),
+    'YmmReg': tuple('Assembler::xmm%d.To256Bit()' % N for N in (0, 4, 7)),
     'FpReg32': tuple('Assembler::xmm%d' % N for N in range(8)),
     'FpReg64': tuple('Assembler::xmm%d' % N for N in range(8)),
 }
@@ -195,7 +201,9 @@ sample_arc_arguments_x86_64 = {
     'GeneralReg32': gp_registers_64,
     'GeneralReg64': gp_registers_64,
     'VecReg128': tuple('Assembler::xmm%d' % N for N in range(0, 16, 5)),
+    'VecReg256': tuple('Assembler::xmm%d.To256Bit()' % N for N in range(0, 16, 5)),
     'XmmReg': tuple('Assembler::xmm%d' % N for N in range(0, 16, 5)),
+    'YmmReg': tuple('Assembler::xmm%d.To256Bit()' % N for N in range(0, 16, 5)),
     'FpReg32': tuple('Assembler::xmm%d' % N for N in range(16)),
     'FpReg64': tuple('Assembler::xmm%d' % N for N in range(16)),
 }
@@ -211,6 +219,9 @@ MNEMO_TO_ASM = {
     'MOVZXBQ': 'MOVZBQ',
     'MOVZXWL': 'MOVZWL',
     'MOVZXWQ': 'MOVZWQ',
+}
+
+MNEMO_TO_ASM_MEM = {
     'VCVTPD2DQ': 'VCVTPD2DQX',
     'VCVTPD2PS': 'VCVTPD2PSX',
     'VCVTTPD2DQ': 'VCVTTPD2DQX'
@@ -251,7 +262,7 @@ def _update_arguments(x86_64):
             if index not in ('%ESP', '%RSP')]
   for mem_arg in ('Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
                   'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
-                  'VecMem32', 'VecMem64', 'VecMem128'):
+                  'VecMem32', 'VecMem64', 'VecMem128', 'VecMem256'):
     sample_att_arguments[mem_arg] = tuple(addrs)
 
   sample_att_arguments['GeneralReg'] = sample_att_arguments[addr]
@@ -277,7 +288,7 @@ def _update_arguments(x86_64):
             if 'Assembler::esp' not in index and 'Assembler::rsp' not in index]
   for mem_arg in ('Mem', 'Mem8', 'Mem16', 'Mem32', 'Mem64', 'Mem128',
                   'MemX87', 'MemX8716', 'MemX8732', 'MemX8764', 'MemX8780',
-                  'VecMem32', 'VecMem64', 'VecMem128'):
+                  'VecMem32', 'VecMem64', 'VecMem128', 'VecMem256'):
     sample_arc_arguments[mem_arg] = tuple(addrs)
 
   sample_arc_arguments['GeneralReg'] = sample_arc_arguments[addr]
@@ -308,6 +319,8 @@ def _gen_att_instruction_variants(
     file, arc_name, insn_name, insn_args, fast_mode):
   if insn_name in MNEMO_TO_ASM:
     insn_name = MNEMO_TO_ASM[insn_name]
+  if insn_name in MNEMO_TO_ASM_MEM and 'VecMem128' in str(insn_args):
+    insn_name = MNEMO_TO_ASM_MEM[insn_name]
   insn_sample_args = []
   label_present = False
   if arc_name.endswith('ByOne'):
@@ -546,7 +559,10 @@ def _argument_class_to_arc_type(arg_class):
   elif sample_arc_arguments[arg_class][0].startswith('Assembler::st'):
     return 'Assembler::X87Register'
   elif sample_arc_arguments[arg_class][0].startswith('Assembler::xmm'):
-    return 'Assembler::XMMRegister'
+    if sample_arc_arguments[arg_class][0].endswith(".To256Bit()"):
+      return 'Assembler::YMMRegister'
+    else:
+      return 'Assembler::XMMRegister'
   else:
     return sample_arc_arguments[arg_class][0].split('(')[0]
 
