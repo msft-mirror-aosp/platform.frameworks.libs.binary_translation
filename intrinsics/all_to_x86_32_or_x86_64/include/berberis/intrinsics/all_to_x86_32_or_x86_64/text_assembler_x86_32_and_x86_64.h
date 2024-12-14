@@ -627,7 +627,7 @@ inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
             {"Lock CmpXchgb", "Lock; CmpXchgb"},
             {"Lock CmpXchgl", "Lock; CmpXchgl"},
             {"Lock CmpXchgq", "Lock; CmpXchgq"},
-            {"Lock CmpXchgw", "Lock; CmpXchgq"},
+            {"Lock CmpXchgw", "Lock; CmpXchgw"},
             // Our assembler has Pmov instruction which is supposed to pick the best
             // option - but currently we just map Pmov to Movaps.
             {"Pmov", "Movaps"},

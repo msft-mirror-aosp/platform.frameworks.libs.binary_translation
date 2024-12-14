@@ -38,6 +38,8 @@ class GuestMapShadow {
   GuestMapShadow();
   ~GuestMapShadow();
 
+  [[nodiscard]] std::tuple<bool, size_t> GetExecutableRegionSize(GuestAddr start,
+                                                                 size_t max_size) const;
   [[nodiscard]] BitValue GetExecutable(GuestAddr start, size_t size) const;
 
   // Check if region start..start+size is fully executable.
