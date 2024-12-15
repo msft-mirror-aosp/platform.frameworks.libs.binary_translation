@@ -19,12 +19,12 @@
     "class": "template",
     "variants": [
       "int8_t",
-      "uint8_t",
       "int16_t",
-      "uint16_t",
       "int32_t",
-      "uint32_t",
       "int64_t",
+      "uint8_t",
+      "uint16_t",
+      "uint32_t",
       "uint64_t"
     ],
     "in": [ "int8_t", "Type0", "Type0" ],
@@ -183,12 +183,12 @@
     "class": "template",
     "variants": [
       "int8_t",
-      "uint8_t",
       "int16_t",
-      "uint16_t",
       "int32_t",
-      "uint32_t",
       "int64_t",
+      "uint8_t",
+      "uint16_t",
+      "uint32_t",
       "uint64_t"
     ],
     "in": [ "int8_t", "Type0", "Type0" ],
@@ -281,28 +281,12 @@
     "class": "template",
     "variants": [
       "int8_t",
-      "uint8_t",
       "int16_t",
-      "uint16_t",
       "int32_t",
-      "uint32_t",
       "int64_t",
-      "uint64_t"
-    ],
-    "in": [ "Type0", "Type0" ],
-    "out": [ "Type0" ]
-  },
-  "Rem": {
-    "comment": "Integer remainder",
-    "class": "template",
-    "variants": [
-      "int8_t",
       "uint8_t",
-      "int16_t",
       "uint16_t",
-      "int32_t",
       "uint32_t",
-      "int64_t",
       "uint64_t"
     ],
     "in": [ "Type0", "Type0" ],
@@ -398,60 +382,6 @@
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
-  },
-  "FeGetExceptions": {
-    "comment": "Read exceptions state from x87 status word and MXCSR.",
-    "class": "scalar",
-    "in": [],
-    "out": [ "uint64_t" ],
-    "side_effects_comment": "Reads state from host CPU. State may be affected to floating point instructions.",
-    "has_side_effects": true
-  },
-  "FeSetExceptions": {
-    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
-    "class": "scalar",
-    "in": [ "uint64_t" ],
-    "out": [],
-    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
-    "has_side_effects": true
-  },
-  "FeSetExceptionsAndRound": {
-    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
-    "class": "scalar",
-    "in": [ "uint64_t", "uint8_t" ],
-    "out": [],
-    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
-    "has_side_effects": true
-  },
-  "FeSetExceptionsImm": {
-    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
-    "class": "scalar",
-    "in": [ "uimm8" ],
-    "out": [],
-    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
-    "has_side_effects": true
-  },
-  "FeSetExceptionsAndRoundImm": {
-    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
-    "class": "scalar",
-    "in": [ "uimm8" ],
-    "out": [],
-    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
-    "has_side_effects": true
-  },
-  "FeSetRound": {
-    "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
-    "class": "scalar",
-    "in": [ "uint64_t" ],
-    "out": [],
-    "has_side_effects": true
-  },
-  "FeSetRoundImm": {
-    "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
-    "class": "scalar",
-    "in": [ "uimm8" ],
-    "out": [],
-    "has_side_effects": true
   },
   "FMAdd": {
     "comment": "Fused multiply-addition",
@@ -592,22 +522,76 @@
     "in": [ "Type0", "Type0" ],
     "out": [ "Type0" ]
   },
+  "FeGetExceptions": {
+    "comment": "Read exceptions state from x87 status word and MXCSR.",
+    "class": "scalar",
+    "in": [],
+    "out": [ "uint64_t" ],
+    "side_effects_comment": "Reads state from host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
+  "FeSetExceptions": {
+    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [],
+    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
+  "FeSetExceptionsAndRound": {
+    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
+    "class": "scalar",
+    "in": [ "uint64_t", "uint8_t" ],
+    "out": [],
+    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
+  "FeSetExceptionsAndRoundImm": {
+    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
+    "class": "scalar",
+    "in": [ "uimm8" ],
+    "out": [],
+    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
+  "FeSetExceptionsImm": {
+    "comment": "Store exceptions state into x87 status word and MXCSR. Only low five bits are set on input!",
+    "class": "scalar",
+    "in": [ "uimm8" ],
+    "out": [],
+    "side_effects_comment": "Stores state to host CPU. State may be affected to floating point instructions.",
+    "has_side_effects": true
+  },
+  "FeSetRound": {
+    "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
+    "out": [],
+    "has_side_effects": true
+  },
+  "FeSetRoundImm": {
+    "comment": "Store guest rounding mode in the host FPU state. Only low three bits are set on input!",
+    "class": "scalar",
+    "in": [ "uimm8" ],
+    "out": [],
+    "has_side_effects": true
+  },
   "Feq": {
-    "comment": "Floating point comparison for \u201cequal\u201d (quiet comparison)",
+    "comment": "Floating point comparison for “equal” (quiet comparison)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
     "out": [ "int64_t" ]
   },
   "Fle": {
-    "comment": "Floating point comparison for \u201cless of equal\u201d (signaling comparison)",
+    "comment": "Floating point comparison for “less of equal” (signaling comparison)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
     "out": [ "int64_t" ]
   },
   "Flt": {
-    "comment": "Floating point comparison for \u201cless\u201d (quiet comparison)",
+    "comment": "Floating point comparison for “less” (quiet comparison)",
     "class": "template",
     "variants": [ "Float32", "Float64" ],
     "in": [ "Type0", "Type0" ],
@@ -662,6 +646,22 @@
     "in": [ "uint64_t" ],
     "out": [ "uint64_t" ]
   },
+  "Rem": {
+    "comment": "Integer remainder",
+    "class": "template",
+    "variants": [
+      "int8_t",
+      "int16_t",
+      "int32_t",
+      "int64_t",
+      "uint8_t",
+      "uint16_t",
+      "uint32_t",
+      "uint64_t"
+    ],
+    "in": [ "Type0", "Type0" ],
+    "out": [ "Type0" ]
+  },
   "Rev8": {
     "comment": "Byte reverse.",
     "class": "scalar",
@@ -671,14 +671,14 @@
   "Rol": {
     "comment": "Rotate left.",
     "class": "template",
-    "variants": [ "int64_t", "int32_t" ],
+    "variants": [ "int32_t", "int64_t" ],
     "in": [ "Type0", "int8_t" ],
     "out": [ "Type0" ]
   },
   "Ror": {
     "comment": "Rotate right.",
     "class": "template",
-    "variants": [ "int64_t", "int32_t" ],
+    "variants": [ "int32_t", "int64_t" ],
     "in": [ "Type0", "int8_t" ],
     "out": [ "Type0" ]
   },
@@ -687,12 +687,12 @@
     "class": "template",
     "variants": [
       "int8_t",
-      "uint8_t",
       "int16_t",
-      "uint16_t",
       "int32_t",
-      "uint32_t",
       "int64_t",
+      "uint8_t",
+      "uint16_t",
+      "uint32_t",
       "uint64_t"
     ],
     "in": [ "int8_t", "Type0", "Type0" ],
@@ -772,16 +772,16 @@
     "in": [ "uint64_t", "uimm16" ],
     "out": [ "uint64_t", "uint64_t" ]
   },
-  "Vsetvlmax": {
-    "comment": "Test vtype and set vl accordingly.",
-    "class": "scalar",
-    "in": [ "uint64_t" ],
-    "out": [ "uint64_t", "uint64_t" ]
-  },
   "Vsetvlimax": {
     "comment": "Test vtype and set vl accordingly.",
     "class": "scalar",
     "in": [ "uimm16" ],
+    "out": [ "uint64_t", "uint64_t" ]
+  },
+  "Vsetvlmax": {
+    "comment": "Test vtype and set vl accordingly.",
+    "class": "scalar",
+    "in": [ "uint64_t" ],
     "out": [ "uint64_t", "uint64_t" ]
   },
   "Vtestvl": {

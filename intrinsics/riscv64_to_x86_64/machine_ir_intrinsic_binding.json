@@ -141,20 +141,8 @@
     "out": [ 1 ]
   },
   {
-    "name": "Div<uint8_t>",
-    "insn": "DivUInt8",
-    "in": [ 1, 0 ],
-    "out": [ 1 ]
-  },
-  {
     "name": "Div<int16_t>",
     "insn": "DivInt16",
-    "in": [ 1, 0 ],
-    "out": [ 1 ]
-  },
-  {
-    "name": "Div<uint16_t>",
-    "insn": "DivUInt16",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
@@ -165,14 +153,26 @@
     "out": [ 1 ]
   },
   {
-    "name": "Div<uint32_t>",
-    "insn": "DivUInt32",
+    "name": "Div<int64_t>",
+    "insn": "DivInt64",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
   {
-    "name": "Div<int64_t>",
-    "insn": "DivInt64",
+    "name": "Div<uint8_t>",
+    "insn": "DivUInt8",
+    "in": [ 1, 0 ],
+    "out": [ 1 ]
+  },
+  {
+    "name": "Div<uint16_t>",
+    "insn": "DivUInt16",
+    "in": [ 1, 0 ],
+    "out": [ 1 ]
+  },
+  {
+    "name": "Div<uint32_t>",
+    "insn": "DivUInt32",
     "in": [ 1, 0 ],
     "out": [ 1 ]
   },
@@ -181,54 +181,6 @@
     "insn": "DivUInt64",
     "in": [ 1, 0 ],
     "out": [ 1 ]
-  },
-    {
-    "name": "Rem<int8_t>",
-    "insn": "RemInt8",
-    "in": [ 1, 0 ],
-    "out": [ 1 ]
-  },
-  {
-    "name": "Rem<uint8_t>",
-    "insn": "RemUInt8",
-    "in": [ 1, 0 ],
-    "out": [ 1 ]
-  },
-  {
-    "name": "Rem<int16_t>",
-    "insn": "RemInt16",
-    "in": [ 1, 0 ],
-    "out": [ 2 ]
-  },
-  {
-    "name": "Rem<uint16_t>",
-    "insn": "RemUInt16",
-    "in": [ 1, 0 ],
-    "out": [ 2 ]
-  },
-  {
-    "name": "Rem<int32_t>",
-    "insn": "RemInt32",
-    "in": [ 1, 0 ],
-    "out": [ 2 ]
-  },
-  {
-    "name": "Rem<uint32_t>",
-    "insn": "RemUInt32",
-    "in": [ 1, 0 ],
-    "out": [ 2 ]
-  },
-  {
-    "name": "Rem<int64_t>",
-    "insn": "RemInt64",
-    "in": [ 1, 0 ],
-    "out": [ 2 ]
-  },
-  {
-    "name": "Rem<uint64_t>",
-    "insn": "RemUInt64",
-    "in": [ 1, 0 ],
-    "out": [ 2 ]
   },
   {
     "name": "FAddHostRounding<Float32>",
@@ -305,61 +257,6 @@
     "feature": "AVX",
     "in": [ 1, 2 ],
     "out": [ 0 ]
-  },
-  {
-    "name": "FeGetExceptions",
-    "insn": "MacroFeGetExceptionsTranslate",
-    "usage": "inline-only",
-    "in": [],
-    "out": [ 1 ]
-  },
-  {
-    "name": "FeSetExceptions",
-    "insn": "MacroFeSetExceptionsTranslate",
-    "usage": "inline-only",
-    "in": [ 0 ],
-    "out": []
-  },
-  {
-    "name": "FeSetExceptionsAndRound",
-    "insn": "MacroFeSetExceptionsAndRoundTranslate",
-    "usage": "inline-only",
-    "in": [ 0, 3 ],
-    "out": []
-  },
-  {
-    "name": "FeSetExceptionsImm",
-    "insn": "MacroFeSetExceptionsImmTranslate",
-    "usage": "inline-only",
-    "in": [ 1 ],
-    "out": []
-  },
-  {
-    "name": "FeSetExceptionsAndRoundImm",
-    "insn": "MacroFeSetExceptionsAndRoundImmTranslate",
-    "usage": "inline-only",
-    "in": [ 1 ],
-    "out": []
-  },
-  {
-    "name": "FeSetRound",
-    "insn": "MacroFeSetRound",
-    "in": [ 3 ],
-    "out": []
-  },
-  {
-    "name": "FeSetRoundImm",
-    "insn": "MacroFeSetRound",
-    "usage": "no-inline",
-    "in": [ 3 ],
-    "out": []
-  },
-  {
-    "name": "FeSetRoundImm",
-    "insn": "MacroFeSetRoundImmTranslate",
-    "usage": "inline-only",
-    "in": [ 2 ],
-    "out": []
   },
   {
     "name": "FMAddHostRounding<Float32>",
@@ -468,6 +365,61 @@
     "feature": "AVX",
     "in": [ 1, 2 ],
     "out": [ 0 ]
+  },
+  {
+    "name": "FeGetExceptions",
+    "insn": "MacroFeGetExceptionsTranslate",
+    "usage": "inline-only",
+    "in": [],
+    "out": [ 1 ]
+  },
+  {
+    "name": "FeSetExceptionsAndRoundImm",
+    "insn": "MacroFeSetExceptionsAndRoundImmTranslate",
+    "usage": "inline-only",
+    "in": [ 1 ],
+    "out": []
+  },
+  {
+    "name": "FeSetExceptionsAndRound",
+    "insn": "MacroFeSetExceptionsAndRoundTranslate",
+    "usage": "inline-only",
+    "in": [ 0, 3 ],
+    "out": []
+  },
+  {
+    "name": "FeSetExceptionsImm",
+    "insn": "MacroFeSetExceptionsImmTranslate",
+    "usage": "inline-only",
+    "in": [ 1 ],
+    "out": []
+  },
+  {
+    "name": "FeSetExceptions",
+    "insn": "MacroFeSetExceptionsTranslate",
+    "usage": "inline-only",
+    "in": [ 0 ],
+    "out": []
+  },
+  {
+    "name": "FeSetRound",
+    "insn": "MacroFeSetRound",
+    "in": [ 3 ],
+    "out": []
+  },
+  {
+    "name": "FeSetRoundImm",
+    "insn": "MacroFeSetRoundImmTranslate",
+    "usage": "inline-only",
+    "in": [ 2 ],
+    "out": []
+  },
+  {
+    "name": "FeSetRoundImm",
+    "insn": "MacroFeSetRound",
+    "usage": "no-inline",
+    "in": [ 3 ],
+    "out": []
   },
   {
     "name": "Feq<Float32>",
@@ -650,6 +602,54 @@
     "out": [ 0 ]
   },
   {
+    "name": "Rem<int8_t>",
+    "insn": "RemInt8",
+    "in": [ 1, 0 ],
+    "out": [ 1 ]
+  },
+  {
+    "name": "Rem<int16_t>",
+    "insn": "RemInt16",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<int32_t>",
+    "insn": "RemInt32",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<int64_t>",
+    "insn": "RemInt64",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<uint8_t>",
+    "insn": "RemUInt8",
+    "in": [ 1, 0 ],
+    "out": [ 1 ]
+  },
+  {
+    "name": "Rem<uint16_t>",
+    "insn": "RemUInt16",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<uint32_t>",
+    "insn": "RemUInt32",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
+    "name": "Rem<uint64_t>",
+    "insn": "RemUInt64",
+    "in": [ 1, 0 ],
+    "out": [ 2 ]
+  },
+  {
     "name": "Rev8",
     "insn": "BswapqReg",
     "in": [ 0 ],
@@ -680,14 +680,14 @@
     "out": [ 0 ]
   },
   {
-    "name": "Sext<int16_t>",
-    "insn": "MovsxwqRegReg",
+    "name": "Sext<int8_t>",
+    "insn": "MovsxbqRegReg",
     "in": [ 1 ],
     "out": [ 0 ]
   },
   {
-    "name": "Sext<int8_t>",
-    "insn": "MovsxbqRegReg",
+    "name": "Sext<int16_t>",
+    "insn": "MovsxwqRegReg",
     "in": [ 1 ],
     "out": [ 0 ]
   },
