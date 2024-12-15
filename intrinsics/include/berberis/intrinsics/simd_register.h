@@ -37,13 +37,6 @@ template <typename T>
 template <typename T>
 constexpr T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index) = delete;
 
-[[nodiscard]] constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs);
-[[nodiscard]] constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs);
-[[nodiscard]] constexpr SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs);
-[[nodiscard]] constexpr SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs);
-[[nodiscard]] constexpr SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs);
-[[nodiscard]] constexpr SIMD128Register operator~(SIMD128Register lhs);
-
 #if defined(__GNUC__)
 using Int8x16 = char __attribute__((__vector_size__(16), may_alias));
 using UInt8x16 = unsigned char __attribute__((__vector_size__(16), may_alias));
@@ -55,6 +48,11 @@ using UInt64x2 = unsigned long long __attribute__((__vector_size__(16), may_alia
 using Float64x2 = double __attribute__((__vector_size__(16), may_alias));
 using Int64x2 = long long __attribute__((__vector_size__(16), __aligned__(16), may_alias));
 using Float32x4 = float __attribute__((__vector_size__(16), __aligned__(16), may_alias));
+
+// Forward declaration for operator==(SIMD128Register, SIMD128Register)
+class SIMD128Register;
+template <>
+constexpr Int64x2 SIMD128RegisterGet<Int64x2>(const SIMD128Register* reg, int index);
 
 using UInt8x16Tuple =
     std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t,
@@ -218,15 +216,41 @@ class SIMD128Register {
     }
   }
 #if defined(__GNUC__)
-  friend constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs);
-  friend constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs);
-  friend constexpr SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs);
+  // Note: it's important for us to keep these as hidden friends, otherwise compiler can decide to
+  // use that comparison operator for types that would, otherwise, be incomparable.
+  // E.g. it may use this operator to compare UInt128 and Int128 (b/384343268).
+  [[nodiscard]] friend constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs) {
+    // Note comparison of two vectors return vector of the same type. In such a case we need to
+    // merge many bools that we got.
+    // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
+    // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
+    return SIMD128Register::compareVectors(lhs.Get<Int64x2>(), rhs.Get<Int64x2>());
+  }
+  [[nodiscard]] friend constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs) {
+    // Note comparison of two vectors return vector of the same type. In such a case we need to
+    // merge many bools that we got.
+    // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
+    // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
+    return !SIMD128Register::compareVectors(lhs.Get<Int64x2>(), rhs.Get<Int64x2>());
+  }
+  [[nodiscard]] friend constexpr SIMD128Register operator&(SIMD128Register lhs,
+                                                           SIMD128Register rhs) {
+    return lhs.Get<Int64x2>() & rhs.Get<Int64x2>();
+  }
   constexpr SIMD128Register& operator&=(SIMD128Register other) { return *this = *this & other; }
-  friend constexpr SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs);
+  [[nodiscard]] friend constexpr SIMD128Register operator|(SIMD128Register lhs,
+                                                           SIMD128Register rhs) {
+    return lhs.Get<Int64x2>() | rhs.Get<Int64x2>();
+  }
   constexpr SIMD128Register& operator|=(SIMD128Register other) { return *this = *this | other; }
-  friend constexpr SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs);
+  [[nodiscard]] friend constexpr SIMD128Register operator^(SIMD128Register lhs,
+                                                           SIMD128Register rhs) {
+    return lhs.Get<Int64x2>() ^ rhs.Get<Int64x2>();
+  }
   constexpr SIMD128Register& operator^=(SIMD128Register other) { return *this = *this ^ other; }
-  friend constexpr SIMD128Register operator~(SIMD128Register lhs);
+  [[nodiscard]] friend constexpr SIMD128Register operator~(SIMD128Register lhs) {
+    return ~lhs.Get<Int64x2>();
+  }
 #endif
 
  private:
@@ -396,32 +420,6 @@ SIMD_128_FLOAT_REGISTER_GETTER_SETTER(intrinsics::Float64, double, float64);
 #undef SIMD_128_STDINT_REGISTER_GETTER_SETTER
 
 #if defined(__GNUC__)
-[[nodiscard]] constexpr bool operator==(SIMD128Register lhs, SIMD128Register rhs) {
-  // Note comparison of two vectors return vector of the same type. In such a case we need to
-  // merge many bools that we got.
-  // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
-  // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-  return SIMD128Register::compareVectors(lhs.Get<Int64x2>(), rhs.Get<Int64x2>());
-}
-[[nodiscard]] constexpr bool operator!=(SIMD128Register lhs, SIMD128Register rhs) {
-  // Note comparison of two vectors return vector of the same type. In such a case we need to
-  // merge many bools that we got.
-  // On CPUs with _mm_movemask_epi8 (native, like on x86, or emulated, like on Power)
-  // _mm_movemask_epi8 return 0xffff if and only if all comparisons returned true.
-  return !SIMD128Register::compareVectors(lhs.Get<Int64x2>(), rhs.Get<Int64x2>());
-}
-[[nodiscard]] constexpr SIMD128Register operator&(SIMD128Register lhs, SIMD128Register rhs) {
-  return lhs.Get<Int64x2>() & rhs.Get<Int64x2>();
-}
-[[nodiscard]] constexpr SIMD128Register operator|(SIMD128Register lhs, SIMD128Register rhs) {
-  return lhs.Get<Int64x2>() | rhs.Get<Int64x2>();
-}
-[[nodiscard]] constexpr SIMD128Register operator^(SIMD128Register lhs, SIMD128Register rhs) {
-  return lhs.Get<Int64x2>() ^ rhs.Get<Int64x2>();
-}
-[[nodiscard]] constexpr SIMD128Register operator~(SIMD128Register lhs) {
-  return ~lhs.Get<Int64x2>();
-}
 #endif
 
 }  // namespace berberis
