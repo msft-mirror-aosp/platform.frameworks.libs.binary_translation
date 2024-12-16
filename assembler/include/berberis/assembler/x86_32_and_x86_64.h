@@ -169,20 +169,32 @@ class Assembler : public AssemblerBase {
   static constexpr X87Register st6{6};
   static constexpr X87Register st7{7};
 
-  class XMMRegister {
+  template <int kBits>
+  class SIMDRegister {
    public:
-    constexpr bool operator==(const XMMRegister& reg) const { return num_ == reg.num_; }
-    constexpr bool operator!=(const XMMRegister& reg) const { return num_ != reg.num_; }
+    constexpr bool operator==(const SIMDRegister& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const SIMDRegister& reg) const { return num_ != reg.num_; }
     constexpr uint8_t GetPhysicalIndex() { return num_; }
-    friend constexpr uint8_t ValueForFmtSpec(XMMRegister value) { return value.num_; }
+    friend constexpr uint8_t ValueForFmtSpec(SIMDRegister value) { return value.num_; }
     friend class Assembler<DerivedAssemblerType>;
     friend class x86_32::Assembler;
     friend class x86_64::Assembler;
+    friend class SIMDRegister<384 - kBits>;
+
+    constexpr auto To128Bit() const {
+      return std::enable_if_t<kBits != 128, SIMDRegister<128>>{num_};
+    }
+    constexpr auto To256Bit() const {
+      return std::enable_if_t<kBits != 256, SIMDRegister<256>>{num_};
+    }
 
    private:
-    explicit constexpr XMMRegister(uint8_t num) : num_(num) {}
+    explicit constexpr SIMDRegister(uint8_t num) : num_(num) {}
     uint8_t num_;
   };
+
+  using XMMRegister = SIMDRegister<128>;
+  using YMMRegister = SIMDRegister<256>;
 
   enum ScaleFactor { kTimesOne = 0, kTimesTwo = 1, kTimesFour = 2, kTimesEight = 3 };
 
@@ -322,46 +334,53 @@ class Assembler : public AssemblerBase {
     uint8_t num_;
   };
 
-  struct Register32Bit {
-    explicit constexpr Register32Bit(Register reg) : num_(reg.num_) {}
-    explicit constexpr Register32Bit(XMMRegister reg) : num_(reg.num_) {}
+  // Any register number that doesn't need special processing.
+  struct SizeAgnosticRegister {
+    explicit constexpr SizeAgnosticRegister(Register reg) : num_(reg.num_) {}
+    explicit constexpr SizeAgnosticRegister(XMMRegister reg) : num_(reg.num_) {}
+    explicit constexpr SizeAgnosticRegister(YMMRegister reg) : num_(reg.num_) {}
     uint8_t num_;
   };
 
-  // 16-bit and 128-bit vector registers follow the same rules as 32-bit registers.
-  using Register16Bit = Register32Bit;
-  using VectorRegister128Bit = Register32Bit;
+  // 16-bit, 32bit, 128-bit, and 256bit vector registers don't need special rules.
+  using Register16Bit = SizeAgnosticRegister;
+  using Register32Bit = SizeAgnosticRegister;
+  using VectorRegister128Bit = SizeAgnosticRegister;
+  using VectorRegister256Bit = SizeAgnosticRegister;
   // Certain instructions (Enter/Leave, Jcc/Jmp/Loop, Call/Ret, Push/Pop) always operate
   // on registers of default size (32-bit in 32-bit mode, 64-bit in 64-bit mode (see
   // "Instructions Not Requiring REX Prefix in 64-Bit Mode" table in 24594 AMD Manual)
-  // Map these to Register32Bit, too, since they don't need REX.W even in 64-bit mode.
+  // Map these to SizeAgnosticRegister, too, since they don't need REX.W even in 64-bit mode.
   //
   // x87 instructions fall into that category, too, since they were not expanded in x86-64 mode.
-  using RegisterDefaultBit = Register32Bit;
+  using RegisterDefaultBit = SizeAgnosticRegister;
 
-  struct Memory32Bit {
-    explicit Memory32Bit(const Operand& op) : operand(op) {}
+  // Any memory address that doesn't need special processing.
+  struct SizeAgnosticMemory {
+    explicit SizeAgnosticMemory(const Operand& op) : operand(op) {}
     Operand operand;
   };
 
   // 8-bit, 16-bit, 128-bit memory behave the same as 32-bit memory.
   // Only 64-bit memory is different.
-  using Memory8Bit = Memory32Bit;
-  using Memory16Bit = Memory32Bit;
+  using Memory8Bit = SizeAgnosticMemory;
+  using Memory16Bit = SizeAgnosticMemory;
+  using Memory32Bit = SizeAgnosticMemory;
   // Some instructions have memory operand that have unspecified size (lea, prefetch, etc),
-  // they are encoded like Memory32Bit, anyway.
-  using MemoryDefaultBit = Memory32Bit;
+  // they are encoded like SizeAgnosticMemory, anyway.
+  using MemoryDefaultBit = SizeAgnosticMemory;
   // X87 instructions always use the same encoding - even for 64-bit or 28-bytes
   // memory operands (like in fldenv/fnstenv)
-  using MemoryX87 = Memory32Bit;
-  using MemoryX8716Bit = Memory32Bit;
-  using MemoryX8732Bit = Memory32Bit;
-  using MemoryX8764Bit = Memory32Bit;
-  using MemoryX8780Bit = Memory32Bit;
+  using MemoryX87 = SizeAgnosticMemory;
+  using MemoryX8716Bit = SizeAgnosticMemory;
+  using MemoryX8732Bit = SizeAgnosticMemory;
+  using MemoryX8764Bit = SizeAgnosticMemory;
+  using MemoryX8780Bit = SizeAgnosticMemory;
   // Most vector instructions don't need to use REX.W to access 64-bit or 128-bit memory.
-  using VectorMemory32Bit = Memory32Bit;
-  using VectorMemory64Bit = Memory32Bit;
-  using VectorMemory128Bit = Memory32Bit;
+  using VectorMemory32Bit = SizeAgnosticMemory;
+  using VectorMemory64Bit = SizeAgnosticMemory;
+  using VectorMemory128Bit = SizeAgnosticMemory;
+  using VectorMemory256Bit = SizeAgnosticMemory;
 
   // Labels types for memory quantities.  Note that names are similar to the ones before because
   // they are autogenerated.  E.g. VectorLabel32Bit should be read as “VECTOR's operation LABEL
@@ -774,6 +793,21 @@ class Assembler : public AssemblerBase {
             typename ArgumentsType0,
             typename ArgumentsType1,
             typename ArgumentsType2,
+            typename... ArgumentsTypes>
+  void EmitVexRegToRmInstruction(ArgumentsType0&& argument0,
+                                 ArgumentsType1&& argument1,
+                                 ArgumentsType2&& argument2,
+                                 ArgumentsTypes&&... arguments) {
+    return EmitInstruction<kOpcodes...>(std::forward<ArgumentsType1>(argument2),
+                                        std::forward<ArgumentsType0>(argument0),
+                                        std::forward<ArgumentsType2>(argument1),
+                                        std::forward<ArgumentsTypes>(arguments)...);
+  }
+
+  template <uint8_t... kOpcodes,
+            typename ArgumentsType0,
+            typename ArgumentsType1,
+            typename ArgumentsType2,
             typename ArgumentsType3,
             typename... ArgumentsTypes>
   void EmitVexRmImmToRegInstruction(ArgumentsType0&& argument0,
@@ -896,11 +930,11 @@ template <typename DerivedAssemblerType>
 inline void Assembler<DerivedAssemblerType>::Xchgl(Register dest, Register src) {
   if (DerivedAssemblerType::IsAccumulator(src) || DerivedAssemblerType::IsAccumulator(dest)) {
     Register other = DerivedAssemblerType::IsAccumulator(src) ? dest : src;
-    EmitInstruction<0x90>(Register32Bit(other));
+    EmitInstruction<0x90>(SizeAgnosticRegister(other));
   } else {
     // Clang 8 (after r330298) puts dest before src.  We are comparing output
     // to clang in exhaustive test thus we want to match clang behavior exactly.
-    EmitInstruction<0x87>(Register32Bit(dest), Register32Bit(src));
+    EmitInstruction<0x87>(SizeAgnosticRegister(dest), SizeAgnosticRegister(src));
   }
 }
 
