@@ -139,7 +139,9 @@ class SIMD128Register {
   static bool compareVectors(T x, T y) {
     T res = x == y;
     bool result = true;
-    for (int i = 0; i < int{sizeof(SIMD128Register) / sizeof(T)}; ++i) {
+    // Note: std::size couldn't be used here because __vector_size__ based vector is different type
+    // from regular vector.
+    for (size_t i = 0; i < sizeof(res) / sizeof(res[0]); ++i) {
       result &= res[i];
     }
     return result;
