@@ -4089,6 +4089,12 @@ TEST(Arm64InsnTest, ShiftLeftLongInt8x8) {
   ASSERT_EQ(res, MakeUInt128(0x2000200019009500ULL, 0x2600500069007600ULL));
 }
 
+TEST(Arm64InsnTest, UnsignedShiftLeftLongInt8x8) {
+  __uint128_t arg = MakeUInt128(0x2650697620201995ULL, 0x5484126500053944ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("ushll %0.8h, %1.8b, #4")(arg);
+  ASSERT_EQ(res, MakeUInt128(0x200020001900950ULL, 0x260050006900760ULL));
+}
+
 TEST(Arm64InsnTest, ShiftLeftLongInt8x8Upper) {
   __uint128_t arg = MakeUInt128(0x9050429225978771ULL, 0x0667873840000616ULL);
   __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("shll2 %0.8h, %1.16b, #8")(arg);
