@@ -124,11 +124,13 @@ cc_defaults {
     arch: {
         arm: {
             srcs: [
+                "arm/handle_not_executable_test.cc",
                 "arm/sigill_test.cc",
             ],
         },
         arm64: {
             srcs: [
+                "arm64/handle_not_executable_test.cc",
                 "arm64/runtime_code_patching_test.cc",
                 "arm64/sigill_test.cc",
             ],
@@ -149,7 +151,6 @@ cc_defaults {
             srcs: [
                 "arm/arm_test.cc",
                 "arm/cpu_features_test.cc",
-                "arm/handle_not_executable_test.cc",
                 "arm/neon_test.cc",
                 "arm/runtime_code_patching_test.cc",
                 "arm/syscall_test.cc",
@@ -160,7 +161,6 @@ cc_defaults {
         arm64: {
             srcs: [
                 "arm64/cpu_features_test.cc",
-                "arm64/handle_not_executable_test.cc",
             ],
         },
     },

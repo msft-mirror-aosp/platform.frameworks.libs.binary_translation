@@ -17,6 +17,7 @@
 #ifndef BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
 #define BERBERIS_LITE_TRANSLATOR_LITE_TRANSLATE_REGION_H_
 
+#include <limits>
 #include <tuple>
 
 #include "berberis/assembler/machine_code.h"
@@ -28,6 +29,9 @@
 namespace berberis {
 
 struct LiteTranslateParams {
+  // This effectively makes translating code at max guest address impossible, but we
+  // assume that it's not practically significant.
+  GuestAddr end_pc = std::numeric_limits<GuestAddr>::max();
   bool allow_dispatch = true;
   bool enable_reg_mapping = true;
   bool enable_self_profiling = false;
