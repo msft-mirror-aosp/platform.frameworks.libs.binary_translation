@@ -43,6 +43,9 @@ class TinyLoader {
   static bool LoadFromMemory(const char* path, void* address, size_t size,
                              LoadedElfFile* loaded_elf_file, std::string* error_msg);
 
+  // Returns 0 in the case of error.
+  static size_t CalculateLoadSize(const char* path, std::string* error_msg);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TinyLoader);
 };

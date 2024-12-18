@@ -16,35 +16,42 @@
 
 #include "gtest/gtest.h"
 
+#include "berberis/guest_os_primitives/guest_map_shadow.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/translation_cache.h"
+#include "berberis/test_utils/scoped_guest_exec_region.h"
+#include "berberis/test_utils/translation_test.h"
 
-#include "translator_riscv64.h"
+#include "translator_x86_64.h"
 
 namespace berberis {
 
 namespace {
 
-TEST(TranslatorRiscv64, LiteTranslateSupportedRegion) {
+class TranslatorRiscv64ToX86_64 : public TranslationTest {};
+
+TEST_F(TranslatorRiscv64ToX86_64, LiteTranslateSupportedRegion) {
   static const uint32_t code[] = {
       0x002081b3,  // add x3, x1, x2
       0x008000ef,  // jal x1, 8
   };
+  ScopedGuestExecRegion exec_region(ToGuestAddr(code), sizeof(code));
 
   auto [success, host_code_piece, guest_size, kind] =
       TryLiteTranslateAndInstallRegion(ToGuestAddr(code));
 
   EXPECT_TRUE(success);
-  EXPECT_NE(host_code_piece.code, nullptr);
+  EXPECT_NE(host_code_piece.code, kNullHostCodeAddr);
   EXPECT_GT(host_code_piece.size, 0U);
   EXPECT_EQ(guest_size, 8U);
-  EXPECT_EQ(kind, GuestCodeEntry::Kind::kLightTranslated);
+  EXPECT_EQ(kind, GuestCodeEntry::Kind::kLiteTranslated);
 }
 
-TEST(TranslatorRiscv64, LiteTranslateUnsupportedRegion) {
+TEST_F(TranslatorRiscv64ToX86_64, LiteTranslateUnsupportedRegion) {
   static const uint32_t code[] = {
       0x00000073,  // ecall #0x0
   };
+  ScopedGuestExecRegion exec_region(ToGuestAddr(code), sizeof(code));
 
   auto [success, host_code_piece, guest_size, kind] =
       TryLiteTranslateAndInstallRegion(ToGuestAddr(code));
@@ -52,26 +59,28 @@ TEST(TranslatorRiscv64, LiteTranslateUnsupportedRegion) {
   EXPECT_FALSE(success);
 }
 
-TEST(TranslatorRiscv64, LiteTranslatePartiallySupportedRegion) {
+TEST_F(TranslatorRiscv64ToX86_64, LiteTranslatePartiallySupportedRegion) {
   static const uint32_t code[] = {
       0x002081b3,  // add x3, x1, x2
       0x00000073,  // ecall #0x0
   };
+  ScopedGuestExecRegion exec_region(ToGuestAddr(code), sizeof(code));
 
   auto [success, host_code_piece, guest_size, kind] =
       TryLiteTranslateAndInstallRegion(ToGuestAddr(code));
 
   EXPECT_TRUE(success);
-  EXPECT_NE(host_code_piece.code, nullptr);
+  EXPECT_NE(host_code_piece.code, kNullHostCodeAddr);
   EXPECT_GT(host_code_piece.size, 0U);
   EXPECT_EQ(guest_size, 4U);
-  EXPECT_EQ(kind, GuestCodeEntry::Kind::kLightTranslated);
+  EXPECT_EQ(kind, GuestCodeEntry::Kind::kLiteTranslated);
 }
 
-TEST(TranslatorRiscv64, HeavyOptimizeSupportedRegion) {
+TEST_F(TranslatorRiscv64ToX86_64, HeavyOptimizeSupportedRegion) {
   static const uint32_t code[] = {
       0x008000ef,  // jal x1, 8
   };
+  ScopedGuestExecRegion exec_region(ToGuestAddr(code), sizeof(code));
 
   auto [success, host_code_piece, guest_size, kind] = HeavyOptimizeRegion(ToGuestAddr(code));
 
@@ -82,10 +91,11 @@ TEST(TranslatorRiscv64, HeavyOptimizeSupportedRegion) {
   EXPECT_EQ(kind, GuestCodeEntry::Kind::kHeavyOptimized);
 }
 
-TEST(TranslatorRiscv64, HeavyOptimizeUnsupportedRegion) {
+TEST_F(TranslatorRiscv64ToX86_64, HeavyOptimizeUnsupportedRegion) {
   static const uint32_t code[] = {
       0x0000100f,  // fence.i
   };
+  ScopedGuestExecRegion exec_region(ToGuestAddr(code), sizeof(code));
 
   auto [success, host_code_piece, guest_size, kind] = HeavyOptimizeRegion(ToGuestAddr(code));
 

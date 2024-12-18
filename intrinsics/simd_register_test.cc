@@ -27,6 +27,15 @@ namespace {
 constexpr Int64x2 kLhs = {0x5555'5555'5555'5555, 0x5555'5555'5555'5555};
 constexpr Int64x2 kRhs = {0x3333'3333'3333'3333, 0x3333'3333'3333'3333};
 
+// Because comparison on SIMD128Register is based on comparison of UInt64x2 which produces
+// array and not bool we have to ensure we are processing these correctly.
+// This caused issues in the past, see b/384140395
+TEST(SIMD_REGISTER, TestCmp) {
+  SIMD128Register lhs = Int64x2{0, 1};
+  SIMD128Register rhs = Int64x2{0, 0};
+  ASSERT_NE(lhs, rhs);
+}
+
 TEST(SIMD_REGISTER, TestEq) {
   SIMD128Register lhs = kLhs;
   ASSERT_EQ(lhs, lhs);

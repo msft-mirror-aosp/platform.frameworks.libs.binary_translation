@@ -206,6 +206,10 @@ Assembler::XMMRegister GetXReg(MachineReg r) {
   return kHardRegs[r.reg() - kMachineRegXMM0.reg()];
 }
 
+Assembler::YMMRegister GetYReg(MachineReg r) {
+  return GetXReg(r).To256Bit();
+}
+
 Assembler::ScaleFactor ToScaleFactor(MachineMemOperandScale scale) {
   switch (scale) {
     case MachineMemOperandScale::kOne:

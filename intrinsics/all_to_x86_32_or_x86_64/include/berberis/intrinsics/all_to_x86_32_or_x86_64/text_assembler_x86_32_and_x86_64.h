@@ -32,7 +32,19 @@ namespace berberis {
 
 namespace constants_pool {
 
-int32_t GetOffset(int32_t address);
+// Note: kBerberisMacroAssemblerConstantsRelocated is the same as original,
+// unrelocated version in 32-bit world.  But in 64-bit world it's copy on the first 2GiB.
+//
+// Our builder could be built as 64-bit binary thus we must not mix them.
+//
+// Note: we have CHECK_*_LAYOUT tests in macro_assembler_common_x86.cc to make sure
+// offsets produced by 64-bit builder are usable in 32-bit libberberis.so
+
+extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
+
+inline int32_t GetOffset(int32_t address) {
+  return address - constants_pool::kBerberisMacroAssemblerConstantsRelocated;
+}
 
 }  // namespace constants_pool
 
@@ -141,20 +153,41 @@ class TextAssembler {
     int arg_no_;
   };
 
-  class XMMRegister {
+  template <int kBits>
+  class SIMDRegister {
    public:
-    constexpr XMMRegister(int arg_no) : arg_no_(arg_no) {}
+    friend class SIMDRegister<384 - kBits>;
+    constexpr SIMDRegister(int arg_no) : arg_no_(arg_no) {}
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
 
-    constexpr bool operator==(const XMMRegister& other) const { return arg_no() == other.arg_no(); }
-    constexpr bool operator!=(const XMMRegister& other) const { return arg_no() != other.arg_no(); }
+    constexpr bool operator==(const SIMDRegister& other) const {
+      return arg_no() == other.arg_no();
+    }
+    constexpr bool operator!=(const SIMDRegister& other) const {
+      return arg_no() != other.arg_no();
+    }
+
+    constexpr auto To128Bit() const {
+      return std::enable_if_t<kBits != 128, SIMDRegister<128>>{arg_no_};
+    }
+    constexpr auto To256Bit() const {
+      return std::enable_if_t<kBits != 256, SIMDRegister<256>>{arg_no_};
+    }
 
     template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const XMMRegister& reg, MacroAssembler*) {
-      return '%' + std::to_string(reg.arg_no());
+    friend const std::string ToGasArgument(const SIMDRegister& reg, MacroAssembler*) {
+      if constexpr (kBits == 128) {
+        return "%x" + std::to_string(reg.arg_no());
+      } else if constexpr (kBits == 256) {
+        return "%t" + std::to_string(reg.arg_no());
+      } else if constexpr (kBits == 512) {
+        return "%g" + std::to_string(reg.arg_no());
+      } else {
+        static_assert(kDependentValueFalse<kBits>);
+      }
     }
 
    private:
@@ -165,6 +198,9 @@ class TextAssembler {
     static constexpr int kNoRegister = -1;
     int arg_no_;
   };
+
+  using XMMRegister = SIMDRegister<128>;
+  using YMMRegister = SIMDRegister<256>;
 
   struct Operand {
     Register base = Register{Register::kNoRegister};
@@ -236,6 +272,7 @@ class TextAssembler {
   Register gpr_macroassembler_scratch2{Register::kNoRegister};
 
   bool need_avx = false;
+  bool need_avx2 = false;
   bool need_bmi = false;
   bool need_bmi2 = false;
   bool need_fma = false;
@@ -246,6 +283,7 @@ class TextAssembler {
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
   bool need_sse4_2 = false;
+  bool has_custom_capability = false;
 
   void Bind(Label* label) {
     CHECK_EQ(label->bound, false);
@@ -367,6 +405,9 @@ class TextAssembler {
       return "host_platform::kHasSSE4_2";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
       return "host_platform::kHasSSSE3";
+    } else if constexpr (std::is_same_v<CPUIDRestriction,
+                                        intrinsics::bindings::HasCustomCapability>) {
+      return "host_platform::kHasCustomCapability";
     } else {
       static_assert(kDependentTypeFalse<CPUIDRestriction>);
     }
@@ -409,6 +450,11 @@ class TextAssembler {
   void SetRequiredFeatureAVX() {
     need_avx = true;
     SetRequiredFeatureSSE4_2();
+  }
+
+  void SetRequiredFeatureAVX2() {
+    need_avx2 = true;
+    SetRequiredFeatureAVX();
   }
 
   void SetRequiredFeatureBMI() {
@@ -457,6 +503,8 @@ class TextAssembler {
     need_sse4_2 = true;
     SetRequiredFeatureSSE4_1();
   }
+
+  void SetHasCustomCapability() { has_custom_capability = true; }
 
   template <typename... Args>
   void Instruction(const char* name, Condition cond, const Args&... args);
@@ -564,18 +612,22 @@ template <typename DerivedAssemblerType>
 template <typename... Args>
 inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
                                                              const Args&... args) {
-  for (auto it : std::array<std::tuple<const char*, const char*>, 18>{
+  for (auto it : std::array<std::tuple<const char*, const char*>, 22>{
            {// Note: SSE doesn't include simple register-to-register move instruction.
             // You are supposed to use one of half-dozen variants depending on what you
             // are doing.
             //
             // Pseudoinstructions with embedded "lock" prefix.
-            {"LockCmpXchg8b", "Lock; CmppXchg8b"},
-            {"LockCmpXchg16b", "Lock; CmppXchg16b"},
-            {"LockCmpXchgb", "Lock; CmppXchgb"},
-            {"LockCmpXchgl", "Lock; CmppXchgl"},
-            {"LockCmpXchgq", "Lock; CmppXchgq"},
-            {"LockCmpXchgw", "Lock; CmppXchgq"},
+            {"Lock Xaddb", "Lock; Xaddb"},
+            {"Lock Xaddw", "Lock; Xaddw"},
+            {"Lock Xaddl", "Lock; Xaddl"},
+            {"Lock Xaddq", "Lock; Xaddq"},
+            {"Lock CmpXchg8b", "Lock; CmpXchg8b"},
+            {"Lock CmpXchg16b", "Lock; CmpXchg16b"},
+            {"Lock CmpXchgb", "Lock; CmpXchgb"},
+            {"Lock CmpXchgl", "Lock; CmpXchgl"},
+            {"Lock CmpXchgq", "Lock; CmpXchgq"},
+            {"Lock CmpXchgw", "Lock; CmpXchgw"},
             // Our assembler has Pmov instruction which is supposed to pick the best
             // option - but currently we just map Pmov to Movaps.
             {"Pmov", "Movaps"},

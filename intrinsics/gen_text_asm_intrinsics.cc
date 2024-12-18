@@ -38,24 +38,6 @@
 
 namespace berberis {
 
-namespace constants_pool {
-
-// Note: kBerberisMacroAssemblerConstantsRelocated is the same as original,
-// unrelocated version in 32-bit world.  But in 64-bit world it's copy on the first 2GiB.
-//
-// Our builder could be built as 64-bit binary thus we must not mix them.
-//
-// Note: we have CHECK_*_LAYOUT tests in macro_assembler_common_x86.cc to make sure
-// offsets produced by 64-bit builder are usable in 32-bit libberberis.so
-
-extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
-
-int32_t GetOffset(int32_t address) {
-  return address - constants_pool::kBerberisMacroAssemblerConstantsRelocated;
-}
-
-}  // namespace constants_pool
-
 template <typename AsmCallInfo>
 void GenerateOutputVariables(FILE* out, int indent);
 template <typename AsmCallInfo>
@@ -105,7 +87,8 @@ void GenerateFunctionHeader(FILE* out, int indent) {
   }
   std::vector<std::string> ins;
   for (const char* type_name : AsmCallInfo::InputArgumentsTypeNames) {
-    ins.push_back(std::string(type_name) + " in" + std::to_string(ins.size()));
+    ins.push_back("[[maybe_unused]] " + std::string(type_name) + " in" +
+                  std::to_string(ins.size()));
   }
   GenerateElementsList<AsmCallInfo>(out, indent, prefix, ") {", ins);
   fprintf(out,

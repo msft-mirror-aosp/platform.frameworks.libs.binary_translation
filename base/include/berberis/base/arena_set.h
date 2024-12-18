@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
-#define BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
+#ifndef BERBERIS_BASE_ARENA_SET_H_
+#define BERBERIS_BASE_ARENA_SET_H_
 
-#include <cstddef>
-#include <cstdint>
+#include <set>
 
-#include "exec_region.h"
+#include "berberis/base/arena_alloc.h"
 
 namespace berberis {
 
-class ExecRegionAnonymousFactory {
- public:
-  // Size of anonymous executable code region.
-  static constexpr uint32_t kExecRegionSize = 4 * 1024 * 1024;
-
-  static ExecRegion Create(size_t size);
-};
+template <typename Type, typename Compare = std::less<Type> >
+using ArenaSet = std::set<Type, Compare, ArenaAllocator<Type> >;
 
 }  // namespace berberis
 
-#endif  // BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
+#endif  // BERBERIS_BASE_ARENA_SET_H_

@@ -62,6 +62,13 @@
       ]
     },
     {
+      "name": "YmmReg",
+      "size": 32,
+      "regs": [
+        "XmmReg"
+      ]
+    },
+    {
       "name": "Reg64",
       "size": 8,
       "regs": [
@@ -119,6 +126,13 @@
       ]
     },
     {
+      "name": "VecReg256",
+      "size": 32,
+      "regs": [
+        "XmmReg"
+      ]
+    },
+    {
       "name": "RAX",
       "size": 8,
       "regs": [
@@ -135,6 +149,13 @@
     {
       "name": "AX",
       "size": 2,
+      "regs": [
+        "RAX"
+      ]
+    },
+    {
+      "name": "AL",
+      "size": 1,
       "regs": [
         "RAX"
       ]
