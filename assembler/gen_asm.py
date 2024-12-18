@@ -25,6 +25,8 @@ import sys
 
 INDENT = '  '
 
+ROUNDING_MODES = ['FE_TONEAREST', 'FE_DOWNWARD', 'FE_UPWARD', 'FE_TOWARDZERO', 'FE_TIESAWAY']
+
 _imm_types = {
     # x86 immediates
     'Imm2': 'int8_t',
@@ -56,6 +58,8 @@ def _get_arg_type_name(arg, insn_type):
     return 'FpRegister'
   if asm_defs.is_xreg(cls):
     return 'XMMRegister'
+  if asm_defs.is_yreg(cls):
+    return 'YMMRegister'
   if asm_defs.is_imm(cls):
     return _imm_types[cls]
   if asm_defs.is_disp(cls):
@@ -108,6 +112,7 @@ def _get_template_name(insn):
   if '<' not in name:
     return None, name
   return 'template <%s>' % ', '.join(
+      'int' if param.strip() in ROUNDING_MODES else
       'bool' if param.strip() in ('true', 'false') else
       'typename' if re.search('[_a-zA-Z]', param) else 'int'
       for param in name.split('<',1)[1][:-1].split(',')), name.split('<')[0]
@@ -378,10 +383,13 @@ _ARGUMENT_FORMATS_TO_SIZES = {
   'MemX8780': 'MemoryX8780Bit',
   'RegX87': 'X87Register',
   'XmmReg' : 'VectorRegister128Bit',
+  'YmmReg' : 'VectorRegister256Bit',
   'VecMem32': 'VectorMemory32Bit',
   'VecMem64': 'VectorMemory64Bit',
   'VecMem128': 'VectorMemory128Bit',
-  'VecReg128' : 'VectorRegister128Bit'
+  'VecMem256': 'VectorMemory256Bit',
+  'VecReg128' : 'VectorRegister128Bit',
+  'VecReg256' : 'VectorRegister256Bit'
 }
 
 

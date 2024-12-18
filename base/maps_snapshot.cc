@@ -22,13 +22,14 @@
 #include <optional>
 
 #include "berberis/base/arena_string.h"
+#include "berberis/base/forever_alloc.h"
 #include "berberis/base/tracing.h"
 
 namespace berberis {
 
 MapsSnapshot* MapsSnapshot::GetInstance() {
-  static MapsSnapshot g_maps_snapshot;
-  return &g_maps_snapshot;
+  static auto* g_maps_snapshot = PrivateNewForever<MapsSnapshot>::Alloc();
+  return g_maps_snapshot;
 }
 
 void MapsSnapshot::Update() {

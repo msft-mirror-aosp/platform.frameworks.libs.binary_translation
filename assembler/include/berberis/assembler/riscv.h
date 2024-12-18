@@ -762,6 +762,53 @@ class Assembler : public AssemblerBase {
   static constexpr FpRegister ft10{30};
   static constexpr FpRegister ft11{31};
 
+  class VRegister {
+   public:
+    constexpr bool operator==(const VRegister& reg) const { return num_ == reg.num_; }
+    constexpr bool operator!=(const VRegister& reg) const { return num_ != reg.num_; }
+    constexpr uint8_t GetPhysicalIndex() { return num_; }
+    friend constexpr uint8_t ValueForFmtSpec(VRegister value) { return value.num_; }
+    friend class Assembler<DerivedAssemblerType>;
+
+   private:
+    explicit constexpr VRegister(uint8_t num) : num_(num) {}
+    uint8_t num_;
+  };
+
+  static constexpr VRegister no_v_register{0x80};
+  static constexpr VRegister v0{0};
+  static constexpr VRegister v1{1};
+  static constexpr VRegister v2{2};
+  static constexpr VRegister v3{3};
+  static constexpr VRegister v4{4};
+  static constexpr VRegister v5{5};
+  static constexpr VRegister v6{6};
+  static constexpr VRegister v7{7};
+  static constexpr VRegister v8{8};
+  static constexpr VRegister v9{9};
+  static constexpr VRegister v10{10};
+  static constexpr VRegister v11{11};
+  static constexpr VRegister v12{12};
+  static constexpr VRegister v13{13};
+  static constexpr VRegister v14{14};
+  static constexpr VRegister v15{15};
+  static constexpr VRegister v16{16};
+  static constexpr VRegister v17{17};
+  static constexpr VRegister v18{18};
+  static constexpr VRegister v19{19};
+  static constexpr VRegister v20{20};
+  static constexpr VRegister v21{21};
+  static constexpr VRegister v22{22};
+  static constexpr VRegister v23{23};
+  static constexpr VRegister v24{24};
+  static constexpr VRegister v25{25};
+  static constexpr VRegister v26{26};
+  static constexpr VRegister v27{27};
+  static constexpr VRegister v28{28};
+  static constexpr VRegister v29{29};
+  static constexpr VRegister v30{30};
+  static constexpr VRegister v31{31};
+
   template <typename RegisterType, typename ImmediateType>
   struct Operand {
     RegisterType base{0};
@@ -1022,6 +1069,11 @@ class Assembler : public AssemblerBase {
   }
 
   template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
+  void EmitRTypeInstruction(ArgumentsType0&& argument0, ArgumentsType1&& argument1) {
+    return EmitInstruction<kOpcode, 0xfff0'707f>(Rd(argument0), Rs1(argument1));
+  }
+
+  template <uint32_t kOpcode, typename ArgumentsType0, typename ArgumentsType1>
   void EmitRTypeInstruction(ArgumentsType0&& argument0,
                             ArgumentsType1&& argument1,
                             Rounding argument2) {
@@ -1134,7 +1186,7 @@ BERBERIS_DEFINE_LOAD_INSTRUCTION(Lw, 0x0000'2003)
 #undef BERBERIS_DEFINE_LOAD_INSTRUCTION
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Lla(Register arg0, const Label& label) {
+inline void Assembler<DerivedAssemblerType>::La(Register arg0, const Label& label) {
   CHECK_NE(arg0, x0);
   jumps_.push_back(Jump{&label, pc(), false});
   // First issue auipc to load top 20 bits of difference between pc and target address
@@ -1193,7 +1245,7 @@ inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
                   int32_t data : 12;
                 } bottom = {offset};
                 *AddrAs<int32_t>(pc) |= UImmediate{top}.EncodedValue();
-                *AddrAs<int32_t>(pc + 4) |= (*AddrAs<int32_t>(pc + 4) & 32)
+                *AddrAs<int32_t>(pc + 4) |= ((*AddrAs<int32_t>(pc + 4) & 96) == 32)
                                                 ? SImmediate{bottom.data}.EncodedValue()
                                                 : IImmediate{bottom.data}.EncodedValue();
                 return true;
@@ -1219,8 +1271,166 @@ inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
   }
 }
 
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Mv(Register dest, Register src) {
+  Addi(dest, src, 0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Li(Register dest, int32_t imm32) {
+  // If the value fits into 12bit I-Immediate type, load using addi.
+  if (-2048 <= imm32 && imm32 <= 2047) {
+    Addi(dest, Assembler::zero, static_cast<IImmediate>(imm32));
+  } else {
+    // Otherwise we need to use 2 instructions: lui to load top 20 bits and addi for bottom 12 bits,
+    // however since the I-Immediate is signed, we could not just split the number into 2 parts: for
+    // example loading 4095 should result in loading 1 in upper 20 bits (lui 0x1) and then
+    // subtracting 1 (addi dest, dest, -1).
+    // Perform calculations on unsigned type to avoid undefined behavior.
+    uint32_t uimm = static_cast<uint32_t>(imm32);
+    // Since bottom 12bits are loaded via a 12-bit signed immediate, we need to add the sign bit to
+    // the top part.
+    int32_t top = (uimm + ((uimm & (1U << 11)) << 1)) & 0xffff'f000;
+    // Sign extends the bottom 12 bits.
+    struct {
+      int32_t data : 12;
+    } bottom = {imm32};
+    Lui(dest, static_cast<UImmediate>(top));
+    if (bottom.data) {
+      Addi(dest, dest, static_cast<IImmediate>(bottom.data));
+    }
+  }
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Ret() {
+  Jalr(Assembler::x0, Assembler::x1, static_cast<IImmediate>(0));
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(Assembler::x6, UImmediate{0});
+  // The low 12 bite of difference will be added with jalr instruction
+  EmitITypeInstruction<uint32_t{0x0000'0067}>(Assembler::x1, Assembler::x6, IImmediate{0});
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Tail(const Label& label) {
+  jumps_.push_back(Jump{&label, pc(), false});
+  // First issue auipc to load top 20 bits of difference between pc and target address
+  EmitUTypeInstruction<uint32_t{0x0000'0017}>(Assembler::x6, UImmediate{0});
+  // The low 12 bite of difference will be added with jalr instruction
+  EmitITypeInstruction<uint32_t{0x0000'0067}>(Assembler::x0, Assembler::x6, IImmediate{0});
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgt(Register arg0, Register arg1, const Label& label) {
+  Blt(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgtu(Register arg0,
+                                                  Register arg1,
+                                                  const Label& label) {
+  Bltu(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Ble(Register arg0, Register arg1, const Label& label) {
+  Bge(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bleu(Register arg0,
+                                                  Register arg1,
+                                                  const Label& label) {
+  Bgeu(arg1, arg0, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Beqz(Register arg0, const Label& label) {
+  Beq(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bnez(Register arg0, const Label& label) {
+  Bne(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Blez(Register arg0, const Label& label) {
+  Ble(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgez(Register arg0, const Label& label) {
+  Bge(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bltz(Register arg0, const Label& label) {
+  Blt(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Bgtz(Register arg0, const Label& label) {
+  Bgt(arg0, zero, label);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Seqz(Register arg0, Register arg1) {
+  Sltiu(arg0, arg1, static_cast<IImmediate>(1));
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Snez(Register arg0, Register arg1) {
+  Sltu(arg0, zero, arg1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Sltz(Register arg0, Register arg1) {
+  Slt(arg0, arg1, zero);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Sgtz(Register arg0, Register arg1) {
+  Slt(arg0, zero, arg1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::J(JImmediate arg0) {
+  Jal(zero, arg0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jal(JImmediate arg0) {
+  Jal(x1, arg0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jr(Register arg0) {
+  Jalr(zero, arg0, 0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Jalr(Register arg0) {
+  Jalr(x1, arg0, 0);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Not(Register arg0, Register arg1) {
+  Xori(arg0, arg1, -1);
+}
+
+template <typename DerivedAssemblerType>
+inline void Assembler<DerivedAssemblerType>::Neg(Register arg0, Register arg1) {
+  Sub(arg0, zero, arg1);
+}
+
 }  // namespace riscv
 
 }  // namespace berberis
 
-#endif  // BERBERIS_ASSEMBLER_COMMON_X86_H_
+#endif  // BERBERIS_ASSEMBLER_COMMON_RISCV_H_

@@ -104,6 +104,8 @@ class VecSize(object):
 
 _VECTOR_SIZES = {'X64': VecSize(64, 1), 'X128': VecSize(128, 2)}
 
+_ROUNDING_MODES = ['FE_TONEAREST', 'FE_DOWNWARD', 'FE_UPWARD', 'FE_TOWARDZERO', 'FE_TIESAWAY']
+
 
 def _is_imm_type(arg_type):
   return 'imm' in arg_type
@@ -126,7 +128,7 @@ def _get_imm_c_type(arg_type):
 
 
 def _get_c_type(arg_type):
-  if (arg_type in ('Float32', 'Float64', 'int8_t', 'uint8_t', 'int16_t',
+  if (arg_type in ('Float16', 'Float32', 'Float64', 'int8_t', 'uint8_t', 'int16_t',
                   'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t',
                   'volatile uint8_t*', 'volatile uint32_t*') or
       _is_template_type(arg_type)):
@@ -137,13 +139,15 @@ def _get_c_type(arg_type):
     return _get_imm_c_type(arg_type)
   if arg_type == 'vec':
     return 'SIMD128Register'
+  if arg_type in _ROUNDING_MODES:
+    return 'int'
   raise Exception('Type %s not supported' % (arg_type))
 
 
 def _get_semantic_player_type(arg_type, type_map):
   if type_map is not None and arg_type in type_map:
     return type_map[arg_type]
-  if arg_type in ('Float32', 'Float64', 'vec'):
+  if arg_type in ('Float16', 'Float32', 'Float64', 'vec'):
     return 'SimdRegister'
   if _is_imm_type(arg_type):
     return _get_imm_c_type(arg_type)
@@ -179,11 +183,14 @@ def _gen_template_intr_decl(f, name, intr):
   comment = intr.get('comment')
   if comment:
     print('// %s.' % (comment), file=f)
-  print('template <%s>' % _get_template_arguments(intr.get('variants')), file=f)
+  print('template <%s>' % _get_template_arguments(
+      intr.get('variants'), intr.get('precise_nans', False)), file=f)
   print('%s %s(%s);' % (retval, name, ', '.join(params)), file=f)
 
 
-def _get_template_arguments(variants,
+def _get_template_arguments(
+    variants,
+    precise_nans = False,
     extra = ['enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible']):
   template = None
   for variant in variants:
@@ -192,11 +199,13 @@ def _get_template_arguments(variants,
       nonlocal counter
       counter += 1
       return counter
-    new_template = ', '.join([
-      'bool kBool%s' % get_counter() if param.strip() in ('true', 'false') else
-      'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
-      'int kInt%s' % get_counter()
-      for param in variant.split(',')] + extra)
+    new_template = ', '.join(
+      (["bool kPreciseNaNOperationsHandling"] if precise_nans else []) +
+      ['bool kBool%s' % get_counter() if param.strip() in ('true', 'false') else
+       'uint32_t kInt%s' % get_counter() if param.strip() in _ROUNDING_MODES else
+       'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
+       'int kInt%s' % get_counter()
+       for param in variant.split(',')] + extra)
     assert template is None or template == new_template
     template = new_template
   return template
@@ -253,7 +262,7 @@ def _get_semantics_player_hook_proto(name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
   if intr.get('class') == 'template':
     return 'template<%s>\n%s %s(%s)' % (
-      _get_template_arguments(intr.get('variants'), []), result, name, args)
+      _get_template_arguments(intr.get('variants'), False, []), result, name, args)
   return '%s %s(%s)' % (result, name, args)
 
 
@@ -296,7 +305,7 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
       # can keep simple code here for now.
       if _is_simd128_conversion_required(outs[0]):
         out_type = _get_c_type(outs[0])
-        if out_type in ('Float32', 'Float64'):
+        if out_type in ('Float16', 'Float32', 'Float64'):
           call_expr = 'FloatToFPReg(%s)' % call_expr
         else:
           raise Exception('Type %s is not supported' % (out_type))
@@ -311,6 +320,15 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
 def _get_interpreter_hook_return_stmt(name, intr, desc=None):
   return 'return ' + _get_interpreter_hook_call_expr(name, intr, desc) + ';'
 
+def _get_unused(intr):
+  call_expr = 'UNUSED(%s);' % ', '.join('arg%d' % (num) for num, _ in enumerate(intr['in']))
+  return call_expr
+
+def _get_placeholder_return_stmt(intr, f):
+  print(INDENT + _get_unused(intr), file=f)
+  outs = intr['out']
+  if outs:
+    print(INDENT + 'return {};', file=f)
 
 def _get_semantics_player_hook_raw_vector_body(name, intr, get_return_stmt):
   outs = intr['out']
@@ -338,7 +356,7 @@ def _is_unsigned(intr):
 def _get_vector_format_init_expr(intr):
   variants = intr.get('variants')
 
-  if ('Float32' in variants or 'Float64' in variants):
+  if ('Float16' in variants or 'Float32' in variants or 'Float64' in variants):
     return 'intrinsics::GetVectorFormatFP(elem_size, elem_num)'
 
   assert _is_signed(intr) or _is_unsigned(intr), "Unexpected intrinsic class"
@@ -380,7 +398,7 @@ def _get_interpreter_hook_vector_body(name, intr):
       name, intr, _get_interpreter_hook_return_stmt)
 
 
-def _gen_interpreter_hook(f, name, intr):
+def _gen_interpreter_hook(f, name, intr, option):
   print('%s const {' % (_get_semantics_player_hook_proto(name, intr)), file=f)
 
   if _is_vector_class(intr):
@@ -396,7 +414,15 @@ def _gen_interpreter_hook(f, name, intr):
     lines = [INDENT + l for l in lines]
     print('\n'.join(lines), file=f)
   else:
-    print(INDENT + _get_interpreter_hook_return_stmt(name, intr), file=f)
+    # TODO(b/363057506): Add float support and clean up the logic here.
+    arm64_allowlist = ['AmoAdd', 'AmoAnd', 'AmoMax', 'AmoMin', 'AmoOr', 'AmoSwap', 'AmoXor', 'Bclr',
+                       'Bclri', 'Bext', 'Bexti', 'Binv', 'Binvi', 'Bset', 'Bseti', 'Div', 'Max',
+                       'Min', 'Rem', 'Rev8', 'Rol', 'Ror', 'Sext', 'Sh1add', 'Sh1adduw', 'Sh2add',
+                       'Sh2adduw', 'Sh3add', 'Sh3adduw', 'Zext', 'UnboxNan']
+    if (option == 'arm64') and (name not in arm64_allowlist):
+      _get_placeholder_return_stmt(intr, f)
+    else:
+      print(INDENT + _get_interpreter_hook_return_stmt(name, intr), file=f)
 
   print('}\n', file=f)
 
@@ -441,9 +467,14 @@ def _gen_mock_semantics_listener_hook(f, name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
   if intr.get('class') == 'template':
     print('template<%s>\n%s %s(%s) {\n  return %s(%s);\n}' % (
-      _get_template_arguments(intr.get('variants'), []), result, name, args, name, ', '.join([
-      'intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
-      for arg in _get_template_spec_arguments(intr.get('variants'))] +
+      _get_template_arguments(intr.get('variants'), False, []),
+      result,
+      name,
+      args,
+      name,
+      ', '.join([
+        'intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
+        for arg in _get_template_spec_arguments(intr.get('variants'))] +
       [('arg%d' % n) for n, _ in enumerate(intr['in'])])), file=f)
     args = ', '.join([
       '%s %s' % (
@@ -520,6 +551,8 @@ def _check_typed_variant(variant, desc):
   if not desc.is_unsigned and not desc.is_float:
     return _check_signed_variant(variant, desc)
   if desc.is_float:
+    if desc.element_size == 2:
+      return variant == 'Float16'
     if desc.element_size == 4:
       return variant == 'Float32'
     if desc.element_size == 8:
@@ -574,7 +607,7 @@ def _get_cast_from_simd128(var, target_type, ptr_bits):
                                                   ptr_bits)
 
   c_type = _get_c_type(target_type)
-  if c_type in ('Float32', 'Float64'):
+  if c_type in ('Float16', 'Float32', 'Float64'):
     return 'FPRegToFloat<intrinsics::%s>(%s)' % (c_type, var)
 
   cast_map = {
@@ -617,6 +650,7 @@ def _get_template_spec_arguments(variants):
       return counter
     new_spec = [
       'kBool%s' % get_counter() if param.strip() in ('true', 'false') else
+      'kInt%s' % get_counter() if param.strip() in _ROUNDING_MODES else
       'Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
       'kInt%s' % get_counter()
       for param in variant.split(',')]
@@ -626,14 +660,16 @@ def _get_template_spec_arguments(variants):
 
 
 def _intr_has_side_effects(intr, fmt=None):
+  ins = intr.get('in')
+  outs = intr.get('out')
   # If we have 'has_side_effects' mark in JSON file then we use it "as is".
   if 'has_side_effects' in intr:
     return intr.get('has_side_effects')
   # Otherwise we mark all floating-point related intrinsics as "volatile".
   # TODO(b/68857496): move that information in HIR/LIR and stop doing that.
-  if 'Float32' in intr.get('in') or 'Float64' in intr.get('in'):
+  if 'Float16' in ins or 'Float32' in ins or 'Float64' in ins:
     return True
-  if 'Float32' in intr.get('out') or 'Float64' in intr.get('out'):
+  if 'Float16' in outs or  'Float32' in outs or 'Float64' in outs:
     return True
   if fmt is not None and fmt.startswith('F'):
     return True
@@ -660,6 +696,7 @@ def _gen_semantic_player_types(intrs):
           counter += 1
           return counter
         new_map = {
+          'Float16': 'FpRegister',
           'Float32': 'FpRegister',
           'Float64': 'FpRegister',
         }
@@ -668,17 +705,17 @@ def _gen_semantic_player_types(intrs):
                             re.search('[_a-zA-Z]', param),
             variant.split(',')):
           new_map['Type%d' % get_counter()] = (
-              'FpRegister' if type.strip() in ('Float32', 'Float64') else
+              'FpRegister' if type.strip() in ('Float16', 'Float32', 'Float64') else
               _get_semantic_player_type(type, None))
         assert map is None or map == new_map
         map = new_map
       intr['sem-player-types'] = map
 
 
-def _gen_interpreter_intrinsics_hooks_impl_inl_h(f, intrs):
+def _gen_interpreter_intrinsics_hooks_impl_inl_h(f, intrs, option):
   print(AUTOGEN, file=f)
   for name, intr in intrs:
-    _gen_interpreter_hook(f, name, intr)
+    _gen_interpreter_hook(f, name, intr, option)
 
 
 def _gen_translator_intrinsics_hooks_impl_inl_h(f, intrs):
@@ -886,7 +923,8 @@ _KNOWN_FEATURES_KEYS = {
   'AVX': '017',
   'AVX2': '018',
   'FMA': '019',
-  'FMA4': '020'
+  'FMA4': '020',
+  'CustomCapability': '021'
 }
 
 
@@ -1084,7 +1122,11 @@ def _add_asm_insn(intrs, arch_intr, insn):
   assert 'feature' not in insn or insn['feature'] == arch_intr['feature']
   assert 'nan' not in insn or insn['nan'] == arch_intr['nan']
   assert 'usage' not in insn or insn['usage'] == arch_intr['usage']
-  assert len(intrs[name]['in']) == len(arch_intr['in'])
+  # Some intrinsics have extra inputs which can be ignored. e,g fpcr could be
+  # ignored when not needed for precise emulation of NaNs.
+  # Therefore we check that number inputs to (macro) instruction is less than
+  # or equal to number of inputs to number of inputs to intrinsic.
+  assert len(intrs[name]['in']) >= len(arch_intr['in'])
   assert len(intrs[name]['out']) == len(arch_intr['out'])
 
   if 'variants' in arch_intr:
@@ -1184,6 +1226,23 @@ def main(argv):
       pass
     return open(name, 'w')
 
+  # Temporary special case for riscv64 to arm64.
+  # TODO(b/362520361): generalize and combine with the below.
+  option = argv[1]
+  if option == 'arm64':
+    mode = argv[2]
+    out_files_end = 5
+    def_files_end = out_files_end
+    while argv[def_files_end].endswith('intrinsic_def.json'):
+      def_files_end += 1
+      if (def_files_end == len(argv)):
+        break
+    intrs = sorted(_load_intrs_def_files(argv[out_files_end:def_files_end]).items())
+    _gen_intrinsics_inl_h(open_out_file(argv[3]), intrs)
+    _gen_semantic_player_types(intrs)
+    _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs, option)
+    return 0
+
   mode = argv[1]
   if mode in ('--text_asm_intrinsics_bindings', '--public_headers'):
     out_files_end = 3 if mode == '--text_asm_intrinsics_bindings' else 7
@@ -1204,7 +1263,7 @@ def main(argv):
       _gen_intrinsics_inl_h(open_out_file(argv[2]), intrs)
       _gen_process_bindings(open_out_file(argv[3]), expanded_intrs, archs)
       _gen_semantic_player_types(intrs)
-      _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs)
+      _gen_interpreter_intrinsics_hooks_impl_inl_h(open_out_file(argv[4]), intrs, '')
       _gen_translator_intrinsics_hooks_impl_inl_h(
           open_out_file(argv[5]), intrs)
       _gen_mock_semantics_listener_intrinsics_hooks_impl_inl_h(

@@ -23,8 +23,8 @@
 
 namespace berberis {
 
-template <class T>
-using ArenaList = std::list<T, ArenaAllocator<T> >;
+template <class Type>
+using ArenaList = std::list<Type, ArenaAllocator<Type> >;
 
 }  // namespace berberis
 

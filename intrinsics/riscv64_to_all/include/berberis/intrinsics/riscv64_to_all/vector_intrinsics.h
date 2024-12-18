@@ -27,7 +27,12 @@
 #include "berberis/base/bit_util.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/intrinsics.h"        // PreferredIntrinsicsImplementation
+#if defined(__aarch64__)
+#include "berberis/intrinsics/common/intrinsics_float.h"
+#include "berberis/intrinsics/vector_intrinsics.h"
+#else
 #include "berberis/intrinsics/intrinsics_float.h"  // Float32/Float64
+#endif
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
 
@@ -132,7 +137,7 @@ template <typename ElementType>
   return {result};
 }
 
-#ifndef __x86_64__
+#if !defined(__x86_64__) && !defined(__aarch64__)
 template <typename ElementType>
 [[nodiscard]] inline std::tuple<SIMD128Register> BitMaskToSimdMask(size_t mask) {
   return {BitMaskToSimdMaskForTests<ElementType>(mask)};
@@ -165,6 +170,7 @@ SimdMaskToBitMask(SIMD128Register simd_mask) {
 }
 #endif
 
+#if !defined(__aarch64__)
 template <auto kElement>
 [[nodiscard]] inline std::tuple<SIMD128Register> VectorMaskedElementToForTests(
     SIMD128Register simd_mask,
@@ -185,6 +191,8 @@ template <typename ElementType>
                                                                        SIMD128Register result) {
   return VectorMaskedElementToForTests(simd_mask, result);
 }
+#endif
+
 #endif
 
 // For instructions that operate on carry bits, expands single bit from mask register
@@ -659,7 +667,7 @@ inline std::tuple<SIMD128Register> Vcpopm(SIMD128Register simd_src) {
 template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vfirstm(SIMD128Register simd_src) {
   UInt128 src = simd_src.Get<UInt128>();
-  if (src == Int128{0}) {
+  if (src == UInt128{0}) {
     return ~UInt128{0};
   }
   return CountRZero(src);

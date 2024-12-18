@@ -24,6 +24,7 @@
 #include "berberis/base/arena_alloc.h"
 #include "berberis/base/arena_map.h"
 #include "berberis/base/arena_string.h"
+#include "berberis/base/forever_alloc.h"  // friend PrivateNewForever
 
 namespace berberis {
 
@@ -54,6 +55,8 @@ class MapsSnapshot {
   Arena arena_;
   std::mutex mutex_;
   ArenaMap<uintptr_t, Record> maps_;
+
+  friend PrivateNewForever<MapsSnapshot>;
 };
 
 }  // namespace berberis

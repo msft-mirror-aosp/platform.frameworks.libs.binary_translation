@@ -73,6 +73,24 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   static constexpr XMMRegister xmm14{14};
   static constexpr XMMRegister xmm15{15};
 
+  static constexpr YMMRegister no_ymm_register{0x80};
+  static constexpr YMMRegister ymm0{0};
+  static constexpr YMMRegister ymm1{1};
+  static constexpr YMMRegister ymm2{2};
+  static constexpr YMMRegister ymm3{3};
+  static constexpr YMMRegister ymm4{4};
+  static constexpr YMMRegister ymm5{5};
+  static constexpr YMMRegister ymm6{6};
+  static constexpr YMMRegister ymm7{7};
+  static constexpr YMMRegister ymm8{8};
+  static constexpr YMMRegister ymm9{9};
+  static constexpr YMMRegister ymm10{10};
+  static constexpr YMMRegister ymm11{11};
+  static constexpr YMMRegister ymm12{12};
+  static constexpr YMMRegister ymm13{13};
+  static constexpr YMMRegister ymm14{14};
+  static constexpr YMMRegister ymm15{15};
+
   // Macroassembler uses these names to support both x86-32 and x86-64 modes.
   static constexpr Register gpr_a{0};
   static constexpr Register gpr_c{1};
@@ -151,11 +169,15 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   // Unhide Jcc(Label), hidden by special version below.
   using BaseAssembler::Jcc;
 
-  // Make sure only type void* can be passed to function below, not Label* or any other type.
+  // Make sure only type void* can be passed to function below, not Label* or any other pointer.
   template <typename T>
   auto Jcc(Condition cc, T* target) -> void = delete;
 
-  void Jcc(Condition cc, const void* target) {
+  template <typename T>
+  auto Jcc(Condition cc, T target)
+      -> std::enable_if_t<std::is_integral_v<T> && sizeof(uintptr_t) < sizeof(T)> = delete;
+
+  void Jcc(Condition cc, uintptr_t target) {
     if (cc == Condition::kAlways) {
       Jmp(target);
       return;
@@ -176,14 +198,20 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit64(bit_cast<int64_t>(target));
   }
 
+  void Jcc(Condition cc, const void* target) { Jcc(cc, bit_cast<uintptr_t>(target)); }
+
   // Unhide Jmp(Reg), hidden by special version below.
   using BaseAssembler::Jmp;
 
-  // Make sure only type void* can be passed to function below, not Label* or any other type.
+  // Make sure only type void* can be passed to function below, not Label* or any other pointer.
   template <typename T>
   auto Jmp(T* target) -> void = delete;
 
-  void Jmp(const void* target) {
+  template <typename T>
+  auto Jmp(T target)
+      -> std::enable_if_t<std::is_integral_v<T> && sizeof(uintptr_t) < sizeof(T)> = delete;
+
+  void Jmp(uintptr_t target) {
     // There are no jump instruction with properties we need thus we emulate it.
     // This is what the following code looks like when decoded with objdump (if
     // target address is 0x123456789abcdef0):
@@ -195,6 +223,8 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit32(0x00000000);
     Emit64(bit_cast<int64_t>(target));
   }
+
+  void Jmp(const void* target) { Jmp(bit_cast<uintptr_t>(target)); }
 
 #endif
 
@@ -484,39 +514,71 @@ inline void Assembler::Movq(Register dest, int64_t imm64) {
 }
 
 inline void Assembler::Vmovapd(XMMRegister arg0, XMMRegister arg1) {
-  if (arg0.num_ < 8 && arg1.num_ >= 8) {
+  if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x01, 0x29>(VectorRegister128Bit(arg1),
                                                    VectorRegister128Bit(arg0));
   }
   EmitInstruction<0xc4, 0x01, 0x01, 0x28>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
+inline void Assembler::Vmovapd(YMMRegister arg0, YMMRegister arg1) {
+  if (IsSwapProfitable(arg1, arg0)) {
+    return EmitInstruction<0xc4, 0x01, 0x05, 0x29>(VectorRegister256Bit(arg1),
+                                                   VectorRegister256Bit(arg0));
+  }
+  EmitInstruction<0xc4, 0x01, 0x05, 0x28>(VectorRegister256Bit(arg0), VectorRegister256Bit(arg1));
+}
+
 inline void Assembler::Vmovaps(XMMRegister arg0, XMMRegister arg1) {
-  if (arg0.num_ < 8 && arg1.num_ >= 8) {
+  if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x00, 0x29>(VectorRegister128Bit(arg1),
                                                    VectorRegister128Bit(arg0));
   }
   EmitInstruction<0xc4, 0x01, 0x00, 0x28>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
+inline void Assembler::Vmovaps(YMMRegister arg0, YMMRegister arg1) {
+  if (IsSwapProfitable(arg1, arg0)) {
+    return EmitInstruction<0xc4, 0x01, 0x04, 0x29>(VectorRegister256Bit(arg1),
+                                                   VectorRegister256Bit(arg0));
+  }
+  EmitInstruction<0xc4, 0x01, 0x04, 0x28>(VectorRegister256Bit(arg0), VectorRegister256Bit(arg1));
+}
+
 inline void Assembler::Vmovdqa(XMMRegister arg0, XMMRegister arg1) {
-  if (arg0.num_ < 8 && arg1.num_ >= 8) {
+  if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x01, 0x7F>(VectorRegister128Bit(arg1),
                                                    VectorRegister128Bit(arg0));
   }
   EmitInstruction<0xc4, 0x01, 0x01, 0x6F>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
+inline void Assembler::Vmovdqa(YMMRegister arg0, YMMRegister arg1) {
+  if (IsSwapProfitable(arg1, arg0)) {
+    return EmitInstruction<0xc4, 0x01, 0x05, 0x7F>(VectorRegister256Bit(arg1),
+                                                   VectorRegister256Bit(arg0));
+  }
+  EmitInstruction<0xc4, 0x01, 0x05, 0x6F>(VectorRegister256Bit(arg0), VectorRegister256Bit(arg1));
+}
+
 inline void Assembler::Vmovdqu(XMMRegister arg0, XMMRegister arg1) {
-  if (arg0.num_ < 8 && arg1.num_ >= 8) {
+  if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x02, 0x7F>(VectorRegister128Bit(arg1),
                                                    VectorRegister128Bit(arg0));
   }
   EmitInstruction<0xc4, 0x01, 0x02, 0x6F>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
+inline void Assembler::Vmovdqu(YMMRegister arg0, YMMRegister arg1) {
+  if (IsSwapProfitable(arg1, arg0)) {
+    return EmitInstruction<0xc4, 0x01, 0x06, 0x7F>(VectorRegister256Bit(arg1),
+                                                   VectorRegister256Bit(arg0));
+  }
+  EmitInstruction<0xc4, 0x01, 0x06, 0x6F>(VectorRegister256Bit(arg0), VectorRegister256Bit(arg1));
+}
+
 inline void Assembler::Vmovsd(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
-  if (arg0.num_ < 8 && arg2.num_ >= 8) {
+  if (IsSwapProfitable(arg2, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x03, 0x11>(
         VectorRegister128Bit(arg2), VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
   }
@@ -525,7 +587,7 @@ inline void Assembler::Vmovsd(XMMRegister arg0, XMMRegister arg1, XMMRegister ar
 }
 
 inline void Assembler::Vmovss(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
-  if (arg0.num_ < 8 && arg2.num_ >= 8) {
+  if (IsSwapProfitable(arg2, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x02, 0x11>(
         VectorRegister128Bit(arg2), VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
   }
