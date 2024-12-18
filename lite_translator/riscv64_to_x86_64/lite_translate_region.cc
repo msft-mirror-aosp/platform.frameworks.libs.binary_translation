@@ -56,15 +56,16 @@ void GenIncrementProfileCounter(x86_64::Assembler* as, const LiteTranslateParams
   as->Jcc(x86_64::Assembler::Condition::kGreater, params.counter_threshold_callback);
 }
 
+}  // namespace
+
 // Returns the success status and
 // - in case of success, the pc of the next instruction past the translated region
 // - in case of failure, the pc of the failed instruction
 // Specifically, returnes input pc if we cannot translate even the first instruction.
-std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
-                                                       GuestAddr end_pc,
-                                                       MachineCode* machine_code,
-                                                       LiteTranslateParams params) {
-  CHECK_LT(start_pc, end_pc);
+std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc,
+                                                   MachineCode* machine_code,
+                                                   LiteTranslateParams params) {
+  CHECK_LT(start_pc, params.end_pc);
   LiteTranslator translator(machine_code, start_pc, params);
   SemanticsPlayer sem_player(&translator);
   Decoder decoder(&sem_player);
@@ -73,7 +74,7 @@ std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
     GenIncrementProfileCounter(translator.as(), params);
   }
 
-  while (translator.GetInsnAddr() < end_pc && !translator.is_region_end_reached()) {
+  while (translator.GetInsnAddr() < params.end_pc && !translator.is_region_end_reached()) {
     uint8_t insn_size = decoder.Decode(ToHostAddr<const uint16_t>(translator.GetInsnAddr()));
     if (!translator.success()) {
       return {false, translator.GetInsnAddr()};
@@ -85,24 +86,6 @@ std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
   Finalize(&translator, translator.GetInsnAddr());
 
   return {translator.success(), translator.GetInsnAddr()};
-}
-
-}  // namespace
-
-// TODO(b/382709531): since TryLiteTranslateRegion supports end_pc, this version isn't needed
-// anymore.
-bool LiteTranslateRange(GuestAddr start_pc,
-                        GuestAddr end_pc,
-                        MachineCode* machine_code,
-                        LiteTranslateParams params) {
-  auto [success, stop_pc] = TryLiteTranslateRegionImpl(start_pc, end_pc, machine_code, params);
-  return success;
-}
-
-std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc,
-                                                   MachineCode* machine_code,
-                                                   LiteTranslateParams params) {
-  return TryLiteTranslateRegionImpl(start_pc, params.end_pc, machine_code, params);
 }
 
 }  // namespace berberis
