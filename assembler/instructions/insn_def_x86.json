@@ -874,13 +874,34 @@
         "Vcvtdq2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "E6" ] },
         "Vcvtdq2ps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5B" ] },
         "Vcvtpd2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "E6" ] },
-        "Vcvtpd2dqx": { "feature": "AVX", "opcodes": [ "C4", "01", "03", "E6" ] },
+        "Vcvtpd2dqx": {
+          "comment": [
+            "Suffix “x” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "03", "E6" ]
+        },
         "Vcvtpd2ps": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5A" ] },
-        "Vcvtpd2psx": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5A" ] },
+        "Vcvtpd2psx": {
+          "comment": [
+            "Suffix “x” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "01", "5A" ]
+        },
         "Vcvtps2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5B" ] },
         "Vcvtps2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5A" ] },
         "Vcvttpd2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E6" ] },
-        "Vcvttpd2dqx": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E6" ] },
+        "Vcvttpd2dqx": {
+          "comment": [
+            "Suffix “x” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "01", "E6" ]
+        },
         "Vcvttps2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "5B" ] }
       },
       "args": [
@@ -2795,9 +2816,30 @@
     },
     {
       "encodings": {
-        "Vcvtpd2dqy": { "feature": "AVX", "opcodes": [ "C4", "01", "07", "E6" ] },
-        "Vcvtpd2psy": { "feature": "AVX", "opcodes": [ "C4", "01", "05", "5A" ] },
-        "Vcvttpd2dqy": { "feature": "AVX", "opcodes": [ "C4", "01", "05", "E6" ] }
+        "Vcvtpd2dqy": {
+          "comment": [
+            "Suffix “y” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "07", "E6" ]
+        },
+        "Vcvtpd2psy": {
+          "comment": [
+            "Suffix “y” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "05", "5A" ]
+        },
+        "Vcvttpd2dqy": {
+          "comment": [
+            "Suffix “y” used to distingush 128bit memory operand from 256bit memory operand",
+            "This is common convention for assemblers that use AT&T syntax"
+          ],
+          "feature": "AVX",
+          "opcodes": [ "C4", "01", "05", "E6" ]
+        }
       },
       "args": [
         { "class": "VecReg128", "usage": "def" },

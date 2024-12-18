@@ -16,16 +16,19 @@
 
 #include "gtest/gtest.h"
 
+#include <fcntl.h>  // open
 #include <sys/mman.h>
-#include <unistd.h>  // sysconf(_SC_PAGESIZE)
+#include <unistd.h>  // close, sysconf(_SC_PAGESIZE)
 
 #include <cinttypes>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <memory>
 
 namespace {
 
+const size_t kPageSize = sysconf(_SC_PAGESIZE);
 constexpr bool kExactMapping = true;
 
 template <bool kIsExactMapping = false>
@@ -64,11 +67,21 @@ bool IsExecutable(void* ptr, size_t size) {
   return false;
 }
 
+template <typename FuncType>
+class ScopeExit {
+ public:
+  explicit ScopeExit(FuncType f) : func_(f) {}
+  ~ScopeExit() { func_(); }
+
+ private:
+  FuncType func_;
+};
+
 TEST(ProcSelfMaps, ExecutableFromMmap) {
-  const size_t kPageSize = sysconf(_SC_PAGESIZE);
   uint8_t* mapping = reinterpret_cast<uint8_t*>(
       mmap(0, 3 * kPageSize, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
   ASSERT_NE(mapping, nullptr);
+  auto mapping_cleanup = ScopeExit([mapping]() { EXPECT_EQ(0, munmap(mapping, 3 * kPageSize)); });
 
   ASSERT_FALSE(IsExecutable(mapping, 3 * kPageSize));
 
@@ -84,15 +97,13 @@ TEST(ProcSelfMaps, ExecutableFromMmap) {
   // Surrounding mappings can be merged with adjacent mappings. But this one must match exactly.
   ASSERT_TRUE(IsExecutable<kExactMapping>(mapping + kPageSize, kPageSize));
   ASSERT_FALSE(IsExecutable(mapping + 2 * kPageSize, kPageSize));
-
-  ASSERT_EQ(munmap(mapping, 3 * kPageSize), 0);
 }
 
 TEST(ProcSelfMaps, ExecutableFromMprotect) {
-  const size_t kPageSize = sysconf(_SC_PAGESIZE);
   uint8_t* mapping = reinterpret_cast<uint8_t*>(
       mmap(0, 3 * kPageSize, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
   ASSERT_NE(mapping, nullptr);
+  auto mapping_cleanup = ScopeExit([mapping]() { EXPECT_EQ(0, munmap(mapping, 3 * kPageSize)); });
 
   ASSERT_FALSE(IsExecutable(mapping, 3 * kPageSize));
 
@@ -102,8 +113,24 @@ TEST(ProcSelfMaps, ExecutableFromMprotect) {
   // Surrounding mappings can be merged with adjacent mappings. But this one must match exactly.
   ASSERT_TRUE(IsExecutable<kExactMapping>(mapping + kPageSize, kPageSize));
   ASSERT_FALSE(IsExecutable(mapping + 2 * kPageSize, kPageSize));
+}
 
-  ASSERT_EQ(munmap(mapping, 3 * kPageSize), 0);
+TEST(ProcSelfMaps, ExecutableFromFileBackedMmap) {
+  int fd = open("/dev/zero", O_RDONLY);
+  auto fd_cleanup = ScopeExit([fd]() { close(fd); });
+  uint8_t* mapping =
+      reinterpret_cast<uint8_t*>(mmap(0, 3 * kPageSize, PROT_READ, MAP_PRIVATE, fd, 0));
+  ASSERT_NE(mapping, nullptr);
+  auto mapping_cleanup = ScopeExit([mapping]() { EXPECT_EQ(0, munmap(mapping, 3 * kPageSize)); });
+
+  ASSERT_FALSE(IsExecutable(mapping, 3 * kPageSize));
+
+  ASSERT_EQ(0, mprotect(mapping + kPageSize, kPageSize, PROT_READ | PROT_EXEC));
+
+  // File-backed mappings shouldn't merge with the adjacent mappings and must match exactly.
+  ASSERT_FALSE(IsExecutable<kExactMapping>(mapping, kPageSize));
+  ASSERT_TRUE(IsExecutable<kExactMapping>(mapping + kPageSize, kPageSize));
+  ASSERT_FALSE(IsExecutable<kExactMapping>(mapping + 2 * kPageSize, kPageSize));
 }
 
 }  // namespace
