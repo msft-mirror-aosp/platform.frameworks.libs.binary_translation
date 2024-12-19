@@ -16,12 +16,15 @@
 
 #include "gtest/gtest.h"
 
+#include <setjmp.h>
 #include <sys/mman.h>
 #include <unistd.h>  // sysconf(_SC_PAGESIZE)
 
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+
+#include "berberis/ndk_program_tests/scoped_sigaction.h"
 
 // Make sure compiler doesn't recognize undefined behavior and doesn't optimize out call to nullptr.
 volatile void* g_null_addr = nullptr;
@@ -48,61 +51,56 @@ TEST(HandleNotExecutable, PcLessThan4096) {
   ASSERT_EXIT((reinterpret_cast<Func>(4095))(), testing::KilledBySignal(SIGSEGV), "");
 }
 
+// Add some valid code to the end of the first page and graceful failure rescue at the beginning of
+// the second page.
 constexpr uint32_t kPageCrossingCode[] = {
-    //
     // First page
-    //
-
-    // str lr, [sp, #-8]! (push lr)
-    //
-    // We may need lr for graceful return if SIGSEGV doesn't happen.
-    0xf81f8ffe,
-    // blr x0
-    //
-    // The only way to check that this was executed (i.e. SIGSEGV didn't happen too early) is to
-    // print something to stderr. Call FirstPageExecutionHelper for this.
-    0xd63f0000,
     // mov x0, x0
-    //
-    // Make sure we cross pages without jumps (i.e. we don't return from blx directly to the second
-    // page).
     0xaa0003e0,
-
-    //
     // Second page
-    //
-
-    // ldr lr, [sp], #8 (pop lr)
-    //
     // If SIGSEGV doesn't happen, make sure we return cleanly.
-    0xf84087fe,
     // ret
     0xd65f03c0,
 };
 
-constexpr size_t kFirstPageInsnNum = 3;
+constexpr size_t kFirstPageCodeSize = 4;
+sigjmp_buf g_jmpbuf;
+uint8_t* g_noexec_page_addr = nullptr;
 
-void FirstPageExecutionHelper() {
-  fprintf(stderr, "First page has executed");
+void SigsegvHandler(int /* sig */, siginfo_t* /* info */, void* ctx) {
+  fprintf(stderr, "SIGSEGV caught\n");
+  // Warning: do not use ASSERT, so that we recover with longjump unconditionally.
+  // Otherwise we'll be calling the handler in infinite loop.
+  EXPECT_EQ(static_cast<ucontext*>(ctx)->uc_mcontext.pc,
+            reinterpret_cast<uintptr_t>(g_noexec_page_addr));
+  longjmp(g_jmpbuf, 1);
 }
 
 TEST(HandleNotExecutable, ExecutableToNotExecutablePageCrossing) {
   const long kPageSize = sysconf(_SC_PAGESIZE);
-  // Allocate two executable pages.
-  uint32_t* first_page = reinterpret_cast<uint32_t*>(mmap(
-      0, kPageSize * 2, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+  // Allocate two pages.
+  uint8_t* first_page = static_cast<uint8_t*>(
+      mmap(0, kPageSize * 2, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+  // Make first page executable.
+  mprotect(first_page, kPageSize, PROT_READ | PROT_WRITE | PROT_EXEC);
 
-  uint32_t* second_page = first_page + (kPageSize / sizeof(uint32_t));
-  // Make second page nonexecutable.
-  mprotect(second_page, kPageSize, PROT_READ | PROT_WRITE);
-
-  uint32_t* start_addr = second_page - kFirstPageInsnNum;
+  g_noexec_page_addr = first_page + kPageSize;
+  uint8_t* start_addr = g_noexec_page_addr - kFirstPageCodeSize;
   memcpy(start_addr, kPageCrossingCode, sizeof(kPageCrossingCode));
 
-  using Func = void (*)(void (*)());
-  ASSERT_EXIT((reinterpret_cast<Func>(start_addr))(&FirstPageExecutionHelper),
-              testing::KilledBySignal(SIGSEGV),
-              "First page has executed");
+  struct sigaction sa;
+  sa.sa_flags = SA_SIGINFO;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_sigaction = SigsegvHandler;
+  ScopedSigaction scoped_sa(SIGSEGV, &sa);
+
+  if (setjmp(g_jmpbuf) == 0) {
+    fprintf(stderr, "Jumping to executable page before non-executable page\n");
+    reinterpret_cast<void (*)()>(start_addr)();
+    ADD_FAILURE() << "Function call should not have returned";
+  } else {
+    fprintf(stderr, "Successful recovery\n");
+  }
 
   munmap(first_page, kPageSize * 2);
 }

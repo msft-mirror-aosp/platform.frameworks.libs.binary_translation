@@ -1861,8 +1861,8 @@ class Riscv64InterpreterTest : public ::testing::Test {
             }
           } else {
             __uint128_t v8 = state_.cpu.v[8];
-            SIMD128Register affected_part{expected_result[0] &
-                                          (mask[0] & kFractionMaskInt8[vlmul - 4] | skip_mask[0])};
+            SIMD128Register affected_part{
+                expected_result[0] & ((mask[0] & kFractionMaskInt8[vlmul - 4]) | skip_mask[0])};
             SIMD128Register masked_part{expected_inactive[0] & ~mask[0] & ~skip_mask[0] &
                                         kFractionMaskInt8[vlmul - 4]};
             SIMD128Register tail_part{(vta ? kAgnosticResult : kUndisturbedResult) &
