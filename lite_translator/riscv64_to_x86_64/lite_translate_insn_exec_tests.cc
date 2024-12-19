@@ -35,20 +35,22 @@ namespace berberis {
 namespace {
 
 template <uint8_t kInsnSize = 4>
-bool RunOneInstruction(ThreadState* state, GuestAddr stop_pc) {
+bool RunOneInstruction(ThreadState* state, GuestAddr expected_stop_addr) {
   MachineCode machine_code;
-  bool success = LiteTranslateRange(state->cpu.insn_addr,
-                                    state->cpu.insn_addr + kInsnSize,
-                                    &machine_code,
-                                    LiteTranslateParams{.allow_dispatch = false});
+  auto [success, stop_pc] = TryLiteTranslateRegion(state->cpu.insn_addr,
+                                                   &machine_code,
+                                                   LiteTranslateParams{
+                                                       .end_pc = state->cpu.insn_addr + kInsnSize,
+                                                       .allow_dispatch = false,
+                                                   });
 
-  if (!success) {
+  if (!success || (stop_pc > state->cpu.insn_addr + kInsnSize)) {
     return false;
   }
 
   ScopedExecRegion exec(&machine_code);
 
-  TestingRunGeneratedCode(state, exec.get(), stop_pc);
+  TestingRunGeneratedCode(state, exec.get(), expected_stop_addr);
   return true;
 }
 
