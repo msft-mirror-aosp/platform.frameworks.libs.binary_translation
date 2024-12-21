@@ -14,13 +14,28 @@
  * limitations under the License.
  */
 
-#include "berberis/base/logging.h"
 #include "berberis/guest_state/get_cpu_state_opaque.h"
-#include "berberis/guest_state/guest_state_arch.h"
-#include "berberis/guest_state/guest_state_opaque.h"
 #include "native_bridge_support/guest_state_accessor/accessor.h"
 
+#include "berberis/base/logging.h"
+#include "berberis/guest_state/guest_state_arch.h"
+
+#include <cstddef>
+#include <cstring>
+
 namespace berberis {
+
+int GetCpuState(NativeBridgeGuestRegs* guest_regs, const CPUState* state) {
+  if (guest_regs->guest_arch != NATIVE_BRIDGE_ARCH_RISCV64) {
+    ALOGE("The guest architecture is unmatched: %lu", guest_regs->guest_arch);
+    return NATIVE_BRIDGE_GUEST_STATE_ACCESSOR_ERROR_UNSUPPORTED_ARCH;
+  }
+  memcpy(&guest_regs->regs_riscv64.x, &state->x, sizeof(guest_regs->regs_riscv64.x));
+  memcpy(&guest_regs->regs_riscv64.f, &state->f, sizeof(guest_regs->regs_riscv64.f));
+  memcpy(&guest_regs->regs_riscv64.v, &state->v, sizeof(guest_regs->regs_riscv64.v));
+  memcpy(&guest_regs->regs_riscv64.ip, &state->insn_addr, sizeof(guest_regs->regs_riscv64.ip));
+  return 0;
+}
 
 extern "C" __attribute__((visibility("default"))) int LoadGuestStateRegisters(
     const void* guest_state_data,
@@ -34,15 +49,4 @@ extern "C" __attribute__((visibility("default"))) int LoadGuestStateRegisters(
   return GetCpuState(guest_regs, &(static_cast<const ThreadState*>(guest_state_data))->cpu);
 }
 
-int GetCpuState(NativeBridgeGuestRegs* guest_regs, const CPUState* state) {
-  if (guest_regs->guest_arch != NATIVE_BRIDGE_ARCH_RISCV64) {
-    ALOGE("The guest architecture is unmatched: %lu", guest_regs->guest_arch);
-    return NATIVE_BRIDGE_GUEST_STATE_ACCESSOR_ERROR_UNSUPPORTED_ARCH;
-  }
-  memcpy(&guest_regs->regs_riscv64.x, &state->x, sizeof(guest_regs->regs_riscv64.x));
-  memcpy(&guest_regs->regs_riscv64.f, &state->f, sizeof(guest_regs->regs_riscv64.f));
-  memcpy(&guest_regs->regs_riscv64.v, &state->v, sizeof(guest_regs->regs_riscv64.v));
-  memcpy(&guest_regs->regs_riscv64.ip, &state->insn_addr, sizeof(guest_regs->regs_riscv64.ip));
-  return 0;
-}
 }  // namespace berberis
