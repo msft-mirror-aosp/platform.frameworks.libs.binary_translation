@@ -165,6 +165,14 @@ $(eval $(call add_test,berberis_host_tests,\
 	run_test,\
 	$(HOST_OUT)/nativetest64/berberis_host_tests/berberis_host_tests))
 
+$(eval $(call add_test,berberis_host_tests_avx,\
+	run_test,\
+	$(HOST_OUT)/nativetest64/berberis_host_tests_avx/berberis_host_tests_avx))
+
+$(eval $(call add_test,berberis_host_tests_no_avx,\
+	run_test,\
+	$(HOST_OUT)/nativetest64/berberis_host_tests_no_avx/berberis_host_tests_no_avx))
+
 endif  # BUILD_BERBERIS_RISCV64_TO_X86_64
 
 

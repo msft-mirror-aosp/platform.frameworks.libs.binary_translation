@@ -667,7 +667,7 @@ inline std::tuple<SIMD128Register> Vcpopm(SIMD128Register simd_src) {
 template <enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible>
 inline std::tuple<SIMD128Register> Vfirstm(SIMD128Register simd_src) {
   UInt128 src = simd_src.Get<UInt128>();
-  if (src == Int128{0}) {
+  if (src == UInt128{0}) {
     return ~UInt128{0};
   }
   return CountRZero(src);
