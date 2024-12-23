@@ -547,7 +547,7 @@ inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
                                                              Condition cond,
                                                              const Args&... args) {
   char name_with_condition[8] = {};
-  if (strcmp(name, "Cmovl") == 0 || strcmp(name, "Cmovq") == 0) {
+  if (strcmp(name, "Cmovw") == 0 || strcmp(name, "Cmovl") == 0 || strcmp(name, "Cmovq") == 0) {
     strcpy(name_with_condition, "Cmov");
   } else if (strcmp(name, "Jcc") == 0) {
     strcpy(name_with_condition, "J");
