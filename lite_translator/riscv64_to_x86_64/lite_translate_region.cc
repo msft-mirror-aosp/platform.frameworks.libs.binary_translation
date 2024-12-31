@@ -89,6 +89,8 @@ std::tuple<bool, GuestAddr> TryLiteTranslateRegionImpl(GuestAddr start_pc,
 
 }  // namespace
 
+// TODO(b/382709531): since TryLiteTranslateRegion supports end_pc, this version isn't needed
+// anymore.
 bool LiteTranslateRange(GuestAddr start_pc,
                         GuestAddr end_pc,
                         MachineCode* machine_code,
@@ -100,10 +102,7 @@ bool LiteTranslateRange(GuestAddr start_pc,
 std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc,
                                                    MachineCode* machine_code,
                                                    LiteTranslateParams params) {
-  // This effectively makes translating code at max guest address impossible, but we
-  // assume that it's not practically significant.
-  return TryLiteTranslateRegionImpl(
-      start_pc, std::numeric_limits<GuestAddr>::max(), machine_code, params);
+  return TryLiteTranslateRegionImpl(start_pc, params.end_pc, machine_code, params);
 }
 
 }  // namespace berberis
