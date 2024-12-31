@@ -127,8 +127,10 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAn
   }
 
   MachineCode another_machine_code;
-  success = LiteTranslateRange(pc, stop_pc, &another_machine_code, params);
+  params.end_pc = stop_pc;
+  std::tie(success, stop_pc) = TryLiteTranslateRegion(pc, &another_machine_code, params);
   CHECK(success);
+  CHECK_EQ(stop_pc, params.end_pc);
 
   return {true,
           InstallTranslated(&another_machine_code, pc, size, "lite_range"),
