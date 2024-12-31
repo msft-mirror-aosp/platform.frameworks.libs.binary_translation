@@ -211,6 +211,30 @@ def _get_template_arguments(
   return template
 
 
+def _gen_vector_intr_decl(f, name, intr):
+  ins = intr.get('in')
+  outs = intr.get('out')
+  params = [_get_c_type(op) for op in ins]
+  if len(outs) > 0:
+    retval = 'std::tuple<' + ', '.join(_get_c_type(out) for out in outs) + '>'
+  else:
+    retval = 'void'
+  comment = intr.get('comment')
+  if comment:
+    print('// %s.' % (comment), file=f)
+  if intr.get('precise_nans', False):
+    template_arguments = 'bool precise_nan_operations_handling, '
+  else:
+    template_arguments = ''
+  if not 'raw' in intr['variants']:
+    template_arguments += 'typename Type, '
+  template_arguments += 'int size, '
+  template_arguments += 'enum PreferredIntrinsicsImplementation'
+  template_arguments += ' = kUseAssemblerImplementationIfPossible'
+  print('template <%s>' % template_arguments, file=f)
+  print('%s %s(%s);' % (retval, name, ', '.join(params)), file=f)
+
+
 def _is_vector_class(intr):
   return intr.get('class') in ('vector_4', 'vector_8', 'vector_16',
                                'vector_8/16', 'vector_8/16/single',
@@ -683,6 +707,9 @@ def _gen_intrinsics_inl_h(f, intrs):
       _gen_scalar_intr_decl(f, name, intr)
     elif intr.get('class') == 'template':
       _gen_template_intr_decl(f, name, intr)
+    else:
+      assert intr.get('class').startswith('vector')
+      _gen_vector_intr_decl(f, name, intr)
 
 
 def _gen_semantic_player_types(intrs):
