@@ -28,6 +28,7 @@
 namespace berberis {
 
 struct LiteTranslateParams {
+  GuestAddr end_pc = GetGuestAddrRangeEnd();
   bool allow_dispatch = true;
   bool enable_reg_mapping = true;
   bool enable_self_profiling = false;
@@ -37,10 +38,6 @@ struct LiteTranslateParams {
       AsHostCode(berberis::berberis_entry_HandleLiteCounterThresholdReached);
 };
 
-bool LiteTranslateRange(GuestAddr start_pc,
-                        GuestAddr end_pc,
-                        MachineCode* machine_code,
-                        LiteTranslateParams params);
 std::tuple<bool, GuestAddr> TryLiteTranslateRegion(GuestAddr start_pc,
                                                    MachineCode* machine_code,
                                                    LiteTranslateParams params);
