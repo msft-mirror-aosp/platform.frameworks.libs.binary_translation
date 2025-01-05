@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include "berberis/guest_state/guest_state_arch.h"
+#include "berberis/guest_state/get_cpu_state_opaque.h"
+#include "native_bridge_support/guest_state_accessor/accessor.h"
 
 #include "berberis/base/logging.h"
-#include "native_bridge_support/guest_state_accessor/accessor.h"
+#include "berberis/guest_state/guest_state_arch.h"
 
 #include <cstddef>
 #include <cstring>

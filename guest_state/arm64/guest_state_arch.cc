@@ -99,4 +99,10 @@ std::size_t GetThreadStateFlagOffset() {
   return offsetof(ThreadState, cpu.flags);
 }
 
+GuestAddr GetGuestAddrRangeEnd() {
+  // We only support up to 47-bit addresses on Linux.
+  // Note that addresses with 48th bit set are only used on the kernel side.
+  return GuestAddr{1} << 47;
+}
+
 }  // namespace berberis

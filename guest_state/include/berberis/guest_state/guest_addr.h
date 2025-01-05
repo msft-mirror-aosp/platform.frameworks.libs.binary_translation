@@ -25,6 +25,7 @@ namespace berberis {
 using GuestAddr = uintptr_t;
 
 constexpr GuestAddr kNullGuestAddr = {};
+GuestAddr GetGuestAddrRangeEnd();
 
 template <typename T>
 inline GuestAddr ToGuestAddr(T* addr) {

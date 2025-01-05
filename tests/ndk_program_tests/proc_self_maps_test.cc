@@ -63,7 +63,8 @@ bool IsExecutable(void* ptr, size_t size) {
       }
     }
   }
-  ADD_FAILURE() << "Didn't find address " << reinterpret_cast<void*>(addr) << " in /proc/self/maps";
+  ADD_FAILURE() << "Didn't find range " << ptr << "-" << reinterpret_cast<void*>(addr + size)
+                << " in /proc/self/maps";
   return false;
 }
 

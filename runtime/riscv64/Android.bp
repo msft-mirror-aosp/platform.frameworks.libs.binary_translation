@@ -71,6 +71,7 @@ cc_test_library {
                 "translator_x86_64_test.cc",
             ],
             header_libs: [
+                "berberis_test_utils_headers",
                 "libberberis_lite_translator_headers",
             ],
         },
