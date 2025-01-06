@@ -323,27 +323,24 @@ class TryBindingBasedInlineIntrinsicForHeavyOptimizer {
                              bool> = true>
   std::optional<bool> /*ProcessBindingsClient*/ operator()(AsmCallInfo asm_call_info) {
     static_assert(std::is_same_v<decltype(kFunction), typename AsmCallInfo::IntrinsicType>);
-    if constexpr (!std::is_same_v<typename AsmCallInfo::PreciseNanOperationsHandling,
-                                  intrinsics::bindings::NoNansOperation>) {
-      return false;
-    }
-
+    static_assert(std::is_same_v<typename AsmCallInfo::PreciseNanOperationsHandling,
+                                 intrinsics::bindings::NoNansOperation>);
     using CPUIDRestriction = AsmCallInfo::CPUIDRestriction;
     if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX>) {
       if (!host_platform::kHasAVX) {
-        return false;
+        return {};
       }
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>) {
       if (!host_platform::kHasBMI) {
-        return false;
+        return {};
       }
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>) {
       if (!host_platform::kHasLZCNT) {
-        return false;
+        return {};
       }
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>) {
       if (!host_platform::kHasPOPCNT) {
-        return false;
+        return {};
       }
     } else if constexpr (std::is_same_v<CPUIDRestriction,
                                         intrinsics::bindings::NoCPUIDRestriction>) {

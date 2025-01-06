@@ -18,20 +18,27 @@
   "insns": [
     {
       "encodings": {
+        "AddUW": { "opcode": "0800_003b", "type": "R-type" },
         "addw": { "opcode": "0000_003b", "type": "R-type" },
         "divuw": { "opcode": "0200_503b", "type": "R-type" },
         "divw": { "opcode": "0200_403b", "type": "R-type" },
         "mulw": { "opcode": "0200_003b", "type": "R-type" },
         "remuw": { "opcode": "0200_703b", "type": "R-type" },
         "remw": { "opcode": "0200_603b", "type": "R-type" },
+        "rorw": { "opcode": "6000_503b", "type": "R-type" },
         "sllw": { "opcode": "0000_103b", "type": "R-type" },
-        "subw": { "opcode": "4000_003b", "type": "R-type" },
-        "AddUW": { "opcode": "0800_003b", "type": "R-type" },
-        "rorw": { "opcode": "6000_503b", "type": "R-type" }
+        "subw": { "opcode": "4000_003b", "type": "R-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" },
+        { "class": "GeneralReg", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "SextW", "ZextW", "negw" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }
       ]
     },
@@ -43,6 +50,20 @@
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" },
         { "class": "I-Imm" }
+      ]
+    },
+    {
+      "encodings": {
+        "bexti": { "opcode": "4800_5013", "type": "I-type" },
+        "rori": { "opcode": "6000_5013", "type": "I-type" },
+        "slli": { "opcode": "0000_1013", "type": "I-type" },
+        "srai": { "opcode": "4000_5013", "type": "I-type" },
+        "srli": { "opcode": "0000_5013", "type": "I-type" }
+      },
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Shift64-Imm" }
       ]
     },
     {
@@ -61,14 +82,21 @@
     {
       "encodings": {
         "fcvt.l.d": { "opcode": "c220_0053", "type": "R-type" },
-        "fcvt.lu.d": { "opcode": "c230_0053", "type": "R-type" },
         "fcvt.l.s": { "opcode": "c020_0053", "type": "R-type" },
+        "fcvt.lu.d": { "opcode": "c230_0053", "type": "R-type" },
         "fcvt.lu.s": { "opcode": "c030_0053", "type": "R-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "FpReg", "usage": "use" },
         { "class": "Rm", "usage": "use" }
+      ]
+    },
+    {
+      "stems": [ "ld", "lwu" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Label" }
       ]
     },
     {
@@ -81,10 +109,10 @@
       ]
     },
     {
-      "stems": [ "ld", "lwu" ],
+      "stems": [ "li" ],
       "args": [
         { "class": "GeneralReg", "usage": "def" },
-        { "class": "Label" }
+        { "class": "Imm64", "usage": "use" }
       ]
     },
     {
@@ -97,46 +125,16 @@
       ]
     },
     {
-      "stems": [ "li" ],
-      "args": [
-        { "class": "GeneralReg", "usage": "def" },
-        { "class": "Imm64", "usage": "use" }
-      ]
-    },
-    {
       "encodings": {
-        "slli": { "opcode": "0000_1013", "type": "I-type" },
-        "srai": { "opcode": "4000_5013", "type": "I-type" },
-        "srli": { "opcode": "0000_5013", "type": "I-type" },
-        "bexti": { "opcode": "4800_5013", "type": "I-type" },
-        "rori": { "opcode": "6000_5013", "type": "I-type" }
-      },
-      "args": [
-        { "class": "GeneralReg", "usage": "def" },
-        { "class": "GeneralReg", "usage": "use" },
-        { "class": "Shift64-Imm" }
-      ]
-    },
-    {
-      "encodings": {
+        "roriw": { "opcode": "6000_501b", "type": "I-type" },
         "slliw": { "opcode": "0000_101b", "type": "I-type" },
         "sraiw": { "opcode": "4000_501b", "type": "I-type" },
-        "srliw": { "opcode": "0000_501b", "type": "I-type" },
-        "roriw": { "opcode": "6000_501b", "type": "I-type" }
+        "srliw": { "opcode": "0000_501b", "type": "I-type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" },
         { "class": "Shift32-Imm" }
-      ]
-    },
-    {
-      "encodings": {
-        "sd": { "opcode": "0000_3023", "type": "S-type" }
-      },
-      "args": [
-        { "class": "GeneralReg", "usage": "use" },
-        { "class": "Mem64", "usage": "def" }
       ]
     },
     {
@@ -148,10 +146,12 @@
       ]
     },
     {
-      "stems": [ "SextW", "ZextW", "negw" ],
+      "encodings": {
+        "sd": { "opcode": "0000_3023", "type": "S-type" }
+      },
       "args": [
-        { "class": "GeneralReg", "usage": "def" },
-        { "class": "GeneralReg", "usage": "use" }
+        { "class": "GeneralReg", "usage": "use" },
+        { "class": "Mem64", "usage": "def" }
       ]
     }
   ]

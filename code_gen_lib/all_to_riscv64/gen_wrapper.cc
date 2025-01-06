@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
-#define BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_
+#include "berberis/code_gen_lib/gen_wrapper.h"
 
-#include <cstddef>
-#include <cstdint>
-
-#include "exec_region.h"
+#include "berberis/assembler/machine_code.h"
+#include "berberis/base/macros.h"
+#include "berberis/guest_state/guest_addr.h"
+#include "berberis/runtime_primitives/host_code.h"
 
 namespace berberis {
 
-class ExecRegionAnonymousFactory {
- public:
-  // Size of anonymous executable code region.
-  static constexpr uint32_t kExecRegionSize = 4 * 1024 * 1024;
-
-  static ExecRegion Create(size_t size);
-};
+void GenWrapGuestFunction(MachineCode* mc,
+                          GuestAddr pc,
+                          const char* signature,
+                          HostCode guest_runner,
+                          const char* name) {
+  UNUSED(mc, pc, signature, guest_runner, name);
+}
 
 }  // namespace berberis
-
-#endif  // BERBERIS_BASE_EXEC_REGION_ANONYMOUS_H_

@@ -43,18 +43,6 @@ void UpdateGuestProt(int guest_prot, void* addr, size_t length) {
   GuestAddr guest_addr = ToGuestAddr(addr);
   GuestMapShadow* shadow = GuestMapShadow::GetInstance();
   if (guest_prot & PROT_EXEC) {
-    // Since we strip guest executable bit from host mappings kernel may merge r-- and r-x guest
-    // mappings together, which is difficult to split back when emulating /proc/self/maps. Setting
-    // region name helps to prevent regions merging. It helps even if it's a file backed mapping,
-    // even though filename isn't visibly changed in /proc/self/maps in this case.
-    // Note that this name can be overridden by the app, which is fine as long as it's
-    // unique for this mapping. We do not remove this name if executable bit is
-    // removed which also should be fine since it's just a hint.
-    int res = SetVmaAnonName(addr, AlignUpPageSize(length), "[guest exec mapping hint]");
-    if (res == -1) {
-      TRACE("PR_SET_VMA_ANON_NAME failed with errno=%s", std::strerror(errno));
-    }
-
     shadow->SetExecutable(guest_addr, length);
   } else {
     shadow->ClearExecutable(guest_addr, length);

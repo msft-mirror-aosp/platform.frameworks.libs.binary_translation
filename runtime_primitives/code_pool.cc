@@ -19,11 +19,11 @@
 #include <cstring>
 #include <mutex>
 
-#include "berberis/base/exec_region_anonymous.h"
 #include "berberis/base/forever_alloc.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 
 #if defined(__BIONIC__)
-#include "berberis/base/exec_region_elf_backed.h"
+#include "berberis/runtime_primitives/exec_region_elf_backed.h"
 #endif
 
 namespace berberis {

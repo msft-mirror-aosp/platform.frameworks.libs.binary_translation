@@ -15,6 +15,7 @@
  */
 
 #include "translator_x86_64.h"
+#include "berberis/base/config.h"  // kGuestPageSize;
 #include "berberis/runtime/translator.h"
 #include "translator.h"
 
@@ -89,6 +90,16 @@ enum class TranslationGear {
   kSecond,
 };
 
+size_t GetExecutableRegionSize(GuestAddr pc) {
+  // With kGuestPageSize=4k we scan at least 1k instructions, which should be enough for a single
+  // region.
+  auto [is_exec, exec_size] =
+      GuestMapShadow::GetInstance()->GetExecutableRegionSize(pc, config::kGuestPageSize);
+  // Must be called on pc which is already proven to be executable.
+  CHECK(is_exec);
+  return exec_size;
+}
+
 }  // namespace
 
 void InitTranslatorArch() {
@@ -98,9 +109,10 @@ void InitTranslatorArch() {
 // Exported for testing only.
 std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAndInstallRegion(
     GuestAddr pc,
-    const LiteTranslateParams& params) {
+    LiteTranslateParams params) {
   MachineCode machine_code;
 
+  params.end_pc = pc + GetExecutableRegionSize(pc);
   auto [success, stop_pc] = TryLiteTranslateRegion(pc, &machine_code, params);
 
   size_t size = stop_pc - pc;
@@ -115,8 +127,10 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAn
   }
 
   MachineCode another_machine_code;
-  success = LiteTranslateRange(pc, stop_pc, &another_machine_code, params);
+  params.end_pc = stop_pc;
+  std::tie(success, stop_pc) = TryLiteTranslateRegion(pc, &another_machine_code, params);
   CHECK(success);
+  CHECK_EQ(stop_pc, params.end_pc);
 
   return {true,
           InstallTranslated(&another_machine_code, pc, size, "lite_range"),
@@ -128,13 +142,9 @@ std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> TryLiteTranslateAn
 std::tuple<bool, HostCodePiece, size_t, GuestCodeEntry::Kind> HeavyOptimizeRegion(GuestAddr pc) {
   MachineCode machine_code;
   auto [stop_pc, success, unused_number_of_processed_instructions] =
-      HeavyOptimizeRegion(pc, &machine_code);
+      HeavyOptimizeRegion(pc, &machine_code, {.end_pc = pc + GetExecutableRegionSize(pc)});
   size_t size = stop_pc - pc;
-  if (success) {
-    return {true, InstallTranslated(&machine_code, pc, size, "heavy"), size, kHeavyOptimized};
-  }
-
-  if (size == 0) {
+  if (!success && (size == 0)) {
     // Cannot translate even single instruction - the attempt failed.
     return {false, {}, 0, {}};
   }
@@ -215,19 +225,6 @@ void TranslateRegion(GuestAddr pc) {
     LOG_ALWAYS_FATAL("Unsupported translation mode %u", g_translation_mode);
   }
 
-  // Now that we know the size of the translated block, make sure the entire memory block has
-  // executable permission before saving it to the cache.
-  // TODO(b/232598137): installing kEntryNoExec for the *current* pc is completely incorrect as
-  // we've checked that it's executable above. The straightforward thing to do would be to
-  // check executability of each instruction while translating, and generating signal raise
-  // for non-executable ones. This handles the case when region contains conditional branch
-  // to non-executable code.
-  if (!guest_map_shadow->IsExecutable(pc, size)) {
-    TRACE("setting partly executable region at [0x%zx, 0x%zx) as not executable!", pc, pc + size);
-    cache->SetTranslatedAndUnlock(pc, entry, size, kSpecialHandler, {kEntryNoExec, 0});
-    return;
-  }
-
   cache->SetTranslatedAndUnlock(pc, entry, size, kind, host_code_piece);
 }
 
@@ -253,9 +250,9 @@ extern "C" __attribute__((used, __visibility__("hidden"))) const void* berberis_
     ThreadState* state) {
   CHECK(state);
   if (ArePendingSignalsPresent(*state)) {
-    return kEntryExitGeneratedCode;
+    return AsHostCode(kEntryExitGeneratedCode);
   }
-  return TranslationCache::GetInstance()->GetHostCodePtr(state->cpu.insn_addr)->load();
+  return AsHostCode(TranslationCache::GetInstance()->GetHostCodePtr(state->cpu.insn_addr)->load());
 }
 
 extern "C" __attribute__((used, __visibility__("hidden"))) void

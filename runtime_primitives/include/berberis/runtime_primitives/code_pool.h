@@ -23,11 +23,11 @@
 #include "berberis/assembler/machine_code.h"
 #include "berberis/base/arena_alloc.h"
 #include "berberis/base/exec_region.h"
-#include "berberis/base/exec_region_anonymous.h"
+#include "berberis/runtime_primitives/exec_region_anonymous.h"
 #include "berberis/runtime_primitives/host_code.h"
 
 #if defined(__BIONIC__)
-#include "berberis/base/exec_region_elf_backed.h"
+#include "berberis/runtime_primitives/exec_region_elf_backed.h"
 #endif
 
 namespace berberis {
@@ -45,7 +45,7 @@ class CodePool {
   CodePool(CodePool&&) = delete;
   CodePool& operator=(CodePool&&) = delete;
 
-  [[nodiscard]] HostCode Add(MachineCode* code) {
+  [[nodiscard]] HostCodeAddr Add(MachineCode* code) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     uint32_t size = code->install_size();
@@ -65,7 +65,7 @@ class CodePool {
     current_address_ += size;
 
     code->Install(&exec_, result, &recovery_map_);
-    return result;
+    return AsHostCodeAddr(result);
   }
 
   [[nodiscard]] uintptr_t FindRecoveryCode(uintptr_t fault_addr) const {
