@@ -25,161 +25,138 @@
 namespace berberis::constants_pool {
 
 // Vector constants, that is: constants are repeated to fill 128bit SIMD register.
+
 template <auto Value>
-inline constexpr int32_t kVectorConst = kImpossibleValueConst<Value>;
-template <>
-extern const int32_t kVectorConst<int8_t{-128}>;
-template <>
-extern const int32_t kVectorConst<int8_t{127}>;
-template <>
-extern const int32_t kVectorConst<int16_t{-0x8000}>;
-template <>
-extern const int32_t kVectorConst<int16_t{0x7fff}>;
-template <>
-extern const int32_t kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}>;
-template <>
-extern const int32_t kVectorConst<int32_t{-0x0080'0000}>;
-template <>
-extern const int32_t kVectorConst<int32_t{0x3f80'0000}>;
-template <>
-extern const int32_t kVectorConst<int32_t{0x7f80'0000}>;
-template <>
-extern const int32_t kVectorConst<int32_t{0x7fff'ffff}>;
-template <>
-extern const int32_t kVectorConst<int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}>;
-template <>
-extern const int32_t kVectorConst<int64_t{0x3ff0'0000'0000'0000}>;
-template <>
-extern const int32_t kVectorConst<int64_t{0x7ff0'0000'0000'0000}>;
-template <>
-extern const int32_t kVectorConst<int64_t{0x7fff'ffff'ffff'ffff}>;
-template <>
-extern const int32_t kVectorConst<int64_t{-0x0010'0000'0000'0000}>;
-template <>
-extern const int32_t kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kVectorConst<int8_t{0x00}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kVectorConst<uint8_t{0x00}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kVectorConst<int16_t{0x0000}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kVectorConst<uint16_t{0x0000}> =
-    kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kVectorConst<uint8_t{127}> = kVectorConst<int8_t{127}>;
-template <>
-inline const int32_t& kVectorConst<uint8_t{128}> = kVectorConst<int8_t{-128}>;
-template <>
-inline const int32_t& kVectorConst<uint16_t{0x7fff}> = kVectorConst<int16_t{0x7fff}>;
-template <>
-inline const int32_t& kVectorConst<uint16_t{0x8000}> = kVectorConst<int16_t{-0x8000}>;
-template <>
-inline const int32_t& kVectorConst<int32_t{0x0000'0000}> =
-    kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kVectorConst<uint32_t{0x0000'0000}> =
-    kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kVectorConst<uint32_t{0x3f80'0000}> = kVectorConst<int32_t{0x3f80'0000}>;
-template <>
-inline const int32_t& kVectorConst<uint32_t{0x7f80'0000}> = kVectorConst<int32_t{0x7f80'0000}>;
-template <>
-inline const int32_t& kVectorConst<uint32_t{0x7fff'ffff}> = kVectorConst<int32_t{0x7fff'ffff}>;
-template <>
-inline const int32_t& kVectorConst<uint32_t{0x8000'0000}> =
-    kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}>;
-template <>
-inline const int32_t& kVectorConst<uint32_t{0xff80'0000}> = kVectorConst<int32_t{-0x0080'0000}>;
-template <>
-inline const int32_t& kVectorConst<int64_t{0x0000'0000'0000'0000}> =
-    kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-extern const int32_t kVectorConst<uint64_t{0x7fc'00000'7fc'00000}>;
-template <>
-inline const int32_t& kVectorConst<uint64_t{0x7ff0'0000'0000'0000}> =
-    kVectorConst<int64_t{0x7ff0'0000'0000'0000}>;
-template <>
-extern const int32_t kVectorConst<uint64_t{0x7ff8'0000'0000'0000}>;
-template <>
-inline const int32_t& kVectorConst<uint64_t{0xfff0'0000'0000'0000}> =
-    kVectorConst<int64_t{-0x0010'0000'0000'0000}>;
-template <>
-extern const int32_t kVectorConst<uint64_t{0xffff'ffff'0000'0000}>;
-template <>
-extern const int32_t kVectorConst<uint64_t{0xffff'ffff'7fc0'0000}>;
-template <>
-extern const int32_t kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kVectorConst<int8_t{-1}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kVectorConst<uint8_t{0xff}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kVectorConst<int16_t{-1}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kVectorConst<uint16_t{0xffff}> =
-    kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kVectorConst<int32_t{-1}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kVectorConst<uint32_t{0xffff'ffff}> =
-    kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kVectorConst<int64_t{-1}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
+struct VectorConst {};
+
+// Specialize VectorConst<Value> using an out-of-line definition.
+#pragma push_macro("VECTOR_CONST_EXTERN")
+#define VECTOR_CONST_EXTERN(Value) \
+  template <>                      \
+  struct VectorConst<Value> {      \
+    static const int32_t kValue;   \
+  }
+
+// Specialize VectorConst<Value> using a reference to another constant's int32_t address.
+#pragma push_macro("VECTOR_CONST_ALIAS")
+#define VECTOR_CONST_ALIAS(Value, Alias)            \
+  template <>                                       \
+  struct VectorConst<Value> {                       \
+    static constexpr const int32_t& kValue = Alias; \
+  }
+
+template <auto Value>
+inline const int32_t& kVectorConst = VectorConst<Value>::kValue;
+
+VECTOR_CONST_EXTERN(int8_t{-128});
+VECTOR_CONST_EXTERN(int8_t{127});
+VECTOR_CONST_EXTERN(int16_t{-0x8000});
+VECTOR_CONST_EXTERN(int16_t{0x7fff});
+VECTOR_CONST_EXTERN(int32_t{static_cast<int32_t>(-0x8000'0000)});
+VECTOR_CONST_EXTERN(int32_t{-0x0080'0000});
+VECTOR_CONST_EXTERN(int32_t{0x3f80'0000});
+VECTOR_CONST_EXTERN(int32_t{0x7f80'0000});
+VECTOR_CONST_EXTERN(int32_t{0x7fff'ffff});
+VECTOR_CONST_EXTERN(int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)});
+VECTOR_CONST_EXTERN(int64_t{0x3ff0'0000'0000'0000});
+VECTOR_CONST_EXTERN(int64_t{0x7ff0'0000'0000'0000});
+VECTOR_CONST_EXTERN(int64_t{0x7fff'ffff'ffff'ffff});
+VECTOR_CONST_EXTERN(int64_t{-0x0010'0000'0000'0000});
+VECTOR_CONST_EXTERN(uint64_t{0x0000'0000'0000'0000});
+
+VECTOR_CONST_ALIAS(int8_t{0x00}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+VECTOR_CONST_ALIAS(uint8_t{0x00}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+VECTOR_CONST_ALIAS(int16_t{0x0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+VECTOR_CONST_ALIAS(uint16_t{0x0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+VECTOR_CONST_ALIAS(uint8_t{127}, kVectorConst<int8_t{127}>);
+VECTOR_CONST_ALIAS(uint8_t{128}, kVectorConst<int8_t{-128}>);
+VECTOR_CONST_ALIAS(uint16_t{0x7fff}, kVectorConst<int16_t{0x7fff}>);
+VECTOR_CONST_ALIAS(uint16_t{0x8000}, kVectorConst<int16_t{-0x8000}>);
+VECTOR_CONST_ALIAS(int32_t{0x0000'0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+VECTOR_CONST_ALIAS(uint32_t{0x0000'0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+VECTOR_CONST_ALIAS(uint32_t{0x3f80'0000}, kVectorConst<int32_t{0x3f80'0000}>);
+VECTOR_CONST_ALIAS(uint32_t{0x7f80'0000}, kVectorConst<int32_t{0x7f80'0000}>);
+VECTOR_CONST_ALIAS(uint32_t{0x7fff'ffff}, kVectorConst<int32_t{0x7fff'ffff}>);
+VECTOR_CONST_ALIAS(uint32_t{0x8000'0000},
+                   kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}>);
+VECTOR_CONST_ALIAS(uint32_t{0xff80'0000}, kVectorConst<int32_t{-0x0080'0000}>);
+VECTOR_CONST_ALIAS(int64_t{0x0000'0000'0000'0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+
+VECTOR_CONST_EXTERN(uint64_t{0x7fc'00000'7fc'00000});
+
+VECTOR_CONST_ALIAS(uint64_t{0x7ff0'0000'0000'0000}, kVectorConst<int64_t{0x7ff0'0000'0000'0000}>);
+
+VECTOR_CONST_EXTERN(uint64_t{0x7ff8'0000'0000'0000});
+
+VECTOR_CONST_ALIAS(uint64_t{0xfff0'0000'0000'0000}, kVectorConst<int64_t{-0x0010'0000'0000'0000}>);
+
+VECTOR_CONST_EXTERN(uint64_t{0xffff'ffff'0000'0000});
+VECTOR_CONST_EXTERN(uint64_t{0xffff'ffff'7fc0'0000});
+VECTOR_CONST_EXTERN(uint64_t{0xffff'ffff'ffff'ffff});
+
+VECTOR_CONST_ALIAS(int8_t{-1}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+VECTOR_CONST_ALIAS(uint8_t{0xff}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+VECTOR_CONST_ALIAS(int16_t{-1}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+VECTOR_CONST_ALIAS(uint16_t{0xffff}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+VECTOR_CONST_ALIAS(int32_t{-1}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+VECTOR_CONST_ALIAS(uint32_t{0xffff'ffff}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+VECTOR_CONST_ALIAS(int64_t{-1}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+
+#pragma pop_macro("VECTOR_CONST_EXTERN")
+#pragma pop_macro("VECTOR_CONST_ALIAS")
 
 // 64 bit constants for use with arithmetic operations.
 // Used because only 32 bit immediates are supported on x86-64.
+
 template <auto Value>
-inline constexpr int32_t kConst = kImpossibleValueConst<Value>;
-template <>
-extern const int32_t kConst<uint32_t{32}>;
-template <>
-extern const int32_t kConst<uint32_t{63}>;
-template <>
-extern const int32_t kConst<uint64_t{64}>;
-template <>
-extern const int32_t kConst<uint64_t{127}>;
-template <>
-extern const int32_t kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kConst<int8_t{0x00}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kConst<uint8_t{0x00}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kConst<int16_t{0x0000}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kConst<uint16_t{0x0000}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kConst<int32_t{0x0000'0000}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kConst<uint32_t{0x0000'0000}> = kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kConst<int64_t{0x0000'0000'0000'0000}> =
-    kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-inline const int32_t& kConst<uint64_t{0x0000'0000'0000'0000}> =
-    kVectorConst<uint64_t{0x0000'0000'0000'0000}>;
-template <>
-extern const int32_t kConst<uint64_t{0x8000'0000'0000'00ff}>;
-template <>
-extern const int32_t kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kConst<int8_t{-1}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kConst<uint8_t{0xff}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kConst<int16_t{-1}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kConst<uint16_t{0xffff}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kConst<int32_t{-1}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kConst<uint32_t{0xffff'ffff}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kConst<int64_t{-1}> = kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
-template <>
-inline const int32_t& kConst<uint64_t{0xffff'ffff'ffff'ffff}> =
-    kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>;
+struct Const {};
+
+// Specialize Const<Value> using an out-of-line definition.
+#pragma push_macro("CONST_EXTERN")
+#define CONST_EXTERN(Value)      \
+  template <>                    \
+  struct Const<Value> {          \
+    static const int32_t kValue; \
+  }
+
+// Specialize Const<Value> using a reference to another constant's int32_t address.
+#pragma push_macro("CONST_ALIAS")
+#define CONST_ALIAS(Value, Alias)                   \
+  template <>                                       \
+  struct Const<Value> {                             \
+    static constexpr const int32_t& kValue = Alias; \
+  }
+
+template <auto Value>
+inline const int32_t& kConst = Const<Value>::kValue;
+
+CONST_EXTERN(uint32_t{32});
+CONST_EXTERN(uint32_t{63});
+CONST_EXTERN(uint64_t{64});
+CONST_EXTERN(uint64_t{127});
+
+CONST_ALIAS(int8_t{0x00}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+CONST_ALIAS(uint8_t{0x00}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+CONST_ALIAS(int16_t{0x0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+CONST_ALIAS(uint16_t{0x0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+CONST_ALIAS(int32_t{0x0000'0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+CONST_ALIAS(uint32_t{0x0000'0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+CONST_ALIAS(int64_t{0x0000'0000'0000'0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+CONST_ALIAS(uint64_t{0x0000'0000'0000'0000}, kVectorConst<uint64_t{0x0000'0000'0000'0000}>);
+
+CONST_EXTERN(uint64_t{0x8000'0000'0000'00ff});
+
+CONST_ALIAS(int8_t{-1}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+CONST_ALIAS(uint8_t{0xff}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+CONST_ALIAS(int16_t{-1}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+CONST_ALIAS(uint16_t{0xffff}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+CONST_ALIAS(int32_t{-1}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+CONST_ALIAS(uint32_t{0xffff'ffff}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+CONST_ALIAS(int64_t{-1}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+CONST_ALIAS(uint64_t{0xffff'ffff'ffff'ffff}, kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}>);
+
+#pragma pop_macro("CONST_EXTERN")
+#pragma pop_macro("CONST_ALIAS")
 
 // Constant suitable for NaN boxing of RISC-V 32bit float with PXor.
 // Note: technically we only need to Nan-box Float32 since we don't support Float16 yet.

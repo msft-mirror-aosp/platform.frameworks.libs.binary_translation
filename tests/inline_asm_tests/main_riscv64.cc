@@ -415,11 +415,15 @@ void RunCommonVectorFunc(ExecInsnFunc exec_insn,
                          uint64_t vtype,
                          uint64_t vlin) {
   uint64_t unused_local;
-  if (scalar_int_res == nullptr) {
+  if (!scalar_int_res) {
     scalar_int_res = &unused_local;
   }
-  if (scalar_float_res == nullptr) {
+  if (!scalar_float_res) {
     scalar_float_res = &unused_local;
+  }
+  SIMD128Register unused_simd_local[8];
+  if (!res) {
+    res = &unused_simd_local[0];
   }
 
   uint64_t vl = vlin;
@@ -12391,6 +12395,32 @@ TEST(InlineAsmTestRiscv64, TestVslideup) {
       /*vlmul=*/7,
       /*regx1=*/8,
       /*skip=*/8);
+}
+
+[[gnu::naked]] void ExecVfirstm() {
+  asm("vfirst.m t0, v16\n\t"
+      "ret\n\t");
+}
+
+TEST(InlineAsmTestRiscv64, TestVfirstm) {
+  SIMD128Register source[16]{};
+  SIMD128Register unused_result[8]{};
+  // Setup 8-bit elements in 8 registers to involve all 128 bits in vl. Masks and tail processing
+  // aren't used in this test.
+  uint64_t vtype = 3;
+  for (uint64_t bit = 0; bit < 128; bit++) {
+    uint64_t result{~uint64_t{0}};
+    source[0] = __uint128_t{1} << bit;
+    RunCommonVectorFunc(
+        &ExecVfirstm, &source[0], nullptr, &result, nullptr, 0, 0, vtype, /*vl*/ 128);
+    EXPECT_EQ(result, bit);
+  }
+
+  // Also test the zero special case.
+  uint64_t result{0};
+  source[0] = __uint128_t{0};
+  RunCommonVectorFunc(&ExecVfirstm, &source[0], nullptr, &result, nullptr, 0, 0, vtype, /*vl*/ 128);
+  EXPECT_EQ(result, ~uint64_t{0});
 }
 
 }  // namespace
