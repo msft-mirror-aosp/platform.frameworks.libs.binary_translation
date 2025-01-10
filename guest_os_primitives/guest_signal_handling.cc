@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <csignal>
+#include <cstring>
 #include <memory>
 #include <mutex>
 
@@ -23,6 +24,7 @@
 #include <platform/bionic/reserved_signals.h>
 #endif
 
+#include "berberis/base/bit_util.h"
 #include "berberis/base/checks.h"
 #include "berberis/base/config_globals.h"
 #include "berberis/base/forever_alloc.h"
@@ -31,7 +33,9 @@
 #include "berberis/guest_os_primitives/guest_thread.h"
 #include "berberis/guest_os_primitives/guest_thread_manager.h"
 #include "berberis/guest_os_primitives/syscall_numbers.h"
+#include "berberis/guest_state/guest_addr.h"
 #include "berberis/guest_state/guest_state_opaque.h"
+#include "berberis/runtime_primitives/crash_reporter.h"
 #include "berberis/runtime_primitives/recovery_code.h"
 
 #include "guest_signal_action.h"
@@ -111,7 +115,12 @@ void SetHostRegIP(ucontext* ucontext, uintptr_t addr) {
 
 // Can be interrupted by another HandleHostSignal!
 void HandleHostSignal(int sig, siginfo_t* info, void* context) {
-  TRACE("handle host signal %d", sig);
+  ucontext_t* ucontext = bit_cast<ucontext_t*>(context);
+  TRACE("Handle host signal %s (%d) at pc=%p si_addr=%p",
+        strsignal(sig),
+        sig,
+        bit_cast<void*>(GetHostRegIP(ucontext)),
+        info->si_addr);
 
   bool attached;
   GuestThread* thread = AttachCurrentThread(false, &attached);
@@ -133,7 +142,6 @@ void HandleHostSignal(int sig, siginfo_t* info, void* context) {
     CHECK(!attached);
 
     // Run recovery code to restore precise context and exit generated code.
-    ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     uintptr_t addr = GetHostRegIP(ucontext);
     uintptr_t recovery_addr = FindRecoveryCode(addr, thread->state());
 
@@ -152,14 +160,17 @@ void HandleHostSignal(int sig, siginfo_t* info, void* context) {
       }
       SetHostRegIP(ucontext, recovery_addr);
       TRACE("guest signal handler suspended, run recovery for host pc %p at host pc %p",
-            reinterpret_cast<void*>(addr),
-            reinterpret_cast<void*>(recovery_addr));
+            bit_cast<void*>(addr),
+            bit_cast<void*>(recovery_addr));
     } else {
       // Failed to find recovery code.
       // Translated code should be arranged to continue till
       // the next pending signals check unless it's fatal.
       if (IsPendingSignalWithoutRecoveryCodeFatal(info)) {
-        LOG_ALWAYS_FATAL("Cannot process signal %d", sig);
+        HandleFatalSignal(sig, info, context);
+        // If the raised signal is blocked we may need to return from the handler to unblock it.
+        TRACE("Detected return from HandleFatalSignal, continue");
+        return;
       }
       TRACE("guest signal handler suspended, continue");
     }
