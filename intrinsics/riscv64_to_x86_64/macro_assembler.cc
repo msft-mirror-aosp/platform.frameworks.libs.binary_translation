@@ -332,81 +332,48 @@ int32_t GetConstants() {
 
 extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
 const int32_t kBerberisMacroAssemblerConstantsRelocated = GetConstants();
-template <>
-extern const int32_t kVectorConst<int8_t{-128}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kMinInt8);
-template <>
-extern const int32_t kVectorConst<int8_t{127}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kMaxInt8);
-template <>
-extern const int32_t kVectorConst<int16_t{-0x8000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kMinInt16);
-template <>
-extern const int32_t kVectorConst<int16_t{0x7fff}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kMaxInt16);
-template <>
-extern const int32_t kVectorConst<int32_t{static_cast<int32_t>(-0x8000'0000)}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kMinInt32);
-template <>
-extern const int32_t kVectorConst<int32_t{0x3f80'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kFloat32One);
-template <>
-extern const int32_t kVectorConst<int32_t{0x7f80'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kFloat32PInf);
-template <>
-extern const int32_t kVectorConst<int32_t{0x7fff'ffff}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kMaxInt32);
-template <>
-extern const int32_t kVectorConst<int32_t{-0x0080'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kFloat32NInf);
-template <>
-extern const int32_t kVectorConst<int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kMinInt64);
-template <>
-extern const int32_t kVectorConst<int64_t{0x3ff0'0000'0000'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kFloat64One);
-template <>
-extern const int32_t kVectorConst<int64_t{0x7ff0'0000'0000'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kFloat64PInf);
-template <>
-extern const int32_t kVectorConst<int64_t{0x7fff'ffff'ffff'ffff}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kMaxInt64);
-template <>
-extern const int32_t kVectorConst<int64_t{-0x0010'0000'0000'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kFloat64NInf);
-template <>
-const int32_t kVectorConst<uint64_t{0x0000'0000'0000'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTable);
-template <>
-const int32_t kVectorConst<uint64_t{0xffff'ffff'ffff'ffff}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kBitMaskTable) + 16;
-template <>
-const int32_t kVectorConst<uint64_t{0xffff'ffff'0000'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxFloat32);
-template <>
-const int32_t kVectorConst<uint64_t{0xffff'ffff'7fc0'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kNanBoxedNansFloat32);
-template <>
-const int32_t kVectorConst<uint64_t{0x7fc0'0000'7fc0'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kCanonicalNansFloat32);
-template <>
-const int32_t kVectorConst<uint64_t{0x7ff8'0000'0000'0000}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kCanonicalNansFloat64);
-template <>
-const int32_t kConst<uint64_t{127}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kBsrToClzInt64);
-template <>
-const int32_t kConst<uint64_t{64}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kWidthInBits64);
-template <>
-const int32_t kConst<uint32_t{63}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kBsrToClzInt32);
-template <>
-const int32_t kConst<uint32_t{32}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, kWidthInBits32);
-template <>
-const int32_t kConst<uint64_t{0x8000'0000'0000'00ff}> =
-    GetConstants() + offsetof(MacroAssemblerConstants, k0x8000_0000_0000_00ff);
+
+#pragma push_macro("VECTOR_CONST_EXTERN")
+#define VECTOR_CONST_EXTERN(Value, Name, Offset) \
+  const int32_t VectorConst<Value>::kValue =     \
+      GetConstants() + offsetof(MacroAssemblerConstants, Name) + Offset;
+
+VECTOR_CONST_EXTERN(int8_t{-128}, kMinInt8, 0);
+VECTOR_CONST_EXTERN(int8_t{127}, kMaxInt8, 0);
+VECTOR_CONST_EXTERN(int16_t{-0x8000}, kMinInt16, 0);
+VECTOR_CONST_EXTERN(int16_t{0x7fff}, kMaxInt16, 0);
+VECTOR_CONST_EXTERN(int32_t{static_cast<int32_t>(-0x8000'0000)}, kMinInt32, 0);
+VECTOR_CONST_EXTERN(int32_t{0x3f80'0000}, kFloat32One, 0);
+VECTOR_CONST_EXTERN(int32_t{0x7f80'0000}, kFloat32PInf, 0);
+VECTOR_CONST_EXTERN(int32_t{0x7fff'ffff}, kMaxInt32, 0);
+VECTOR_CONST_EXTERN(int32_t{-0x0080'0000}, kFloat32NInf, 0);
+VECTOR_CONST_EXTERN(int64_t{static_cast<int64_t>(-0x8000'0000'0000'0000)}, kMinInt64, 0);
+VECTOR_CONST_EXTERN(int64_t{0x3ff0'0000'0000'0000}, kFloat64One, 0);
+VECTOR_CONST_EXTERN(int64_t{0x7ff0'0000'0000'0000}, kFloat64PInf, 0);
+VECTOR_CONST_EXTERN(int64_t{0x7fff'ffff'ffff'ffff}, kMaxInt64, 0);
+VECTOR_CONST_EXTERN(int64_t{-0x0010'0000'0000'0000}, kFloat64NInf, 0);
+VECTOR_CONST_EXTERN(uint64_t{0x0000'0000'0000'0000}, kBitMaskTable, 0);
+VECTOR_CONST_EXTERN(uint64_t{0xffff'ffff'ffff'ffff}, kBitMaskTable, 16);
+VECTOR_CONST_EXTERN(uint64_t{0xffff'ffff'0000'0000}, kNanBoxFloat32, 0);
+VECTOR_CONST_EXTERN(uint64_t{0xffff'ffff'7fc0'0000}, kNanBoxedNansFloat32, 0);
+VECTOR_CONST_EXTERN(uint64_t{0x7fc0'0000'7fc0'0000}, kCanonicalNansFloat32, 0);
+VECTOR_CONST_EXTERN(uint64_t{0x7ff8'0000'0000'0000}, kCanonicalNansFloat64, 0);
+
+#pragma pop_macro("VECTOR_CONST_EXTERN")
+
+#pragma push_macro("CONST_EXTERN")
+#define CONST_EXTERN(Value, Name, Offset) \
+  const int32_t Const<Value>::kValue =    \
+      GetConstants() + offsetof(MacroAssemblerConstants, Name) + Offset;
+
+CONST_EXTERN(uint64_t{127}, kBsrToClzInt64, 0);
+CONST_EXTERN(uint64_t{64}, kWidthInBits64, 0);
+CONST_EXTERN(uint32_t{63}, kBsrToClzInt32, 0);
+CONST_EXTERN(uint32_t{32}, kWidthInBits32, 0);
+CONST_EXTERN(uint64_t{0x8000'0000'0000'00ff}, k0x8000_0000_0000_00ff, 0);
+
+#pragma pop_macro("CONST_EXTERN")
+
 const int32_t kRiscVToX87Exceptions =
     GetConstants() + offsetof(MacroAssemblerConstants, kRiscVToX87Exceptions);
 const int32_t kX87ToRiscVExceptions =
