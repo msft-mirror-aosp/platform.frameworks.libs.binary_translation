@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifdef BERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS
-#undef BERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS
 #include "interpreter.h"
 
+#ifdef BERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS
 namespace berberis {
 
 template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVxArgs& args);
 
 }  // namespace berberis
-#endif
+#endif  // BERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS
