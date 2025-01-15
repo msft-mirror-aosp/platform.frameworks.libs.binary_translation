@@ -842,62 +842,31 @@ class SemanticsPlayer {
   // TODO(b/300690740): develop and implement strategy which would allow us to support vector
   // intrinsics not just in the interpreter.
 
-  void OpVector(const typename Decoder::VLoadIndexedArgs& args) {
-    Register arg2 = GetRegOrZero(args.src);
-    listener_->OpVector(args, arg2);
-  }
+  void OpVector(const typename Decoder::VLoadIndexedArgs& args);
 
-  void OpVector(const typename Decoder::VLoadStrideArgs& args) {
-    Register arg2 = GetRegOrZero(args.src);
-    Register arg3 = GetRegOrZero(args.std);
-    listener_->OpVector(args, arg2, arg3);
-  }
+  void OpVector(const typename Decoder::VLoadStrideArgs& args);
 
-  void OpVector(const typename Decoder::VLoadUnitStrideArgs& args) {
-    Register arg2 = GetRegOrZero(args.src);
-    listener_->OpVector(args, arg2);
-  }
+  void OpVector(const typename Decoder::VLoadUnitStrideArgs& args);
 
-  void OpVector(const typename Decoder::VOpFVfArgs& args) {
-    // Note: we don't have information here to chosee between GetFRegAndUnboxNan<Float32> and
-    // GetFRegAndUnboxNan<Float64> because that depends on vtype.
-    FpRegister arg2 = GetFpReg(args.src2);
-    listener_->OpVector(args, arg2);
-  }
+  void OpVector(const typename Decoder::VOpFVfArgs& args);
 
-  void OpVector(const typename Decoder::VOpFVvArgs& args) { listener_->OpVector(args); }
+  void OpVector(const typename Decoder::VOpFVvArgs& args);
 
-  void OpVector(const typename Decoder::VOpIViArgs& args) { listener_->OpVector(args); }
+  void OpVector(const typename Decoder::VOpIViArgs& args);
 
-  void OpVector(const typename Decoder::VOpIVvArgs& args) { listener_->OpVector(args); }
+  void OpVector(const typename Decoder::VOpIVvArgs& args);
 
-  void OpVector(const typename Decoder::VOpMVvArgs& args) { listener_->OpVector(args); }
+  void OpVector(const typename Decoder::VOpMVvArgs& args);
 
-  void OpVector(const typename Decoder::VOpIVxArgs& args) {
-    Register arg2 = GetRegOrZero(args.src2);
-    listener_->OpVector(args, arg2);
-  }
+  void OpVector(const typename Decoder::VOpIVxArgs& args);
 
-  void OpVector(const typename Decoder::VOpMVxArgs& args) {
-    Register arg2 = GetRegOrZero(args.src2);
-    listener_->OpVector(args, arg2);
-  }
+  void OpVector(const typename Decoder::VOpMVxArgs& args);
 
-  void OpVector(const typename Decoder::VStoreIndexedArgs& args) {
-    Register arg2 = GetRegOrZero(args.src);
-    listener_->OpVector(args, arg2);
-  }
+  void OpVector(const typename Decoder::VStoreIndexedArgs& args);
 
-  void OpVector(const typename Decoder::VStoreStrideArgs& args) {
-    Register arg2 = GetRegOrZero(args.src);
-    Register arg3 = GetRegOrZero(args.std);
-    listener_->OpVector(args, arg2, arg3);
-  }
+  void OpVector(const typename Decoder::VStoreStrideArgs& args);
 
-  void OpVector(const typename Decoder::VStoreUnitStrideArgs& args) {
-    Register arg2 = GetRegOrZero(args.src);
-    listener_->OpVector(args, arg2);
-  }
+  void OpVector(const typename Decoder::VStoreUnitStrideArgs& args);
 
   void Vsetivli(const typename Decoder::VsetivliArgs& args) {
     // Note: it's unclear whether args.avl should be treated similarly to x0 in Vsetvli or not.
@@ -1139,6 +1108,90 @@ class SemanticsPlayer {
 
   SemanticsListener* listener_;
 };
+
+// Note: we explicitly instantiate these functions in different files to speedup the compilation.
+// For that they have to be defined outside the class.
+// Read https://learn.microsoft.com/en-us/cpp/cpp/explicit-instantiation for more information.
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VLoadIndexedArgs& args) {
+  Register arg2 = GetRegOrZero(args.src);
+  listener_->OpVector(args, arg2);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VLoadStrideArgs& args) {
+  Register arg2 = GetRegOrZero(args.src);
+  Register arg3 = GetRegOrZero(args.std);
+  listener_->OpVector(args, arg2, arg3);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(
+    const typename Decoder::VLoadUnitStrideArgs& args) {
+  Register arg2 = GetRegOrZero(args.src);
+  listener_->OpVector(args, arg2);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VOpFVfArgs& args) {
+  // Note: we don't have information here to chosee between GetFRegAndUnboxNan<Float32> and
+  // GetFRegAndUnboxNan<Float64> because that depends on vtype.
+  FpRegister arg2 = GetFpReg(args.src2);
+  listener_->OpVector(args, arg2);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VOpFVvArgs& args) {
+  listener_->OpVector(args);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VOpIViArgs& args) {
+  listener_->OpVector(args);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VOpIVvArgs& args) {
+  listener_->OpVector(args);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VOpMVvArgs& args) {
+  listener_->OpVector(args);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VOpIVxArgs& args) {
+  Register arg2 = GetRegOrZero(args.src2);
+  listener_->OpVector(args, arg2);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VOpMVxArgs& args) {
+  Register arg2 = GetRegOrZero(args.src2);
+  listener_->OpVector(args, arg2);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VStoreIndexedArgs& args) {
+  Register arg2 = GetRegOrZero(args.src);
+  listener_->OpVector(args, arg2);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(const typename Decoder::VStoreStrideArgs& args) {
+  Register arg2 = GetRegOrZero(args.src);
+  Register arg3 = GetRegOrZero(args.std);
+  listener_->OpVector(args, arg2, arg3);
+}
+
+template <class SemanticsListener>
+void SemanticsPlayer<SemanticsListener>::OpVector(
+    const typename Decoder::VStoreUnitStrideArgs& args) {
+  Register arg2 = GetRegOrZero(args.src);
+  listener_->OpVector(args, arg2);
+}
 
 }  // namespace berberis
 
