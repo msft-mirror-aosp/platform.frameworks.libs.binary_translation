@@ -4826,32 +4826,21 @@ void inline Interpreter::NanBoxAndSetFpReg<Interpreter::Float64>(uint8_t reg, Fp
 }
 
 #ifdef BERBERIS_RISCV64_INTERPRETER_SEPARATE_INSTANTIATION_OF_VECTOR_OPERATIONS
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadIndexedArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadStrideArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadUnitStrideArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpFVfArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpFVvArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIViArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIVvArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIVxArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVvArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVxArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreIndexedArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreStrideArgs& args);
-template <>
-extern void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreUnitStrideArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadIndexedArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VLoadStrideArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(
+    const Decoder::VLoadUnitStrideArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpFVfArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpFVvArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIViArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIVvArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpIVxArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVvArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VOpMVxArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreIndexedArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(const Decoder::VStoreStrideArgs& args);
+extern template void SemanticsPlayer<Interpreter>::OpVector(
+    const Decoder::VStoreUnitStrideArgs& args);
 #endif
 
 }  // namespace berberis
