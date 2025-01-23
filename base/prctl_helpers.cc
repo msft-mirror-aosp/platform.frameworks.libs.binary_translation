@@ -22,8 +22,10 @@
 // enabled). It's always enabled in Android kernerls, but otherwise on Linux may be disabled
 // depending on CONFIG_ANON_VMA_NAME boot config flag. So the caller needs to check the result to
 // see if it actually worked.
-#if defined(__GLIBC__)
+#if !defined(PR_SET_VMA)
 #define PR_SET_VMA 0x53564d41
+#endif
+#if !defined(PR_SET_VMA_ANON_NAME)
 #define PR_SET_VMA_ANON_NAME 0
 #endif
 
