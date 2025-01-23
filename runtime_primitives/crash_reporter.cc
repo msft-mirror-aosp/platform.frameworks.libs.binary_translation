@@ -31,26 +31,29 @@ namespace {
 
 struct sigaction g_orig_action[NSIG];
 
+}  // namespace
+
 void HandleFatalSignal(int sig, siginfo_t* info, void* context) {
-  TRACE("fatal signal %d", sig);
+  TRACE("Fatal signal %d", sig);
 
   OnCrash(sig, info, context);
 
-  // Let default crash reporter do the job.
-  // Restore original signal action, as default crash reporter can re-raise the signal.
+  // Let the default crash reporter do the job. Restore the original signal action, as the default
+  // crash reporter can re-raise the signal.
   sigaction(sig, &g_orig_action[sig], nullptr);
   if (g_orig_action[sig].sa_flags & SA_SIGINFO) {
-    // Run original signal action manually and provide actual siginfo and context.
+    // Run the original signal action manually and provide actual siginfo and context.
     g_orig_action[sig].sa_sigaction(sig, info, context);
   } else {
-    // This should be rare as debuggerd sets siginfo handlers for most signals!
-    // Original action doesn't accept siginfo and context :(
-    // Re-raise the signal as accurate as possible and hope for the best.
+    // This should be rare as debuggerd sets siginfo handlers for most signals. The original action
+    // doesn't accept siginfo and context, so we re-raise the signal as accurate as possible and
+    // hope for the best. If the signal is currently blocked we'll need to return from this handler
+    // for the signal to be delivered.
+    // TODO(b/232598137): Since the action doesn't accept siginfo it'll be ignored anyway, so
+    // maybe we should just call g_orig_action[sig].sa_handler(sig) for immediate delivery.
     syscall(SYS_rt_tgsigqueueinfo, GetpidSyscall(), GettidSyscall(), sig, info);
   }
 }
-
-}  // namespace
 
 void InitCrashReporter() {
   struct sigaction action {};

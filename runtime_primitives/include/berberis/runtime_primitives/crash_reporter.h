@@ -17,9 +17,12 @@
 #ifndef BERBERIS_RUNTIME_PRIMITIVES_CRASH_REPORTER_H_
 #define BERBERIS_RUNTIME_PRIMITIVES_CRASH_REPORTER_H_
 
+#include <csignal>
+
 namespace berberis {
 
 void InitCrashReporter();
+void HandleFatalSignal(int sig, siginfo_t* info, void* context);
 
 }  // namespace berberis
 
