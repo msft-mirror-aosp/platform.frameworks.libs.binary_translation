@@ -891,6 +891,7 @@
           "feature": "AVX",
           "opcodes": [ "C4", "01", "01", "5A" ]
         },
+        "Vcvtph2ps": { "feature": "F16C", "opcodes": [ "C4", "02", "01", "13" ] },
         "Vcvtps2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5B" ] },
         "Vcvtps2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5A" ] },
         "Vcvttpd2dq": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "E6" ] },
@@ -2848,6 +2849,7 @@
     {
       "encodings": {
         "Vcvtdq2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "06", "E6" ] },
+        "Vcvtph2ps": { "feature": "F16C", "opcodes": [ "C4", "02", "05", "13" ] },
         "Vcvtps2pd": { "feature": "AVX", "opcodes": [ "C4", "01", "04", "5A" ] }
       },
       "args": [
@@ -2907,6 +2909,26 @@
       "args": [
         { "class": "VecReg128", "usage": "def" },
         { "class": "VecReg256/VecMem256", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vcvtps2ph": { "feature": "F16C", "opcodes": [ "C4", "03", "05", "1D" ], "type": "reg_to_rm" }
+      },
+      "args": [
+        { "class": "VecReg128/VecMem128", "usage": "def" },
+        { "class": "VecReg256", "usage": "use" },
+        { "class": "Imm8" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vcvtps2ph": { "feature": "F16C", "opcodes": [ "C4", "03", "01", "1D" ], "type": "reg_to_rm" }
+      },
+      "args": [
+        { "class": "XmmReg/VecMem64", "usage": "def" },
+        { "class": "VecReg128", "usage": "use" },
+        { "class": "Imm8" }
       ]
     },
     {

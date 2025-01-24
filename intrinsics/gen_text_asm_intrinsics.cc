@@ -210,6 +210,18 @@ void GenerateInShadows(FILE* out, int indent) {
           // {,u}int32_t and {,u}int64_t have to be converted to float/double.
           xmm_type_name =
               TypeTraits<typename TypeTraits<typename TypeTraits<Type>::Float>::Raw>::kName;
+        } else if constexpr (std::is_same_v<Type, intrinsics::Float16>) {
+          // It's a bit strange that _Float16 is not accepted in XMM register, but it's also not
+          // clear if it's a bug or not. Just use __m128 for now.
+          fprintf(out, "%2$*1$s__m128 in%3$d_expanded;\n", indent, "", arg.arg_info.from);
+          fprintf(out,
+                  "%2$*1$smemcpy(&in%3$d_expanded, &in%3$d, sizeof(Float16));\n",
+                  indent,
+                  "",
+                  arg.arg_info.from);
+          type_name = "__m128";
+          xmm_type_name = "__m128";
+          expanded = "_expanded";
         } else {
           // Float32/Float64 can not be used, we need to use raw float/double.
           xmm_type_name = TypeTraits<typename TypeTraits<Type>::Raw>::kName;
@@ -239,6 +251,10 @@ void GenerateInShadows(FILE* out, int indent) {
         if constexpr (std::is_integral_v<Type>) {
           xmm_type_name =
               TypeTraits<typename TypeTraits<typename TypeTraits<Type>::Float>::Raw>::kName;
+        } else if constexpr (std::is_same_v<Type, intrinsics::Float16>) {
+          // It's a bit strange that _Float16 is not accepted in XMM register, but it's also not
+          // clear if it's a bug or not. Just use __m128 for now.
+          xmm_type_name = "__m128";
         } else {
           // Float32/Float64 can not be used, we need to use raw float/double.
           xmm_type_name = TypeTraits<typename TypeTraits<Type>::Raw>::kName;
@@ -432,12 +448,17 @@ void GenerateOutShadows(FILE* out, int indent) {
           // Float32/Float64 can not be used, we need to use raw float/double.
           xmm_type_name = TypeTraits<typename TypeTraits<Type>::Raw>::kName;
         }
-        fprintf(out,
-                "%*sstatic_assert(sizeof(%s) == sizeof(%s));\n",
-                indent,
-                "",
-                type_name,
-                xmm_type_name);
+        // It's a bit strange that _Float16 is not accepted in XMM register, but it's also not
+        // clear if it's a bug or not. We use __m128 for now and that means size of types don't
+        // match here.
+        if constexpr (!std::is_same_v<Type, intrinsics::Float16>) {
+          fprintf(out,
+                  "%*sstatic_assert(sizeof(%s) == sizeof(%s));\n",
+                  indent,
+                  "",
+                  type_name,
+                  xmm_type_name);
+        }
         // Note: it's not safe to use bit_cast here till we have std::bit_cast from C++20.
         // If optimizer wouldn't be enabled (e.g. if code is compiled with -O0) then bit_cast
         // would use %st on 32-bit platform which destroys NaNs.

@@ -144,10 +144,20 @@ struct TypeTraits<intrinsics::Float64> {
 };
 
 template <>
+struct TypeTraits<_Float16> {
+  using Int = int16_t;
+  using Wrapped = intrinsics::Float16;
+  using Wide = float;
+  static constexpr int kBits = 16;
+  static constexpr char kName[] = "_Float16";
+};
+
+template <>
 struct TypeTraits<float> {
   using Int = int32_t;
   using Wrapped = intrinsics::Float32;
   using Wide = double;
+  using Narrow = _Float16;
   static constexpr int kBits = 32;
   static constexpr char kName[] = "float";
 };
