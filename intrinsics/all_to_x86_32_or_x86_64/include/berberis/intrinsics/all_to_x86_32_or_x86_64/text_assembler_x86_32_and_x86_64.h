@@ -275,6 +275,7 @@ class TextAssembler {
   bool need_avx2 = false;
   bool need_bmi = false;
   bool need_bmi2 = false;
+  bool need_f16c = false;
   bool need_fma = false;
   bool need_fma4 = false;
   bool need_lzcnt = false;
@@ -340,13 +341,14 @@ class TextAssembler {
   template <typename CPUIDRestriction>
   void CheckCPUIDRestriction() {
     constexpr bool expect_bmi = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>;
+    constexpr bool expect_f16c = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasF16C>;
     constexpr bool expect_fma = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>;
     constexpr bool expect_fma4 = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>;
     constexpr bool expect_lzcnt = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>;
     constexpr bool expect_popcnt =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>;
-    constexpr bool expect_avx =
-        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX> || expect_fma || expect_fma4;
+    constexpr bool expect_avx = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX> ||
+                                expect_f16c || expect_fma || expect_fma4;
     constexpr bool expect_sse4_2 =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2> || expect_avx;
     constexpr bool expect_sse4_1 =
@@ -358,6 +360,7 @@ class TextAssembler {
 
     CHECK_EQ(expect_avx, need_avx);
     CHECK_EQ(expect_bmi, need_bmi);
+    CHECK_EQ(expect_f16c, need_f16c);
     CHECK_EQ(expect_fma, need_fma);
     CHECK_EQ(expect_fma4, need_fma4);
     CHECK_EQ(expect_lzcnt, need_lzcnt);
@@ -387,6 +390,8 @@ class TextAssembler {
       return "host_platform::kHasAVX";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>) {
       return "host_platform::kHasBMI";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasF16C>) {
+      return "host_platform::kHasF16C";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>) {
       return "host_platform::kHasFMA";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>) {
@@ -463,6 +468,11 @@ class TextAssembler {
 
   void SetRequiredFeatureBMI2() {
     need_bmi2 = true;
+  }
+
+  void SetRequiredFeatureF16C() {
+    need_f16c = true;
+    SetRequiredFeatureAVX();
   }
 
   void SetRequiredFeatureFMA() {

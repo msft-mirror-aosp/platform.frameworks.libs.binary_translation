@@ -27,6 +27,7 @@ using Register = typename Assembler::Register;
 using ScaleFactor = typename Assembler::ScaleFactor;
 using XMMRegister = typename Assembler::XMMRegister;
 
+using Float16 = intrinsics::Float16;
 using Float32 = intrinsics::Float32;
 using Float64 = intrinsics::Float64;
 
@@ -73,6 +74,9 @@ static constexpr bool kUnsignedIntType = kFormatIs<IntType, uint8_t, uint16_t, u
 
 template <typename FloatType>
 static constexpr bool kFloatType = kFormatIs<FloatType, Float32, Float64>;
+
+template <typename FloatType>
+static constexpr bool kFloatType16_32_64 = kFormatIs<FloatType, Float16, Float32, Float64>;
 
 #define DEFINE_EXPAND_INSTRUCTION(Declare_dest, Declare_src)         \
   template <typename format_out, typename format_in>                 \
@@ -518,23 +522,35 @@ DEFINE_XMM_CVT_INSTRUCTION(Vcvt, (XMMRegister dest, Register src), (dest, src))
 DEFINE_XMM_CVT_INSTRUCTION(Vcvt, (XMMRegister dest, Operand src), (dest, src))
 #undef DEFINE_XMM_CVT_INSTRUCTION
 
-#define DEFINE_XMM_CVT_INSTRUCTION(insn_name, insn_suffix, parameters, arguments)   \
-  template <typename FormatFrom, typename FormatTo>                                 \
-  std::enable_if_t<kFloatType<FormatFrom> && kFloatType<FormatTo> &&                \
-                   sizeof(FormatFrom) != sizeof(FormatTo)>                          \
-      insn_name##insn_suffix parameters {                                           \
-    if constexpr (kFormatIs<FormatFrom, Float32> && kFormatIs<FormatTo, Float64>) { \
-      Assembler::insn_name##insn_suffix##s2##insn_suffix##d arguments;              \
-    } else {                                                                        \
-      Assembler::insn_name##insn_suffix##d2##insn_suffix##s arguments;              \
-    }                                                                               \
+#define DEFINE_XMM_CVT_INSTRUCTION(insn_name, insn_suffix, parameters, arguments)          \
+  template <typename FormatFrom, typename FormatTo>                                        \
+  std::enable_if_t<kFloatType16_32_64<FormatFrom> && kFloatType16_32_64<FormatTo> &&       \
+                   sizeof(FormatFrom) != sizeof(FormatTo)>                                 \
+      insn_name##insn_suffix parameters {                                                  \
+    if constexpr (kFormatIs<FormatFrom, Float16> && kFormatIs<FormatTo, Float32>) {        \
+      Assembler::insn_name##insn_suffix##h2##insn_suffix##s arguments;                     \
+    } else if constexpr (kFormatIs<FormatFrom, Float32> && kFormatIs<FormatTo, Float16>) { \
+      Assembler::insn_name##insn_suffix##s2##insn_suffix##h arguments;                     \
+    } else if constexpr (kFormatIs<FormatFrom, Float32> && kFormatIs<FormatTo, Float64>) { \
+      Assembler::insn_name##insn_suffix##s2##insn_suffix##d arguments;                     \
+    } else {                                                                               \
+      static_assert(kFormatIs<FormatFrom, Float64> && kFormatIs<FormatTo, Float32>);       \
+      Assembler::insn_name##insn_suffix##d2##insn_suffix##s arguments;                     \
+    }                                                                                      \
   }
 DEFINE_XMM_CVT_INSTRUCTION(Cvt, p, (XMMRegister dest, XMMRegister src), (dest, src))
 DEFINE_XMM_CVT_INSTRUCTION(Cvt, p, (XMMRegister dest, Operand src), (dest, src))
 DEFINE_XMM_CVT_INSTRUCTION(Cvt, s, (XMMRegister dest, XMMRegister src), (dest, src))
 DEFINE_XMM_CVT_INSTRUCTION(Cvt, s, (XMMRegister dest, Operand src), (dest, src))
-DEFINE_XMM_CVT_INSTRUCTION(Vcvt, p, (XMMRegister dest, XMMRegister src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt,
+                           p,
+                           (XMMRegister dest, XMMRegister src, auto... extra),
+                           (dest, src, extra...))
 DEFINE_XMM_CVT_INSTRUCTION(Vcvt, p, (XMMRegister dest, Operand src), (dest, src))
+DEFINE_XMM_CVT_INSTRUCTION(Vcvt,
+                           p,
+                           (Operand dest, XMMRegister src, auto... extra),
+                           (dest, src, extra...))
 DEFINE_XMM_CVT_INSTRUCTION(Vcvt,
                            s,
                            (XMMRegister dest, XMMRegister src1, XMMRegister src2),
