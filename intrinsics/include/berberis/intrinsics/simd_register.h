@@ -38,7 +38,7 @@ template <typename T>
 constexpr T SIMD128RegisterSet(SIMD128Register* reg, T elem, int index) = delete;
 
 #if defined(__GNUC__)
-using Int8x16 = char __attribute__((__vector_size__(16), may_alias));
+using Int8x16 = signed char __attribute__((__vector_size__(16), may_alias));
 using UInt8x16 = unsigned char __attribute__((__vector_size__(16), may_alias));
 using Int16x8 = short __attribute__((__vector_size__(16), may_alias));
 using UInt16x8 = unsigned short __attribute__((__vector_size__(16), may_alias));
