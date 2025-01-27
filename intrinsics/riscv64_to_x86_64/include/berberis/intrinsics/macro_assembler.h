@@ -43,8 +43,13 @@ class MacroAssembler : public Assembler {
   explicit MacroAssembler(Args&&... args) : Assembler(std::forward<Args>(args)...) {
   }
 
+#define IMPORT_ASSEMBLER_FUNCTIONS
+#include "berberis/assembler/gen_assembler_x86_64-using-inl.h"
+#undef IMPORT_ASSEMBLER_FUNCTIONS
+
 #define DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
 #include "berberis/intrinsics/all_to_x86_32_or_x86_64/macro_assembler-inl.h"
+#undef DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
 
   void PNot(XMMRegister result) {
     Pandn(result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
@@ -55,48 +60,6 @@ class MacroAssembler : public Assembler {
   }
 
 #include "berberis/intrinsics/macro_assembler_interface-inl.h"  // NOLINT generated file
-
-  using Assembler::Bind;
-  using Assembler::Btq;
-  using Assembler::Cbw;
-  using Assembler::Cdq;
-  using Assembler::Cqo;
-  using Assembler::Cwd;
-  using Assembler::Fldcw;
-  using Assembler::Fldenv;
-  using Assembler::Fnstcw;
-  using Assembler::Fnstenv;
-  using Assembler::Fnstsw;
-  using Assembler::Jcc;
-  using Assembler::Jmp;
-  using Assembler::Ldmxcsr;
-  using Assembler::Leal;
-  using Assembler::Leaq;
-  using Assembler::MakeLabel;
-  using Assembler::Movl;
-  using Assembler::Pand;
-  using Assembler::Pandn;
-  using Assembler::Pcmpeqb;
-  using Assembler::Pmov;
-  using Assembler::Por;
-  using Assembler::Pshufd;
-  using Assembler::Setcc;
-  using Assembler::Stmxcsr;
-  using Assembler::Vpand;
-  using Assembler::Vpandn;
-  using Assembler::Vpcmpeqb;
-  using Assembler::Vpor;
-  using Assembler::Vpshufd;
-
-  using Assembler::Byte;
-  using Assembler::TwoByte;
-  using Assembler::FourByte;
-  using Assembler::EigthByte;
-  using Assembler::P2Align;
-
-  using Assembler::gpr_a;
-  using Assembler::gpr_c;
-  using Assembler::gpr_d;
 
  private:
 
