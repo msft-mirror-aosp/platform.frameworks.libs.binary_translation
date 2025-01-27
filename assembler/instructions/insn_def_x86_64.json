@@ -775,6 +775,15 @@
         { "class": "GeneralReg64", "usage": "use_def" },
         { "class": "Mem64", "usage": "use_def" }
       ]
+    },
+    {
+      "encodings": {
+        "Xlatb": { "opcode": "d7" }
+      },
+      "args": [
+        { "class": "AL", "usage": "use_def" },
+        { "class": "RBX", "usage": "use" }
+      ]
     }
   ]
 }
