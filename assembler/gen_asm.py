@@ -489,26 +489,49 @@ def main(argv):
   #                   <def_common>
   #                   <def_arch>
   #                   ...
-
+  #
+  # Usage: gen_asm.py --using
+  #                   <def_common>
+  #                   <def_arch>
+  #                   ...
   mode = argv[1]
-  assert len(argv) % 2 == 0
-  filenames = argv[2:]
-  filename_pairs = ((filenames[i], filenames[len(filenames)//2 + i])
-                    for i in range(0, len(filenames)//2))
 
-  if mode == '--binary-assembler':
-    binary_assembler = True
-  elif mode == '--text-assembler':
-    binary_assembler = False
-  else:
+  if (mode != '--binary-assembler' and
+      mode != '--text-assembler' and
+      mode != '--using'):
     assert False, 'unknown option %s' % (mode)
 
-  for out_filename, input_filename in filename_pairs:
-    arch, loaded_defs = _load_asm_defs(input_filename)
-    with open(out_filename, 'w') as out_file:
-      _gen_generic_functions_h(out_file, loaded_defs, binary_assembler, arch)
-      if binary_assembler and arch is not None and 'x86' in arch:
-        _gen_memory_function_specializations_h(out_file, loaded_defs, arch)
+  if mode == '--binary-assembler' or mode == '--text-assembler':
+    binary_assembler = mode == '--binary-assembler'
+
+    assert len(argv) % 2 == 0
+    filenames = argv[2:]
+    filename_pairs = ((filenames[i], filenames[len(filenames)//2 + i])
+                      for i in range(0, len(filenames)//2))
+
+    for out_filename, input_filename in filename_pairs:
+      arch, loaded_defs = _load_asm_defs(input_filename)
+      with open(out_filename, 'w') as out_file:
+        _gen_generic_functions_h(out_file, loaded_defs, binary_assembler, arch)
+        if binary_assembler and arch is not None and 'x86' in arch:
+          _gen_memory_function_specializations_h(out_file, loaded_defs, arch)
+  else:
+    assert mode == '--using'
+
+    instruction_names = set()
+    for input_filename in argv[3:]:
+      arch, loaded_defs = _load_asm_defs(input_filename)
+      for insn in loaded_defs:
+        instruction_names.add(insn['asm'])
+
+    with open(argv[2], 'w') as out_file:
+      print("""
+#ifndef IMPORT_ASSEMBLER_FUNCTIONS
+#error This file is supposed to be included from berberis/intrinsics/macro_assembler-inl.h
+#endif
+""", file=out_file)
+      for name in instruction_names:
+        print('using Assembler::%s;' % name, file=out_file)
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv))
