@@ -761,6 +761,13 @@
       ]
     },
     {
+      "encodings": {
+        "Vzeroupper": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "77" ]},
+        "Vzeroall": { "feature": "AVX", "opcodes": [ "C4", "01", "04", "77" ]}
+      },
+      "args": []
+    },
+    {
       "stems": [ "Xchgq" ],
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
