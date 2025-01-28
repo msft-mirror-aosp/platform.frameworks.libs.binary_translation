@@ -225,7 +225,9 @@ class MachineInsn {
 
   [[nodiscard]] bool has_side_effects() const {
     return (kind_ == kMachineInsnSideEffects) || recovery_info_.bb ||
-           (recovery_info_.pc != kNullGuestAddr);
+           (recovery_info_.pc != kNullGuestAddr) ||
+           // Instructions not touching registers are always only used for their other side effects.
+           NumRegOperands() == 0;
   }
 
   [[nodiscard]] bool is_copy() const { return kind_ == kMachineInsnCopy; }
