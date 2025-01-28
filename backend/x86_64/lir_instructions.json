@@ -215,6 +215,7 @@
         "VmovapsXRegXReg",
         "VmovsdXRegXRegXReg",
         "VmovssXRegXRegXReg",
+        "Vzeroupper",
         "XchgbRegMemInsns",
         "XchgwRegMemInsns",
         "XchglRegMemInsns",
