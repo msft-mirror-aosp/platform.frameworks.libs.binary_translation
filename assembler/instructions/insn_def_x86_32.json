@@ -98,6 +98,15 @@
         { "class": "XmmReg", "usage": "use" },
         { "class": "FpReg32", "usage": "use" }
       ]
+    },
+    {
+      "encodings": {
+        "Xlatb": { "opcode": "d7" }
+      },
+      "args": [
+        { "class": "AL", "usage": "use_def" },
+        { "class": "EBX", "usage": "use" }
+      ]
     }
   ]
 }
