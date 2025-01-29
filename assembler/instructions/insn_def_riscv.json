@@ -252,19 +252,19 @@
       ]
     },
     {
+      "stems": [ "jal", "la", "lb", "lbu", "lh", "lhu", "lw" ],
+      "args": [
+        { "class": "GeneralReg", "usage": "def" },
+        { "class": "Label" }
+      ]
+    },
+    {
       "encodings": {
         "jal": { "opcode": "0000_006f", "type": "J-Type" }
       },
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "J-Imm" }
-      ]
-    },
-    {
-      "stems": [ "jal" ],
-      "args": [
-        { "class": "GeneralReg", "usage": "def" },
-        { "class": "Label" }
       ]
     },
     {
@@ -280,13 +280,6 @@
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "Mem", "usage": "use" }
-      ]
-    },
-    {
-      "stems": [ "la", "lb", "lbu", "lh", "lhu", "lw" ],
-      "args": [
-        { "class": "GeneralReg", "usage": "def" },
-        { "class": "Label" }
       ]
     },
     {
@@ -326,7 +319,7 @@
       ]
     },
     {
-      "stems": [ "mv", "neg", "not" ],
+      "stems": [ "mv", "neg", "not", "seqz", "sgtz", "sltz", "snez" ],
       "args": [
         { "class": "GeneralReg", "usage": "def" },
         { "class": "GeneralReg", "usage": "use" }
@@ -361,13 +354,6 @@
       "args": [
         { "class": "GeneralReg", "usage": "use" },
         { "class": "Mem8", "usage": "def" }
-      ]
-    },
-    {
-      "stems": [ "seqz", "sgtz", "sltz", "snez" ],
-      "args": [
-        { "class": "GeneralReg", "usage": "def" },
-        { "class": "GeneralReg", "usage": "use" }
       ]
     },
     {

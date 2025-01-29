@@ -4055,6 +4055,13 @@ TEST(Arm64InsnTest, ShiftLeftInt8x8) {
   ASSERT_EQ(res, MakeUInt128(0x00804000c0004040ULL, 0x0000000000000000ULL));
 }
 
+TEST(Arm64InsnTest, ShiftRightInsertInt8x8) {
+  __uint128_t arg1 = MakeUInt128(0x9112232618794059ULL, 0x9415540632701319ULL);
+  __uint128_t arg2 = MakeUInt128(0x1537675115830432ULL, 0x0849872092028092ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_W0_ARG("sri %0.8b, %1.8b, #4")(arg1, arg2);
+  ASSERT_EQ(res, MakeUInt128(0x1931625211870435ULL, 0x0000000000000000ULL));
+}
+
 TEST(Arm64InsnTest, ShiftRightInsertInt64x1) {
   __uint128_t arg1 = MakeUInt128(0x9112232618794059ULL, 0x9415540632701319ULL);
   __uint128_t arg2 = MakeUInt128(0x1537675115830432ULL, 0x0849872092028092ULL);
@@ -6210,10 +6217,22 @@ TEST(Arm64InsnTest, UnsignedAbsoluteDifferenceAccumulateLongUpperInt16x8) {
   ASSERT_EQ(res, MakeUInt128(0x0988d34d9911b302ULL, 0x0235397b7046c371ULL));
 }
 
+TEST(Arm64InsnTest, SignedAddLongPairwiseInt8x8) {
+  __uint128_t arg = MakeUInt128(0x6164411096256633ULL, 0x7305409219519675ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("saddlp %0.4h, %1.8b")(arg);
+  ASSERT_EQ(res, MakeUInt128(0x00c50051ffbb0099ULL, 0x0000000000000000ULL));
+}
+
 TEST(Arm64InsnTest, SignedAddLongPairwiseInt8x16) {
   __uint128_t arg = MakeUInt128(0x6164411096256633ULL, 0x7305409219519675ULL);
   __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("saddlp %0.8h, %1.16b")(arg);
   ASSERT_EQ(res, MakeUInt128(0x00c50051ffbb0099ULL, 0x0078ffd2006a000bULL));
+}
+
+TEST(Arm64InsnTest, SignedAddLongPairwiseInt16x4) {
+  __uint128_t arg = MakeUInt128(0x6164411096256633ULL, 0x7305409219519675ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("saddlp %0.2s, %1.4h")(arg);
+  ASSERT_EQ(res, MakeUInt128(0x0000a274fffffc58ULL, 0x0000000000000000ULL));
 }
 
 TEST(Arm64InsnTest, SignedAddLongPairwiseInt16x8) {
@@ -6333,11 +6352,25 @@ TEST(Arm64InsnTest, SignedSubWideUpper) {
   ASSERT_EQ(res, MakeUInt128(0x4510f0338356d684ULL, 0x691963ef5467342fULL));
 }
 
-TEST(Arm64InsnTest, UnsignedAddWide) {
+TEST(Arm64InsnTest, UnsignedAddWide8x8) {
+  __uint128_t arg1 = MakeUInt128(0x5870785951298344ULL, 0x1729535195378855ULL);
+  __uint128_t arg2 = MakeUInt128(0x3457374260859029ULL, 0x0817651557803905ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("uaddw %0.8h, %1.8h, %2.8b")(arg1, arg2);
+  ASSERT_EQ(res, MakeUInt128(0x58D078DE51B9836DULL, 0x175D53A8956E8897ULL));
+}
+
+TEST(Arm64InsnTest, UnsignedAddWide16x4) {
   __uint128_t arg1 = MakeUInt128(0x5870785951298344ULL, 0x1729535195378855ULL);
   __uint128_t arg2 = MakeUInt128(0x3457374260859029ULL, 0x0817651557803905ULL);
   __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("uaddw %0.4s, %1.4s, %2.4h")(arg1, arg2);
   ASSERT_EQ(res, MakeUInt128(0x5870d8de512a136dULL, 0x172987a89537bf97ULL));
+}
+
+TEST(Arm64InsnTest, UnsignedAddWide32x2) {
+  __uint128_t arg1 = MakeUInt128(0x5870785951298344ULL, 0x1729535195378855ULL);
+  __uint128_t arg2 = MakeUInt128(0x3457374260859029ULL, 0x0817651557803905ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("uaddw %0.2d, %1.2d, %2.2s")(arg1, arg2);
+  ASSERT_EQ(res, MakeUInt128(0x58707859B1AF136DULL, 0x17295351C98EBF97ULL));
 }
 
 TEST(Arm64InsnTest, UnsignedAddWideUpper) {
