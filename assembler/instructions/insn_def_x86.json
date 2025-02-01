@@ -1954,7 +1954,8 @@
     },
     {
       "encodings": {
-        "Movss": { "opcodes": [ "F3", "0F", "11" ] }
+        "Movss": { "opcodes": [ "F3", "0F", "11" ] },
+        "Vmovss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "11" ] }
       },
       "args": [
         { "class": "Mem32", "usage": "def" },
