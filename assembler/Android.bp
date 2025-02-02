@@ -56,6 +56,11 @@ filegroup {
 }
 
 filegroup {
+    name: "libberberis_assembler_gen_inputs_riscv",
+    srcs: ["instructions/insn_def_riscv.json"],
+}
+
+filegroup {
     name: "libberberis_assembler_gen_inputs_x86_32",
     srcs: [
         "instructions/insn_def_x86.json",
@@ -71,6 +76,11 @@ filegroup {
     ],
 }
 
+filegroup {
+    name: "libberberis_assembler_gen_inputs_x86_common",
+    srcs: ["instructions/insn_def_x86.json"],
+}
+
 genrule {
     name: "libberberis_assembler_gen_public_headers_riscv32",
     out: [
@@ -80,6 +90,14 @@ genrule {
     srcs: [":libberberis_assembler_gen_inputs_riscv32"],
     tools: ["gen_asm"],
     cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
+}
+
+genrule {
+    name: "libberberis_assembler_gen_public_headers_using_riscv32",
+    out: ["berberis/assembler/gen_assembler_rv32-using-inl.h"],
+    srcs: [":libberberis_assembler_gen_inputs_riscv32"],
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --using $(out) $(in)",
 }
 
 genrule {
@@ -94,6 +112,22 @@ genrule {
 }
 
 genrule {
+    name: "libberberis_assembler_gen_public_headers_using_riscv64",
+    out: ["berberis/assembler/gen_assembler_rv64-using-inl.h"],
+    srcs: [":libberberis_assembler_gen_inputs_riscv64"],
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --using $(out) $(in)",
+}
+
+genrule {
+    name: "libberberis_assembler_gen_public_headers_using_riscv",
+    out: ["berberis/assembler/gen_assembler_riscv-using-inl.h"],
+    srcs: [":libberberis_assembler_gen_inputs_riscv"],
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --using $(out) $(in)",
+}
+
+genrule {
     name: "libberberis_assembler_gen_public_headers_x86_32",
     out: [
         "berberis/assembler/gen_assembler_x86_32_and_x86_64-inl.h",
@@ -102,6 +136,14 @@ genrule {
     srcs: [":libberberis_assembler_gen_inputs_x86_32"],
     tools: ["gen_asm"],
     cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
+}
+
+genrule {
+    name: "libberberis_assembler_gen_public_headers_using_x86_32",
+    out: ["berberis/assembler/gen_assembler_x86_32-using-inl.h"],
+    srcs: [":libberberis_assembler_gen_inputs_x86_32"],
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --using $(out) $(in)",
 }
 
 genrule {
@@ -115,6 +157,22 @@ genrule {
     cmd: "$(location gen_asm) --binary-assembler $(out) $(in)",
 }
 
+genrule {
+    name: "libberberis_assembler_gen_public_headers_using_x86_64",
+    out: ["berberis/assembler/gen_assembler_x86_64-using-inl.h"],
+    srcs: [":libberberis_assembler_gen_inputs_x86_64"],
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --using $(out) $(in)",
+}
+
+genrule {
+    name: "libberberis_assembler_gen_public_headers_using_x86_common",
+    out: ["berberis/assembler/gen_assembler_x86_common-using-inl.h"],
+    srcs: [":libberberis_assembler_gen_inputs_x86_common"],
+    tools: ["gen_asm"],
+    cmd: "$(location gen_asm) --using $(out) $(in)",
+}
+
 cc_library_headers {
     name: "libberberis_assembler_headers",
     defaults: ["berberis_all_hosts_defaults"],
@@ -123,15 +181,27 @@ cc_library_headers {
     export_header_lib_headers: ["libberberis_base_headers"],
     generated_headers: [
         "libberberis_assembler_gen_public_headers_riscv32",
+        "libberberis_assembler_gen_public_headers_using_riscv32",
         "libberberis_assembler_gen_public_headers_riscv64",
+        "libberberis_assembler_gen_public_headers_using_riscv64",
+        "libberberis_assembler_gen_public_headers_using_riscv",
         "libberberis_assembler_gen_public_headers_x86_32",
+        "libberberis_assembler_gen_public_headers_using_x86_32",
         "libberberis_assembler_gen_public_headers_x86_64",
+        "libberberis_assembler_gen_public_headers_using_x86_64",
+        "libberberis_assembler_gen_public_headers_using_x86_common",
     ],
     export_generated_headers: [
         "libberberis_assembler_gen_public_headers_riscv32",
+        "libberberis_assembler_gen_public_headers_using_riscv32",
         "libberberis_assembler_gen_public_headers_riscv64",
+        "libberberis_assembler_gen_public_headers_using_riscv64",
+        "libberberis_assembler_gen_public_headers_using_riscv",
         "libberberis_assembler_gen_public_headers_x86_32",
+        "libberberis_assembler_gen_public_headers_using_x86_32",
         "libberberis_assembler_gen_public_headers_x86_64",
+        "libberberis_assembler_gen_public_headers_using_x86_64",
+        "libberberis_assembler_gen_public_headers_using_x86_common",
     ],
     export_include_dirs: ["include"],
 }

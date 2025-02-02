@@ -232,7 +232,7 @@ FIXED_REGISTER_CLASSES = (
     'CL', 'ECX', 'RCX', 'ST', 'ST1',
     'DX', 'EDX', 'RDX', 'CC',
     'BX', 'EBX', 'RBX', 'SW',
-    'EBP', 'RSP', 'FLAGS'
+    'EBP', 'ESP', 'RSP', 'FLAGS'
 )
 
 
