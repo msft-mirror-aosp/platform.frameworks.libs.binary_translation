@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@
 #include "berberis/backend/x86_64/machine_ir_opt.h"
 #include "berberis/backend/x86_64/rename_copy_uses.h"
 #include "berberis/backend/x86_64/rename_vregs.h"
+#include "berberis/base/checks.h"
 #include "berberis/base/config_globals.h"
-#include "berberis/base/logging.h"
 #include "berberis/base/tracing.h"
 
 namespace berberis::x86_64 {
@@ -44,7 +44,6 @@ void GenCode(MachineIR* machine_ir, MachineCode* machine_code, const GenCodePara
 
   RemoveCriticalEdges(machine_ir);
 
-  ReorderBasicBlocksInReversePostOrder(machine_ir);
   MoveColdBlocksToEnd(machine_ir);
 
   RemoveLoopGuestContextAccesses(machine_ir);
@@ -56,6 +55,8 @@ void GenCode(MachineIR* machine_ir, MachineCode* machine_code, const GenCodePara
   // Call this after all phases that create copy instructions.
   RenameCopyUses(machine_ir);
   RemoveDeadCode(machine_ir);
+
+  FoldWriteFlags(machine_ir);
 
   AllocRegs(machine_ir);
 
