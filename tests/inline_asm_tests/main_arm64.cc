@@ -2902,15 +2902,30 @@ TEST(Arm64InsnTest, MaxNumberF32x4) {
   ASSERT_EQ(AsmFmaxnm(arg1, arg2), MakeF32x4(2.0f, 2.0f, 3.0f, -3.0f));
 
   __uint128_t arg3 =
-      MakeU32x4(bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f), kQuietNaN32, kQuietNaN32);
+      MakeU32x4(bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f), -kQuietNaN32, kQuietNaN32);
   __uint128_t arg4 =
-      MakeU32x4(kQuietNaN32, kQuietNaN32, bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f));
+      MakeU32x4(-kQuietNaN32, kQuietNaN32, bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f));
   ASSERT_EQ(AsmFmaxnm(arg3, arg4), MakeF32x4(1.0f, -1.0f, 1.0f, -1.0f));
 
   __uint128_t arg5 = MakeU32x4(
       bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f), kSignalingNaN32_1, kQuietNaN32);
   __uint128_t arg6 = MakeU32x4(
       kSignalingNaN32_1, kQuietNaN32, bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f));
+  ASSERT_EQ(
+      AsmFmaxnm(arg5, arg6),
+      MakeF32x4(bit_cast<float>(kDefaultNaN32), -1.0f, bit_cast<float>(kDefaultNaN32), -1.0f));
+
+  __uint128_t arg7 = MakeU32x4(kSignalingNaN32_1, kSignalingNaN32_1, kQuietNaN32, kQuietNaN32);
+  __uint128_t arg8 = MakeU32x4(kSignalingNaN32_1, kQuietNaN32, kSignalingNaN32_1, kQuietNaN32);
+  ASSERT_EQ(AsmFmaxnm(arg7, arg8),
+            MakeF32x4(bit_cast<float>(kDefaultNaN32),
+                      bit_cast<float>(kDefaultNaN32),
+                      bit_cast<float>(kDefaultNaN32),
+                      bit_cast<float>(kDefaultNaN32)));
+
+  __uint128_t arg9 = MakeF32x4(-0.0f, -0.0f, 0.0f, 0.0f);
+  __uint128_t arg10 = MakeF32x4(-0.0f, 0.0f, -0.0f, 0.0f);
+  ASSERT_EQ(AsmFmaxnm(arg9, arg10), MakeF32x4(-0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 TEST(Arm64InsnTest, MaxNumberF64x2) {
