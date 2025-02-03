@@ -174,6 +174,7 @@ DEFINE_EXPAND_INSTRUCTION(Register dest, Register src)
   }
 DEFINE_INT_INSTRUCTION(CmpXchg, CmpXchg, , kIntType, (Operand dest, Register src), (dest, src))
 DEFINE_INT_INSTRUCTION(CmpXchg, CmpXchg, , kIntType, (Register dest, Register src), (dest, src))
+DEFINE_INT_INSTRUCTION(Lea, Lea, , kIntTypeWLQ, (Register dest, Operand src), (dest, src))
 DEFINE_INT_INSTRUCTION(LockXadd, LockXadd, , kIntType, (Operand dest, Register src), (dest, src))
 DEFINE_INT_INSTRUCTION(LockCmpXchg,
                        LockCmpXchg,
@@ -430,6 +431,54 @@ DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sub, sub, kIntType, , )
 DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sl, sl, kIntTypeWLQ, l, l)
 DEFINE_XMM_INT_INSTRUCTIONS_GROUP(sr, sr, kIntTypePsr, a, l)
 #undef DEFINE_XMM_INT_INSTRUCTIONS_GROUP
+DEFINE_XMM_INT_INSTRUCTION(Pextr,
+                           Pextr,
+                           kIntType,
+                           (Register dest, XMMRegister src, int8_t imm),
+                           (dest, src, imm),
+                           , )
+DEFINE_XMM_INT_INSTRUCTION(Pextr,
+                           Pextr,
+                           kIntType,
+                           (Operand dest, XMMRegister src, int8_t imm),
+                           (dest, src, imm),
+                           , )
+DEFINE_XMM_INT_INSTRUCTION(Pinsr,
+                           Pinsr,
+                           kIntType,
+                           (XMMRegister dest, Register src, int8_t imm),
+                           (dest, src, imm),
+                           , )
+DEFINE_XMM_INT_INSTRUCTION(Pinsr,
+                           Pinsr,
+                           kIntType,
+                           (XMMRegister dest, Operand src, int8_t imm),
+                           (dest, src, imm),
+                           , )
+DEFINE_XMM_INT_INSTRUCTION(Vpextr,
+                           Vpextr,
+                           kIntType,
+                           (Register dest, XMMRegister src, int8_t imm),
+                           (dest, src, imm),
+                           , )
+DEFINE_XMM_INT_INSTRUCTION(Vpextr,
+                           Vpextr,
+                           kIntType,
+                           (Operand dest, XMMRegister src, int8_t imm),
+                           (dest, src, imm),
+                           , )
+DEFINE_XMM_INT_INSTRUCTION(Vpinsr,
+                           Vpinsr,
+                           kIntType,
+                           (XMMRegister dest, XMMRegister src1, Register src2, int8_t imm),
+                           (dest, src1, src2, imm),
+                           , )
+DEFINE_XMM_INT_INSTRUCTION(Vpinsr,
+                           Vpinsr,
+                           kIntType,
+                           (XMMRegister dest, XMMRegister src1, Operand src2, int8_t imm),
+                           (dest, src1, src2, imm),
+                           , )
 #undef DEFINE_XMM_INT_INSTRUCTION
 
 #define DEFINE_MOVS_INSTRUCTION(insn_name, opt_check, parameters, arguments) \
