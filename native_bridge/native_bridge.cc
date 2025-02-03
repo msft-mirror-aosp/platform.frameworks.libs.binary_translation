@@ -89,7 +89,7 @@ namespace {
 // (deprecated methods do not work anymore) v2 support is needed to have NB call
 // getSignalHandler function.
 const constexpr uint32_t kNativeBridgeCallbackMinVersion = 2;
-const constexpr uint32_t kNativeBridgeCallbackVersion = 7;
+const constexpr uint32_t kNativeBridgeCallbackVersion = 8;
 const constexpr uint32_t kNativeBridgeCallbackMaxVersion = kNativeBridgeCallbackVersion;
 
 const android::NativeBridgeRuntimeCallbacks* g_runtime_callbacks = nullptr;
@@ -499,6 +499,13 @@ void* native_bridge_getTrampolineForFunctionPointer(const void* method,
       jni_call_type != android::JNICallType::kJNICallTypeCriticalNative));
 }
 
+bool native_bridge_isNativeBridgeFunctionPointer(const void* method) {
+  bool result =
+      berberis::GuestMapShadow::GetInstance()->IsExecutable(berberis::ToGuestAddr(method), 1);
+  LOG_NB("native_bridge_isNativeBridgeFunctionPointer(method=%p): %d", method, result);
+  return result;
+}
+
 void* native_bridge_getTrampoline(void* handle,
                                   const char* name,
                                   const char* shorty,
@@ -657,5 +664,6 @@ android::NativeBridgeCallbacks NativeBridgeItf = {
     &native_bridge_preZygoteFork,
     &native_bridge_getTrampolineWithJNICallType,
     &native_bridge_getTrampolineForFunctionPointer,
+    &native_bridge_isNativeBridgeFunctionPointer,
 };
 }  // extern "C"
