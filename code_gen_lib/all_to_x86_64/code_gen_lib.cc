@@ -88,6 +88,11 @@ void GenTrampolineAdaptor(MachineCode* mc,
     }
   }
 
+#ifdef __AVX__
+  // Clean up dirty AVX256 state if induced by calls to runtime.
+  as.Vzeroupper();
+#endif
+
   // jump to guest return address
   // Prefer rdx, since rax/rcx will result in extra moves inside EmitIndirectDispatch.
   as.Movq(as.rdx, {.base = as.rbp, .disp = kReturnAddressRegisterOffset});

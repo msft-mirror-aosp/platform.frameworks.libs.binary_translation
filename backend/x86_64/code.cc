@@ -81,7 +81,7 @@ constexpr MachineRegKind kPseudoWriteFlagsInfo[] = {{&kRAX, MachineRegKind::kUse
 
 }  // namespace
 
-CallImm::CallImm(uint64_t imm) : MachineInsnX86_64(&kCallImmInfo) {
+CallImm::CallImm(uint64_t imm) : MachineInsnX86_64(&kCallImmInfo), custom_avx256_abi_{false} {
   set_imm(imm);
 }
 
