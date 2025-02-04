@@ -246,7 +246,6 @@ class CallImm : public MachineInsnX86_64 {
     RegType reg_type;
   };
 
- public:
   explicit CallImm(uint64_t imm);
 
   [[nodiscard]] static int GetIntArgIndex(int i);
@@ -258,6 +257,10 @@ class CallImm : public MachineInsnX86_64 {
 
   [[nodiscard]] std::string GetDebugString() const override;
   void Emit(CodeEmitter* as) const override;
+  void EnableCustomAVX256ABI() { custom_avx256_abi_ = true; };
+
+ private:
+  bool custom_avx256_abi_;
 };
 
 // An auxiliary instruction to express data-flow for CallImm arguments.  It uses the same vreg as
