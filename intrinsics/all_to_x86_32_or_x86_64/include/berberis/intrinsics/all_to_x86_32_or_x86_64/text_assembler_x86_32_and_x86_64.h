@@ -252,6 +252,7 @@ class TextAssembler {
   // something else.
   // If they are not coming as arguments then using them is compile-time error!
   Register gpr_a{Register::kNoRegister};
+  Register gpr_b{Register::kNoRegister};
   Register gpr_c{Register::kNoRegister};
   Register gpr_d{Register::kNoRegister};
   // Note: stack pointer is not reflected in list of arguments, intrinsics use

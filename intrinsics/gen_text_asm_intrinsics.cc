@@ -303,6 +303,8 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
         if constexpr (RegisterClass::kIsImplicitReg) {
           if constexpr (RegisterClass::kAsRegister == 'a') {
             as.gpr_a = TextAssembler::Register(register_numbers[arg_counter]);
+          } else if constexpr (RegisterClass::kAsRegister == 'b') {
+            as.gpr_b = TextAssembler::Register(register_numbers[arg_counter]);
           } else if constexpr (RegisterClass::kAsRegister == 'c') {
             as.gpr_c = TextAssembler::Register(register_numbers[arg_counter]);
           } else {
