@@ -952,9 +952,12 @@ _KNOWN_FEATURES_KEYS = {
   'AES': '019',
   'AESAVX': '020',
   'VAES': '021',
-  'F16C': '022',
-  'FMA': '023',
-  'FMA4': '024',
+  'CLMUL': '012',
+  'CLMULAVX': '023',
+  'VPCLMULQD': '024',
+  'F16C': '025',
+  'FMA': '026',
+  'FMA4': '027',
   'CustomCapability': '999'
 }
 
