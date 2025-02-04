@@ -724,6 +724,7 @@ using Assembler::P2Align;
 using Assembler::TwoByte;
 
 using Assembler::gpr_a;
+using Assembler::gpr_b;
 using Assembler::gpr_c;
 using Assembler::gpr_d;
 

@@ -67,6 +67,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   static constexpr Register gpr_a{0};
   static constexpr Register gpr_c{1};
   static constexpr Register gpr_d{2};
+  static constexpr Register gpr_b{3};
   static constexpr Register gpr_s{4};
 
 // Instructions.
