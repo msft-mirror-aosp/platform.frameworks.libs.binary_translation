@@ -225,6 +225,15 @@ Assembler::ScaleFactor ToScaleFactor(MachineMemOperandScale scale) {
 
 void CallImm::Emit(CodeEmitter* as) const {
   as->Call(AsHostCode(imm()));
+  if (custom_avx256_abi_) {
+    // We don't support 256bit registers in IR. So we hide this YMM0 inside CallImm
+    // and forward the result to IR in (XMM0, XMM1). See go/ndkt-avx-runtime.
+    as->Vextractf128(as->xmm1, as->ymm0, uint8_t{1});
+  }
+#ifdef __AVX__
+  // Clean-up potentially dirty upper bits after executing AVX256 instructions in runtime.
+  as->Vzeroupper();
+#endif
 }
 
 }  // namespace x86_64
