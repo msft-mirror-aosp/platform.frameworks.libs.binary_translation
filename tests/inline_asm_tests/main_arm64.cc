@@ -2902,15 +2902,30 @@ TEST(Arm64InsnTest, MaxNumberF32x4) {
   ASSERT_EQ(AsmFmaxnm(arg1, arg2), MakeF32x4(2.0f, 2.0f, 3.0f, -3.0f));
 
   __uint128_t arg3 =
-      MakeU32x4(bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f), kQuietNaN32, kQuietNaN32);
+      MakeU32x4(bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f), -kQuietNaN32, kQuietNaN32);
   __uint128_t arg4 =
-      MakeU32x4(kQuietNaN32, kQuietNaN32, bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f));
+      MakeU32x4(-kQuietNaN32, kQuietNaN32, bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f));
   ASSERT_EQ(AsmFmaxnm(arg3, arg4), MakeF32x4(1.0f, -1.0f, 1.0f, -1.0f));
 
   __uint128_t arg5 = MakeU32x4(
       bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f), kSignalingNaN32_1, kQuietNaN32);
   __uint128_t arg6 = MakeU32x4(
       kSignalingNaN32_1, kQuietNaN32, bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f));
+  ASSERT_EQ(
+      AsmFmaxnm(arg5, arg6),
+      MakeF32x4(bit_cast<float>(kDefaultNaN32), -1.0f, bit_cast<float>(kDefaultNaN32), -1.0f));
+
+  __uint128_t arg7 = MakeU32x4(kSignalingNaN32_1, kSignalingNaN32_1, kQuietNaN32, kQuietNaN32);
+  __uint128_t arg8 = MakeU32x4(kSignalingNaN32_1, kQuietNaN32, kSignalingNaN32_1, kQuietNaN32);
+  ASSERT_EQ(AsmFmaxnm(arg7, arg8),
+            MakeF32x4(bit_cast<float>(kDefaultNaN32),
+                      bit_cast<float>(kDefaultNaN32),
+                      bit_cast<float>(kDefaultNaN32),
+                      bit_cast<float>(kDefaultNaN32)));
+
+  __uint128_t arg9 = MakeF32x4(-0.0f, -0.0f, 0.0f, 0.0f);
+  __uint128_t arg10 = MakeF32x4(-0.0f, 0.0f, -0.0f, 0.0f);
+  ASSERT_EQ(AsmFmaxnm(arg9, arg10), MakeF32x4(-0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 TEST(Arm64InsnTest, MaxNumberF64x2) {
@@ -6324,11 +6339,25 @@ TEST(Arm64InsnTest, UnsignedSubLongUpper) {
   ASSERT_EQ(res, MakeUInt128(0x00002e81ffffcaf5ULL, 0x0000093400005058ULL));
 }
 
-TEST(Arm64InsnTest, SignedAddWide) {
+TEST(Arm64InsnTest, SignedAddWide8x8) {
+  __uint128_t arg1 = MakeUInt128(0x7844598183134112ULL, 0x9001999205981352ULL);
+  __uint128_t arg2 = MakeUInt128(0x2051173365856407ULL, 0x8264849427644113ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("saddw %0.8h, %1.8h, %2.8b")(arg1, arg2);
+  ASSERT_EQ(res, MakeUInt128(0x78a9590683774119ULL, 0x902199e305af1385ULL));
+}
+
+TEST(Arm64InsnTest, SignedAddWide16x4) {
   __uint128_t arg1 = MakeUInt128(0x7844598183134112ULL, 0x9001999205981352ULL);
   __uint128_t arg2 = MakeUInt128(0x2051173365856407ULL, 0x8264849427644113ULL);
   __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("saddw %0.4s, %1.4s, %2.4h")(arg1, arg2);
   ASSERT_EQ(res, MakeUInt128(0x7844bf068313a519ULL, 0x9001b9e305982a85ULL));
+}
+
+TEST(Arm64InsnTest, SignedAddWide32x2) {
+  __uint128_t arg1 = MakeUInt128(0x7844598183134112ULL, 0x9001999205981352ULL);
+  __uint128_t arg2 = MakeUInt128(0x2051173365856407ULL, 0x8264849427644113ULL);
+  __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("saddw %0.2d, %1.2d, %2.2s")(arg1, arg2);
+  ASSERT_EQ(res, MakeUInt128(0x78445981e898a519ULL, 0x9001999225e92a85ULL));
 }
 
 TEST(Arm64InsnTest, SignedAddWideUpper) {
@@ -6356,7 +6385,7 @@ TEST(Arm64InsnTest, UnsignedAddWide8x8) {
   __uint128_t arg1 = MakeUInt128(0x5870785951298344ULL, 0x1729535195378855ULL);
   __uint128_t arg2 = MakeUInt128(0x3457374260859029ULL, 0x0817651557803905ULL);
   __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("uaddw %0.8h, %1.8h, %2.8b")(arg1, arg2);
-  ASSERT_EQ(res, MakeUInt128(0x58D078DE51B9836DULL, 0x175D53A8956E8897ULL));
+  ASSERT_EQ(res, MakeUInt128(0x58d078de51b9836dULL, 0x175d53a8956e8897ULL));
 }
 
 TEST(Arm64InsnTest, UnsignedAddWide16x4) {
@@ -6370,7 +6399,7 @@ TEST(Arm64InsnTest, UnsignedAddWide32x2) {
   __uint128_t arg1 = MakeUInt128(0x5870785951298344ULL, 0x1729535195378855ULL);
   __uint128_t arg2 = MakeUInt128(0x3457374260859029ULL, 0x0817651557803905ULL);
   __uint128_t res = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("uaddw %0.2d, %1.2d, %2.2s")(arg1, arg2);
-  ASSERT_EQ(res, MakeUInt128(0x58707859B1AF136DULL, 0x17295351C98EBF97ULL));
+  ASSERT_EQ(res, MakeUInt128(0x58707859b1af136dULL, 0x17295351c98ebf97ULL));
 }
 
 TEST(Arm64InsnTest, UnsignedAddWideUpper) {
