@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_TEXT_ASSEMBLER_COMMON_H_
-#define BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_TEXT_ASSEMBLER_COMMON_H_
+#ifndef BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_VERIFIER_ASSEMBLER_COMMON_H_
+#define BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_VERIFIER_ASSEMBLER_COMMON_H_
 
 #include <array>
 #include <cstdint>
 #include <cstdio>
-#include <deque>
 #include <string>
 
 #include "berberis/base/checks.h"
@@ -30,28 +29,10 @@
 
 namespace berberis {
 
-namespace constants_pool {
-
-// Note: kBerberisMacroAssemblerConstantsRelocated is the same as original,
-// unrelocated version in 32-bit world.  But in 64-bit world it's copy on the first 2GiB.
-//
-// Our builder could be built as 64-bit binary thus we must not mix them.
-//
-// Note: we have CHECK_*_LAYOUT tests in macro_assembler_common_x86.cc to make sure
-// offsets produced by 64-bit builder are usable in 32-bit libberberis.so
-
-extern const int32_t kBerberisMacroAssemblerConstantsRelocated;
-
-inline int32_t GetOffset(int32_t address) {
-  return address - constants_pool::kBerberisMacroAssemblerConstantsRelocated;
-}
-
-}  // namespace constants_pool
-
 namespace x86_32_and_x86_64 {
 
 template <typename DerivedAssemblerType>
-class TextAssembler {
+class VerifierAssembler {
  public:
   // Condition class - 16 x86 conditions.
   enum class Condition {
@@ -93,11 +74,6 @@ class TextAssembler {
   struct Label {
     size_t id;
     bool bound = false;
-
-    template <typename MacroAssembler>
-    friend std::string ToGasArgument(const Label& label, MacroAssembler*) {
-      return std::to_string(label.id) + (label.bound ? "b" : "f");
-    }
   };
 
   struct Operand;
@@ -105,7 +81,7 @@ class TextAssembler {
   class Register {
    public:
     constexpr Register(int arg_no) : arg_no_(arg_no) {}
-    int arg_no() const {
+    constexpr int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
@@ -138,11 +114,6 @@ class TextAssembler {
 
     constexpr bool operator==(const X87Register& other) const { return arg_no_ == other.arg_no_; }
     constexpr bool operator!=(const X87Register& other) const { return arg_no_ != other.arg_no_; }
-
-    template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const X87Register& reg, MacroAssembler*) {
-      return '%' + std::to_string(reg.arg_no());
-    }
 
    private:
     // Register number created during creation of assembler call.
@@ -177,19 +148,6 @@ class TextAssembler {
       return std::enable_if_t<kBits != 256, SIMDRegister<256>>{arg_no_};
     }
 
-    template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const SIMDRegister& reg, MacroAssembler*) {
-      if constexpr (kBits == 128) {
-        return "%x" + std::to_string(reg.arg_no());
-      } else if constexpr (kBits == 256) {
-        return "%t" + std::to_string(reg.arg_no());
-      } else if constexpr (kBits == 512) {
-        return "%g" + std::to_string(reg.arg_no());
-      } else {
-        static_assert(kDependentValueFalse<kBits>);
-      }
-    }
-
    private:
     // Register number created during creation of assembler call.
     // See arg['arm_register'] in _gen_c_intrinsic_body in gen_intrinsics.py
@@ -207,46 +165,9 @@ class TextAssembler {
     Register index = Register{Register::kNoRegister};
     ScaleFactor scale = kTimesOne;
     int32_t disp = 0;
-
-    template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const Operand& op, MacroAssembler* as) {
-      std::string result{};
-      if (op.base.arg_no_ == Register::kNoRegister and op.index.arg_no_ == Register::kNoRegister) {
-        as->need_gpr_macroassembler_constants_ = true;
-        result =
-            std::to_string(constants_pool::GetOffset(op.disp)) + " + " +
-            ToGasArgument(
-                typename DerivedAssemblerType::RegisterDefaultBit(as->gpr_macroassembler_constants),
-                as);
-      } else if (op.base.arg_no_ == Register::kScratchPointer) {
-        CHECK(op.index.arg_no_ == Register::kNoRegister);
-        // Only support two pointers to scratch area for now.
-        if (op.disp == 0) {
-          result = '%' + std::to_string(as->gpr_macroassembler_scratch.arg_no());
-        } else if (op.disp == config::kScratchAreaSlotSize) {
-          result = '%' + std::to_string(as->gpr_macroassembler_scratch2.arg_no());
-        } else {
-          FATAL("Only two scratch registers are supported for now");
-        }
-      } else {
-        if (op.base.arg_no_ != Register::kNoRegister) {
-          result = ToGasArgument(typename DerivedAssemblerType::RegisterDefaultBit(op.base), as);
-        }
-        if (op.index.arg_no_ != Register::kNoRegister) {
-          result += ',' +
-                    ToGasArgument(typename DerivedAssemblerType::RegisterDefaultBit(op.index), as) +
-                    ',' + std::to_string(1 << op.scale);
-        }
-        result = '(' + result + ')';
-        if (op.disp) {
-          result = std::to_string(op.disp) + result;
-        }
-      }
-      return result;
-    }
   };
 
-  TextAssembler(int indent, FILE* out) : indent_(indent), out_(out) {}
+  constexpr VerifierAssembler() {}
 
   // These start as Register::kNoRegister but can be changed if they are used as arguments to
   // something else.
@@ -293,58 +214,36 @@ class TextAssembler {
   bool need_vpclmulqd = false;
   bool has_custom_capability = false;
 
-  void Bind(Label* label) {
-    CHECK_EQ(label->bound, false);
-    fprintf(out_, "%*s\"%zd:\\n\"\n", indent_ + 2, "", label->id);
-    label->bound = true;
-  }
+  constexpr void Bind([[maybe_unused]] Label* label) {}
 
-  Label* MakeLabel() {
-    labels_allocated_.push_back({labels_allocated_.size()});
-    return &labels_allocated_.back();
-  }
+  // Currently label_ is meaningless. Verifier assembler does not yet have a need for it.
+  constexpr Label* MakeLabel() { return &label_; }
 
   template <typename... Args>
-  void Byte(Args... args) {
+  constexpr void Byte([[maybe_unused]] Args... args) {
     static_assert((std::is_same_v<Args, uint8_t> && ...));
-    bool print_kwd = true;
-    fprintf(out_, "%*s\"", indent_ + 2, "");
-    (fprintf(out_, "%s%" PRIu8, print_kwd ? print_kwd = false, ".byte " : ", ", args), ...);
-    fprintf(out_, "\\n\"\n");
   }
 
   template <typename... Args>
-  void TwoByte(Args... args) {
+  constexpr void TwoByte([[maybe_unused]] Args... args) {
     static_assert((std::is_same_v<Args, uint16_t> && ...));
-    bool print_kwd = true;
-    fprintf(out_, "%*s\"", indent_ + 2, "");
-    (fprintf(out_, "%s%" PRIu16, print_kwd ? print_kwd = false, ".2byte " : ", ", args), ...);
-    fprintf(out_, "\\n\"\n");
   }
 
   template <typename... Args>
-  void FourByte(Args... args) {
+  constexpr void FourByte([[maybe_unused]] Args... args) {
     static_assert((std::is_same_v<Args, uint32_t> && ...));
-    bool print_kwd = true;
-    fprintf(out_, "%*s\"", indent_ + 2, "");
-    (fprintf(out_, "%s%" PRIu32, print_kwd ? print_kwd = false, ".4byte " : ", ", args), ...);
-    fprintf(out_, "\\n\"\n");
   }
 
   template <typename... Args>
-  void EigthByte(Args... args) {
+  constexpr void EigthByte([[maybe_unused]] Args... args) {
     static_assert((std::is_same_v<Args, uint64_t> && ...));
-    bool print_kwd = true;
-    fprintf(out_, "%*s\"", indent_ + 2, "");
-    (fprintf(out_, "%s%" PRIu64, print_kwd ? print_kwd = false, ".8byte " : ", ", args), ...);
-    fprintf(out_, "\\n\"\n");
   }
 
-  void P2Align(uint32_t m) { fprintf(out_, "%*s\".p2align %u\\n\"\n", indent_ + 2, "", m); }
+  constexpr void P2Align([[maybe_unused]] uint32_t m) {}
 
   // Verify CPU vendor and SSE restrictions.
   template <typename CPUIDRestriction>
-  void CheckCPUIDRestriction() {
+  constexpr void CheckCPUIDRestriction() {
     constexpr bool expect_bmi = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>;
     constexpr bool expect_f16c = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasF16C>;
     constexpr bool expect_fma = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>;
@@ -376,104 +275,70 @@ class TextAssembler {
     constexpr bool expect_sse3 =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE3> || expect_ssse3;
 
-    CHECK_EQ(expect_aesavx, need_aesavx);
-    CHECK_EQ(expect_aes, need_aes);
-    CHECK_EQ(expect_avx, need_avx);
-    CHECK_EQ(expect_bmi, need_bmi);
-    CHECK_EQ(expect_clmulavx, need_clmulavx);
-    CHECK_EQ(expect_clmul, need_clmul);
-    CHECK_EQ(expect_f16c, need_f16c);
-    CHECK_EQ(expect_fma, need_fma);
-    CHECK_EQ(expect_fma4, need_fma4);
-    CHECK_EQ(expect_lzcnt, need_lzcnt);
-    CHECK_EQ(expect_popcnt, need_popcnt);
-    CHECK_EQ(expect_sse3, need_sse3);
-    CHECK_EQ(expect_ssse3, need_ssse3);
-    CHECK_EQ(expect_sse4_1, need_sse4_1);
-    CHECK_EQ(expect_sse4_2, need_sse4_2);
-    CHECK_EQ(expect_vaes, need_vaes);
-    CHECK_EQ(expect_vpclmulqd, need_vpclmulqd);
+    if (expect_aesavx != need_aesavx) {
+      printf("error: expect_aesavx != need_aesavx\n");
+    }
+    if (expect_aes != need_aes) {
+      printf("error: expect_aes != need_aes\n");
+    }
+    if (expect_avx != need_avx) {
+      printf("error: expect_avx != need_avx\n");
+    }
+    if (expect_bmi != need_bmi) {
+      printf("error: expect_bmi != need_bmi\n");
+    }
+    if (expect_clmulavx != need_clmulavx) {
+      printf("error: expect_clmulavx != need_clmulavx\n");
+    }
+    if (expect_clmul != need_clmul) {
+      printf("error: expect_clmul != need_clmul\n");
+    }
+    if (expect_f16c != need_f16c) {
+      printf("error: expect_f16c != need_f16c\n");
+    }
+    if (expect_fma != need_fma) {
+      printf("error: expect_fma != need_fma\n");
+    }
+    if (expect_fma4 != need_fma4) {
+      printf("error: expect_fma4 != need_fma4\n");
+    }
+    if (expect_lzcnt != need_lzcnt) {
+      printf("error: expect_lzcnt != need_lzcnt\n");
+    }
+    if (expect_popcnt != need_popcnt) {
+      printf("error: expect_popcnt != need_popcnt\n");
+    }
+    if (expect_sse3 != need_sse3) {
+      printf("error: expect_sse3 != need_sse3\n");
+    }
+    if (expect_ssse3 != need_ssse3) {
+      printf("error: expect_ssse3 != need_ssse3\n");
+    }
+    if (expect_sse4_1 != need_sse4_1) {
+      printf("error: expect_sse4_1 != need_sse4_1\n");
+    }
+    if (expect_sse4_2 != need_sse4_2) {
+      printf("error: expect_sse4_2 != need_sse4_2\n");
+    }
+    if (expect_vaes != need_vaes) {
+      printf("error: expect_vaes != need_vaes\n");
+    }
+    if (expect_vpclmulqd != need_vpclmulqd) {
+      printf("error: expect_vpclmulqd != need_vpclmulqd\n");
+    }
   }
-
-  // Translate CPU restrictions into string.
-  template <typename CPUIDRestriction>
-  static constexpr const char* kCPUIDRestrictionString =
-      DerivedAssemblerType::template CPUIDRestrictionToString<CPUIDRestriction>();
 
 // Instructions.
 #include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
 
  protected:
-  template <typename CPUIDRestriction>
-  static constexpr const char* CPUIDRestrictionToString() {
-    if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::NoCPUIDRestriction>) {
-      return nullptr;
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::IsAuthenticAMD>) {
-      return "host_platform::kIsAuthenticAMD";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAES>) {
-      return "host_platform::kHasAES";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAESAVX>) {
-      return "host_platform::kHasAES && host_platform::kHasAVX";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX>) {
-      return "host_platform::kHasAVX";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>) {
-      return "host_platform::kHasBMI";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasF16C>) {
-      return "host_platform::kHasF16C";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMUL>) {
-      return "host_platform::kHasCLMUL";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMULAVX>) {
-      return "host_platform::kHasCLMUL && host_platform::kHasAVX";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>) {
-      return "host_platform::kHasFMA";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>) {
-      return "host_platform::kHasFMA4";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>) {
-      return "host_platform::kHasLZCNT";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>) {
-      return "host_platform::kHasPOPCNT";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE3>) {
-      return "host_platform::kHasSSE3";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
-      return "host_platform::kHasSSSE3";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_1>) {
-      return "host_platform::kHasSSE4_1";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2>) {
-      return "host_platform::kHasSSE4_2";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
-      return "host_platform::kHasSSSE3";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasVAES>) {
-      return "host_platform::kHasVAES";
-    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasVPCLMULQD>) {
-      return "host_platform::kHasVPCLMULQD";
-    } else if constexpr (std::is_same_v<CPUIDRestriction,
-                                        intrinsics::bindings::HasCustomCapability>) {
-      return "host_platform::kHasCustomCapability";
-    } else {
-      static_assert(kDependentTypeFalse<CPUIDRestriction>);
-    }
-  }
-
   bool need_gpr_macroassembler_constants_ = false;
   bool need_gpr_macroassembler_scratch_ = false;
 
   template <const char* kSpPrefix, char kRegisterPrefix>
   class RegisterTemplate {
    public:
-    explicit RegisterTemplate(Register reg) : reg_(reg) {}
-
-    template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const RegisterTemplate& reg, MacroAssembler*) {
-      if (reg.reg_.arg_no() == Register::kStackPointer) {
-        return kSpPrefix;
-      } else {
-        if (kRegisterPrefix) {
-          return std::string({'%', kRegisterPrefix}) + std::to_string(reg.reg_.arg_no());
-        } else {
-          return '%' + std::to_string(reg.reg_.arg_no());
-        }
-      }
-    }
+    explicit constexpr RegisterTemplate(Register reg) : reg_(reg) {}
 
    private:
     Register reg_;
@@ -488,251 +353,131 @@ class TextAssembler {
   constexpr static char kRsp[] = "%%rsp";
   using Register64Bit = RegisterTemplate<kRsp, 'q'>;
 
-  void SetRequiredFeatureAESAVX() {
+  constexpr void SetRequiredFeatureAESAVX() {
     need_aesavx = true;
     SetRequiredFeatureAES();
     SetRequiredFeatureAVX();
   }
 
-  void SetRequiredFeatureAES() {
+  constexpr void SetRequiredFeatureAES() {
     need_aes = true;
     SetRequiredFeatureSSE4_2();
   }
 
-  void SetRequiredFeatureAVX() {
+  constexpr void SetRequiredFeatureAVX() {
     need_avx = true;
     SetRequiredFeatureSSE4_2();
   }
 
-  void SetRequiredFeatureAVX2() {
+  constexpr void SetRequiredFeatureAVX2() {
     need_avx2 = true;
     SetRequiredFeatureAVX();
   }
 
-  void SetRequiredFeatureBMI() { need_bmi = true; }
+  constexpr void SetRequiredFeatureBMI() { need_bmi = true; }
 
-  void SetRequiredFeatureBMI2() { need_bmi2 = true; }
+  constexpr void SetRequiredFeatureBMI2() { need_bmi2 = true; }
 
-  void SetRequiredFeatureCLMULAVX() {
+  constexpr void SetRequiredFeatureCLMULAVX() {
     need_clmulavx = true;
     SetRequiredFeatureCLMUL();
     SetRequiredFeatureAVX();
   }
 
-  void SetRequiredFeatureCLMUL() {
+  constexpr void SetRequiredFeatureCLMUL() {
     need_clmul = true;
     SetRequiredFeatureSSE4_2();
   }
 
-  void SetRequiredFeatureF16C() {
+  constexpr void SetRequiredFeatureF16C() {
     need_f16c = true;
     SetRequiredFeatureAVX();
   }
 
-  void SetRequiredFeatureFMA() {
+  constexpr void SetRequiredFeatureFMA() {
     need_fma = true;
     SetRequiredFeatureAVX();
   }
 
-  void SetRequiredFeatureFMA4() {
+  constexpr void SetRequiredFeatureFMA4() {
     need_fma4 = true;
     SetRequiredFeatureAVX();
   }
 
-  void SetRequiredFeatureLZCNT() { need_lzcnt = true; }
+  constexpr void SetRequiredFeatureLZCNT() { need_lzcnt = true; }
 
-  void SetRequiredFeaturePOPCNT() { need_popcnt = true; }
+  constexpr void SetRequiredFeaturePOPCNT() { need_popcnt = true; }
 
-  void SetRequiredFeatureSSE3() {
+  constexpr void SetRequiredFeatureSSE3() {
     need_sse3 = true;
     // Note: we assume that SSE2 is always available thus we don't have have_sse2 or have_sse1
     // variables.
   }
 
-  void SetRequiredFeatureSSSE3() {
+  constexpr void SetRequiredFeatureSSSE3() {
     need_ssse3 = true;
     SetRequiredFeatureSSE3();
   }
 
-  void SetRequiredFeatureSSE4_1() {
+  constexpr void SetRequiredFeatureSSE4_1() {
     need_sse4_1 = true;
     SetRequiredFeatureSSSE3();
   }
 
-  void SetRequiredFeatureSSE4_2() {
+  constexpr void SetRequiredFeatureSSE4_2() {
     need_sse4_2 = true;
     SetRequiredFeatureSSE4_1();
   }
 
-  void SetRequiredFeatureVAES() {
+  constexpr void SetRequiredFeatureVAES() {
     need_vaes = true;
     SetRequiredFeatureAESAVX();
   }
 
-  void SetRequiredFeatureVPCLMULQD() {
+  constexpr void SetRequiredFeatureVPCLMULQD() {
     need_vpclmulqd = true;
     SetRequiredFeatureCLMULAVX();
   }
 
-  void SetHasCustomCapability() { has_custom_capability = true; }
+  constexpr void SetHasCustomCapability() { has_custom_capability = true; }
 
   template <typename... Args>
-  void Instruction(const char* name, Condition cond, const Args&... args);
+  constexpr void Instruction(const char* name, Condition cond, const Args&... args);
 
   template <typename... Args>
-  void Instruction(const char* name, const Args&... args);
+  constexpr void Instruction(const char* name, const Args&... args);
 
   void EmitString() {}
 
-  void EmitString(const std::string& s) { fprintf(out_, "%s", s.c_str()); }
+  void EmitString([[maybe_unused]] const std::string& s) {}
 
   template <typename... Args>
-  void EmitString(const std::string& s, const Args&... args) {
-    EmitString(args...);
-    fprintf(out_, ", %s", s.c_str());
-  }
-
- protected:
-  int indent_;
-  FILE* out_;
+  void EmitString([[maybe_unused]] const std::string& s, [[maybe_unused]] const Args&... args) {}
 
  private:
-  std::deque<Label> labels_allocated_;
+  Label label_;
 
-  TextAssembler() = delete;
-  TextAssembler(const TextAssembler&) = delete;
-  TextAssembler(TextAssembler&&) = delete;
-  void operator=(const TextAssembler&) = delete;
-  void operator=(TextAssembler&&) = delete;
+  VerifierAssembler(const VerifierAssembler&) = delete;
+  VerifierAssembler(VerifierAssembler&&) = delete;
+  void operator=(const VerifierAssembler&) = delete;
+  void operator=(VerifierAssembler&&) = delete;
 };
 
-template <typename Arg, typename MacroAssembler>
-inline std::string ToGasArgument(const Arg& arg, MacroAssembler*) {
-  return "$" + std::to_string(arg);
-}
+template <typename DerivedAssemblerType>
+template <typename... Args>
+constexpr void VerifierAssembler<DerivedAssemblerType>::Instruction(
+    [[maybe_unused]] const char* name,
+    [[maybe_unused]] Condition cond,
+    [[maybe_unused]] const Args&... args) {}
 
 template <typename DerivedAssemblerType>
 template <typename... Args>
-inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
-                                                             Condition cond,
-                                                             const Args&... args) {
-  char name_with_condition[8] = {};
-  if (strcmp(name, "Cmovw") == 0 || strcmp(name, "Cmovl") == 0 || strcmp(name, "Cmovq") == 0) {
-    strcpy(name_with_condition, "Cmov");
-  } else if (strcmp(name, "Jcc") == 0) {
-    strcpy(name_with_condition, "J");
-  } else {
-    CHECK(strcmp(name, "Setcc") == 0);
-    strcpy(name_with_condition, "Set");
-  }
-  switch (cond) {
-    case Condition::kOverflow:
-      strcat(name_with_condition, "o");
-      break;
-    case Condition::kNoOverflow:
-      strcat(name_with_condition, "no");
-      break;
-    case Condition::kBelow:
-      strcat(name_with_condition, "b");
-      break;
-    case Condition::kAboveEqual:
-      strcat(name_with_condition, "ae");
-      break;
-    case Condition::kEqual:
-      strcat(name_with_condition, "e");
-      break;
-    case Condition::kNotEqual:
-      strcat(name_with_condition, "ne");
-      break;
-    case Condition::kBelowEqual:
-      strcat(name_with_condition, "be");
-      break;
-    case Condition::kAbove:
-      strcat(name_with_condition, "a");
-      break;
-    case Condition::kNegative:
-      strcat(name_with_condition, "s");
-      break;
-    case Condition::kPositiveOrZero:
-      strcat(name_with_condition, "ns");
-      break;
-    case Condition::kParityEven:
-      strcat(name_with_condition, "p");
-      break;
-    case Condition::kParityOdd:
-      strcat(name_with_condition, "np");
-      break;
-    case Condition::kLess:
-      strcat(name_with_condition, "l");
-      break;
-    case Condition::kGreaterEqual:
-      strcat(name_with_condition, "ge");
-      break;
-    case Condition::kLessEqual:
-      strcat(name_with_condition, "le");
-      break;
-    case Condition::kGreater:
-      strcat(name_with_condition, "g");
-      break;
-  }
-  Instruction(name_with_condition, args...);
-}
-
-template <typename DerivedAssemblerType>
-template <typename... Args>
-inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
-                                                             const Args&... args) {
-  for (auto it : std::array<std::tuple<const char*, const char*>, 22>{
-           {// Note: SSE doesn't include simple register-to-register move instruction.
-            // You are supposed to use one of half-dozen variants depending on what you
-            // are doing.
-            //
-            // Pseudoinstructions with embedded "lock" prefix.
-            {"Lock Xaddb", "Lock; Xaddb"},
-            {"Lock Xaddw", "Lock; Xaddw"},
-            {"Lock Xaddl", "Lock; Xaddl"},
-            {"Lock Xaddq", "Lock; Xaddq"},
-            {"Lock CmpXchg8b", "Lock; CmpXchg8b"},
-            {"Lock CmpXchg16b", "Lock; CmpXchg16b"},
-            {"Lock CmpXchgb", "Lock; CmpXchgb"},
-            {"Lock CmpXchgl", "Lock; CmpXchgl"},
-            {"Lock CmpXchgq", "Lock; CmpXchgq"},
-            {"Lock CmpXchgw", "Lock; CmpXchgw"},
-            // Our assembler has Pmov instruction which is supposed to pick the best
-            // option - but currently we just map Pmov to Movaps.
-            {"Pmov", "Movaps"},
-            // These instructions use different names in our assembler than in GNU AS.
-            {"Movdq", "Movaps"},
-            {"Movsxbl", "Movsbl"},
-            {"Movsxbq", "Movsbq"},
-            {"Movsxwl", "Movswl"},
-            {"Movsxwq", "Movswq"},
-            {"Movsxlq", "Movslq"},
-            {"Movzxbl", "Movzbl"},
-            {"Movzxbq", "Movzbq"},
-            {"Movzxwl", "Movzwl"},
-            {"Movzxwq", "Movzwq"},
-            {"Movzxlq", "Movzlq"}}}) {
-    if (strcmp(name, std::get<0>(it)) == 0) {
-      name = std::get<1>(it);
-      break;
-    }
-  }
-
-  int name_length = strlen(name);
-  auto cl_register = "";
-  if (name_length > 4 && strcmp(name + (name_length - 4), "ByCl") == 0) {
-    name_length -= 4;
-    cl_register = " %%cl,";
-  }
-
-  fprintf(out_, "%*s\"%.*s%s ", indent_ + 2, "", name_length, name, cl_register);
-  EmitString(ToGasArgument(args, this)...);
-  fprintf(out_, "\\n\"\n");
-}
+constexpr void VerifierAssembler<DerivedAssemblerType>::Instruction(
+    [[maybe_unused]] const char* name,
+    [[maybe_unused]] const Args&... args) {}
 
 }  // namespace x86_32_and_x86_64
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_TEXT_ASSEMBLER_COMMON_H_
+#endif  // BERBERIS_INTRINSICS_ALL_TO_X86_32_OR_x86_64_VERIFIER_ASSEMBLER_COMMON_H_
