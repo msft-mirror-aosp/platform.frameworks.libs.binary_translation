@@ -949,9 +949,16 @@ _KNOWN_FEATURES_KEYS = {
   'SSE4_2': '016',
   'AVX': '017',
   'AVX2': '018',
-  'FMA': '019',
-  'FMA4': '020',
-  'CustomCapability': '021'
+  'AES': '019',
+  'AESAVX': '020',
+  'VAES': '021',
+  'CLMUL': '012',
+  'CLMULAVX': '023',
+  'VPCLMULQD': '024',
+  'F16C': '025',
+  'FMA': '026',
+  'FMA4': '027',
+  'CustomCapability': '999'
 }
 
 
