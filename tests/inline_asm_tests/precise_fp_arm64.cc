@@ -26,65 +26,65 @@ namespace {
 TEST(Arm64InsnTest, AddFp32PreciseNaN) {
   // Verify that FADD canonicalizes a qNaN to the default NaN.
   constexpr auto AsmFadd = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fadd %s0, %s1, %s2");
-  ASSERT_EQ(AsmFadd(kQuietNaN32, kOneF32, kFpcrDnBit), kDefaultNaN32);
+  ASSERT_EQ(AsmFadd(kQuietNaN32AsInteger, kOneF32AsInteger, kFpcrDnBit), kDefaultNaN32AsInteger);
 }
 
 TEST(Arm64InsnTest, AddFp64PreciseNaN) {
   // Verify that FADD canonicalizes a qNaN to the default NaN.
   constexpr auto AsmFadd = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fadd %d0, %d1, %d2");
-  ASSERT_EQ(AsmFadd(kQuietNaN64, kOneF64, kFpcrDnBit), kDefaultNaN64);
+  ASSERT_EQ(AsmFadd(kQuietNaN64AsInteger, kOneF64AsInteger, kFpcrDnBit), kDefaultNaN64AsInteger);
 }
 
 TEST(Arm64InsnTest, SubFp32PreciseNaN) {
   // Verify that FSUB canonicalizes a qNaN to the default NaN.
   constexpr auto AsmFsub = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fsub %s0, %s1, %s2");
-  ASSERT_EQ(AsmFsub(kQuietNaN32, kOneF32, kFpcrDnBit), kDefaultNaN32);
+  ASSERT_EQ(AsmFsub(kQuietNaN32AsInteger, kOneF32AsInteger, kFpcrDnBit), kDefaultNaN32AsInteger);
 }
 
 TEST(Arm64InsnTest, SubFp64PreciseNaN) {
   // Verify that FSUB canonicalizes a qNaN to the default NaN.
   constexpr auto AsmFsub = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fsub %d0, %d1, %d2");
-  ASSERT_EQ(AsmFsub(kQuietNaN64, kOneF64, kFpcrDnBit), kDefaultNaN64);
+  ASSERT_EQ(AsmFsub(kQuietNaN64AsInteger, kOneF64AsInteger, kFpcrDnBit), kDefaultNaN64AsInteger);
 }
 
 TEST(Arm64InsnTest, MulFp32PreciseNaN) {
   // Verify that FMUL canonicalizes a qNaN to the default NaN.
   constexpr auto AsmFmul = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fmul %s0, %s1, %s2");
-  ASSERT_EQ(AsmFmul(kQuietNaN32, kOneF32, kFpcrDnBit), kDefaultNaN32);
+  ASSERT_EQ(AsmFmul(kQuietNaN32AsInteger, kOneF32AsInteger, kFpcrDnBit), kDefaultNaN32AsInteger);
 }
 
 TEST(Arm64InsnTest, MulFp64PreciseNaN) {
   // Verify that FMUL canonicalizes a qNaN to the default NaN.
   constexpr auto AsmFmul = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fmul %d0, %d1, %d2");
-  ASSERT_EQ(AsmFmul(kQuietNaN64, kOneF64, kFpcrDnBit), kDefaultNaN64);
+  ASSERT_EQ(AsmFmul(kQuietNaN64AsInteger, kOneF64AsInteger, kFpcrDnBit), kDefaultNaN64AsInteger);
 }
 
 TEST(Arm64InsnTest, DivFp32PreciseNaN) {
   constexpr auto AsmFdiv = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fdiv %s0, %s1, %s2");
 
   // Verify that FDIV canonicalizes a qNaN to the default NaN.
-  __uint128_t arg1 = kDefaultNaN32 | (1U << 31);  // A qNaN
+  __uint128_t arg1 = kDefaultNaN32AsInteger | (1U << 31);  // A qNaN
   __uint128_t arg2 = bit_cast<uint32_t>(1.0f);
-  ASSERT_EQ(AsmFdiv(arg1, arg2, kFpcrDnBit), kDefaultNaN32);
+  ASSERT_EQ(AsmFdiv(arg1, arg2, kFpcrDnBit), kDefaultNaN32AsInteger);
 }
 
 TEST(Arm64InsnTest, DivFp64PreciseNaN) {
   constexpr auto AsmFdiv = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fdiv %d0, %d1, %d2");
 
   // Verify that FDIV canonicalizes a qNaN to the default NaN.
-  __uint128_t arg1 = kDefaultNaN64 | (1ULL << 63);  // A qNaN
+  __uint128_t arg1 = kDefaultNaN64AsInteger | (1ULL << 63);  // A qNaN
   __uint128_t arg2 = bit_cast<uint64_t>(1.0);
-  ASSERT_EQ(AsmFdiv(arg1, arg2, kFpcrDnBit), kDefaultNaN64);
+  ASSERT_EQ(AsmFdiv(arg1, arg2, kFpcrDnBit), kDefaultNaN64AsInteger);
 }
 
 TEST(Arm64InsnTest, DivFp64x2PreciseNaN) {
   constexpr auto AsmFdiv = ASM_INSN_WRAP_FUNC_W_RES_WWC_ARG("fdiv %0.2d, %1.2d, %2.2d");
 
   // Verify that FDIV canonicalizes a qNaN to the default NaN.
-  __uint128_t arg1 = MakeUInt128(bit_cast<uint64_t>(2.0), kDefaultNaN64 | (1ULL << 63));
+  __uint128_t arg1 = MakeUInt128(bit_cast<uint64_t>(2.0), kDefaultNaN64AsInteger | (1ULL << 63));
   __uint128_t arg2 = MakeF64x2(1.0, 1.0);
   __uint128_t res = AsmFdiv(arg1, arg2, kFpcrDnBit);
-  ASSERT_EQ(res, MakeUInt128(bit_cast<uint64_t>(2.0), kDefaultNaN64));
+  ASSERT_EQ(res, MakeUInt128(bit_cast<uint64_t>(2.0), kDefaultNaN64AsInteger));
 }
 
 TEST(Arm64InsnTest, MaxFp32PreciseNaN) {
@@ -92,13 +92,18 @@ TEST(Arm64InsnTest, MaxFp32PreciseNaN) {
   uint32_t fp_arg_two = bit_cast<uint32_t>(2.0f);
   uint32_t fp_arg_minus_two = bit_cast<uint32_t>(-2.0f);
 
-  ASSERT_EQ(AsmFmax(fp_arg_two, kQuietNaN32), MakeU32x4(kQuietNaN32, 0, 0, 0));
-  ASSERT_EQ(AsmFmax(fp_arg_minus_two, kQuietNaN32), MakeU32x4(kQuietNaN32, 0, 0, 0));
-  ASSERT_EQ(AsmFmax(kQuietNaN32, fp_arg_two), MakeU32x4(kQuietNaN32, 0, 0, 0));
-  ASSERT_EQ(AsmFmax(kQuietNaN32, fp_arg_minus_two), MakeU32x4(kQuietNaN32, 0, 0, 0));
-  ASSERT_EQ(AsmFmax(kSignalingNaN32_1, fp_arg_two), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFmax(kSignalingNaN32_1, fp_arg_minus_two), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFmax(kQuietNaN32, kSignalingNaN32_1), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmax(fp_arg_two, kQuietNaN32AsInteger), MakeU32x4(kQuietNaN32AsInteger, 0, 0, 0));
+  ASSERT_EQ(AsmFmax(fp_arg_minus_two, kQuietNaN32AsInteger),
+            MakeU32x4(kQuietNaN32AsInteger, 0, 0, 0));
+  ASSERT_EQ(AsmFmax(kQuietNaN32AsInteger, fp_arg_two), MakeU32x4(kQuietNaN32AsInteger, 0, 0, 0));
+  ASSERT_EQ(AsmFmax(kQuietNaN32AsInteger, fp_arg_minus_two),
+            MakeU32x4(kQuietNaN32AsInteger, 0, 0, 0));
+  ASSERT_EQ(AsmFmax(kSignalingNaN32AsInteger_1, fp_arg_two),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmax(kSignalingNaN32AsInteger_1, fp_arg_minus_two),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmax(kQuietNaN32AsInteger, kSignalingNaN32AsInteger_1),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
 }
 
 TEST(Arm64InsnTest, MaxFp64PreciseNaN) {
@@ -106,13 +111,16 @@ TEST(Arm64InsnTest, MaxFp64PreciseNaN) {
   uint64_t fp_arg_two = bit_cast<uint64_t>(2.0);
   uint64_t fp_arg_minus_two = bit_cast<uint64_t>(-2.0);
 
-  ASSERT_EQ(AsmFmax(fp_arg_two, kQuietNaN64), MakeUInt128(kQuietNaN64, 0U));
-  ASSERT_EQ(AsmFmax(fp_arg_minus_two, kQuietNaN64), MakeUInt128(kQuietNaN64, 0));
-  ASSERT_EQ(AsmFmax(kQuietNaN64, fp_arg_two), MakeUInt128(kQuietNaN64, 0));
-  ASSERT_EQ(AsmFmax(kQuietNaN64, fp_arg_minus_two), MakeUInt128(kQuietNaN64, 0));
-  ASSERT_EQ(AsmFmax(kSignalingNaN64_1, fp_arg_two), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFmax(kSignalingNaN64_1, fp_arg_minus_two), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFmax(kQuietNaN64, kSignalingNaN64_1), MakeUInt128(kQuietNaN64_1, 0));
+  ASSERT_EQ(AsmFmax(fp_arg_two, kQuietNaN64AsInteger), MakeUInt128(kQuietNaN64AsInteger, 0U));
+  ASSERT_EQ(AsmFmax(fp_arg_minus_two, kQuietNaN64AsInteger), MakeUInt128(kQuietNaN64AsInteger, 0));
+  ASSERT_EQ(AsmFmax(kQuietNaN64AsInteger, fp_arg_two), MakeUInt128(kQuietNaN64AsInteger, 0));
+  ASSERT_EQ(AsmFmax(kQuietNaN64AsInteger, fp_arg_minus_two), MakeUInt128(kQuietNaN64AsInteger, 0));
+  ASSERT_EQ(AsmFmax(kSignalingNaN64AsInteger_1, fp_arg_two),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFmax(kSignalingNaN64AsInteger_1, fp_arg_minus_two),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFmax(kQuietNaN64AsInteger, kSignalingNaN64AsInteger_1),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
 }
 
 TEST(Arm64InsnTest, MaxNumberFp32PreciseNaN) {
@@ -120,10 +128,14 @@ TEST(Arm64InsnTest, MaxNumberFp32PreciseNaN) {
   uint32_t fp_arg_two = bit_cast<uint32_t>(2.0f);
   uint64_t fp_arg_minus_two = bit_cast<uint64_t>(-2.0);
 
-  ASSERT_EQ(AsmFmaxnm(kSignalingNaN32_1, fp_arg_two), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFmaxnm(fp_arg_two, kSignalingNaN32_1), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFmaxnm(kSignalingNaN32_1, fp_arg_minus_two), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFmaxnm(kQuietNaN32, kSignalingNaN32_1), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmaxnm(kSignalingNaN32AsInteger_1, fp_arg_two),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmaxnm(fp_arg_two, kSignalingNaN32AsInteger_1),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmaxnm(kSignalingNaN32AsInteger_1, fp_arg_minus_two),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmaxnm(kQuietNaN32AsInteger, kSignalingNaN32AsInteger_1),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
 }
 
 TEST(Arm64InsnTest, MaxNumberFp64PreciseNaN) {
@@ -131,10 +143,14 @@ TEST(Arm64InsnTest, MaxNumberFp64PreciseNaN) {
   uint64_t fp_arg_two = bit_cast<uint64_t>(2.0);
   uint64_t fp_arg_minus_two = bit_cast<uint64_t>(-2.0);
 
-  ASSERT_EQ(AsmFmaxnm(kSignalingNaN64_1, fp_arg_two), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFmaxnm(fp_arg_two, kSignalingNaN64_1), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFmaxnm(kSignalingNaN64_1, fp_arg_minus_two), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFmaxnm(kQuietNaN64, kSignalingNaN64_1), MakeUInt128(kQuietNaN64_1, 0));
+  ASSERT_EQ(AsmFmaxnm(kSignalingNaN64AsInteger_1, fp_arg_two),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFmaxnm(fp_arg_two, kSignalingNaN64AsInteger_1),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFmaxnm(kSignalingNaN64AsInteger_1, fp_arg_minus_two),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFmaxnm(kQuietNaN64AsInteger, kSignalingNaN64AsInteger_1),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
 }
 
 TEST(Arm64InsnTest, MinFp32PreciseNaN) {
@@ -142,13 +158,18 @@ TEST(Arm64InsnTest, MinFp32PreciseNaN) {
   uint32_t fp_arg_two = bit_cast<uint32_t>(2.0f);
   uint32_t fp_arg_minus_two = bit_cast<uint32_t>(-2.0f);
 
-  ASSERT_EQ(AsmFmin(fp_arg_two, kQuietNaN32), MakeU32x4(kQuietNaN32, 0, 0, 0));
-  ASSERT_EQ(AsmFmin(fp_arg_minus_two, kQuietNaN32), MakeU32x4(kQuietNaN32, 0, 0, 0));
-  ASSERT_EQ(AsmFmin(kQuietNaN32, fp_arg_two), MakeU32x4(kQuietNaN32, 0, 0, 0));
-  ASSERT_EQ(AsmFmin(kQuietNaN32, fp_arg_minus_two), MakeU32x4(kQuietNaN32, 0, 0, 0));
-  ASSERT_EQ(AsmFmin(kSignalingNaN32_1, fp_arg_two), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFmin(kSignalingNaN32_1, fp_arg_minus_two), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFmin(kQuietNaN32, kSignalingNaN32_1), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmin(fp_arg_two, kQuietNaN32AsInteger), MakeU32x4(kQuietNaN32AsInteger, 0, 0, 0));
+  ASSERT_EQ(AsmFmin(fp_arg_minus_two, kQuietNaN32AsInteger),
+            MakeU32x4(kQuietNaN32AsInteger, 0, 0, 0));
+  ASSERT_EQ(AsmFmin(kQuietNaN32AsInteger, fp_arg_two), MakeU32x4(kQuietNaN32AsInteger, 0, 0, 0));
+  ASSERT_EQ(AsmFmin(kQuietNaN32AsInteger, fp_arg_minus_two),
+            MakeU32x4(kQuietNaN32AsInteger, 0, 0, 0));
+  ASSERT_EQ(AsmFmin(kSignalingNaN32AsInteger_1, fp_arg_two),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmin(kSignalingNaN32AsInteger_1, fp_arg_minus_two),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFmin(kQuietNaN32AsInteger, kSignalingNaN32AsInteger_1),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
 }
 
 TEST(Arm64InsnTest, MinFp64PreciseNaN) {
@@ -156,13 +177,16 @@ TEST(Arm64InsnTest, MinFp64PreciseNaN) {
   uint64_t fp_arg_two = bit_cast<uint64_t>(2.0);
   uint64_t fp_arg_minus_two = bit_cast<uint64_t>(-2.0);
 
-  ASSERT_EQ(AsmFmin(fp_arg_two, kQuietNaN64), MakeUInt128(kQuietNaN64, 0U));
-  ASSERT_EQ(AsmFmin(fp_arg_minus_two, kQuietNaN64), MakeUInt128(kQuietNaN64, 0));
-  ASSERT_EQ(AsmFmin(kQuietNaN64, fp_arg_two), MakeUInt128(kQuietNaN64, 0));
-  ASSERT_EQ(AsmFmin(kQuietNaN64, fp_arg_minus_two), MakeUInt128(kQuietNaN64, 0));
-  ASSERT_EQ(AsmFmin(kSignalingNaN64_1, fp_arg_two), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFmin(kSignalingNaN64_1, fp_arg_minus_two), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFmin(kQuietNaN64, kSignalingNaN64_1), MakeUInt128(kQuietNaN64_1, 0));
+  ASSERT_EQ(AsmFmin(fp_arg_two, kQuietNaN64AsInteger), MakeUInt128(kQuietNaN64AsInteger, 0U));
+  ASSERT_EQ(AsmFmin(fp_arg_minus_two, kQuietNaN64AsInteger), MakeUInt128(kQuietNaN64AsInteger, 0));
+  ASSERT_EQ(AsmFmin(kQuietNaN64AsInteger, fp_arg_two), MakeUInt128(kQuietNaN64AsInteger, 0));
+  ASSERT_EQ(AsmFmin(kQuietNaN64AsInteger, fp_arg_minus_two), MakeUInt128(kQuietNaN64AsInteger, 0));
+  ASSERT_EQ(AsmFmin(kSignalingNaN64AsInteger_1, fp_arg_two),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFmin(kSignalingNaN64AsInteger_1, fp_arg_minus_two),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFmin(kQuietNaN64AsInteger, kSignalingNaN64AsInteger_1),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
 }
 
 TEST(Arm64InsnTest, MinNumberFp32PreciseNaN) {
@@ -170,10 +194,14 @@ TEST(Arm64InsnTest, MinNumberFp32PreciseNaN) {
   uint32_t fp_arg_two = bit_cast<uint32_t>(2.0f);
   uint32_t fp_arg_minus_two = bit_cast<uint32_t>(-2.0f);
 
-  ASSERT_EQ(AsmFminnm(kSignalingNaN32_1, fp_arg_two), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFminnm(fp_arg_two, kSignalingNaN32_1), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFminnm(kSignalingNaN32_1, fp_arg_minus_two), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
-  ASSERT_EQ(AsmFminnm(kQuietNaN32, kSignalingNaN32_1), MakeU32x4(kQuietNaN32_1, 0, 0, 0));
+  ASSERT_EQ(AsmFminnm(kSignalingNaN32AsInteger_1, fp_arg_two),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFminnm(fp_arg_two, kSignalingNaN32AsInteger_1),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFminnm(kSignalingNaN32AsInteger_1, fp_arg_minus_two),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
+  ASSERT_EQ(AsmFminnm(kQuietNaN32AsInteger, kSignalingNaN32AsInteger_1),
+            MakeU32x4(kQuietNaN32AsInteger_1, 0, 0, 0));
 }
 
 TEST(Arm64InsnTest, MinNumberFp64PreciseNaN) {
@@ -181,89 +209,113 @@ TEST(Arm64InsnTest, MinNumberFp64PreciseNaN) {
   uint64_t fp_arg_two = bit_cast<uint64_t>(2.0);
   uint64_t fp_arg_minus_two = bit_cast<uint64_t>(-2.0);
 
-  ASSERT_EQ(AsmFminnm(kSignalingNaN64_1, fp_arg_two), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFminnm(fp_arg_two, kSignalingNaN64_1), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFminnm(kSignalingNaN64_1, fp_arg_minus_two), MakeUInt128(kQuietNaN64_1, 0));
-  ASSERT_EQ(AsmFminnm(kQuietNaN64, kSignalingNaN64_1), MakeUInt128(kQuietNaN64_1, 0));
+  ASSERT_EQ(AsmFminnm(kSignalingNaN64AsInteger_1, fp_arg_two),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFminnm(fp_arg_two, kSignalingNaN64AsInteger_1),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFminnm(kSignalingNaN64AsInteger_1, fp_arg_minus_two),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
+  ASSERT_EQ(AsmFminnm(kQuietNaN64AsInteger, kSignalingNaN64AsInteger_1),
+            MakeUInt128(kQuietNaN64AsInteger_1, 0));
 }
 
 TEST(Arm64InsnTest, MaxNumberF32x4PreciseNaN) {
   constexpr auto AsmFmaxnm = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("fmaxnm %0.4s, %1.4s, %2.4s");
-  __uint128_t arg1 = MakeU32x4(
-      bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f), kSignalingNaN32_1, kQuietNaN32);
-  __uint128_t arg2 = MakeU32x4(
-      kSignalingNaN32_1, kQuietNaN32, bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f));
-  ASSERT_EQ(
-      AsmFmaxnm(arg1, arg2),
-      MakeU32x4(
-          kQuietNaN32_1, bit_cast<uint32_t>(-1.0f), kQuietNaN32_1, bit_cast<uint32_t>(-1.0f)));
+  __uint128_t arg1 = MakeU32x4(bit_cast<uint32_t>(1.0f),
+                               bit_cast<uint32_t>(-1.0f),
+                               kSignalingNaN32AsInteger_1,
+                               kQuietNaN32AsInteger);
+  __uint128_t arg2 = MakeU32x4(kSignalingNaN32AsInteger_1,
+                               kQuietNaN32AsInteger,
+                               bit_cast<uint32_t>(1.0f),
+                               bit_cast<uint32_t>(-1.0f));
+  ASSERT_EQ(AsmFmaxnm(arg1, arg2),
+            MakeU32x4(kQuietNaN32AsInteger_1,
+                      bit_cast<uint32_t>(-1.0f),
+                      kQuietNaN32AsInteger_1,
+                      bit_cast<uint32_t>(-1.0f)));
 }
 
 TEST(Arm64InsnTest, MaxNumberF64x2PreciseNaN) {
   constexpr auto AsmFmaxnm = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("fmaxnm %0.2d, %1.2d, %2.2d");
-  __uint128_t arg1 = MakeUInt128(bit_cast<uint64_t>(1.0), kSignalingNaN64_1);
-  __uint128_t arg2 = MakeUInt128(kSignalingNaN64_1, bit_cast<uint64_t>(-1.0));
-  ASSERT_EQ(AsmFmaxnm(arg1, arg2), MakeUInt128(kQuietNaN64_1, kQuietNaN64_1));
+  __uint128_t arg1 = MakeUInt128(bit_cast<uint64_t>(1.0), kSignalingNaN64AsInteger_1);
+  __uint128_t arg2 = MakeUInt128(kSignalingNaN64AsInteger_1, bit_cast<uint64_t>(-1.0));
+  ASSERT_EQ(AsmFmaxnm(arg1, arg2), MakeUInt128(kQuietNaN64AsInteger_1, kQuietNaN64AsInteger_1));
 }
 
 TEST(Arm64InsnTest, MinNumberF32x4PreciseNaN) {
   constexpr auto AsmFminnm = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("fminnm %0.4s, %1.4s, %2.4s");
-  __uint128_t arg1 = MakeU32x4(
-      bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f), kSignalingNaN32_1, kQuietNaN32);
-  __uint128_t arg2 = MakeU32x4(
-      kSignalingNaN32_1, kQuietNaN32, bit_cast<uint32_t>(1.0f), bit_cast<uint32_t>(-1.0f));
-  ASSERT_EQ(
-      AsmFminnm(arg1, arg2),
-      MakeU32x4(
-          kQuietNaN32_1, bit_cast<uint32_t>(-1.0f), kQuietNaN32_1, bit_cast<uint32_t>(-1.0f)));
+  __uint128_t arg1 = MakeU32x4(bit_cast<uint32_t>(1.0f),
+                               bit_cast<uint32_t>(-1.0f),
+                               kSignalingNaN32AsInteger_1,
+                               kQuietNaN32AsInteger);
+  __uint128_t arg2 = MakeU32x4(kSignalingNaN32AsInteger_1,
+                               kQuietNaN32AsInteger,
+                               bit_cast<uint32_t>(1.0f),
+                               bit_cast<uint32_t>(-1.0f));
+  ASSERT_EQ(AsmFminnm(arg1, arg2),
+            MakeU32x4(kQuietNaN32AsInteger_1,
+                      bit_cast<uint32_t>(-1.0f),
+                      kQuietNaN32AsInteger_1,
+                      bit_cast<uint32_t>(-1.0f)));
 }
 
 TEST(Arm64InsnTest, MinNumberF64x2PreciseNaN) {
   constexpr auto AsmFminnm = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("fminnm %0.2d, %1.2d, %2.2d");
-  __uint128_t arg1 = MakeUInt128(bit_cast<uint64_t>(1.0), kSignalingNaN64_1);
-  __uint128_t arg2 = MakeUInt128(kSignalingNaN64_1, bit_cast<uint64_t>(-1.0));
-  ASSERT_EQ(AsmFminnm(arg1, arg2), MakeUInt128(kQuietNaN64_1, kQuietNaN64_1));
+  __uint128_t arg1 = MakeUInt128(bit_cast<uint64_t>(1.0), kSignalingNaN64AsInteger_1);
+  __uint128_t arg2 = MakeUInt128(kSignalingNaN64AsInteger_1, bit_cast<uint64_t>(-1.0));
+  ASSERT_EQ(AsmFminnm(arg1, arg2), MakeUInt128(kQuietNaN64AsInteger_1, kQuietNaN64AsInteger_1));
 }
 
 TEST(Arm64InsnTest, MaxPairwiseNumberF32ScalarPreciseNaN) {
   constexpr auto AsmFmaxnmp = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fmaxnmp %s0, %1.2s");
-  __uint128_t arg = MakeF32x4(bit_cast<float>(kSignalingNaN32_1), 2.0f, 7.0f, -0.0f);
-  ASSERT_EQ(AsmFmaxnmp(arg), kQuietNaN32_1);
+  __uint128_t arg = MakeF32x4(bit_cast<float>(kSignalingNaN32AsInteger_1), 2.0f, 7.0f, -0.0f);
+  ASSERT_EQ(AsmFmaxnmp(arg), kQuietNaN32AsInteger_1);
 }
 
 TEST(Arm64InsnTest, MaxPairwiseNumberF32x4PreciseNaN) {
   constexpr auto AsmFmaxnmp = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("fmaxnmp %0.4s, %1.4s, %2.4s");
-  __uint128_t arg1 =
-      MakeF32x4(bit_cast<float>(kSignalingNaN32_1), 2.0f, 7.0f, bit_cast<float>(kSignalingNaN32_1));
+  __uint128_t arg1 = MakeF32x4(bit_cast<float>(kSignalingNaN32AsInteger_1),
+                               2.0f,
+                               7.0f,
+                               bit_cast<float>(kSignalingNaN32AsInteger_1));
   __uint128_t arg2 = MakeF32x4(6.0f, 1.0f, -8.0f, 5.0f);
   ASSERT_EQ(AsmFmaxnmp(arg1, arg2),
-            MakeF32x4(bit_cast<float>(kQuietNaN32_1), bit_cast<float>(kQuietNaN32_1), 6.0f, 5.0f));
+            MakeF32x4(bit_cast<float>(kQuietNaN32AsInteger_1),
+                      bit_cast<float>(kQuietNaN32AsInteger_1),
+                      6.0f,
+                      5.0f));
 }
 
 TEST(Arm64InsnTest, MinPairwiseNumberF32ScalarPreciseNaN) {
   constexpr auto AsmFminnmp = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fminnmp %s0, %1.2s");
-  __uint128_t arg = MakeF32x4(bit_cast<float>(kSignalingNaN32_1), 2.0f, 7.0f, -0.0f);
-  ASSERT_EQ(AsmFminnmp(arg), kQuietNaN32_1);
+  __uint128_t arg = MakeF32x4(bit_cast<float>(kSignalingNaN32AsInteger_1), 2.0f, 7.0f, -0.0f);
+  ASSERT_EQ(AsmFminnmp(arg), kQuietNaN32AsInteger_1);
 }
 
 TEST(Arm64InsnTest, MinPairwiseNumberF32x4PreciseNaN) {
   constexpr auto AsmFminnmp = ASM_INSN_WRAP_FUNC_W_RES_WW_ARG("fminnmp %0.4s, %1.4s, %2.4s");
-  __uint128_t arg1 =
-      MakeF32x4(bit_cast<float>(kSignalingNaN32_1), 2.0f, 7.0f, bit_cast<float>(kSignalingNaN32_1));
+  __uint128_t arg1 = MakeF32x4(bit_cast<float>(kSignalingNaN32AsInteger_1),
+                               2.0f,
+                               7.0f,
+                               bit_cast<float>(kSignalingNaN32AsInteger_1));
   __uint128_t arg2 = MakeF32x4(6.0f, 1.0f, -8.0f, 5.0f);
   ASSERT_EQ(AsmFminnmp(arg1, arg2),
-            MakeF32x4(bit_cast<float>(kQuietNaN32_1), bit_cast<float>(kQuietNaN32_1), 1.0f, -8.0f));
+            MakeF32x4(bit_cast<float>(kQuietNaN32AsInteger_1),
+                      bit_cast<float>(kQuietNaN32AsInteger_1),
+                      1.0f,
+                      -8.0f));
 }
 
 TEST(Arm64InsnTest, MaxNumberAcrossF32x4PreciseNaN) {
   constexpr auto AsmFmaxnmv = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fmaxnmv %s0, %1.4s");
-  __uint128_t arg = MakeF32x4(0.0f, 2.0f, 3.0f, bit_cast<float>(kSignalingNaN32_1));
+  __uint128_t arg = MakeF32x4(0.0f, 2.0f, 3.0f, bit_cast<float>(kSignalingNaN32AsInteger_1));
   ASSERT_EQ(AsmFmaxnmv(arg), bit_cast<uint32_t>(2.0f));
 }
 
 TEST(Arm64InsnTest, MinNumberAcrossF32x4PreciseNaN) {
   constexpr auto AsmFminnmv = ASM_INSN_WRAP_FUNC_W_RES_W_ARG("fminnmv %s0, %1.4s");
-  __uint128_t arg = MakeF32x4(0.0f, 2.0f, 3.0f, bit_cast<float>(kSignalingNaN32_1));
+  __uint128_t arg = MakeF32x4(0.0f, 2.0f, 3.0f, bit_cast<float>(kSignalingNaN32AsInteger_1));
   ASSERT_EQ(AsmFminnmv(arg), bit_cast<uint32_t>(0.0f));
 }
 
@@ -273,9 +325,9 @@ TEST(Arm64InsnTest, AbdF64PreciseNaN) {
   // bit.  This means that if the difference is a "negative" NaN, then FABD
   // produces the positive one.  That is, a NaN input doesn't necessarily
   // propagate to the result as is even with the Default NaN mode turned off.
-  uint64_t arg1 = kDefaultNaN64 | (1ULL << 63);  // A "negative" qNaN
+  uint64_t arg1 = kDefaultNaN64AsInteger | (1ULL << 63);  // A "negative" qNaN
   uint64_t arg2 = bit_cast<uint32_t>(1.0f);
-  ASSERT_EQ(AsmFabd(arg1, arg2), kDefaultNaN64);
+  ASSERT_EQ(AsmFabd(arg1, arg2), kDefaultNaN64AsInteger);
 }
 
 TEST(Arm64InsnTest, DivFp32FlushToZero) {
@@ -320,7 +372,7 @@ TEST(Arm64InsnTest, AddFp64FpStatusIoc) {
   constexpr auto AsmFadd = ASM_INSN_WRAP_FUNC_WQ_RES_WW_ARG("fadd %d0, %d2, %d3");
 
   uint64_t fp_arg1 = 0x7ff4000000000000ULL;  // Nan
-  uint64_t fp_arg2 = kOneF64;
+  uint64_t fp_arg2 = kOneF64AsInteger;
   auto [res, fpsr] = AsmFadd(fp_arg1, fp_arg2);
   ASSERT_EQ(res, MakeUInt128(0x7ffc000000000000ULL, 0x0000000000000000ULL));
   ASSERT_EQ(fpsr, kFpsrIocBit);
