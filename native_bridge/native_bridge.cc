@@ -47,7 +47,7 @@
 #include "berberis/runtime/berberis.h"
 #include "berberis/runtime_primitives/known_guest_function_wrapper.h"
 
-#define LOG_NB ALOGV  // redefine to ALOGD for debugging
+#define LOG_NB TRACE
 
 extern "C" {
 
@@ -486,9 +486,18 @@ void* native_bridge_getTrampolineForFunctionPointer(const void* method,
 
   auto guest_addr = berberis::ToGuestAddr(method);
   if (!berberis::GuestMapShadow::GetInstance()->IsExecutable(guest_addr, 1)) {
-    // This is not guest code - happens when native_bridge falls back
-    // to host libraries.
-    return const_cast<void*>(method);
+    // Check if this is already generated trampoline from intercepted RegisterNatives
+    // if so - regenerate. The reason is the first time we generated it there was
+    // no information about JNICallType - which we need to take into account now.
+    auto guest_addr_candidate = berberis::FindGuestAddrForJniTrampolineIfExists(method);
+    if (!guest_addr_candidate.has_value()) {
+      LOG_NB("Not executable method - assuming it's a host library");
+      // This is not guest code - happens when native_bridge falls back
+      // to host libraries.
+      return const_cast<void*>(method);
+    }
+
+    guest_addr = guest_addr_candidate.value();
   }
 
   return const_cast<void*>(berberis::WrapGuestJNIFunction(

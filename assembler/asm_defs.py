@@ -143,7 +143,7 @@ def is_implicit_reg(arg_type):
                       'RCX', 'ECX', 'CL', 'ST', 'ST1',
                       'RDX', 'EDX', 'DX', 'CC',
                       'RBX', 'EBX', 'BX', 'SW',
-                      'RDI', 'RSI', 'RSP', 'FLAGS')
+                      'RDI', 'RSI', 'ESP', 'RSP', 'FLAGS')
 
 
 def exactly_one_of(iterable):

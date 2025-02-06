@@ -145,7 +145,7 @@ def _get_c_type(arg_type):
 
 
 def _get_semantic_player_type(arg_type, type_map):
-  if type_map is not None and arg_type in type_map:
+  if type_map is not None and type_map != False and arg_type in type_map:
     return type_map[arg_type]
   if arg_type in ('Float16', 'Float32', 'Float64', 'vec'):
     return 'SimdRegister'
@@ -734,8 +734,16 @@ def _gen_semantic_player_types(intrs):
           new_map['Type%d' % get_counter()] = (
               'FpRegister' if type.strip() in ('Float16', 'Float32', 'Float64') else
               _get_semantic_player_type(type, None))
-        assert map is None or map == new_map
-        map = new_map
+        if map is None:
+          map = new_map
+        elif map != new_map:
+          # Note: we would use literal `False` as type, which would lead to
+          # compile-time error… that's Ok, because mix of ints and floats may
+          # only happen with vector intrinsics where types used are
+          # never arguments, but just specify type of vector element.
+          # If intrinsics actually have to receive such arguments that such
+          # intrinsics should be split in two.
+          map = False
       intr['sem-player-types'] = map
 
 
@@ -949,9 +957,16 @@ _KNOWN_FEATURES_KEYS = {
   'SSE4_2': '016',
   'AVX': '017',
   'AVX2': '018',
-  'FMA': '019',
-  'FMA4': '020',
-  'CustomCapability': '021'
+  'AES': '019',
+  'AESAVX': '020',
+  'VAES': '021',
+  'CLMUL': '012',
+  'CLMULAVX': '023',
+  'VPCLMULQD': '024',
+  'F16C': '025',
+  'FMA': '026',
+  'FMA4': '027',
+  'CustomCapability': '999'
 }
 
 

@@ -252,6 +252,7 @@ class TextAssembler {
   // something else.
   // If they are not coming as arguments then using them is compile-time error!
   Register gpr_a{Register::kNoRegister};
+  Register gpr_b{Register::kNoRegister};
   Register gpr_c{Register::kNoRegister};
   Register gpr_d{Register::kNoRegister};
   // Note: stack pointer is not reflected in list of arguments, intrinsics use
@@ -271,10 +272,15 @@ class TextAssembler {
   bool need_gpr_macroassembler_scratch() const { return need_gpr_macroassembler_scratch_; }
   Register gpr_macroassembler_scratch2{Register::kNoRegister};
 
+  bool need_aesavx = false;
+  bool need_aes = false;
   bool need_avx = false;
   bool need_avx2 = false;
   bool need_bmi = false;
   bool need_bmi2 = false;
+  bool need_clmulavx = false;
+  bool need_clmul = false;
+  bool need_f16c = false;
   bool need_fma = false;
   bool need_fma4 = false;
   bool need_lzcnt = false;
@@ -283,6 +289,8 @@ class TextAssembler {
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
   bool need_sse4_2 = false;
+  bool need_vaes = false;
+  bool need_vpclmulqd = false;
   bool has_custom_capability = false;
 
   void Bind(Label* label) {
@@ -340,15 +348,29 @@ class TextAssembler {
   template <typename CPUIDRestriction>
   void CheckCPUIDRestriction() {
     constexpr bool expect_bmi = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>;
+    constexpr bool expect_f16c = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasF16C>;
     constexpr bool expect_fma = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>;
     constexpr bool expect_fma4 = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>;
     constexpr bool expect_lzcnt = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasLZCNT>;
+    constexpr bool expect_vaes = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasVAES>;
+    constexpr bool expect_vpclmulqd =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasVPCLMULQD>;
+    constexpr bool expect_aesavx =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAESAVX> || expect_vaes;
+    constexpr bool expect_aes =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAES> || expect_aesavx;
+    constexpr bool expect_clmulavx =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMULAVX> || expect_vpclmulqd;
+    constexpr bool expect_clmul =
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMUL> || expect_clmulavx;
     constexpr bool expect_popcnt =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>;
-    constexpr bool expect_avx =
-        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX> || expect_fma || expect_fma4;
+    constexpr bool expect_avx = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX> ||
+                                expect_aesavx || expect_clmulavx || expect_f16c || expect_fma ||
+                                expect_fma4;
     constexpr bool expect_sse4_2 =
-        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2> || expect_avx;
+        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2> || expect_aes ||
+        expect_clmul || expect_avx;
     constexpr bool expect_sse4_1 =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_1> || expect_sse4_2;
     constexpr bool expect_ssse3 =
@@ -356,8 +378,13 @@ class TextAssembler {
     constexpr bool expect_sse3 =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE3> || expect_ssse3;
 
+    CHECK_EQ(expect_aesavx, need_aesavx);
+    CHECK_EQ(expect_aes, need_aes);
     CHECK_EQ(expect_avx, need_avx);
     CHECK_EQ(expect_bmi, need_bmi);
+    CHECK_EQ(expect_clmulavx, need_clmulavx);
+    CHECK_EQ(expect_clmul, need_clmul);
+    CHECK_EQ(expect_f16c, need_f16c);
     CHECK_EQ(expect_fma, need_fma);
     CHECK_EQ(expect_fma4, need_fma4);
     CHECK_EQ(expect_lzcnt, need_lzcnt);
@@ -366,6 +393,8 @@ class TextAssembler {
     CHECK_EQ(expect_ssse3, need_ssse3);
     CHECK_EQ(expect_sse4_1, need_sse4_1);
     CHECK_EQ(expect_sse4_2, need_sse4_2);
+    CHECK_EQ(expect_vaes, need_vaes);
+    CHECK_EQ(expect_vpclmulqd, need_vpclmulqd);
   }
 
   // Translate CPU restrictions into string.
@@ -383,10 +412,20 @@ class TextAssembler {
       return nullptr;
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::IsAuthenticAMD>) {
       return "host_platform::kIsAuthenticAMD";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAES>) {
+      return "host_platform::kHasAES";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAESAVX>) {
+      return "host_platform::kHasAES && host_platform::kHasAVX";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX>) {
       return "host_platform::kHasAVX";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>) {
       return "host_platform::kHasBMI";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasF16C>) {
+      return "host_platform::kHasF16C";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMUL>) {
+      return "host_platform::kHasCLMUL";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMULAVX>) {
+      return "host_platform::kHasCLMUL && host_platform::kHasAVX";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>) {
       return "host_platform::kHasFMA";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA4>) {
@@ -405,6 +444,10 @@ class TextAssembler {
       return "host_platform::kHasSSE4_2";
     } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3>) {
       return "host_platform::kHasSSSE3";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasVAES>) {
+      return "host_platform::kHasVAES";
+    } else if constexpr (std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasVPCLMULQD>) {
+      return "host_platform::kHasVPCLMULQD";
     } else if constexpr (std::is_same_v<CPUIDRestriction,
                                         intrinsics::bindings::HasCustomCapability>) {
       return "host_platform::kHasCustomCapability";
@@ -447,6 +490,17 @@ class TextAssembler {
   constexpr static char kRsp[] = "%%rsp";
   using Register64Bit = RegisterTemplate<kRsp, 'q'>;
 
+  void SetRequiredFeatureAESAVX() {
+    need_aesavx = true;
+    SetRequiredFeatureAES();
+    SetRequiredFeatureAVX();
+  }
+
+  void SetRequiredFeatureAES() {
+    need_aes = true;
+    SetRequiredFeatureSSE4_2();
+  }
+
   void SetRequiredFeatureAVX() {
     need_avx = true;
     SetRequiredFeatureSSE4_2();
@@ -463,6 +517,22 @@ class TextAssembler {
 
   void SetRequiredFeatureBMI2() {
     need_bmi2 = true;
+  }
+
+  void SetRequiredFeatureCLMULAVX() {
+    need_clmulavx = true;
+    SetRequiredFeatureCLMUL();
+    SetRequiredFeatureAVX();
+  }
+
+  void SetRequiredFeatureCLMUL() {
+    need_clmul = true;
+    SetRequiredFeatureSSE4_2();
+  }
+
+  void SetRequiredFeatureF16C() {
+    need_f16c = true;
+    SetRequiredFeatureAVX();
   }
 
   void SetRequiredFeatureFMA() {
@@ -502,6 +572,16 @@ class TextAssembler {
   void SetRequiredFeatureSSE4_2() {
     need_sse4_2 = true;
     SetRequiredFeatureSSE4_1();
+  }
+
+  void SetRequiredFeatureVAES() {
+    need_vaes = true;
+    SetRequiredFeatureAESAVX();
+  }
+
+  void SetRequiredFeatureVPCLMULQD() {
+    need_vpclmulqd = true;
+    SetRequiredFeatureCLMULAVX();
   }
 
   void SetHasCustomCapability() { has_custom_capability = true; }

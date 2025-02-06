@@ -90,12 +90,32 @@ class EAX {
 
 class RAX {
  public:
-  using Type = uint32_t;
+  using Type = uint64_t;
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'a';
   template <typename MachineInsnArch>
   static constexpr auto kRegClass = MachineInsnArch::kRAX;
+};
+
+class EBX {
+ public:
+  using Type = uint32_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr bool kIsImplicitReg = true;
+  static constexpr char kAsRegister = 'b';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kEBX;
+};
+
+class RBX {
+ public:
+  using Type = uint64_t;
+  static constexpr bool kIsImmediate = false;
+  static constexpr bool kIsImplicitReg = true;
+  static constexpr char kAsRegister = 'b';
+  template <typename MachineInsnArch>
+  static constexpr auto kRegClass = MachineInsnArch::kRBX;
 };
 
 class CL {
@@ -128,7 +148,7 @@ class ECX {
 
 class RCX {
  public:
-  using Type = uint32_t;
+  using Type = uint64_t;
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'c';
@@ -164,7 +184,7 @@ class EDX {
 
 class RDX {
  public:
-  using Type = uint32_t;
+  using Type = uint64_t;
   static constexpr bool kIsImmediate = false;
   static constexpr bool kIsImplicitReg = true;
   static constexpr char kAsRegister = 'd';
@@ -292,6 +312,7 @@ class HasAVX512VPOPCNTDQ;
 class HasBMI;
 class HasBMI2;
 class HasCLMUL;
+class HasCLMULAVX;
 class HasCMOV;
 class HasCMPXCHG16B;
 class HasCMPXCHG8B;
@@ -316,6 +337,7 @@ class HasSSE4a;
 class HasSSSE3;
 class HasTBM;
 class HasVAES;
+class HasVPCLMULQD;
 class HasX87;
 class HasCustomCapability;
 class IsAuthenticAMD;

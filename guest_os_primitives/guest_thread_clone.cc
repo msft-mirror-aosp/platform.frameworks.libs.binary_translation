@@ -63,16 +63,26 @@ void SemPostOrDie(sem_t* sem) {
   // Note that sem_destroy itself may do nothing (bionic and glibc are like that), the actual
   // destruction happens because we free up memory (e.g. stack frame) where sem_t is stored.
   // More details at https://sourceware.org/bugzilla/show_bug.cgi?id=12674
-#if defined(__GLIBC__) && ((__GLIBC__ < 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ < 21)))
+#if defined(__GLIBC__)
+
+#if (__GLIBC__ < 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ < 21))
   // GLibc before 2.21 may return EINVAL in the above situation. We ignore it since we cannot do
   // anything about it, and it doesn't really break anything: we just acknowledge the fact that the
   // semaphore can be destoyed already.
-  LOG_ALWAYS_FATAL_IF(error != 0 && error != EINVAL, "sem_post returned error=%s", strerror(errno));
+  LOG_ALWAYS_FATAL_IF(error != 0 && errno != EINVAL, "sem_post returned error=%s", strerror(errno));
 #else
-  // Bionic and recent GLibc ignore the error code returned
-  // from FUTEX_WAKE. So, they never return EINVAL.
-  LOG_ALWAYS_FATAL_IF(error != 0, "sem_post returned error=%s", strerror(errno));
+  // Recent GLibc ignores the error code returned from FUTEX_WAKE. So, it never returns EINVAL.
+  LOG_ALWAYS_FATAL_IF(error != 0,
+                      "sem_post returned error=%s GLIBC=%d GLIBC_MINOR=%d",
+                      strerror(errno),
+                      __GLIBC__,
+                      __GLIBC_MINOR__);
 #endif
+
+#else
+  // Bionic ignores the error code returned from FUTEX_WAKE. So, it never returns EINVAL.
+  LOG_ALWAYS_FATAL_IF(error != 0, "sem_post returned error=%s", strerror(errno));
+#endif  // defined(__GLIBC__)
 }
 
 int RunClonedGuestThread(void* arg) {

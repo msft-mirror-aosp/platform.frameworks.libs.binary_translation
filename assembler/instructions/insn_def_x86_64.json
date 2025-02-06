@@ -217,7 +217,9 @@
     },
     {
       "encodings": {
-        "Callq": { "opcodes": [ "FF", "2" ] }
+        "Callq": { "opcodes": [ "FF", "2" ] },
+        "Popq": { "opcodes": [ "8F", "0" ] },
+        "Pushq": { "opcodes": [ "FF", "6" ] }
       },
       "args": [
         { "class": "RSP", "usage": "use_def" },
@@ -627,7 +629,7 @@
         "Vpextrq": { "feature": "AVX", "opcodes": [ "C4", "03", "81", "16" ], "type": "reg_to_rm" }
       },
       "args": [
-        { "class": "GeneralReg64", "usage": "def" },
+        { "class": "GeneralReg64/Mem64", "usage": "def" },
         { "class": "VecReg128", "usage": "use" },
         { "class": "Imm8" }
       ]
@@ -638,26 +640,8 @@
       },
       "args": [
         { "class": "VecReg128", "usage": "use_def" },
-        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64/Mem64", "usage": "use" },
         { "class": "Imm8" }
-      ]
-    },
-    {
-      "encodings": {
-        "Popq": { "opcodes": [ "8F", "0" ] }
-      },
-      "args": [
-        { "class": "RSP", "usage": "use_def" },
-        { "class": "VecMem64", "usage": "def" }
-      ]
-    },
-    {
-      "encodings": {
-        "Pushq": { "opcodes": [ "FF", "6" ] }
-      },
-      "args": [
-        { "class": "RSP", "usage": "use_def" },
-        { "class": "VecMem64", "usage": "use" }
       ]
     },
     {
@@ -772,9 +756,16 @@
       "args": [
         { "class": "VecReg128", "usage": "def" },
         { "class": "VecReg128", "usage": "use" },
-        { "class": "GeneralReg64", "usage": "use" },
+        { "class": "GeneralReg64/Mem64", "usage": "use" },
         { "class": "Imm8" }
       ]
+    },
+    {
+      "encodings": {
+        "Vzeroupper": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "77" ]},
+        "Vzeroall": { "feature": "AVX", "opcodes": [ "C4", "01", "04", "77" ]}
+      },
+      "args": []
     },
     {
       "stems": [ "Xchgq" ],
@@ -790,6 +781,15 @@
       "args": [
         { "class": "GeneralReg64", "usage": "use_def" },
         { "class": "Mem64", "usage": "use_def" }
+      ]
+    },
+    {
+      "encodings": {
+        "Xlatb": { "opcode": "d7" }
+      },
+      "args": [
+        { "class": "AL", "usage": "use_def" },
+        { "class": "RBX", "usage": "use" }
       ]
     }
   ]
