@@ -481,6 +481,45 @@ DEFINE_XMM_INT_INSTRUCTION(Vpinsr,
                            , )
 #undef DEFINE_XMM_INT_INSTRUCTION
 
+#define DEFINE_XMM_INT_EXPAND(insn_name, asm_name, parameters, arguments)                    \
+  template <typename FormatFrom, typename FormatTo>                                          \
+  std::enable_if_t<kIntTypeBWL<FormatFrom> && kIntTypeWLQ<FormatTo> &&                       \
+                   std::is_signed_v<FormatFrom> == std::is_signed_v<FormatTo> &&             \
+                   sizeof(FormatFrom) < sizeof(FormatTo)>                                    \
+      insn_name parameters {                                                                 \
+    if constexpr (kFormatIs<FormatFrom, int8_t> && kFormatIs<FormatTo, int16_t>) {           \
+      Assembler::asm_name##sxbw arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, uint8_t> && kFormatIs<FormatTo, uint16_t>) {  \
+      Assembler::asm_name##zxbw arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, int8_t> && kFormatIs<FormatTo, int32_t>) {    \
+      Assembler::asm_name##sxbd arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, uint8_t> && kFormatIs<FormatTo, uint32_t>) {  \
+      Assembler::asm_name##zxbd arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, int8_t> && kFormatIs<FormatTo, int64_t>) {    \
+      Assembler::asm_name##sxbq arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, uint8_t> && kFormatIs<FormatTo, uint64_t>) {  \
+      Assembler::asm_name##zxbq arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, int16_t> && kFormatIs<FormatTo, int32_t>) {   \
+      Assembler::asm_name##sxwd arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, uint16_t> && kFormatIs<FormatTo, uint32_t>) { \
+      Assembler::asm_name##zxwd arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, int16_t> && kFormatIs<FormatTo, int64_t>) {   \
+      Assembler::asm_name##sxwq arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, uint16_t> && kFormatIs<FormatTo, uint64_t>) { \
+      Assembler::asm_name##zxwq arguments;                                                   \
+    } else if constexpr (kFormatIs<FormatFrom, int32_t> && kFormatIs<FormatTo, int64_t>) {   \
+      Assembler::asm_name##sxdq arguments;                                                   \
+    } else {                                                                                 \
+      static_assert(kFormatIs<FormatFrom, uint32_t> && kFormatIs<FormatTo, uint64_t>);       \
+      Assembler::asm_name##zxdq arguments;                                                   \
+    }                                                                                        \
+  }
+DEFINE_XMM_INT_EXPAND(Pmov, Pmov, (XMMRegister dest, XMMRegister src), (dest, src))
+DEFINE_XMM_INT_EXPAND(Pmov, Pmov, (XMMRegister dest, Operand src), (dest, src))
+DEFINE_XMM_INT_EXPAND(Vpmov, Vpmov, (XMMRegister dest, XMMRegister src), (dest, src))
+DEFINE_XMM_INT_EXPAND(Vpmov, Vpmov, (XMMRegister dest, Operand src), (dest, src))
+#undef DEFINE_XMM_INT_EXPAND
+
 #define DEFINE_MOVS_INSTRUCTION(insn_name, opt_check, parameters, arguments) \
   template <typename format>                                                 \
   std::enable_if_t<kFloatType<format>> insn_name parameters {                \
