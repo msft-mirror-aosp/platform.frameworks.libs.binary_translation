@@ -168,7 +168,7 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
           else:
             assert False
         insn['processed_opcodes'] = opcodes
-        print('void %s(%s) {' % (name, params), file=f)
+        print('constexpr void %s(%s) {' % (name, params), file=f)
         if 'x86' in arch:
           _gen_emit_shortcut(f, insn, insns)
         _gen_emit_instruction(f, insn, arch)
@@ -178,19 +178,19 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
         # emulated on x86-32, too, if needed).
         if 'const Operand&' in params and 'x86' in arch:
           print("", file=f)
-          print('void %s(%s) {' % (
+          print('constexpr void %s(%s) {' % (
               name, params.replace('const Operand&', 'const LabelOperand')), file=f)
           _gen_emit_shortcut(f, insn, insns)
           _gen_emit_instruction(f, insn, arch, rip_operand=True)
           print('}\n', file=f)
         if 'Rounding' in params:
           print("", file=f)
-          print('void %s(%s) {' % (
+          print('constexpr void %s(%s) {' % (
               name, _get_params(insn, lambda arg: arg.get('class', '') == 'Rm')), file=f)
           _gen_emit_instruction(f, insn, arch, dyn_rm=True)
           print('}\n', file=f)
       else:
-        print('void %s(%s);' % (name, params), file=f)
+        print('constexpr void %s(%s);' % (name, params), file=f)
       # If immediate type is integer then we want to prevent automatic
       # conversions from integers of larger sizes.
       if imm_type is not None and "int" in imm_type:
@@ -203,7 +203,7 @@ def _gen_generic_functions_h(f, insns, binary_assembler, arch):
                     'sizeof(%s) < sizeof(ImmType)> = delete;') % (
                         name, params.replace(imm_type, 'ImmType'), imm_type), file=f)
     else:
-      print('void %s(%s) {' % (name, params), file=f);
+      print('constexpr void %s(%s) {' % (name, params), file=f);
       if 'feature' in insn:
         print('  SetRequiredFeature%s();' % insn['feature'], file=f)
       print('  Instruction(%s);' % ', '.join(
@@ -464,7 +464,7 @@ def _gen_memory_function_specializations_h(f, insns, arch):
           outgoing_args.append(arg_name)
       if template:
         print(template, file=f)
-      print('void %s(%s) {' % (macro_name, ', '.join(incoming_args)), file=f)
+      print('constexpr void %s(%s) {' % (macro_name, ', '.join(incoming_args)), file=f)
       print('  %s(%s);' % (insn.get('asm'), ', '.join(outgoing_args)), file=f)
       print('}', file=f)
 
