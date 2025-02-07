@@ -19,15 +19,11 @@
 
 #include <jni.h>
 
-#include <optional>
-
 #include "berberis/guest_abi/guest_type.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/host_code.h"
 
 namespace berberis {
-
-std::optional<GuestAddr> FindGuestAddrForJniTrampolineIfExists(HostCode trampoline_addr);
 
 HostCode WrapGuestJNIFunction(GuestAddr pc,
                               const char* shorty,
