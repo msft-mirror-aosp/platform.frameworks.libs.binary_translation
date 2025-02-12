@@ -48,7 +48,7 @@ void EmitCheckSignalsAndMaybeReturn(x86_64::Assembler* as) {
   //   cmpb pending_signals_status, kPendingSignalsPresent
   const size_t offset = offsetof(ThreadState, pending_signals_status);
   as->Cmpb({.base = x86_64::Assembler::rbp, .disp = offset}, kPendingSignalsPresent);
-  as->Jcc(x86_64::Assembler::Condition::kEqual, kEntryExitGeneratedCode);
+  as->Jcc32(x86_64::Assembler::Condition::kEqual, kEntryExitGeneratedCode);
 }
 
 }  // namespace
@@ -127,7 +127,7 @@ void EmitDirectDispatch(x86_64::Assembler* as, GuestAddr pc, bool check_pending_
   as->Movq(as->rax, pc);
 
   if (!config::kLinkJumpsBetweenRegions) {
-    as->Jmp(kEntryExitGeneratedCode);
+    as->Jmp32(kEntryExitGeneratedCode);
     return;
   }
 
@@ -148,7 +148,7 @@ void EmitExitGeneratedCode(x86_64::Assembler* as, x86_64::Assembler::Register ta
     as->Movq(as->rax, target);
   }
 
-  as->Jmp(kEntryExitGeneratedCode);
+  as->Jmp32(kEntryExitGeneratedCode);
 }
 
 void EmitIndirectDispatch(x86_64::Assembler* as, x86_64::Assembler::Register target) {
@@ -158,7 +158,7 @@ void EmitIndirectDispatch(x86_64::Assembler* as, x86_64::Assembler::Register tar
   }
 
   if (!config::kLinkJumpsBetweenRegions) {
-    as->Jmp(kEntryExitGeneratedCode);
+    as->Jmp32(kEntryExitGeneratedCode);
     return;
   }
 

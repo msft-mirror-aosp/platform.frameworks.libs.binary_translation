@@ -199,6 +199,25 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit64(bit_cast<int64_t>(target));
   }
 
+  // Emit short relative jcc to an absolute address.
+  //
+  // This is used to shorten jcc in the code installed in lower 2G address space.
+  // Use this if the target is also within this address space.
+  void Jcc32(Condition cc, uintptr_t target) {
+    if (cc == Condition::kAlways) {
+      Jmp32(target);
+      return;
+    } else if (cc == Condition::kNever) {
+      return;
+    }
+    CHECK_EQ(static_cast<uint8_t>(cc) & 0xf0, 0);
+    Emit8(0x0f);
+    Emit8(0x80 | static_cast<uint8_t>(cc));
+    Emit32(0xcccc'cccc);
+    // Set last 4 bytes to displacement from current pc to 'target'.
+    AddRelocation(pc() - 4, RelocationType::RelocAbsToDisp32, pc(), bit_cast<intptr_t>(target));
+  }
+
   void Jcc(Condition cc, const void* target) { Jcc(cc, bit_cast<uintptr_t>(target)); }
 
   // Unhide Jmp(Reg), hidden by special version below.
@@ -223,6 +242,16 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     Emit16(0x25ff);
     Emit32(0x00000000);
     Emit64(bit_cast<int64_t>(target));
+  }
+
+  // Emit short relative jump to an absolute address.
+  //
+  // This is used to shorten jmps in the code installed in lower 2G address space.
+  // Use this if the target is also within this address space.
+  void Jmp32(uintptr_t target) {
+    Emit8(0xe9);
+    Emit32(0xcccc'cccc);
+    AddRelocation(pc() - 4, RelocationType::RelocAbsToDisp32, pc(), target);
   }
 
   void Jmp(const void* target) { Jmp(bit_cast<uintptr_t>(target)); }
