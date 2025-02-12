@@ -28,7 +28,7 @@
 // Float32/Float64 types but can be compiled for different architecture (soong's host architecture,
 // not device architecture AKA berberis' host architecture).
 #include "berberis/intrinsics/common/intrinsics_float.h"
-#include "berberis/intrinsics/macro_assembler_constants_pool.h"
+#include "berberis/intrinsics/constants_pool.h"
 
 namespace berberis {
 

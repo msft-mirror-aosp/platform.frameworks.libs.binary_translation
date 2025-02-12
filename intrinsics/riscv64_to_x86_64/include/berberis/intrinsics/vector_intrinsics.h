@@ -22,7 +22,7 @@
 
 #include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/common/intrinsics.h"
-#include "berberis/intrinsics/macro_assembler_constants_pool.h"
+#include "berberis/intrinsics/constants_pool.h"
 #include "berberis/intrinsics/simd_register.h"
 
 // Define function to use in host-agnostic code.
