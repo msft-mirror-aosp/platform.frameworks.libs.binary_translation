@@ -57,6 +57,14 @@ namespace berberis {
                 "size of `" #field "' field in " #type " must be " #size       \
                 " bit because it's " #size " bit on guest")
 
+#define CHECK_FIELD_LAYOUT_RELATIVE(type, field, previous_field, offset, size)                 \
+  static_assert((offsetof(type, field) - offsetof(type, previous_field)) * CHAR_BIT == offset, \
+                "offset of `" #field "' field in " #type " must be " #offset                   \
+                " because it's " #offset " on guest");                                         \
+  static_assert(sizeof(static_cast<type*>(nullptr)->field) * CHAR_BIT == size,                 \
+                "size of `" #field "' field in " #type " must be " #size                       \
+                " bit because it's " #size " bit on guest")
+
 }  // namespace berberis
 
 #endif  // BERBERIS_BASE_STRUCT_CHECK_H_
