@@ -435,6 +435,10 @@
         "Rsqrtps": { "opcodes": [ "0F", "52" ] },
         "Subpd": { "opcodes": [ "66", "0F", "5C" ] },
         "Subps": { "opcodes": [ "0F", "5C" ] },
+        "Unpckhpd": { "opcodes": [ "66", "0F", "15" ] },
+        "Unpckhps": { "opcodes": [ "0F", "15" ] },
+        "Unpcklpd": { "opcodes": [ "66", "0F", "14" ] },
+        "Unpcklps": { "opcodes": [ "0F", "14" ] },
         "Vrsqrtps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "52" ] },
         "Xorpd": { "opcodes": [ "66", "0F", "57" ] },
         "Xorps": { "opcodes": [ "0F", "57" ] }
@@ -1974,6 +1978,16 @@
     },
     {
       "encodings": {
+        "Movss": { "opcodes": [ "F3", "0F", "11" ] },
+        "Vmovss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "11" ] }
+      },
+      "args": [
+        { "class": "Mem32", "usage": "def" },
+        { "class": "XmmReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Movss": { "opcodes": [ "F3", "0F", "10" ] },
         "Vmovss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "10" ] }
       },
@@ -1982,16 +1996,6 @@
         { "class": "VecMem32", "usage": "use" }
       ],
       "comment": "Upper bits are zero-filled"
-    },
-    {
-      "encodings": {
-        "Movss": { "opcodes": [ "F3", "0F", "11" ] },
-        "Vmovss": { "feature": "AVX", "opcodes": [ "C4", "01", "02", "11" ] }
-      },
-      "args": [
-        { "class": "Mem32", "usage": "def" },
-        { "class": "XmmReg", "usage": "use" }
-      ]
     },
     {
       "encodings": {
@@ -2640,6 +2644,10 @@
         "Vpxor": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "EF" ], "type": "optimizable_using_commutation" },
         "Vsubpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "5C" ], "type": "vex_rm_to_reg" },
         "Vsubps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "5C" ], "type": "vex_rm_to_reg" },
+        "Vunpckhpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "15" ], "type": "vex_rm_to_reg" },
+        "Vunpckhps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "15" ], "type": "vex_rm_to_reg" },
+        "Vunpcklpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "14" ], "type": "vex_rm_to_reg" },
+        "Vunpcklps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "14" ], "type": "vex_rm_to_reg" },
         "Vxorpd": { "feature": "AVX", "opcodes": [ "C4", "01", "01", "57" ], "type": "optimizable_using_commutation" },
         "Vxorps": { "feature": "AVX", "opcodes": [ "C4", "01", "00", "57" ], "type": "optimizable_using_commutation" }
       },
@@ -2754,6 +2762,10 @@
         "Vpxor": { "feature": "AVX2", "opcodes": [ "C4", "01", "05", "EF" ], "type": "optimizable_using_commutation" },
         "Vsubpd": { "feature": "AVX2", "opcodes": [ "C4", "01", "05", "5C" ], "type": "vex_rm_to_reg" },
         "Vsubps": { "feature": "AVX2", "opcodes": [ "C4", "01", "04", "5C" ], "type": "vex_rm_to_reg" },
+        "Vunpckhpd": { "feature": "AVX", "opcodes": [ "C4", "01", "05", "15" ], "type": "vex_rm_to_reg" },
+        "Vunpckhps": { "feature": "AVX", "opcodes": [ "C4", "01", "04", "15" ], "type": "vex_rm_to_reg" },
+        "Vunpcklpd": { "feature": "AVX", "opcodes": [ "C4", "01", "05", "14" ], "type": "vex_rm_to_reg" },
+        "Vunpcklps": { "feature": "AVX", "opcodes": [ "C4", "01", "04", "14" ], "type": "vex_rm_to_reg" },
         "Vxorpd": { "feature": "AVX2", "opcodes": [ "C4", "01", "05", "57" ], "type": "optimizable_using_commutation" },
         "Vxorps": { "feature": "AVX2", "opcodes": [ "C4", "01", "04", "57" ], "type": "optimizable_using_commutation" }
       },
