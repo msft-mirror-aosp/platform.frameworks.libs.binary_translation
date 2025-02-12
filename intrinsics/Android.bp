@@ -382,7 +382,7 @@ cc_library_static {
     name: "libberberis_macro_assembler_riscv64_to_x86_64",
     defaults: ["berberis_defaults_64"],
     host_supported: true,
-    srcs: ["riscv64_to_x86_64/macro_assembler.cc"],
+    srcs: ["riscv64_to_x86_64/constants_pool.cc"],
     header_libs: [
         "libberberis_assembler_headers",
         "libberberis_macro_assembler_headers_riscv64_to_x86_64",
