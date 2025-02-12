@@ -57,6 +57,8 @@ constexpr uint32_t kDefaultNaN32 = 0x7fc00000U;
 constexpr uint64_t kDefaultNaN64 = 0x7ff8000000000000ULL;
 constexpr uint32_t kQuietNaN32 = kDefaultNaN32;
 constexpr uint64_t kQuietNaN64 = kDefaultNaN64;
+constexpr uint32_t kNegativeQuietNaN32 = kDefaultNaN32 ^ 0x80000000U;
+constexpr uint64_t kNegativeQuietNaN64 = kDefaultNaN64 ^ 8000000000000000ULL;
 // There are multiple quiet and signaling NaNs. These are the ones that have the LSB "on".
 constexpr uint32_t kSignalingNaN32_1 = 0x7f800001U;
 constexpr uint64_t kSignalingNaN64_1 = 0x7ff0000000000001ULL;
