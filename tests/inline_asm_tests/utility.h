@@ -51,19 +51,19 @@ constexpr __uint128_t MakeU32x4(uint32_t u0, uint32_t u1, uint32_t u2, uint32_t 
 }
 
 // Floating-point literals
-constexpr uint32_t kOneF32 = 0x3f800000U;
-constexpr uint64_t kOneF64 = 0x3ff0000000000000ULL;
-constexpr uint32_t kDefaultNaN32 = 0x7fc00000U;
-constexpr uint64_t kDefaultNaN64 = 0x7ff8000000000000ULL;
-constexpr uint32_t kQuietNaN32 = kDefaultNaN32;
-constexpr uint64_t kQuietNaN64 = kDefaultNaN64;
-constexpr uint32_t kNegativeQuietNaN32 = kDefaultNaN32 ^ 0x80000000U;
-constexpr uint64_t kNegativeQuietNaN64 = kDefaultNaN64 ^ 8000000000000000ULL;
+constexpr uint32_t kOneF32AsInteger = 0x3f800000U;
+constexpr uint64_t kOneF64AsInteger = 0x3ff0000000000000ULL;
+constexpr uint32_t kDefaultNaN32AsInteger = 0x7fc00000U;
+constexpr uint64_t kDefaultNaN64AsInteger = 0x7ff8000000000000ULL;
+constexpr uint32_t kQuietNaN32AsInteger = kDefaultNaN32AsInteger;
+constexpr uint64_t kQuietNaN64AsInteger = kDefaultNaN64AsInteger;
+constexpr uint32_t kNegativeQuietNaN32AsInteger = kDefaultNaN32AsInteger ^ 0x80000000U;
+constexpr uint64_t kNegativeQuietNaN64 = kDefaultNaN64AsInteger ^ 8000000000000000ULL;
 // There are multiple quiet and signaling NaNs. These are the ones that have the LSB "on".
-constexpr uint32_t kSignalingNaN32_1 = 0x7f800001U;
-constexpr uint64_t kSignalingNaN64_1 = 0x7ff0000000000001ULL;
-constexpr uint32_t kQuietNaN32_1 = kQuietNaN32 | 1;
-constexpr uint64_t kQuietNaN64_1 = kQuietNaN64 | 1;
+constexpr uint32_t kSignalingNaN32AsInteger_1 = 0x7f800001U;
+constexpr uint64_t kSignalingNaN64AsInteger_1 = 0x7ff0000000000001ULL;
+constexpr uint32_t kQuietNaN32AsInteger_1 = kQuietNaN32AsInteger | 1;
+constexpr uint64_t kQuietNaN64AsInteger_1 = kQuietNaN64AsInteger | 1;
 
 constexpr uint32_t kFpcrFzBit = 1U << 24;
 constexpr uint32_t kFpcrDnBit = 1U << 25;
