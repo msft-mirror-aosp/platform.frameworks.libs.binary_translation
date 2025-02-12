@@ -89,7 +89,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   using BaseAssembler::Movb;
 
   // Movb in 32-bit mode has certain optimizations not available in x86-64 mode
-  void Movb(Register dest, const Operand& src) {
+  constexpr void Movb(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
       EmitInstruction<0xA0>(src.disp);
     } else {
@@ -97,7 +97,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     }
   }
 
-  void Movb(const Operand& dest, Register src) {
+  constexpr void Movb(const Operand& dest, Register src) {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
       EmitInstruction<0xA2>(dest.disp);
     } else {
@@ -109,7 +109,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   using BaseAssembler::Movw;
 
   // Movw in 32-bit mode has certain optimizations not available in x86-64 mode
-  void Movw(Register dest, const Operand& src) {
+  constexpr void Movw(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
       EmitInstruction<0x66, 0xA1>(src.disp);
     } else {
@@ -117,7 +117,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     }
   }
 
-  void Movw(const Operand& dest, Register src) {
+  constexpr void Movw(const Operand& dest, Register src) {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
       EmitInstruction<0x66, 0xA3>(dest.disp);
     } else {
@@ -129,7 +129,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   using BaseAssembler::Movl;
 
   // Movl in 32-bit mode has certain optimizations not available in x86-64 mode
-  void Movl(Register dest, const Operand& src) {
+  constexpr void Movl(Register dest, const Operand& src) {
     if (IsAccumulator(dest) && src.base == no_register && src.index == no_register) {
       EmitInstruction<0xA1>(src.disp);
     } else {
@@ -137,7 +137,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
     }
   }
 
-  void Movl(const Operand& dest, Register src) {
+  constexpr void Movl(const Operand& dest, Register src) {
     if (dest.base == no_register && dest.index == no_register && IsAccumulator(src)) {
       EmitInstruction<0xA3>(dest.disp);
     } else {
@@ -315,15 +315,15 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also used to encode
   // a three-bit opcode extension into the ModR/M byte.
-  void EmitOperandOp(int num_ber, const Operand& addr);
+  constexpr void EmitOperandOp(int num_ber, const Operand& addr);
   // Helper functions to handle various ModR/M and SIB combinations.
   // Should *only* be called from EmitOperandOp!
-  void EmitIndexDispOperand(int reg, const Operand& addr);
+  constexpr void EmitIndexDispOperand(int reg, const Operand& addr);
   template <typename ArgType, void (AssemblerBase::*)(ArgType)>
-  void EmitBaseIndexDispOperand(int base_modrm_and_sib, const Operand& addr);
+  constexpr void EmitBaseIndexDispOperand(int base_modrm_and_sib, const Operand& addr);
   // Emit ModR/M for rip-addressig.
   template <size_t kImmediatesSize>
-  void EmitRipOp(int num_, const Label& label);
+  constexpr void EmitRipOp(int num_, const Label& label);
 
   friend BaseAssembler;
 };
@@ -333,7 +333,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
 // makes effective size of that function very small.
 //
 // But for this to happen function have to be inline and in header.
-inline void Assembler::EmitOperandOp(int num_ber, const Operand& addr) {
+constexpr inline void Assembler::EmitOperandOp(int num_ber, const Operand& addr) {
   // Additional info (register num_ber, etc) is limited to 3 bits.
   CHECK_LE(unsigned(num_ber), 7);
 
@@ -366,14 +366,15 @@ inline void Assembler::EmitOperandOp(int num_ber, const Operand& addr) {
   }
 }
 
-inline void Assembler::EmitIndexDispOperand(int reg, const Operand& addr) {
+constexpr inline void Assembler::EmitIndexDispOperand(int reg, const Operand& addr) {
   // We only have index here, no base, use SIB but put %ebp in "base" field.
   Emit16(0x0504 | (addr.scale << 14) | (addr.index.num_ << 11) | reg);
   Emit32(addr.disp);
 }
 
-template <typename ArgType, void (AssemblerBase::*EmitBase)(ArgType)>
-inline void Assembler::EmitBaseIndexDispOperand(int base_modrm_and_sib, const Operand& addr) {
+template <typename ArgType, void (AssemblerBase::* EmitBase)(ArgType)>
+constexpr inline void Assembler::EmitBaseIndexDispOperand(int base_modrm_and_sib,
+                                                          const Operand& addr) {
   if (addr.disp == 0 && addr.base != ebp) {
     // We can omit zero displacement only if base isn't %ebp
     (this->*EmitBase)(base_modrm_and_sib);

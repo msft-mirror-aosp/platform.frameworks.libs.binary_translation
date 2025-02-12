@@ -837,7 +837,7 @@ class Assembler : public AssemblerBase {
                                         std::forward<ArgumentsTypes>(arguments)...);
   }
 
-  void ResolveJumps();
+  constexpr void ResolveJumps();
 
  private:
   Assembler() = delete;
@@ -848,7 +848,7 @@ class Assembler : public AssemblerBase {
 };
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Pmov(XMMRegister dest, XMMRegister src) {
+constexpr inline void Assembler<DerivedAssemblerType>::Pmov(XMMRegister dest, XMMRegister src) {
   // SSE does not have operations for register-to-register integer move and
   // Intel explicitly recommends to use pshufd instead on Pentium4:
   //   See https://software.intel.com/en-us/articles/
@@ -862,7 +862,7 @@ inline void Assembler<DerivedAssemblerType>::Pmov(XMMRegister dest, XMMRegister 
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
   if (label.IsBound()) {
     int32_t offset = label.position() - pc();
     Call(offset);
@@ -874,7 +874,7 @@ inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Jcc(Condition cc, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Jcc(Condition cc, const Label& label) {
   if (cc == Condition::kAlways) {
     Jmp(label);
     return;
@@ -895,7 +895,7 @@ inline void Assembler<DerivedAssemblerType>::Jcc(Condition cc, const Label& labe
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Jmp(const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Jmp(const Label& label) {
   // TODO(eaeltsin): may be remove IsBound case?
   // Then jmp by label will be of fixed size (5 bytes)
   if (label.IsBound()) {
@@ -909,7 +909,7 @@ inline void Assembler<DerivedAssemblerType>::Jmp(const Label& label) {
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
+constexpr inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
   for (const auto& jump : jumps_) {
     const Label* label = jump.label;
     uint32_t pc = jump.pc;
@@ -927,7 +927,7 @@ inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
 // Code size optimized instructions: they have different variants depending on registers used.
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Xchgl(Register dest, Register src) {
+constexpr inline void Assembler<DerivedAssemblerType>::Xchgl(Register dest, Register src) {
   if (DerivedAssemblerType::IsAccumulator(src) || DerivedAssemblerType::IsAccumulator(dest)) {
     Register other = DerivedAssemblerType::IsAccumulator(src) ? dest : src;
     EmitInstruction<0x90>(SizeAgnosticRegister(other));
