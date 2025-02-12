@@ -89,7 +89,7 @@ namespace {
 // (deprecated methods do not work anymore) v2 support is needed to have NB call
 // getSignalHandler function.
 const constexpr uint32_t kNativeBridgeCallbackMinVersion = 2;
-const constexpr uint32_t kNativeBridgeCallbackVersion = 7;
+const constexpr uint32_t kNativeBridgeCallbackVersion = 8;
 const constexpr uint32_t kNativeBridgeCallbackMaxVersion = kNativeBridgeCallbackVersion;
 
 const android::NativeBridgeRuntimeCallbacks* g_runtime_callbacks = nullptr;
@@ -486,18 +486,10 @@ void* native_bridge_getTrampolineForFunctionPointer(const void* method,
 
   auto guest_addr = berberis::ToGuestAddr(method);
   if (!berberis::GuestMapShadow::GetInstance()->IsExecutable(guest_addr, 1)) {
-    // Check if this is already generated trampoline from intercepted RegisterNatives
-    // if so - regenerate. The reason is the first time we generated it there was
-    // no information about JNICallType - which we need to take into account now.
-    auto guest_addr_candidate = berberis::FindGuestAddrForJniTrampolineIfExists(method);
-    if (!guest_addr_candidate.has_value()) {
-      LOG_NB("Not executable method - assuming it's a host library");
-      // This is not guest code - happens when native_bridge falls back
-      // to host libraries.
-      return const_cast<void*>(method);
-    }
-
-    guest_addr = guest_addr_candidate.value();
+    LOG_NB("Not executable method - assuming it's a host library");
+    // This is not guest code - happens when native_bridge falls back
+    // to host libraries.
+    return const_cast<void*>(method);
   }
 
   return const_cast<void*>(berberis::WrapGuestJNIFunction(
@@ -505,6 +497,13 @@ void* native_bridge_getTrampolineForFunctionPointer(const void* method,
       shorty,
       "(unknown)",
       jni_call_type != android::JNICallType::kJNICallTypeCriticalNative));
+}
+
+bool native_bridge_isNativeBridgeFunctionPointer(const void* method) {
+  bool result =
+      berberis::GuestMapShadow::GetInstance()->IsExecutable(berberis::ToGuestAddr(method), 1);
+  LOG_NB("native_bridge_isNativeBridgeFunctionPointer(method=%p): %d", method, result);
+  return result;
 }
 
 void* native_bridge_getTrampoline(void* handle,
@@ -665,5 +664,6 @@ android::NativeBridgeCallbacks NativeBridgeItf = {
     &native_bridge_preZygoteFork,
     &native_bridge_getTrampolineWithJNICallType,
     &native_bridge_getTrampolineForFunctionPointer,
+    &native_bridge_isNativeBridgeFunctionPointer,
 };
 }  // extern "C"

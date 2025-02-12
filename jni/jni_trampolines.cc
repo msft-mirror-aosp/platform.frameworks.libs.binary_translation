@@ -20,7 +20,6 @@
 #include <cstring>
 #include <deque>
 #include <map>
-#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -75,71 +74,6 @@ char ConvertDalvikTypeCharToWrapperTypeChar(char c) {
   }
 }
 
-// "L<name>;"
-const char* SkipDalvikSignatureClassType(const char* src) {
-  DCHECK_EQ(*src, 'L');
-  while (*++src != ';') {
-    CHECK(*src);
-  }
-  return src + 1;
-}
-
-// "[+<type>"
-const char* SkipDalvikSignatureArrayType(const char* src) {
-  DCHECK_EQ(*src, '[');
-  while (*++src == '[') {
-  }
-  if (*src == 'L') {
-    return SkipDalvikSignatureClassType(src);
-  }
-  return src + 1;
-}
-
-const char* ParseDalvikSignatureType(char* dst, const char* src) {
-  if (*src == '[') {
-    *dst = 'p';
-    return SkipDalvikSignatureArrayType(src);
-  }
-  if (*src == 'L') {
-    *dst = 'p';
-    return SkipDalvikSignatureClassType(src);
-  }
-  *dst = ConvertDalvikTypeCharToWrapperTypeChar(*src);
-  return src + 1;
-}
-
-// "(<type>*)<type>"
-void ConvertDalvikSignatureToWrapperSignature(char* dst, int size, const char* src) {
-  // A '!' prefix in the signature indicates that it's a fast JNI call (!bang JNI notation).
-  // This is not supported anymore, but not treated as a hard error at the moment.
-  // See art/runtime/jni/jni_internal.cc:RegisterNatives.
-  if (*src == '!') {
-    ++src;
-  }
-
-  CHECK_EQ(*src, '(');
-  ++src;
-
-  // return type, env and clazz.
-  CHECK_GT(size, 3);
-  dst[1] = 'p';
-  dst[2] = 'p';
-  char* cur = dst + 3;
-
-  while (*src != ')') {
-    CHECK(*src);
-    CHECK_LT(cur, dst + (size - 3));
-    src = ParseDalvikSignatureType(cur, src);
-    ++cur;
-  }
-
-  *cur = '\0';
-  ++src;
-
-  src = ParseDalvikSignatureType(dst, src);
-  CHECK_EQ(*src, '\0');
-}
-
 void ConvertDalvikShortyToWrapperSignature(char* dst,
                                            int size,
                                            const char* src,
@@ -180,50 +114,7 @@ void RunGuestJNIOnLoad(GuestAddr pc, GuestArgumentBuffer* buf) {
   RunGuestCall(pc, buf);
 }
 
-std::mutex g_trampolines_map_mutex;
-std::map<HostCode, GuestAddr> g_jni_trampolines_to_guest_addr_map;
-
-// Duplicate an array of JNINativeMethod and replace guest function pointers
-// with host function pointers.
-std::unique_ptr<JNINativeMethod[]> ConvertJNINativeMethods(const JNINativeMethod* methods,
-                                                           int count) {
-  std::unique_ptr<JNINativeMethod[]> host_methods_unique_ptr(new JNINativeMethod[count]);
-  auto host_methods = host_methods_unique_ptr.get();
-
-  const std::lock_guard<std::mutex> guard(g_trampolines_map_mutex);
-  for (int i = 0; i < count; ++i) {
-    const JNINativeMethod& method = methods[i];
-    host_methods[i].name = method.name;
-    host_methods[i].signature = method.signature;
-
-    if (!method.fnPtr) {
-      host_methods[i].fnPtr = nullptr;
-    } else {
-      const int kMaxSignatureSize = 128;
-      char signature[kMaxSignatureSize];
-      ConvertDalvikSignatureToWrapperSignature(signature, kMaxSignatureSize, method.signature);
-      // HostCode is const void*, use const_cast.
-      GuestAddr guest_addr = bit_cast<GuestAddr>(method.fnPtr);
-      host_methods[i].fnPtr = const_cast<void*>(
-          WrapGuestFunctionImpl(guest_addr, signature, RunGuestJNIFunction, method.name));
-      g_jni_trampolines_to_guest_addr_map.emplace(host_methods[i].fnPtr, guest_addr);
-    }
-  }
-
-  return host_methods_unique_ptr;
-}
-
 }  // namespace
-
-std::optional<GuestAddr> FindGuestAddrForJniTrampolineIfExists(HostCode trampoline_addr) {
-  const std::lock_guard<std::mutex> guard(g_trampolines_map_mutex);
-  auto it = g_jni_trampolines_to_guest_addr_map.find(trampoline_addr);
-  if (it == g_jni_trampolines_to_guest_addr_map.end()) {
-    return std::nullopt;
-  }
-
-  return it->second;
-}
 
 HostCode WrapGuestJNIFunction(GuestAddr pc,
                               const char* shorty,
@@ -297,13 +188,8 @@ void DoTrampoline_JNIEnv_RegisterNatives(HostCode /* callee */, ProcessState* st
   auto [guest_env, arg_clazz, arg_methods, arg_n] = GuestParamsValues<PFN_callee>(state);
   JNIEnv* arg_env = ToHostJNIEnv(guest_env);
 
-  // This is a workaround for b/383622584 - here we expect these trampolines to
-  // be overwritten by getTrampolineForFunctionPointer, but we still do it for
-  // the corner case when it is not.
-  std::unique_ptr<JNINativeMethod[]> host_methods = ConvertJNINativeMethods(arg_methods, arg_n);
-
   auto&& [ret] = GuestReturnReference<PFN_callee>(state);
-  ret = (arg_env->functions)->RegisterNatives(arg_env, arg_clazz, host_methods.get(), arg_n);
+  ret = (arg_env->functions)->RegisterNatives(arg_env, arg_clazz, arg_methods, arg_n);
 }
 
 // jint GetJavaVM(
