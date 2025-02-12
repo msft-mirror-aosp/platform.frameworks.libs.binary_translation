@@ -2807,6 +2807,30 @@
     },
     {
       "encodings": {
+        "Vblendvps": { "feature": "AVX", "opcodes": [ "C4", "03", "01", "4A" ], "type": "vex_rm_imm_to_reg" },
+        "Vblendvpd": { "feature": "AVX", "opcodes": [ "C4", "03", "01", "4B" ], "type": "vex_rm_imm_to_reg" }
+      },
+      "args": [
+        { "class": "XmmReg", "usage": "use_def" },
+        { "class": "XmmReg", "usage": "use" },
+        { "class": "XmmReg/VecMem128", "usage": "use" },
+        { "class": "XmmReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
+        "Vblendvps": { "feature": "AVX", "opcodes": [ "C4", "03", "05", "4A" ], "type": "vex_rm_imm_to_reg" },
+        "Vblendvpd": { "feature": "AVX", "opcodes": [ "C4", "03", "05", "4B" ], "type": "vex_rm_imm_to_reg" }
+      },
+      "args": [
+        { "class": "YmmReg", "usage": "use_def" },
+        { "class": "YmmReg", "usage": "use" },
+        { "class": "YmmReg/VecMem128", "usage": "use" },
+        { "class": "YmmReg", "usage": "use" }
+      ]
+    },
+    {
+      "encodings": {
         "Vbroadcastf128": { "feature": "AVX", "opcodes": [ "C4", "02", "05", "1a" ] },
         "Vbroadcasti128": { "feature": "AVX2", "opcodes": [ "C4", "02", "05", "5a" ] }
       },
