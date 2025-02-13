@@ -16,6 +16,7 @@
 
 #include "berberis/assembler/machine_code.h"
 
+#include <bit>
 #include <string>
 
 #include "berberis/base/bit_util.h"
@@ -71,7 +72,7 @@ void MachineCode::PerformRelocations(const uint8_t* code, RecoveryMap* recovery_
   for (const auto& rel : relocations_) {
     switch (rel.type) {
       case RelocationType::RelocAbsToDisp32: {
-        intptr_t start = reinterpret_cast<intptr_t>(code);
+        intptr_t start = std::bit_cast<intptr_t>(code);
         intptr_t pc = start + rel.pc;
         intptr_t disp = rel.data - pc;
         CHECK(IsInRange<int32_t>(disp));

@@ -407,27 +407,27 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
   }
 
   template <typename ArgumentType>
-  void EmitOperandOp(ArgumentType argument, Operand operand) {
+  constexpr void EmitOperandOp(ArgumentType argument, Operand operand) {
     EmitOperandOp(static_cast<int>(argument.num_ & 0b111), operand);
   }
 
   template <size_t kImmediatesSize, typename ArgumentType>
-  void EmitRipOp(ArgumentType argument, const Label& label) {
+  constexpr void EmitRipOp(ArgumentType argument, const Label& label) {
     EmitRipOp<kImmediatesSize>(static_cast<int>(argument.num_) & 0b111, label);
   }
 
   // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also used to encode
   // a three-bit opcode extension into the ModR/M byte.
-  void EmitOperandOp(int num_ber, const Operand& addr);
+  constexpr void EmitOperandOp(int num_ber, const Operand& addr);
   // Helper functions to handle various ModR/M and SIB combinations.
   // Should *only* be called from EmitOperandOp!
-  void EmitIndexDispOperand(int reg, const Operand& addr);
+  constexpr void EmitIndexDispOperand(int reg, const Operand& addr);
   template <typename ArgType, void (AssemblerBase::*)(ArgType)>
-  void EmitBaseIndexDispOperand(int base_modrm_and_sib, const Operand& addr);
+  constexpr void EmitBaseIndexDispOperand(int base_modrm_and_sib, const Operand& addr);
   // Emit ModR/M for rip-addressig.
   template <size_t kImmediatesSize>
-  void EmitRipOp(int num_, const Label& label);
+  constexpr void EmitRipOp(int num_, const Label& label);
 
   friend BaseAssembler;
 };
@@ -437,7 +437,7 @@ class Assembler : public x86_32_and_x86_64::Assembler<Assembler> {
 // makes effective size of that function very small.
 //
 // But for this to happen function have to be inline and in header.
-inline void Assembler::EmitOperandOp(int num_ber, const Operand& addr) {
+constexpr inline void Assembler::EmitOperandOp(int num_ber, const Operand& addr) {
   // Additional info (register num_ber, etc) is limited to 3 bits.
   CHECK_LE(unsigned(num_ber), 7);
 
@@ -472,21 +472,22 @@ inline void Assembler::EmitOperandOp(int num_ber, const Operand& addr) {
   }
 }
 
-inline void Assembler::EmitIndexDispOperand(int reg, const Operand& addr) {
+constexpr inline void Assembler::EmitIndexDispOperand(int reg, const Operand& addr) {
   // We only have index here, no base, use SIB but put %rbp in "base" field.
   Emit16(0x0504 | (addr.scale << 14) | ((addr.index.num_ & 7) << 11) | reg);
   Emit32(addr.disp);
 }
 
 template <size_t kImmediatesSize>
-inline void Assembler::EmitRipOp(int num_, const Label& label) {
+constexpr inline void Assembler::EmitRipOp(int num_, const Label& label) {
   Emit8(0x05 | (num_ << 3));
   jumps_.push_back(Jump{&label, pc(), false});
   Emit32(0xfffffffc - kImmediatesSize);
 }
 
-template <typename ArgType, void (AssemblerBase::*EmitBase)(ArgType)>
-inline void Assembler::EmitBaseIndexDispOperand(int base_modrm_and_sib, const Operand& addr) {
+template <typename ArgType, void (AssemblerBase::* EmitBase)(ArgType)>
+constexpr inline void Assembler::EmitBaseIndexDispOperand(int base_modrm_and_sib,
+                                                          const Operand& addr) {
   if (addr.disp == 0 && addr.base != rbp && addr.base != r13) {
     // We can omit zero displacement only if base isn't %rbp/%r13
     (this->*EmitBase)(base_modrm_and_sib);
@@ -501,7 +502,7 @@ inline void Assembler::EmitBaseIndexDispOperand(int base_modrm_and_sib, const Op
   }
 }
 
-inline void Assembler::Movq(Register dest, int64_t imm64) {
+constexpr inline void Assembler::Movq(Register dest, int64_t imm64) {
   if (IsInRange<uint32_t>(imm64)) {
     // Shorter encoding.
     Movl(dest, static_cast<uint32_t>(imm64));
@@ -514,7 +515,7 @@ inline void Assembler::Movq(Register dest, int64_t imm64) {
   }
 }
 
-inline void Assembler::Vmovapd(XMMRegister arg0, XMMRegister arg1) {
+constexpr inline void Assembler::Vmovapd(XMMRegister arg0, XMMRegister arg1) {
   if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x01, 0x29>(VectorRegister128Bit(arg1),
                                                    VectorRegister128Bit(arg0));
@@ -522,7 +523,7 @@ inline void Assembler::Vmovapd(XMMRegister arg0, XMMRegister arg1) {
   EmitInstruction<0xc4, 0x01, 0x01, 0x28>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
-inline void Assembler::Vmovapd(YMMRegister arg0, YMMRegister arg1) {
+constexpr inline void Assembler::Vmovapd(YMMRegister arg0, YMMRegister arg1) {
   if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x05, 0x29>(VectorRegister256Bit(arg1),
                                                    VectorRegister256Bit(arg0));
@@ -530,7 +531,7 @@ inline void Assembler::Vmovapd(YMMRegister arg0, YMMRegister arg1) {
   EmitInstruction<0xc4, 0x01, 0x05, 0x28>(VectorRegister256Bit(arg0), VectorRegister256Bit(arg1));
 }
 
-inline void Assembler::Vmovaps(XMMRegister arg0, XMMRegister arg1) {
+constexpr inline void Assembler::Vmovaps(XMMRegister arg0, XMMRegister arg1) {
   if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x00, 0x29>(VectorRegister128Bit(arg1),
                                                    VectorRegister128Bit(arg0));
@@ -538,7 +539,7 @@ inline void Assembler::Vmovaps(XMMRegister arg0, XMMRegister arg1) {
   EmitInstruction<0xc4, 0x01, 0x00, 0x28>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
-inline void Assembler::Vmovaps(YMMRegister arg0, YMMRegister arg1) {
+constexpr inline void Assembler::Vmovaps(YMMRegister arg0, YMMRegister arg1) {
   if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x04, 0x29>(VectorRegister256Bit(arg1),
                                                    VectorRegister256Bit(arg0));
@@ -546,7 +547,7 @@ inline void Assembler::Vmovaps(YMMRegister arg0, YMMRegister arg1) {
   EmitInstruction<0xc4, 0x01, 0x04, 0x28>(VectorRegister256Bit(arg0), VectorRegister256Bit(arg1));
 }
 
-inline void Assembler::Vmovdqa(XMMRegister arg0, XMMRegister arg1) {
+constexpr inline void Assembler::Vmovdqa(XMMRegister arg0, XMMRegister arg1) {
   if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x01, 0x7F>(VectorRegister128Bit(arg1),
                                                    VectorRegister128Bit(arg0));
@@ -554,7 +555,7 @@ inline void Assembler::Vmovdqa(XMMRegister arg0, XMMRegister arg1) {
   EmitInstruction<0xc4, 0x01, 0x01, 0x6F>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
-inline void Assembler::Vmovdqa(YMMRegister arg0, YMMRegister arg1) {
+constexpr inline void Assembler::Vmovdqa(YMMRegister arg0, YMMRegister arg1) {
   if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x05, 0x7F>(VectorRegister256Bit(arg1),
                                                    VectorRegister256Bit(arg0));
@@ -562,7 +563,7 @@ inline void Assembler::Vmovdqa(YMMRegister arg0, YMMRegister arg1) {
   EmitInstruction<0xc4, 0x01, 0x05, 0x6F>(VectorRegister256Bit(arg0), VectorRegister256Bit(arg1));
 }
 
-inline void Assembler::Vmovdqu(XMMRegister arg0, XMMRegister arg1) {
+constexpr inline void Assembler::Vmovdqu(XMMRegister arg0, XMMRegister arg1) {
   if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x02, 0x7F>(VectorRegister128Bit(arg1),
                                                    VectorRegister128Bit(arg0));
@@ -570,7 +571,7 @@ inline void Assembler::Vmovdqu(XMMRegister arg0, XMMRegister arg1) {
   EmitInstruction<0xc4, 0x01, 0x02, 0x6F>(VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
 }
 
-inline void Assembler::Vmovdqu(YMMRegister arg0, YMMRegister arg1) {
+constexpr inline void Assembler::Vmovdqu(YMMRegister arg0, YMMRegister arg1) {
   if (IsSwapProfitable(arg1, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x06, 0x7F>(VectorRegister256Bit(arg1),
                                                    VectorRegister256Bit(arg0));
@@ -578,7 +579,7 @@ inline void Assembler::Vmovdqu(YMMRegister arg0, YMMRegister arg1) {
   EmitInstruction<0xc4, 0x01, 0x06, 0x6F>(VectorRegister256Bit(arg0), VectorRegister256Bit(arg1));
 }
 
-inline void Assembler::Vmovsd(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
+constexpr inline void Assembler::Vmovsd(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
   if (IsSwapProfitable(arg2, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x03, 0x11>(
         VectorRegister128Bit(arg2), VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
@@ -587,7 +588,7 @@ inline void Assembler::Vmovsd(XMMRegister arg0, XMMRegister arg1, XMMRegister ar
       VectorRegister128Bit(arg0), VectorRegister128Bit(arg2), VectorRegister128Bit(arg1));
 }
 
-inline void Assembler::Vmovss(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
+constexpr inline void Assembler::Vmovss(XMMRegister arg0, XMMRegister arg1, XMMRegister arg2) {
   if (IsSwapProfitable(arg2, arg0)) {
     return EmitInstruction<0xc4, 0x01, 0x02, 0x11>(
         VectorRegister128Bit(arg2), VectorRegister128Bit(arg0), VectorRegister128Bit(arg1));
@@ -596,7 +597,7 @@ inline void Assembler::Vmovss(XMMRegister arg0, XMMRegister arg1, XMMRegister ar
       VectorRegister128Bit(arg0), VectorRegister128Bit(arg2), VectorRegister128Bit(arg1));
 }
 
-inline void Assembler::Xchgq(Register dest, Register src) {
+constexpr inline void Assembler::Xchgq(Register dest, Register src) {
   // We compare output to that from clang and thus want to produce the same code.
   // 0x48 0x90 is suboptimal encoding for that operation (pure 0x90 does the same
   // and this is what gcc + gas are producing), but this is what clang <= 8 does.
