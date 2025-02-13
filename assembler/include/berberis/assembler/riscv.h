@@ -867,7 +867,7 @@ class Assembler : public AssemblerBase {
   // Macro operations.
   void Finalize() { ResolveJumps(); }
 
-  void ResolveJumps();
+  constexpr void ResolveJumps();
 
   // Instructions.
 #include "berberis/assembler/gen_assembler_common_riscv-inl.h"  // NOLINT generated file!
@@ -1109,10 +1109,10 @@ class Assembler : public AssemblerBase {
 };
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bcc(Condition cc,
-                                                 Register argument1,
-                                                 Register argument2,
-                                                 const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bcc(Condition cc,
+                                                           Register argument1,
+                                                           Register argument2,
+                                                           const Label& label) {
   if (cc == Condition::kAlways) {
     Jal(zero, label);
     return;
@@ -1125,10 +1125,10 @@ inline void Assembler<DerivedAssemblerType>::Bcc(Condition cc,
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bcc(Condition cc,
-                                                 Register argument1,
-                                                 Register argument2,
-                                                 BImmediate immediate) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bcc(Condition cc,
+                                                           Register argument1,
+                                                           Register argument2,
+                                                           BImmediate immediate) {
   if (cc == Condition::kAlways) {
     int32_t encoded_immediate_value = immediate.EncodedValue();
     // Maybe better to provide an official interface to convert BImmediate into JImmediate?
@@ -1149,7 +1149,7 @@ inline void Assembler<DerivedAssemblerType>::Bcc(Condition cc,
 
 #define BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Name, TargetRegister, InstructionType, Opcode) \
   template <typename DerivedAssemblerType>                                                       \
-  inline void Assembler<DerivedAssemblerType>::Name(                                             \
+  constexpr inline void Assembler<DerivedAssemblerType>::Name(                                   \
       TargetRegister arg0, const Label& label, Register arg2) {                                  \
     CHECK_NE(arg2, x0);                                                                          \
     jumps_.push_back(Jump{&label, pc(), false});                                                 \
@@ -1168,15 +1168,15 @@ BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sh, Register, S, 0x0000'1023)
 BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION(Sw, Register, S, 0x0000'2023)
 #undef BERBERIS_DEFINE_LOAD_OR_STORE_INSTRUCTION
 
-#define BERBERIS_DEFINE_LOAD_INSTRUCTION(Name, Opcode)                                         \
-  template <typename DerivedAssemblerType>                                                     \
-  inline void Assembler<DerivedAssemblerType>::Name(Register arg0, const Label& label) {       \
-    CHECK_NE(arg0, x0);                                                                        \
-    jumps_.push_back(Jump{&label, pc(), false});                                               \
-    /* First issue auipc to load top 20 bits of difference between pc and target address */    \
-    EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});                          \
-    /* The low 12 bite of difference will be encoded in the memory accessing instruction */    \
-    EmitITypeInstruction<uint32_t{Opcode}>(arg0, Operand<Register, IImmediate>{.base = arg0}); \
+#define BERBERIS_DEFINE_LOAD_INSTRUCTION(Name, Opcode)                                             \
+  template <typename DerivedAssemblerType>                                                         \
+  constexpr inline void Assembler<DerivedAssemblerType>::Name(Register arg0, const Label& label) { \
+    CHECK_NE(arg0, x0);                                                                            \
+    jumps_.push_back(Jump{&label, pc(), false});                                                   \
+    /* First issue auipc to load top 20 bits of difference between pc and target address */        \
+    EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});                              \
+    /* The low 12 bite of difference will be encoded in the memory accessing instruction */        \
+    EmitITypeInstruction<uint32_t{Opcode}>(arg0, Operand<Register, IImmediate>{.base = arg0});     \
   }
 BERBERIS_DEFINE_LOAD_INSTRUCTION(Lb, 0x0000'0003)
 BERBERIS_DEFINE_LOAD_INSTRUCTION(Lbu, 0x0000'4003)
@@ -1186,7 +1186,7 @@ BERBERIS_DEFINE_LOAD_INSTRUCTION(Lw, 0x0000'2003)
 #undef BERBERIS_DEFINE_LOAD_INSTRUCTION
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::La(Register arg0, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::La(Register arg0, const Label& label) {
   CHECK_NE(arg0, x0);
   jumps_.push_back(Jump{&label, pc(), false});
   // First issue auipc to load top 20 bits of difference between pc and target address
@@ -1197,7 +1197,7 @@ inline void Assembler<DerivedAssemblerType>::La(Register arg0, const Label& labe
 
 #define BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Name, Opcode)          \
   template <typename DerivedAssemblerType>                             \
-  inline void Assembler<DerivedAssemblerType>::Name(                   \
+  constexpr inline void Assembler<DerivedAssemblerType>::Name(         \
       Register arg0, Register arg1, const Label& label) {              \
     jumps_.push_back(Jump{&label, pc(), false});                       \
     EmitBTypeInstruction<uint32_t{Opcode}>(arg0, arg1, BImmediate{0}); \
@@ -1211,13 +1211,13 @@ BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION(Bne, 0x0000'1063)
 #undef BERBERIS_DEFINE_CONDITIONAL_INSTRUCTION
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Jal(Register argument0, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Jal(Register argument0, const Label& label) {
   jumps_.push_back(Jump{&label, pc(), false});
   EmitInstruction<0x0000'006f, 0x0000'007f>(Rd(argument0));
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
+constexpr inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
   for (const auto& jump : jumps_) {
     const Label* label = jump.label;
     uint32_t pc = jump.pc;
@@ -1272,12 +1272,12 @@ inline void Assembler<DerivedAssemblerType>::ResolveJumps() {
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Mv(Register dest, Register src) {
+constexpr inline void Assembler<DerivedAssemblerType>::Mv(Register dest, Register src) {
   Addi(dest, src, 0);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Li(Register dest, int32_t imm32) {
+constexpr inline void Assembler<DerivedAssemblerType>::Li(Register dest, int32_t imm32) {
   // If the value fits into 12bit I-Immediate type, load using addi.
   if (-2048 <= imm32 && imm32 <= 2047) {
     Addi(dest, Assembler::zero, static_cast<IImmediate>(imm32));
@@ -1303,12 +1303,12 @@ inline void Assembler<DerivedAssemblerType>::Li(Register dest, int32_t imm32) {
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Ret() {
+constexpr inline void Assembler<DerivedAssemblerType>::Ret() {
   Jalr(Assembler::x0, Assembler::x1, static_cast<IImmediate>(0));
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
   jumps_.push_back(Jump{&label, pc(), false});
   // First issue auipc to load top 20 bits of difference between pc and target address
   EmitUTypeInstruction<uint32_t{0x0000'0017}>(Assembler::x6, UImmediate{0});
@@ -1317,7 +1317,7 @@ inline void Assembler<DerivedAssemblerType>::Call(const Label& label) {
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Tail(const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Tail(const Label& label) {
   jumps_.push_back(Jump{&label, pc(), false});
   // First issue auipc to load top 20 bits of difference between pc and target address
   EmitUTypeInstruction<uint32_t{0x0000'0017}>(Assembler::x6, UImmediate{0});
@@ -1326,106 +1326,110 @@ inline void Assembler<DerivedAssemblerType>::Tail(const Label& label) {
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bgt(Register arg0, Register arg1, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bgt(Register arg0,
+                                                           Register arg1,
+                                                           const Label& label) {
   Blt(arg1, arg0, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bgtu(Register arg0,
-                                                  Register arg1,
-                                                  const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bgtu(Register arg0,
+                                                            Register arg1,
+                                                            const Label& label) {
   Bltu(arg1, arg0, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Ble(Register arg0, Register arg1, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Ble(Register arg0,
+                                                           Register arg1,
+                                                           const Label& label) {
   Bge(arg1, arg0, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bleu(Register arg0,
-                                                  Register arg1,
-                                                  const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bleu(Register arg0,
+                                                            Register arg1,
+                                                            const Label& label) {
   Bgeu(arg1, arg0, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Beqz(Register arg0, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Beqz(Register arg0, const Label& label) {
   Beq(arg0, zero, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bnez(Register arg0, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bnez(Register arg0, const Label& label) {
   Bne(arg0, zero, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Blez(Register arg0, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Blez(Register arg0, const Label& label) {
   Ble(arg0, zero, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bgez(Register arg0, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bgez(Register arg0, const Label& label) {
   Bge(arg0, zero, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bltz(Register arg0, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bltz(Register arg0, const Label& label) {
   Blt(arg0, zero, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Bgtz(Register arg0, const Label& label) {
+constexpr inline void Assembler<DerivedAssemblerType>::Bgtz(Register arg0, const Label& label) {
   Bgt(arg0, zero, label);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Seqz(Register arg0, Register arg1) {
+constexpr inline void Assembler<DerivedAssemblerType>::Seqz(Register arg0, Register arg1) {
   Sltiu(arg0, arg1, static_cast<IImmediate>(1));
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Snez(Register arg0, Register arg1) {
+constexpr inline void Assembler<DerivedAssemblerType>::Snez(Register arg0, Register arg1) {
   Sltu(arg0, zero, arg1);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Sltz(Register arg0, Register arg1) {
+constexpr inline void Assembler<DerivedAssemblerType>::Sltz(Register arg0, Register arg1) {
   Slt(arg0, arg1, zero);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Sgtz(Register arg0, Register arg1) {
+constexpr inline void Assembler<DerivedAssemblerType>::Sgtz(Register arg0, Register arg1) {
   Slt(arg0, zero, arg1);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::J(JImmediate arg0) {
+constexpr inline void Assembler<DerivedAssemblerType>::J(JImmediate arg0) {
   Jal(zero, arg0);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Jal(JImmediate arg0) {
+constexpr inline void Assembler<DerivedAssemblerType>::Jal(JImmediate arg0) {
   Jal(x1, arg0);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Jr(Register arg0) {
+constexpr inline void Assembler<DerivedAssemblerType>::Jr(Register arg0) {
   Jalr(zero, arg0, 0);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Jalr(Register arg0) {
+constexpr inline void Assembler<DerivedAssemblerType>::Jalr(Register arg0) {
   Jalr(x1, arg0, 0);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Not(Register arg0, Register arg1) {
+constexpr inline void Assembler<DerivedAssemblerType>::Not(Register arg0, Register arg1) {
   Xori(arg0, arg1, -1);
 }
 
 template <typename DerivedAssemblerType>
-inline void Assembler<DerivedAssemblerType>::Neg(Register arg0, Register arg1) {
+constexpr inline void Assembler<DerivedAssemblerType>::Neg(Register arg0, Register arg1) {
   Sub(arg0, zero, arg1);
 }
 

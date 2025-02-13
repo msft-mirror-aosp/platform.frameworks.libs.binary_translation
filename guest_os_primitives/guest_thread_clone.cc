@@ -69,7 +69,7 @@ void SemPostOrDie(sem_t* sem) {
   // GLibc before 2.21 may return EINVAL in the above situation. We ignore it since we cannot do
   // anything about it, and it doesn't really break anything: we just acknowledge the fact that the
   // semaphore can be destoyed already.
-  LOG_ALWAYS_FATAL_IF(error != 0 && error != EINVAL, "sem_post returned error=%s", strerror(errno));
+  LOG_ALWAYS_FATAL_IF(error != 0 && errno != EINVAL, "sem_post returned error=%s", strerror(errno));
 #else
   // Recent GLibc ignores the error code returned from FUTEX_WAKE. So, it never returns EINVAL.
   LOG_ALWAYS_FATAL_IF(error != 0,

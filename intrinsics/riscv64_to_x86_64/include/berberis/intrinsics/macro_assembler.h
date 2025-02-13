@@ -28,7 +28,7 @@
 // Float32/Float64 types but can be compiled for different architecture (soong's host architecture,
 // not device architecture AKA berberis' host architecture).
 #include "berberis/intrinsics/common/intrinsics_float.h"
-#include "berberis/intrinsics/macro_assembler_constants_pool.h"
+#include "berberis/intrinsics/constants_pool.h"
 
 namespace berberis {
 
@@ -40,8 +40,7 @@ class MacroAssembler : public Assembler {
                                      typename Assembler::FinalAssembler>;
 
   template <typename... Args>
-  explicit MacroAssembler(Args&&... args) : Assembler(std::forward<Args>(args)...) {
-  }
+  constexpr explicit MacroAssembler(Args&&... args) : Assembler(std::forward<Args>(args)...) {}
 
 #define IMPORT_ASSEMBLER_FUNCTIONS
 #include "berberis/assembler/gen_assembler_x86_64-using-inl.h"
@@ -51,11 +50,11 @@ class MacroAssembler : public Assembler {
 #include "berberis/intrinsics/all_to_x86_32_or_x86_64/macro_assembler-inl.h"
 #undef DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
 
-  void PNot(XMMRegister result) {
+  constexpr void PNot(XMMRegister result) {
     Pandn(result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
   }
 
-  void Vpnot(XMMRegister result, XMMRegister src) {
+  constexpr void Vpnot(XMMRegister result, XMMRegister src) {
     Vpandn(result, src, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
   }
 

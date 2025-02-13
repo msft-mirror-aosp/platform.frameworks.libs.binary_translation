@@ -20,6 +20,7 @@
 #ifndef BERBERIS_ASSEMBLER_MACHINE_CODE_H_
 #define BERBERIS_ASSEMBLER_MACHINE_CODE_H_
 
+#include <bit>
 #include <cstdint>
 #include <string>
 
@@ -76,7 +77,7 @@ class MachineCode {
 
   template <typename T>
   [[nodiscard]] const T* AddrAs(uint32_t offset) const {
-    return reinterpret_cast<const T*>(AddrOf(offset));
+    return std::bit_cast<const T*>(AddrOf(offset));
   }
 
   template <typename T>

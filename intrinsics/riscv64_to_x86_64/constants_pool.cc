@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "berberis/intrinsics/constants_pool.h"
+
 #include <inttypes.h>
 #include <sys/mman.h>
 
@@ -21,8 +23,6 @@
 #include "berberis/base/mmap.h"
 #include "berberis/base/struct_check.h"
 #include "berberis/intrinsics/simd_register.h"
-
-#include "berberis/intrinsics/macro_assembler.h"
 
 namespace berberis::constants_pool {
 
@@ -97,19 +97,15 @@ struct MacroAssemblerConstants {
   alignas(16) const int8_t kPMovmskqToPMovmskb[16] =
       {0, 8, -128, -128, -128, -128, -128, -128, -57, -24, -31, -6, -7, -128, -128, -128};
   alignas(16) const uint8_t kRiscVToX87Exceptions[32] = {
-      0x00, 0x20, 0x10, 0x30, 0x08, 0x28, 0x18, 0x38,
-      0x04, 0x24, 0x14, 0x34, 0x0c, 0x2c, 0x1c, 0x3c,
-      0x01, 0x21, 0x11, 0x31, 0x09, 0x29, 0x19, 0x39,
-      0x05, 0x25, 0x15, 0x35, 0x0d, 0x2d, 0x1d, 0x3d};
+      0x00, 0x20, 0x10, 0x30, 0x08, 0x28, 0x18, 0x38, 0x04, 0x24, 0x14,
+      0x34, 0x0c, 0x2c, 0x1c, 0x3c, 0x01, 0x21, 0x11, 0x31, 0x09, 0x29,
+      0x19, 0x39, 0x05, 0x25, 0x15, 0x35, 0x0d, 0x2d, 0x1d, 0x3d};
   alignas(16) const uint8_t kX87ToRiscVExceptions[64] = {
-      0x00, 0x10, 0x00, 0x10, 0x08, 0x18, 0x08, 0x18,
-      0x04, 0x14, 0x04, 0x14, 0x0c, 0x1c, 0x0c, 0x1c,
-      0x02, 0x12, 0x02, 0x12, 0x0a, 0x1a, 0x0a, 0x1a,
-      0x06, 0x16, 0x06, 0x16, 0x0e, 0x1e, 0x0e, 0x1e,
-      0x01, 0x11, 0x01, 0x11, 0x09, 0x19, 0x09, 0x19,
-      0x05, 0x15, 0x05, 0x15, 0x0d, 0x1d, 0x0d, 0x1d,
-      0x03, 0x13, 0x03, 0x13, 0x0b, 0x1b, 0x0b, 0x1b,
-      0x07, 0x17, 0x07, 0x17, 0x0f, 0x1f, 0x0f, 0x1f};
+      0x00, 0x10, 0x00, 0x10, 0x08, 0x18, 0x08, 0x18, 0x04, 0x14, 0x04, 0x14, 0x0c,
+      0x1c, 0x0c, 0x1c, 0x02, 0x12, 0x02, 0x12, 0x0a, 0x1a, 0x0a, 0x1a, 0x06, 0x16,
+      0x06, 0x16, 0x0e, 0x1e, 0x0e, 0x1e, 0x01, 0x11, 0x01, 0x11, 0x09, 0x19, 0x09,
+      0x19, 0x05, 0x15, 0x05, 0x15, 0x0d, 0x1d, 0x0d, 0x1d, 0x03, 0x13, 0x03, 0x13,
+      0x0b, 0x1b, 0x0b, 0x1b, 0x07, 0x17, 0x07, 0x17, 0x0f, 0x1f, 0x0f, 0x1f};
   // This table represents exactly what you see: 𝟏𝟐𝟖 + 𝐍 unset bits and then 𝟏𝟐𝟖 - 𝐍 set bits for 𝐍
   // in range from 𝟎 to 𝟕.  The last 𝟏𝟐𝟖 bits from line 𝐍 then it's mask for 𝐯𝐥 equal to 𝐍 and if
   // you shift start address down by 𝐌  bytes then you get mask for 𝟖 * 𝐌 + 𝐍 bits.
@@ -269,38 +265,89 @@ struct MacroAssemblerConstants {
 // Make sure Layout is the same in 32-bit mode and 64-bit mode.
 CHECK_STRUCT_LAYOUT(MacroAssemblerConstants, 27520, 128);
 CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxFloat32, 0, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kNanBoxedNansFloat32, 128, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat32, 256, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kCanonicalNansFloat64, 384, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kFloat32One, 512, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kFloat64One, 640, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kFloat32PInf, 768, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kFloat32NInf, 896, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kFloat64PInf, 1024, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kFloat64NInf, 1152, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMinInt8, 1280, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxInt8, 1408, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMinInt16, 1536, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxInt16, 1664, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMinInt32, 1792, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxInt32, 1920, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMinInt64, 2048, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kMaxInt64, 2176, 128);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt64, 2304, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits64, 2368, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBsrToClzInt32, 2432, 32);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kWidthInBits32, 2464, 32);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, k0x8000_0000_0000_00ff, 2496, 64);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kRiscVToX87Exceptions, 2944, 256);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kX87ToRiscVExceptions, 3200, 512);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTable, 3712, 2048);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kVid64Bit, 5760, 1024);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kVid32Bit, 6784, 1024);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kVid16Bit, 7808, 1024);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kVid8Bit, 8832, 1024);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo32bitMask, 9856, 256);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo16bitMask, 10112, 1024);
-CHECK_FIELD_LAYOUT(MacroAssemblerConstants, kBitMaskTo8bitMask, 11136, 16384);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kNanBoxedNansFloat32,
+                            kNanBoxFloat32,
+                            128,
+                            128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kCanonicalNansFloat32,
+                            kNanBoxedNansFloat32,
+                            128,
+                            128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kCanonicalNansFloat64,
+                            kCanonicalNansFloat32,
+                            128,
+                            128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kFloat32One, kCanonicalNansFloat64, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kFloat64One, kFloat32One, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kFloat32PInf, kFloat64One, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kFloat32NInf, kFloat32PInf, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kFloat64PInf, kFloat32NInf, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kFloat64NInf, kFloat64PInf, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kMinInt8, kFloat64NInf, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kMaxInt8, kMinInt8, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kMinInt16, kMaxInt8, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kMaxInt16, kMinInt16, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kMinInt32, kMaxInt16, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kMaxInt32, kMinInt32, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kMinInt64, kMaxInt32, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kMaxInt64, kMinInt64, 128, 128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kBsrToClzInt64, kMaxInt64, 128, 64);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kWidthInBits64, kBsrToClzInt64, 64, 64);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kBsrToClzInt32, kWidthInBits64, 64, 32);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kWidthInBits32, kBsrToClzInt32, 32, 32);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            k0x8000_0000_0000_00ff,
+                            kWidthInBits32,
+                            32,
+                            64);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kPMovmskwToPMovmskb,
+                            k0x8000_0000_0000_00ff,
+                            64,
+                            128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kPMovmskdToPMovmskb,
+                            kPMovmskwToPMovmskb,
+                            128,
+                            128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kPMovmskqToPMovmskb,
+                            kPMovmskdToPMovmskb,
+                            128,
+                            128);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kRiscVToX87Exceptions,
+                            kPMovmskqToPMovmskb,
+                            128,
+                            256);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kX87ToRiscVExceptions,
+                            kRiscVToX87Exceptions,
+                            256,
+                            512);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kBitMaskTable,
+                            kX87ToRiscVExceptions,
+                            512,
+                            2048);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kVid64Bit, kBitMaskTable, 2048, 1024);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kVid32Bit, kVid64Bit, 1024, 1024);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kVid16Bit, kVid32Bit, 1024, 1024);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kVid8Bit, kVid16Bit, 1024, 1024);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants, kBitMaskTo32bitMask, kVid8Bit, 1024, 256);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kBitMaskTo16bitMask,
+                            kBitMaskTo32bitMask,
+                            256,
+                            1024);
+CHECK_FIELD_LAYOUT_RELATIVE(MacroAssemblerConstants,
+                            kBitMaskTo8bitMask,
+                            kBitMaskTo16bitMask,
+                            1024,
+                            16384);
 
 // Note: because we have aligned fields and thus padding in that data structure
 // value-initialization is both slower and larger than copy-initialization for
