@@ -51,11 +51,11 @@ class MacroAssembler : public Assembler {
 #undef DEFINE_MACRO_ASSEMBLER_GENERIC_FUNCTIONS
 
   constexpr void PNot(XMMRegister result) {
-    Pandn(result, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
+    Pandn(result, {.disp = constants_offsets::kVectorConst<uint8_t{0b1111'1111}>});
   }
 
   constexpr void Vpnot(XMMRegister result, XMMRegister src) {
-    Vpandn(result, src, {.disp = constants_pool::kVectorConst<uint8_t{0b1111'1111}>});
+    Vpandn(result, src, {.disp = constants_offsets::kVectorConst<uint8_t{0b1111'1111}>});
   }
 
 #include "berberis/intrinsics/macro_assembler_interface-inl.h"  // NOLINT generated file
