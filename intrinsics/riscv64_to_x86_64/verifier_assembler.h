@@ -33,7 +33,7 @@ class VerifierAssembler : public x86_32_and_x86_64::VerifierAssembler<VerifierAs
   constexpr VerifierAssembler() : BaseAssembler() {}
 
 // Instructions.
-#include "gen_text_assembler_x86_64-inl.h"  // NOLINT generated file
+#include "gen_verifier_assembler_x86_64-inl.h"  // NOLINT generated file
 
   // Unhide Movq(Mem, XMMReg) and Movq(XMMReg, Mem) hidden by Movq(Reg, Imm) and many others.
   using BaseAssembler::Movq;
