@@ -61,10 +61,10 @@ class Assembler : public riscv::Assembler<Assembler> {
   Assembler(Assembler&&) = delete;
   void operator=(const Assembler&) = delete;
   void operator=(Assembler&&) = delete;
-  void Li32(Register dest, int32_t imm32);
+  constexpr void Li32(Register dest, int32_t imm32);
 };
 
-inline void Assembler::Ld(Register arg0, const Label& label) {
+constexpr inline void Assembler::Ld(Register arg0, const Label& label) {
   jumps_.push_back(Jump{&label, pc(), false});
   // First issue auipc to load top 20 bits of difference between pc and target address
   EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});
@@ -73,11 +73,11 @@ inline void Assembler::Ld(Register arg0, const Label& label) {
 }
 
 // It's needed to unhide 32bit immediate version.
-inline void Assembler::Li32(Register dest, int32_t imm32) {
+constexpr inline void Assembler::Li32(Register dest, int32_t imm32) {
   BaseAssembler::Li(dest, imm32);
 };
 
-inline void Assembler::Li(Register dest, int64_t imm64) {
+constexpr inline void Assembler::Li(Register dest, int64_t imm64) {
   int32_t imm32 = static_cast<int32_t>(imm64);
   if (static_cast<int64_t>(imm32) == imm64) {
     Li32(dest, imm32);
@@ -102,7 +102,7 @@ inline void Assembler::Li(Register dest, int64_t imm64) {
   }
 }
 
-inline void Assembler::Lwu(Register arg0, const Label& label) {
+constexpr inline void Assembler::Lwu(Register arg0, const Label& label) {
   jumps_.push_back(Jump{&label, pc(), false});
   // First issue auipc to load top 20 bits of difference between pc and target address
   EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg0, UImmediate{0});
@@ -110,7 +110,7 @@ inline void Assembler::Lwu(Register arg0, const Label& label) {
   EmitITypeInstruction<uint32_t{0x0000'6003}>(arg0, Operand<Register, IImmediate>{.base = arg0});
 }
 
-inline void Assembler::Sd(Register arg0, const Label& label, Register arg2) {
+constexpr inline void Assembler::Sd(Register arg0, const Label& label, Register arg2) {
   jumps_.push_back(Jump{&label, pc(), false});
   // First issue auipc to load top 20 bits of difference between pc and target address
   EmitUTypeInstruction<uint32_t{0x0000'0017}>(arg2, UImmediate{0});
@@ -118,15 +118,15 @@ inline void Assembler::Sd(Register arg0, const Label& label, Register arg2) {
   EmitSTypeInstruction<uint32_t{0x0000'3023}>(arg0, Operand<Register, SImmediate>{.base = arg2});
 }
 
-inline void Assembler::SextW(Register arg0, Register arg1) {
+constexpr inline void Assembler::SextW(Register arg0, Register arg1) {
   Addiw(arg0, arg1, 0);
 }
 
-inline void Assembler::ZextW(Register arg0, Register arg1) {
+constexpr inline void Assembler::ZextW(Register arg0, Register arg1) {
   AddUW(arg0, arg1, zero);
 }
 
-inline void Assembler::Negw(Register arg0, Register arg1) {
+constexpr inline void Assembler::Negw(Register arg0, Register arg1) {
   Subw(arg0, zero, arg1);
 }
 

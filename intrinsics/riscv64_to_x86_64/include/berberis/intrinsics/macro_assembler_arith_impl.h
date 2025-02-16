@@ -29,7 +29,7 @@ namespace berberis {
 // gpr_d and FLAGS are clobbered by that macroinstruction.
 template <typename Assembler>
 template <typename IntType>
-void MacroAssembler<Assembler>::MacroDiv(Register src) {
+constexpr void MacroAssembler<Assembler>::MacroDiv(Register src) {
   Label* zero = MakeLabel();
   Label* done = MakeLabel();
   Test<IntType>(src, src);
@@ -88,7 +88,7 @@ void MacroAssembler<Assembler>::MacroDiv(Register src) {
 // For 8-bit: remainder is returned in gpr_a. FLAGS are clobbered.
 template <typename Assembler>
 template <typename IntType>
-void MacroAssembler<Assembler>::MacroRem(Register src) {
+constexpr void MacroAssembler<Assembler>::MacroRem(Register src) {
   Label* zero = MakeLabel();
   Label* overflow = MakeLabel();
   Label* done = MakeLabel();

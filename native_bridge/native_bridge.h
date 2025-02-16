@@ -274,7 +274,7 @@ struct NativeBridgeCallbacks {
   // Get a native bridge trampoline for specified native method pointer.
   //
   // Parameters:
-  //   method [IN] pointer to method (ususally registered via call to RegisterNatives)
+  //   method [IN] pointer to method (usually registered via call to RegisterNatives)
   //   shorty [IN] short descriptor of native method
   //   len [IN] length of shorty
   //   jni_call_type [IN] the type of JNI call
@@ -284,6 +284,20 @@ struct NativeBridgeCallbacks {
                                            const char* shorty,
                                            uint32_t len,
                                            enum JNICallType jni_call_type);
+
+  // v8
+
+  // Check if the method pointer is executable with native_bridge.
+  //
+  // Parameters:
+  //   method [IN] pointer to a method implementation.
+  //
+  // Returns:
+  //   true if the method is in native bridge implementation executable address
+  //   space or in other words needs a trampoline to be able to run with native bridge.
+  //
+  // Introduced in: version 8
+  bool (*isNativeBridgeFunctionPointer)(const void* method);
 };
 
 // Runtime interfaces to native bridge.
