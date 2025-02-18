@@ -33,6 +33,7 @@
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
+#include "berberis/intrinsics/verifier_assembler.h"
 
 #include "text_assembler.h"
 
@@ -45,7 +46,7 @@ void GenerateTemporaries(FILE* out, int indent);
 template <typename AsmCallInfo>
 void GenerateInShadows(FILE* out, int indent);
 template <typename AsmCallInfo>
-void AssignRegisterNumbers(int* register_numbers);
+constexpr void AssignRegisterNumbers(int* register_numbers);
 template <typename AsmCallInfo>
 auto CallTextAssembler(FILE* out, int indent, int* register_numbers);
 template <typename AsmCallInfo>
@@ -266,7 +267,7 @@ void GenerateInShadows(FILE* out, int indent) {
 }
 
 template <typename AsmCallInfo>
-void AssignRegisterNumbers(int* register_numbers) {
+constexpr void AssignRegisterNumbers(int* register_numbers) {
   // Assign number for output (and temporary) arguments.
   std::size_t id = 0;
   int arg_counter = 0;
@@ -352,8 +353,6 @@ auto CallTextAssembler(FILE* out, int indent, int* register_numbers) {
                          return std::tuple{};
                        }
                      })));
-  // Verify CPU vendor and SSE restrictions.
-  as.CheckCPUIDRestriction<typename AsmCallInfo::CPUIDRestriction>();
   return std::tuple{as.need_gpr_macroassembler_scratch(), as.need_gpr_macroassembler_constants()};
 }
 
@@ -547,7 +546,93 @@ constexpr bool NeedOutputShadow(Arg arg) {
 
 #include "text_asm_intrinsics_process_bindings-inl.h"
 
+template <typename AsmCallInfo>
+constexpr void CallVerifierAssembler(int* register_numbers) {
+  MacroAssembler<VerifierAssembler> va;
+  int arg_counter = 0;
+  AsmCallInfo::ProcessBindings([&arg_counter, &va, register_numbers](auto arg) {
+    using RegisterClass = typename decltype(arg)::RegisterClass;
+    if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
+      if constexpr (RegisterClass::kAsRegister != 'm') {
+        if constexpr (RegisterClass::kIsImplicitReg) {
+          if constexpr (RegisterClass::kAsRegister == 'a') {
+            va.gpr_a = VerifierAssembler::Register(register_numbers[arg_counter]);
+          } else if constexpr (RegisterClass::kAsRegister == 'b') {
+            va.gpr_b = VerifierAssembler::Register(register_numbers[arg_counter]);
+          } else if constexpr (RegisterClass::kAsRegister == 'c') {
+            va.gpr_c = VerifierAssembler::Register(register_numbers[arg_counter]);
+          } else {
+            static_assert(RegisterClass::kAsRegister == 'd');
+            va.gpr_d = VerifierAssembler::Register(register_numbers[arg_counter]);
+          }
+        }
+      }
+      ++arg_counter;
+    }
+  });
+  va.gpr_macroassembler_constants = VerifierAssembler::Register(arg_counter);
+  arg_counter = 0;
+  int scratch_counter = 0;
+  std::apply(
+      AsmCallInfo::kMacroInstruction,
+      std::tuple_cat(
+          std::tuple<MacroAssembler<VerifierAssembler>&>{va},
+          AsmCallInfo::MakeTuplefromBindings(
+              [&va, &arg_counter, &scratch_counter, register_numbers](auto arg) {
+                using RegisterClass = typename decltype(arg)::RegisterClass;
+                if constexpr (!std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
+                  if constexpr (RegisterClass::kAsRegister == 'm') {
+                    if (scratch_counter == 0) {
+                      va.gpr_macroassembler_scratch = VerifierAssembler::Register(arg_counter++);
+                    } else if (scratch_counter == 1) {
+                      va.gpr_macroassembler_scratch2 = VerifierAssembler::Register(arg_counter++);
+                    } else {
+                      FATAL("Only two scratch registers are supported for now");
+                    }
+                    // Note: va.gpr_scratch in combination with offset is treated by text
+                    // assembler specially.  We rely on offset set here to be the same as
+                    // scratch2 address in scratch buffer.
+                    return std::tuple{VerifierAssembler::Operand{
+                        .base = va.gpr_scratch,
+                        .disp = static_cast<int32_t>(config::kScratchAreaSlotSize *
+                                                     scratch_counter++)}};
+                  } else if constexpr (RegisterClass::kIsImplicitReg) {
+                    ++arg_counter;
+                    return std::tuple{};
+                  } else {
+                    return std::tuple{register_numbers[arg_counter++]};
+                  }
+                } else {
+                  return std::tuple{};
+                }
+              })));
+  // Verify CPU vendor and SSE restrictions.
+  va.CheckCPUIDRestriction<typename AsmCallInfo::CPUIDRestriction>();
+}
+
+template <typename AsmCallInfo>
+constexpr void VerifyIntrinsic() {
+  int register_numbers[std::tuple_size_v<typename AsmCallInfo::Bindings> == 0
+                           ? 1
+                           : std::tuple_size_v<typename AsmCallInfo::Bindings>];
+  AssignRegisterNumbers<AsmCallInfo>(register_numbers);
+  CallVerifierAssembler<AsmCallInfo>(register_numbers);
+}
+
+constexpr bool VerifyTextAsmIntrinsics() {
+  ProcessAllBindings<MacroAssembler<VerifierAssembler>::MacroAssemblers>(
+      [](auto&& asm_call_generator) {
+        using AsmCallInfo = std::decay_t<decltype(asm_call_generator)>;
+        VerifyIntrinsic<AsmCallInfo>();
+      });
+  return true;
+}
+
 void GenerateTextAsmIntrinsics(FILE* out) {
+  // Verifier assembler verifies that CPU vendor and SSE restrictions for intrinsics are defined
+  // correctly.
+  static_assert(VerifyTextAsmIntrinsics());
+
   // Note: nullptr means "NoCPUIDRestriction", other values are only assigned in one place below
   // since the code in this function mostly cares only about three cases:
   //   • There are no CPU restrictions.
