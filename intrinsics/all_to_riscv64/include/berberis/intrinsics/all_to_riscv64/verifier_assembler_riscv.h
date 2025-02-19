@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef BERBERIS_INTRINSICS_COMMON_TO_RISCV_TEXT_ASSEMBLER_COMMON_H_
-#define BERBERIS_INTRINSICS_COMMON_TO_RISCV_TEXT_ASSEMBLER_COMMON_H_
+#ifndef BERBERIS_INTRINSICS_COMMON_TO_RISCV_VERIFIER_ASSEMBLER_COMMON_H_
+#define BERBERIS_INTRINSICS_COMMON_TO_RISCV_VERIFIER_ASSEMBLER_COMMON_H_
 
 #include <array>
 #include <cstdint>
 #include <cstdio>
-#include <deque>
 #include <string>
 
 #include "berberis/assembler/riscv.h"
@@ -31,56 +30,10 @@
 
 namespace berberis {
 
-namespace constants_pool {
-
-extern const intptr_t kBerberisMacroAssemblerConstantsRelocated;
-
-inline intptr_t GetOffset(intptr_t address) {
-  return address - constants_pool::kBerberisMacroAssemblerConstantsRelocated;
-}
-
-}  // namespace constants_pool
-
 namespace riscv {
 
-#define BERBERIS_DEFINE_TO_FAS_ARGUMENT(Immediate)                         \
-  template <typename MacroAssembler>                                       \
-  inline std::string ToGasArgument(Immediate immediate, MacroAssembler*) { \
-    return "$" + std::to_string(static_cast<int32_t>(immediate));          \
-  }
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(BImmediate)
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(CsrImmediate)
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(IImmediate)
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(JImmediate)
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(PImmediate)
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(Shift32Immediate)
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(Shift64Immediate)
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(SImmediate)
-BERBERIS_DEFINE_TO_FAS_ARGUMENT(UImmediate)
-#undef BERBERIS_DEFINE_TO_FAS_ARGUMENT
-
-template <typename MacroAssembler>
-inline std::string ToGasArgument(Rounding rm, MacroAssembler*) {
-  switch (rm) {
-    case Rounding::kRne:
-      return "rne";
-    case Rounding::kRtz:
-      return "rtz";
-    case Rounding::kRdn:
-      return "rdn";
-    case Rounding::kRup:
-      return "ruo";
-    case Rounding::kRmm:
-      return "rmm";
-    case Rounding::kDyn:
-      return "dyn";
-    default:
-      LOG_ALWAYS_FATAL("Unsupported rounding mode %d", rm);
-  }
-}
-
 template <typename DerivedAssemblerType>
-class TextAssembler {
+class VerifierAssembler {
  public:
   using Condition = riscv::Condition;
   using Csr = riscv::Csr;
@@ -89,11 +42,6 @@ class TextAssembler {
   struct Label {
     size_t id;
     bool bound = false;
-
-    template <typename MacroAssembler>
-    friend std::string ToGasArgument(const Label& label, MacroAssembler*) {
-      return std::to_string(label.id) + (label.bound ? "b" : "f");
-    }
   };
 
   template <typename RegisterType, typename ImmediateType>
@@ -115,15 +63,6 @@ class TextAssembler {
     // Used in Operand to deal with references to scratch area.
     static constexpr int kScratchPointer = -3;
     static constexpr int kZeroRegister = -4;
-
-    template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const Register& reg, MacroAssembler*) {
-      if (reg.arg_no_ == kZeroRegister) {
-        return "zero";
-      }
-
-      return '%' + std::to_string(reg.arg_no());
-    }
 
    private:
     template <typename RegisterType, typename ImmediateType>
@@ -147,11 +86,6 @@ class TextAssembler {
 
     friend bool operator==(const FpRegister&, const FpRegister&) = default;
 
-    template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const FpRegister& reg, MacroAssembler*) {
-      return '%' + std::to_string(reg.arg_no());
-    }
-
    private:
     // Register number created during creation of assembler call.
     // See arg['arm_register'] in _gen_c_intrinsic_body in gen_intrinsics.py
@@ -165,17 +99,6 @@ class TextAssembler {
   struct Operand {
     RegisterType base{0};
     ImmediateType disp = 0;
-
-    template <typename MacroAssembler>
-    friend const std::string ToGasArgument(const Operand& op, MacroAssembler* as) {
-      std::string result{};
-      result = '(' + ToGasArgument(op.base, as) + ')';
-      int32_t disp = static_cast<int32_t>(op.disp);
-      if (disp) {
-        result = ToGasArgument(disp, as) + result;
-      }
-      return result;
-    }
   };
 
   using BImmediate = riscv::BImmediate;
@@ -189,11 +112,11 @@ class TextAssembler {
   using SImmediate = riscv::SImmediate;
   using UImmediate = riscv::UImmediate;
 
-  TextAssembler(int indent, FILE* out) : indent_(indent), out_(out) {}
+  constexpr VerifierAssembler() {}
 
   // Verify CPU vendor and SSE restrictions.
   template <typename CPUIDRestriction>
-  void CheckCPUIDRestriction() {}
+  constexpr void CheckCPUIDRestriction() {}
 
   // Translate CPU restrictions into string.
   template <typename CPUIDRestriction>
@@ -229,54 +152,32 @@ class TextAssembler {
 
   Register zero{Register::kZeroRegister};
 
-  void Bind(Label* label) {
-    CHECK_EQ(label->bound, false);
-    fprintf(out_, "%*s\"%zd:\\n\"\n", indent_ + 2, "", label->id);
-    label->bound = true;
-  }
+  constexpr void Bind([[maybe_unused]] Label* label) {}
 
-  Label* MakeLabel() {
-    labels_allocated_.push_back({labels_allocated_.size()});
-    return &labels_allocated_.back();
-  }
+  // Currently label_ is meaningless. Verifier assembler does not yet have a need for it.
+  constexpr Label* MakeLabel() { return &label_; }
 
   template <typename... Args>
-  void Byte(Args... args) {
+  constexpr void Byte([[maybe_unused]] Args... args) {
     static_assert((std::is_same_v<Args, uint8_t> && ...));
-    bool print_kwd = true;
-    fprintf(out_, "%*s\"", indent_ + 2, "");
-    (fprintf(out_, "%s%" PRIu8, print_kwd ? print_kwd = false, ".byte " : ", ", args), ...);
-    fprintf(out_, "\\n\"\n");
   }
 
   template <typename... Args>
-  void TwoByte(Args... args) {
+  constexpr void TwoByte([[maybe_unused]] Args... args) {
     static_assert((std::is_same_v<Args, uint16_t> && ...));
-    bool print_kwd = true;
-    fprintf(out_, "%*s\"", indent_ + 2, "");
-    (fprintf(out_, "%s%" PRIu16, print_kwd ? print_kwd = false, ".2byte " : ", ", args), ...);
-    fprintf(out_, "\\n\"\n");
   }
 
   template <typename... Args>
-  void FourByte(Args... args) {
+  constexpr void FourByte([[maybe_unused]] Args... args) {
     static_assert((std::is_same_v<Args, uint32_t> && ...));
-    bool print_kwd = true;
-    fprintf(out_, "%*s\"", indent_ + 2, "");
-    (fprintf(out_, "%s%" PRIu32, print_kwd ? print_kwd = false, ".4byte " : ", ", args), ...);
-    fprintf(out_, "\\n\"\n");
   }
 
   template <typename... Args>
-  void EigthByte(Args... args) {
+  constexpr void EigthByte([[maybe_unused]] Args... args) {
     static_assert((std::is_same_v<Args, uint64_t> && ...));
-    bool print_kwd = true;
-    fprintf(out_, "%*s\"", indent_ + 2, "");
-    (fprintf(out_, "%s%" PRIu64, print_kwd ? print_kwd = false, ".8byte " : ", ", args), ...);
-    fprintf(out_, "\\n\"\n");
   }
 
-  void P2Align(uint32_t m) { fprintf(out_, "%*s\".p2align %u\\n\"\n", indent_ + 2, "", m); }
+  constexpr void P2Align([[maybe_unused]] uint32_t m) {}
 
 // Instructions.
 #include "gen_text_assembler_common_riscv-inl.h"  // NOLINT generated file
@@ -295,85 +196,43 @@ class TextAssembler {
   bool need_gpr_macroassembler_scratch_ = false;
 
   template <typename... Args>
-  void Instruction(const char* name, Condition cond, const Args&... args);
+  constexpr void Instruction(const char* name, Condition cond, const Args&... args);
 
   template <typename... Args>
-  void Instruction(const char* name, const Args&... args);
+  constexpr void Instruction(const char* name, const Args&... args);
 
-  void EmitString() {}
+  constexpr void EmitString() {}
 
-  void EmitString(const std::string& s) { fprintf(out_, "%s", s.c_str()); }
+  constexpr void EmitString([[maybe_unused]] const std::string& s) {}
 
   template <typename... Args>
-  void EmitString(const std::string& s, const Args&... args) {
-    fprintf(out_, "%s, ", s.c_str());
-    EmitString(args...);
-  }
-
- protected:
-  int indent_;
-  FILE* out_;
+  constexpr void EmitString([[maybe_unused]] const std::string& s,
+                            [[maybe_unused]] const Args&... args) {}
 
  private:
-  std::deque<Label> labels_allocated_;
+  Label label_;
 
-  TextAssembler() = delete;
-  TextAssembler(const TextAssembler&) = delete;
-  TextAssembler(TextAssembler&&) = delete;
-  void operator=(const TextAssembler&) = delete;
-  void operator=(TextAssembler&&) = delete;
+  VerifierAssembler(const VerifierAssembler&) = delete;
+  VerifierAssembler(VerifierAssembler&&) = delete;
+  void operator=(const VerifierAssembler&) = delete;
+  void operator=(VerifierAssembler&&) = delete;
 };
 
-template <typename Arg, typename MacroAssembler>
-inline std::string ToGasArgument(const Arg& arg, MacroAssembler*) {
-  return "$" + std::to_string(arg);
-}
+template <typename DerivedAssemblerType>
+template <typename... Args>
+constexpr void VerifierAssembler<DerivedAssemblerType>::Instruction(
+    [[maybe_unused]] const char* name,
+    [[maybe_unused]] Condition cond,
+    [[maybe_unused]] const Args&... args) {}
 
 template <typename DerivedAssemblerType>
 template <typename... Args>
-inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
-                                                             Condition cond,
-                                                             const Args&... args) {
-  char name_with_condition[8] = {};
-  CHECK_EQ(strcmp(name, "Bcc"), 0);
-
-  switch (cond) {
-    case Condition::kEqual:
-      strcat(name_with_condition, "eq");
-      break;
-    case Condition::kNotEqual:
-      strcat(name_with_condition, "ne");
-      break;
-    case Condition::kLess:
-      strcat(name_with_condition, "lt");
-      break;
-    case Condition::kGreaterEqual:
-      strcat(name_with_condition, "ge");
-      break;
-    case Condition::kBelow:
-      strcat(name_with_condition, "ltu");
-      break;
-    case Condition::kAboveEqual:
-      strcat(name_with_condition, "geu");
-      break;
-    default:
-      LOG_ALWAYS_FATAL("Unsupported condition %d", cond);
-  }
-  Instruction(name_with_condition, args...);
-}
-
-template <typename DerivedAssemblerType>
-template <typename... Args>
-inline void TextAssembler<DerivedAssemblerType>::Instruction(const char* name,
-                                                             const Args&... args) {
-  int name_length = strlen(name);
-  fprintf(out_, "%*s\"%.*s ", indent_ + 2, "", name_length, name);
-  EmitString(ToGasArgument(args, this)...);
-  fprintf(out_, "\\n\"\n");
-}
+constexpr void VerifierAssembler<DerivedAssemblerType>::Instruction(
+    [[maybe_unused]] const char* name,
+    [[maybe_unused]] const Args&... args) {}
 
 }  // namespace riscv
 
 }  // namespace berberis
 
-#endif  // BERBERIS_INTRINSICS_COMMON_TO_RISCV_TEXT_ASSEMBLER_COMMON_H_
+#endif  // BERBERIS_INTRINSICS_COMMON_TO_RISCV_VERIFIER_ASSEMBLER_COMMON_H_
