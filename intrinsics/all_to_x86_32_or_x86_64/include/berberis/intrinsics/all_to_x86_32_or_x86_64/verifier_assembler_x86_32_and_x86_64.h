@@ -329,7 +329,7 @@ class VerifierAssembler {
   }
 
 // Instructions.
-#include "gen_text_assembler_common_x86-inl.h"  // NOLINT generated file
+#include "gen_verifier_assembler_common_x86-inl.h"  // NOLINT generated file
 
  protected:
   bool need_gpr_macroassembler_constants_ = false;

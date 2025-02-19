@@ -180,7 +180,7 @@ class VerifierAssembler {
   constexpr void P2Align([[maybe_unused]] uint32_t m) {}
 
 // Instructions.
-#include "gen_text_assembler_common_riscv-inl.h"  // NOLINT generated file
+#include "gen_verifier_assembler_common_riscv-inl.h"  // NOLINT generated file
 
  protected:
   template <typename CPUIDRestriction>
