@@ -218,4 +218,73 @@ extern const int32_t kPMovmskqToPMovmskb;
 
 }  // namespace berberis::constants_pool
 
+namespace berberis::constants_offsets {
+
+// constants_offsets namespace includes compile-time versions of constants used in macro assembler
+// functions. This allows the static verifier assembler to use static versions of the macro-
+// assembly functions.
+// template <const int32_t* constant_addr>
+template <const int32_t* constant_addr>
+class ConstantAccessor {
+ public:
+  using ConstPoolAddrType = int32_t;
+  constexpr operator ConstPoolAddrType() const {
+    if (std::is_constant_evaluated()) {
+      return 0;
+    } else {
+      return *constant_addr;
+    }
+  }
+};
+
+template <const auto Value>
+class TypeConstantAccessor {
+ public:
+  using ConstPoolAddrType = int32_t;
+  constexpr operator ConstPoolAddrType() const {
+    if (std::is_constant_evaluated()) {
+      return 0;
+    } else {
+      return *Value;
+    }
+  }
+};
+
+template <const auto Value>
+class VectorConstantAccessor {
+ public:
+  using ConstPoolAddrType = int32_t;
+  constexpr operator ConstPoolAddrType() const {
+    if (std::is_constant_evaluated()) {
+      return 0;
+    } else {
+      return constants_pool::VectorConst<Value>::kValue;
+    }
+  }
+};
+
+inline constexpr ConstantAccessor<&constants_pool::kRiscVToX87Exceptions> kRiscVToX87Exceptions;
+
+inline constexpr ConstantAccessor<&constants_pool::kX87ToRiscVExceptions> kX87ToRiscVExceptions;
+
+template <typename IntType>
+inline constexpr TypeConstantAccessor<&constants_pool::kBsrToClz<IntType>> kBsrToClz{};
+
+template <typename FloatType>
+inline constexpr TypeConstantAccessor<&constants_pool::kCanonicalNans<FloatType>> kCanonicalNans{};
+
+template <typename FloatType>
+inline constexpr TypeConstantAccessor<&constants_pool::kNanBox<FloatType>> kNanBox{};
+
+template <typename FloatType>
+inline constexpr TypeConstantAccessor<&constants_pool::kNanBoxedNans<FloatType>> kNanBoxedNans{};
+
+template <typename IntType>
+inline constexpr TypeConstantAccessor<&constants_pool::kWidthInBits<IntType>> kWidthInBits{};
+
+template <auto Value>
+inline constexpr VectorConstantAccessor<Value> kVectorConst{};
+
+}  // namespace berberis::constants_offsets
+
 #endif  // RISCV64_TO_X86_64_BERBERIS_INTRINSICS_CONSTANTS_POOL_H_
