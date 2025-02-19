@@ -205,9 +205,9 @@ class TryBindingBasedInlineIntrinsic {
             typename Result,
             typename Callback,
             typename... Args>
-  friend Result intrinsics::bindings::ProcessBindings(Callback callback,
-                                                      Result def_result,
-                                                      Args&&... args);
+  friend constexpr Result intrinsics::bindings::ProcessBindings(Callback callback,
+                                                                Result def_result,
+                                                                Args&&... args);
   template <auto kIntrinsicTemplateName,
             auto kMacroInstructionTemplateName,
             auto kMnemo,
