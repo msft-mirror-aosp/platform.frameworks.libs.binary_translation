@@ -64,9 +64,9 @@ constexpr uint32_t kPlusInfinity32 = 0x7f800000;
 constexpr uint32_t kMinusInfinity32 = 0xff800000;
 // Default NaN created as result of math operations (when NaN wasn't an input).
 #if defined(__i386__) || defined(__x86_64__)
-constexpr uint32_t kDefaultNan32 = 0xffc00000;
+constexpr uint32_t kDefaultNaN32AsInteger = 0xffc00000;
 #else
-constexpr uint32_t kDefaultNan32 = 0x7fc00000;
+constexpr uint32_t kDefaultNaN32AsInteger = 0x7fc00000;
 #endif
 constexpr uint64_t kPlusZero64 = 0x0000000000000000;
 constexpr uint64_t kPlusOne64 = 0x3ff0000000000000;
@@ -75,9 +75,9 @@ constexpr uint64_t kMinusOne64 = 0xbff0000000000000;
 constexpr uint64_t kPlusInfinity64 = 0x7ff0000000000000;
 constexpr uint64_t kMinusInfinity64 = 0xfff0000000000000;
 #if defined(__i386__) || defined(__x86_64__)
-constexpr uint64_t kDefaultNan64 = 0xfff8000000000000;
+constexpr uint64_t kDefaultNaN64AsInteger = 0xfff8000000000000;
 #else
-constexpr uint64_t kDefaultNan64 = 0x7ff8000000000000;
+constexpr uint64_t kDefaultNaN64AsInteger = 0x7ff8000000000000;
 #endif
 
 #ifdef __i386__
@@ -155,11 +155,11 @@ TEST(FPU, Float32_InfPlusMinusInf) {
   // +inf + -inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusInfinity32) +
                                        bit_cast<Float32, uint32_t>(kMinusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -inf + +inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusInfinity32) +
                                        bit_cast<Float32, uint32_t>(kPlusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
 }
 
 TEST(FPU, Float64_InfPlusMinusInf) {
@@ -174,11 +174,11 @@ TEST(FPU, Float64_InfPlusMinusInf) {
   // +inf + -inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusInfinity64) +
                                        bit_cast<Float64, uint64_t>(kMinusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -inf + +inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusInfinity64) +
                                        bit_cast<Float64, uint64_t>(kPlusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
 }
 
 TEST(FPU, Float32_ZeroPlusMinusZero) {
@@ -231,11 +231,11 @@ TEST(FPU, Float32_InfMinusInf) {
   // +inf - +inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusInfinity32) -
                                        bit_cast<Float32, uint32_t>(kPlusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -inf - -inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusInfinity32) -
                                        bit_cast<Float32, uint32_t>(kMinusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
 }
 
 TEST(FPU, Float64_InfMinusInf) {
@@ -250,11 +250,11 @@ TEST(FPU, Float64_InfMinusInf) {
   // +inf - +inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusInfinity64) -
                                        bit_cast<Float64, uint64_t>(kPlusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -inf - -inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusInfinity64) -
                                        bit_cast<Float64, uint64_t>(kMinusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
 }
 
 TEST(FPU, Float32_ZeroMinusZero) {
@@ -299,70 +299,70 @@ TEST(FPU, Float32_InfMultiplyByZero) {
   // +inf * +0.f => dNaN
   uint32_t result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusInfinity32) *
                                                 bit_cast<Float32, uint32_t>(kPlusZero32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // +0.f * +inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusZero32) *
                                        bit_cast<Float32, uint32_t>(kPlusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // +inf * -0.f => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusInfinity32) *
                                        bit_cast<Float32, uint32_t>(kMinusZero32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -0.f * +inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusZero32) *
                                        bit_cast<Float32, uint32_t>(kPlusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -inf * +0.f => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusInfinity32) *
                                        bit_cast<Float32, uint32_t>(kPlusZero32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // +0.f * -inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusZero32) *
                                        bit_cast<Float32, uint32_t>(kMinusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -inf * -0.f => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusInfinity32) *
                                        bit_cast<Float32, uint32_t>(kMinusZero32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -0.f * -inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusZero32) *
                                        bit_cast<Float32, uint32_t>(kMinusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
 }
 
 TEST(FPU, Float64_InfMultiplyByZero) {
   // +inf * +0.0 => dNaN
   uint64_t result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusInfinity64) *
                                                 bit_cast<Float64, uint64_t>(kPlusZero64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // +0.0 * +inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusZero64) *
                                        bit_cast<Float64, uint64_t>(kPlusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // +inf * -0.0 => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusInfinity64) *
                                        bit_cast<Float64, uint64_t>(kMinusZero64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -0.0 * +inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusZero64) *
                                        bit_cast<Float64, uint64_t>(kPlusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -inf * +0.0 => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusInfinity64) *
                                        bit_cast<Float64, uint64_t>(kPlusZero64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // +0.0 * -inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusZero64) *
                                        bit_cast<Float64, uint64_t>(kMinusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -inf * -0.0 => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusInfinity64) *
                                        bit_cast<Float64, uint64_t>(kMinusZero64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -0.0 * -inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusZero64) *
                                        bit_cast<Float64, uint64_t>(kMinusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
 }
 
 TEST(FPU, Float32_ZeroMultiplyByZero) {
@@ -407,76 +407,76 @@ TEST(FPU, Float32_InfDivideByInf) {
   // +inf / +inf => dNaN
   uint32_t result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusInfinity32) /
                                                 bit_cast<Float32, uint32_t>(kPlusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // +inf / -inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusInfinity32) /
                                        bit_cast<Float32, uint32_t>(kMinusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -inf / +inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusInfinity32) /
                                        bit_cast<Float32, uint32_t>(kPlusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -inf / -inf => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusInfinity32) /
                                        bit_cast<Float32, uint32_t>(kMinusInfinity32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
 }
 
 TEST(FPU, Float64_InfDivideByInf) {
   // +inf / +inf => dNaN
   uint64_t result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusInfinity64) /
                                                 bit_cast<Float64, uint64_t>(kPlusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // +inf / -inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusInfinity64) /
                                        bit_cast<Float64, uint64_t>(kMinusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -inf / +inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusInfinity64) /
                                        bit_cast<Float64, uint64_t>(kPlusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -inf / -inf => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusInfinity64) /
                                        bit_cast<Float64, uint64_t>(kMinusInfinity64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
 }
 
 TEST(FPU, Float32_ZeroDivideByZero) {
   // +0.f - +0.f => dNaN
   uint32_t result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusZero32) /
                                                 bit_cast<Float32, uint32_t>(kPlusZero32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // +0.f - -0.f => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kPlusZero32) /
                                        bit_cast<Float32, uint32_t>(kMinusZero32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -0.f - +0.f => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusZero32) /
                                        bit_cast<Float32, uint32_t>(kPlusZero32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
   // -0.f - +0.f => dNaN
   result = bit_cast<uint32_t, Float32>(bit_cast<Float32, uint32_t>(kMinusZero32) /
                                        bit_cast<Float32, uint32_t>(kMinusZero32));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
 }
 
 TEST(FPU, Float64_ZeroDivideByZero) {
   // +0.0 - +0.0 => dNaN
   uint64_t result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusZero64) /
                                                 bit_cast<Float64, uint64_t>(kPlusZero64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // +0.0 - -0.0 => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kPlusZero64) /
                                        bit_cast<Float64, uint64_t>(kMinusZero64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -0.0 - +0.0 => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusZero64) /
                                        bit_cast<Float64, uint64_t>(kPlusZero64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
   // -0.0 - +0.0 => dNaN
   result = bit_cast<uint64_t, Float64>(bit_cast<Float64, uint64_t>(kMinusZero64) /
                                        bit_cast<Float64, uint64_t>(kMinusZero64));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
 }
 
 TEST(FPU, Float32_Sqrt) {
@@ -491,7 +491,7 @@ TEST(FPU, Float32_Sqrt) {
   EXPECT_EQ(result, kPlusOne32);
   // -1.0 => dNaN
   result = bit_cast<uint32_t, Float32>(Sqrt(bit_cast<Float32, uint32_t>(kMinusOne32)));
-  EXPECT_EQ(result, kDefaultNan32);
+  EXPECT_EQ(result, kDefaultNaN32AsInteger);
 }
 
 TEST(FPU, Float64_Sqrt) {
@@ -506,7 +506,7 @@ TEST(FPU, Float64_Sqrt) {
   EXPECT_EQ(result, kPlusOne64);
   // -1.0 => dNaN
   result = bit_cast<uint64_t, Float64>(Sqrt(bit_cast<Float64, uint64_t>(kMinusOne64)));
-  EXPECT_EQ(result, kDefaultNan64);
+  EXPECT_EQ(result, kDefaultNaN64AsInteger);
 }
 
 }  // namespace
