@@ -33,9 +33,9 @@
 #include "berberis/intrinsics/macro_assembler.h"
 #include "berberis/intrinsics/simd_register.h"
 #include "berberis/intrinsics/type_traits.h"
+#include "berberis/intrinsics/verifier_assembler.h"
 
 #include "text_assembler.h"
-#include "verifier_assembler.h"
 
 namespace berberis {
 
