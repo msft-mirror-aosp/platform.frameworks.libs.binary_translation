@@ -44,7 +44,7 @@ constexpr void MacroAssembler<Assembler>::MacroDiv(Register src) {
 
     if constexpr (std::is_same_v<IntType, int64_t>) {
       Cmp<IntType>(gpr_a,
-                   {.disp = constants_pool::kVectorConst<std::numeric_limits<IntType>::min()>});
+                   {.disp = constants_offsets::kVectorConst<std::numeric_limits<IntType>::min()>});
     } else {
       Cmp<IntType>(gpr_a, std::numeric_limits<IntType>::min());
     }
@@ -104,7 +104,7 @@ constexpr void MacroAssembler<Assembler>::MacroRem(Register src) {
 
     if constexpr (std::is_same_v<IntType, int64_t>) {
       Cmp<IntType>(gpr_a,
-                   {.disp = constants_pool::kVectorConst<std::numeric_limits<IntType>::min()>});
+                   {.disp = constants_offsets::kVectorConst<std::numeric_limits<IntType>::min()>});
     } else {
       Cmp<IntType>(gpr_a, std::numeric_limits<IntType>::min());
     }

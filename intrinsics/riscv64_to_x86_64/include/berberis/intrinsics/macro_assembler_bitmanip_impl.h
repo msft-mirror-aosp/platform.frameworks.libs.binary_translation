@@ -28,7 +28,7 @@ template <typename Assembler>
 template <typename IntType>
 constexpr void MacroAssembler<Assembler>::MacroClz(Register result, Register src) {
   Bsr<IntType>(result, src);
-  Cmov<IntType>(Condition::kZero, result, {.disp = constants_pool::kBsrToClz<IntType>});
+  Cmov<IntType>(Condition::kZero, result, {.disp = constants_offsets::kBsrToClz<IntType>});
   Xor<IntType>(result, sizeof(IntType) * CHAR_BIT - 1);
 }
 
@@ -36,7 +36,7 @@ template <typename Assembler>
 template <typename IntType>
 constexpr void MacroAssembler<Assembler>::MacroCtz(Register result, Register src) {
   Bsf<IntType>(result, src);
-  Cmov<IntType>(Condition::kZero, result, {.disp = constants_pool::kWidthInBits<IntType>});
+  Cmov<IntType>(Condition::kZero, result, {.disp = constants_offsets::kWidthInBits<IntType>});
 }
 
 template <typename Assembler>
@@ -65,13 +65,13 @@ constexpr void MacroAssembler<Assembler>::MacroMin(Register result, Register src
 
 template <typename Assembler>
 constexpr void MacroAssembler<Assembler>::MacroOrcb(XMMRegister result) {
-  Pcmpeqb(result, {.disp = constants_pool::kVectorConst<uint8_t{0}>});
+  Pcmpeqb(result, {.disp = constants_offsets::kVectorConst<uint8_t{0}>});
   PNot(result);
 }
 
 template <typename Assembler>
 constexpr void MacroAssembler<Assembler>::MacroOrcbAVX(XMMRegister result, XMMRegister src) {
-  Vpcmpeqb(result, src, {.disp = constants_pool::kVectorConst<uint8_t{0}>});
+  Vpcmpeqb(result, src, {.disp = constants_offsets::kVectorConst<uint8_t{0}>});
   Vpnot(result, result);
 }
 
