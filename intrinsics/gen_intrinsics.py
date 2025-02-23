@@ -828,7 +828,7 @@ Once we can use C++23, these can be declared locally in ProcessAllBindings.*/"""
 template <typename MacroAssembler,
           typename Callback,
           typename... Args>
-void ProcessAllBindings([[maybe_unused]] Callback callback,
+constexpr void ProcessAllBindings([[maybe_unused]] Callback callback,
                         [[maybe_unused]] Args&&... args) {
   using namespace process_all_bindings_strings;""",
     file=f)
@@ -915,7 +915,7 @@ template <auto kFunc,
           typename Result,
           typename Callback,
           typename... Args>
-Result ProcessBindings(Callback callback, Result def_result, Args&&... args) {
+constexpr Result ProcessBindings(Callback callback, Result def_result, Args&&... args) {
   using namespace process_bindings_strings;""",
     file=f)
   for line in callback_lines:
