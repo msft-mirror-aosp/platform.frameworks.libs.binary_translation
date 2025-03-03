@@ -140,7 +140,12 @@ class VerifierAssembler {
   class SIMDRegister {
    public:
     friend class SIMDRegister<384 - kBits>;
-    constexpr SIMDRegister(int arg_no) : arg_no_(arg_no) {}
+    constexpr SIMDRegister(int arg_no)
+        : arg_no_(arg_no), binding_kind_(intrinsics::bindings::kUndefined) {}
+
+    constexpr SIMDRegister(int arg_no, intrinsics::bindings::RegBindingKind binding_kind)
+        : arg_no_(arg_no), binding_kind_(binding_kind) {}
+
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
@@ -154,10 +159,14 @@ class VerifierAssembler {
     }
 
     constexpr auto To128Bit() const {
-      return std::enable_if_t<kBits != 128, SIMDRegister<128>>{arg_no_};
+      return std::enable_if_t<kBits != 128, SIMDRegister<128>>{arg_no_, binding_kind_};
     }
     constexpr auto To256Bit() const {
-      return std::enable_if_t<kBits != 256, SIMDRegister<256>>{arg_no_};
+      return std::enable_if_t<kBits != 256, SIMDRegister<256>>{arg_no_, binding_kind_};
+    }
+
+    constexpr intrinsics::bindings::RegBindingKind get_binding_kind() const {
+      return binding_kind_;
     }
 
    private:
@@ -167,10 +176,13 @@ class VerifierAssembler {
     // Default value (-1) means it's not assigned yet (thus couldn't be used).
     static constexpr int kNoRegister = -1;
     int arg_no_;
+    intrinsics::bindings::RegBindingKind binding_kind_;
   };
 
   using XMMRegister = SIMDRegister<128>;
   using YMMRegister = SIMDRegister<256>;
+
+  using XRegister = XMMRegister;
 
   struct Operand {
     Register base = Register{Register::kNoRegister};
@@ -241,6 +253,14 @@ class VerifierAssembler {
       }
     }
 
+    constexpr void CheckValidXMMRegisterUse() {
+      if (intrinsic_defined_def_xmm_register) {
+        printf(
+            "error: intrinsic used a 'use' xmm register after writing to a 'def' xmm  "
+            "register\n");
+      }
+    }
+
     constexpr void UpdateIntrinsicRegisterDef(bool is_fixed) {
       if (is_fixed) {
         intrinsic_defined_def_fixed_register = true;
@@ -249,9 +269,13 @@ class VerifierAssembler {
       }
     }
 
+    constexpr void UpdateIntrinsicXMMRegisterDef() { intrinsic_defined_def_xmm_register = true; }
+
    private:
     bool intrinsic_defined_def_general_register = false;
     bool intrinsic_defined_def_fixed_register = false;
+
+    bool intrinsic_defined_def_xmm_register = false;
   };
 
   RegisterUsageFlags register_usage_flags;
@@ -513,12 +537,27 @@ class VerifierAssembler {
     }
   }
 
+  constexpr void RegisterDef(XMMRegister reg) {
+    if (reg.get_binding_kind() == intrinsics::bindings::kDef) {
+      register_usage_flags.UpdateIntrinsicXMMRegisterDef();
+    }
+  }
+
   constexpr void RegisterUse(Register reg) {
     if (intrinsic_is_non_linear) {
       return;
     }
     if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
       register_usage_flags.CheckValidRegisterUse(RegisterIsFixed(reg));
+    }
+  }
+
+  constexpr void RegisterUse(XMMRegister reg) {
+    if (intrinsic_is_non_linear) {
+      return;
+    }
+    if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
+      register_usage_flags.CheckValidXMMRegisterUse();
     }
   }
 
