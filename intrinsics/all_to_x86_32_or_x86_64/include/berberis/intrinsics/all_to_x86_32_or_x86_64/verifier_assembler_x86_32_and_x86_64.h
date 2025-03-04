@@ -451,19 +451,6 @@ class VerifierAssembler {
 
   constexpr void SetDefinesFLAGS() { defines_flags = true; }
 
-  template <typename... Args>
-  constexpr void Instruction(const char* name, Condition cond, const Args&... args);
-
-  template <typename... Args>
-  constexpr void Instruction(const char* name, const Args&... args);
-
-  void EmitString() {}
-
-  void EmitString([[maybe_unused]] const std::string& s) {}
-
-  template <typename... Args>
-  void EmitString([[maybe_unused]] const std::string& s, [[maybe_unused]] const Args&... args) {}
-
  private:
   Label label_;
 
@@ -472,19 +459,6 @@ class VerifierAssembler {
   void operator=(const VerifierAssembler&) = delete;
   void operator=(VerifierAssembler&&) = delete;
 };
-
-template <typename DerivedAssemblerType>
-template <typename... Args>
-constexpr void VerifierAssembler<DerivedAssemblerType>::Instruction(
-    [[maybe_unused]] const char* name,
-    [[maybe_unused]] Condition cond,
-    [[maybe_unused]] const Args&... args) {}
-
-template <typename DerivedAssemblerType>
-template <typename... Args>
-constexpr void VerifierAssembler<DerivedAssemblerType>::Instruction(
-    [[maybe_unused]] const char* name,
-    [[maybe_unused]] const Args&... args) {}
 
 }  // namespace x86_32_and_x86_64
 

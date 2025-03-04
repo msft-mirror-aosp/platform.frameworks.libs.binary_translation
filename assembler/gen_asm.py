@@ -102,7 +102,7 @@ def _get_params(insn, filter=None):
       continue
     if filter is not None and filter(arg):
       continue
-    result.append("%s arg%d" % (
+    result.append("[[maybe_unused]] %s arg%d" % (
       _get_arg_type_name(arg, insn.get('type', None)), arg_count))
     arg_count += 1
   return ', '.join(result)
@@ -223,9 +223,6 @@ def _gen_generic_functions_h(f, insns, arch, assembler_mode):
         if arg["class"] == "FLAGS":
           print('  SetDefinesFLAGS();', file=f)
           break
-      print('  Instruction(%s);' % ', '.join(
-          ['"%s"' % insn.get('native-asm', name)] +
-          list(_gen_instruction_args(insn, arch))), file=f)
       print('}', file=f)
 
 def _gen_instruction_args(insn, arch):
