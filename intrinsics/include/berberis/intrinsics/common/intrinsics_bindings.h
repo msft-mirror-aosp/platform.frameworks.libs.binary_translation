@@ -201,6 +201,18 @@ constexpr void AssignRegisterNumbers(int* register_numbers) {
   });
 }
 
+template <typename AsmCallInfo>
+constexpr void CheckIntrinsicHasFlagsBinding(bool& expect_flags) {
+  AsmCallInfo::ProcessBindings([&expect_flags](auto arg) {
+    if constexpr (!IsImmediate(decltype(arg)::arg_info)) {
+      using RegisterClass = typename decltype(arg)::RegisterClass;
+      if constexpr (std::is_same_v<RegisterClass, intrinsics::bindings::FLAGS>) {
+        expect_flags = true;
+      }
+    }
+  });
+}
+
 template <typename AsmCallInfo, typename AssemblerType>
 constexpr void CallAssembler(AssemblerType* as, int* register_numbers) {
   int arg_counter = 0;

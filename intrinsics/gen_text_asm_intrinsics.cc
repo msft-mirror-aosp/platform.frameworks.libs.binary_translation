@@ -462,6 +462,12 @@ constexpr void VerifyIntrinsic() {
   CallAssembler<AsmCallInfo, MacroAssembler<VerifierAssembler>>(&as, register_numbers);
   // Verify CPU vendor and SSE restrictions.
   as.CheckCPUIDRestriction<typename AsmCallInfo::CPUIDRestriction>();
+
+  // Verify that intrinsic's bindings correctly states that intrinsic uses/doesn't use FLAGS
+  // register.
+  bool expect_flags = false;
+  CheckIntrinsicHasFlagsBinding<AsmCallInfo>(expect_flags);
+  as.CheckFlagsBinding(expect_flags);
 }
 
 constexpr bool VerifyTextAsmIntrinsics() {
