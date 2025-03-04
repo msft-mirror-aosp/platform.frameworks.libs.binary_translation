@@ -102,7 +102,7 @@ def _get_params(insn, filter=None):
       continue
     if filter is not None and filter(arg):
       continue
-    result.append("%s arg%d" % (
+    result.append("[[maybe_unused]] %s arg%d" % (
       _get_arg_type_name(arg, insn.get('type', None)), arg_count))
     arg_count += 1
   return ', '.join(result)
@@ -121,6 +121,20 @@ def _get_template_name(insn):
       'bool' if param.strip() in ('true', 'false') else
       'typename' if re.search('[_a-zA-Z]', param) else 'int'
       for param in name.split('<',1)[1][:-1].split(',')), name.split('<')[0]
+
+def _gen_register_read_write_info(insn, arch):
+  # Process register uses before register defs. This ensures valid register uses are verified
+  # against register definitions that occurred only before the current instruction.
+  for usage in ('use', 'def'):
+    arg_count = 0
+    for arg in insn.get('args'):
+      if asm_defs.is_implicit_reg(arg.get('class')):
+        continue
+      if (_get_arg_type_name(arg, insn.get('type', None)) == 'Register'
+          and 'x86' in arch):
+        if arg.get('usage') == usage or arg.get('usage') == "use_def":
+          yield '  Register%s(arg%d);' % (usage.capitalize(), arg_count)
+      arg_count += 1
 
 
 def _gen_generic_functions_h(f, insns, arch, assembler_mode):
@@ -223,10 +237,10 @@ def _gen_generic_functions_h(f, insns, arch, assembler_mode):
         if arg["class"] == "FLAGS":
           print('  SetDefinesFLAGS();', file=f)
           break
-      print('  Instruction(%s);' % ', '.join(
-          ['"%s"' % insn.get('native-asm', name)] +
-          list(_gen_instruction_args(insn, arch))), file=f)
+      for register_read_write in _gen_register_read_write_info(insn, arch):
+        print(register_read_write, file=f)
       print('}', file=f)
+
 
 def _gen_instruction_args(insn, arch):
   arg_count = 0
