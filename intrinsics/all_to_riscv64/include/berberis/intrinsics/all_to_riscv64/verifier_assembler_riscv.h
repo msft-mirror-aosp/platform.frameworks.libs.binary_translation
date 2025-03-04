@@ -27,6 +27,7 @@
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/all_to_riscv64/intrinsics_bindings.h"
+#include "berberis/intrinsics/common/intrinsics_bindings.h"
 
 namespace berberis {
 
@@ -51,6 +52,10 @@ class VerifierAssembler {
    public:
     constexpr Register() : arg_no_(kNoRegister) {}
     constexpr Register(int arg_no) : arg_no_(arg_no) {}
+    constexpr Register(int arg_no,
+                       [[maybe_unused]] intrinsics::bindings::RegBindingKind binding_kind)
+        : arg_no_(arg_no) {}
+
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
@@ -100,7 +105,6 @@ class VerifierAssembler {
     RegisterType base{0};
     ImmediateType disp = 0;
   };
-
   using BImmediate = riscv::BImmediate;
   using CsrImmediate = riscv::CsrImmediate;
   using IImmediate = riscv::IImmediate;
@@ -196,6 +200,12 @@ class VerifierAssembler {
 
   bool need_gpr_macroassembler_constants_ = false;
   bool need_gpr_macroassembler_scratch_ = false;
+
+  template <typename Arg>
+  constexpr void RegisterDef([[maybe_unused]] Arg reg) {}
+
+  template <typename Arg>
+  constexpr void RegisterUse([[maybe_unused]] Arg reg) {}
 
  private:
   Label label_;
