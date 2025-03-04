@@ -125,12 +125,13 @@ def _get_template_name(insn):
 def _gen_register_read_write_info(insn, arch):
   # Process register uses before register defs. This ensures valid register uses are verified
   # against register definitions that occurred only before the current instruction.
+  register_types_to_gen = ['Register', 'XMMRegister']
   for usage in ('use', 'def'):
     arg_count = 0
     for arg in insn.get('args'):
       if asm_defs.is_implicit_reg(arg.get('class')):
         continue
-      if (_get_arg_type_name(arg, insn.get('type', None)) == 'Register'
+      if (_get_arg_type_name(arg, insn.get('type', None)) in register_types_to_gen
           and 'x86' in arch):
         if arg.get('usage') == usage or arg.get('usage') == "use_def":
           yield '  Register%s(arg%d);' % (usage.capitalize(), arg_count)

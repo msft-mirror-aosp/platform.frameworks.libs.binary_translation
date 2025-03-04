@@ -105,6 +105,7 @@ class VerifierAssembler {
     RegisterType base{0};
     ImmediateType disp = 0;
   };
+
   using BImmediate = riscv::BImmediate;
   using CsrImmediate = riscv::CsrImmediate;
   using IImmediate = riscv::IImmediate;
@@ -115,6 +116,8 @@ class VerifierAssembler {
   using PImmediate = riscv::PImmediate;
   using SImmediate = riscv::SImmediate;
   using UImmediate = riscv::UImmediate;
+
+  using XRegister = Register;
 
   constexpr VerifierAssembler() {}
 
@@ -138,6 +141,7 @@ class VerifierAssembler {
       LOG_ALWAYS_FATAL("Registers of the class “%c” don't exist on RISC-V", kConstraint);
     }
   };
+
   UnsupportedRegister<'a'> gpr_a;
   UnsupportedRegister<'b'> gpr_b;
   UnsupportedRegister<'c'> gpr_c;
