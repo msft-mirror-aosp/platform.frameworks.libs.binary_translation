@@ -382,8 +382,13 @@ constexpr void CallVerifierAssembler(AssemblerType* as, int* register_numbers) {
                         register_numbers[arg_counter++],
                         intrinsics::bindings::ToRegKind<typename decltype(arg)::Usage,
                                                         intrinsics::bindings::RegBindingKind>())};
+                  } else if constexpr (RegisterClass::kAsRegister == 'x') {
+                    return std::tuple{typename AssemblerType::XRegister(
+                        register_numbers[arg_counter++],
+                        intrinsics::bindings::ToRegKind<typename decltype(arg)::Usage,
+                                                        intrinsics::bindings::RegBindingKind>())};
                   } else {
-                    return std::tuple{register_numbers[arg_counter++]};
+                    static_assert(kDependentValueFalse<RegisterClass::kAsRegister>);
                   }
                 }
               } else {
