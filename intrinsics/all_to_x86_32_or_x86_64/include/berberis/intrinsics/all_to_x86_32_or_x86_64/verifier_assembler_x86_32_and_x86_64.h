@@ -214,6 +214,8 @@ class VerifierAssembler {
   bool need_vpclmulqd = false;
   bool has_custom_capability = false;
 
+  bool defines_flags = false;
+
   constexpr void Bind([[maybe_unused]] Label* label) {}
 
   // Currently label_ is meaningless. Verifier assembler does not yet have a need for it.
@@ -325,6 +327,12 @@ class VerifierAssembler {
     }
     if (expect_vpclmulqd != need_vpclmulqd) {
       printf("error: expect_vpclmulqd != need_vpclmulqd\n");
+    }
+  }
+
+  constexpr void CheckFlagsBinding(bool expect_flags) {
+    if (expect_flags != defines_flags) {
+      printf("error: expect_flags != defines_flags\n");
     }
   }
 
@@ -440,6 +448,8 @@ class VerifierAssembler {
   }
 
   constexpr void SetHasCustomCapability() { has_custom_capability = true; }
+
+  constexpr void SetDefinesFLAGS() { defines_flags = true; }
 
   template <typename... Args>
   constexpr void Instruction(const char* name, Condition cond, const Args&... args);

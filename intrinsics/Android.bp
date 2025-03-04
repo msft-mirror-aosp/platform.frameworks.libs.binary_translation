@@ -89,7 +89,7 @@ genrule {
     ],
     srcs: [":libberberis_assembler_gen_inputs_riscv64"],
     tools: ["gen_asm"],
-    cmd: "$(location gen_asm) --text-assembler $(out) $(in)",
+    cmd: "$(location gen_asm) --verifier-assembler $(out) $(in)",
 }
 
 genrule {
@@ -100,7 +100,7 @@ genrule {
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_32"],
     tools: ["gen_asm"],
-    cmd: "$(location gen_asm) --text-assembler $(out) $(in)",
+    cmd: "$(location gen_asm) --verifier-assembler $(out) $(in)",
 }
 
 genrule {
@@ -111,7 +111,7 @@ genrule {
     ],
     srcs: [":libberberis_assembler_gen_inputs_x86_64"],
     tools: ["gen_asm"],
-    cmd: "$(location gen_asm) --text-assembler $(out) $(in)",
+    cmd: "$(location gen_asm) --verifier-assembler $(out) $(in)",
 }
 
 filegroup {
