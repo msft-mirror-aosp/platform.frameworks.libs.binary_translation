@@ -459,7 +459,7 @@ constexpr void VerifyIntrinsic() {
                            : std::tuple_size_v<typename AsmCallInfo::Bindings>];
   AssignRegisterNumbers<AsmCallInfo>(register_numbers);
   MacroAssembler<VerifierAssembler> as;
-  CallAssembler<AsmCallInfo, MacroAssembler<VerifierAssembler>>(&as, register_numbers);
+  CallVerifierAssembler<AsmCallInfo, MacroAssembler<VerifierAssembler>>(&as, register_numbers);
   // Verify CPU vendor and SSE restrictions.
   as.CheckCPUIDRestriction<typename AsmCallInfo::CPUIDRestriction>();
 
