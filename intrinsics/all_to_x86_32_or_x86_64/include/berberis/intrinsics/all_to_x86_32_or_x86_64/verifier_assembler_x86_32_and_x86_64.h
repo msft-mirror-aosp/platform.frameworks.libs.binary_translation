@@ -26,6 +26,7 @@
 #include "berberis/base/config.h"
 #include "berberis/base/dependent_false.h"
 #include "berberis/intrinsics/all_to_x86_32_or_x86_64/intrinsics_bindings.h"
+#include "berberis/intrinsics/common/intrinsics_bindings.h"
 
 namespace berberis {
 
@@ -80,11 +81,17 @@ class VerifierAssembler {
 
   class Register {
    public:
-    constexpr Register(int arg_no) : arg_no_(arg_no) {}
+    constexpr Register(int arg_no)
+        : arg_no_(arg_no), binding_kind_(intrinsics::bindings::kUndefined) {}
+    constexpr Register(int arg_no, intrinsics::bindings::RegBindingKind binding_kind)
+        : arg_no_(arg_no), binding_kind_(binding_kind) {}
+
     constexpr int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
+
+    constexpr bool register_initialised() const { return (arg_no_ != kNoRegister); }
 
     constexpr bool operator==(const Register& other) const { return arg_no() == other.arg_no(); }
     constexpr bool operator!=(const Register& other) const { return arg_no() != other.arg_no(); }
@@ -94,6 +101,10 @@ class VerifierAssembler {
     // Used in Operand to deal with references to scratch area.
     static constexpr int kScratchPointer = -3;
 
+    constexpr intrinsics::bindings::RegBindingKind get_binding_kind() const {
+      return binding_kind_;
+    }
+
    private:
     friend struct Operand;
 
@@ -102,6 +113,7 @@ class VerifierAssembler {
     //
     // Default value (-1) means it's not assigned yet (thus couldn't be used).
     int arg_no_;
+    intrinsics::bindings::RegBindingKind binding_kind_;
   };
 
   class X87Register {
@@ -128,7 +140,12 @@ class VerifierAssembler {
   class SIMDRegister {
    public:
     friend class SIMDRegister<384 - kBits>;
-    constexpr SIMDRegister(int arg_no) : arg_no_(arg_no) {}
+    constexpr SIMDRegister(int arg_no)
+        : arg_no_(arg_no), binding_kind_(intrinsics::bindings::kUndefined) {}
+
+    constexpr SIMDRegister(int arg_no, intrinsics::bindings::RegBindingKind binding_kind)
+        : arg_no_(arg_no), binding_kind_(binding_kind) {}
+
     int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
@@ -142,10 +159,14 @@ class VerifierAssembler {
     }
 
     constexpr auto To128Bit() const {
-      return std::enable_if_t<kBits != 128, SIMDRegister<128>>{arg_no_};
+      return std::enable_if_t<kBits != 128, SIMDRegister<128>>{arg_no_, binding_kind_};
     }
     constexpr auto To256Bit() const {
-      return std::enable_if_t<kBits != 256, SIMDRegister<256>>{arg_no_};
+      return std::enable_if_t<kBits != 256, SIMDRegister<256>>{arg_no_, binding_kind_};
+    }
+
+    constexpr intrinsics::bindings::RegBindingKind get_binding_kind() const {
+      return binding_kind_;
     }
 
    private:
@@ -155,10 +176,13 @@ class VerifierAssembler {
     // Default value (-1) means it's not assigned yet (thus couldn't be used).
     static constexpr int kNoRegister = -1;
     int arg_no_;
+    intrinsics::bindings::RegBindingKind binding_kind_;
   };
 
   using XMMRegister = SIMDRegister<128>;
   using YMMRegister = SIMDRegister<256>;
+
+  using XRegister = XMMRegister;
 
   struct Operand {
     Register base = Register{Register::kNoRegister};
@@ -214,7 +238,49 @@ class VerifierAssembler {
   bool need_vpclmulqd = false;
   bool has_custom_capability = false;
 
-  constexpr void Bind([[maybe_unused]] Label* label) {}
+  bool defines_flags = false;
+
+  bool intrinsic_is_non_linear = false;
+
+  class RegisterUsageFlags {
+   public:
+    constexpr void CheckValidRegisterUse(bool is_fixed) {
+      if (intrinsic_defined_def_general_register ||
+          (intrinsic_defined_def_fixed_register && !is_fixed)) {
+        printf(
+            "error: intrinsic used a 'use' general register after writing to a 'def' general  "
+            "register\n");
+      }
+    }
+
+    constexpr void CheckValidXMMRegisterUse() {
+      if (intrinsic_defined_def_xmm_register) {
+        printf(
+            "error: intrinsic used a 'use' xmm register after writing to a 'def' xmm  "
+            "register\n");
+      }
+    }
+
+    constexpr void UpdateIntrinsicRegisterDef(bool is_fixed) {
+      if (is_fixed) {
+        intrinsic_defined_def_fixed_register = true;
+      } else {
+        intrinsic_defined_def_general_register = true;
+      }
+    }
+
+    constexpr void UpdateIntrinsicXMMRegisterDef() { intrinsic_defined_def_xmm_register = true; }
+
+   private:
+    bool intrinsic_defined_def_general_register = false;
+    bool intrinsic_defined_def_fixed_register = false;
+
+    bool intrinsic_defined_def_xmm_register = false;
+  };
+
+  RegisterUsageFlags register_usage_flags;
+
+  constexpr void Bind([[maybe_unused]] Label* label) { intrinsic_is_non_linear = true; }
 
   // Currently label_ is meaningless. Verifier assembler does not yet have a need for it.
   constexpr Label* MakeLabel() { return &label_; }
@@ -325,6 +391,12 @@ class VerifierAssembler {
     }
     if (expect_vpclmulqd != need_vpclmulqd) {
       printf("error: expect_vpclmulqd != need_vpclmulqd\n");
+    }
+  }
+
+  constexpr void CheckFlagsBinding(bool expect_flags) {
+    if (expect_flags != defines_flags) {
+      printf("error: expect_flags != defines_flags\n");
     }
   }
 
@@ -441,18 +513,53 @@ class VerifierAssembler {
 
   constexpr void SetHasCustomCapability() { has_custom_capability = true; }
 
-  template <typename... Args>
-  constexpr void Instruction(const char* name, Condition cond, const Args&... args);
+  constexpr void SetDefinesFLAGS() { defines_flags = true; }
 
-  template <typename... Args>
-  constexpr void Instruction(const char* name, const Args&... args);
+  constexpr bool RegisterIsFixed(Register reg) {
+    if (gpr_a.register_initialised()) {
+      if (reg == gpr_a) return true;
+    }
+    if (gpr_b.register_initialised()) {
+      if (reg == gpr_b) return true;
+    }
+    if (gpr_c.register_initialised()) {
+      if (reg == gpr_c) return true;
+    }
+    if (gpr_d.register_initialised()) {
+      if (reg == gpr_d) return true;
+    }
+    return false;
+  }
 
-  void EmitString() {}
+  constexpr void RegisterDef(Register reg) {
+    if (reg.get_binding_kind() == intrinsics::bindings::kDef) {
+      register_usage_flags.UpdateIntrinsicRegisterDef(RegisterIsFixed(reg));
+    }
+  }
 
-  void EmitString([[maybe_unused]] const std::string& s) {}
+  constexpr void RegisterDef(XMMRegister reg) {
+    if (reg.get_binding_kind() == intrinsics::bindings::kDef) {
+      register_usage_flags.UpdateIntrinsicXMMRegisterDef();
+    }
+  }
 
-  template <typename... Args>
-  void EmitString([[maybe_unused]] const std::string& s, [[maybe_unused]] const Args&... args) {}
+  constexpr void RegisterUse(Register reg) {
+    if (intrinsic_is_non_linear) {
+      return;
+    }
+    if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
+      register_usage_flags.CheckValidRegisterUse(RegisterIsFixed(reg));
+    }
+  }
+
+  constexpr void RegisterUse(XMMRegister reg) {
+    if (intrinsic_is_non_linear) {
+      return;
+    }
+    if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
+      register_usage_flags.CheckValidXMMRegisterUse();
+    }
+  }
 
  private:
   Label label_;
@@ -462,19 +569,6 @@ class VerifierAssembler {
   void operator=(const VerifierAssembler&) = delete;
   void operator=(VerifierAssembler&&) = delete;
 };
-
-template <typename DerivedAssemblerType>
-template <typename... Args>
-constexpr void VerifierAssembler<DerivedAssemblerType>::Instruction(
-    [[maybe_unused]] const char* name,
-    [[maybe_unused]] Condition cond,
-    [[maybe_unused]] const Args&... args) {}
-
-template <typename DerivedAssemblerType>
-template <typename... Args>
-constexpr void VerifierAssembler<DerivedAssemblerType>::Instruction(
-    [[maybe_unused]] const char* name,
-    [[maybe_unused]] const Args&... args) {}
 
 }  // namespace x86_32_and_x86_64
 
