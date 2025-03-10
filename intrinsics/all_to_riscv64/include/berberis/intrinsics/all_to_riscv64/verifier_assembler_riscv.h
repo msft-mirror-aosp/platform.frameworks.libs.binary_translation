@@ -127,6 +127,8 @@ class VerifierAssembler {
 
   constexpr void CheckFlagsBinding([[maybe_unused]] bool expect_flags) {}
 
+  constexpr void CheckAppropriateDefEarlyClobbers() {}
+
   // Translate CPU restrictions into string.
   template <typename CPUIDRestriction>
   static constexpr const char* kCPUIDRestrictionString =
