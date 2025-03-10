@@ -100,15 +100,15 @@ constexpr EnumFromTemplateType TypeToEnumFromTemplateType() {
   } else if constexpr (std::is_same_v<uint8_t, std::decay_t<Type>>) {
     return EnumFromTemplateType::kUInt8T;
   } else if constexpr (std::is_same_v<int16_t, std::decay_t<Type>>) {
-    return EnumFromTemplateType::kUInt16T;
+    return EnumFromTemplateType::kInt16T;
   } else if constexpr (std::is_same_v<uint16_t, std::decay_t<Type>>) {
     return EnumFromTemplateType::kUInt16T;
   } else if constexpr (std::is_same_v<int32_t, std::decay_t<Type>>) {
-    return EnumFromTemplateType::kUInt32T;
+    return EnumFromTemplateType::kInt32T;
   } else if constexpr (std::is_same_v<uint32_t, std::decay_t<Type>>) {
     return EnumFromTemplateType::kUInt32T;
   } else if constexpr (std::is_same_v<int64_t, std::decay_t<Type>>) {
-    return EnumFromTemplateType::kUInt64T;
+    return EnumFromTemplateType::kInt64T;
   } else if constexpr (std::is_same_v<uint64_t, std::decay_t<Type>>) {
     return EnumFromTemplateType::kUInt64T;
   } else if constexpr (std::is_same_v<Float16, std::decay_t<Type>>) {
