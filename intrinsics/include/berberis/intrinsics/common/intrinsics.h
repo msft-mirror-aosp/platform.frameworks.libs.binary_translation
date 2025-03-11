@@ -49,16 +49,10 @@ constexpr EnumFromTemplateType EnumFromTemplateTypeToFloat(EnumFromTemplateType 
   return EnumFromTemplateType{static_cast<uint8_t>((value & 0x6) + 8)};
 }
 
-template <EnumFromTemplateType kValue>
-EnumFromTemplateType kFloat = EnumFromTemplateTypeToFloat(kValue);
-
 constexpr EnumFromTemplateType EnumFromTemplateTypeToInt(EnumFromTemplateType value) {
   DCHECK((value >= kFloat16 && value <= kFloat64) && !(value & 1));
   return EnumFromTemplateType{static_cast<uint8_t>(value - 8)};
 }
-
-template <EnumFromTemplateType kValue>
-EnumFromTemplateType kInt = EnumFromTemplateTypeToInt(kValue);
 
 constexpr EnumFromTemplateType EnumFromTemplateTypeToNarrow(EnumFromTemplateType value) {
   DCHECK((value >= kUInt16T && value <= kInt64T) ||
@@ -66,32 +60,27 @@ constexpr EnumFromTemplateType EnumFromTemplateTypeToNarrow(EnumFromTemplateType
   return EnumFromTemplateType{static_cast<uint8_t>(value - 2)};
 }
 
-template <EnumFromTemplateType kValue>
-EnumFromTemplateType kNarrow = EnumFromTemplateTypeToNarrow(kValue);
-
 constexpr EnumFromTemplateType EnumFromTemplateTypeToSigned(EnumFromTemplateType value) {
   DCHECK(value <= kInt64T);
   return EnumFromTemplateType{static_cast<uint8_t>(value | 1)};
 }
 
-template <EnumFromTemplateType kValue>
-EnumFromTemplateType kSigned = EnumFromTemplateTypeToSigned(kValue);
+constexpr int EnumFromTemplateTypeSizeOf(EnumFromTemplateType value) {
+  if (value == kSIMD128Register) {
+    return 16;
+  }
+  return 1 << ((value & 0b110) >> 1);
+}
 
 constexpr EnumFromTemplateType EnumFromTemplateTypeToUnsigned(EnumFromTemplateType value) {
   DCHECK(value <= kInt64T);
   return EnumFromTemplateType{static_cast<uint8_t>(value & ~1)};
 }
 
-template <EnumFromTemplateType kValue>
-EnumFromTemplateType kUnsigned = EnumFromTemplateTypeToUnsigned(kValue);
-
 constexpr EnumFromTemplateType EnumFromTemplateTypeToWide(EnumFromTemplateType value) {
   DCHECK(value <= kInt32T || ((value >= kFloat16 && value <= kFloat32) && !(value & 1)));
   return EnumFromTemplateType{static_cast<uint8_t>(value + 2)};
 }
-
-template <EnumFromTemplateType kValue>
-EnumFromTemplateType kWide = EnumFromTemplateTypeToWide(kValue);
 
 template <typename Type>
 constexpr EnumFromTemplateType TypeToEnumFromTemplateType() {
