@@ -183,12 +183,12 @@ def _gen_template_intr_decl(f, name, intr):
   comment = intr.get('comment')
   if comment:
     print('// %s.' % (comment), file=f)
-  print('template <%s>' % _get_template_arguments(
+  print('template <%s>' % _get_template_parameters(
       intr.get('variants'), intr.get('precise_nans', False)), file=f)
   print('%s %s(%s);' % (retval, name, ', '.join(params)), file=f)
 
 
-def _get_template_arguments(
+def _get_template_parameters(
     variants,
     precise_nans = False,
     extra = ['enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible']):
@@ -223,15 +223,15 @@ def _gen_vector_intr_decl(f, name, intr):
   if comment:
     print('// %s.' % (comment), file=f)
   if intr.get('precise_nans', False):
-    template_arguments = 'bool precise_nan_operations_handling, '
+    template_parameters = 'bool precise_nan_operations_handling, '
   else:
-    template_arguments = ''
+    template_parameters = ''
   if not 'raw' in intr['variants']:
-    template_arguments += 'typename Type, '
-  template_arguments += 'int size, '
-  template_arguments += 'enum PreferredIntrinsicsImplementation'
-  template_arguments += ' = kUseAssemblerImplementationIfPossible'
-  print('template <%s>' % template_arguments, file=f)
+    template_parameters += 'typename Type, '
+  template_parameters += 'int size, '
+  template_parameters += 'enum PreferredIntrinsicsImplementation'
+  template_parameters += ' = kUseAssemblerImplementationIfPossible'
+  print('template <%s>' % template_parameters, file=f)
   print('%s %s(%s);' % (retval, name, ', '.join(params)), file=f)
 
 
@@ -286,7 +286,7 @@ def _get_semantics_player_hook_proto(name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
   if intr.get('class') == 'template':
     return 'template<%s>\n%s %s(%s)' % (
-      _get_template_arguments(intr.get('variants'), False, []), result, name, args)
+      _get_template_parameters(intr.get('variants'), extra = []), result, name, args)
   return '%s %s(%s)' % (result, name, args)
 
 
@@ -438,6 +438,8 @@ def _gen_interpreter_hook(f, name, intr, option):
     lines = [INDENT + l for l in lines]
     print('\n'.join(lines), file=f)
   else:
+    if intr.get('class') == 'template':
+      _gen_template_parameters_verifier(f, intr)
     # TODO(b/363057506): Add float support and clean up the logic here.
     arm64_allowlist = ['AmoAdd', 'AmoAnd', 'AmoMax', 'AmoMin', 'AmoOr', 'AmoSwap', 'AmoXor', 'Bclr',
                        'Bclri', 'Bext', 'Bexti', 'Binv', 'Binvi', 'Bset', 'Bseti', 'Div', 'Max',
@@ -482,6 +484,8 @@ def _gen_translator_hook(f, name, intr):
     lines = [INDENT + l for l in lines]
     print('\n'.join(lines), file=f)
   else:
+    if intr.get('class') == 'template':
+      _gen_template_parameters_verifier(f, intr)
     print(INDENT + _get_translator_hook_return_stmt(name, intr), file=f)
 
   print('}\n', file=f)
@@ -490,26 +494,45 @@ def _gen_translator_hook(f, name, intr):
 def _gen_mock_semantics_listener_hook(f, name, intr):
   result, name, args = _get_semantics_player_hook_proto_components(name, intr)
   if intr.get('class') == 'template':
+    template_parameters = _get_template_parameters(
+      intr.get('variants'), extra = [])
+    arguments = ', '.join(
+       [('arg%d' % n) for n, _ in enumerate(intr['in'])] +
+       ['intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
+        for arg in _get_template_spec_arguments(intr.get('variants'))])
     print('template<%s>\n%s %s(%s) {\n  return %s(%s);\n}' % (
-      _get_template_arguments(intr.get('variants'), False, []),
-      result,
-      name,
-      args,
-      name,
-      ', '.join([
-        'intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
-        for arg in _get_template_spec_arguments(intr.get('variants'))] +
-      [('arg%d' % n) for n, _ in enumerate(intr['in'])])), file=f)
-    args = ', '.join([
-      '%s %s' % (
+      template_parameters, result, name, args, name, arguments), file=f)
+    args = ', '.join(
+      [args] +
+      ['%s %s' % (
           {
               'kBoo': 'bool',
               'kInt': 'int',
               'Type': 'intrinsics::EnumFromTemplateType'
           }[argument[0:4]],
           argument)
-      for argument in _get_template_spec_arguments(intr.get('variants'))] + [args])
+      for argument in _get_template_spec_arguments(intr.get('variants'))])
   print('MOCK_METHOD((%s), %s, (%s));' % (result, name, args), file=f)
+
+
+def _gen_template_parameters_verifier(f, intr):
+      received_params = ', '.join(
+        param
+          if not param.strip().startswith('Type') else
+        f'intrinsics::kEnumFromTemplateType<{param}>'
+        for param in _get_template_spec_arguments(intr.get('variants')))
+      print('%sstatic_assert(%s);' % (
+       INDENT,
+       ' || '.join(
+        'std::tuple{%s} == std::tuple{%s}' % (
+          received_params,
+          ', '.join(
+            param
+              if param.strip() in ['true', 'false'] + _ROUNDING_MODES or
+                 not re.search('[_a-zA-Z]', param) else
+            f'intrinsics::kEnumFromTemplateType<{param}>'
+            for param in variant.split(',')))
+         for variant in intr.get('variants'))), file=f)
 
 
 def _check_signed_variant(variant, desc):
