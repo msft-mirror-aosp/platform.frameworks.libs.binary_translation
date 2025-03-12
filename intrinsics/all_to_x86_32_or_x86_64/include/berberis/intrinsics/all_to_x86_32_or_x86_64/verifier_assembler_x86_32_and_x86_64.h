@@ -146,7 +146,7 @@ class VerifierAssembler {
     constexpr SIMDRegister(int arg_no, intrinsics::bindings::RegBindingKind binding_kind)
         : arg_no_(arg_no), binding_kind_(binding_kind) {}
 
-    int arg_no() const {
+    constexpr int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
@@ -281,6 +281,12 @@ class VerifierAssembler {
               "error: intrinsic never used a 'use' general/fixed register after writing to a "
               "'def_early_clobber' general register");
         }
+        if (intrinsic_defined_def_early_clobber_xmm_register[i] &&
+            !valid_def_early_clobber_register[i]) {
+          printf(
+              "error: intrinsic never used a 'use' xmm register after writing to a "
+              "'def_early_clobber' xmm register");
+        }
       }
     }
 
@@ -313,6 +319,18 @@ class VerifierAssembler {
 
     constexpr void UpdateIntrinsicXMMRegisterDef() { intrinsic_defined_def_xmm_register = true; }
 
+    constexpr void UpdateIntrinsicXMMRegisterDefEarlyClobber(int reg_arg_no) {
+      intrinsic_defined_def_early_clobber_xmm_register[reg_arg_no] = true;
+    }
+
+    constexpr void UpdateIntrinsicXMMRegisterUse() {
+      for (int i = 0; i < kMaxRegisters; i++) {
+        if (intrinsic_defined_def_early_clobber_xmm_register[i]) {
+          valid_def_early_clobber_register[i] = true;
+        }
+      }
+    }
+
    private:
     bool intrinsic_defined_def_general_register = false;
     bool intrinsic_defined_def_fixed_register = false;
@@ -320,6 +338,7 @@ class VerifierAssembler {
 
     bool intrinsic_defined_def_early_clobber_fixed_register[kMaxRegisters] = {};
     bool intrinsic_defined_def_early_clobber_general_register[kMaxRegisters] = {};
+    bool intrinsic_defined_def_early_clobber_xmm_register[kMaxRegisters] = {};
 
     bool valid_def_early_clobber_register[kMaxRegisters] = {};
   };
@@ -596,6 +615,8 @@ class VerifierAssembler {
   constexpr void RegisterDef(XMMRegister reg) {
     if (reg.get_binding_kind() == intrinsics::bindings::kDef) {
       register_usage_flags.UpdateIntrinsicXMMRegisterDef();
+    } else if (reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
+      register_usage_flags.UpdateIntrinsicXMMRegisterDefEarlyClobber(reg.arg_no());
     }
   }
 
@@ -615,6 +636,7 @@ class VerifierAssembler {
     }
     if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
       register_usage_flags.CheckValidXMMRegisterUse();
+      register_usage_flags.UpdateIntrinsicXMMRegisterUse();
     }
   }
 
