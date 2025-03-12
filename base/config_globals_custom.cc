@@ -43,6 +43,10 @@ std::string ToString(ConfigFlag flag) {
       return "enable-disjoint-regions-translation";
     case kDisableIntrinsicInlining:
       return "disable-intrinsic-inlining";
+    case kPrintTranslatedAddrs:
+      return "print-translated-addrs";
+    case kPrintIRs:
+      return "print-irs";
     case kLocalExperiment:
       return "local-experiment";
     case kPlatformCustomCPUCapability:
