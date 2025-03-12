@@ -117,7 +117,7 @@ constexpr EnumFromTemplateType TypeToEnumFromTemplateType() {
     return EnumFromTemplateType::kFloat32;
   } else if constexpr (std::is_same_v<Float64, std::decay_t<Type>>) {
     return EnumFromTemplateType::kFloat64;
-  } else if constexpr (std::is_same_v<Float64, std::decay_t<Type>>) {
+  } else if constexpr (std::is_same_v<SIMD128Register, std::decay_t<Type>>) {
     return EnumFromTemplateType::kSIMD128Register;
   } else {
     static_assert(kDependentTypeFalse<Type>);
