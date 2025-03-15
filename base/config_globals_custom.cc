@@ -47,6 +47,8 @@ std::string ToString(ConfigFlag flag) {
       return "print-translated-addrs";
     case kPrintIRs:
       return "print-irs";
+    case kPrintCodePoolSize:
+      return "print-code-pool-size";
     case kLocalExperiment:
       return "local-experiment";
     case kPlatformCustomCPUCapability:

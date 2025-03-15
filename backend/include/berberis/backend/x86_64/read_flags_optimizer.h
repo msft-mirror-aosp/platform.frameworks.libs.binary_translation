@@ -26,6 +26,7 @@ namespace berberis::x86_64 {
 bool CheckRegsUnusedWithinInsnRange(MachineInsnList::iterator insn_it,
                                     MachineInsnList::iterator end,
                                     ArenaVector<MachineReg>& regs);
+bool CheckPostLoopNode(MachineBasicBlock* block, const ArenaVector<MachineReg>& regs);
 
 }  // namespace berberis::x86_64
 
