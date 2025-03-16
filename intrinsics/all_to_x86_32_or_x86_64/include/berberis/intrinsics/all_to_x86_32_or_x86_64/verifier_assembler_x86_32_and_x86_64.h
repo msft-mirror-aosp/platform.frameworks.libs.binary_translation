@@ -146,7 +146,7 @@ class VerifierAssembler {
     constexpr SIMDRegister(int arg_no, intrinsics::bindings::RegBindingKind binding_kind)
         : arg_no_(arg_no), binding_kind_(binding_kind) {}
 
-    int arg_no() const {
+    constexpr int arg_no() const {
       CHECK_NE(arg_no_, kNoRegister);
       return arg_no_;
     }
@@ -242,6 +242,12 @@ class VerifierAssembler {
 
   bool intrinsic_is_non_linear = false;
 
+  // We assume that maximum number of XMM/general/fixed registers binded to the intrinsic is 16.
+  // VerifierAssembler thus assumes arg_no will never be higher than this number. We use arrays of
+  // size 16 to track individual registers. If there is a register with an arg_no higher than 16, we
+  // will see a compiler error, since we detect out-of-bounds access to the array in constexpr.
+  static constexpr int kMaxRegisters = 16;
+
   class RegisterUsageFlags {
    public:
     constexpr void CheckValidRegisterUse(bool is_fixed) {
@@ -261,6 +267,35 @@ class VerifierAssembler {
       }
     }
 
+    constexpr void CheckAppropriateDefEarlyClobbers() {
+      for (int i = 0; i < kMaxRegisters; i++) {
+        if (intrinsic_defined_def_early_clobber_fixed_register[i] &&
+            !valid_def_early_clobber_register[i]) {
+          printf(
+              "error: intrinsic never used a 'use' general register after writing to a "
+              "'def_early_clobber' fixed register");
+        }
+        if (intrinsic_defined_def_early_clobber_general_register[i] &&
+            !valid_def_early_clobber_register[i]) {
+          printf(
+              "error: intrinsic never used a 'use' general/fixed register after writing to a "
+              "'def_early_clobber' general register");
+        }
+        if (intrinsic_defined_def_early_clobber_xmm_register[i] &&
+            !valid_def_early_clobber_register[i]) {
+          printf(
+              "error: intrinsic never used a 'use' xmm register after writing to a "
+              "'def_early_clobber' xmm register");
+        }
+      }
+    }
+
+    constexpr void CheckValidDefOrDefEarlyClobberRegisterUse(int reg_arg_no) {
+      if (!intrinsic_defined_def_or_def_early_clobber_register[reg_arg_no]) {
+        printf("error: intrinsic read a def/def_early_clobber register before writing to it");
+      }
+    }
+
     constexpr void UpdateIntrinsicRegisterDef(bool is_fixed) {
       if (is_fixed) {
         intrinsic_defined_def_fixed_register = true;
@@ -269,16 +304,65 @@ class VerifierAssembler {
       }
     }
 
+    constexpr void UpdateIntrinsicDefineDefOrDefEarlyClobberReigster(int reg_arg_no) {
+      intrinsic_defined_def_or_def_early_clobber_register[reg_arg_no] = true;
+    }
+
+    constexpr void UpdateIntrinsicRegisterDefEarlyClobber(int reg_arg_no, bool is_fixed) {
+      if (is_fixed) {
+        intrinsic_defined_def_early_clobber_fixed_register[reg_arg_no] = true;
+      } else {
+        intrinsic_defined_def_early_clobber_general_register[reg_arg_no] = true;
+      }
+    }
+
+    constexpr void UpdateIntrinsicRegisterUse([[maybe_unused]] bool is_fixed) {
+      for (int i = 0; i < kMaxRegisters; i++) {
+        if (intrinsic_defined_def_early_clobber_general_register[i]) {
+          valid_def_early_clobber_register[i] = true;
+        }
+        if (intrinsic_defined_def_early_clobber_fixed_register[i] && !is_fixed) {
+          valid_def_early_clobber_register[i] = true;
+        }
+      }
+    }
+
     constexpr void UpdateIntrinsicXMMRegisterDef() { intrinsic_defined_def_xmm_register = true; }
+
+    constexpr void UpdateIntrinsicXMMRegisterDefEarlyClobber(int reg_arg_no) {
+      intrinsic_defined_def_early_clobber_xmm_register[reg_arg_no] = true;
+    }
+
+    constexpr void UpdateIntrinsicXMMRegisterUse() {
+      for (int i = 0; i < kMaxRegisters; i++) {
+        if (intrinsic_defined_def_early_clobber_xmm_register[i]) {
+          valid_def_early_clobber_register[i] = true;
+        }
+      }
+    }
 
    private:
     bool intrinsic_defined_def_general_register = false;
     bool intrinsic_defined_def_fixed_register = false;
-
     bool intrinsic_defined_def_xmm_register = false;
+
+    bool intrinsic_defined_def_or_def_early_clobber_register[kMaxRegisters] = {};
+
+    bool intrinsic_defined_def_early_clobber_fixed_register[kMaxRegisters] = {};
+    bool intrinsic_defined_def_early_clobber_general_register[kMaxRegisters] = {};
+    bool intrinsic_defined_def_early_clobber_xmm_register[kMaxRegisters] = {};
+
+    bool valid_def_early_clobber_register[kMaxRegisters] = {};
   };
 
   RegisterUsageFlags register_usage_flags;
+
+  constexpr void CheckAppropriateDefEarlyClobbers() {
+    if (intrinsic_is_non_linear) {
+      return;
+    }
+    register_usage_flags.CheckAppropriateDefEarlyClobbers();
+  }
 
   constexpr void Bind([[maybe_unused]] Label* label) { intrinsic_is_non_linear = true; }
 
@@ -532,14 +616,23 @@ class VerifierAssembler {
   }
 
   constexpr void RegisterDef(Register reg) {
+    if (reg.get_binding_kind() == intrinsics::bindings::kDef ||
+        reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
+      register_usage_flags.UpdateIntrinsicDefineDefOrDefEarlyClobberReigster(reg.arg_no());
+    }
     if (reg.get_binding_kind() == intrinsics::bindings::kDef) {
       register_usage_flags.UpdateIntrinsicRegisterDef(RegisterIsFixed(reg));
+    } else if (reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
+      register_usage_flags.UpdateIntrinsicRegisterDefEarlyClobber(reg.arg_no(),
+                                                                  RegisterIsFixed(reg));
     }
   }
 
   constexpr void RegisterDef(XMMRegister reg) {
     if (reg.get_binding_kind() == intrinsics::bindings::kDef) {
       register_usage_flags.UpdateIntrinsicXMMRegisterDef();
+    } else if (reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
+      register_usage_flags.UpdateIntrinsicXMMRegisterDefEarlyClobber(reg.arg_no());
     }
   }
 
@@ -549,6 +642,11 @@ class VerifierAssembler {
     }
     if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
       register_usage_flags.CheckValidRegisterUse(RegisterIsFixed(reg));
+      register_usage_flags.UpdateIntrinsicRegisterUse(RegisterIsFixed(reg));
+    }
+    if (reg.get_binding_kind() == intrinsics::bindings::kDef ||
+        reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
+      register_usage_flags.CheckValidDefOrDefEarlyClobberRegisterUse(reg.arg_no());
     }
   }
 
@@ -558,6 +656,14 @@ class VerifierAssembler {
     }
     if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
       register_usage_flags.CheckValidXMMRegisterUse();
+      register_usage_flags.UpdateIntrinsicXMMRegisterUse();
+    }
+  }
+
+  constexpr void HandleDefOrDefEarlyClobberRegisterReset(Register reg1, Register reg2) {
+    if (reg1 == reg2 && (reg1.get_binding_kind() == intrinsics::bindings::kDef ||
+                         reg1.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber)) {
+      register_usage_flags.UpdateIntrinsicDefineDefOrDefEarlyClobberReigster(reg1.arg_no());
     }
   }
 

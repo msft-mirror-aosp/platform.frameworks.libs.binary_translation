@@ -116,6 +116,9 @@ void ResetAllExecRegions();
 
 // Returns default code pool.
 [[nodiscard]] CodePool<ExecRegionAnonymousFactory>* GetDefaultCodePoolInstance();
+// Use cold code pool to avoid interleaving cold code with hot code, as it induces more cache and
+// TLB misses (see go/ndkt-two-gear-overhead).
+[[nodiscard]] CodePool<ExecRegionAnonymousFactory>* GetColdCodePoolInstance();
 
 #if defined(__BIONIC__)
 [[nodiscard]] CodePool<ExecRegionElfBackedFactory>* GetFunctionWrapperCodePoolInstance();
