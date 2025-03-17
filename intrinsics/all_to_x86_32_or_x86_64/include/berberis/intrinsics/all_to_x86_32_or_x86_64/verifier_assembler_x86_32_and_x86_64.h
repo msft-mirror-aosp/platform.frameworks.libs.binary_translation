@@ -248,6 +248,12 @@ class VerifierAssembler {
   // will see a compiler error, since we detect out-of-bounds access to the array in constexpr.
   static constexpr int kMaxRegisters = 16;
 
+  // Verifier Assmebler checks that 'def' or 'def_early_clober' XMM registers aren't read before
+  // they are written to, unless they are used in a dependency breaking instruction. However, many
+  // intrinsics first use and define an XMM register in a non dependency breaking instruction. This
+  // check is default disabled, but can be enabled to view and manually check these intrinsics.
+  static constexpr bool kCheckDefOrDefEarlyClobberXMMRegistersAreWrittenBeforeRead = false;
+
   class RegisterUsageFlags {
    public:
     constexpr void CheckValidRegisterUse(bool is_fixed) {
@@ -629,6 +635,10 @@ class VerifierAssembler {
   }
 
   constexpr void RegisterDef(XMMRegister reg) {
+    if (reg.get_binding_kind() == intrinsics::bindings::kDef ||
+        reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
+      register_usage_flags.UpdateIntrinsicDefineDefOrDefEarlyClobberReigster(reg.arg_no());
+    }
     if (reg.get_binding_kind() == intrinsics::bindings::kDef) {
       register_usage_flags.UpdateIntrinsicXMMRegisterDef();
     } else if (reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
@@ -658,10 +668,27 @@ class VerifierAssembler {
       register_usage_flags.CheckValidXMMRegisterUse();
       register_usage_flags.UpdateIntrinsicXMMRegisterUse();
     }
+    if (!kCheckDefOrDefEarlyClobberXMMRegistersAreWrittenBeforeRead) {
+      return;
+    }
+    if (reg.get_binding_kind() == intrinsics::bindings::kDef ||
+        reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
+      register_usage_flags.CheckValidDefOrDefEarlyClobberRegisterUse(reg.arg_no());
+    }
   }
 
-  constexpr void HandleDefOrDefEarlyClobberRegisterReset(Register reg1, Register reg2) {
+  template <typename RegisterType>
+  constexpr void HandleDefOrDefEarlyClobberRegisterReset(RegisterType reg1, RegisterType reg2) {
     if (reg1 == reg2 && (reg1.get_binding_kind() == intrinsics::bindings::kDef ||
+                         reg1.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber)) {
+      register_usage_flags.UpdateIntrinsicDefineDefOrDefEarlyClobberReigster(reg1.arg_no());
+    }
+  }
+
+  constexpr void HandleDefOrDefEarlyClobberRegisterReset(XMMRegister reg1,
+                                                         XMMRegister reg2,
+                                                         XMMRegister reg3) {
+    if (reg2 == reg3 && (reg1.get_binding_kind() == intrinsics::bindings::kDef ||
                          reg1.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber)) {
       register_usage_flags.UpdateIntrinsicDefineDefOrDefEarlyClobberReigster(reg1.arg_no());
     }

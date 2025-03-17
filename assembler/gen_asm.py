@@ -139,18 +139,28 @@ def _handle_def_register_reset(name, insn, arch, f):
   """
   if not _check_insn_is_dependency_breaking(insn):
     return
+  if name.startswith("P") or name.startswith("V") or name.endswith("pd") or name.endswith("ps"):
+    register_type = "XMMRegister"
+  else:
+    register_type = "Register"
+  num_registers = 3 if name.startswith("V") else 2
   arg_count = 0
-  general_registers = []
+  registers = []
   for arg in insn.get('args'):
       if asm_defs.is_implicit_reg(arg.get('class')):
         continue
-      if (_get_arg_type_name(arg, insn.get('type', None)) == 'Register'
+      if (_get_arg_type_name(arg, insn.get('type', None)) == register_type
           and 'x86' in arch):
-        general_registers.append(arg_count)
+        registers.append(arg_count)
       arg_count += 1
-  if len(general_registers) == 2:
+  if (len(registers) != num_registers):
+    return
+  if num_registers == 2:
     print('  HandleDefOrDefEarlyClobberRegisterReset(arg%d, arg%d);' %
-    (general_registers[0], general_registers[1]), file=f)
+    (registers[0], registers[1]), file=f)
+  else:
+    print('  HandleDefOrDefEarlyClobberRegisterReset(arg%d, arg%d, arg%d);' %
+    (registers[0], registers[1], registers[2]), file=f)
 
 def _get_implicit_fixed_register(arg_class):
   if arg_class in ["AL", "AX", "EAX", "RAX"]:
