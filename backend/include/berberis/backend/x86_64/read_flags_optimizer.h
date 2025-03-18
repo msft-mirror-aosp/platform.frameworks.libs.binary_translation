@@ -19,6 +19,7 @@
 
 #include "berberis/backend/common/machine_ir.h"
 #include "berberis/backend/x86_64/machine_ir.h"
+#include "berberis/backend/x86_64/machine_ir_analysis.h"
 #include "berberis/base/arena_vector.h"
 
 namespace berberis::x86_64 {
@@ -27,6 +28,8 @@ bool CheckRegsUnusedWithinInsnRange(MachineInsnList::iterator insn_it,
                                     MachineInsnList::iterator end,
                                     ArenaVector<MachineReg>& regs);
 bool CheckPostLoopNode(MachineBasicBlock* block, const ArenaVector<MachineReg>& regs);
+bool CheckSuccessorNode(Loop* loop, MachineBasicBlock* block, ArenaVector<MachineReg>& regs);
+bool RegsLiveInBasicBlock(MachineBasicBlock* bb, const ArenaVector<MachineReg>& regs);
 
 }  // namespace berberis::x86_64
 
