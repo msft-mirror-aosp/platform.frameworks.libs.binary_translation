@@ -632,6 +632,9 @@ class VerifierAssembler {
       register_usage_flags.UpdateIntrinsicRegisterDefEarlyClobber(reg.arg_no(),
                                                                   RegisterIsFixed(reg));
     }
+    if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
+      printf("error: intrinsic defined a 'use' register\n");
+    }
   }
 
   constexpr void RegisterDef(XMMRegister reg) {
@@ -643,6 +646,9 @@ class VerifierAssembler {
       register_usage_flags.UpdateIntrinsicXMMRegisterDef();
     } else if (reg.get_binding_kind() == intrinsics::bindings::kDefEarlyClobber) {
       register_usage_flags.UpdateIntrinsicXMMRegisterDefEarlyClobber(reg.arg_no());
+    }
+    if (reg.get_binding_kind() == intrinsics::bindings::kUse) {
+      printf("error: intrinsic defined a 'use' XMM register\n");
     }
   }
 
