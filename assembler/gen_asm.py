@@ -122,6 +122,10 @@ def _get_template_name(insn):
       'typename' if re.search('[_a-zA-Z]', param) else 'int'
       for param in name.split('<',1)[1][:-1].split(',')), name.split('<')[0]
 
+def _check_insn_is_dependency_breaking(insn):
+  if "dependency_breaking" in insn:
+    return True
+
 def _handle_def_register_reset(name, insn, arch, f):
   """
   'def'/'def_early_clobber' registers in an intrinsic must be defined before they can be used.
@@ -133,7 +137,7 @@ def _handle_def_register_reset(name, insn, arch, f):
   Thus, it is valid for this instruction to read and write a 'def' register, even if it hasn't
   been written to yet in the intrinsic.
   """
-  if not name.startswith("Xor"):
+  if not _check_insn_is_dependency_breaking(insn):
     return
   arg_count = 0
   general_registers = []
