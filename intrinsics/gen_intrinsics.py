@@ -202,7 +202,7 @@ def _get_template_parameters(
     new_template = ', '.join(
       (["bool kPreciseNaNOperationsHandling"] if precise_nans else []) +
       ['bool kBool%s' % get_counter() if param.strip() in ('true', 'false') else
-       'uint32_t kInt%s' % get_counter() if param.strip() in _ROUNDING_MODES else
+       'int kInt%s' % get_counter() if param.strip() in _ROUNDING_MODES else
        'typename Type%d' % get_counter() if re.search('[_a-zA-Z]', param) else
        'int kInt%s' % get_counter()
        for param in variant.split(',')] + extra)
