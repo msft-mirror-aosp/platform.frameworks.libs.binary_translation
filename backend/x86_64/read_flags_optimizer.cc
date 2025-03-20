@@ -16,7 +16,7 @@
 
 #include "berberis/backend/x86_64/read_flags_optimizer.h"
 
-#include <algorithm>
+#include <optional>
 
 #include "berberis/backend/common/machine_ir.h"
 #include "berberis/backend/x86_64/machine_ir.h"
@@ -130,6 +130,55 @@ bool RegsLiveInBasicBlock(MachineBasicBlock* bb, const ArenaVector<MachineReg>& 
     }
   }
   return false;
+}
+
+template <typename T>
+MachineInsn* CopyInstruction(MachineIR* machine_ir, MachineInsn* insn) {
+  return machine_ir->NewInsn<T>(*static_cast<T*>(insn));
+}
+
+std::optional<InsnGenerator> GetInsnGen(MachineOpcode opcode) {
+  switch (opcode) {
+    case kMachineOpAddqRegReg:
+      return CopyInstruction<AddqRegReg>;
+    case kMachineOpPseudoReadFlags:
+      return CopyInstruction<PseudoReadFlags>;
+    case kMachineOpCmplRegImm:
+      return CopyInstruction<CmplRegImm>;
+    case kMachineOpCmplRegReg:
+      return CopyInstruction<CmpqRegReg>;
+    case kMachineOpCmpqRegImm:
+      return CopyInstruction<CmpqRegImm>;
+    case kMachineOpCmpqRegReg:
+      return CopyInstruction<CmpqRegReg>;
+    case kMachineOpSublRegImm:
+      return CopyInstruction<SublRegImm>;
+    case kMachineOpSublRegReg:
+      return CopyInstruction<SublRegReg>;
+    case kMachineOpSubqRegImm:
+      return CopyInstruction<SubqRegImm>;
+    case kMachineOpSubqRegReg:
+      return CopyInstruction<SubqRegReg>;
+    default:
+      return std::nullopt;
+  }
+}
+
+// Finds the instruction which sets a flag register.
+// insn_it should point to one past the element we first want to check
+// (typically it should point to the readflags instruction).
+std::optional<MachineInsnList::iterator> FindFlagSettingInsn(MachineInsnList::iterator insn_it,
+                                                             MachineInsnList::iterator begin,
+                                                             MachineReg reg) {
+  while (insn_it != begin) {
+    insn_it--;
+    for (int i = 0; i < (*insn_it)->NumRegOperands(); i++) {
+      if ((*insn_it)->RegAt(i) == reg && (*insn_it)->RegKindAt(i).IsDef()) {
+        return insn_it;
+      }
+    }
+  }
+  return std::nullopt;
 }
 
 }  // namespace berberis::x86_64

@@ -307,6 +307,78 @@ TEST(MachineIRReadFlagsOptimizer, CheckSuccessorNodeLiveIn) {
   ASSERT_FALSE(CheckSuccessorNode(loop, loop_exit, regs));
 }
 
+// Helper function to check that two instructions are the same.
+void TestCopiedInstruction(MachineIR* machine_ir, MachineInsn* insn) {
+  MachineReg reg = machine_ir->AllocVReg();
+
+  auto gen = GetInsnGen(insn->opcode());
+  ASSERT_TRUE(gen.has_value());
+  auto* copy = gen.value()(machine_ir, insn);
+
+  ASSERT_EQ(copy->opcode(), insn->opcode());
+  ASSERT_EQ(copy->NumRegOperands(), insn->NumRegOperands());
+  for (auto i = 0; i < insn->NumRegOperands(); i++) {
+    ASSERT_EQ(copy->RegAt(i), insn->RegAt(i));
+  }
+
+  // Check that it's a deep copy.
+  copy->SetRegAt(0, reg);
+  ASSERT_NE(copy->RegAt(0), insn->RegAt(0));
+  ASSERT_EQ(copy->RegAt(0), reg);
+}
+
+TEST(MachineIRReadFlagsOptimizer, GetInsnGen) {
+  Arena arena;
+  x86_64::MachineIR machine_ir(&arena);
+  x86_64::MachineIRBuilder builder(&machine_ir);
+
+  TestCopiedInstruction(&machine_ir,
+                        machine_ir.NewInsn<AddqRegReg>(
+                            machine_ir.AllocVReg(), machine_ir.AllocVReg(), kMachineRegFLAGS));
+  // PseudoReadFlags is a special case as it has its own member variables and
+  // doesn't inherit from MachineInsnX86_64 so we test it too.
+  TestCopiedInstruction(
+      &machine_ir,
+      machine_ir.NewInsn<PseudoReadFlags>(
+          PseudoReadFlags::kWithOverflow, machine_ir.AllocVReg(), kMachineRegFLAGS));
+}
+
+TEST(MachineIRReadFlagsOptimizer, FindFlagSettingInsn) {
+  Arena arena;
+  x86_64::MachineIR machine_ir(&arena);
+  x86_64::MachineIRBuilder builder(&machine_ir);
+
+  MachineReg reg0 = machine_ir.AllocVReg();
+  MachineReg reg1 = machine_ir.AllocVReg();
+  MachineReg flags0 = machine_ir.AllocVReg();
+  MachineReg flags1 = machine_ir.AllocVReg();
+  MachineReg reg_with_flags0 = machine_ir.AllocVReg();
+
+  auto bb = machine_ir.NewBasicBlock();
+  builder.StartBasicBlock(bb);
+  builder.Gen<AddqRegReg>(reg0, reg1, flags0);
+  builder.Gen<SubqRegImm>(reg1, 1234, flags0);
+  builder.Gen<AddqRegReg>(reg1, reg0, flags1);
+  builder.Gen<PseudoReadFlags>(PseudoReadFlags::kWithOverflow, reg_with_flags0, flags0);
+  builder.Gen<PseudoJump>(kNullGuestAddr);
+
+  ASSERT_EQ(x86_64::CheckMachineIR(machine_ir), x86_64::kMachineIRCheckSuccess);
+
+  // Move to PseudoReadFlags.
+  auto insn_it = std::prev(bb->insn_list().end(), 2);
+  ASSERT_EQ((*insn_it)->opcode(), kMachineOpPseudoReadFlags);
+
+  auto flag_setter = FindFlagSettingInsn(insn_it, bb->insn_list().begin(), flags0);
+  ASSERT_TRUE(flag_setter.has_value());
+  ASSERT_EQ((*flag_setter.value())->opcode(), kMachineOpSubqRegImm);
+
+  // Test that we exit properly when we can't find the instruction.
+  // Move to second AddqRegReg.
+  insn_it--;
+  flag_setter = FindFlagSettingInsn(insn_it, bb->insn_list().begin(), flags1);
+  ASSERT_FALSE(flag_setter.has_value());
+}
+
 }  // namespace
 
 }  // namespace berberis::x86_64

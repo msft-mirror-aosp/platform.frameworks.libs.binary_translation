@@ -191,6 +191,11 @@ def _gen_register_read_write_info(insn, arch):
           yield '  Register%s(arg%d);' % (usage.capitalize(), arg_count)
       arg_count += 1
 
+def _check_insn_uses_xmm(insn, arch):
+  for arg in insn.get('args'):
+    if (asm_defs.is_xreg(arg.get('class')) and 'x86' in arch):
+      return True
+  return False
 
 def _gen_generic_functions_h(f, insns, arch, assembler_mode):
   template_names = set()
@@ -288,6 +293,9 @@ def _gen_generic_functions_h(f, insns, arch, assembler_mode):
       print('constexpr void %s(%s) {' % (name, params), file=f)
       if 'feature' in insn:
         print('  SetRequiredFeature%s();' % insn['feature'], file=f)
+      else:
+        if _check_insn_uses_xmm(insn, arch):
+          print('  SetRequiredFeatureSSEOrSSE2();', file=f)
       for arg in insn.get('args'):
         if arg["class"] == "FLAGS":
           print('  SetDefinesFLAGS();', file=f)
