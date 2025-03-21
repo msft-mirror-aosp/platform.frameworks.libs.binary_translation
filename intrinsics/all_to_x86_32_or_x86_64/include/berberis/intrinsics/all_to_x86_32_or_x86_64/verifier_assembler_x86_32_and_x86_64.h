@@ -230,6 +230,7 @@ class VerifierAssembler {
   bool need_fma4 = false;
   bool need_lzcnt = false;
   bool need_popcnt = false;
+  bool need_sse_or_sse2 = false;
   bool need_sse3 = false;
   bool need_ssse3 = false;
   bool need_sse4_1 = false;
@@ -394,6 +395,13 @@ class VerifierAssembler {
   // Verify CPU vendor and SSE restrictions.
   template <typename CPUIDRestriction>
   constexpr void CheckCPUIDRestriction() {
+    // Technically AVX implies SSE but mixing AVX and SSE instructions can cause a performance
+    // penalty. Thus, we first ensure that AVX-using intrinsics don't use SSE instructions, before
+    // propagating required feature dependencies correctly.
+    if (need_avx && need_sse_or_sse2) {
+      printf("error: intrinsic used both AVX and SSE instructions\n");
+    }
+
     constexpr bool expect_bmi = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasBMI>;
     constexpr bool expect_f16c = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasF16C>;
     constexpr bool expect_fma = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasFMA>;
@@ -404,12 +412,10 @@ class VerifierAssembler {
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasVPCLMULQD>;
     constexpr bool expect_aesavx =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAESAVX> || expect_vaes;
-    constexpr bool expect_aes =
-        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAES> || expect_aesavx;
+    constexpr bool expect_aes = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAES>;
     constexpr bool expect_clmulavx =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMULAVX> || expect_vpclmulqd;
-    constexpr bool expect_clmul =
-        std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMUL> || expect_clmulavx;
+    constexpr bool expect_clmul = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasCLMUL>;
     constexpr bool expect_popcnt =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasPOPCNT>;
     constexpr bool expect_avx = std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasAVX> ||
@@ -417,13 +423,15 @@ class VerifierAssembler {
                                 expect_fma4;
     constexpr bool expect_sse4_2 =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_2> || expect_aes ||
-        expect_clmul || expect_avx;
+        expect_clmul;
     constexpr bool expect_sse4_1 =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE4_1> || expect_sse4_2;
     constexpr bool expect_ssse3 =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSSE3> || expect_sse4_1;
     constexpr bool expect_sse3 =
         std::is_same_v<CPUIDRestriction, intrinsics::bindings::HasSSE3> || expect_ssse3;
+
+    // Note that we don't check SSE or SSE2, since we assume SSE2 is always available.
 
     if (expect_aesavx != need_aesavx) {
       printf("error: expect_aesavx != need_aesavx\n");
@@ -511,7 +519,6 @@ class VerifierAssembler {
 
   constexpr void SetRequiredFeatureAESAVX() {
     need_aesavx = true;
-    SetRequiredFeatureAES();
     SetRequiredFeatureAVX();
   }
 
@@ -521,8 +528,10 @@ class VerifierAssembler {
   }
 
   constexpr void SetRequiredFeatureAVX() {
+    // Technically AVX implies SSE but mixing AVX and SSE instructions can cause a performance
+    // penalty. Thus, we first ensure that AVX-using intrinsics don't use SSE instructions, before
+    // propagating required feature dependencies correctly.
     need_avx = true;
-    SetRequiredFeatureSSE4_2();
   }
 
   constexpr void SetRequiredFeatureAVX2() {
@@ -536,7 +545,6 @@ class VerifierAssembler {
 
   constexpr void SetRequiredFeatureCLMULAVX() {
     need_clmulavx = true;
-    SetRequiredFeatureCLMUL();
     SetRequiredFeatureAVX();
   }
 
@@ -564,10 +572,11 @@ class VerifierAssembler {
 
   constexpr void SetRequiredFeaturePOPCNT() { need_popcnt = true; }
 
+  constexpr void SetRequiredFeatureSSEOrSSE2() { need_sse_or_sse2 = true; }
+
   constexpr void SetRequiredFeatureSSE3() {
     need_sse3 = true;
-    // Note: we assume that SSE2 is always available thus we don't have have_sse2 or have_sse1
-    // variables.
+    SetRequiredFeatureSSEOrSSE2();
   }
 
   constexpr void SetRequiredFeatureSSSE3() {
