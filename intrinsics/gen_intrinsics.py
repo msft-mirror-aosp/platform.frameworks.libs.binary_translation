@@ -309,8 +309,7 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None):
       call_params.append('GPRRegToInteger<%s>(%s)' % (_get_c_type(op), arg))
 
   call_expr = 'intrinsics::%s%s(%s)' % (
-      name, _get_desc_specializations(intr, desc).replace(
-          'Float', 'intrinsics::Float'), ', '.join(call_params))
+      name, _get_desc_specializations(intr, desc), ', '.join(call_params))
 
   if len(outs) == 1:
     # Unwrap tuple for single result.
@@ -454,8 +453,7 @@ def _gen_interpreter_hook(f, name, intr, option):
 
 
 def _get_translator_hook_call_expr(name, intr, desc = None):
-  desc_spec = _get_desc_specializations(intr, desc).replace(
-      'Float', 'intrinsics::Float')
+  desc_spec = _get_desc_specializations(intr, desc)
   args = [('arg%d' % n) for n, _ in enumerate(intr['in'])]
   template_params = ['&intrinsics::' + name + desc_spec]
   template_params += [_get_semantics_player_hook_result(intr)]
@@ -655,7 +653,7 @@ def _get_cast_from_simd128(var, target_type, ptr_bits):
 
   c_type = _get_c_type(target_type)
   if c_type in ('Float16', 'Float32', 'Float64'):
-    return 'FPRegToFloat<intrinsics::%s>(%s)' % (c_type, var)
+    return 'FPRegToFloat<%s>(%s)' % (c_type, var)
 
   cast_map = {
       'int8_t': '.Get<int8_t>(0)',
@@ -853,6 +851,9 @@ template <typename MacroAssembler,
           typename... Args>
 constexpr void ProcessAllBindings([[maybe_unused]] Callback callback,
                         [[maybe_unused]] Args&&... args) {
+  using intrinsics::Float16;
+  using intrinsics::Float32;
+  using intrinsics::Float64;
   using namespace process_all_bindings_strings;""",
     file=f)
   for line in callback_lines:
@@ -1112,8 +1113,7 @@ def _gen_c_intrinsic(name,
 
 def _get_c_type_tuple(arguments):
     return 'std::tuple<%s>' % ', '.join(
-        _get_c_type(argument) for argument in arguments).replace(
-            'Float', 'intrinsics::Float')
+        _get_c_type(argument) for argument in arguments)
 
 
 def _get_asm_type(asm, prefix=''):
