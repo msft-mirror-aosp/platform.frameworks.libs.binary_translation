@@ -122,6 +122,22 @@ def _get_template_name(insn):
       'typename' if re.search('[_a-zA-Z]', param) else 'int'
       for param in name.split('<',1)[1][:-1].split(',')), name.split('<')[0]
 
+def _handle_jump(insn, jump_is_conditional, f):
+  arg_count = 0
+  for arg in insn.get('args'):
+    if _get_arg_type_name(arg, insn.get('type', None)) ==  "const Label&":
+      if jump_is_conditional:
+        print('  HandleConditionalJump(arg%d);' %
+        arg_count, file=f)
+        return
+      print('  HandleUnconditionalJump(arg%d);' %
+        arg_count, file=f)
+      return
+    if _get_arg_type_name(arg, insn.get('type', None)) ==  "Register":
+      assert(not jump_is_conditional)
+      print('  HandleUnconditionalJumpRegister();', file=f)
+    arg_count += 1
+
 def _check_insn_is_dependency_breaking(insn):
   if "dependency_breaking" in insn:
     return True
@@ -291,6 +307,12 @@ def _gen_generic_functions_h(f, insns, arch, assembler_mode):
 
     else: # verifier_assembler
       print('constexpr void %s(%s) {' % (name, params), file=f)
+      if (name == "Jcc" or name == "Jmp") and 'x86' in arch:
+        jump_is_conditional = name == "Jcc"
+        _handle_jump(insn, jump_is_conditional, f)
+        print(' EndInstruction();', file=f)
+        print('}', file=f)
+        continue
       if 'feature' in insn:
         print('  SetRequiredFeature%s();' % insn['feature'], file=f)
       else:
@@ -303,6 +325,7 @@ def _gen_generic_functions_h(f, insns, arch, assembler_mode):
       _handle_def_register_reset(name, insn, arch, f)
       for register_read_write in _gen_register_read_write_info(insn, arch):
         print(register_read_write, file=f)
+      print('  EndInstruction();', file=f)
       print('}', file=f)
 
 
