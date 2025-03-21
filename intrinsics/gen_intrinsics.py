@@ -498,7 +498,7 @@ def _gen_mock_semantics_listener_hook(f, name, intr):
       intr.get('variants'), extra = [])
     arguments = ', '.join(
        [('arg%d' % n) for n, _ in enumerate(intr['in'])] +
-       ['intrinsics::kEnumFromTemplateType<%s>' % arg if arg.startswith('Type') else arg
+       ['intrinsics::kIdFromType<%s>' % arg if arg.startswith('Type') else arg
         for arg in _get_template_spec_arguments(intr.get('variants'))])
     print('template<%s>\n%s %s(%s) {\n  return %s(%s);\n}' % (
       template_parameters, result, name, args, name, arguments), file=f)
@@ -508,7 +508,7 @@ def _gen_mock_semantics_listener_hook(f, name, intr):
           {
               'kBoo': 'bool',
               'kInt': 'int',
-              'Type': 'intrinsics::EnumFromTemplateType'
+              'Type': 'intrinsics::TemplateTypeId'
           }[argument[0:4]],
           argument)
       for argument in _get_template_spec_arguments(intr.get('variants'))])
@@ -519,7 +519,7 @@ def _gen_template_parameters_verifier(f, intr):
       received_params = ', '.join(
         param
           if not param.strip().startswith('Type') else
-        f'intrinsics::kEnumFromTemplateType<{param}>'
+        f'intrinsics::kIdFromType<{param}>'
         for param in _get_template_spec_arguments(intr.get('variants')))
       print('%sstatic_assert(%s);' % (
        INDENT,
@@ -530,7 +530,7 @@ def _gen_template_parameters_verifier(f, intr):
             param
               if param.strip() in ['true', 'false'] + _ROUNDING_MODES or
                  not re.search('[_a-zA-Z]', param) else
-            f'intrinsics::kEnumFromTemplateType<{param}>'
+            f'intrinsics::kIdFromType<{param}>'
             for param in variant.split(',')))
          for variant in intr.get('variants'))), file=f)
 
