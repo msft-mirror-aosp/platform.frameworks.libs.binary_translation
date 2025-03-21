@@ -17,9 +17,11 @@
 #include "gtest/gtest.h"
 
 #include <chrono>  // chrono_literals::operator""ms
+#include <initializer_list>
 #include <string>
 #include <thread>  // this_thread::sleep_for
 
+#include "berberis/base/config.h"
 #include "berberis/guest_state/guest_addr.h"
 #include "berberis/runtime_primitives/host_code.h"
 #include "berberis/runtime_primitives/runtime_library.h"  // kEntry*
@@ -410,6 +412,61 @@ TEST(NdkTest, TranslationCacheWrappingStatesTest) {
 
 TEST(NdkTest, TranslationCacheTranslationStatesTest) {
   TranslationCacheTestRunThreads<TestTranslationWorker>();
+}
+
+constexpr size_t kGuestGearShiftRange = 64;
+
+void TestTriggerGearShiftForAddresses(
+    GuestAddr pc,
+    std::initializer_list<std::tuple<GuestAddr, uint32_t>> addr_and_expected_counter_list) {
+  TranslationCache tc;
+  // Lite translate interesting addresses.
+  for (auto [pc, unused_counter] : addr_and_expected_counter_list) {
+    ASSERT_TRUE(Translate(&tc, pc, 1, kHostCodeStub));
+    GuestCodeEntry* entry = tc.LookupGuestCodeEntryUnsafeForTesting(pc);
+    ASSERT_TRUE(entry);
+    ASSERT_EQ(entry->kind, GuestCodeEntry::Kind::kSpecialHandler);
+    ASSERT_EQ(entry->invocation_counter, 0u);
+    entry->kind = GuestCodeEntry::Kind::kLiteTranslated;
+  }
+
+  tc.TriggerGearShift(pc, kGuestGearShiftRange);
+
+  for (auto [pc, expected_counter] : addr_and_expected_counter_list) {
+    ASSERT_EQ(tc.LookupGuestCodeEntryUnsafeForTesting(pc)->invocation_counter, expected_counter)
+        << "pc=" << pc;
+  }
+}
+
+TEST(TranslationCacheTest, TriggerGearShift) {
+  TestTriggerGearShiftForAddresses(kGuestPC,
+                                   {{kGuestPC, config::kGearSwitchThreshold},
+                                    {kGuestPC - kGuestGearShiftRange, config::kGearSwitchThreshold},
+                                    {kGuestPC - kGuestGearShiftRange - 1, 0},
+                                    {kGuestPC + kGuestGearShiftRange, config::kGearSwitchThreshold},
+                                    {kGuestPC + kGuestGearShiftRange + 1, 0}});
+}
+
+TEST(TranslationCacheTest, TriggerGearShiftTargetLessThanRange) {
+  constexpr GuestAddr kSmallGuestPC = kGuestGearShiftRange / 2;
+  TestTriggerGearShiftForAddresses(
+      kSmallGuestPC,
+      {{kSmallGuestPC, config::kGearSwitchThreshold},
+       {kNullGuestAddr, config::kGearSwitchThreshold},
+       {kSmallGuestPC + kGuestGearShiftRange, config::kGearSwitchThreshold}});
+}
+
+TEST(TranslationCacheTest, TriggerGearShiftDoesNotAffectNotLiteTranslated) {
+  TranslationCache tc;
+  ASSERT_TRUE(Translate(&tc, kGuestPC, 1, kHostCodeStub));
+  GuestCodeEntry* entry = tc.LookupGuestCodeEntryUnsafeForTesting(kGuestPC);
+  ASSERT_TRUE(entry);
+  ASSERT_EQ(entry->kind, GuestCodeEntry::Kind::kSpecialHandler);
+  ASSERT_EQ(entry->invocation_counter, 0u);
+
+  tc.TriggerGearShift(kGuestPC, kGuestGearShiftRange);
+
+  ASSERT_EQ(tc.LookupGuestCodeEntryUnsafeForTesting(kGuestPC)->invocation_counter, 0u);
 }
 
 }  // namespace
