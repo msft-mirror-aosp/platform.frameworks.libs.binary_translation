@@ -16,6 +16,8 @@
 
 #include "berberis/backend/x86_64/read_flags_optimizer.h"
 
+#include <algorithm>
+
 #include "berberis/backend/common/machine_ir.h"
 #include "berberis/backend/x86_64/machine_ir.h"
 #include "berberis/base/algorithm.h"
@@ -37,6 +39,38 @@ bool CheckRegsUnusedWithinInsnRange(MachineInsnList::iterator insn_it,
         }
         regs.push_back((*insn_it)->RegAt(0));
       }
+    }
+  }
+  return true;
+}
+
+// Checks if this post loop node meets requirements for the read flags
+// optimization.
+// Requirements:
+// * the node must have only one in_edge - this guarantees the register is coming
+// from the readflags
+// * nothing in regs should be in live_out
+bool CheckPostLoopNode(MachineBasicBlock* bb, const ArenaVector<MachineReg>& regs) {
+  // If the node doesn't actually use any of regs we can just skip it.
+  bool is_live_in = false;
+  for (auto r : bb->live_in()) {
+    if (Contains(regs, r)) {
+      is_live_in = true;
+      break;
+    }
+  }
+  if (!is_live_in) {
+    return true;
+  }
+
+  // Check that there's only one in_edge.
+  if (bb->in_edges().size() != 1) {
+    return false;
+  }
+  // Check that it's not live_out.
+  for (auto r : bb->live_out()) {
+    if (Contains(regs, r)) {
+      return false;
     }
   }
   return true;
