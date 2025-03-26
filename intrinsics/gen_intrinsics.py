@@ -1324,7 +1324,20 @@ def _expand_template_intrinsics(intrs):
     if intr.get('class') != 'template':
       expanded_intrs[name] = intr
     else:
-     for variant in intr.get('variants'):
+     variants = intr.get('variants').copy()
+     # These intrinsics serve a dual duty:
+     #   1. They are used to implement regular instructions.
+     #   2. They are used to implement vector instrinsics.
+     # And there's a dilemma: 8bit and 16bit sizes are not supported in #1 but
+     # are needed for #2.
+     # This hack helps us to resolve it. If we would have more such intrinsics
+     # we may need to extend JSON capabilities.
+     if name in ('Aadd', 'Asub', 'Div', 'Rem', 'Roundoff'):
+       if 'int8_t' not in variants: variants += ['int8_t']
+       if 'uint8_t' not in variants: variants += ['uint8_t']
+       if 'int16_t' not in variants: variants += ['int16_t']
+       if 'uint16_t' not in variants: variants += ['uint16_t']
+     for variant in variants:
        types = {}
        params = [param.strip() for param in variant.split(',')]
        for param in params:
