@@ -362,6 +362,7 @@ class LiteTranslator {
     }
   }
 
+#include "berberis/intrinsics/demultiplexer_intrinsics_hooks-inl.h"
 #include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
 
   bool is_region_end_reached() const { return is_region_end_reached_; }

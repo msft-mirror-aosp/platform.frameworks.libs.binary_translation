@@ -60,6 +60,18 @@ class GenIntrinsicsTests(unittest.TestCase):
                                   "uint8_t arg5, "
                                   "intrinsics::Value<Type0>, "
                                   "intrinsics::Value<Type1>)" ) # pyformat: disable
+    out = gen_intrinsics._get_semantics_player_hook_proto(
+        "Foo", intr["Foo"], listener=' Interpreter::')
+    self.assertEqual(out,
+                     " Interpreter::Register Interpreter::Foo("
+                     " Interpreter::Register arg0, "
+                     " Interpreter::Register arg1, "
+                     " Interpreter::FpRegister arg2, "
+                     " Interpreter::Register arg3, "
+                     " Interpreter::SimdRegister arg4,"
+                     " uint8_t arg5,"
+                     " intrinsics::TemplateTypeId Type0,"
+                     " intrinsics::TemplateTypeId Type1)" ) # pyformat: disable
 
   def test_get_semantics_player_hook_proto_operand_types(self):
     out = gen_intrinsics._get_semantics_player_hook_proto(
@@ -111,7 +123,6 @@ class GenIntrinsicsTests(unittest.TestCase):
             "arg4, "
             "GPRRegToInteger<uint8_t>(arg5))))" ) # pyforman: disable
     out = gen_intrinsics._get_interpreter_hook_call_expr("Foo", intr["Foo"], use_type_id=True)
-    self.maxDiff = None
     self.assertEqual(
         out,
         "IntegerToGPRReg(std::get<0>(intrinsics::Foo<"
@@ -425,6 +436,95 @@ class GenIntrinsicsTests(unittest.TestCase):
                              "  static_assert(std::tuple{Type0} == "
                              "std::tuple{intrinsics::kIdFromType<int32_t>} || std::tuple{Type0} == "
                              "std::tuple{intrinsics::kIdFromType<int64_t>});\n") # pyformat: disable
+
+  def test_gen_interpreter_hook(self):
+    intrinsic = {
+            "class": "template",
+            "variants": [ "int32_t", "int64_t" ],
+            "in": [ "Type0", "int8_t" ],
+            "out": [ "Type0" ]
+        }
+    out = io.StringIO()
+    gen_intrinsics._gen_interpreter_hook(out, "Foo", intrinsic, '')
+    self.assertSequenceEqual(out.getvalue(),
+                             "template<typename Type0>\n"
+                             "Register Foo(Register arg0, Register arg1) const {\n"
+                             "  return std::get<0>(intrinsics::Foo<Type0>(GPRRegToInteger<Type0>(arg0), "
+                             "GPRRegToInteger<int8_t>(arg1)));\n"
+                             "}\n\n") # pyformat: disable
+    out = io.StringIO()
+    gen_intrinsics._gen_interpreter_hook(out, "Foo", intrinsic, '', use_type_id=True)
+    self.assertSequenceEqual(out.getvalue(),
+                             "template<intrinsics::TemplateTypeId Type0>\n"
+                             "Register Foo(Register arg0, Register arg1, intrinsics::Value<Type0>) const {\n"
+                             "  return std::get<0>(intrinsics::Foo<intrinsics::TypeFromId<Type0>>("
+                             "GPRRegToInteger<intrinsics::TypeFromId<Type0>>(arg0), "
+                             "GPRRegToInteger<int8_t>(arg1)));\n"
+                             "}\n\n") # pyformat: disable
+
+  def test_gen_demultiplexer_hook(self):
+    intrinsic = {
+            "class": "template",
+            "variants": [ "int32_t", "int64_t" ],
+            "in": [ "Type0", "int8_t" ],
+            "out": [ "Type0" ]
+        }
+    out = io.StringIO()
+    gen_intrinsics._gen_demultiplexer_hook(out, "Foo", intrinsic)
+    self.assertSequenceEqual(out.getvalue(),
+                             " BERBERIS_INTRINSICS_HOOKS_LISTENER Register BERBERIS_INTRINSICS_HOOKS_LISTENER "
+                             "Foo( BERBERIS_INTRINSICS_HOOKS_LISTENER Register arg0,  "
+                             "BERBERIS_INTRINSICS_HOOKS_LISTENER Register arg1, intrinsics::TemplateTypeId "
+                             "Type0) BERBERIS_INTRINSICS_HOOKS_CONST {\n"
+                             "  switch (intrinsics::TrivialDemultiplexer(Type0)) {\n"
+                             "    case "
+                             "intrinsics::TrivialDemultiplexer(intrinsics::kIdFromType<int32_t>):\n"
+                             "      // Disable LOG_NDEBUG to use DCHECK for debugging!\n"
+                             "      DCHECK_EQ(intrinsics::kIdFromType<int32_t>, Type0);\n"
+                             "      return Foo<int32_t>(arg0,arg1);\n"
+                             "    case "
+                             "intrinsics::TrivialDemultiplexer(intrinsics::kIdFromType<int64_t>):\n"
+                             "      // Disable LOG_NDEBUG to use DCHECK for debugging!\n"
+                             "      DCHECK_EQ(intrinsics::kIdFromType<int64_t>, Type0);\n"
+                             "      return Foo<int64_t>(arg0,arg1);\n"
+                             "    default:\n"
+                             "      FATAL(\"Unsupported size\");\n"
+                             "  }\n"
+                             "}\n\n") # pyformat: disable
+
+
+  def test_gen_demultiplexer_hook_multiple_types(self):
+    intrinsic = {
+            "class": "template",
+            "variants": [ "int32_t, Float32", "int64_t, Float64" ],
+            "in": [ "Type0", "int8_t" ],
+            "out": [ "Type0" ]
+        }
+    out = io.StringIO()
+    gen_intrinsics._gen_demultiplexer_hook(out, "Foo", intrinsic)
+    self.assertSequenceEqual(out.getvalue(),
+                             " BERBERIS_INTRINSICS_HOOKS_LISTENER Register "
+                             "BERBERIS_INTRINSICS_HOOKS_LISTENER Foo( BERBERIS_INTRINSICS_HOOKS_LISTENER "
+                             "Register arg0,  BERBERIS_INTRINSICS_HOOKS_LISTENER Register arg1, "
+                             "intrinsics::TemplateTypeId Type0, intrinsics::TemplateTypeId Type1) "
+                             "BERBERIS_INTRINSICS_HOOKS_CONST {\n"
+                             "  switch (intrinsics::TrivialDemultiplexer(Type0, Type1)) {\n"
+                             "    case intrinsics::TrivialDemultiplexer(intrinsics::kIdFromType<int32_t>, "
+                             "intrinsics::kIdFromType<Float32>):\n"
+                             "      // Disable LOG_NDEBUG to use DCHECK for debugging!\n"
+                             "      DCHECK_EQ(intrinsics::kIdFromType<int32_t>, Type0);\n"
+                             "      DCHECK_EQ(intrinsics::kIdFromType<Float32>, Type1);\n"
+                             "      return Foo<int32_t, Float32>(arg0,arg1);\n"
+                             "    case intrinsics::TrivialDemultiplexer(intrinsics::kIdFromType<int64_t>, "
+                             "intrinsics::kIdFromType<Float64>):\n"
+                             "      // Disable LOG_NDEBUG to use DCHECK for debugging!\n"
+                             "      DCHECK_EQ(intrinsics::kIdFromType<int64_t>, Type0);\n"
+                             "      DCHECK_EQ(intrinsics::kIdFromType<Float64>, Type1);\n"
+                             "      return Foo<int64_t, Float64>(arg0,arg1);\n"
+                             "    default:\n"
+                             "      FATAL(\"Unsupported size\");\n"
+                             "  }\n"
+                             "}\n\n") # pyformat: disable
 
 
 if __name__ == "__main__":

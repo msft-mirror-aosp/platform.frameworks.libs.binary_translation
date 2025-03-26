@@ -162,6 +162,7 @@ genrule {
         "berberis/intrinsics/intrinsics_process_bindings-inl.h",
         "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h",
         "berberis/intrinsics/translator_intrinsics_hooks-inl.h",
+        "berberis/intrinsics/demultiplexer_intrinsics_hooks-inl.h",
         "berberis/intrinsics/mock_semantics_listener_intrinsics_hooks-inl.h",
     ],
     srcs: [
@@ -187,6 +188,7 @@ genrule {
     out: [
         "berberis/intrinsics/intrinsics-inl.h",
         "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h",
+        "berberis/intrinsics/demultiplexer_intrinsics_hooks-inl.h",
     ],
     srcs: [
         ":libberberis_intrinsics_gen_inputs_riscv64_to_all",
