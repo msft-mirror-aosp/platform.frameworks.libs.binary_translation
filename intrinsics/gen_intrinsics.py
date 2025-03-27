@@ -194,9 +194,8 @@ def _gen_template_intr_decl(f, name, intr):
 def _get_template_parameters(
     variants,
     precise_nans=False,
-    use_type_id=False,
     extra=['enum PreferredIntrinsicsImplementation = kUseAssemblerImplementationIfPossible']):
-  if use_type_id:
+  if len(extra) == 0:
     typename = 'intrinsics::TemplateTypeId'
   else:
     typename = 'typename'
@@ -290,28 +289,25 @@ def _get_semantics_player_hook_proto_components(name, intr, listener=''):
   return result, name, ', '.join(args)
 
 
-def _get_semantics_player_hook_proto(name, intr, use_type_id=False, listener=''):
+def _get_semantics_player_hook_proto(name, intr, make_template=True, listener=''):
   if listener != '':
-    use_type_id = True
+    make_template = False
   result, name, params = _get_semantics_player_hook_proto_components(name, intr, listener)
   if intr.get('class') == 'template':
-    template_parameters = _get_template_parameters(
-      intr.get('variants'), use_type_id=use_type_id, extra = [])
-    if listener == '':
-      values = ''
-      if use_type_id:
-        spec_arguments = _get_template_spec_arguments(intr.get('variants'))
-        values = ', ' + ', '.join(
-            ['intrinsics::Value<%s>' % argument for argument in spec_arguments])
+    template_parameters = _get_template_parameters(intr.get('variants'), extra = [])
+    if make_template:
+      spec_arguments = _get_template_spec_arguments(intr.get('variants'))
+      values = ', ' + ', '.join(
+          ['intrinsics::Value<%s>' % argument for argument in spec_arguments])
       return 'template<%s>\n%s %s(%s%s)' % (
         template_parameters, result, name, params, values)
     else:
-      return '%s%s%s(%s, %s)' % (
+      return '%s %s%s(%s, %s)' % (
         result, listener, name, params, template_parameters)
   return '%s %s(%s)' % (result, name, params)
 
 
-def _get_interpreter_hook_call_expr(name, intr, desc=None, use_type_id=False):
+def _get_interpreter_hook_call_expr(name, intr, desc=None):
   ins = intr['in']
   outs = intr['out']
 
@@ -321,7 +317,7 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None, use_type_id=False):
     semantic_player_type = _get_semantic_player_type(
         op, intr.get('sem-player-types'))
     if semantic_player_type == 'FpRegister':
-      if op.startswith('Type') and use_type_id:
+      if op.startswith('Type'):
         op = 'intrinsics::TypeFromId<%s>' % op
       call_params.append('FPRegToFloat<%s>(%s)' % (op, arg))
     elif semantic_player_type == 'SimdRegister':
@@ -330,12 +326,12 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None, use_type_id=False):
       call_params.append('berberis::bit_cast<%s>(%s)' % (_get_c_type(op), arg))
     else:
       c_type = _get_c_type(op)
-      if c_type.startswith('Type') and use_type_id:
+      if c_type.startswith('Type'):
         c_type = 'intrinsics::TypeFromId<%s>' % c_type
       call_params.append('GPRRegToInteger<%s>(%s)' % (c_type, arg))
 
   call_expr = 'intrinsics::%s%s(%s)' % (
-      name, _get_desc_specializations(intr, desc, use_type_id), ', '.join(call_params))
+      name, _get_desc_specializations(intr, desc), ', '.join(call_params))
 
   if len(outs) == 1:
     # Unwrap tuple for single result.
@@ -366,8 +362,8 @@ def _get_interpreter_hook_call_expr(name, intr, desc=None, use_type_id=False):
   return call_expr
 
 
-def _get_interpreter_hook_return_stmt(name, intr, desc=None, use_type_id=False):
-  return 'return ' + _get_interpreter_hook_call_expr(name, intr, desc, use_type_id) + ';'
+def _get_interpreter_hook_return_stmt(name, intr, desc=None):
+  return 'return ' + _get_interpreter_hook_call_expr(name, intr, desc) + ';'
 
 
 def _get_unused(intr):
@@ -450,15 +446,13 @@ def _get_interpreter_hook_vector_body(name, intr):
       name, intr, _get_interpreter_hook_return_stmt)
 
 
-def _gen_interpreter_hook(f, name, intr, option, use_type_id=False):
-  if use_type_id:
+def _gen_interpreter_hook(f, name, intr, option):
+  if intr.get('class') == 'template':
     print('#ifndef BERBERIS_INTRINSICS_HOOKS_INLINE_DEMULTIPLEXER\n'
           '%s const;\n#endif' % (
-        # Note: we use ' ' to generate version without template arguments
-        # but we don't need listener name here.
-        _get_semantics_player_hook_proto(name, intr, listener=' ')), file=f)
+        _get_semantics_player_hook_proto(name, intr, make_template=False)), file=f)
   print('%s const {' % (
-      _get_semantics_player_hook_proto(name, intr, use_type_id)), file=f)
+      _get_semantics_player_hook_proto(name, intr)), file=f)
 
   if _is_vector_class(intr):
     if 'raw' in intr['variants']:
@@ -481,32 +475,30 @@ def _gen_interpreter_hook(f, name, intr, option, use_type_id=False):
     if (option == 'arm64') and (name not in arm64_allowlist):
       _get_placeholder_return_stmt(intr, f)
     else:
-      print(INDENT + _get_interpreter_hook_return_stmt(name, intr, use_type_id=use_type_id), file=f)
+      print(INDENT + _get_interpreter_hook_return_stmt(name, intr), file=f)
 
     print('}\n', file=f)
 
 
-def _get_translator_hook_call_expr(name, intr, desc=None, use_type_id=False):
-  desc_spec = _get_desc_specializations(intr, desc, use_type_id)
+def _get_translator_hook_call_expr(name, intr, desc=None):
+  desc_spec = _get_desc_specializations(intr, desc)
   args = [('arg%d' % n) for n, _ in enumerate(intr['in'])]
   template_params = ['&intrinsics::' + name + desc_spec]
   template_params += [_get_semantics_player_hook_result(intr)]
   return 'CallIntrinsic<%s>(%s)' % (', '.join(template_params), ', '.join(args))
 
 
-def _get_translator_hook_return_stmt(name, intr, desc=None, use_type_id=False):
-  return 'return ' + _get_translator_hook_call_expr(name, intr, desc, use_type_id) + ';'
+def _get_translator_hook_return_stmt(name, intr, desc=None):
+  return 'return ' + _get_translator_hook_call_expr(name, intr, desc) + ';'
 
 
-def _gen_translator_hook(f, name, intr, use_type_id=False):
-  if use_type_id:
+def _gen_translator_hook(f, name, intr):
+  if intr.get('class') == 'template':
     print('#ifndef BERBERIS_INTRINSICS_HOOKS_INLINE_DEMULTIPLEXER\n'
           '%s;\n#endif' % (
-        # Note: we use ' ' to generate version without template arguments
-        # but we don't need listener name here.
-        _get_semantics_player_hook_proto(name, intr, listener=' ')), file=f)
+        _get_semantics_player_hook_proto(name, intr, make_template=False)), file=f)
   print('%s {' % (
-      _get_semantics_player_hook_proto(name, intr, use_type_id)), file=f)
+      _get_semantics_player_hook_proto(name, intr)), file=f)
 
   if _is_vector_class(intr):
     if 'raw' in intr['variants']:
@@ -523,7 +515,7 @@ def _gen_translator_hook(f, name, intr, use_type_id=False):
     lines = [INDENT + l for l in lines]
     print('\n'.join(lines), file=f)
   else:
-    print(INDENT + _get_translator_hook_return_stmt(name, intr, use_type_id=use_type_id), file=f)
+    print(INDENT + _get_translator_hook_return_stmt(name, intr), file=f)
 
   print('}\n', file=f)
 
@@ -544,16 +536,17 @@ def _get_semantics_player_hook_template_switch(name, intr):
   variables = _get_template_spec_arguments(intr.get('variants'))
   yield 'switch (intrinsics::TrivialDemultiplexer(%s)) {' % ', '.join(variables)
   for variant in intr.get('variants'):
-    expectations= _get_expectations_for_variant(variant)
+    expectations =  _get_expectations_for_variant(variant)
     yield '%scase intrinsics::TrivialDemultiplexer(%s):' % (
       INDENT, ', '.join(expectations))
     yield 2 * INDENT + "// Disable LOG_NDEBUG to use DCHECK for debugging!"
     for expectation, variable in zip(expectations, variables):
       yield 2 * INDENT + 'DCHECK_EQ(%s, %s);' % (expectation, variable)
-    yield 2 * INDENT + 'return %s<%s>(%s);' % (
+    yield 2 * INDENT + 'return %s(%s);' % (
       name,
-      variant,
-      ','.join('arg%d' % arg[0] for arg in enumerate(intr['in'])))
+      ','.join(list('arg%d' % arg[0] for arg in enumerate(intr['in'])) +
+               list(f'intrinsics::Value<{expectation}>{{}}'
+                    for expectation in expectations)))
   yield INDENT + 'default:'
   yield 2 * INDENT + 'FATAL("Unsupported size");'
   yield '}'
@@ -574,23 +567,14 @@ def _gen_mock_semantics_listener_hook(f, name, intr):
   result, name, params = _get_semantics_player_hook_proto_components(name, intr)
   if intr.get('class') == 'template':
     spec_arguments = _get_template_spec_arguments(intr.get('variants'))
-    for use_type_id in [True, False]:
-      template_parameters = _get_template_parameters(
-        intr.get('variants'), use_type_id=use_type_id, extra = [])
-      args = ', '.join(
-         [('arg%d' % n) for n, _ in enumerate(intr['in'])] +
-         [arg
-            if use_type_id or not arg.startswith('Type') else
-          'intrinsics::kIdFromType<%s>' % arg
-          for arg in spec_arguments])
-      values = ''
-      if use_type_id:
-        values = ', ' + ', '.join(
-            ['intrinsics::Value<%s>' % argument for argument in spec_arguments])
-      print('template<%s>\n%s %s(%s%s) {' % (
-        template_parameters, result, name, params, values), file=f)
-      _gen_template_parameters_verifier(f, intr, use_type_id=use_type_id)
-      print('%sreturn %s(%s);\n}' % (INDENT, name, args), file=f)
+    template_parameters = _get_template_parameters(intr.get('variants'), extra = [])
+    args = ', '.join([('arg%d' % n) for n, _ in enumerate(intr['in'])] + spec_arguments)
+    values = ', ' + ', '.join(
+        ['intrinsics::Value<%s>' % argument for argument in spec_arguments])
+    print('template<%s>\n%s %s(%s%s) {' % (
+      template_parameters, result, name, params, values), file=f)
+    _gen_template_parameters_verifier(f, intr)
+    print('%sreturn %s(%s);\n}' % (INDENT, name, args), file=f)
     params = ', '.join(
       [params] +
       ['%s %s' % (
@@ -604,12 +588,8 @@ def _gen_mock_semantics_listener_hook(f, name, intr):
   print('MOCK_METHOD((%s), %s, (%s));' % (result, name, params), file=f)
 
 
-def _gen_template_parameters_verifier(f, intr, use_type_id=False):
-  received_params = ', '.join(
-    param
-      if not param.strip().startswith('Type') or use_type_id else
-    f'intrinsics::kIdFromType<{param}>'
-    for param in _get_template_spec_arguments(intr.get('variants')))
+def _gen_template_parameters_verifier(f, intr):
+  received_params = ', '.join(_get_template_spec_arguments(intr.get('variants')))
   print('%sstatic_assert(%s);' % (
    INDENT,
    ' || '.join(
@@ -755,9 +735,9 @@ def _get_cast_from_simd128(var, target_type, ptr_bits):
   return '%s%s' % (var, cast_map[c_type])
 
 
-def _get_desc_specializations(intr, desc=None, use_type_id=False):
+def _get_desc_specializations(intr, desc=None):
   if intr.get('class') == 'template':
-    spec = _get_template_spec_arguments(intr.get('variants'), use_type_id)
+    spec = _get_template_spec_arguments(intr.get('variants'), use_type_id=True)
   elif hasattr(desc, 'c_type'):
     spec = [desc.c_type, str(desc.num_elements)]
   elif hasattr(desc, 'num_elements'):
@@ -860,18 +840,12 @@ def _gen_semantic_player_types(intrs):
 def _gen_interpreter_intrinsics_hooks_impl_inl_h(f, intrs, option):
   print(AUTOGEN, file=f)
   for name, intr in intrs:
-    if intr.get('class') == 'template':
-      _gen_interpreter_hook(
-          f, name, intr, option, use_type_id=True)
     _gen_interpreter_hook(f, name, intr, option)
 
 
 def _gen_translator_intrinsics_hooks_impl_inl_h(f, intrs):
   print(AUTOGEN, file=f)
   for name, intr in intrs:
-    if intr.get('class') == 'template':
-      _gen_translator_hook(
-          f, name, intr, use_type_id=True)
     _gen_translator_hook(f, name, intr)
 
 

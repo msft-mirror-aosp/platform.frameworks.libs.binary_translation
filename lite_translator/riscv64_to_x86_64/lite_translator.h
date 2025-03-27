@@ -61,6 +61,17 @@ class LiteTranslator {
   using Float32 = intrinsics::Float32;
   using Float64 = intrinsics::Float64;
 
+  using TemplateTypeId = intrinsics::TemplateTypeId;
+  template <typename Type>
+  static constexpr auto kIdFromType = intrinsics::kIdFromType<Type>;
+  template <auto kEnumValue>
+  using TypeFromId = intrinsics::TypeFromId<kEnumValue>;
+  template <auto ValueParam>
+  using Value = intrinsics::Value<ValueParam>;
+  static constexpr TemplateTypeId IntSizeToTemplateTypeId(uint8_t size, bool is_signed = false) {
+    return intrinsics::IntSizeToTemplateTypeId(size, is_signed);
+  }
+
   explicit LiteTranslator(MachineCode* machine_code,
                           GuestAddr pc,
                           LiteTranslateParams params = LiteTranslateParams{})
@@ -415,14 +426,14 @@ class LiteTranslator {
     return Assembler::no_xmm_register;
   };
 
-  template <typename IntType, bool aq, bool rl>
-  Register Lr(Register /* addr */) {
+  template <intrinsics::TemplateTypeId IntType, bool aq, bool rl>
+  Register Lr(Register, Value<IntType>, Value<aq>, Value<rl>) {
     Undefined();
     return Assembler::no_register;
   }
 
-  template <typename IntType, bool aq, bool rl>
-  Register Sc(Register /* addr */, Register /* data */) {
+  template <intrinsics::TemplateTypeId IntType, bool aq, bool rl>
+  Register Sc(Register, Register, Value<IntType>, Value<aq>, Value<rl>) {
     Undefined();
     return Assembler::no_register;
   }
