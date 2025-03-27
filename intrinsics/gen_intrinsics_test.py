@@ -455,6 +455,10 @@ class GenIntrinsicsTests(unittest.TestCase):
     out = io.StringIO()
     gen_intrinsics._gen_interpreter_hook(out, "Foo", intrinsic, '', use_type_id=True)
     self.assertSequenceEqual(out.getvalue(),
+                             "#ifndef BERBERIS_INTRINSICS_HOOKS_INLINE_DEMULTIPLEXER\n"
+                             " Register Foo( Register arg0,  Register arg1, intrinsics::TemplateTypeId "
+                             "Type0) const;\n"
+                             "#endif\n"
                              "template<intrinsics::TemplateTypeId Type0>\n"
                              "Register Foo(Register arg0, Register arg1, intrinsics::Value<Type0>) const {\n"
                              "  return std::get<0>(intrinsics::Foo<intrinsics::TypeFromId<Type0>>("
