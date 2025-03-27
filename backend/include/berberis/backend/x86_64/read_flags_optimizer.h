@@ -36,6 +36,11 @@ bool RegsLiveInBasicBlock(MachineBasicBlock* bb, const ArenaVector<MachineReg>& 
 std::optional<MachineInsnList::iterator> FindFlagSettingInsn(MachineInsnList::iterator insn_it,
                                                              MachineInsnList::iterator begin,
                                                              MachineReg reg);
+std::optional<MachineInsn*> IsEligibleReadFlag(MachineIR* machine_ir,
+                                               Loop* loop,
+                                               MachineBasicBlock* block,
+                                               MachineInsnList::iterator insn_it);
+
 }  // namespace berberis::x86_64
 
 #endif  // BERBERIS_BACKEND_X86_64_READ_FLAGS_OPTIMIZER_H_

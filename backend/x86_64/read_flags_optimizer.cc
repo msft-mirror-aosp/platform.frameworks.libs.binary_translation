@@ -181,4 +181,71 @@ std::optional<MachineInsnList::iterator> FindFlagSettingInsn(MachineInsnList::it
   return std::nullopt;
 }
 
+// Given an iterator that points to a READFLAGS instruction, checks if the
+// instruction can be optimized away.
+//
+// In the case we can't optimize it, we return std::nullopt. If we can optimize
+// it, we return an optional containing a pointer to the MachineInsn which set
+// the flag register which we would be reading.
+//
+// For now we only consider the common special case.
+// READFLAG is eligible to be removed if
+// * in loop
+// * register must not be used elsewhere in the loop
+// * lifetime of register should be limited to an exit node,
+//   post loop node, neighboring exit nodes, and post loop nodes of those
+//   neighbors
+//   * We can guarantee this via live_in and live_out properties
+//   * For post loop, neighbor exit nodes, and post loop nodes of
+//     those neighbors, only one in_edges
+//   * Register must not be live_in besides in the aforementioned nodes.
+//
+// As example of the allowed configuration
+//   (LOOP NODE) -> (READFLAG NODE) -> (POST LOOP NODE)
+//         ^             |
+//         |             v
+//   (LOOP NODE) <-  (EXIT NODE) ---> (NEIGHBOR'S POST LOOP NODE)
+std::optional<MachineInsn*> IsEligibleReadFlag(MachineIR* machine_ir,
+                                               Loop* loop,
+                                               MachineBasicBlock* bb,
+                                               MachineInsnList::iterator insn_it) {
+  CHECK_EQ(AsMachineInsnX86_64(*insn_it)->opcode(), kMachineOpPseudoReadFlags);
+  auto flag_register = (*insn_it)->RegAt(1);
+  // We use a set here because the original register will be pseudocopy'd when
+  // used as live_out. So long as these new registers adhere to the same
+  // constraints this is fine.
+  ArenaVector<MachineReg> regs({(*insn_it)->RegAt(0)}, machine_ir->arena());
+  insn_it++;
+  if (!CheckRegsUnusedWithinInsnRange(insn_it, bb->insn_list().end(), regs)) {
+    return std::nullopt;
+  }
+
+  bool is_exit_node = false;
+  // Reached end of basic block, check neighbors.
+  for (auto edge : bb->out_edges()) {
+    if (Contains(*loop, edge->dst())) {
+      // Check if it's a neighbor exit node.
+      if (!CheckSuccessorNode(loop, edge->dst(), regs)) {
+        return std::nullopt;
+      }
+    } else {
+      is_exit_node = true;
+      // Check if it satisifes post loop node requirements.
+      if (!CheckPostLoopNode(edge->dst(), regs)) {
+        return std::nullopt;
+      }
+    }
+  }
+  if (!is_exit_node) {
+    return std::nullopt;
+  }
+
+  // Make sure we know how to copy this instruction.
+  auto flag_setter = FindFlagSettingInsn(insn_it, bb->insn_list().begin(), flag_register);
+  if (flag_setter.has_value() && GetInsnGen((*flag_setter.value())->opcode()).has_value()) {
+    return *flag_setter.value();
+  }
+  return std::nullopt;
+}
+
 }  // namespace berberis::x86_64
