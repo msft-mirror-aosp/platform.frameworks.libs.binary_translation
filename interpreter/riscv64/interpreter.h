@@ -4455,9 +4455,11 @@ class Interpreter {
     }
   }
 
+#ifdef BERBERIS_INTRINSICS_HOOKS_INLINE_DEMULTIPLEXER
 #define BERBERIS_INTRINSICS_HOOKS_CONST const
 #include "berberis/intrinsics/demultiplexer_intrinsics_hooks-inl.h"
 #undef BERBERIS_INTRINSICS_HOOKS_CONST
+#endif
 #include "berberis/intrinsics/interpreter_intrinsics_hooks-inl.h"
 
  private:

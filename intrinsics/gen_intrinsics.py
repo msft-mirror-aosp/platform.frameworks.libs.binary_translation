@@ -451,6 +451,12 @@ def _get_interpreter_hook_vector_body(name, intr):
 
 
 def _gen_interpreter_hook(f, name, intr, option, use_type_id=False):
+  if use_type_id:
+    print('#ifndef BERBERIS_INTRINSICS_HOOKS_INLINE_DEMULTIPLEXER\n'
+          '%s const;\n#endif' % (
+        # Note: we use ' ' to generate version without template arguments
+        # but we don't need listener name here.
+        _get_semantics_player_hook_proto(name, intr, listener=' ')), file=f)
   print('%s const {' % (
       _get_semantics_player_hook_proto(name, intr, use_type_id)), file=f)
 
@@ -493,6 +499,12 @@ def _get_translator_hook_return_stmt(name, intr, desc=None, use_type_id=False):
 
 
 def _gen_translator_hook(f, name, intr, use_type_id=False):
+  if use_type_id:
+    print('#ifndef BERBERIS_INTRINSICS_HOOKS_INLINE_DEMULTIPLEXER\n'
+          '%s;\n#endif' % (
+        # Note: we use ' ' to generate version without template arguments
+        # but we don't need listener name here.
+        _get_semantics_player_hook_proto(name, intr, listener=' ')), file=f)
   print('%s {' % (
       _get_semantics_player_hook_proto(name, intr, use_type_id)), file=f)
 
@@ -873,10 +885,20 @@ def _gen_demultiplexer_intrinsics_hooks_impl_inl_h(f, intrs):
 #ifndef BERBERIS_INTRINSICS_HOOKS_CONST
 #define BERBERIS_INTRINSICS_HOOKS_CONST
 #endif
+
+#ifndef BERBERIS_INTRINSICS_HOOKS_SHARDS_COUNT
+#define BERBERIS_INTRINSICS_HOOKS_SHARDS_COUNT 1
+#define BERBERIS_INTRINSICS_HOOKS_SHARD 0
+#endif
 """, file=f)
+  counter = 0
   for name, intr in intrs:
     if intr.get('class') == 'template':
+      print('#if %d %% BERBERIS_INTRINSICS_HOOKS_SHARDS_COUNT == '
+            'BERBERIS_INTRINSICS_HOOKS_SHARD' % counter, file=f)
       _gen_demultiplexer_hook(f, name, intr)
+      print('#endif', file=f)
+      counter += 1
 
 
 def _gen_mock_semantics_listener_intrinsics_hooks_impl_inl_h(f, intrs):

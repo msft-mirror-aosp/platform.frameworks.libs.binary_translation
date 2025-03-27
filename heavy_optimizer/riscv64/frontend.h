@@ -322,7 +322,9 @@ class HeavyOptimizerFrontend {
   // Intrinsic proxy methods.
   //
 
+#ifdef BERBERIS_INTRINSICS_HOOKS_INLINE_DEMULTIPLEXER
 #include "berberis/intrinsics/demultiplexer_intrinsics_hooks-inl.h"
+#endif
 #include "berberis/intrinsics/translator_intrinsics_hooks-inl.h"
 
   //
